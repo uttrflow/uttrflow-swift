@@ -1,0 +1,211 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      /* Read from NSColor on macOS 26.5, sRGB. */
+      --label: rgba(0,0,0,0.847);
+      --label-2: rgba(0,0,0,0.498);
+      --label-3: rgba(0,0,0,0.259);
+      --label-4: rgba(0,0,0,0.098);
+      --separator: rgba(0,0,0,0.098);
+      --window-bg: #FFFFFF;
+      --sidebar-bg: rgba(246,246,248,0.94);
+      --fill: rgba(0,0,0,0.05);
+      --fill-2: rgba(0,0,0,0.08);
+      /* Teal ramp, hue 175 — derived from the mark's signal teal (#17A398).
+         The brand teal itself only reaches 3.1:1 on white, so it stays a mark
+         and state colour and never carries interface text; this ramp is what
+         fills use. White 13px text needs 4.5:1, which caps a text-bearing fill
+         at 29% lightness. Everything that carries no text goes lighter, which
+         is most of the surface area, so the interface still reads light. */
+      --accent: #128077;         /* fills with white text on them — 4.80:1 */
+      --accent-pressed: #0E645D;
+      --accent-light: #39D0C4;   /* controls and graphics with no text */
+      --accent-tint: #9EDCD7;    /* large decorative fills */
+      --accent-wash: #EFF8F7;    /* tinted backgrounds */
+      --accent-dark: #29C0B4;    /* on dark surfaces — 7.4:1 on #1E1E1E */
+      --logo-ink: #101316;       /* the mark's ink; chalk on dark, see _gen_shell */
+      /* The accent as a foreground rather than a fill: waveform bars, the second
+         series in a chart. A lighter weight of the one accent, not a second hue —
+         the identity is ink, chalk, signal and slate, and a fifth colour invented
+         for contrast is how a palette stops meaning anything. */
+      --accent-2: #5FE0D3;
+      --accent-2-deep: #0E645D;
+      --red: #FF383C;
+      --green: #34C759;
+
+      /* NSFont.preferredFont point sizes, macOS 26.5. */
+      --t-large-title: 26px;
+      --t-title1: 22px;
+      --t-title2: 17px;
+      --t-title3: 15px;
+      --t-body: 13px;
+      --t-callout: 12px;
+      --t-subhead: 11px;
+      --t-footnote: 10px;
+
+      --radius-window: 14px;
+      --radius-control: 7px;
+      --radius-card: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      font-size: var(--t-body);
+      color: var(--label);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-pressed); }
+    .stage {
+      display: flex; align-items: center; justify-content: center;
+      background: #E8E8ED;
+      background-image: radial-gradient(120% 120% at 20% 0%, #F2F1F6 0%, #DFDEE6 60%, #CFCEDA 100%);
+    }
+    .win {
+      background: var(--window-bg);
+      border-radius: var(--radius-window);
+      box-shadow: 0 22px 60px rgba(0,0,0,0.24), 0 2px 6px rgba(0,0,0,0.12),
+                  0 0 0 0.5px rgba(0,0,0,0.16);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .lights { display: flex; gap: 8px; align-items: center; }
+    .light { width: 12px; height: 12px; border-radius: 50%; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 28px; padding: 0 14px; border-radius: var(--radius-control);
+      font-size: var(--t-body); font-weight: 500; white-space: nowrap;
+      border: 0.5px solid rgba(0,0,0,0.14); background: #FFFFFF;
+      box-shadow: 0 0.5px 1px rgba(0,0,0,0.08);
+      color: var(--label);
+    }
+    .btn.primary {
+      background: var(--accent); color: #FFFFFF; border-color: transparent;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.14);
+    }
+    .btn.plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent); }
+    .btn.destructive { color: var(--red); }
+    .btn.sm { height: 22px; padding: 0 10px; font-size: var(--t-callout); }
+    .key {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px;
+      border-radius: 6px; background: #FFFFFF;
+      border: 0.5px solid rgba(0,0,0,0.18);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.10), inset 0 -1px 0 rgba(0,0,0,0.04);
+      font-size: var(--t-callout); font-weight: 500; color: var(--label);
+    }
+    .muted { color: var(--label-2); }
+    .faint { color: var(--label-3); }
+    .row { display: flex; align-items: center; }
+    .hr { height: 0.5px; background: var(--separator); }
+
+    .stage.err { background: #EFEFF3; display: block;
+      background-image: linear-gradient(180deg, #F4F4F8 0%, #E9E9EF 100%); }
+    .sect { font-size: var(--t-subhead); font-weight: 600; letter-spacing: 0.4px;
+            text-transform: uppercase; color: var(--label-3); margin: 0 0 12px; }
+    .banner { display: flex; gap: 12px; padding: 14px 15px; border-radius: var(--radius-card);
+              background: #FFFFFF; border: 0.5px solid var(--separator);
+              box-shadow: 0 1px 3px rgba(0,0,0,0.06); width: 396px; }
+    .tile { width: 30px; height: 30px; border-radius: 9px; flex: none; display: flex;
+            align-items: center; justify-content: center; color: #FFFFFF; }
+    .banner .t { font-size: var(--t-body); font-weight: 600; }
+    .banner .b { font-size: var(--t-callout); color: var(--label-2); margin-top: 4px;
+                 line-height: 1.45; }
+    .banner .acts { display: flex; gap: 8px; margin-top: 11px; }
+    .cap { font-size: var(--t-footnote); color: var(--label-3); margin: 8px 0 0 42px; width: 354px;
+           line-height: 1.45; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 32px; }
+</style>
+</helmet>
+<div class="stage err" style="width: 900px; height: 700px; padding: 38px">
+  <div>
+    <p class="sect">Errors and repair states</p>
+    <div class="grid">
+      <div>
+        <div class="banner">
+          <div class="tile" style="background: #FF383C"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></div>
+          <div style="flex:1; min-width:0">
+            <div class="t">Microphone access is turned off</div>
+            <div class="b">Uttrflow cannot hear you until macOS lets it use the microphone.</div>
+            <div class="acts"><button class="btn sm primary">Open System Settings</button><button class="btn sm plain">Learn why</button></div>
+          </div>
+        </div>
+        <div class="cap">Blocking. Dictation is disabled rather than failing silently when you press the key.</div>
+      </div><div>
+        <div class="banner">
+          <div class="tile" style="background: #FF8D28"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.6" r="1.9"/><path d="M4.6 8.3h14.8"/><path d="M9.4 8.3v3.6l-2 8"/><path d="M14.6 8.3v3.6l2 8"/></svg></div>
+          <div style="flex:1; min-width:0">
+            <div class="t">Uttrflow can&rsquo;t type into other apps</div>
+            <div class="b">Without Accessibility access, finished text is copied to your clipboard instead of being typed for you.</div>
+            <div class="acts"><button class="btn sm primary">Open System Settings</button><button class="btn sm">Keep using the clipboard</button></div>
+          </div>
+        </div>
+        <div class="cap">Degraded, not broken. The product still does its job &mdash; you press &#8984;V.</div>
+      </div><div>
+        <div class="banner">
+          <div class="tile" style="background: #FF8D28"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 19.5h15"/></svg></div>
+          <div style="flex:1; min-width:0">
+            <div class="t">Setup couldn&rsquo;t finish</div>
+            <div class="b">The download stopped at 413 MB. This is the only step that needs the internet.</div>
+            <div class="acts"><button class="btn sm primary">Try Again</button><button class="btn sm">Do this later</button></div>
+          </div>
+        </div>
+        <div class="cap">Recoverable. Progress is kept, so retrying resumes rather than restarting.</div>
+      </div><div>
+        <div class="banner">
+          <div class="tile" style="background: #8E8E93"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></div>
+          <div style="flex:1; min-width:0">
+            <div class="t">We didn&rsquo;t catch that</div>
+            <div class="b">That was under half a second of sound. Hold the shortcut while you talk, and let go when you&rsquo;re done.</div>
+            <div class="acts"><button class="btn sm">Got it</button></div>
+          </div>
+        </div>
+        <div class="cap">Not an error, and worded so it doesn&rsquo;t read like one. Auto-dismisses.</div>
+      </div><div>
+        <div class="banner">
+          <div class="tile" style="background: #FF8D28"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 2.8 20h18.4L12 4.5z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg></div>
+          <div style="flex:1; min-width:0">
+            <div class="t">Nowhere to put the text</div>
+            <div class="b">Nothing on screen accepts typing right now, so your words are on the clipboard.</div>
+            <div class="acts"><button class="btn sm primary">Paste</button><button class="btn sm">Copy again</button></div>
+          </div>
+        </div>
+        <div class="cap">The transcript is never lost. Every insertion failure ends with the text in hand.</div>
+      </div><div>
+        <div class="banner">
+          <div class="tile" style="background: #128077"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9L12 3.5z"/><path d="M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/></svg></div>
+          <div style="flex:1; min-width:0">
+            <div class="t">Couldn&rsquo;t tidy that up</div>
+            <div class="b">Your words were captured exactly as you said them, just without the clean-up.</div>
+            <div class="acts"><button class="btn sm primary">Insert as-is</button><button class="btn sm">Copy</button></div>
+          </div>
+        </div>
+        <div class="cap">Clean-up is the only optional stage. Failing it degrades quality, never output.</div>
+      </div>
+    </div>
+    <div style="margin-top: 26px; padding: 13px 15px; border-radius: var(--radius-card);
+         background: rgba(0,0,0,0.035); font-size: var(--t-callout); color: var(--label-2);
+         line-height: 1.55; max-width: 824px">
+      Every failure carries its own sentence and its own single next action, so there is one
+      way of showing a problem rather than six. None of them asks the user to understand
+      anything about how Uttrflow works.
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":900,"height":700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

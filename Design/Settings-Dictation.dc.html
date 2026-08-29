@@ -1,0 +1,208 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      /* Read from NSColor on macOS 26.5, sRGB. */
+      --label: rgba(0,0,0,0.847);
+      --label-2: rgba(0,0,0,0.498);
+      --label-3: rgba(0,0,0,0.259);
+      --label-4: rgba(0,0,0,0.098);
+      --separator: rgba(0,0,0,0.098);
+      --window-bg: #FFFFFF;
+      --sidebar-bg: rgba(246,246,248,0.94);
+      --fill: rgba(0,0,0,0.05);
+      --fill-2: rgba(0,0,0,0.08);
+      /* Teal ramp, hue 175 — derived from the mark's signal teal (#17A398).
+         The brand teal itself only reaches 3.1:1 on white, so it stays a mark
+         and state colour and never carries interface text; this ramp is what
+         fills use. White 13px text needs 4.5:1, which caps a text-bearing fill
+         at 29% lightness. Everything that carries no text goes lighter, which
+         is most of the surface area, so the interface still reads light. */
+      --accent: #128077;         /* fills with white text on them — 4.80:1 */
+      --accent-pressed: #0E645D;
+      --accent-light: #39D0C4;   /* controls and graphics with no text */
+      --accent-tint: #9EDCD7;    /* large decorative fills */
+      --accent-wash: #EFF8F7;    /* tinted backgrounds */
+      --accent-dark: #29C0B4;    /* on dark surfaces — 7.4:1 on #1E1E1E */
+      --logo-ink: #101316;       /* the mark's ink; chalk on dark, see _gen_shell */
+      /* The accent as a foreground rather than a fill: waveform bars, the second
+         series in a chart. A lighter weight of the one accent, not a second hue —
+         the identity is ink, chalk, signal and slate, and a fifth colour invented
+         for contrast is how a palette stops meaning anything. */
+      --accent-2: #5FE0D3;
+      --accent-2-deep: #0E645D;
+      --red: #FF383C;
+      --green: #34C759;
+
+      /* NSFont.preferredFont point sizes, macOS 26.5. */
+      --t-large-title: 26px;
+      --t-title1: 22px;
+      --t-title2: 17px;
+      --t-title3: 15px;
+      --t-body: 13px;
+      --t-callout: 12px;
+      --t-subhead: 11px;
+      --t-footnote: 10px;
+
+      --radius-window: 14px;
+      --radius-control: 7px;
+      --radius-card: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      font-size: var(--t-body);
+      color: var(--label);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-pressed); }
+    .stage {
+      display: flex; align-items: center; justify-content: center;
+      background: #E8E8ED;
+      background-image: radial-gradient(120% 120% at 20% 0%, #F2F1F6 0%, #DFDEE6 60%, #CFCEDA 100%);
+    }
+    .win {
+      background: var(--window-bg);
+      border-radius: var(--radius-window);
+      box-shadow: 0 22px 60px rgba(0,0,0,0.24), 0 2px 6px rgba(0,0,0,0.12),
+                  0 0 0 0.5px rgba(0,0,0,0.16);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .lights { display: flex; gap: 8px; align-items: center; }
+    .light { width: 12px; height: 12px; border-radius: 50%; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 28px; padding: 0 14px; border-radius: var(--radius-control);
+      font-size: var(--t-body); font-weight: 500; white-space: nowrap;
+      border: 0.5px solid rgba(0,0,0,0.14); background: #FFFFFF;
+      box-shadow: 0 0.5px 1px rgba(0,0,0,0.08);
+      color: var(--label);
+    }
+    .btn.primary {
+      background: var(--accent); color: #FFFFFF; border-color: transparent;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.14);
+    }
+    .btn.plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent); }
+    .btn.destructive { color: var(--red); }
+    .btn.sm { height: 22px; padding: 0 10px; font-size: var(--t-callout); }
+    .key {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px;
+      border-radius: 6px; background: #FFFFFF;
+      border: 0.5px solid rgba(0,0,0,0.18);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.10), inset 0 -1px 0 rgba(0,0,0,0.04);
+      font-size: var(--t-callout); font-weight: 500; color: var(--label);
+    }
+    .muted { color: var(--label-2); }
+    .faint { color: var(--label-3); }
+    .row { display: flex; align-items: center; }
+    .hr { height: 0.5px; background: var(--separator); }
+
+    .split { display: flex; flex: 1; min-height: 0; }
+    .side { width: 188px; background: var(--sidebar-bg); border-right: 0.5px solid var(--separator);
+            padding: 8px; display: flex; flex-direction: column; }
+    .side .sitem { display: flex; align-items: center; gap: 9px; height: 30px;
+                   padding: 0 9px; border-radius: 7px; font-size: var(--t-body);
+                   color: var(--label); }
+    .side .sitem.on { background: var(--accent); color: #FFFFFF; }
+    .side .sitem .ico { opacity: 0.65; display: flex; }
+    .side .sitem.on .ico { opacity: 1; }
+    .pane { flex: 1; padding: 20px 26px; overflow: hidden; }
+    .pane h2 { font-size: var(--t-title2); font-weight: 700; margin: 0 0 16px; letter-spacing: -0.1px; }
+    .grp { border-radius: var(--radius-card); border: 0.5px solid var(--separator);
+           background: #FFFFFF; overflow: hidden; margin-bottom: 16px;
+           box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .grp .r { display: flex; align-items: center; gap: 12px; padding: 9px 13px; min-height: 40px; }
+    .grp .r + .r { border-top: 0.5px solid var(--separator); }
+    .grp .r .lbl { font-size: var(--t-body); }
+    .grp .r .desc { font-size: var(--t-subhead); color: var(--label-2); margin-top: 2px;
+                    line-height: 1.35; }
+    .grp .r .right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+    .grp-title { font-size: var(--t-subhead); font-weight: 600; color: var(--label-2);
+                 margin: 0 0 7px 3px; letter-spacing: 0.2px; }
+    .sw { width: 38px; height: 22px; border-radius: 11px; background: var(--fill-2);
+          position: relative; flex: none; }
+    .sw.on { background: var(--accent-light); }
+    .sw i { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+            border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.22); }
+    .sw.on i { left: 18px; }
+    .pop { display: inline-flex; align-items: center; gap: 7px; height: 22px; padding: 0 7px 0 9px;
+           border-radius: 6px; background: #FFFFFF; border: 0.5px solid rgba(0,0,0,0.16);
+           box-shadow: 0 0.5px 1px rgba(0,0,0,0.07); font-size: var(--t-callout); }
+    .pop .chev { color: var(--label-2); font-size: 9px; line-height: 1; }
+    .seg { display: inline-flex; border-radius: 7px; background: var(--fill); padding: 2px; gap: 2px; }
+    .seg span { padding: 0 11px; height: 21px; display: flex; align-items: center;
+                border-radius: 5px; font-size: var(--t-callout); color: var(--label-2); }
+    .seg span.on { background: #FFFFFF; color: var(--label); font-weight: 500;
+                   box-shadow: 0 0.5px 1.5px rgba(0,0,0,0.14); }
+    .chk { width: 15px; height: 15px; border-radius: 4px; background: var(--accent);
+           display: flex; align-items: center; justify-content: center; color: #FFFFFF; flex: none; }
+    .chk.off { background: transparent; border: 1px solid var(--label-3); }
+    .picker { position: relative; width: 46px; height: 29px; border-radius: 5px;
+               background: linear-gradient(160deg, #5B8090 0%, #334B55 100%);
+               border: 0.5px solid rgba(0,0,0,0.22); flex: none; }
+    .picker span { position: absolute; width: 5px; height: 5px; border-radius: 50%;
+                   background: rgba(255,255,255,0.42); }
+    .picker span.on { background: #FFFFFF; box-shadow: 0 0 0 2px rgba(57,208,196,0.95); }
+    .callout { display: flex; gap: 9px; padding: 11px 13px; border-radius: var(--radius-card);
+               background: var(--accent-wash); font-size: var(--t-subhead); color: var(--label-2);
+               line-height: 1.45; }
+</style>
+</helmet>
+<div class="stage" style="width: 800px; height: 660px; padding: 40px">
+  <div class="win" style="width: 720px; height: 580px">
+    <div class="row" style="height: 42px; padding: 0 14px; border-bottom: 0.5px solid var(--separator);
+         flex: none"><div class="lights">
+        <span class="light" style="background:#FF5F57"></span>
+        <span class="light" style="background:#FEBC2E"></span>
+        <span class="light" style="background:#28C840"></span>
+      </div>
+      <div style="margin-left: 14px; font-size: var(--t-body); font-weight: 600">Dictation</div>
+    </div>
+    <div class="split">
+      <div class="side">
+        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5"/></svg></span>General</div>
+        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.2 2.4 3.3 5.4 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.4-3.3-8.5S9.8 5.9 12 3.5z"/></svg></span>Languages</div>
+        <div class="sitem on"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></span>Dictation</div>
+        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4.8" y="10.5" width="14.4" height="9.5" rx="2.2"/><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7"/></svg></span>Privacy</div>
+        
+      </div>
+      <div class="pane"><h2>Dictation</h2>
+      <div class="grp">
+        <div class="r"><div><div class="lbl">Tidy up what I say</div><div class="desc">Light fixes punctuation only. Standard also removes filler words and fixes grammar.</div></div><div class="right"><div class="seg"><span class="">Off</span><span class="">Light</span><span class="on">Standard</span></div></div></div>
+        <div class="r"><div><div class="lbl">Use what&rsquo;s on screen for context</div><div class="desc">Helps get names, code and technical terms right. Nothing on screen is stored or sent.</div></div><div class="right"><div class="sw on"><i></i></div></div></div>
+        <div class="r"><div><div class="lbl">Never change technical terms</div></div><div class="right"><div class="sw on"><i></i></div></div></div>
+      </div>
+      <p class="grp-title">Speech recognition</p>
+      <div class="grp">
+        <div class="r">
+          <div><div class="lbl">Ready to use</div>
+            <div class="desc">646 MB &middot; last checked today</div></div>
+          <div class="right">
+            <button class="btn sm">Check for Update</button>
+            <button class="btn sm destructive">Remove</button>
+          </div>
+        </div>
+        <div class="r"><div><div class="lbl">Speed and accuracy</div><div class="desc">Balanced transcribes 30 seconds of speech in about 3 seconds on this Mac.</div></div><div class="right"><div class="seg"><span class="">Faster</span><span class="on">Balanced</span><span class="">Most accurate</span></div></div></div>
+      </div></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":800,"height":660}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      /* Read from NSColor on macOS 26.5, sRGB. */
+      --label: rgba(0,0,0,0.847);
+      --label-2: rgba(0,0,0,0.498);
+      --label-3: rgba(0,0,0,0.259);
+      --label-4: rgba(0,0,0,0.098);
+      --separator: rgba(0,0,0,0.098);
+      --window-bg: #FFFFFF;
+      --sidebar-bg: rgba(246,246,248,0.94);
+      --fill: rgba(0,0,0,0.05);
+      --fill-2: rgba(0,0,0,0.08);
+      /* Teal ramp, hue 175 — derived from the mark's signal teal (#17A398).
+         The brand teal itself only reaches 3.1:1 on white, so it stays a mark
+         and state colour and never carries interface text; this ramp is what
+         fills use. White 13px text needs 4.5:1, which caps a text-bearing fill
+         at 29% lightness. Everything that carries no text goes lighter, which
+         is most of the surface area, so the interface still reads light. */
+      --accent: #128077;         /* fills with white text on them — 4.80:1 */
+      --accent-pressed: #0E645D;
+      --accent-light: #39D0C4;   /* controls and graphics with no text */
+      --accent-tint: #9EDCD7;    /* large decorative fills */
+      --accent-wash: #EFF8F7;    /* tinted backgrounds */
+      --accent-dark: #29C0B4;    /* on dark surfaces — 7.4:1 on #1E1E1E */
+      --logo-ink: #101316;       /* the mark's ink; chalk on dark, see _gen_shell */
+      /* The accent as a foreground rather than a fill: waveform bars, the second
+         series in a chart. A lighter weight of the one accent, not a second hue —
+         the identity is ink, chalk, signal and slate, and a fifth colour invented
+         for contrast is how a palette stops meaning anything. */
+      --accent-2: #5FE0D3;
+      --accent-2-deep: #0E645D;
+      --red: #FF383C;
+      --green: #34C759;
+
+      /* NSFont.preferredFont point sizes, macOS 26.5. */
+      --t-large-title: 26px;
+      --t-title1: 22px;
+      --t-title2: 17px;
+      --t-title3: 15px;
+      --t-body: 13px;
+      --t-callout: 12px;
+      --t-subhead: 11px;
+      --t-footnote: 10px;
+
+      --radius-window: 14px;
+      --radius-control: 7px;
+      --radius-card: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      font-size: var(--t-body);
+      color: var(--label);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-pressed); }
+    .stage {
+      display: flex; align-items: center; justify-content: center;
+      background: #E8E8ED;
+      background-image: radial-gradient(120% 120% at 20% 0%, #F2F1F6 0%, #DFDEE6 60%, #CFCEDA 100%);
+    }
+    .win {
+      background: var(--window-bg);
+      border-radius: var(--radius-window);
+      box-shadow: 0 22px 60px rgba(0,0,0,0.24), 0 2px 6px rgba(0,0,0,0.12),
+                  0 0 0 0.5px rgba(0,0,0,0.16);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .lights { display: flex; gap: 8px; align-items: center; }
+    .light { width: 12px; height: 12px; border-radius: 50%; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 28px; padding: 0 14px; border-radius: var(--radius-control);
+      font-size: var(--t-body); font-weight: 500; white-space: nowrap;
+      border: 0.5px solid rgba(0,0,0,0.14); background: #FFFFFF;
+      box-shadow: 0 0.5px 1px rgba(0,0,0,0.08);
+      color: var(--label);
+    }
+    .btn.primary {
+      background: var(--accent); color: #FFFFFF; border-color: transparent;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.14);
+    }
+    .btn.plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent); }
+    .btn.destructive { color: var(--red); }
+    .btn.sm { height: 22px; padding: 0 10px; font-size: var(--t-callout); }
+    .key {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px;
+      border-radius: 6px; background: #FFFFFF;
+      border: 0.5px solid rgba(0,0,0,0.18);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.10), inset 0 -1px 0 rgba(0,0,0,0.04);
+      font-size: var(--t-callout); font-weight: 500; color: var(--label);
+    }
+    .muted { color: var(--label-2); }
+    .faint { color: var(--label-3); }
+    .row { display: flex; align-items: center; }
+    .hr { height: 0.5px; background: var(--separator); }
+
+    .stage.dock { background: none; display: block;
+      background-image: radial-gradient(130% 110% at 15% 0%, #6E97A8 0%, #466673 45%, #2B4049 100%); }
+    .col-h { font-size: var(--t-subhead); font-weight: 600; letter-spacing: 0.4px;
+             text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 14px; }
+    .state-label { width: 96px; flex: none; text-align: right; padding-right: 20px; }
+    .state-label .n { font-size: var(--t-callout); color: rgba(255,255,255,0.86); }
+    .state-label .d { font-size: var(--t-footnote); color: rgba(255,255,255,0.45); margin-top: 2px; }
+    .slot { width: 286px; display: flex; justify-content: flex-end; }
+    .glass {
+      border-radius: 22px;
+      backdrop-filter: blur(28px) saturate(180%); -webkit-backdrop-filter: blur(28px) saturate(180%);
+      background: rgba(248,248,252,0.66); color: rgba(0,0,0,0.847);
+      box-shadow: 0 12px 34px rgba(0,0,0,0.34), 0 0 0 0.5px rgba(255,255,255,0.16),
+                  inset 0 1px 0 rgba(255,255,255,0.34);
+    }
+    .glass.dark { background: rgba(38,38,44,0.66); color: rgba(255,255,255,0.90);
+      box-shadow: 0 12px 34px rgba(0,0,0,0.44), 0 0 0 0.5px rgba(255,255,255,0.11),
+                  inset 0 1px 0 rgba(255,255,255,0.15); }
+    .grip { width: 9px; height: 46px; border-radius: 5px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 3px; }
+    .grip i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+    .orb { width: 44px; height: 44px; border-radius: 50%; display: flex;
+           align-items: center; justify-content: center; }
+    .hint { height: 34px; border-radius: 17px; display: flex; align-items: center; gap: 8px;
+            padding: 0 15px; font-size: var(--t-body); }
+    .pill { height: 52px; border-radius: 26px; display: flex; align-items: center; gap: 12px;
+            padding: 0 18px; width: 100%; }
+    .pill .t { font-size: var(--t-body); font-weight: 500; }
+    .pill .s { font-size: var(--t-footnote); opacity: 0.58; margin-top: 2px; }
+    .wave { display: flex; align-items: center; gap: 3px; height: 26px; }
+    .wave i { width: 3px; border-radius: 2px; background: var(--accent-2-deep); opacity: 0.9;
+              display: block; }
+    .dark .wave i { background: var(--accent-2); }
+    .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #FF383C; flex: none;
+               box-shadow: 0 0 0 4px rgba(255,56,60,0.22); }
+    .badge { width: 30px; height: 30px; border-radius: 50%; flex: none; display: flex;
+             align-items: center; justify-content: center; color: #FFFFFF; }
+    .shimmer { height: 6px; border-radius: 3px; overflow: hidden; background: rgba(128,128,140,0.26); }
+    .shimmer > i { display: block; height: 100%; width: 45%; border-radius: 3px;
+      background: linear-gradient(90deg, rgba(57,208,196,0) 0%, var(--accent-light) 45%,
+        var(--accent-2) 100%); }
+    .glass .accented { color: var(--accent); }
+    .glass.dark .accented { color: var(--accent-dark); }
+    .ping { position: relative; }
+    .ping::after { content: ""; position: absolute; inset: -9px; border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.34); }
+    .drow { display: flex; align-items: center; margin-bottom: 19px; }
+    .kbd { display: inline-flex; align-items: center; justify-content: center; height: 20px;
+           padding: 0 6px; border-radius: 5px; background: rgba(120,120,130,0.20);
+           font-size: var(--t-footnote); font-weight: 600; }
+</style>
+</helmet>
+<div class="stage dock" style="width: 900px; height: 780px; padding: 34px">
+  <div style="padding: 4px 0 0">
+    <div class="row" style="margin-bottom: 15px">
+      <div style="width: 96px"></div>
+      <div style="width: 286px" class="col-h">On a light desktop</div>
+      <div style="width: 36px"></div>
+      <div style="width: 286px" class="col-h">On a dark desktop</div>
+    </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Resting</div><div class="d">always there, ignorable</div></div>
+        <div class="slot"><div class="glass grip"><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div style="width: 36px"></div>
+        <div class="slot"><div class="glass dark grip"><i></i><i></i><i></i><i></i><i></i></div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Pointed at</div><div class="d">reminds you of the key</div></div>
+        <div class="slot"><div class="row" style="gap: 9px">
+          <div class="glass hint">Dictate <span class="kbd">&#8997;Space</span></div>
+          <div class="glass orb"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></div>
+        </div></div>
+        <div style="width: 36px"></div>
+        <div class="slot"><div class="row" style="gap: 9px">
+          <div class="glass dark hint">Dictate <span class="kbd">&#8997;Space</span></div>
+          <div class="glass dark orb"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></div>
+        </div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Listening</div><div class="d">a soft tick, then bars</div></div>
+        <div class="slot"><div class="glass pill ping">
+          <span class="rec-dot"></span>
+          <div style="flex:1"><div class="wave"><i style="height:7px"></i><i style="height:13px"></i><i style="height:20px"></i><i style="height:11px"></i><i style="height:24px"></i><i style="height:16px"></i><i style="height:9px"></i><i style="height:18px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:6px"></i><i style="height:15px"></i><i style="height:21px"></i><i style="height:10px"></i><i style="height:8px"></i><i style="height:17px"></i><i style="height:11px"></i></div></div>
+          <div style="font-size: var(--t-footnote); opacity: 0.55;
+               font-variant-numeric: tabular-nums">0:04</div>
+        </div></div>
+        <div style="width: 36px"></div>
+        <div class="slot"><div class="glass dark pill ping">
+          <span class="rec-dot"></span>
+          <div style="flex:1"><div class="wave"><i style="height:7px"></i><i style="height:13px"></i><i style="height:20px"></i><i style="height:11px"></i><i style="height:24px"></i><i style="height:16px"></i><i style="height:9px"></i><i style="height:18px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:6px"></i><i style="height:15px"></i><i style="height:21px"></i><i style="height:10px"></i><i style="height:8px"></i><i style="height:17px"></i><i style="height:11px"></i></div></div>
+          <div style="font-size: var(--t-footnote); opacity: 0.55;
+               font-variant-numeric: tabular-nums">0:04</div>
+        </div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Processing</div><div class="d">about a second</div></div>
+        <div class="slot"><div class="glass pill">
+          <span class="accented" style="flex:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9L12 3.5z"/><path d="M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/></svg></span>
+          <div style="flex:1"><div class="t">Tidying up&hellip;</div>
+            <div class="shimmer" style="margin-top:7px"><i></i></div></div>
+        </div></div>
+        <div style="width: 36px"></div>
+        <div class="slot"><div class="glass dark pill">
+          <span class="accented" style="flex:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9L12 3.5z"/><path d="M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/></svg></span>
+          <div style="flex:1"><div class="t">Tidying up&hellip;</div>
+            <div class="shimmer" style="margin-top:7px"><i></i></div></div>
+        </div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Inserted</div><div class="d">fades after 2s</div></div>
+        <div class="slot"><div class="glass pill">
+          <span class="badge" style="background:#34C759"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>
+          <div style="flex:1"><div class="t">Inserted into Slack</div>
+            <div class="s">&ldquo;Hey John, I&rsquo;ll probably be about 20 minutes late&hellip;&rdquo;</div></div>
+        </div></div>
+        <div style="width: 36px"></div>
+        <div class="slot"><div class="glass dark pill">
+          <span class="badge" style="background:#34C759"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>
+          <div style="flex:1"><div class="t">Inserted into Slack</div>
+            <div class="s">&ldquo;Hey John, I&rsquo;ll probably be about 20 minutes late&hellip;&rdquo;</div></div>
+        </div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Nowhere to type</div><div class="d">waits for you</div></div>
+        <div class="slot"><div class="glass pill">
+          <span class="badge" style="background:#FF8D28"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 2.8 20h18.4L12 4.5z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg></span>
+          <div style="flex:1"><div class="t">Nowhere to type</div>
+            <div class="s">Copied to the clipboard instead</div></div>
+          <button class="btn sm" style="flex:none">Paste</button>
+        </div></div>
+        <div style="width: 36px"></div>
+        <div class="slot"><div class="glass dark pill">
+          <span class="badge" style="background:#FF8D28"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 2.8 20h18.4L12 4.5z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg></span>
+          <div style="flex:1"><div class="t">Nowhere to type</div>
+            <div class="s">Copied to the clipboard instead</div></div>
+          <button class="btn sm" style="flex:none">Paste</button>
+        </div></div>
+      </div>
+    <div style="margin-left: 96px; width: 608px; font-size: var(--t-callout);
+         color: rgba(255,255,255,0.52); line-height: 1.55">
+      One thing, parked at the edge of the screen, growing rightwards from its anchor. It never
+      takes focus, so the app you are dictating into stays active throughout. Press and hold the
+      button, or hold the shortcut &mdash; both do the same thing and both start with the same
+      soft tick so you know it heard you before you start talking.
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":900,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

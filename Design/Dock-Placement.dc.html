@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      /* Read from NSColor on macOS 26.5, sRGB. */
+      --label: rgba(0,0,0,0.847);
+      --label-2: rgba(0,0,0,0.498);
+      --label-3: rgba(0,0,0,0.259);
+      --label-4: rgba(0,0,0,0.098);
+      --separator: rgba(0,0,0,0.098);
+      --window-bg: #FFFFFF;
+      --sidebar-bg: rgba(246,246,248,0.94);
+      --fill: rgba(0,0,0,0.05);
+      --fill-2: rgba(0,0,0,0.08);
+      /* Teal ramp, hue 175 — derived from the mark's signal teal (#17A398).
+         The brand teal itself only reaches 3.1:1 on white, so it stays a mark
+         and state colour and never carries interface text; this ramp is what
+         fills use. White 13px text needs 4.5:1, which caps a text-bearing fill
+         at 29% lightness. Everything that carries no text goes lighter, which
+         is most of the surface area, so the interface still reads light. */
+      --accent: #128077;         /* fills with white text on them — 4.80:1 */
+      --accent-pressed: #0E645D;
+      --accent-light: #39D0C4;   /* controls and graphics with no text */
+      --accent-tint: #9EDCD7;    /* large decorative fills */
+      --accent-wash: #EFF8F7;    /* tinted backgrounds */
+      --accent-dark: #29C0B4;    /* on dark surfaces — 7.4:1 on #1E1E1E */
+      --logo-ink: #101316;       /* the mark's ink; chalk on dark, see _gen_shell */
+      /* The accent as a foreground rather than a fill: waveform bars, the second
+         series in a chart. A lighter weight of the one accent, not a second hue —
+         the identity is ink, chalk, signal and slate, and a fifth colour invented
+         for contrast is how a palette stops meaning anything. */
+      --accent-2: #5FE0D3;
+      --accent-2-deep: #0E645D;
+      --red: #FF383C;
+      --green: #34C759;
+
+      /* NSFont.preferredFont point sizes, macOS 26.5. */
+      --t-large-title: 26px;
+      --t-title1: 22px;
+      --t-title2: 17px;
+      --t-title3: 15px;
+      --t-body: 13px;
+      --t-callout: 12px;
+      --t-subhead: 11px;
+      --t-footnote: 10px;
+
+      --radius-window: 14px;
+      --radius-control: 7px;
+      --radius-card: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      font-size: var(--t-body);
+      color: var(--label);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-pressed); }
+    .stage {
+      display: flex; align-items: center; justify-content: center;
+      background: #E8E8ED;
+      background-image: radial-gradient(120% 120% at 20% 0%, #F2F1F6 0%, #DFDEE6 60%, #CFCEDA 100%);
+    }
+    .win {
+      background: var(--window-bg);
+      border-radius: var(--radius-window);
+      box-shadow: 0 22px 60px rgba(0,0,0,0.24), 0 2px 6px rgba(0,0,0,0.12),
+                  0 0 0 0.5px rgba(0,0,0,0.16);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .lights { display: flex; gap: 8px; align-items: center; }
+    .light { width: 12px; height: 12px; border-radius: 50%; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 28px; padding: 0 14px; border-radius: var(--radius-control);
+      font-size: var(--t-body); font-weight: 500; white-space: nowrap;
+      border: 0.5px solid rgba(0,0,0,0.14); background: #FFFFFF;
+      box-shadow: 0 0.5px 1px rgba(0,0,0,0.08);
+      color: var(--label);
+    }
+    .btn.primary {
+      background: var(--accent); color: #FFFFFF; border-color: transparent;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.14);
+    }
+    .btn.plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent); }
+    .btn.destructive { color: var(--red); }
+    .btn.sm { height: 22px; padding: 0 10px; font-size: var(--t-callout); }
+    .key {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px;
+      border-radius: 6px; background: #FFFFFF;
+      border: 0.5px solid rgba(0,0,0,0.18);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.10), inset 0 -1px 0 rgba(0,0,0,0.04);
+      font-size: var(--t-callout); font-weight: 500; color: var(--label);
+    }
+    .muted { color: var(--label-2); }
+    .faint { color: var(--label-3); }
+    .row { display: flex; align-items: center; }
+    .hr { height: 0.5px; background: var(--separator); }
+
+    .stage.pl { background: #EFEFF3; display: block;
+      background-image: linear-gradient(180deg, #F4F4F8 0%, #E8E8EE 100%); }
+    .sect { font-size: var(--t-subhead); font-weight: 600; letter-spacing: 0.4px;
+            text-transform: uppercase; color: var(--label-3); margin: 0 0 4px; }
+    .sect-d { font-size: var(--t-callout); color: var(--label-2); margin: 0 0 14px; }
+    .screen { position: relative; border-radius: 10px; overflow: hidden;
+      background-image: radial-gradient(130% 110% at 20% 0%, #6E97A8 0%, #466673 50%, #2B4049 100%);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18), 0 0 0 0.5px rgba(0,0,0,0.20); }
+    .screen .mb { height: 9px; background: rgba(255,255,255,0.16); }
+    .screen .app { position: absolute; border-radius: 5px; background: rgba(255,255,255,0.90);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.24); overflow: hidden; }
+    .screen .app .tb { height: 7px; background: rgba(0,0,0,0.07); }
+    .screen .app .ln { height: 3px; border-radius: 2px; background: rgba(0,0,0,0.11);
+      margin: 5px 7px 0; }
+    .anchor { position: absolute; width: 15px; height: 15px; border-radius: 50%;
+      border: 1.5px dashed rgba(255,255,255,0.55); }
+    .anchor.on { border: none; background: var(--accent-light);
+      box-shadow: 0 0 0 4px rgba(57,208,196,0.42); }
+    .anchor .tag { position: absolute; white-space: nowrap; font-size: 9px; font-weight: 600;
+      color: rgba(255,255,255,0.80); top: 19px; left: 50%; transform: translateX(-50%); }
+    .anchor.on .tag { color: #FFFFFF; }
+    .minidock { position: absolute; display: flex; align-items: center; gap: 4px; }
+    .minidock .orb { width: 15px; height: 15px; border-radius: 50%; background: rgba(250,250,255,0.86);
+      display: flex; align-items: center; justify-content: center; color: rgba(0,0,0,0.7);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.28); }
+    .minidock .cap { height: 15px; border-radius: 8px; background: rgba(250,250,255,0.86);
+      display: flex; align-items: center; gap: 2px; padding: 0 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.28); }
+    .minidock .cap i { width: 1.5px; border-radius: 1px; background: rgba(0,0,0,0.55); display: block; }
+    .minidock .cap .dot { width: 4px; height: 4px; border-radius: 50%; background: #FF383C; flex: none; }
+    .grp { border-radius: var(--radius-card); border: 0.5px solid var(--separator);
+           background: #FFFFFF; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .grp .r { display: flex; align-items: center; gap: 12px; padding: 9px 13px; min-height: 40px; }
+    .grp .r + .r { border-top: 0.5px solid var(--separator); }
+    .grp .desc { font-size: var(--t-subhead); color: var(--label-2); margin-top: 2px; line-height: 1.35; }
+    .grp .right { margin-left: auto; flex: none; }
+    .sw { width: 38px; height: 22px; border-radius: 11px; background: var(--fill-2); position: relative; }
+    .sw.on { background: var(--green); }
+    .sw i { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+            background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.22); }
+    .sw.on i { left: 18px; }
+    .arrow { display: flex; align-items: center; color: var(--label-3); }
+    .cap-under { font-size: var(--t-footnote); color: var(--label-2); margin-top: 9px;
+                 line-height: 1.45; }
+</style>
+</helmet>
+<div class="stage pl" style="width: 900px; height: 700px; padding: 38px">
+  <div>
+    <p class="sect">Where the button sits</p>
+    <p class="sect-d">Four anchors. It grows inwards from whichever edge it is parked on, so it
+      never runs off the screen.</p>
+    <div class="row" style="gap: 26px; align-items: flex-start">
+      <div class="screen" style="width: 430px; height: 270px"><div class="mb"></div><div class="app" style="left: 26px; top: 26px; width: 168px; height: 108px"><div class="tb"></div><div class="ln" style="width: 86%"></div><div class="ln" style="width: 72%"></div><div class="ln" style="width: 90%"></div><div class="ln" style="width: 60%"></div><div class="ln" style="width: 80%"></div></div><div class="anchor" style="left: 14px; bottom: 16px;"><span class="tag">Bottom left</span></div><div class="anchor" style="left: 50%; margin-left: -7.5px; bottom: 16px;"><span class="tag">Bottom centre</span></div><div class="anchor on" style="right: 14px; bottom: 16px;"><span class="tag">Bottom right</span></div><div class="anchor" style="right: 8px; top: 50%; margin-top: -7.5px;"><span class="tag">Right edge</span></div></div>
+      <div style="flex: 1; padding-top: 6px">
+        <p class="cap-under" style="margin-top: 0">Drag the button anywhere and it snaps to the
+          nearest anchor, so it cannot end up somewhere it would cover what you are working on.</p>
+        <p class="cap-under">Bottom right is the default because that is the corner least likely
+          to hold a text field, and it is where the cursor already is after most edits.</p>
+        <p class="cap-under">On the right edge the button turns vertical and the recorder grows
+          leftwards, so a wide waveform never runs off the screen.</p>
+        <p class="cap-under">Pick a position in Settings &rsaquo; General, or just drag it.</p>
+      </div>
+    </div>
+
+    <div style="height: 30px"></div>
+    <p class="sect">Press and hold the button</p>
+    <p class="sect-d">The same thing the shortcut does &mdash; a soft tick, then bars. The window
+      steps aside on its own.</p>
+    <div class="row" style="gap: 20px; align-items: center">
+      <div><div class="screen" style="width: 300px; height: 188px"><div class="mb"></div><div class="app" style="left: 26px; top: 26px; width: 168px; height: 108px"><div class="tb"></div><div class="ln" style="width: 86%"></div><div class="ln" style="width: 72%"></div><div class="ln" style="width: 90%"></div><div class="ln" style="width: 60%"></div><div class="ln" style="width: 80%"></div></div><div class="minidock" style="right: 12px; bottom: 14px"><div class="orb"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></div></div></div>
+        <p class="cap-under" style="width: 300px">Window open, button resting.</p></div>
+      <div class="arrow"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M14 7l5 5-5 5"/></svg></div>
+      <div><div class="screen" style="width: 300px; height: 188px"><div class="mb"></div><div class="minidock" style="right: 12px; bottom: 14px"><div class="cap"><span class="dot"></span><i style="height:3px"></i><i style="height:6px"></i><i style="height:9px"></i><i style="height:5px"></i><i style="height:10px"></i><i style="height:7px"></i><i style="height:4px"></i><i style="height:8px"></i></div></div></div>
+        <p class="cap-under" style="width: 300px">Held: the window minimises, the button
+          becomes the recorder, and whatever was behind it takes focus.</p></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":900,"height":700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

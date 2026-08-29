@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      /* Read from NSColor on macOS 26.5, sRGB. */
+      --label: rgba(0,0,0,0.847);
+      --label-2: rgba(0,0,0,0.498);
+      --label-3: rgba(0,0,0,0.259);
+      --label-4: rgba(0,0,0,0.098);
+      --separator: rgba(0,0,0,0.098);
+      --window-bg: #FFFFFF;
+      --sidebar-bg: rgba(246,246,248,0.94);
+      --fill: rgba(0,0,0,0.05);
+      --fill-2: rgba(0,0,0,0.08);
+      /* Teal ramp, hue 175 — derived from the mark's signal teal (#17A398).
+         The brand teal itself only reaches 3.1:1 on white, so it stays a mark
+         and state colour and never carries interface text; this ramp is what
+         fills use. White 13px text needs 4.5:1, which caps a text-bearing fill
+         at 29% lightness. Everything that carries no text goes lighter, which
+         is most of the surface area, so the interface still reads light. */
+      --accent: #128077;         /* fills with white text on them — 4.80:1 */
+      --accent-pressed: #0E645D;
+      --accent-light: #39D0C4;   /* controls and graphics with no text */
+      --accent-tint: #9EDCD7;    /* large decorative fills */
+      --accent-wash: #EFF8F7;    /* tinted backgrounds */
+      --accent-dark: #29C0B4;    /* on dark surfaces — 7.4:1 on #1E1E1E */
+      --logo-ink: #101316;       /* the mark's ink; chalk on dark, see _gen_shell */
+      /* The accent as a foreground rather than a fill: waveform bars, the second
+         series in a chart. A lighter weight of the one accent, not a second hue —
+         the identity is ink, chalk, signal and slate, and a fifth colour invented
+         for contrast is how a palette stops meaning anything. */
+      --accent-2: #5FE0D3;
+      --accent-2-deep: #0E645D;
+      --red: #FF383C;
+      --green: #34C759;
+
+      /* NSFont.preferredFont point sizes, macOS 26.5. */
+      --t-large-title: 26px;
+      --t-title1: 22px;
+      --t-title2: 17px;
+      --t-title3: 15px;
+      --t-body: 13px;
+      --t-callout: 12px;
+      --t-subhead: 11px;
+      --t-footnote: 10px;
+
+      --radius-window: 14px;
+      --radius-control: 7px;
+      --radius-card: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      font-size: var(--t-body);
+      color: var(--label);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-pressed); }
+    .stage {
+      display: flex; align-items: center; justify-content: center;
+      background: #E8E8ED;
+      background-image: radial-gradient(120% 120% at 20% 0%, #F2F1F6 0%, #DFDEE6 60%, #CFCEDA 100%);
+    }
+    .win {
+      background: var(--window-bg);
+      border-radius: var(--radius-window);
+      box-shadow: 0 22px 60px rgba(0,0,0,0.24), 0 2px 6px rgba(0,0,0,0.12),
+                  0 0 0 0.5px rgba(0,0,0,0.16);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .lights { display: flex; gap: 8px; align-items: center; }
+    .light { width: 12px; height: 12px; border-radius: 50%; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 28px; padding: 0 14px; border-radius: var(--radius-control);
+      font-size: var(--t-body); font-weight: 500; white-space: nowrap;
+      border: 0.5px solid rgba(0,0,0,0.14); background: #FFFFFF;
+      box-shadow: 0 0.5px 1px rgba(0,0,0,0.08);
+      color: var(--label);
+    }
+    .btn.primary {
+      background: var(--accent); color: #FFFFFF; border-color: transparent;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.14);
+    }
+    .btn.plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent); }
+    .btn.destructive { color: var(--red); }
+    .btn.sm { height: 22px; padding: 0 10px; font-size: var(--t-callout); }
+    .key {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px;
+      border-radius: 6px; background: #FFFFFF;
+      border: 0.5px solid rgba(0,0,0,0.18);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.10), inset 0 -1px 0 rgba(0,0,0,0.04);
+      font-size: var(--t-callout); font-weight: 500; color: var(--label);
+    }
+    .muted { color: var(--label-2); }
+    .faint { color: var(--label-3); }
+    .row { display: flex; align-items: center; }
+    .hr { height: 0.5px; background: var(--separator); }
+
+    .stage.mb { background: none; display: block;
+      background-image: radial-gradient(130% 110% at 80% 0%, #6E909E 0%, #446370 45%, #273840 100%); }
+    .sect { font-size: var(--t-subhead); font-weight: 600; letter-spacing: 0.4px;
+            text-transform: uppercase; color: rgba(255,255,255,0.5); margin: 0 0 12px; }
+    .bar {
+      height: 26px; border-radius: 8px; display: flex; align-items: center;
+      gap: 14px; padding: 0 12px;
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.22);
+      color: rgba(255,255,255,0.86);
+    }
+    .bar .other { opacity: 0.42; }
+    .tile { display: flex; flex-direction: column; gap: 9px; }
+    .tile .cap { font-size: var(--t-footnote); color: rgba(255,255,255,0.58); }
+    .menu {
+      width: 268px; border-radius: 11px; padding: 5px;
+      background: rgba(250,250,253,0.72);
+      backdrop-filter: blur(34px) saturate(180%);
+      -webkit-backdrop-filter: blur(34px) saturate(180%);
+      box-shadow: 0 16px 44px rgba(0,0,0,0.34), 0 0 0 0.5px rgba(0,0,0,0.14),
+                  inset 0 1px 0 rgba(255,255,255,0.5);
+      color: rgba(0,0,0,0.847);
+    }
+    .mi { height: 24px; display: flex; align-items: center; gap: 8px;
+          padding: 0 9px; border-radius: 6px; font-size: var(--t-body); }
+    .mi .sc { margin-left: auto; color: rgba(0,0,0,0.36); font-size: var(--t-body); }
+    .mi.hi { background: var(--accent); color: #FFFFFF; }
+    .mi.hi .sc { color: rgba(255,255,255,0.72); }
+    .mi.dis { color: rgba(0,0,0,0.30); }
+    .mi.tall { height: 30px; }
+    .msep { height: 0.5px; background: rgba(0,0,0,0.12); margin: 5px 9px; }
+    .mhdr { font-size: var(--t-footnote); font-weight: 600; letter-spacing: 0.3px;
+            text-transform: uppercase; color: rgba(0,0,0,0.32); padding: 6px 9px 3px; }
+    .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .statusdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+</style>
+</helmet>
+<div class="stage mb" style="width: 700px; height: 620px; padding: 36px">
+  <div>
+    <p class="sect">Menu bar icon</p>
+    <div class="row" style="gap: 18px; margin-bottom: 34px">
+      <div class="tile">
+        <div class="bar" style="width: 152px">
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.2 2.4 3.3 5.4 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.4-3.3-8.5S9.8 5.9 12 3.5z"/></svg></span>
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/></svg></span>
+          <span style="display:flex; align-items:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></span>
+          <span class="other" style="margin-left:auto; font-size:11px">9:41</span>
+        </div>
+        <div class="cap">Idle</div>
+      </div>
+      <div class="tile">
+        <div class="bar" style="width: 152px">
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.2 2.4 3.3 5.4 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.4-3.3-8.5S9.8 5.9 12 3.5z"/></svg></span>
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/></svg></span>
+          <span style="display:flex; align-items:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FF383C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z" fill="currentColor" stroke="none"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg><span class="statusdot" style="background:#FF383C; margin-left:-9px; margin-top:-12px"></span></span>
+          <span class="other" style="margin-left:auto; font-size:11px">9:41</span>
+        </div>
+        <div class="cap">Listening</div>
+      </div>
+      <div class="tile">
+        <div class="bar" style="width: 152px">
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.2 2.4 3.3 5.4 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.4-3.3-8.5S9.8 5.9 12 3.5z"/></svg></span>
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/></svg></span>
+          <span style="display:flex; align-items:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9L12 3.5z"/><path d="M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/></svg></span>
+          <span class="other" style="margin-left:auto; font-size:11px">9:41</span>
+        </div>
+        <div class="cap">Processing</div>
+      </div>
+      <div class="tile">
+        <div class="bar" style="width: 152px">
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.2 2.4 3.3 5.4 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.4-3.3-8.5S9.8 5.9 12 3.5z"/></svg></span>
+          <span class="other"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/></svg></span>
+          <span style="display:flex; align-items:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg><span class="statusdot" style="background:#FF8D28; margin-left:-9px; margin-top:-12px"></span></span>
+          <span class="other" style="margin-left:auto; font-size:11px">9:41</span>
+        </div>
+        <div class="cap">Needs attention</div>
+      </div>
+    </div>
+
+    <p class="sect">Menu</p>
+    <div class="row" style="gap: 40px; align-items: flex-start">
+      <div>
+        <div class="menu">
+      <div class="mi dis"><span class="statusdot" style="background:#34C759"></span>
+        Ready</div>
+      <div class="msep"></div>
+      <div class="mi hi">Start Dictation<span class="sc">&#8997;Space</span></div>
+      <div class="mhdr">Recent</div>
+      <div class="mi"><span class="trunc">Hey John, I&rsquo;ll probably be about 20 minutes late&hellip;</span></div>
+      <div class="mi"><span class="trunc">The deployment is still running, so I&rsquo;ll&hellip;</span></div>
+      <div class="msep"></div>
+      <div class="mi">Open Uttrflow<span class="sc">&#8984;0</span></div>
+      <div class="mi">Settings&hellip;<span class="sc">&#8984;,</span></div>
+      <div class="msep"></div>
+      <div class="mi">Quit Uttrflow<span class="sc">&#8984;Q</span></div></div>
+        <div style="font-size: var(--t-footnote); color: rgba(255,255,255,0.55);
+             margin-top: 12px; width: 268px; line-height: 1.5">
+          Normal. Recent results can be re-inserted or copied without opening the window.
+        </div>
+      </div>
+      <div>
+        <div class="menu">
+      <div class="mi tall" style="color:#C2560C"><span class="statusdot" style="background:#FF8D28"></span>
+        Microphone access is turned off</div>
+      <div class="mi" style="color: var(--accent)">Open System Settings&hellip;</div>
+      <div class="msep"></div>
+      <div class="mi dis">Start Dictation<span class="sc">&#8997;Space</span></div>
+      <div class="mhdr">Recent</div>
+      <div class="mi"><span class="trunc">Hey John, I&rsquo;ll probably be about 20 minutes late&hellip;</span></div>
+      <div class="msep"></div>
+      <div class="mi">Open Uttrflow<span class="sc">&#8984;0</span></div>
+      <div class="mi">Settings&hellip;<span class="sc">&#8984;,</span></div>
+      <div class="msep"></div>
+      <div class="mi">Quit Uttrflow<span class="sc">&#8984;Q</span></div></div>
+        <div style="font-size: var(--t-footnote); color: rgba(255,255,255,0.55);
+             margin-top: 12px; width: 268px; line-height: 1.5">
+          Something needs fixing. The problem and its one fix sit at the top; dictation
+          is disabled rather than silently failing.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":700,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

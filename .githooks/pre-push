@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+#
+# The gate that used to be CI, run here instead.
+#
+# GitHub Actions bills macOS runners at ten times the rate of Linux, and this project
+# cannot use Linux: it builds against macOS 26 frameworks and its tests drive the real
+# Accessibility, clipboard and speech APIs. Fifty-one runs over two days consumed
+# ninety-seven per cent of a month's included minutes, and the account then stopped
+# starting jobs — silently, for days, while the repository went on looking green.
+#
+# So the check moved to the machine that was going to run it anyway. Everything below is
+# what .github/workflows/ci.yml did: `make verify`, which is lint, a full build, 2,640
+# tests and the coverage floor.
+#
+# Pushes to main and to beta are gated. A branch is somebody's work in progress and
+# blocking it would teach people to reach for --no-verify, which turns the gate off for
+# the trunks too.
+#
+# beta was added when beta became the gatekeeper: features land there and only the
+# operator moves beta to main, so a hook that watched main alone was a hook that never
+# fired for anything an agent did. There is no CI on beta by design — this is the only
+# thing standing between a broken commit and the shared branch everyone cuts from.
+#
+# To skip it deliberately:  git push --no-verify
+# Install it:               make hooks   (sets core.hooksPath; hooks are not cloned)
+set -uo pipefail
+
+REMOTE_NAME="${1:-origin}"
+
+# Git describes each ref being pushed on stdin:
+#   <local ref> <local sha> <remote ref> <remote sha>
+# An all-zero local sha is a deletion, which builds nothing and is let through.
+ZERO="0000000000000000000000000000000000000000"
+gate=no
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+    [[ "$local_sha" == "$ZERO" ]] && continue
+    if [[ "$remote_ref" == "refs/heads/main" || "$remote_ref" == "refs/heads/beta" ]]; then
+        gate=yes
+        gate_sha="$local_sha"
+    fi
+done
+
+if [[ "$gate" != "yes" ]]; then
+    exit 0
+fi
+
+printf '\n\033[1mpre-push: verifying before a trunk\033[0m  (%s)\n' "$REMOTE_NAME"
+
+# ---------------------------------------------------------------------------
+# Verify the commit, not the desk it was written on
+# ---------------------------------------------------------------------------
+# The obvious hook runs `make verify` right here, and it is wrong twice over.
+#
+# It checks the working tree, but what is being pushed is a commit. Those differ whenever
+# anything is uncommitted — which in this repository is nearly always, because more than
+# one agent works in it at a time. The first push after this hook existed was blocked by a
+# lint error in a file its commit did not touch, belonging to a session that was still
+# typing. A gate that fails for reasons unrelated to what you are pushing is a gate people
+# learn to bypass, and then it is not a gate.
+#
+# It also races those agents for `.build`, which they share and corrupt.
+#
+# So the check happens in a worktree of its own, checked out to exactly the commit being
+# pushed. The worktree is reused rather than created each time, so its `.build` stays warm
+# and a verify costs the same as it did before; it lives inside .git, so nothing about the
+# working tree changes and nothing can appear in `git status`.
+# `--git-common-dir`, not `<toplevel>/.git`. In a worktree that path is a *file* — a
+# pointer to the real repository — so every mkdir and `git worktree add` under it fails
+# with "Not a directory". Pushes normally come from the main checkout, where the two are
+# the same thing, which is why this went unnoticed; but the rulebook now has everyone
+# working in worktrees, and a push from one would have hit it.
+git_dir="$(git rev-parse --git-common-dir)"
+[[ "$git_dir" == /* ]] || git_dir="$(git rev-parse --show-toplevel)/$git_dir"
+verify_tree="$git_dir/verify-worktree"
+
+# The last ref bound for main is what gets checked. Pushing several at once is not a thing
+# that happens here, and verifying the tip is the answer that matters.
+if [[ -z "${gate_sha:-}" ]]; then
+    printf '\033[31mnothing to verify: no commit was resolved for main\033[0m\n'
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# One verify at a time
+# ---------------------------------------------------------------------------
+# The worktree is shared and reused — that is what keeps its `.build` warm and a verify
+# as cheap as it was before. Shared means two pushes can want it at once, and more than
+# one agent works in this repository at a time, so that is not hypothetical: it happened.
+# The second push checked its own commit out from under the first, which was midway
+# through a build. The first then compiled a mixture of two trees, reported failures in
+# files its commit had never touched, and refused a push that was fine.
+#
+# `mkdir` is the atomic primitive here. `flock` is not on macOS, and `[[ -d ]]` followed
+# by `mkdir` is a race in the same shape as the one being fixed.
+lock="$git_dir/verify-worktree.lock"
+waited=0
+until mkdir "$lock" 2>/dev/null; do
+    holder="$(cat "$lock/pid" 2>/dev/null || true)"
+    # A lock whose holder is gone is debris from a kill or a crash, not a live push.
+    if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null; then
+        printf '  clearing a lock left behind by pid %s\n' "$holder"
+        rm -rf "$lock"
+        continue
+    fi
+    if (( waited == 0 )); then
+        printf '  another push is verifying (pid %s) — waiting for it\n' "${holder:-unknown}"
+    fi
+    if (( waited >= 1800 )); then
+        printf '\033[31mgave up waiting after 30 minutes\033[0m\n'
+        printf '  If nothing is really running:  rm -rf %s\n' "$lock"
+        exit 1
+    fi
+    sleep 5
+    waited=$((waited + 5))
+done
+printf '%s' "$$" > "$lock/pid"
+# Released however this exits — including the failure paths below, each of which used to
+# be a way to leave the gate locked against every later push.
+trap 'rm -rf "$lock"' EXIT
+
+if [[ ! -d "$verify_tree" ]]; then
+    printf '  first run: preparing an isolated worktree (the build after this one is warm)\n'
+    git worktree add --detach --quiet "$verify_tree" "$gate_sha" || {
+        printf '\033[31mcould not create the verify worktree\033[0m\n'
+        exit 1
+    }
+else
+    # --force because a previous run left build products in it; they are exactly what we
+    # want to keep, and they are all ignored files so nothing tracked is discarded.
+    git -C "$verify_tree" checkout --detach --quiet --force "$gate_sha" || {
+        printf '\033[31mcould not check %s out into the verify worktree\033[0m\n' "${gate_sha:0:8}"
+        printf '  Remove it and let the next push rebuild it:  git worktree remove --force %s\n' "$verify_tree"
+        exit 1
+    }
+fi
+
+printf '  commit %s, in a clean checkout\n' "${gate_sha:0:8}"
+
+# Every swift invocation needs this, in every shell — a hook does not inherit the one from
+# an interactive profile.
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+if [[ ! -d "$DEVELOPER_DIR" ]]; then
+    printf '\033[31mno Xcode at %s\033[0m\n' "$DEVELOPER_DIR"
+    printf '  The full Xcode is required; the Command Line Tools alone will not do.\n'
+    exit 1
+fi
+
+started="$SECONDS"
+log="$(mktemp -t uttrflow-prepush)"
+
+# Piped to a file rather than shown: `make verify` prints thousands of passing test names,
+# and burying the one failure under them is how a gate stops being read. The tail is shown
+# only when it matters.
+if make -C "$verify_tree" verify > "$log" 2>&1; then
+    printf '\033[32m  verify passed\033[0m in %ds — pushing\n\n' "$((SECONDS - started))"
+    rm -f "$log"
+    exit 0
+fi
+
+printf '\n\033[31m  verify FAILED\033[0m after %ds — nothing was pushed\n\n' "$((SECONDS - started))"
+
+# Lint failures and test failures read completely differently, and the useful lines are in
+# different places, so pull whichever kind actually occurred rather than printing a fixed
+# window and hoping.
+if grep -qE '^\S+\.swift:[0-9]+:[0-9]+: error:' "$log"; then
+    printf '  Lint:\n'
+    grep -E '^\S+\.swift:[0-9]+:[0-9]+: error:' "$log" | head -15 | sed 's/^/    /'
+elif grep -q '✘' "$log"; then
+    printf '  Tests:\n'
+    grep -E '✘ Test .*recorded an issue' "$log" | head -10 | sed 's/^/    /'
+else
+    tail -25 "$log" | sed 's/^/    /'
+fi
+
+printf '\n  Full log: %s\n' "$log"
+printf '  Re-run by hand with: make verify\n\n'
+exit 1

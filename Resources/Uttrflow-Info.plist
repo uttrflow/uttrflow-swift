@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>Uttrflow</string>
+	<key>CFBundleIconFile</key>
+	<string>uttrflow</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.uttrflow.Uttrflow</string>
+	<key>CFBundleName</key>
+	<string>Uttrflow</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>UttrflowBackendURL</key>
+	<string>https://api.uttrflow.com</string>
+
+	<!--
+	  Updating.
+
+	  SUFeedURL is on this API and not on a file host, and it is the one address here
+	  that can never be changed: every copy of the app that ships with it asks that
+	  address for ever, including copies whose owner never updates again. Pointed at the
+	  backend, it stays repointable — the service can serve the appcast from anywhere,
+	  stop advertising a bad version, or roll one out to a fraction of installs, and no
+	  build has to change for any of that. Pointed at a static file it could do none of
+	  it, and every check would also be a request telling a third party when each user
+	  has their Mac open.
+
+	  SUPublicEDKey is the public half of the key every update archive is signed with. It
+	  is what makes a hijacked download harmless, and it is the whole of the security of
+	  this feature on a build with no Developer ID. The placeholder below is not a
+	  placeholder that can ship: Scripts/bundle.sh refuses a build carrying it, for the
+	  reason the entitlement work found the hard way — a key that is not a key is a
+	  forgery oracle, not an inert value.
+
+	  Generate the real pair once, on the Mac that cuts releases:  generate_keys
+	  It stores the private half in that Mac's login keychain and prints the public half
+	  to paste here. See Docs/releasing.md ("Updating").
+	-->
+	<!--
+	  Updating.
+
+	  SUFeedURL is on this API and not on a file host, and it is the one address here
+	  that can never be changed: every copy of the app that ships with it asks that
+	  address for ever, including copies whose owner stops updating. Pointed at the
+	  backend it stays repointable — the service can serve the appcast from anywhere,
+	  stop advertising a bad version, or roll one out to a fraction of installs, and no
+	  build has to change for any of that. Pointed at a static file it could do none of
+	  it, and every check would also be a request telling a third party when each user
+	  has their Mac open.
+
+	  SUPublicEDKey is the public half of the key every update archive is signed with,
+	  and on a build with no Developer ID it is the whole of this feature's security:
+	  it is what Sparkle checks, and it is why an unsigned app can still update itself
+	  safely. The private half is in the release Mac's login keychain, put there by
+	  `generate_keys`, and exists nowhere else — losing it means shipping a new build
+	  with a new key, by hand, to everybody.
+
+	  Six hours between checks, and never in the first minutes of a launch: a check
+	  competing with the speech-model download is a check that slows down the one thing
+	  a new user is waiting for.
+	-->
+	<key>SUFeedURL</key>
+	<string>https://api.uttrflow.com/v1/updates/macos/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>apWgly8fYgdo1U2MUj56SuqUqZ4QHv5GRZIbuLT0PGE=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>21600</integer>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.2</string>
+	<key>CFBundleVersion</key>
+	<string>5</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSUIElement</key>
+	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Uttrflow listens while you hold the dictation key, so it can turn what you say into text. Audio is transcribed on this Mac and never leaves it.</string>
+</dict>
+</plist>

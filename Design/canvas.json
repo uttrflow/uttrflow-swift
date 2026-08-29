@@ -1,0 +1,555 @@
+{
+  "artboards": [
+    {
+      "file": "Identity.dc.html",
+      "x": 0,
+      "y": -860,
+      "w": 900,
+      "h": 780
+    },
+    {
+      "file": "Sign-In.dc.html",
+      "x": 0,
+      "y": 30,
+      "w": 660,
+      "h": 760
+    },
+    {
+      "file": "Sign-In-Dark.dc.html",
+      "x": 700,
+      "y": 30,
+      "w": 660,
+      "h": 760
+    },
+    {
+      "file": "Sign-In-Offline.dc.html",
+      "x": 1400,
+      "y": 30,
+      "w": 660,
+      "h": 760
+    },
+    {
+      "file": "Sign-In-Offline-Dark.dc.html",
+      "x": 2100,
+      "y": 30,
+      "w": 660,
+      "h": 760
+    },
+    {
+      "file": "Onboarding-Welcome.dc.html",
+      "x": 0,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Onboarding-Welcome-Dark.dc.html",
+      "x": 740,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Onboarding-Microphone.dc.html",
+      "x": 1480,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Onboarding-Microphone-Dark.dc.html",
+      "x": 2220,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Onboarding-Accessibility.dc.html",
+      "x": 2960,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Onboarding-Accessibility-Dark.dc.html",
+      "x": 3700,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Onboarding-Setup.dc.html",
+      "x": 4440,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Speech model \u2014 downloading"
+    },
+    {
+      "file": "Onboarding-Setup-Dark.dc.html",
+      "x": 5180,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Speech model \u2014 downloading (dark)"
+    },
+    {
+      "file": "Onboarding-Setup-Failed.dc.html",
+      "x": 5920,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Speech model \u2014 stopped"
+    },
+    {
+      "file": "Onboarding-Setup-Failed-Dark.dc.html",
+      "x": 6660,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Speech model \u2014 stopped (dark)"
+    },
+    {
+      "file": "Onboarding-Check.dc.html",
+      "x": 7400,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 offering"
+    },
+    {
+      "file": "Onboarding-Check-Dark.dc.html",
+      "x": 8140,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 offering (dark)"
+    },
+    {
+      "file": "Onboarding-Check-Room.dc.html",
+      "x": 8880,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 the room"
+    },
+    {
+      "file": "Onboarding-Check-Room-Dark.dc.html",
+      "x": 9620,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 the room (dark)"
+    },
+    {
+      "file": "Onboarding-Check-Reading.dc.html",
+      "x": 10360,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 reading aloud"
+    },
+    {
+      "file": "Onboarding-Check-Reading-Dark.dc.html",
+      "x": 11100,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 reading aloud (dark)"
+    },
+    {
+      "file": "Onboarding-Check-Done.dc.html",
+      "x": 11840,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 finished"
+    },
+    {
+      "file": "Onboarding-Check-Done-Dark.dc.html",
+      "x": 12580,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 finished (dark)"
+    },
+    {
+      "file": "Onboarding-Check-Failed.dc.html",
+      "x": 13320,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 failed"
+    },
+    {
+      "file": "Onboarding-Check-Failed-Dark.dc.html",
+      "x": 14060,
+      "y": 900,
+      "w": 700,
+      "h": 550,
+      "title": "Microphone check \u2014 failed (dark)"
+    },
+    {
+      "file": "Onboarding-Ready.dc.html",
+      "x": 14800,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Onboarding-Ready-Dark.dc.html",
+      "x": 15540,
+      "y": 900,
+      "w": 700,
+      "h": 550
+    },
+    {
+      "file": "Dock-States.dc.html",
+      "x": 0,
+      "y": 1560,
+      "w": 900,
+      "h": 780
+    },
+    {
+      "file": "Dock-Placement.dc.html",
+      "x": 940,
+      "y": 1560,
+      "w": 900,
+      "h": 700
+    },
+    {
+      "file": "MenuBar.dc.html",
+      "x": 1880,
+      "y": 1560,
+      "w": 700,
+      "h": 620
+    },
+    {
+      "file": "Main-Dictation.dc.html",
+      "x": 0,
+      "y": 2450,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictation-Dark.dc.html",
+      "x": 1020,
+      "y": 2450,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictation-Empty.dc.html",
+      "x": 2040,
+      "y": 2450,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictation-Empty-Dark.dc.html",
+      "x": 3060,
+      "y": 2450,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictionary.dc.html",
+      "x": 0,
+      "y": 3260,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictionary-Dark.dc.html",
+      "x": 1020,
+      "y": 3260,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictionary-Empty.dc.html",
+      "x": 2040,
+      "y": 3260,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictionary-Empty-Dark.dc.html",
+      "x": 3060,
+      "y": 3260,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Corrections.dc.html",
+      "x": 0,
+      "y": 4070,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Corrections-Dark.dc.html",
+      "x": 1020,
+      "y": 4070,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Corrections-Empty.dc.html",
+      "x": 2040,
+      "y": 4070,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Corrections-Empty-Dark.dc.html",
+      "x": 3060,
+      "y": 4070,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Insights.dc.html",
+      "x": 0,
+      "y": 4880,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Insights-Dark.dc.html",
+      "x": 1020,
+      "y": 4880,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Insights-Empty.dc.html",
+      "x": 2040,
+      "y": 4880,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Insights-Empty-Dark.dc.html",
+      "x": 3060,
+      "y": 4880,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Snippets.dc.html",
+      "x": 0,
+      "y": 5690,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Snippets-Dark.dc.html",
+      "x": 1020,
+      "y": 5690,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Snippets-Empty.dc.html",
+      "x": 2040,
+      "y": 5690,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Snippets-Empty-Dark.dc.html",
+      "x": 3060,
+      "y": 5690,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Style.dc.html",
+      "x": 0,
+      "y": 6500,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Style-Dark.dc.html",
+      "x": 1020,
+      "y": 6500,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Account.dc.html",
+      "x": 2040,
+      "y": 6500,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Account-Dark.dc.html",
+      "x": 3060,
+      "y": 6500,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-History.dc.html",
+      "x": 0,
+      "y": 7310,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-History-Dark.dc.html",
+      "x": 1020,
+      "y": 7310,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Diagnostics.dc.html",
+      "x": 2040,
+      "y": 7310,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Diagnostics-Dark.dc.html",
+      "x": 3060,
+      "y": 7310,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Settings-General.dc.html",
+      "x": 0,
+      "y": 8120,
+      "w": 800,
+      "h": 660
+    },
+    {
+      "file": "Settings-Languages.dc.html",
+      "x": 840,
+      "y": 8120,
+      "w": 800,
+      "h": 660
+    },
+    {
+      "file": "Settings-Dictation.dc.html",
+      "x": 1680,
+      "y": 8120,
+      "w": 800,
+      "h": 660
+    },
+    {
+      "file": "Settings-Privacy.dc.html",
+      "x": 2520,
+      "y": 8120,
+      "w": 800,
+      "h": 660
+    },
+    {
+      "file": "Errors.dc.html",
+      "x": 0,
+      "y": 8890,
+      "w": 900,
+      "h": 700
+    }
+  ],
+  "annotations": [
+    {
+      "id": "identity",
+      "x": -360,
+      "y": -860,
+      "w": 300,
+      "text": "Identity\nThe mark, the app icon and the purple ramp. Every colour below is used somewhere in the rows underneath. Beside it, four wave marks \u2014 the drawn glyph cannot hold the menu bar, and each of these is an answer to that."
+    },
+    {
+      "id": "sign-in",
+      "x": -360,
+      "y": 30,
+      "w": 300,
+      "text": "Before anything\nSigning in is required \u2014 there is no way past this screen and no \"continue without an account\". In exchange the screen states plainly that this one step needs the network, and that nothing after it does. Light, dark, and the same screen with no connection. It is step 1 of 7 and now carries the dot to say so. The Google and GitHub marks are stand-ins: both providers require their own supplied file, which the app has yet to be given."
+    },
+    {
+      "id": "onboarding",
+      "x": -360,
+      "y": 900,
+      "w": 300,
+      "text": "First launch\nSeven screens, one decision each, and the dots say so on every one of them \u2014 including sign-in, which is step 1 and used to draw none. Only the microphone is truly required; everything else can be skipped and repaired later. The download and the microphone check are drawn in every state they can be in, because both can stop halfway. The check is a check: it measures a noise floor, one accuracy reading, and which languages were spoken, and nothing on it may suggest it is learning anybody's voice."
+    },
+    {
+      "id": "in-use",
+      "x": -360,
+      "y": 1560,
+      "w": 300,
+      "text": "Every day\nThe floating button is the whole product for most people. It is the recorder too \u2014 it expands in place rather than a second panel appearing somewhere else."
+    },
+    {
+      "id": "dictation",
+      "x": -360,
+      "y": 2450,
+      "w": 300,
+      "text": "The app window: Dictation\nThe sidebar turns a utility into an application. Product mark at the top, a flat list of destinations, the active one in accent, and \u2014 where a competitor puts a promo banner \u2014 your own most recent dictation. Dictation is the home surface: today's list newest first, hover actions on the row, and a rail of the three things the app can actually measure. Empty is a returning user who has not spoken today, so it shows yesterday rather than nothing."
+    },
+    {
+      "id": "dictionary",
+      "x": -360,
+      "y": 3260,
+      "w": 300,
+      "text": "Dictionary\nThe words you say that a general model has never heard. Where each came from, how often it earned its place, and how often you undid it. Zaprise has retired itself after seven undos out of fifteen \u2014 dimmed, labelled, and restorable. Empty means Uttrflow has not changed a single word of yours yet."
+    },
+    {
+      "id": "corrections",
+      "x": -360,
+      "y": 4070,
+      "w": 300,
+      "text": "Corrections\nThe screen no competitor has. Everything Uttrflow changed: what it heard, what it wrote, why, which dictation, and an undo. A product that quietly rewrites your words owes you this page. Empty here is the good outcome, and says so."
+    },
+    {
+      "id": "insights",
+      "x": -360,
+      "y": 4880,
+      "w": 300,
+      "text": "Insights\nOnly what the app already measures: words per day, speaking speed, accuracy against the user's own baseline, language mix, and which apps the words went into. No \"time saved\" tile \u2014 it would need a guess at how fast you type, and the artboard says so out loud. Empty waits for seven days rather than charting two."
+    },
+    {
+      "id": "snippets",
+      "x": -360,
+      "y": 5690,
+      "w": 300,
+      "text": "Snippets\nSay a trigger phrase, get a block of text. List, add and edit in one place \u2014 the last row is open in its editor. The empty state teaches the idea with one worked example instead of an illustration."
+    },
+    {
+      "id": "style-account",
+      "x": -360,
+      "y": 6500,
+      "w": 300,
+      "text": "Style and Account\nSettings idiom, inside the app window. Style is how much tidying and which languages, with the same sentence shown at both levels so the choice is not abstract. Account is an identity and nothing else \u2014 signing out leaves every file where it is."
+    },
+    {
+      "id": "main-window",
+      "x": -360,
+      "y": 7310,
+      "w": 300,
+      "text": "History and Diagnostics\nUnchanged in substance, redrawn inside the shell. Today lives on Dictation now, so History starts at yesterday. Diagnostics is still where the PRD's latency and failure numbers surface."
+    },
+    {
+      "id": "settings",
+      "x": -360,
+      "y": 8120,
+      "w": 300,
+      "text": "Settings\nIts own window, reached from the sidebar. Every choice is worded as an outcome \u2014 nothing here asks the user to understand how Uttrflow works."
+    },
+    {
+      "id": "errors",
+      "x": -360,
+      "y": 8890,
+      "w": 300,
+      "text": "When things go wrong\nEach failure states one problem and offers one action. The transcript is never lost, whatever fails."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

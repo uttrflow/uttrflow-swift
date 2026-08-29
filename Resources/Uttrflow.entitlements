@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements embedded in Uttrflow.app's signature by Scripts/bundle.sh.
+
+  One entitlement. An entitlement widens what the app is permitted to do, so the list is
+  kept to what has been shown to be necessary, and what is absent is recorded below with
+  the reason, because "we never needed it" is only useful if someone wrote down how they
+  know.
+
+  com.apple.security.device.audio-input — REQUIRED for distribution.
+
+  Measured on macOS 26.5.1, same binary, same bundle identifier, hardened runtime the
+  only variable (Docs/packaging.md has the runs). On a Mac that has not already granted
+  this identifier the microphone, a hardened build WITHOUT this entitlement does not
+  prompt and does not error: AVCaptureDevice.requestAccess returns false immediately,
+  the audio engine starts, buffers arrive, and every sample is exactly 0.0. macOS writes
+  no TCC record at all. From inside the app, and from the user's chair, that is
+  indistinguishable from having pressed Deny.
+
+  With the entitlement present the hardened runtime changes nothing: the prompt appears,
+  the grant is recorded, real audio arrives.
+
+  An already-granted Mac keeps working either way, because the check is skipped once TCC
+  has an answer — which is precisely why this cannot be caught by testing on the machine
+  that built the app. Scripts/bundle.sh check 5 and Scripts/notarise.sh both refuse a
+  build that has lost it.
+
+  Deliberately absent, each verified unnecessary by running the app under the hardened
+  runtime with library validation enforced (CoreML, the Neural Engine and Metal all
+  initialise; see Docs/packaging.md):
+
+    com.apple.security.cs.disable-library-validation
+        Still absent, but no longer for the reason first written here. That reason was
+        that the app links nothing but system frameworks and /usr/lib/swift dylibs,
+        because SwiftPM statically links the package graph. Sparkle ended that: it is an
+        embedded framework in Contents/Frameworks, and it is the first thing here that
+        library validation has an opinion about.
+
+        It is absent because with a Developer ID it is not needed. Library validation
+        requires that loaded code share the app's Team ID, and a distribution build signs
+        the app and every nested piece of Sparkle with the same one — so the check passes
+        on its merits. Adding this would let any library signed by anyone load into a
+        process holding microphone and Accessibility access, which is a permanent cost to
+        buy nothing.
+
+        Ad-hoc signatures have no Team ID at all, so an ad-hoc *hardened* build cannot
+        load the framework — it dies at launch with "different Team IDs". That is the
+        `rehearsal` mode in Scripts/bundle.sh, and only that mode, which signs with this
+        entitlement added to a copy of this file and says so while it does it. Check 7
+        refuses a distribution build that carries it.
+    com.apple.security.cs.allow-jit
+    com.apple.security.cs.allow-unsigned-executable-memory
+        Whisper and the local model compile through CoreML and Metal, both of which do
+        that work in separate system services rather than in our address space.
+    com.apple.security.cs.allow-dyld-environment-variables
+        Nothing here needs DYLD_* set, and honouring it is how a hardened process gets
+        code injected into it.
+    com.apple.security.automation.apple-events
+        Uttrflow types into other applications with CGEvent and reads context through the
+        Accessibility API. Neither is an Apple Event. Accessibility has no
+        hardened-runtime entitlement at all — it is governed only by TCC — so there is
+        nothing here that could be missing.
+    com.apple.security.app-sandbox
+        Uttrflow is not sandboxed. Note that audio-input above is nominally a sandbox
+        entitlement; the hardened runtime consults it regardless, which is the whole
+        trap described above.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>

@@ -1,0 +1,208 @@
+import UttrflowUX
+import SwiftUI
+
+/// The diagnostics page: how long things took, what is running, and what is in the way.
+///
+/// Every number here came out of ``DiagnosticsPresenter``, which will not produce one it
+/// did not measure. That is why this file contains no placeholder and no default: there
+/// is nothing to fall back to, because a stage nothing measured has no number — it is
+/// listed by name as never run instead.
+struct DiagnosticsPageView: View {
+    let presentation: DiagnosticsPresentation
+    var onIntent: (MainIntent) -> Void = { _ in }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            summary
+            if let empty = presentation.latencyEmptyState {
+                MainCard { MainEmptyStateView(state: empty, onIntent: onIntent) }
+            }
+            if let latency = presentation.latency {
+                MainSectionLabel(text: "Time from letting go of the key to text on screen")
+                headline(latency)
+                VStack(spacing: 0) {
+                    ForEach(Array(latency.stages.enumerated()), id: \.element.id) {
+                        index, stage in
+                        if index > 0 {
+                            MainDivider()
+                        }
+                        stageRow(stage)
+                    }
+                    // Below the stages that were timed, and in the page's grey
+                    // "not known" style rather than with a number: a stage nothing
+                    // has run is a fact about the journey, not a fast one.
+                    ForEach(latency.unmeasured) { row in
+                        MainDivider()
+                        factRow(row)
+                    }
+                }
+            }
+            if !presentation.reliability.isEmpty {
+                MainStatisticsRow(statistics: presentation.reliability)
+            }
+            section("Engines", presentation.engines)
+            section("Permissions", presentation.permissions)
+            section("On this Mac", presentation.storage)
+            footer
+        }
+    }
+
+    private func headline(_ latency: DiagnosticsLatency) -> some View {
+        MainCard {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(latency.headline)
+                        .font(.system(size: 17, weight: .semibold))
+                        .monospacedDigit()
+                    Text(latency.caption)
+                        .font(.system(size: MainMetrics.calloutSize))
+                        .foregroundStyle(.secondary)
+                }
+                GeometryReader { proxy in
+                    HStack(spacing: 0) {
+                        ForEach(latency.stages) { stage in
+                            Rectangle()
+                                .fill(colour(for: stage))
+                                .frame(width: proxy.size.width * stage.share)
+                        }
+                    }
+                }
+                .frame(height: 22)
+                .clipShape(.rect(cornerRadius: 6))
+                .accessibilityHidden(true)
+            }
+        }
+    }
+
+    private func stageRow(_ stage: DiagnosticsStageRow) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(colour(for: stage))
+                .frame(width: 9, height: 9)
+            Text(stage.title)
+            Spacer(minLength: 0)
+            Text("\(stage.typical) typical")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(width: 120, alignment: .trailing)
+            Text("\(stage.slowest) slowest")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(width: 120, alignment: .trailing)
+        }
+        .font(.system(size: MainMetrics.calloutSize))
+        .padding(.horizontal, 13)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            """
+            \(stage.title): \(stage.typical) typically, \(stage.slowest) at worst, \
+            over \(stage.samples) measurements.
+            """)
+    }
+
+    /// The stages keep the order the journey runs in, so the colours are taken in the
+    /// same order and one stage cannot swap colours between the bar and the list.
+    private func colour(for stage: DiagnosticsStageRow) -> Color {
+        switch stage.stage {
+        case .capture: .dockAccentTint
+        case .transcription: .dockAccentLight
+        case .correction: .dockAccent
+        case .transformation: .dockSecondary
+        case .expansion: .dockAccentWash
+        case .insertion: .dockSuccess
+        }
+    }
+
+    /// The verdict, above the facts it was drawn from.
+    private var summary: some View {
+        let summary = presentation.summary
+        let tint: Color = summary.needsAttention ? .dockWarning : .dockSuccess
+        return HStack(spacing: 11) {
+            Circle()
+                .fill(tint)
+                .frame(width: 7, height: 7)
+            Text(summary.text)
+                .font(.system(size: MainMetrics.bodySize))
+                .foregroundStyle(summary.needsAttention ? Color.mainText : Color.mainMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            if let action = summary.action {
+                MainActionButton(action: action, onIntent: onIntent)
+            }
+        }
+        .padding(.horizontal, 15)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            // The all-clear is drawn as a plain panel: an amber banner has to be the
+            // only coloured thing on the page for the eye to go to it.
+            summary.needsAttention ? Color.dockWarning.opacity(0.10) : Color.mainCard,
+            in: .rect(cornerRadius: MainMetrics.cardRadius)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: MainMetrics.cardRadius)
+                .strokeBorder(
+                    summary.needsAttention ? Color.dockWarning.opacity(0.28) : Color.mainSeparator,
+                    lineWidth: summary.needsAttention ? 1 : 0.5)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(summary.text)
+    }
+
+    @ViewBuilder private func section(_ title: String, _ rows: [DiagnosticsRow]) -> some View {
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: 7) {
+                MainSectionLabel(text: title)
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        if index > 0 {
+                            MainDivider()
+                        }
+                        factRow(row)
+                    }
+                }
+            }
+        }
+    }
+
+    private func factRow(_ row: DiagnosticsRow) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(colour(for: row.state))
+                .frame(width: 8, height: 8)
+            Text(row.title)
+            Spacer(minLength: 0)
+            Text(row.detail)
+                .foregroundStyle(.secondary)
+            if let action = row.action {
+                MainActionButton(action: action, onIntent: onIntent)
+            }
+        }
+        .font(.system(size: MainMetrics.calloutSize))
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(row.title): \(row.detail)")
+    }
+
+    /// Grey for unknown, deliberately: a state nobody has checked must not be drawn in
+    /// the same colour as one that has been checked and is fine.
+    private func colour(for state: DiagnosticsState) -> Color {
+        switch state {
+        case .good: .dockSuccess
+        case .attention: .dockWarning
+        case .unknown: .secondary
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 9) {
+            Text(presentation.footnote)
+                .font(.system(size: MainMetrics.footnoteSize))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            MainActionButton(action: presentation.copyAction, onIntent: onIntent)
+        }
+    }
+}
