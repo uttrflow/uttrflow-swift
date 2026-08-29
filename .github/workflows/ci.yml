@@ -1,0 +1,76 @@
+# The gate every change passes before it can be merged.
+#
+# This is the whole of the quality story under trunk-based development, and it is worth
+# being explicit about why it replaces an integration branch rather than being weaker than
+# one. A staging branch tests code that has *already been merged*: a bad change is in the
+# shared branch, blocking everyone else's work, and somebody has to notice and back it out.
+# This runs against the merge result *before* the merge is allowed, so a change that breaks
+# the build never reaches `main` at all. Earlier is strictly better; the branch was only
+# ever a proxy for "has this been tested?", and this answers that question directly.
+#
+# It runs on pull requests and on `main`. On `main` it is belt and braces — a required
+# check means nothing can land red — but `main` is what people release from, so it is
+# worth knowing immediately if it ever is.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # A force-push or a second commit supersedes the run already going. Nobody is waiting on
+  # the result for a commit that is no longer the tip.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: make verify
+    # Uttrflow targets macOS 26 APIs (Foundation Models, SpeechAnalyzer), so the runner
+    # image must be at least as new as the deployment target. This is also why the project
+    # cannot use Linux runners, which is why CI was once switched off entirely: macOS
+    # minutes bill at ten times the Linux rate and a private repository pays for them.
+    # A public repository does not, which is what made this file possible again.
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Dependencies are pinned in Package.resolved, so the cache key is that file: a
+      # dependency bump changes it and gets a cold build, and nothing else does.
+      - name: Cache SwiftPM
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      # `make verify` is lint, the PII audit, a full build, 2,900+ tests, the 95% per-module
+      # coverage floor, and the offline audit. It is the same command the pre-push hook runs
+      # locally, deliberately: a contributor who runs it before pushing sees exactly what
+      # this will see, and there is no class of failure that only CI can find.
+      - name: Verify
+        run: make verify
+
+      # The app bundle is not part of `make verify`, and building it here is what catches
+      # the failures that only appear at packaging time — a resource that does not get
+      # sealed, a signature that does not verify. Ad-hoc signed: no certificate is needed
+      # and none is available to a fork's pull request.
+      - name: Build the app bundle
+        run: make app
+
+      - name: Check it is a valid bundle
+        run: codesign --verify --deep --strict dist/Uttrflow.app

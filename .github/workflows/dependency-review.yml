@@ -1,0 +1,32 @@
+# Refuses a pull request that introduces a dependency with a known vulnerability, or one
+# whose licence we cannot ship.
+#
+# This runs on the *diff*, which is what makes it worth having alongside Dependabot:
+# Dependabot tells you about a problem in what you already have, and by then it is in
+# `main`. This one answers before the merge, which is the same reason CI is on the pull
+# request rather than on a staging branch.
+name: Dependency review
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Review new dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48  # v4.9.0
+        with:
+          # `moderate` rather than `high`: this is a desktop application holding somebody's
+          # clipboard and microphone, and the cost of looking at a moderate finding is a
+          # few minutes.
+          fail-on-severity: moderate
+          # Copyleft licences are not compatible with shipping a notarised binary under
+          # MIT. Denying them here means finding out in the pull request that added the
+          # dependency, rather than at the point somebody asks for the source.
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-3.0
+          comment-summary-in-pr: on-failure

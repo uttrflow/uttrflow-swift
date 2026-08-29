@@ -1,0 +1,35 @@
+name: Feature request
+description: Something Uttrflow should do and does not
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Worth knowing before you write: **dictation is on-device and stays that way.**
+        Anything requiring a transcript to be sent somewhere is a product decision with a
+        privacy page attached, not a feature request — it will not be declined rudely, but
+        it will not be quick.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: |
+        The problem, not the solution. "I have to retype the same address every day" tells
+        us more than "add snippets", because there may be a better answer than the one you
+        had in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What you had in mind
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead today
+      description: Including other apps. Knowing what already works is useful.

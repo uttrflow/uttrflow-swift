@@ -1,8 +1,26 @@
 # Uttrflow
 
+[![CI](https://github.com/uttrflow/uttrflow-swift/actions/workflows/ci.yml/badge.svg)](https://github.com/uttrflow/uttrflow-swift/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/uttrflow/uttrflow-swift/actions/workflows/codeql.yml/badge.svg)](https://github.com/uttrflow/uttrflow-swift/actions/workflows/codeql.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+[![Download](https://img.shields.io/badge/download-latest-brightgreen.svg)](https://github.com/uttrflow/releases/releases/latest/download/Uttrflow.dmg)
+
 A native macOS clipboard manager with dictation built in. Everything you copy is a
 keystroke away, and you can speak into any application instead of typing — entirely on
 your own machine.
+
+## It runs without an account, and without anything of ours
+
+Worth saying first, because it is the question every reader of a client repository has:
+**you do not need an account, an API key, or access to any server we run.**
+
+Dictation is on-device. The clipboard, history, dictionary and snippets live in Application
+Support and are never sent anywhere. The one screen that would need a network — sign-in —
+offers **"continue on this Mac"** beside the providers, which uses the name macOS already
+knows you by and needs nothing. An account buys the things that genuinely need one:
+carrying a dictionary between Macs, and a subscription to bill.
+
+So a clone builds, tests and runs, complete. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Requirements
 
@@ -217,6 +235,13 @@ roughly 646 MB, and signs you in once. After that it dictates with no network at
 proven by a sandbox that kills any process touching one. A cloud clean-up engine exists
 behind the `UTTRFLOW_CLOUD` compilation flag and is **not** in the shipping binary, and the
 evaluation corpus is not a library product so it cannot be imported into the app.
+
+## Contributing
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how a change gets in, and what review looks for
+- [`RELEASING.md`](RELEASING.md) — how a release is cut, and why there is no staging branch
+- [`SECURITY.md`](SECURITY.md) — reporting a vulnerability, and what runs automatically
+- [`CHANGELOG.md`](CHANGELOG.md) — what changed, per version
 
 ## Licence
 

@@ -1,0 +1,69 @@
+name: Bug report
+description: Something behaves differently from how it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The single most useful thing is what you expected
+        versus what happened — the steps beat the conclusion.
+
+        **Do not report a security problem here.** Use
+        [private reporting](https://github.com/uttrflow/uttrflow-swift/security/advisories/new).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: And what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Hold the dictation key
+        2. Say "..."
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Uttrflow version
+      description: The foot of the sidebar, or Uttrflow → About.
+      placeholder: "0.2.2"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "26.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: signed-in
+    attributes:
+      label: How are you signed in?
+      options:
+        - An Uttrflow account
+        - On this Mac, without an account
+        - Not signed in at all
+    validations:
+      required: true
+
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else
+      description: |
+        Console output, a screen recording, whatever you have.
+
+        **Please check it for anything private first** — a transcript or a clipboard clip
+        may contain more than you meant to share.

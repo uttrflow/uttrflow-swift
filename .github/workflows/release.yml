@@ -1,0 +1,153 @@
+# Cuts a release from a tag.
+#
+# A release is a tag, not a branch. `main` is always releasable; tagging is the act of
+# deciding that a particular commit on it is the one people get. Nothing here reads a
+# branch name, so there is no state to keep in sync and no long-lived branch to protect.
+#
+#   git tag v0.3.0 && git push origin v0.3.0        a release
+#   git tag v0.3.0-rc.1 && git push origin v0.3.0-rc.1   a release candidate
+#
+# **The release candidate is how a batch gets soaked before anybody is asked to install
+# it.** An `-rc` tag publishes as a GitHub prerelease, and GitHub's
+# `/releases/latest/download/` deliberately skips prereleases — so an rc can be handed to
+# people who ask for it without ever becoming what the download button serves, and without
+# `latest.json` moving. That is the same guarantee an integration branch gives, obtained
+# from a tag that costs nothing to make and nothing to maintain.
+#
+# The version lives in Resources/Uttrflow-Info.plist and nowhere else. The tag must agree
+# with it; the first job refuses the release if it does not, because a v0.3.0 tag on a
+# build that reports 0.2.2 produces an appcast that offers everybody a downgrade.
+#
+# Secrets this needs, on this repository:
+#
+#   MACOS_CERTIFICATE       Developer ID Application .p12, base64:  base64 -i cert.p12 | pbcopy
+#   MACOS_CERTIFICATE_PWD   the password set when that .p12 was exported
+#   MACOS_SIGNING_IDENTITY  "Developer ID Application: NAME (TEAMID)"
+#   APPLE_ID                the Apple ID that owns the developer account
+#   APPLE_TEAM_ID           the ten-character team identifier
+#   APPLE_APP_PASSWORD      an app-specific password from appleid.apple.com — NOT the
+#                             Apple ID password
+#   SPARKLE_PRIVATE_KEY     the base64 EdDSA private half, from `generate_keys -x`. Without
+#                             it the archive cannot be signed and installed copies would
+#                             refuse the update.
+#   RELEASES_TOKEN          a PAT with contents:write on uttrflow/releases. The built-in
+#                             GITHUB_TOKEN cannot write to another repository, which is the
+#                             whole reason downloads live in one.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Cheap, and first. Everything below costs macOS minutes and up to an hour; a tag that
+  # disagrees with the plist should cost five seconds to find out about.
+  check-version:
+    name: Tag agrees with the plist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+
+      - name: Compare
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          # An rc tags the version it is a candidate *for*: v0.3.0-rc.1 is built from a
+          # tree whose plist says 0.3.0, and that is the version it will ship as.
+          base="${tag%%-*}"
+          plist=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - Resources/Uttrflow-Info.plist 2>/dev/null \
+                  || grep -A1 CFBundleShortVersionString Resources/Uttrflow-Info.plist | tail -1 | sed -E 's|.*<string>(.*)</string>.*|\1|')
+          echo "tag=$GITHUB_REF_NAME  base=$base  plist=$plist"
+          if [ "$base" != "$plist" ]; then
+            echo "::error::tag $GITHUB_REF_NAME implies version $base, but Resources/Uttrflow-Info.plist says $plist."
+            echo "::error::Bump the plist and re-tag. A tag that disagrees with the build ships an appcast that offers a downgrade."
+            exit 1
+          fi
+
+  release:
+    name: Build, notarise, publish
+    needs: check-version
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      # The same gate a pull request passes. A tag can point at any commit, including one
+      # that never went through a pull request, so this is not redundant with CI.
+      - name: Verify
+        run: make verify
+
+      # A keychain that exists for this job and nothing else. The runner is discarded
+      # afterwards, but an explicit keychain keeps the certificate out of the default one
+      # and makes the `security` calls below unambiguous about what they are unlocking.
+      - name: Import the Developer ID certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/build.keychain"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PWD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Without this, codesign blocks on a UI prompt that nothing in CI can answer.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+          security list-keychain -d user -s "$keychain" login.keychain
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning "$keychain"
+
+      - name: Build a notarisable app
+        env:
+          UTTRFLOW_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: make app-dist
+
+      - name: Notarise and staple the app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: make notarise
+
+      - name: Build the disk image
+        run: make dmg
+
+      - name: Notarise and staple the disk image
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: make notarise-dmg
+
+      # publish.sh builds the update archive from the app *inside the mounted image*, so
+      # the two assets in a release cannot be different builds, signs it with the EdDSA
+      # key, writes the appcast, and pushes everything to the downloads repository.
+      - name: Publish to uttrflow/releases
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: make publish
+
+      # Kept for the same reason a build log is: when somebody asks what shipped as
+      # v0.3.0, the answer should not depend on a runner that has been recycled.
+      - name: Keep the built artefacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: ${{ github.ref_name }}
+          path: dist/*.dmg
+          if-no-files-found: warn
+          retention-days: 90

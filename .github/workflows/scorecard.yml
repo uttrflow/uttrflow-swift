@@ -1,0 +1,53 @@
+# OpenSSF Scorecard: an outside opinion on this repository's supply-chain posture.
+#
+# It grades things that are easy to be quietly wrong about — an action pinned to a mutable
+# tag, a workflow with more permissions than it uses, a branch anyone can force-push, a
+# dependency nobody updates. The number matters less than the diff in it: a score that
+# drops is a change somebody made without noticing what it cost.
+#
+# Results go to the Security tab as code scanning alerts, so a regression appears where the
+# other security findings already are rather than in a dashboard nobody opens.
+name: Scorecard
+
+on:
+  branch_protection_rule:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 7 * * 3"
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write        # for the signed, publishable result
+      contents: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc  # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publishing puts the badge and the history on the public scorecard site. It also
+          # means the result is signed, which is what makes it worth anything to somebody
+          # who did not run it themselves.
+          publish_results: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 7
+
+      - uses: github/codeql-action/upload-sarif@6f5948dfacef28e207b48d0905cf90c03365536d  # v3.37.9
+        with:
+          sarif_file: results.sarif

@@ -1,0 +1,7 @@
+# Everything is reviewed by the maintainer.
+#
+# This is what makes the ruleset practical rather than ceremonial: a pull request from
+# anybody, including a bot, requests review from here automatically, so nothing waits on
+# somebody remembering to ask.
+
+*   @naveen-bhatt
