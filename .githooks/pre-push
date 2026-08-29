@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 #
-# The gate that used to be CI, run here instead.
+# The gate, run locally, before CI runs it again.
 #
-# GitHub Actions bills macOS runners at ten times the rate of Linux, and this project
-# cannot use Linux: it builds against macOS 26 frameworks and its tests drive the real
-# Accessibility, clipboard and speech APIs. Fifty-one runs over two days consumed
-# ninety-seven per cent of a month's included minutes, and the account then stopped
-# starting jobs — silently, for days, while the repository went on looking green.
+# This began as a replacement for CI: macOS runners bill at ten times the Linux rate, this
+# project cannot use Linux, and fifty-one runs over two days ate 97% of a month's minutes —
+# after which jobs stopped starting silently, for days, while the repository went on looking
+# green. So the check moved to the machine that was going to run it anyway.
 #
-# So the check moved to the machine that was going to run it anyway. Everything below is
+# A public repository does not pay for standard runners, so CI is back and this is no longer
+# the last line of defence. It is kept because it is still the fastest one. Below is
 # what .github/workflows/ci.yml did: `make verify`, which is lint, a full build, 2,640
 # tests and the coverage floor.
 #
-# Pushes to main and to beta are gated. A branch is somebody's work in progress and
-# blocking it would teach people to reach for --no-verify, which turns the gate off for
-# the trunks too.
+# This is no longer the only gate. CI runs `make verify` on every pull request, and a
+# ruleset blocks pushing to `main` at the server. What the hook is now is the fast one: it
+# answers in the time a build takes rather than a queue plus a build, and it answers before
+# a reviewer is looking.
 #
-# beta was added when beta became the gatekeeper: features land there and only the
-# operator moves beta to main, so a hook that watched main alone was a hook that never
-# fired for anything an agent did. There is no CI on beta by design — this is the only
-# thing standing between a broken commit and the shared branch everyone cuts from.
+# It gates pushes to `main`, which in practice only the operator can make. A feature branch
+# is somebody's work in progress and blocking it would teach people to reach for
+# --no-verify, which turns the gate off for the trunk too.
 #
 # To skip it deliberately:  git push --no-verify
 # Install it:               make hooks   (sets core.hooksPath; hooks are not cloned)
@@ -34,7 +34,7 @@ ZERO="0000000000000000000000000000000000000000"
 gate=no
 while read -r _local_ref local_sha remote_ref _remote_sha; do
     [[ "$local_sha" == "$ZERO" ]] && continue
-    if [[ "$remote_ref" == "refs/heads/main" || "$remote_ref" == "refs/heads/beta" ]]; then
+    if [[ "$remote_ref" == "refs/heads/main" ]]; then
         gate=yes
         gate_sha="$local_sha"
     fi

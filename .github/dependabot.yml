@@ -1,0 +1,39 @@
+# Dependency updates, opened as pull requests so they go through the same gate as
+# everything else — CI, review, merge. Nothing here can land unreviewed.
+version: 2
+updates:
+  # Actions are the supply chain most likely to be forgotten, because nothing breaks when
+  # they go stale. They are pinned to commit SHAs in the workflows; Dependabot understands
+  # that and updates the SHA along with the version comment, which is the only sane way to
+  # keep pinning from rotting.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: wednesday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    labels: ["dependencies", "github-actions"]
+
+  # SwiftPM. Grouped because a Swift toolchain bump tends to move several Apple packages at
+  # once, and five pull requests that must land together are five chances to land four.
+  - package-ecosystem: swift
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: wednesday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    labels: ["dependencies", "swift"]
+    groups:
+      apple:
+        patterns: ["swift-*"]
+      huggingface:
+        patterns: ["swift-transformers", "swift-huggingface", "swift-jinja"]
+    ignore:
+      # Sparkle is pinned with `exact:` on purpose. Its framework is embedded and signed,
+      # and a version bump is a packaging change that has to be built and checked by hand —
+      # not something to accept from a bot. See Docs/packaging.md.
+      - dependency-name: "Sparkle"

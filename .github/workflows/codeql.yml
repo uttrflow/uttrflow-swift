@@ -1,0 +1,58 @@
+# Static analysis for security defects.
+#
+# CodeQL understands Swift, which is the reason this is worth running rather than a box to
+# tick: the classes it finds — a path traversal, an unchecked deserialisation, a comparison
+# that is not constant-time — are exactly the ones a reading reviewer misses, because they
+# are properties of a whole call path rather than of a line.
+#
+# `security-and-quality` rather than the default `security` suite. This project's tests
+# already cover behaviour; what the wider suite adds is the correctness smells that are not
+# quite bugs yet, and on a codebase this size the extra noise is manageable.
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Wednesday, early. A weekly run catches the case that matters most and that a
+    # pull-request trigger cannot: a query added to CodeQL after the code was written,
+    # finding something that was always wrong and never flagged.
+    - cron: "0 6 * * 3"
+
+permissions:
+  contents: read
+
+jobs:
+  analyse:
+    name: Analyse Swift
+    # Swift analysis needs the code to build, so this is the same runner CI uses.
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      security-events: write   # to file the results
+      contents: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@6f5948dfacef28e207b48d0905cf90c03365536d  # v3.37.9
+        with:
+          languages: swift
+          queries: security-and-quality
+
+      # Autobuild handles SwiftPM. It is left to do so rather than being replaced with an
+      # explicit `swift build`: when it works it stays correct through a manifest change,
+      # and when it stops working it says so loudly rather than analysing nothing.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@6f5948dfacef28e207b48d0905cf90c03365536d  # v3.37.9
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@6f5948dfacef28e207b48d0905cf90c03365536d  # v3.37.9
+        with:
+          category: "/language:swift"

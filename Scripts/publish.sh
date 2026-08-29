@@ -161,13 +161,35 @@ SIZE="$(stat -f%z "$IMAGE")"
 # signature, and not the code signature, is what an updating app checks: it is why an
 # ad-hoc build can update itself safely, and it is the whole of this feature's security
 # until there is a Developer ID.
-SIGNATURE="$("$SIGN_UPDATE" "$ARCHIVE_STAGE/$ARCHIVE" 2>/dev/null)" || SIGNATURE=""
+# The key comes from the login keychain when a person is running this, and from the
+# environment when a workflow is. Both reach the same `sign_update`; only where the key is
+# read from differs.
+#
+# `-s` rather than a key file on disk, deliberately: a file would have to be written,
+# chmodded and deleted, and the delete is the step that gets skipped when something fails
+# in between. Passing it as an argument keeps the private half out of the filesystem. It is
+# visible in this process's argv, which on a single-tenant runner is an acceptable trade
+# and on a shared machine would not be — so a person signing locally should leave
+# SPARKLE_PRIVATE_KEY unset and let the keychain answer.
+if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+    printf '  signing the archive with the key from the environment\n'
+    SIGNATURE="$("$SIGN_UPDATE" -s "$SPARKLE_PRIVATE_KEY" "$ARCHIVE_STAGE/$ARCHIVE" 2>/dev/null)" || SIGNATURE=""
+else
+    SIGNATURE="$("$SIGN_UPDATE" "$ARCHIVE_STAGE/$ARCHIVE" 2>/dev/null)" || SIGNATURE=""
+fi
 [[ -n "$SIGNATURE" ]] || fail "$(
     printf 'could not sign %s.\n' "$ARCHIVE"
-    printf '  The private key lives in this Mac'"'"'s login keychain. On a new machine run\n'
-    printf '    %s\n' "$GENERATE_KEYS"
-    printf '  — but note that a *new* key means every installed copy stops accepting\n'
-    printf '  updates, because the public half is compiled into them.'
+    if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+        printf '  SPARKLE_PRIVATE_KEY is set, so the key it holds was rejected — it is the\n'
+        printf '  wrong key, or truncated. It is the base64 private half that\n'
+        printf '  `generate_keys -x` prints, on one line, with nothing around it.'
+    else
+        printf '  The private key lives in this Mac'"'"'s login keychain. On a new machine run\n'
+        printf '    %s\n' "$GENERATE_KEYS"
+        printf '  — but note that a *new* key means every installed copy stops accepting\n'
+        printf '  updates, because the public half is compiled into them.\n'
+        printf '  In a workflow, set SPARKLE_PRIVATE_KEY instead.'
+    fi
 )"
 
 if [[ "$NOTARISED" == "yes" ]]; then

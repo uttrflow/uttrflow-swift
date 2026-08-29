@@ -1,53 +1,45 @@
 # Working in this repository
 
-<!-- release-policy:v1 -->
+<!-- release-policy:v2 -->
 ## Branching & Release Policy — NON-NEGOTIABLE
 
-**Effective 2026-08-28. This supersedes anything elsewhere in this file, or in any agent's
-memory, that says to commit or push directly to `main`.**
+**Effective 2026-08-29, when this repository became public and became the only home for
+this project. This supersedes release-policy:v1 and anything in any agent's memory about a
+`beta` branch — that branch belonged to the private repository and does not exist here.**
 
-`beta` is the gatekeeper. Nothing reaches `main` except through it.
+**One long-lived branch, `main`, always releasable. A release is a tag, not a branch.**
 
 ```
-feature branch  ──PR──>  beta  ──batched release PR──>  main
-   (no CI)               (no CI)                        (CI + CD, once)
+branch / fork  ──PR──>  main  ──tag v0.3.0-rc.1──>  prerelease  (soak)
+   (CI runs)          (CI runs)  ──tag v0.3.0────>  release
 ```
 
-1. **Cut every branch from `origin/beta`**, never from `main`, never from a stale local checkout:
-   `git fetch origin && git worktree add ../worktrees/<slug> -b <branch> origin/beta`
-2. **Every PR targets `beta`** — `gh pr create --base beta`. No size threshold, no "this one is
-   trivial", no hotfix lane. An urgent fix still goes to `beta`; the operator decides whether it
-   warrants an immediate release.
-3. **No CI and no CD on `beta`, on feature branches, or on PRs into `beta`.** GitHub Actions
-   minutes are the scarce resource — workflows fire on `main` only. The consequence is that
-   **nothing verifies your branch for you**: run this repo's gates locally before every push.
-4. **`beta → main` is operator-only.** Agents never open a release PR, never merge to `main`,
-   never force-push. Sole exception: the user asks for a release in the current turn.
+1. **Cut every branch from `origin/main`.** Short-lived. A branch that lives for weeks is a
+   merge conflict being written slowly.
+2. **Every PR targets `main`** — `gh pr create --base main`. There is no second trunk to
+   choose between any more.
+3. **CI runs on every pull request and must be green.** `.github/workflows/ci.yml` runs
+   `make verify` and builds the app bundle; CodeQL and dependency review run beside it.
+   Run `make verify` locally anyway — it is the same command, and finding out here is
+   faster than finding out in a queue.
+4. **Nobody pushes to `main`.** A ruleset requires a reviewed pull request and blocks
+   force-pushes and deletions. Agents never merge to `main`, never force-push, and never
+   tag. Tagging is the release, and the release is the operator's.
+5. **Your task is done when the PR is open, green, and your branch is cleaned up** — not
+   when it is merged, and certainly not when it is released. Do not ask for a review and do
+   not nudge one along.
 
-**Releases are batched and deliberately infrequent.** No minor feature is released on its own.
-`beta` accumulates a meaningful body of change, then the operator cuts one release PR that fires
-CI/CD once for the whole batch. So: **your task is done when it is merged to `beta` and your
-branch and worktree are cleaned up — not when it reaches production.** Work sitting on `beta`
-for days is the design, not a stall. Do not ask for a release and do not nudge one along.
+**Releases stay batched and infrequent.** That has not changed; only the mechanism has.
+`main` accumulates merged work, and the operator decides when a commit on it becomes
+`v0.3.0`. See `RELEASING.md`.
 
-After the merge, clean up from the default checkout (not the worktree) and verify nothing is left:
-
-```bash
-git worktree remove ../worktrees/<slug>
-git branch -d <branch>
-git push origin --delete <branch>            # if gh did not already
-git worktree list                            # only the default checkout
-git branch                                   # only main + beta
-git ls-remote --heads origin <branch>        # zero lines
-```
-
-**Stop and ask** on any anomaly — an unexpected repo state, a branch or worktree you did not
-create, a `beta → main` PR you did not open, a merge or cleanup you cannot complete cleanly.
-Never force-fix, never delete state to make a command succeed.
-
-The policy above is complete for this repository — everything a contributor needs is on
-this page. It is one repository's copy of a rule that spans several, and the cross-repo
-document that tracks the rest of them is the operator's own and is not published here.
+**Why there is no staging branch, since an agent reasoning from first principles will
+propose reinstating one.** The gate belongs on the pull request, not after it. A staging
+branch tests code that has *already been merged* — the bad change is in a shared branch,
+blocking everything else waiting there, and somebody has to notice and back it out. CI on a
+PR tests the merge result *before* the merge is allowed, so it never lands. Same check,
+earlier. What a staging branch additionally gave — a build real people run before it is the
+default — is what `-rc` tags give, without a permanent branch to keep in sync.
 
 Read this before doing anything. Most of it exists because the obvious path was tried,
 cost something, and was abandoned — so an agent that reasons from first principles will
@@ -89,11 +81,21 @@ problem: fixture data has to look real to be useful, and the most available real
 value is the one you can see from where you are sitting. **This repository is being
 open-sourced, and a published address cannot be taken back by a later commit.**
 
-**Never add a GitHub Actions workflow.** There is no CI and there will not be. macOS
-runners bill at ten times Linux; this project cannot use Linux; fifty-one runs over two
-days ate 97% of a month's included minutes and jobs then stopped starting silently for
-days. The source is private, so free public-repo minutes are not available. The gate is
-`.githooks/pre-push`. Full reasoning in `Docs/releasing.md`.
+**CI exists now, and it is `.github/workflows/`.** This reverses a rule that was absolute
+in the private repository, so it is worth saying why rather than leaving two agents to
+argue about it. The old rule was: never add a workflow, because macOS runners bill at ten
+times Linux, this project cannot use Linux (it builds against macOS 26 frameworks and
+drives the real Accessibility, clipboard and speech APIs), and fifty-one runs over two days
+ate 97% of a month's included minutes — after which jobs stopped starting silently, for
+days, while the repository went on looking green.
+
+Every part of that is still true except the part that mattered: **a public repository does
+not pay for standard runners.** The constraint was cost, the cost is gone, and the local
+gate — `.githooks/pre-push`, installed with `make hooks` — is still worth having because it
+is still the fastest answer.
+
+There are five workflows and each earns its keep: CI, release, CodeQL, dependency review,
+Scorecard. Do not add a sixth without asking.
 
 **Never run `git add -A`, `git add .`, or `git commit -a`.** More than one agent works in
 this repository at once, and a blanket add sweeps another session's half-finished work
@@ -103,19 +105,18 @@ touched, by name.
 **Never rewrite pushed history, and never rebase while another session is committing.**
 Check first: `ps aux | grep -c '[c]laude.*--add-dir'`.
 
-**Every feature is built in a worktree cut from `origin/beta`, then merged into `beta` by
-PR.** `beta` is the trunk agents write to; the feature branch exists only for the length of
-the work, and `main` is reached only by the operator's batched release — see the release
-policy at the top of this file.
+**Every feature is built in a worktree cut from `origin/main`, then merged into `main` by
+PR.** The feature branch exists only for the length of the work, and nothing reaches `main`
+except through a reviewed pull request — see the release policy at the top of this file.
 
 ```bash
 git fetch origin
-git worktree add .claude/worktrees/<name> -b <name> origin/beta   # from beta, not from HEAD
+git worktree add .claude/worktrees/<name> -b <name> origin/main   # from main, not from HEAD
 cd .claude/worktrees/<name>                                       # and stay there
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 … work, commit by name, `make verify` — no CI will run for you …
-# the pre-push hook runs `make verify` again for beta itself, which is the only gate left
-git push -u origin <name> && gh pr create --base beta
+# the pre-push hook runs `make verify` for main; CI runs it once more on the PR
+git push -u origin <name> && gh pr create --base main
 cd -                                                              # back to the main checkout
 git worktree remove .claude/worktrees/<name> && git branch -d <name>
 git push origin --delete <name>
@@ -128,16 +129,17 @@ forbidden below. A worktree gives the work its own `.build`, its own index, and 
 status` that shows only what this task changed — which is what makes staging paths by
 name possible at all.
 
-**Rebase onto `origin/beta` before opening the pull request, never onto `main`.** Beta
-moves under you while you work — it is where every agent lands — so a branch cut this
-morning is behind by lunchtime, and rebasing is what keeps the diff in the pull request
-the change you actually made. Rebasing an unpushed branch is not rewriting pushed history,
+**Rebase onto `origin/main` before opening the pull request.** `main` moves under you while
+you work — it is where everything lands — so a branch cut this morning is behind by
+lunchtime, and rebasing is what keeps the diff in the pull request the change you actually
+made. Rebasing an unpushed branch is not rewriting pushed history,
 so the rule above does not conflict with this one.
 
-**Nothing an agent does touches `main`.** Not a merge, not a rebase onto it, not a release
-pull request, not a docs commit that seems too small to matter. `main` is the operator's,
-reached only by the batched `beta → main` release described at the top of this file. If
-you find yourself with a commit on `main`, stop and say so rather than tidying it away.
+**Nothing an agent does touches `main` except through a reviewed pull request.** Not a
+direct merge, not a rebase onto it, not a tag, not a docs commit that seems too small to
+matter. A ruleset blocks it at the server, so this is a description of what will happen
+rather than a request. If you find yourself with a commit on `main`, stop and say so
+rather than tidying it away.
 
 **Clear the worktree the moment the work is merged.** `git worktree remove` and delete the
 branch. Four stale worktrees once sat holding pre-rename copies of the whole tree, and an
