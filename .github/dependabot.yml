@@ -15,9 +15,22 @@ updates:
     commit-message:
       prefix: "ci"
     labels: ["dependencies", "github-actions"]
+    groups:
+      # One pull request for the routine bumps rather than five. Majors are excluded and
+      # come separately, because a major version of an action changes its inputs or its
+      # outputs and is a change to read rather than to rubber-stamp.
+      actions:
+        update-types: ["minor", "patch"]
 
-  # SwiftPM. Grouped because a Swift toolchain bump tends to move several Apple packages at
-  # once, and five pull requests that must land together are five chances to land four.
+  # SwiftPM.
+  #
+  # **Dependencies here are named by URL path, not by product name.** This is not
+  # documented anywhere obvious and the first version of this file got it wrong: an ignore
+  # for "Sparkle" matched nothing, and Dependabot opened the Sparkle bump this file exists
+  # to prevent. The name Dependabot uses is what appears in its branch name —
+  # `dependabot/swift/github.com/sparkle-project/sparkle-2.9.6` — so the identifier is
+  # `github.com/sparkle-project/sparkle`. Check a branch name before trusting a pattern
+  # here; a rule that matches nothing fails silently and looks like it is working.
   - package-ecosystem: swift
     directory: "/"
     schedule:
@@ -28,12 +41,17 @@ updates:
       prefix: "deps"
     labels: ["dependencies", "swift"]
     groups:
+      # Grouped because a toolchain bump moves several of these at once, and five pull
+      # requests that must land together are five chances to land four.
       apple:
-        patterns: ["swift-*"]
+        patterns: ["github.com/apple/*"]
       huggingface:
-        patterns: ["swift-transformers", "swift-huggingface", "swift-jinja"]
+        patterns: ["github.com/huggingface/*"]
+      mlx:
+        patterns: ["github.com/ml-explore/*"]
     ignore:
-      # Sparkle is pinned with `exact:` on purpose. Its framework is embedded and signed,
-      # and a version bump is a packaging change that has to be built and checked by hand —
-      # not something to accept from a bot. See Docs/packaging.md.
-      - dependency-name: "Sparkle"
+      # Sparkle is pinned with `exact:` in Package.swift on purpose. Its framework is
+      # embedded in the app bundle and signed as part of it, so a version bump is a
+      # packaging change that has to be built, signed and checked by hand — not something
+      # to accept from a bot. See Docs/packaging.md.
+      - dependency-name: "github.com/sparkle-project/sparkle"
