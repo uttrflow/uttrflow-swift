@@ -63,7 +63,7 @@ let package = Package(
         // XCFramework downloaded from a release, checksummed in Sparkle's own manifest —
         // so a floating version means the bytes linked into a signed build can change
         // without anything in this repository changing.
-        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.7.2"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
     ],
     targets: [
         // Platform-free domain layer: protocols, models, errors. Imports nothing but the stdlib.
