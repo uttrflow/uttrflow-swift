@@ -16,10 +16,23 @@ updates:
       prefix: "ci"
     labels: ["dependencies", "github-actions"]
     groups:
+      # **The codeql-action entry points are one action and must move together.** `init`
+      # writes a configuration that `autobuild` and `analyze` read, and mixing majors fails
+      # with "Loaded a configuration file for version '3.37.9', but running version
+      # '4.37.9'". Dependabot treats each path under the repository as its own dependency,
+      # so without this it bumps `autobuild` alone and breaks the scan — which is exactly
+      # what happened in #4. Listed first because Dependabot takes the first matching group.
+      #
+      # No `update-types` here on purpose: a codeql major has to be groupable, or the same
+      # split happens again at the next one.
+      codeql:
+        patterns: ["github/codeql-action*"]
+
       # One pull request for the routine bumps rather than five. Majors are excluded and
       # come separately, because a major version of an action changes its inputs or its
       # outputs and is a change to read rather than to rubber-stamp.
       actions:
+        patterns: ["*"]
         update-types: ["minor", "patch"]
 
   # SwiftPM.
