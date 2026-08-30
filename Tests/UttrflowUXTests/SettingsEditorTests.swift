@@ -54,14 +54,25 @@ struct SettingsShortcutValidationTests {
         #expect(reason?.contains("⌘") == true)
     }
 
-    @Test("refuses a modifier held on its own, and a key code no keyboard sends")
+    @Test("refuses a key code no keyboard sends")
     func refusesUndeliverableKeys() {
-        // 58 is Option's own key code; 0x80 is past the 7-bit virtual key range.
-        for keyCode: UInt16 in [58, 0x80] {
-            let reason = refusal(.shortcut(HotkeyBinding(keyCode: keyCode, modifiers: [.control])))
-            #expect(reason != nil, "key code \(keyCode) should not be accepted")
-            #expect(reason?.contains("cannot start a dictation") == true)
-        }
+        // 0x80 is past the 7-bit virtual key range, so nothing can press it.
+        let reason = refusal(.shortcut(HotkeyBinding(keyCode: 0x80, modifiers: [.control])))
+        #expect(reason != nil)
+        #expect(reason?.contains("did not come from the keyboard") == true)
+    }
+
+    /// The message this replaced said "Try a letter, a number or Space", which described
+    /// the wrong problem to everybody who pressed ⌃⌥: it implied something exotic had
+    /// been pressed when the combination was ordinary and simply unsupported. It is
+    /// supported now, so the sentence is back to covering only what it can mean.
+    @Test("accepts a modifier combination held on its own")
+    func acceptsHeldModifierCombination() {
+        // 58 is Option's own key code — what arrives when ⌃⌥ is pressed in the field.
+        #expect(refusal(.shortcut(HotkeyBinding(keyCode: 58, modifiers: [.control, .option]))) == nil)
+        // And a single modifier, which is the owner of the Mac's choice to make even
+        // though it will fire on every ⌘C.
+        #expect(refusal(.shortcut(HotkeyBinding(keyCode: 55, modifiers: [.command]))) == nil)
     }
 
     @Test("leaves the previous shortcut in force when the new one is refused")

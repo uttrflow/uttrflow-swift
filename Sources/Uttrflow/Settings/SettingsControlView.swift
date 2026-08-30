@@ -251,6 +251,11 @@ struct SettingsShortcutField: View {
             // `.flagsChanged` fires on the release too, where the flags have gone empty.
             // Only the press is an attempt at a shortcut; reporting the release as one
             // would answer a single tap with two different complaints.
+            //
+            // A modifier-only press — ⌃⌥, or ⌘ on its own — arrives here with the flags
+            // set and a modifier's own key code, and is recorded as the hold it is. That
+            // used to fall through to the refusal below, which is why ⌃⌥ answered a
+            // perfectly reasonable request with "Try a letter, a number or Space".
             guard !modifiers.isEmpty else { return event }
             model.record(keyCode: event.keyCode, modifiers: modifiers)
             // Passed on, unlike a key press: swallowing a modifier change would leave the

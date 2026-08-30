@@ -202,7 +202,7 @@ struct SettingsTests {
             // Beyond the 7-bit range a keyboard can send.
             #"{"keyCode": 999, "modifiers": ["command"]}"#,
             // Command held down on its own, which is not a shortcut.
-            #"{"keyCode": 55, "modifiers": ["command"]}"#,
+            #"{"keyCode": 200, "modifiers": ["command"]}"#,
         ]
     )
     func hostileHotkey(hotkey: String) throws {
@@ -266,7 +266,7 @@ struct SettingsTests {
         arguments: [
             #"{"keyCode": 9, "modifiers": []}"#,
             #"{"keyCode": 999, "modifiers": ["command"]}"#,
-            #"{"keyCode": 55, "modifiers": ["command"]}"#,
+            #"{"keyCode": 200, "modifiers": ["command"]}"#,
         ]
     )
     func hostileClipboardHotkey(hotkey: String) throws {
