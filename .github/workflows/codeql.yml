@@ -40,17 +40,75 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
+      # **Dependency sources only. Never the build products.**
+      #
+      # This is the one cache that is safe here, and the distinction is the whole point.
+      # CodeQL builds Swift by *watching the compiler run* — no compilation, no database.
+      # Cache `.build` wholesale and a warm hit means `swift build` has nothing to do,
+      # CodeQL observes nothing, and the run reports zero alerts and goes green. A scan
+      # that passes because it analysed an empty database is worse than no scan, and it
+      # is the third time this shape of bug has come up in this repository.
+      #
+      # So: checkouts, artifacts and the resolver's clones — which is what the 18 minutes
+      # was going on — and nothing that would let a target skip being compiled.
+      - name: Cache dependency sources
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
+        with:
+          path: |
+            .build/checkouts
+            .build/artifacts
+            .build/repositories
+            ~/.swiftpm
+          key: codeql-deps-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: codeql-deps-${{ runner.os }}-
+
       - name: Initialise CodeQL
         uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
         with:
           languages: swift
           queries: security-and-quality
+          # Required once autobuild is replaced: without it the action runs its own build
+          # as well, and the saving disappears into a build that happens twice.
+          build-mode: manual
 
-      # Autobuild handles SwiftPM. It is left to do so rather than being replaced with an
-      # explicit `swift build`: when it works it stays correct through a manifest change,
-      # and when it stops working it says so loudly rather than analysing nothing.
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
+      # An explicit build rather than autobuild, and the reason is what it *stops*
+      # building. Autobuild builds the whole package; three of the four executables are
+      # developer tools that are never shipped — `uttrflow-dev`, `uttrflow-eval` and
+      # `uttrflow-bakeoff`, the last of which links MLX and is the most expensive thing
+      # in the manifest. Analysing them for security defects in a product nobody installs
+      # is time spent on nothing.
+      #
+      # `Uttrflow` is the app, and building it pulls in every library it links, which is
+      # every module that reaches a user. `UttrflowEval` is named separately: it is a
+      # library the app deliberately cannot import, so nothing else would build it, and
+      # it is the one module that can reach the private corpus — which makes it worth
+      # analysing rather than skipping.
+      - name: Build the shipping code
+        run: |
+          set -euo pipefail
+          swift build --target Uttrflow 2>&1 | tee build.log
+          swift build --target UttrflowEval 2>&1 | tee -a build.log
+
+      # The guard, and the reason the cache above is written the way it is.
+      #
+      # CodeQL builds Swift by watching the compiler run. A build that compiles nothing
+      # produces a database with nothing in it, and the analysis then reports zero alerts
+      # and goes green — a scan that passed because it looked at an empty room. Nothing
+      # else in this job would notice.
+      #
+      # So: our own modules must actually have been compiled. `Compiling Uttrflow` is the
+      # line SwiftPM prints per module, and a no-op build prints none of them.
+      - name: Prove the compiler actually ran
+        run: |
+          set -euo pipefail
+          compiled=$(grep -c 'Compiling Uttrflow' build.log || true)
+          echo "modules compiled: $compiled"
+          if [ "$compiled" -lt 10 ]; then
+            echo "::error::only $compiled Uttrflow modules compiled. CodeQL extracts by watching"
+            echo "::error::the compiler, so a build this small means it analysed almost nothing."
+            echo "::error::Most likely the dependency cache restored build products it should not have."
+            exit 1
+          fi
 
       - name: Analyse
         uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
