@@ -136,13 +136,35 @@ struct CarbonHotkeyTranslationTests {
     /// import the platform headers, so the two can drift apart. Nothing else would
     /// notice: the settings store would keep a shortcut the monitor then refuses, or
     /// throw away one that would have worked. This is the test that stops it.
-    @Test("agrees with the binding's own verdict for every key code a keyboard can send")
+    ///
+    /// **Two delivery paths, so two invariants.** A binding whose key is an ordinary one
+    /// is registered with the window server, and there the two verdicts must agree
+    /// exactly. A binding whose key is a modifier is a *hold*, watched through flag
+    /// changes by ``HeldModifierMonitor`` — Carbon refuses those and always did, which is
+    /// the whole reason that monitor exists. Asserting agreement across both would assert
+    /// that holds do not work.
+    @Test("agrees with the binding's own verdict for every key a keyboard can send")
     func deliverabilityMatchesTranslation() {
         for keyCode in UInt16(0)...UInt16(300) {
             let binding = HotkeyBinding(keyCode: keyCode, modifiers: [.command])
+            guard binding.heldModifier == nil else { continue }
             let translates = (try? CarbonHotkey(binding: binding)) != nil
 
             #expect(binding.isDeliverable == translates, "disagreed about key code \(keyCode)")
+        }
+    }
+
+    /// The other half, and the one that says why holds need their own monitor: Carbon
+    /// refuses every one of them. If this ever started passing, `HeldModifierMonitor`
+    /// would be redundant — and far more likely, something has broken.
+    @Test("refuses every held-modifier binding, which is why they are watched instead")
+    func holdsAreNeverCarbonRegistrable() {
+        for keyCode in HotkeyBinding.modifierKeyCodes.sorted() {
+            let binding = HotkeyBinding(keyCode: keyCode, modifiers: [.command])
+            #expect(binding.heldModifier != nil, "key \(keyCode) should be a hold")
+            #expect(
+                (try? CarbonHotkey(binding: binding)) == nil,
+                "Carbon accepted key code \(keyCode); it has never fired one")
         }
     }
 

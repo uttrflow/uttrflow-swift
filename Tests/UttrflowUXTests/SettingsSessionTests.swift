@@ -118,7 +118,9 @@ struct SettingsSessionTests {
     @Test("repairs a stored shortcut that could never have been delivered")
     func repairsAnUnusableStoredShortcut() {
         var stored = Settings.default
-        stored.hotkey = HotkeyBinding(keyCode: 58, modifiers: [.option])
+        // 0x80 is past the 7-bit virtual key range. It used to be ⌥ on its own, which is
+        // a perfectly good hold now that any modifier combination can be one.
+        stored.hotkey = HotkeyBinding(keyCode: 0x80, modifiers: [.option])
         let session = SettingsSession(settings: stored)
         #expect(session.recorder.binding == .optionSpace)
     }

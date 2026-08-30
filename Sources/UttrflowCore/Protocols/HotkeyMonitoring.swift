@@ -51,19 +51,36 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// Fn's virtual key code.
     public static let functionKeyCode: UInt16 = 63
 
-    /// The modifier this binding is a hold of, if it is one.
+    /// This binding expressed as a hold, if its key is a modifier rather than a character.
     ///
-    /// Only Fn. Holding any of the other four is not offered, and should not be: they are
-    /// pressed dozens of times a minute in the course of ordinary typing, so a dictation
-    /// that began every time somebody reached for ⌘C would be unusable in a way no
-    /// setting could rescue.
+    /// **Any modifier combination, not only Fn.** It was Fn alone for a long time, on the
+    /// argument that ⌘, ⌥, ⌃ and ⇧ are pressed dozens of times a minute in ordinary
+    /// typing, so a dictation beginning every time somebody reached for ⌘C would be
+    /// unusable. That is true — of a *single* modifier. It was then applied to every
+    /// modifier-only binding, which swept up ⌃⌥ and ⌘⌥ and the rest: combinations nobody
+    /// presses by accident, that other dictation apps offer, and that people ask for.
+    ///
+    /// So the rule is now about what can be *delivered* rather than what somebody might
+    /// regret. ⌘ on its own is allowed here and will indeed fire on ⌘C — that is the
+    /// owner of the Mac's business, and refusing to let them choose it was never this
+    /// type's decision to make. What is still refused is only what genuinely cannot work:
+    /// see ``isDeliverable``.
+    ///
+    /// Fn is the one whose key code carries no modifier flag of its own, so it is the one
+    /// case where ``modifiers`` is legitimately empty.
     public var heldModifier: HotkeyBinding? {
-        keyCode == Self.functionKeyCode && modifiers.isEmpty ? self : nil
+        Self.modifierKeyCodes.contains(keyCode) ? self : nil
+    }
+
+    /// Whether this is Fn held on its own, which the monitor watches by a different flag
+    /// from the four named modifiers.
+    public var isFunctionHold: Bool {
+        keyCode == Self.functionKeyCode && modifiers.isEmpty
     }
 
     /// A binding with no modifier would fire while the user was typing an ordinary
     /// letter, which is why one is required — unless the binding *is* the key being held,
-    /// which is what Fn is.
+    /// which is what every modifier-only binding is.
     public var isUsable: Bool { !modifiers.isEmpty || heldModifier != nil }
 
     /// Whether macOS would actually deliver this shortcut once it was registered.
@@ -95,7 +112,14 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// The keys that only ever modify another key, left and right of the keyboard, plus
     /// Caps Lock and Fn. Held as codes rather than a range because the range they happen
     /// to occupy is a coincidence of the layout tables.
-    static let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+    ///
+    /// A binding whose key code is one of these is a *hold*, watched through flag changes,
+    /// rather than a shortcut registered with the window server — which is why they are
+    /// excluded from the registered path below and admitted by ``heldModifier`` above.
+    ///
+    ///   54 ⌘ right · 55 ⌘ left · 56 ⇧ left · 57 Caps Lock · 58 ⌥ left
+    ///   59 ⌃ left · 60 ⇧ right · 61 ⌥ right · 62 ⌃ right · 63 Fn
+    public static let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
 }
 
 /// Why the shortcut could not be put in place.

@@ -143,8 +143,15 @@ public enum SettingsEditor {
                 reason: "Hold ⌘, ⌥, ⌃ or ⇧ as well, or the shortcut would fire while you type.")
         }
         if !binding.isDeliverable {
+            // Reached only by a key code no keyboard sends. The old wording here —
+            // "Try a letter, a number or Space" — was written when modifier-only
+            // combinations were refused too, and it described the wrong problem to
+            // everybody who pressed ⌃⌥: it implied they had pressed something exotic when
+            // they had pressed something perfectly ordinary that this app declined to
+            // support. Those are allowed now, and this sentence is back to covering only
+            // what it can actually mean.
             return SettingsRejection(
-                reason: "That key cannot start a dictation. Try a letter, a number or Space.")
+                reason: "That key did not come from the keyboard, so it cannot start a dictation.")
         }
         return nil
     }

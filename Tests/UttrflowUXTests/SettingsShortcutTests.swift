@@ -102,28 +102,39 @@ struct SettingsShortcutRecorderTests {
         #expect(SettingsShortcut.compact(.functionHold) == "fn")
     }
 
-    @Test("refuses a modifier pressed on its own, and says so rather than saying nothing")
-    func modifierAloneIsRefusedOutLoud() {
-        // Left command, held with its own flag — exactly what `.flagsChanged` reports.
-        for (keyCode, modifier) in [
-            (UInt16(55), HotkeyModifier.command),
-            (UInt16(58), HotkeyModifier.option),
-            (UInt16(59), HotkeyModifier.control),
-            (UInt16(56), HotkeyModifier.shift),
+    /// This asserted the opposite until the rule changed, and the reversal is the point.
+    ///
+    /// A modifier pressed on its own used to be refused with "Try a letter, a number or
+    /// Space" — a sentence that described the wrong problem, because the person had not
+    /// pressed anything strange. The reasoning behind the refusal was that ⌘ is pressed
+    /// dozens of times a minute, so a dictation starting on it would be unusable. True —
+    /// and it was applied to every modifier-only binding, sweeping up ⌃⌥ and ⌘⌥, which
+    /// nobody presses by accident and which other dictation apps offer.
+    ///
+    /// Whether ⌘ alone is a wise choice is the owner of the Mac's to make. Whether it can
+    /// be *delivered* is this code's question, and the answer is yes: held modifiers are
+    /// watched through flag changes, not registered with the window server.
+    @Test("accepts a modifier pressed on its own, and any combination of them")
+    func heldModifiersAreAccepted() {
+        for (keyCode, modifiers) in [
+            (UInt16(55), Set<HotkeyModifier>([.command])),
+            (UInt16(58), Set([.option])),
+            (UInt16(59), Set([.control])),
+            (UInt16(56), Set([.shift])),
+            // The combination this was all about.
+            (UInt16(58), Set([.control, .option])),
+            (UInt16(55), Set([.command, .option])),
+            (UInt16(59), Set([.control, .option, .command])),
         ] {
             var recorder = SettingsShortcutRecorder(binding: .optionSpace)
             recorder.beginRecording()
-            let outcome = recorder.record(keyCode: keyCode, modifiers: [modifier])
+            let outcome = recorder.record(keyCode: keyCode, modifiers: modifiers)
 
             guard case .refused(let rejection) = outcome else {
-                Issue.record("\(modifier) on its own was accepted as a shortcut")
-                return
+                #expect(recorder.binding == HotkeyBinding(keyCode: keyCode, modifiers: modifiers))
+                continue
             }
-            // Not the "hold a modifier as well" sentence: they held one. The useful
-            // thing to say is which key is missing.
-            #expect(rejection.reason.contains("letter"))
-            #expect(recorder.binding == .optionSpace)
-            #expect(recorder.isRecording, "still listening, so the next press can succeed")
+            Issue.record("\(modifiers) was refused: \(rejection.reason)")
         }
     }
 
@@ -131,7 +142,9 @@ struct SettingsShortcutRecorderTests {
     func recoversFromARefusal() {
         var recorder = SettingsShortcutRecorder(binding: .optionSpace)
         recorder.beginRecording()
-        _ = recorder.record(keyCode: 58, modifiers: [.option])
+        // 0x80 is past the virtual key range: the one thing still refused outright, now
+        // that any modifier combination can be held.
+        _ = recorder.record(keyCode: 0x80, modifiers: [.option])
         #expect(recorder.rejection != nil)
 
         _ = recorder.record(keyCode: 8, modifiers: [.control, .option])

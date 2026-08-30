@@ -50,9 +50,14 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
         continuation.finish()
     }
 
+    /// The exact flags this binding is a hold of. Read by ``handle(_:)`` on every flags
+    /// change, so it is stored rather than recomputed from a key code each time.
+    private let watched = Mutex<NSEvent.ModifierFlags>([])
+
     @MainActor
     public func start(binding: HotkeyBinding) throws(HotkeyError) {
         guard binding.heldModifier != nil else { throw .shortcutUnavailable }
+        watched.withLock { $0 = Self.flags(for: binding) }
 
         // The global half needs the same Accessibility grant the typing does. Asked for
         // rather than assumed, so a Mac that has not granted it is told which failure it
@@ -75,8 +80,39 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
         }
     }
 
+    /// The flags a binding is a hold of.
+    ///
+    /// Fn is its own flag and carries none of the four this app names, which is why it is
+    /// answered first rather than falling through to an empty set.
+    static func flags(for binding: HotkeyBinding) -> NSEvent.ModifierFlags {
+        if binding.isFunctionHold { return .function }
+        var flags: NSEvent.ModifierFlags = []
+        for modifier in binding.modifiers {
+            switch modifier {
+            case .command: flags.insert(.command)
+            case .option: flags.insert(.option)
+            case .control: flags.insert(.control)
+            case .shift: flags.insert(.shift)
+            }
+        }
+        return flags
+    }
+
+    /// Every flag this monitor is willing to consider, so that a flag the binding does not
+    /// name can be told apart from one it does.
+    private static let considered: NSEvent.ModifierFlags = [
+        .command, .option, .control, .shift, .function,
+    ]
+
     private func handle(_ event: NSEvent) {
-        let isDownNow = event.modifierFlags.contains(.function)
+        let wanted = watched.withLock { $0 }
+        // **Equality, not containment.** ⌃⌥ and ⌃⌥⌘ are different holds, and matching a
+        // superset would mean a ⌃⌥ binding firing on the way to every ⌃⌥⌘ shortcut —
+        // dictation starting and stopping under somebody reaching for something else.
+        // Comparing only the flags this monitor considers keeps Caps Lock or a numeric
+        // keypad flag from counting as a difference.
+        let present = event.modifierFlags.intersection(Self.considered)
+        let isDownNow = !wanted.isEmpty && present == wanted
         let happened = state.withLock { $0.edge.flagsChanged(isDownNow: isDownNow) }
         guard let happened else { return }
         continuation.yield(happened)
