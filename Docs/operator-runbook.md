@@ -59,6 +59,13 @@ URL.
 **Blocks:** any accuracy number, and therefore the correction feature's regression gate.
 Nothing else.
 
+> **Two different jobs, and conflating them has kept both at zero.** The thousand samples
+> below buy an accuracy *number* — many voices, many rooms, enough power to say how well
+> the product hears people in general. **Catching a regression needs far less**: the same
+> voice reading the same 18 passages before and after a change, which the repository already
+> computes at **14.7 minutes**. If the question is "did this engine change break anything?",
+> read [`measuring-accuracy.md`](measuring-accuracy.md) and stop here.
+
 About a thousand samples, roughly sixteen hours. Read them in sittings:
 
 ```bash
