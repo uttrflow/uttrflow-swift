@@ -442,3 +442,60 @@ struct MenuBarShortcutTests {
         }
     }
 }
+
+/// Saying that an update is happening, which it never did before.
+@Suite("Updating, in the menu bar")
+struct MenuBarUpdateTests {
+    private func line(_ progress: UpdateProgress) -> String {
+        MenuBarPresenter.present(MenuBarState(updateProgress: progress)).statusLine
+    }
+
+    @Test("an install about to happen says so")
+    func installingIsVisible() {
+        #expect(line(.installing) == "Updating…")
+    }
+
+    /// The wait is the part that needs explaining. "Ready" with nothing happening for a
+    /// minute looks stuck; saying what it waits for makes the pause legible.
+    @Test("a staged update says what it is waiting for")
+    func readyExplainsTheWait() {
+        #expect(line(.readyToInstall).contains("when you pause"))
+    }
+
+    @Test("a download reports its progress, and copes with not knowing it yet")
+    func downloading() {
+        #expect(line(.downloading(fraction: 0.42)) == "Downloading update… 42%")
+        #expect(line(.downloading(fraction: nil)) == "Downloading update…")
+    }
+
+    @Test("nothing happening says nothing about updates")
+    func idleIsSilent() {
+        #expect(line(.idle) == "Ready")
+    }
+
+    /// A failure is why the user opened the menu. An update is not a problem, so it does
+    /// not get to hide one.
+    @Test("a failure still outranks an update")
+    func failureWins() {
+        var state = MenuBarState(updateProgress: .installing)
+        state.failure = FailurePresentation(
+            headline: "Something went wrong", detail: nil, symbolName: "exclamationmark.triangle",
+            severity: .blocking, placement: .menuBar, action: nil)
+        #expect(MenuBarPresenter.present(state).statusLine == "Something went wrong")
+    }
+
+    /// Below a failure but above everything else: an update is about to take the app
+    /// away, which outranks whatever it was otherwise doing.
+    @Test("an update outranks the ordinary activity line")
+    func updateOutranksActivity() {
+        let state = MenuBarState(activity: .listening, updateProgress: .installing)
+        #expect(MenuBarPresenter.present(state).statusLine == "Updating…")
+    }
+
+    @Test("VoiceOver reads it as a sentence")
+    func spoken() {
+        let spoken = MenuBarPresenter.present(MenuBarState(updateProgress: .installing))
+            .accessibilityLabel
+        #expect(spoken == "Uttrflow. Updating.")
+    }
+}

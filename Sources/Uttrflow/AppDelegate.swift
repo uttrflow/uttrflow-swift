@@ -265,6 +265,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Settings governed the running process and was then forgotten at every launch —
         // a setting that appears to work and silently reverts, which is worse than one
         // that plainly does nothing.
+        // Redraw when it changes. Without this the line would only appear the next time
+        // something *else* redrew the menu bar — which, on an idle Mac waiting out its
+        // quiet minute, is nothing at all.
+        updates.onProgressChanged = { [weak self] in
+            guard let self else { return }
+            menuBar.update(with: MenuBarPresenter.present(menuBarState(for: lastDictationState)))
+        }
         updates.begin(automatically: settings.installsUpdatesAutomatically)
     }
 
@@ -1204,7 +1211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             recents: recents.previews.map {
                 MenuBarRecent(title: $0.title, fullText: $0.dictation.text)
             },
-            canCheckForUpdates: UpdateController.isConfigured
+            canCheckForUpdates: UpdateController.isConfigured,
+            updateProgress: updates.progress
         )
     }
 

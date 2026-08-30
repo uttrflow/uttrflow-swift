@@ -53,6 +53,20 @@ final class UpdateController: NSObject {
     /// Whether the app has told Sparkle to begin. Guarded because starting twice throws.
     private var hasStarted = false
 
+    /// How far along an update is, and who to tell when it changes.
+    ///
+    /// Published rather than asked for: the menu bar is rebuilt from a state value, and a
+    /// controller that only answered questions would need something to know when to ask.
+    private(set) var progress: UpdateProgress = .idle {
+        didSet {
+            guard progress != oldValue else { return }
+            onProgressChanged?()
+        }
+    }
+
+    /// Called whenever ``progress`` changes, so the menu bar can be redrawn.
+    var onProgressChanged: (() -> Void)?
+
     var updater: SPUUpdater { controller.updater }
 
     init(activity: @escaping @MainActor () -> UpdateActivity) {
@@ -143,6 +157,11 @@ final class UpdateController: NSObject {
         // Cleared before calling, not after: the call ends with the app being replaced,
         // and a handle held across that is a handle that could be called twice.
         installNow = nil
+        // Set before the call, not after: `install()` ends with this process being
+        // replaced, so anything after it runs in a program that is going away. This is
+        // the one line the user sees before the app disappears and comes back, and
+        // without it that looks like a crash.
+        progress = .installing
         install()
     }
 
@@ -174,6 +193,9 @@ final class UpdateController: NSObject {
     func checkForUpdates() {
         guard Self.isConfigured else { return }
         begin(automatically: updater.automaticallyDownloadsUpdates)
+        // Only a check the user asked for says so. The six-hourly one stays silent — see
+        // `MenuBarPresenter.updateLine`.
+        progress = .checking
         updater.checkForUpdates()
     }
 }
@@ -217,6 +239,7 @@ extension UpdateController: SPUUpdaterDelegate {
         let install = UncheckedSend(immediateInstallHandler)
         MainActor.assumeIsolated {
             installNow = { install.value() }
+            progress = .readyToInstall
             // `refresh` rather than the check alone: this can arrive on an app that has
             // been quiet for hours and has told the gate nothing at all.
             refresh()
@@ -224,6 +247,33 @@ extension UpdateController: SPUUpdaterDelegate {
         // True: this app takes responsibility for when. Returning false would hand the
         // decision back to Sparkle, which would install on a quit that never comes.
         return true
+    }
+
+    /// The feed answered and there is something to fetch.
+    nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        MainActor.assumeIsolated { progress = .downloading(fraction: nil) }
+    }
+
+    /// The feed answered and there is nothing to fetch.
+    ///
+    /// Back to idle rather than to a "you are up to date" line: Sparkle already puts that
+    /// in front of anybody who pressed the button, and a status line still saying it an
+    /// hour later would be stale.
+    nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
+        MainActor.assumeIsolated { progress = .idle }
+    }
+
+    /// A check that failed. Silent, deliberately: a feed that could not be reached is not
+    /// something the user did or can fix, and a menu bar reporting it every six hours on
+    /// a train would be reporting the train.
+    nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
+        MainActor.assumeIsolated { progress = .idle }
+    }
+
+    /// Downloaded and verified. The wait for a quiet minute starts here, and saying so is
+    /// the difference between "ready" looking finished and looking stuck.
+    nonisolated func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
+        MainActor.assumeIsolated { progress = .readyToInstall }
     }
 
     /// Never send anything about this Mac to the feed.

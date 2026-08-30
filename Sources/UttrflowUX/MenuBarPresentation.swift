@@ -38,6 +38,31 @@ public struct MenuBarRecent: Sendable, Equatable {
     }
 }
 
+/// How far along an update is, when one is happening at all.
+///
+/// Updating was entirely silent before this existed: an update downloaded, waited for a
+/// quiet minute, and then the app replaced itself and came back — with nothing anywhere
+/// having said so. An app that vanishes and reappears without explanation reads as a
+/// crash, and the one moment a user most wants to be told is the moment they are least
+/// able to ask.
+public enum UpdateProgress: Sendable, Equatable {
+    /// Nothing is happening, which is almost always true.
+    case idle
+    /// The feed has been asked and has not answered yet.
+    case checking
+    /// An update exists and is coming down. The fraction is absent until enough has
+    /// arrived to estimate one.
+    case downloading(fraction: Double?)
+    /// Downloaded and verified, waiting for the app to be quiet for a minute.
+    ///
+    /// Its own case rather than folding into ``installing`` because the wait is the part
+    /// that needs explaining: an update that says "ready" and then sits there looks
+    /// stuck, and the honest line says what it is waiting for.
+    case readyToInstall
+    /// About to replace the app and relaunch. The last thing shown before it happens.
+    case installing
+}
+
 /// What the product is doing, in the only terms the menu bar needs it.
 public struct MenuBarState: Sendable, Equatable {
     public var activity: DictationActivity
@@ -50,19 +75,23 @@ public struct MenuBarState: Sendable, Equatable {
     /// one was configured, and in every development build — where an enabled item that
     /// does nothing would read as a broken app.
     public var canCheckForUpdates: Bool
+    /// How far along an update is, if one is under way.
+    public var updateProgress: UpdateProgress
 
     public init(
         activity: DictationActivity = .idle,
         failure: FailurePresentation? = nil,
         speechModel: SpeechModelReadiness = .ready,
         recents: [MenuBarRecent] = [],
-        canCheckForUpdates: Bool = false
+        canCheckForUpdates: Bool = false,
+        updateProgress: UpdateProgress = .idle
     ) {
         self.activity = activity
         self.failure = failure
         self.speechModel = speechModel
         self.recents = recents
         self.canCheckForUpdates = canCheckForUpdates
+        self.updateProgress = updateProgress
     }
 }
 
@@ -314,6 +343,11 @@ public enum MenuBarPresenter {
     static func statusLine(for state: MenuBarState) -> String {
         if let failure = state.failure { return failure.headline }
 
+        // Above the model and the dictation activity, and below a failure. An update
+        // that is installing is about to take the app away, which outranks anything the
+        // app is otherwise doing — but it is not a problem, so it does not outrank one.
+        if let updating = updateLine(for: state.updateProgress) { return updating }
+
         switch state.speechModel {
         case .downloading(let fraction):
             guard let fraction else { return "Setting up…" }
@@ -327,6 +361,28 @@ public enum MenuBarPresenter {
             case .working: "Tidying up…"
             case .finished: "Inserted"
             }
+        }
+    }
+
+    /// What an update in progress says, or `nil` when none is.
+    ///
+    /// "Checking" is deliberately absent: a check happens every six hours on a timer
+    /// nobody asked about, and a status line that flickers between "Ready" and
+    /// "Checking for updates…" four times a day is noise about something that needs no
+    /// attention. It is shown only when the user pressed the button — which is the one
+    /// case where somebody is waiting for the answer.
+    static func updateLine(for progress: UpdateProgress) -> String? {
+        switch progress {
+        case .idle: nil
+        case .checking: "Checking for updates…"
+        case .downloading(let fraction):
+            if let fraction {
+                "Downloading update… \(percentage(of: fraction))%"
+            } else {
+                "Downloading update…"
+            }
+        case .readyToInstall: "Update ready — installing when you pause"
+        case .installing: "Updating…"
         }
     }
 
