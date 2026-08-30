@@ -51,6 +51,17 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Whether macOS launches Uttrflow when the user logs in.
     public var opensAtLogin: Bool
 
+    /// Whether a found update installs itself, or waits to be asked.
+    ///
+    /// On by default, which is the choice that keeps the most people on a build that has
+    /// the fixes. It is a setting rather than a policy because an update replaces the
+    /// binary holding somebody's microphone and Accessibility grants, and a person who
+    /// wants to know before that happens is not being unreasonable.
+    ///
+    /// Nothing is installed *while dictating* either way — see `UpdateGate`. This decides
+    /// whether the user is asked first, not whether the moment is chosen carefully.
+    public var installsUpdatesAutomatically: Bool
+
     /// Whether the interface is drawn light, dark, or however the Mac is set.
     public var appearance: AppAppearance
 
@@ -80,6 +91,7 @@ public struct Settings: Sendable, Equatable, Codable {
         minimisesWhileDictating: Bool = true,
         playsSoundWhenRecordingStarts: Bool = true,
         opensAtLogin: Bool = true,
+        installsUpdatesAutomatically: Bool = true,
         appearance: AppAppearance = .dark,
         transcriptRetentionDays: Int = Settings.defaultRetentionDays,
         clipboardRetentionDays: Int = Settings.defaultRetentionDays
@@ -95,6 +107,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.minimisesWhileDictating = minimisesWhileDictating
         self.playsSoundWhenRecordingStarts = playsSoundWhenRecordingStarts
         self.opensAtLogin = opensAtLogin
+        self.installsUpdatesAutomatically = installsUpdatesAutomatically
         self.appearance = appearance
         self.transcriptRetentionDays = transcriptRetentionDays
         self.clipboardRetentionDays = clipboardRetentionDays

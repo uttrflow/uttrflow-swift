@@ -1,4 +1,5 @@
 import CoreAudio
+import Foundation
 import UttrflowAI
 import UttrflowCore
 import UttrflowSettings
@@ -25,6 +26,8 @@ extension SettingsCapabilities {
         SettingsCapabilities(
             launchAtLogin: LaunchAtLogin().status,
             canPlayRecordingSound: hasAudioOutput,
+            canCheckForUpdates: UpdateController.isConfigured,
+            versionDescription: versionDescription,
             readySpeechEngines: readySpeechEngines,
             readyTransformers: Set(TransformerKind.selectable))
     }
@@ -39,6 +42,19 @@ extension SettingsCapabilities {
         var capabilities = thisMac()
         capabilities.readyTransformers = await readyTransformers(for: profile)
         return capabilities
+    }
+
+    /// What this build calls itself, as "short (build)".
+    ///
+    /// Both halves, because they answer different questions: the short version is what a
+    /// release is called, and the build number is what tells two builds of the same
+    /// release apart — which is the difference that matters when somebody says an update
+    /// did not take.
+    private static var versionDescription: String? {
+        let info = Bundle.main.infoDictionary
+        guard let short = info?["CFBundleShortVersionString"] as? String else { return nil }
+        guard let build = info?["CFBundleVersion"] as? String, build != short else { return short }
+        return "\(short) (\(build))"
     }
 
     /// Which engines could transcribe right now.

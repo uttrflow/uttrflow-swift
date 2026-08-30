@@ -127,7 +127,7 @@ struct StyleControlView: View {
         // Style is a two-choice page: none of these appear on it. Listed rather than
         // caught by a `default` so that adding a control to Style means deciding here
         // how it is drawn, which is what the note above this type is about.
-        case .toggle, .menu, .anchorPicker, .shortcut, .removal:
+        case .toggle, .menu, .anchorPicker, .shortcut, .removal, .action, .text:
             EmptyView()
         }
     }

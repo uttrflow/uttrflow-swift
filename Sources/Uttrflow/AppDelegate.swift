@@ -261,7 +261,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Last, and only once the rest of the launch is done: a check that fired while
         // the speech model was still downloading would be competing with the one
         // download the user is actually waiting for.
-        updates.begin(automatically: true)
+        // From the setting, not hardcoded. It was `true` here, which meant the switch in
+        // Settings governed the running process and was then forgotten at every launch —
+        // a setting that appears to work and silently reverts, which is worse than one
+        // that plainly does nothing.
+        updates.begin(automatically: settings.installsUpdatesAutomatically)
     }
 
     /// Re-reads the account from the server, in the background, at every launch.
@@ -1695,6 +1699,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// settings untouched — the editor guarantees that — and the redraw puts the control
     /// back where it was, which is the honest report that the change did not happen.
     private func apply(_ change: SettingsChange) {
+        // The one change that alters nothing and so cannot go through the editor: it is
+        // a request to act now. Handled before the editor rather than after, because
+        // there is no updated `Settings` for the rest of this method to save.
+        if case .checkForUpdatesNow = change {
+            updates.checkForUpdates()
+            return
+        }
+
         guard let updated = try? SettingsEditor.apply(change, to: settings) else {
             refreshMainWindow()
             return
@@ -1804,6 +1816,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if updated.hotkeyActivation != previous.hotkeyActivation {
             let activation = updated.hotkeyActivation
             Task { [weak self] in await self?.controller?.setActivation(activation) }
+        }
+        // Same failure as the two above, avoided: `setInstallsAutomatically` existed with
+        // no caller anywhere outside its own tests, so the switch would have drawn itself
+        // and changed nothing.
+        if updated.installsUpdatesAutomatically != previous.installsUpdatesAutomatically {
+            updates.setInstallsAutomatically(updated.installsUpdatesAutomatically)
         }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))

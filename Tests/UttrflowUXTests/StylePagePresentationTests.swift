@@ -171,7 +171,7 @@ struct StylePageChromeTests {
                 switch row.control {
                 case .segmented, .tick:
                     continue
-                case .toggle, .menu, .anchorPicker, .shortcut, .removal:
+                case .toggle, .menu, .anchorPicker, .shortcut, .removal, .action, .text:
                     Issue.record("the Style page asked for a control its view cannot draw")
                 }
             }

@@ -65,7 +65,12 @@ final class UpdateController: NSObject {
     /// False in a build with no feed address, which is every build made before the
     /// backend served one — and, deliberately, in every development build. A missing
     /// address is not an error to report: it is a build that was never going to update.
-    static var isConfigured: Bool {
+    ///
+    /// `nonisolated` because it reads two `Info.plist` values and nothing else. The main
+    /// actor was inherited from the class rather than needed, and it kept the settings
+    /// screen's capability probe — which runs off the main actor — from asking the one
+    /// type that knows the answer.
+    nonisolated static var isConfigured: Bool {
         guard let feed = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String,
             let url = URL(string: feed), isAcceptable(url)
         else { return false }
@@ -91,7 +96,7 @@ final class UpdateController: NSObject {
     /// It is not a hole. `127.0.0.1` is this Mac; anything that could serve an update
     /// there is already running as the user. `Scripts/bundle.sh` applies the same rule,
     /// so a build pointed at a local feed cannot be published by accident.
-    private static func isAcceptable(_ url: URL) -> Bool {
+    nonisolated private static func isAcceptable(_ url: URL) -> Bool {
         if url.scheme == "https" { return true }
         guard url.scheme == "http", let host = url.host else { return false }
         return host == "127.0.0.1" || host == "localhost" || host == "::1"
