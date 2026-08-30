@@ -62,6 +62,17 @@ public enum SettingsEditor {
             updated.appearance = appearance
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
+        case .checkForUpdatesNow:
+            // Changes nothing, and says so here rather than being absent.
+            //
+            // It travels in this enum because the settings screen speaks one vocabulary
+            // and a second channel out of the view is a second thing to keep in step. The
+            // consequence is that this type sees a change it has no opinion about, and
+            // the honest thing is an empty case with a reason — not a `default`, which
+            // would swallow the next case somebody adds and forgets to handle.
+            //
+            // Acting on it belongs to whoever owns the updater; see `SettingsSession`.
+            break
         }
         return updated
     }
@@ -85,6 +96,7 @@ public enum SettingsEditor {
         case .minimisesWhileDictating: settings.minimisesWhileDictating = isOn
         case .playsSoundWhenRecordingStarts: settings.playsSoundWhenRecordingStarts = isOn
         case .opensAtLogin: settings.opensAtLogin = isOn
+        case .installsUpdatesAutomatically: settings.installsUpdatesAutomatically = isOn
         }
     }
 
@@ -110,6 +122,11 @@ public enum SettingsEditor {
                 : "This Mac has no audio output, so there is nothing to play the sound through."
         case .opensAtLogin:
             reasonLoginIsUnavailable(capabilities.launchAtLogin)
+        case .installsUpdatesAutomatically:
+            capabilities.canCheckForUpdates
+                ? nil
+                : "This build has no update feed, so there is nothing for it to install."
+
         }
     }
 

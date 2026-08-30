@@ -120,6 +120,20 @@ public enum SettingsControl: Sendable, Equatable {
     /// data. The view draws them destructively without being told to, and nothing that
     /// merely navigates can be smuggled in here later and inherit that treatment.
     case removal(SettingsRemoval)
+
+    /// A button that does something and destroys nothing.
+    ///
+    /// The counterpart the ``removal`` note above anticipates: it exists so that an
+    /// action which merely *does* a thing cannot be smuggled into the destructive case
+    /// and inherit its red treatment and its confirmation.
+    case action(title: String, change: SettingsChange)
+
+    /// A value with nothing to press — a version number, a count, a date.
+    ///
+    /// A row rather than an explanation because it is an *answer*, and answers belong
+    /// where the eye goes for values. An explanation under a control is read as being
+    /// about the control.
+    case text(String)
 }
 
 /// A destructive button: what it says, what it removes, and what it asks first.
@@ -187,6 +201,7 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case minimisesWhileDictating
     case playsSoundWhenRecordingStarts
     case opensAtLogin
+    case installsUpdatesAutomatically
 }
 
 /// Everything the user can ask for on this screen.
@@ -204,4 +219,12 @@ public enum SettingsChange: Sendable, Equatable {
     case spokenLanguage(LanguageCode, isSpoken: Bool)
     case retention(days: Int)
     case appearance(AppAppearance)
+
+    /// Ask the update feed now rather than waiting for the next scheduled check.
+    ///
+    /// A change with nothing to change, which is why it carries no value: it alters no
+    /// setting and writes nothing. It is here rather than as a separate callback because
+    /// this enum is the one vocabulary the settings screen speaks, and a second channel
+    /// out of the view is a second thing to keep in step.
+    case checkForUpdatesNow
 }

@@ -62,6 +62,10 @@ private func everyUserFacingString() -> [String] {
                         removal.confirmation?.title, removal.confirmation?.message,
                         removal.confirmation?.confirmTitle, removal.confirmation?.cancelTitle,
                     ].compactMap(\.self)
+                case .action(let title, _):
+                    strings += [title]
+                case .text(let value):
+                    strings += [value]
                 case .toggle, .anchorPicker, .shortcut, .tick:
                     break
                 }

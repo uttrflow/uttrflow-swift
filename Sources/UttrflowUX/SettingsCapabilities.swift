@@ -17,6 +17,22 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// Whether there is anywhere to play the start-of-recording cue.
     public var canPlayRecordingSound: Bool
 
+    /// What this build calls itself, e.g. "0.2.2 (5)".
+    ///
+    /// Passed in rather than read here: this module has no bundle to ask, which is what
+    /// keeps every presenter test able to state the version it is testing against instead
+    /// of inheriting whatever the test runner happens to be.
+    public var versionDescription: String?
+
+    /// Whether this build has an update feed to ask.
+    ///
+    /// False in a build made before updating existed, and in one whose `SUFeedURL` or
+    /// `SUPublicEDKey` is missing — `Scripts/bundle.sh` refuses to ship the latter, but a
+    /// developer build assembled by hand can reach here without it. An update control
+    /// that cannot update is worse than none: it invites a press and then does nothing,
+    /// which reads as a broken app rather than an unconfigured one.
+    public var canCheckForUpdates: Bool
+
     /// The speech engines whose model is present and usable right now.
     public var readySpeechEngines: Set<SpeechEngineKind>
 
@@ -27,11 +43,15 @@ public struct SettingsCapabilities: Sendable, Equatable {
     public init(
         launchAtLogin: LaunchAtLoginStatus,
         canPlayRecordingSound: Bool,
+        canCheckForUpdates: Bool = false,
+        versionDescription: String? = nil,
         readySpeechEngines: Set<SpeechEngineKind>,
         readyTransformers: Set<TransformerKind>
     ) {
         self.launchAtLogin = launchAtLogin
         self.canPlayRecordingSound = canPlayRecordingSound
+        self.canCheckForUpdates = canCheckForUpdates
+        self.versionDescription = versionDescription
         self.readySpeechEngines = readySpeechEngines
         self.readyTransformers = readyTransformers
     }
@@ -41,6 +61,8 @@ public struct SettingsCapabilities: Sendable, Equatable {
     public static let everything = SettingsCapabilities(
         launchAtLogin: .enabled,
         canPlayRecordingSound: true,
+        canCheckForUpdates: true,
+        versionDescription: "1.0.0 (1)",
         readySpeechEngines: Set(SpeechEngineKind.allCases),
         readyTransformers: Set(TransformerKind.selectable)
     )

@@ -50,6 +50,10 @@ extension SettingsPane {
                     removal.confirmation?.title, removal.confirmation?.message,
                     removal.confirmation?.confirmTitle, removal.confirmation?.cancelTitle,
                 ].compactMap(\.self)
+            case .action(let title, _):
+                strings += [title]
+            case .text(let value):
+                strings += [value]
             case .toggle, .anchorPicker, .tick:
                 break
             }
@@ -113,7 +117,7 @@ struct SettingsWindowTests {
                         options.map(\.id).contains(selected),
                         "\(row.id) has selected something it does not offer")
                     #expect(Set(options.map(\.id)).count == options.count)
-                case .toggle, .anchorPicker, .shortcut, .tick, .removal:
+                case .toggle, .anchorPicker, .shortcut, .tick, .removal, .action, .text:
                     break
                 }
             }
@@ -519,5 +523,104 @@ struct SettingsAppearanceTests {
         #expect(decoded.appearance == .dark)
         #expect(decoded.opensAtLogin == false)
         #expect(decoded.transcriptRetentionDays == 30)
+    }
+}
+
+/// The Updates group: which build this is, a way to ask now, and whether to be asked.
+@Suite("Updates on the General tab")
+struct SettingsUpdatesTests {
+    private static func general(
+        _ capabilities: SettingsCapabilities, _ settings: Settings = .default
+    ) -> SettingsGroup? {
+        SettingsPresenter.pane(for: .general, settings: settings, capabilities: capabilities)
+            .groups.first { $0.id == "updates" }
+    }
+
+    @Test("shows the version, a way to check, and the automatic switch")
+    func theWholeGroup() throws {
+        let group = try #require(Self.general(.everything))
+        #expect(group.title == "Updates")
+        #expect(group.rows.map(\.id) == ["version", "checkForUpdates", "installsUpdatesAutomatically"])
+
+        let version = try #require(group.rows.first { $0.id == "version" })
+        #expect(version.control == .text("1.0.0 (1)"))
+        #expect(version.unavailability == nil)
+    }
+
+    @Test("the check button asks for a check and changes no setting")
+    func checkingIsAnAction() throws {
+        let row = try #require(Self.general(.everything)?.rows.first { $0.id == "checkForUpdates" })
+        #expect(row.control == .action(title: "Check Now", change: .checkForUpdatesNow))
+        #expect(row.unavailability == nil)
+    }
+
+    /// The group stays, rather than vanishing. Somebody looking for a version number in a
+    /// build that cannot update still finds one, and is told why the rest is inert
+    /// instead of hunting for a control they remember.
+    @Test("a build with no feed keeps the version and explains the rest")
+    func noFeed() throws {
+        var capabilities = SettingsCapabilities.everything
+        capabilities.canCheckForUpdates = false
+
+        let group = try #require(Self.general(capabilities))
+        #expect(group.rows.contains { $0.id == "version" })
+
+        for id in ["checkForUpdates", "installsUpdatesAutomatically"] {
+            let row = try #require(group.rows.first { $0.id == id })
+            #expect(row.unavailability != nil, "\(id) should say why it cannot act")
+        }
+    }
+
+    @Test("a build that cannot name its version omits that row rather than inventing one")
+    func noVersion() throws {
+        var capabilities = SettingsCapabilities.everything
+        capabilities.versionDescription = nil
+
+        let group = try #require(Self.general(capabilities))
+        #expect(!group.rows.contains { $0.id == "version" })
+        // The rest is unaffected: not knowing the version says nothing about updating.
+        #expect(group.rows.first { $0.id == "checkForUpdates" }?.unavailability == nil)
+    }
+
+    @Test("the switch reads the setting rather than a default")
+    func switchFollowsTheSetting() throws {
+        for isOn in [true, false] {
+            var settings = Settings.default
+            settings.installsUpdatesAutomatically = isOn
+            let group = try #require(Self.general(.everything, settings))
+            let row = try #require(group.rows.first { $0.id == "installsUpdatesAutomatically" })
+            #expect(row.control == .toggle(field: .installsUpdatesAutomatically, isOn: isOn))
+        }
+    }
+}
+
+/// Applying the two update changes.
+@Suite("Updating, applied")
+struct SettingsUpdateEditingTests {
+    @Test("the switch is written through")
+    func togglesThrough() throws {
+        var settings = Settings.default
+        settings.installsUpdatesAutomatically = true
+        let updated = try SettingsEditor.apply(
+            .toggle(.installsUpdatesAutomatically, isOn: false), to: settings)
+        #expect(updated.installsUpdatesAutomatically == false)
+    }
+
+    @Test("a build with no feed refuses the switch and says why")
+    func refusedWithoutAFeed() {
+        var capabilities = SettingsCapabilities.everything
+        capabilities.canCheckForUpdates = false
+        let reason = SettingsEditor.unavailability(
+            of: .installsUpdatesAutomatically, given: capabilities, in: .default)
+        #expect(reason?.contains("no update feed") == true)
+    }
+
+    /// It travels in the same enum as every other change and alters nothing, so the thing
+    /// worth asserting is that it does not quietly alter something anyway.
+    @Test("asking for a check changes no setting at all")
+    func checkingChangesNothing() throws {
+        let settings = Settings.default
+        let updated = try SettingsEditor.apply(.checkForUpdatesNow, to: settings)
+        #expect(updated == settings)
     }
 }

@@ -152,8 +152,48 @@ public enum SettingsPresenter {
                         toggleRow(
                             .opensAtLogin, label: "Open at login", settings, capabilities),
                     ]),
+                updates(settings, capabilities),
             ],
             callout: nil)
+    }
+
+    /// Updating: which build this is, a way to ask now, and whether to be asked first.
+    ///
+    /// The group stays present in a build with no feed, showing the version and saying
+    /// why the rest cannot act, rather than vanishing. A section that disappears leaves
+    /// somebody hunting for a control they remember seeing; one that explains itself
+    /// answers the question they usually came with, which is "what version am I on?"
+    private static func updates(
+        _ settings: Settings, _ capabilities: SettingsCapabilities
+    ) -> SettingsGroup {
+        // Both of the acting rows fail together and for one reason, so they say it the
+        // same way rather than inventing two sentences for one situation.
+        let noFeed = "This build has no update feed, so there is nothing to check."
+
+        var rows: [SettingsRow] = []
+
+        if let version = capabilities.versionDescription {
+            rows.append(SettingsRow(id: "version", label: "Version", control: .text(version)))
+        }
+
+        rows.append(
+            SettingsRow(
+                id: "checkForUpdates",
+                label: "Check for updates",
+                explanation: capabilities.canCheckForUpdates
+                    ? "Uttrflow also checks on its own every six hours." : nil,
+                control: .action(title: "Check Now", change: .checkForUpdatesNow),
+                unavailability: capabilities.canCheckForUpdates ? nil : noFeed))
+
+        rows.append(
+            toggleRow(
+                .installsUpdatesAutomatically,
+                label: "Install updates automatically",
+                explanation:
+                    "Off means Uttrflow asks first. Either way it never installs mid-dictation.",
+                settings, capabilities))
+
+        return SettingsGroup(id: "updates", title: "Updates", rows: rows)
     }
 
     private static func activationOption(_ activation: HotkeyActivation) -> SettingsOption {
@@ -523,6 +563,7 @@ public enum SettingsPresenter {
         case .minimisesWhileDictating: settings.minimisesWhileDictating
         case .playsSoundWhenRecordingStarts: settings.playsSoundWhenRecordingStarts
         case .opensAtLogin: settings.opensAtLogin
+        case .installsUpdatesAutomatically: settings.installsUpdatesAutomatically
         }
     }
 }

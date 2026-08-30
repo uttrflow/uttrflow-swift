@@ -70,6 +70,20 @@ struct SettingsControlView: View {
             // screen removes anything because Return was pressed.
             Button(removal.title) { model.request(removal) }
                 .buttonStyle(SettingsButtonStyle(isDestructive: true))
+
+        case .action(let title, let change):
+            // Not destructive, so not red, and no confirmation: the case exists precisely
+            // to keep those two treatments attached to `removal` and nothing else.
+            Button(title) { model.apply(change) }
+                .buttonStyle(SettingsButtonStyle(isDestructive: false))
+
+        case .text(let value):
+            // Selectable, because a version number's whole purpose is to be quoted into a
+            // bug report, and one that cannot be copied has to be transcribed by hand.
+            Text(value)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
         }
     }
 
