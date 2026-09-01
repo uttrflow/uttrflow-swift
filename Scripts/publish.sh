@@ -322,6 +322,7 @@ NOTES_URL="https://github.com/$DOWNLOADS_REPO/releases/tag/$TAG"
 
 ARCHIVE_SIZE="$ARCHIVE_SIZE" ARCHIVE_NAME="$ARCHIVE" SIGNATURE="$SIGNATURE" \
     VERSION="$VERSION" BUILD="$BUILD" REPO="$DOWNLOADS_REPO" NOTES_URL="$NOTES_URL" \
+    TAG="$TAG" \
     MINIMUM_SYSTEM="26.0" \
     python3 "$SCRIPT_DIR/appcast.py" "$CLONE/appcast.xml" \
     || fail "could not write the appcast"

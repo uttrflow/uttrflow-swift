@@ -33,6 +33,7 @@ def main() -> int:
         signature = os.environ["SIGNATURE"].strip()
         repository = os.environ["REPO"]
         notes = os.environ["NOTES_URL"]
+        tag = os.environ["TAG"]
         minimum = os.environ["MINIMUM_SYSTEM"]
     except KeyError as missing:
         print(f"appcast.py: {missing} is not set", file=sys.stderr)
@@ -60,9 +61,24 @@ def main() -> int:
         )
         return 1
 
-    # The constant address, as latest.json uses for the disk image: it is the one that
-    # goes on working when the next version lands.
-    url = f"https://github.com/{repository}/releases/latest/download/{archive}"
+    # **The tag, not `/latest/`** — the opposite of what latest.json does for the disk
+    # image, and deliberately.
+    #
+    # A download link on the website should float: it is asking "give me the current
+    # version", and pinning it would need editing every release. An appcast enclosure is
+    # asking something else. It carries `sparkle:edSignature`, which covers *these exact
+    # bytes*, so the URL beside it has to name the archive those bytes came from and go
+    # on naming it forever.
+    #
+    # With `/latest/` the two disagree for a window at every release. `gh release create`
+    # publishes the new archive before this file describing it is pushed, and the appcast
+    # is then cached — five minutes by `internal/api/updates.go`, plus whatever
+    # raw.githubusercontent is holding. For those minutes the *old* appcast is still being
+    # served, and its `/latest/` URL has silently started resolving to the *new* archive.
+    # Sparkle downloads it, checks it against the old signature, and refuses the update as
+    # corrupt. It is transient and it recovers on the next check, which is exactly what
+    # makes it the kind of bug nobody reports and nobody finds.
+    url = f"https://github.com/{repository}/releases/download/{tag}/{archive}"
     published = datetime.datetime.now(datetime.UTC).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
     appcast = f"""<?xml version="1.0" encoding="utf-8"?>
