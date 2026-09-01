@@ -40,12 +40,17 @@ jobs:
     name: Analyse Swift
     # Swift analysis needs the code to build, so this is the same runner CI uses.
     runs-on: macos-26
-    # Deliberately not raised when this job started timing out. The cap is the only thing
-    # that reported the problem — it turned a job that had quietly grown from 33 to 58
-    # minutes into a red run somebody had to look at — and a cap raised to 90 would have
-    # bought silence until the next 800-line pull request. The fix was to find the 30
-    # minutes this job was spending on nothing, below; 60 stays as the alarm.
-    timeout-minutes: 60
+    # Deliberately not raised when this job started timing out, and this is a call worth
+    # revisiting rather than a settled one. The cap is the only thing that reported the
+    # problem — it turned a job that had quietly grown from 33 to 58 minutes into a red
+    # run somebody had to look at — and a cap raised to 90 would have bought silence
+    # until the next 800-line pull request.
+    #
+    # Headroom is **not** restored. Moving resolution out of the traced window below took
+    # the build step from 56 to 40 minutes on the run that measured it, but roughly twelve
+    # of those minutes reappeared as silence before the first line of compilation, so the
+    # job still lands around 45 minutes against this 60. The probe step below exists to
+    # find out where that silence goes. Until it has answered, 60 stays as the alarm.
     permissions:
       security-events: write   # to file the results
       contents: read
@@ -72,8 +77,13 @@ jobs:
       # slow; it is resolution *under the tracer*, and nothing it does needs to be traced,
       # because it compiles none of our code.
       #
-      # So it happens here, untraced. `swift build` below then finds the working copies
-      # already on disk and resolves nothing.
+      # So it happens here, untraced, and the first run to do so took 1m22s cold — the 22
+      # minutes are gone and `--force-resolved-versions` below stops them coming back.
+      #
+      # Be careful what is claimed for that, though, because the job did not get 22
+      # minutes faster: the silence before compilation grew from 7½ minutes to 19½ in the
+      # same run. Some of this cost is fixed and merely moved. That is what the probe
+      # below is for.
       - name: Resolve dependencies
         run: |
           set -euo pipefail
@@ -87,6 +97,37 @@ jobs:
           # Required once autobuild is replaced: without it the action runs its own build
           # as well, and the saving disappears into a build that happens twice.
           build-mode: manual
+
+      # A probe, not a fix, and it should be deleted once it has answered.
+      #
+      # After resolution moved out of the traced step, `swift build` still spent 19½
+      # minutes silent before printing its first line — up from 7½ when resolution was
+      # still in there. Something the tracer imposes is fixed in size and simply
+      # relocated, and from the outside it is impossible to say what, because SwiftPM
+      # prints nothing at all while it happens.
+      #
+      # These two commands take 0.2 seconds each on a laptop, and they are already being
+      # paid for inside that silence — this only puts a timestamp on them. They separate
+      # the three candidates:
+      #
+      #   - `swift --version` slow  → the cost is CodeQL's tracer intercepting the first
+      #     spawn of the toolchain (it copies executables into a copy-root), so it is the
+      #     price of extracting Swift at all and no workflow change will move it.
+      #   - `describe` slow instead → the cost is compiling the sixteen package manifests
+      #     under the tracer, which would mean SwiftPM's manifest cache is missing on the
+      #     traced side because the tracer's environment is part of its key. That one is
+      #     fixable.
+      #   - both fast → the time is inside `swift build`'s own planning, and the next
+      #     place to look is llbuild.
+      - name: Where does the silence go
+        run: |
+          set -euo pipefail
+          echo "::group::first traced spawn of the toolchain"
+          time swift --version
+          echo "::endgroup::"
+          echo "::group::loading every manifest, under the tracer"
+          time swift package describe --type json > /dev/null
+          echo "::endgroup::"
 
       # An explicit build rather than autobuild, and the reason is what it *stops*
       # building. Autobuild builds the whole package; three of the four executables are
