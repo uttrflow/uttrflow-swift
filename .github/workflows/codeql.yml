@@ -23,11 +23,28 @@ on:
 permissions:
   contents: read
 
+# A second push to a pull request makes the first analysis unreadable — nobody looks at
+# alerts for a commit that no longer exists — so the two ran side by side for the better
+# part of an hour each and the second finished later for it. Cancel the superseded one.
+#
+# Only for pull requests. A push to `main` and the weekly cron each analyse a commit whose
+# alerts become the repository's baseline, so none of those may be dropped; keying their
+# group on the commit gives every one of them a group of its own, which means they neither
+# cancel nor queue behind each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   analyse:
     name: Analyse Swift
     # Swift analysis needs the code to build, so this is the same runner CI uses.
     runs-on: macos-26
+    # Deliberately not raised when this job started timing out. The cap is the only thing
+    # that reported the problem — it turned a job that had quietly grown from 33 to 58
+    # minutes into a red run somebody had to look at — and a cap raised to 90 would have
+    # bought silence until the next 800-line pull request. The fix was to find the 30
+    # minutes this job was spending on nothing, below; 60 stays as the alarm.
     timeout-minutes: 60
     permissions:
       security-events: write   # to file the results
@@ -40,27 +57,27 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
-      # **Dependency sources only. Never the build products.**
+      # **Before CodeQL initialises, and that is the entire point of this step.**
       #
-      # This is the one cache that is safe here, and the distinction is the whole point.
-      # CodeQL builds Swift by *watching the compiler run* — no compilation, no database.
-      # Cache `.build` wholesale and a warm hit means `swift build` has nothing to do,
-      # CodeQL observes nothing, and the run reports zero alerts and goes green. A scan
-      # that passes because it analysed an empty database is worse than no scan, and it
-      # is the third time this shape of bug has come up in this repository.
+      # `codeql-action/init` exports a tracer into every later step — `DYLD_INSERT_LIBRARIES`
+      # pointing at `libtrace.dylib`, plus a copy-root — because that is how the Swift
+      # extractor works: it watches the compiler run. Everything a traced step spawns is
+      # intercepted, and SwiftPM's dependency resolution spawns a great deal (a manifest
+      # compile per package, in a sandbox, one at a time).
       #
-      # So: checkouts, artifacts and the resolver's clones — which is what the 18 minutes
-      # was going on — and nothing that would let a target skip being compiled.
-      - name: Cache dependency sources
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
-        with:
-          path: |
-            .build/checkouts
-            .build/artifacts
-            .build/repositories
-            ~/.swiftpm
-          key: codeql-deps-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: codeql-deps-${{ runner.os }}-
+      # Measured, from the logs of the run that hit the timeout: resolution inside the
+      # traced build took 22 minutes, of which 17 were a single line — `Computed Sparkle
+      # at 2.7.2 (1039.49s)`, one exactly-pinned dependency. The same resolution here, on
+      # a laptop with no `.build` at all, takes 63 seconds. It is not resolution that is
+      # slow; it is resolution *under the tracer*, and nothing it does needs to be traced,
+      # because it compiles none of our code.
+      #
+      # So it happens here, untraced. `swift build` below then finds the working copies
+      # already on disk and resolves nothing.
+      - name: Resolve dependencies
+        run: |
+          set -euo pipefail
+          time swift package resolve
 
       - name: Initialise CodeQL
         uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
@@ -83,18 +100,31 @@ jobs:
       # library the app deliberately cannot import, so nothing else would build it, and
       # it is the one module that can reach the private corpus — which makes it worth
       # analysing rather than skipping.
+      #
+      # `--force-resolved-versions` is a tripwire, not an optimisation. The resolve step
+      # above has already done this work, so any resolution *here* is a bug — and the way
+      # that bug presented last time was not an error but half an hour of silence. The
+      # flag turns it into an immediate failure that names its own cause.
       - name: Build the shipping code
         run: |
           set -euo pipefail
-          swift build --target Uttrflow 2>&1 | tee build.log
-          swift build --target UttrflowEval 2>&1 | tee -a build.log
+          swift build --force-resolved-versions --target Uttrflow 2>&1 | tee build.log
+          swift build --force-resolved-versions --target UttrflowEval 2>&1 | tee -a build.log
 
-      # The guard, and the reason the cache above is written the way it is.
+      # The guard.
       #
       # CodeQL builds Swift by watching the compiler run. A build that compiles nothing
       # produces a database with nothing in it, and the analysis then reports zero alerts
       # and goes green — a scan that passed because it looked at an empty room. Nothing
       # else in this job would notice.
+      #
+      # This is why there is no cache of `.build` here and must never be one: a warm hit
+      # would mean `swift build` has nothing to do and CodeQL observes nothing. The
+      # dependency-source cache that used to sit above this job was removed because it
+      # was measured at roughly fourteen seconds of saving — the fetches it skipped take
+      # 19 seconds cold — while restoring 352 MB into the one directory this comment
+      # exists to keep empty. Resolution was never where the time went; see the resolve
+      # step.
       #
       # So: our own modules must actually have been compiled. `Compiling Uttrflow` is the
       # line SwiftPM prints per module, and a no-op build prints none of them.
@@ -106,7 +136,7 @@ jobs:
           if [ "$compiled" -lt 10 ]; then
             echo "::error::only $compiled Uttrflow modules compiled. CodeQL extracts by watching"
             echo "::error::the compiler, so a build this small means it analysed almost nothing."
-            echo "::error::Most likely the dependency cache restored build products it should not have."
+            echo "::error::Most likely something restored build products into .build."
             exit 1
           fi
 
