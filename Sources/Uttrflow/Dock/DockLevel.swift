@@ -31,71 +31,42 @@ enum DockLevel {
     }
 }
 
-/// Eight bars following one signal, each at its own rate.
+/// The row of capsules, one per arrival.
 ///
-/// There is one microphone and therefore one number, so a row of bars claiming to be a
-/// spectrum would be the original lie in a new shape. What each bar honestly *can* be is
-/// a differently damped follower of the real level: they all rise together the instant
-/// you speak, and fall at their own speeds afterwards, the way a row of resonators
-/// would. The result moves like something being driven rather than something being
-/// played back.
+/// A bar here is a *moment*, not a sample of a curve: each 20 Hz arrival pushes one
+/// entry and every entry then walks across the panel until it falls off the far end. That
+/// is what makes the meter a recording of the last second rather than a decoration that
+/// happens to wobble — the horizontal axis is time, and every bar on screen is something
+/// that was actually said.
 ///
-/// The damping is deliberately **not** ordered along the row. Neighbours that lag each
-/// other in sequence read as a single wave travelling across the panel — motion the
-/// microphone never made, and the exact effect this design was asked to remove — so the
-/// rates are scattered instead, and no two adjacent bars are near each other's.
-struct DockMeter {
-    /// How much of a bar's height survives one update with nothing being said.
+/// Newest first, so index zero is the edge where sound arrives and the walk is a simple
+/// increasing offset.
+struct DockBars {
+    /// Enough to fill the widest meter with two to spare, so a bar exists to enter from
+    /// beyond the edge and one to leave past it.
+    static let capacity = 24
+
+    /// Above this, a bar takes the mark's accent instead of the waveform teal.
     ///
-    /// Scattered, not sorted. Sorting these is what would reintroduce the travelling
-    /// wave, so the order is part of the design rather than an accident of writing them
-    /// down.
-    static let damping: [CGFloat] = [0.55, 0.78, 0.62, 0.86, 0.58, 0.81, 0.66, 0.73]
+    /// Half scale, chosen because it is the only threshold that needs no explanation.
+    /// It is worth being clear about what it does and does not mean: it says this instant
+    /// was louder than half, and nothing more. It is not a second measurement and the
+    /// meter has no second thing to measure — one microphone, one number.
+    static let accentThreshold: CGFloat = 0.5
 
-    /// A fixed share of the level each bar shows, so the row has a shape at all.
-    ///
-    /// Without this the meter has a failure mode that only appears on a *sustained*
-    /// sound: attack is immediate for every bar, so while the level holds steady they
-    /// all sit at exactly the same height and the row becomes a solid block. Speech
-    /// fluctuates enough to hide it most of the time, and a held vowel does not.
-    ///
-    /// This is a fixed face rather than anything measured — the meter is one number and
-    /// says so — which is why the profile never changes and never moves. Scattered for
-    /// the same reason the damping is: a smooth hump would imply a spectrum, and a
-    /// gradient across the row would read as travel.
-    static let gain: [CGFloat] = [0.74, 1.0, 0.82, 0.93, 0.68, 0.97, 0.78, 0.88]
+    private(set) var levels: [CGFloat]
 
-    /// The fraction of full height a bar shows when its follower is at zero, so the row
-    /// reads as a resting meter rather than as a panel with nothing in it.
-    static let floor: CGFloat = 0.12
+    init() { levels = Array(repeating: 0, count: Self.capacity) }
 
-    private(set) var heights: [CGFloat]
-
-    init() {
-        heights = Array(repeating: Self.floor, count: Self.damping.count)
+    /// Takes one arrival. Anything outside the scale is clamped rather than drawn.
+    mutating func arrive(_ level: CGFloat) {
+        levels.insert(min(max(level, 0), 1), at: 0)
+        if levels.count > Self.capacity { levels.removeLast() }
     }
 
-    var count: Int { Self.damping.count }
+    /// Empties the row, so a new dictation cannot open showing the end of the last one.
+    mutating func clear() { levels = Array(repeating: 0, count: Self.capacity) }
 
-    /// Advances every follower towards the level just measured.
-    ///
-    /// Attack is immediate: a bar jumps to the new level the moment that level is higher
-    /// than where the bar already is. Only the fall is damped, which is what makes the
-    /// row arrive together and disperse.
-    mutating func advance(to level: CGFloat) {
-        let level = min(max(level, 0), 1)
-        for index in heights.indices {
-            let target = level * Self.gain[index]
-            let released = heights[index] * Self.damping[index]
-            heights[index] = max(max(target, released), Self.floor)
-        }
-    }
-
-    /// Freezes the row where it stands, for the hand-over from listening to working.
-    ///
-    /// The panel must not change shape at the moment the key is released — a box that
-    /// jumps exactly when somebody stops talking reads as an error even when nothing
-    /// went wrong — so the last real frame of their voice is what the working animation
-    /// starts from.
-    func frozen() -> [CGFloat] { heights }
+    /// Which of the app's two teals a bar is drawn in.
+    static func isLoud(_ level: CGFloat) -> Bool { level > accentThreshold }
 }

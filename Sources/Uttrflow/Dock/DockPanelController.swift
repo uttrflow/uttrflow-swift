@@ -148,7 +148,7 @@ final class DockPanelController {
         guard levelTimer == nil, let levelSource else { return }
         let timer = Timer(timeInterval: Self.meteringInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.model.level = levelSource()
+                self?.model.meter(levelSource())
             }
         }
         // `.common`, not the default: a run loop tracking a mouse drag — which is what

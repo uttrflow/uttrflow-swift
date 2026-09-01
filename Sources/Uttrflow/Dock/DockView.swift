@@ -27,6 +27,21 @@ final class DockViewModel {
     /// have to be rewritten to accommodate a number that changes twenty times a second
     /// and means nothing on its own.
     var level: Float = 0
+    /// The row of capsules, one per arrival, newest first.
+    private(set) var bars = DockBars()
+    /// When the newest bar landed, so the row can be drawn *between* arrivals.
+    ///
+    /// Twenty arrivals a second drawn on arrival is twenty sideways jumps a second, and
+    /// it reads as stepping rather than flowing. Holding the moment lets the view place
+    /// the bars at a fractional offset on every display frame instead.
+    private(set) var lastArrival = Date()
+
+    /// One arrival: the level the microphone reported, and one more capsule.
+    func meter(_ level: Float, now: Date = Date()) {
+        self.level = level
+        bars.arrive(DockLevel.scale(rms: level))
+        lastArrival = now
+    }
     /// When the current recording started, for the clock on the pill.
     ///
     /// Stamped here rather than carried in the presentation because it is a fact about
@@ -49,12 +64,16 @@ final class DockViewModel {
     /// while somebody holds the key, leaves it exactly where it was.
     func show(_ presentation: DockPresentation, now: Date = Date()) {
         if presentation.isRecording {
+            // Cleared as a recording begins rather than as one ends: the working
+            // animation settles the row the voice actually left behind, so the bars have
+            // to outlive the microphone by exactly one state.
+            if recordingStartedAt == nil {
+                bars.clear()
+                lastArrival = now
+            }
             recordingStartedAt = recordingStartedAt ?? now
         } else {
             recordingStartedAt = nil
-            // Not carried past the end of a recording: the working animation starts from
-            // the row the voice left behind, and a level still arriving after the
-            // microphone closed would move it.
             level = 0
         }
         self.presentation = presentation
@@ -194,7 +213,7 @@ struct DockView: View {
         let weightLeads = model.anchor == .bottomLeft
         return HStack(spacing: 9) {
             if weightLeads { weight() }
-            LevelMeterView(level: model.level)
+            LevelMeterView(model: model, towardsLeading: weightLeads)
             if !weightLeads { weight() }
         }
         .padding(.leading, weightLeads ? 5 : 12)
@@ -213,7 +232,7 @@ struct DockView: View {
         let weightLeads = model.anchor == .bottomLeft
         return HStack(spacing: 9) {
             if weightLeads { weight() }
-            SettleView()
+            SettleView(bars: model.bars.levels, towardsLeading: weightLeads)
             if !weightLeads { weight() }
         }
         .padding(.leading, weightLeads ? 5 : 12)
@@ -411,78 +430,75 @@ enum DockMetrics {
 
 // MARK: - Parts
 
-/// The level, as eight bars that rise together and fall at their own rates.
+/// The level, as a row of capsules walking across the panel.
 ///
-/// The follower lives in ``DockMeter`` so that what the bars do is testable without a
-/// microphone or a window; all this holds is the row of capsules and the short
-/// animation that keeps twenty updates a second from looking like twenty steps.
+/// Two teals the app already owns and no third: a bar louder than half scale takes the
+/// mark's accent, the rest keep the waveform teal. Redrawn every display frame rather
+/// than on every arrival — see ``DockViewModel/lastArrival`` for why — and clipped, so
+/// the newest bar enters from beyond the edge instead of appearing at it.
 private struct LevelMeterView: View {
-    let level: Float
-
-    @State private var meter = DockMeter()
+    let model: DockViewModel
+    /// Whether the mark sits on the leading edge. Sound always arrives at the side
+    /// *away* from the mark and flows into it, so on the default right-hand anchor that
+    /// reads left to right, and on a left-hand anchor it mirrors along with the rest of
+    /// the pill rather than becoming a second design.
+    let towardsLeading: Bool
 
     var body: some View {
-        HStack(spacing: DockMetrics.meterBarSpacing) {
-            ForEach(Array(meter.heights.enumerated()), id: \.offset) { _, height in
-                Capsule()
-                    .fill(Color.dockWaveform)
-                    .frame(
-                        width: DockMetrics.meterBarWidth,
-                        height: DockMetrics.meterBarMinHeight
-                            + height
-                            * (DockMetrics.meterHeight - DockMetrics.meterBarMinHeight))
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                let phase = min(
+                    max(
+                        timeline.date.timeIntervalSince(model.lastArrival)
+                            / DockMetrics.meterArrivalInterval, 0), 1)
+                DockMetrics.drawBars(
+                    model.bars.levels, in: context, size: size,
+                    phase: phase, towardsLeading: towardsLeading)
             }
         }
-        .frame(height: DockMetrics.meterHeight)
-        .animation(.linear(duration: 0.06), value: meter.heights)
-        .onChange(of: level, initial: true) { _, new in
-            meter.advance(to: DockLevel.scale(rms: new))
-        }
+        .frame(width: DockMetrics.meterWidth, height: DockMetrics.meterHeight)
+        .clipShape(.rect)
     }
 }
 
-/// The working animation: the untidy row combs itself level, then folds into a tick.
+/// Working: the row the voice left behind, combing itself level and folding to a tick.
 ///
 /// It plays once and resolves, which is the whole difference from what it replaces. A
 /// loop says *indefinite* — it is the animation of a download with no progress bar — and
-/// tidying up a sentence takes about a second and always ends.
+/// tidying up a sentence takes about a second and always ends. It also stops scrolling:
+/// nothing is arriving any more, and a row still walking would say otherwise.
 private struct SettleView: View {
-    @State private var isSettled = false
-    @State private var isFolded = false
+    let bars: [CGFloat]
+    let towardsLeading: Bool
 
-    /// The row the voice left behind. Held rather than measured because by the time this
-    /// appears the microphone has closed, and starting from nothing would throw away the
-    /// one thing that makes the animation feel like a continuation.
-    private static let start: [CGFloat] = [0.62, 0.28, 0.86, 0.44, 0.74, 0.34, 0.68, 0.40]
+    @State private var progress: CGFloat = 0
 
     var body: some View {
-        ZStack {
-            HStack(spacing: DockMetrics.meterBarSpacing) {
-                ForEach(Array(Self.start.enumerated()), id: \.offset) { _, height in
-                    Capsule()
-                        .fill(Color.dockWaveform)
-                        .frame(
-                            width: DockMetrics.meterBarWidth,
-                            height: DockMetrics.meterBarMinHeight
-                                + (isSettled ? 0.34 : height)
-                                * (DockMetrics.meterHeight - DockMetrics.meterBarMinHeight))
-                }
+        let settle = min(progress / 0.5, 1)
+        let fold = max((progress - 0.5) / 0.5, 0)
+
+        return ZStack {
+            Canvas { context, size in
+                let levelled = bars.map { $0 + (DockMetrics.settledLevel - $0) * settle }
+                DockMetrics.drawBars(
+                    levelled, in: context, size: size,
+                    phase: 1, towardsLeading: towardsLeading)
             }
-            .frame(height: DockMetrics.meterHeight)
-            .scaleEffect(x: isFolded ? 0.08 : 1)
-            .opacity(isFolded ? 0 : 1)
+            .scaleEffect(x: 1 - fold * 0.92)
+            .opacity(1 - Double(fold))
 
             Image(systemName: "checkmark")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(Color.dockSuccess)
-                .scaleEffect(isFolded ? 1 : 0.2)
-                .opacity(isFolded ? 1 : 0)
+                .scaleEffect(0.2 + fold * 0.8)
+                .opacity(Double(fold))
         }
         .frame(width: DockMetrics.meterWidth, height: DockMetrics.meterHeight)
+        .clipShape(.rect)
         .task {
-            withAnimation(.easeOut(duration: 0.34)) { isSettled = true }
+            withAnimation(.easeOut(duration: 0.34)) { progress = 0.5 }
             try? await Task.sleep(for: .milliseconds(340))
-            withAnimation(.spring(duration: 0.3, bounce: 0.34)) { isFolded = true }
+            withAnimation(.spring(duration: 0.3, bounce: 0.34)) { progress = 1 }
         }
     }
 }
@@ -617,14 +633,62 @@ private struct Badge: View {
 }
 
 extension DockMetrics {
-    static let meterBarWidth: CGFloat = 2.5
-    static let meterBarSpacing: CGFloat = 2.5
-    static let meterBarMinHeight: CGFloat = 3
-    static let meterHeight: CGFloat = 15
-    /// Eight bars and seven gaps, so the working animation can hold the width the
-    /// listening meter had while its own row collapses inside it.
-    static let meterWidth: CGFloat = 8 * meterBarWidth + 7 * meterBarSpacing
+    static let meterBarWidth: CGFloat = 2.2
+    static let meterBarSpacing: CGFloat = 1.8
+    static let meterHeight: CGFloat = 18
+    /// Fixed rather than derived from a bar count: the row scrolls, so how many bars fit
+    /// is a consequence of the width rather than the other way round.
+    static let meterWidth: CGFloat = 56
+    /// The tallest a capsule gets, as a share of the meter's height. Under one, so a
+    /// loud syllable still has air above and below it rather than touching the glass.
+    static let meterAmplitude: CGFloat = 0.9
+    /// How often a bar arrives — the rate the panel polls the microphone at.
+    static let meterArrivalInterval: TimeInterval = 0.05
+    /// How strongly a bar below the accent threshold is drawn.
+    ///
+    /// The two teals cannot carry the threshold on their own. On a light desktop the
+    /// pair is `#067A87` against `#29C0B4` and separates at 2.24:1, which reads. On a
+    /// dark one the waveform teal lightens to `#00C3D0` and the pair collapses to
+    /// **1.05:1** — and inverts, because the accent is then the fractionally *darker*
+    /// of the two. A threshold nobody can see on the ground most desktops actually use
+    /// is not a threshold.
+    ///
+    /// So the hue keeps its job and weight is added beside it: quiet bars sit back,
+    /// loud ones come forward. It introduces no colour the app does not already own,
+    /// and it works on both grounds because opacity does not depend on either.
+    static let meterQuietOpacity: CGFloat = 0.62
+    /// Where the row settles to when the microphone closes. Not zero: a row of dots
+    /// still reads as a meter, and a row of nothing reads as a panel that has broken.
+    static let settledLevel: CGFloat = 0.18
     static let markTickHeight: CGFloat = 14
+
+    /// Draws the row, in the one place both the live meter and the working animation
+    /// can reach it — so the panel cannot change shape at the moment the key is released
+    /// by the two of them drifting apart.
+    static func drawBars(
+        _ levels: [CGFloat], in context: GraphicsContext, size: CGSize,
+        phase: Double, towardsLeading: Bool
+    ) {
+        let step = meterBarWidth + meterBarSpacing
+        let loud = GraphicsContext.Shading.color(.dockSecondary)
+        let quiet = GraphicsContext.Shading.color(
+            Color.dockWaveform.opacity(meterQuietOpacity))
+        for (index, level) in levels.enumerated() {
+            // One step before the panel starts, so the newest bar enters from beyond the
+            // edge and is clipped rather than appearing out of nothing at it.
+            let offset = (CGFloat(index) + CGFloat(phase) - 1) * step
+            let x = towardsLeading ? size.width - offset - meterBarWidth : offset
+            guard x < size.width, x > -step else { continue }
+            // A quiet bar is a dot rather than a stub: at this width the cap radius is
+            // the whole bar, so the floor may as well be the shape it is heading for.
+            let height = max(meterBarWidth, level * size.height * meterAmplitude)
+            let rect = CGRect(
+                x: x, y: (size.height - height) / 2, width: meterBarWidth, height: height)
+            context.fill(
+                Path(roundedRect: rect, cornerRadius: meterBarWidth / 2),
+                with: DockBars.isLoud(level) ? loud : quiet)
+        }
+    }
 }
 
 // MARK: - Material

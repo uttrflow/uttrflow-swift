@@ -177,10 +177,17 @@
     .weight { width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex;
               align-items: center; justify-content: center; background: var(--accent); }
     .glass.dark .weight { background: var(--accent-dark); }
-    .meter { display: flex; align-items: center; gap: 2.5px; height: 15px; }
-    .meter i { width: 2.5px; border-radius: 2px; background: var(--accent-2-deep);
-               display: block; }
+    /* Capsules, one per arrival, mirrored about the centre and walking toward the
+       mark. Two teals the app already owns: past half height a bar takes the accent,
+       below it the waveform teal at reduced weight — the hue cannot carry the threshold
+       on its own, since the pair collapses to 1.05:1 on a dark desktop. */
+    .meter { display: flex; align-items: center; gap: 1.8px; height: 18px; width: 56px;
+             overflow: hidden; }
+    .meter i { width: 2.2px; border-radius: 1.1px; flex: none; display: block;
+               background: var(--accent-2-deep); opacity: 0.62; }
     .dark .meter i { background: var(--accent-2); }
+    .meter i.loud { background: var(--accent); opacity: 1; }
+    .dark .meter i.loud { background: var(--accent-dark); opacity: 1; }
 
     /* A success needs no words: the disc is the whole notice. */
     .disc { width: 26px; height: 26px; border-radius: 13px; display: flex;
@@ -220,16 +227,16 @@
         <div class="slot dark-col"><div class="row" style="gap: 9px"><div class="glass dark hint" style="height:30px;border-radius:15px">Dictate <span class="kbd">&#8997;Space</span></div><div class="glass dark orb" style="width:30px;height:30px"><div class="meter" style="height:11px"><i style="height:6px;background:currentColor;opacity:0.5"></i><i style="height:11px;background:currentColor;opacity:0.5"></i><i style="height:7px;background:currentColor;opacity:0.5"></i></div></div></div></div>
       </div>
       <div class="drow">
-        <div class="state-label"><div class="n">Listening</div><div class="d">the level, actually driven</div></div>
-        <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:11px"></i><i style="height:6px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:9px"></i></div></div></div>
+        <div class="state-label"><div class="n">Listening</div><div class="d">capsules, one per arrival</div></div>
+        <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i class="loud" style="height:12.0px"></i><i class="loud" style="height:8.4px"></i><i style="height:5.3px"></i><i class="loud" style="height:13.4px"></i><i class="loud" style="height:10.4px"></i><i style="height:6.8px"></i><i class="loud" style="height:14.6px"></i><i class="loud" style="height:9.2px"></i><i style="height:4.4px"></i><i class="loud" style="height:9.9px"></i><i style="height:5.7px"></i><i style="height:2.8px"></i><i style="height:2.2px"></i><i style="height:2.2px"></i></div></div></div>
         <div style="width: 36px"></div>
-        <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:11px"></i><i style="height:6px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:9px"></i></div></div></div>
+        <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i class="loud" style="height:12.0px"></i><i class="loud" style="height:8.4px"></i><i style="height:5.3px"></i><i class="loud" style="height:13.4px"></i><i class="loud" style="height:10.4px"></i><i style="height:6.8px"></i><i class="loud" style="height:14.6px"></i><i class="loud" style="height:9.2px"></i><i style="height:4.4px"></i><i class="loud" style="height:9.9px"></i><i style="height:5.7px"></i><i style="height:2.8px"></i><i style="height:2.2px"></i><i style="height:2.2px"></i></div></div></div>
       </div>
       <div class="drow">
         <div class="state-label"><div class="n">Working</div><div class="d">the row settles, then folds to a tick</div></div>
-        <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i></div></div></div>
+        <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i></div></div></div>
         <div style="width: 36px"></div>
-        <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i></div></div></div>
+        <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i></div></div></div>
       </div>
       <div class="drow">
         <div class="state-label"><div class="n">Inserted</div><div class="d">the mark turns into the tick</div></div>
