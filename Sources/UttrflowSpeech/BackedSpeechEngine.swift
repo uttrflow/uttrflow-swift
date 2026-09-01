@@ -45,6 +45,12 @@ public actor BackedSpeechEngine: SpeechEngine {
     ) async throws(SpeechEngineError) -> Transcription {
         guard audio.duration >= Self.minimumDuration else { throw .audioTooShort }
 
+        // Before the recogniser, not after it: asked to decode silence Whisper invents
+        // speech rather than returning nothing, and no amount of filtering downstream
+        // can tell an invented "Thank you." from a spoken one.
+        guard let speech = audio.speechOnly() else { throw .nothingHeard }
+        guard speech.audio.duration >= Self.minimumDuration else { throw .nothingHeard }
+
         // Loading here as well as in `prepare` means a caller that forgot to prepare
         // gets a slow first transcription rather than a failure.
         try await prepare()
@@ -53,7 +59,8 @@ public actor BackedSpeechEngine: SpeechEngine {
         // on what is on screen, and that is only true of this dictation.
         let words = await vocabulary?.vocabulary() ?? []
         let raw = try await backend.transcribe(
-            audio.samples, languageHint: options.languageHint, biasedTowards: words)
-        return raw.transcription(audioDuration: audio.duration)
+            speech.audio.samples, languageHint: options.languageHint, biasedTowards: words)
+        // The original duration, not the trimmed one: it is what the user spoke for.
+        return raw.transcription(audioDuration: audio.duration, startingAt: speech.start)
     }
 }

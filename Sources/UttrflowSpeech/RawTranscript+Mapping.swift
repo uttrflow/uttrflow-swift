@@ -5,11 +5,15 @@ extension RawTranscript {
     ///
     /// Pure, and shared by every backend, so the rules below hold no matter which
     /// recogniser produced the text.
-    public func transcription(audioDuration: Duration) -> Transcription {
+    /// - Parameter startingAt: Where the transcribed audio began in the recording, so
+    ///   trimmed-away silence does not shift every segment's timings.
+    public func transcription(
+        audioDuration: Duration, startingAt offset: Duration = .zero
+    ) -> Transcription {
         Transcription(
             text: Self.cleaned(text),
             detectedLanguage: detectedLanguage,
-            segments: segments.map(\.transcriptionSegment),
+            segments: segments.map { $0.transcriptionSegment(shiftedBy: offset) },
             audioDuration: audioDuration
         )
     }
@@ -70,11 +74,11 @@ extension RawTranscript {
 }
 
 extension RawSegment {
-    fileprivate var transcriptionSegment: TranscriptionSegment {
+    fileprivate func transcriptionSegment(shiftedBy offset: Duration) -> TranscriptionSegment {
         TranscriptionSegment(
             text: RawTranscript.cleaned(text),
-            start: .seconds(start),
-            end: .seconds(end),
+            start: .seconds(start) + offset,
+            end: .seconds(end) + offset,
             words: (words ?? []).map {
                 // Trimmed because Whisper emits its words with the leading space that
                 // joins them, and a token with a space in it is not the word a
