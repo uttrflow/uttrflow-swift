@@ -1,22 +1,11 @@
 private import Carbon
+private import CoreGraphics
+private import Dispatch
 private import Foundation
 public import UttrflowCore
 private import Synchronization
 
-/// The shortcut, watched through Carbon's hot key API.
-///
-/// Why Carbon rather than a `CGEventTap`: a tap sees nothing until the user has granted
-/// Accessibility, so the app would have to ask for permission to read every keystroke
-/// in every app merely to learn when to start listening — before it has ever done
-/// anything useful. `RegisterEventHotKey` needs no permission at all, delivers the
-/// release as well as the press (which hold-to-talk is built on), and was measured here
-/// at well under a tenth of a millisecond. The price is that Carbon swallows the
-/// keystroke — there is no pass-through option — which for a shortcut reserved for
-/// dictation is what we want anyway.
-///
-/// Excluded from the coverage gate: what is left once the shortcut has been translated
-/// is a registration with the window server, and there is nothing to assert about it
-/// beyond "macOS did what we asked". Everything decidable lives in ``CarbonHotkey``.
+/// The shortcut, registered with Carbon, which needs no permission. See `Docs/shortcuts.md`.
 public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     /// Identifies our hot keys in the shared Carbon event stream: 'KHTP'.
     fileprivate static let signature = OSType(0x4B48_5450)
@@ -25,25 +14,20 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     private let continuation: AsyncStream<HotkeyEvent>.Continuation
     private let registration = Mutex<CarbonRegistration?>(nil)
 
+    /// Whether a press has been reported with no release yet, and which key it was for.
+    private let held = Mutex<HeldKey>(HeldKey())
+
+    /// The timer comparing the real key state against what Carbon has reported.
+    private let reconciliation = Mutex<(any DispatchSourceTimer)?>(nil)
+
+    /// How often that comparison runs, in milliseconds.
+    private static let reconciliationMilliseconds = 250
+
     public init() {
         (events, continuation) = AsyncStream.makeStream()
     }
 
-    /// The one Carbon event handler this process installs, whatever the shortcut.
-    ///
-    /// `InstallEventHandler` refuses the same handler function on the same target twice
-    /// — `eventHandlerAlreadyInstalledErr`, −9866 — so a second `CarbonHotkeyMonitor`
-    /// used to fail outright. That is not hypothetical: the clipboard panel has a
-    /// shortcut of its own, and whichever monitor registered second silently got
-    /// nothing. Dictation lost, which is how ⌥Space stopped working.
-    ///
-    /// One install for the process is not a workaround, it is what the design already
-    /// assumed: the handler dispatches on `EventHotKeyID.id` through ``hotkeySinks``, so
-    /// it has always been able to serve any number of shortcuts. Only the *installing*
-    /// was wrongly per-instance.
-    ///
-    /// Never removed. It costs nothing to leave in place, and removing it while another
-    /// monitor still holds a hot key is the same bug from the other end.
+    /// The one handler this process installs, never removed, dispatching every shortcut by id.
     private static let sharedHandler = Mutex<EventHandlerRef?>(nil)
 
     @MainActor
@@ -51,11 +35,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
         sharedHandler.withLock { installed in
             if installed != nil { return true }
             var handler: EventHandlerRef?
-            // MEASURED FOOTGUN: the handler must be installed on the *same* event target
-            // the hot key is registered against. Pairing `GetApplicationEventTarget()`
-            // here with `GetEventDispatcherTarget()` below returns noErr from both calls
-            // and then never fires. Both say `GetEventDispatcherTarget()` for that
-            // reason, and must keep saying the same thing.
+            // Must be the same target the hot key registers against, or nothing ever fires.
             let status = InstallEventHandler(
                 GetEventDispatcherTarget(), carbonHotkeyHandler, specs.count, &specs, nil,
                 &handler)
@@ -66,42 +46,32 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     }
 
     /// Registers the shortcut and reports the outcome before returning.
-    ///
-    /// ``HotkeyError/observationNotPermitted`` is never thrown from here: needing no
-    /// permission is the reason Carbon was chosen. The other case is thrown for both
-    /// ways this can fail, because to the user they are one thing — the shortcut they
-    /// asked for is not going to work — and only one of them can be told apart anyway.
     @MainActor
     public func start(binding: HotkeyBinding) throws(HotkeyError) {
-        // Translation rejects the shortcuts Carbon accepts and then never delivers on.
-        // A user with a hand-edited preferences file can reach this, so it is reported
-        // rather than asserted.
+        // Rejects what Carbon accepts and never delivers, which a hand-edited file can ask for.
         guard let hotkey = try? CarbonHotkey(binding: binding) else {
             throw .shortcutUnavailable
         }
         try register(hotkey)
     }
 
-    /// Not main-actor isolated, unlike ``start(binding:)``, because undoing has no
-    /// outcome to report and Carbon takes the two refs back from any thread. Keeping it
-    /// callable from anywhere is what lets a controller shut down without a hop.
+    /// Callable from anywhere, unlike ``start(binding:)``, so a controller can shut down without a hop.
     public func stop() {
         onMainThread { self.unregister() }
     }
 
     // MARK: Carbon
 
-    /// Main-actor isolated for the reason ``HotkeyMonitoring/start(binding:)`` gives:
-    /// Carbon delivers a hot key on the run loop of the thread that registered it, and
-    /// the main thread is the only one running one.
+    /// Main-actor isolated: Carbon delivers on the run loop of the registering thread.
     @MainActor
     private func register(_ hotkey: CarbonHotkey) throws(HotkeyError) {
         // A second start rebinds rather than leaking the first registration.
         unregister()
 
         let identifier = nextHotkeyIdentifier()
-        let continuation = continuation
-        hotkeySinks.withLock { $0[identifier] = { continuation.yield($0) } }
+        hotkeySinks.withLock { sinks in
+            sinks[identifier] = { [weak self] in self?.deliver($0, keyCode: hotkey.keyCode) }
+        }
 
         var specs = [
             EventTypeSpec(
@@ -120,8 +90,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
             EventHotKeyID(signature: Self.signature, id: identifier),
             GetEventDispatcherTarget(), 0, &hotKey)
         guard status == noErr, let hotKey else {
-            // Fails when another app already owns the combination. The shared handler
-            // stays: it belongs to the process, not to this registration.
+            // Fails when another app owns the combination; the shared handler stays.
             hotkeySinks.withLock { $0[identifier] = nil }
             throw .shortcutUnavailable
         }
@@ -129,9 +98,48 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
         registration.withLock {
             $0 = CarbonRegistration(identifier: identifier, hotKey: hotKey)
         }
+        startReconciling()
+    }
+
+    /// Reports one event, and only when it changes whether the key is down.
+    private func deliver(_ event: HotkeyEvent, keyCode: UInt32) {
+        let happened = held.withLock { key -> HotkeyEvent? in
+            key.keyCode = keyCode
+            return key.edge.flagsChanged(isDownNow: event == .pressed)
+        }
+        guard let happened else { return }
+        continuation.yield(happened)
+    }
+
+    /// Reads the real key state, so a release Carbon never delivers is still noticed. See `Docs/stuck-recording.md`.
+    private func startReconciling() {
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(
+            deadline: .now() + .milliseconds(Self.reconciliationMilliseconds),
+            repeating: .milliseconds(Self.reconciliationMilliseconds))
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            let key = held.withLock { $0 }
+            guard key.edge.isDown else { return }
+            guard !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(key.keyCode))
+            else { return }
+            deliver(.released, keyCode: key.keyCode)
+        }
+        timer.resume()
+        reconciliation.withLock { existing in
+            existing?.cancel()
+            existing = timer
+        }
     }
 
     private func unregister() {
+        reconciliation.withLock { timer in
+            timer?.cancel()
+            timer = nil
+        }
+        // A hold interrupted by unregistering is a release, or the microphone stays open.
+        let owed = held.withLock { $0.edge.stopped() }
+        if let owed { continuation.yield(owed) }
         guard
             let live = registration.withLock({ registration -> CarbonRegistration? in
                 defer { registration = nil }
@@ -141,36 +149,28 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
 
         hotkeySinks.withLock { $0[live.identifier] = nil }
         _ = UnregisterEventHotKey(live.hotKey)
-        // The stream is deliberately not finished: stopping is not the end of the app,
-        // and a finished stream could never be started again.
+        // Not finished: a finished stream could never be started again.
     }
 }
 
-/// What has to be handed back to Carbon to undo a registration.
-///
-/// The two refs are opaque handles to window-server objects, which Carbon is happy to
-/// take from any thread; they carry no Swift state to race over. In practice they are
-/// only ever made and used on the main thread, under the mutex that holds this value.
-/// One registered shortcut. No handler: that is the process's, not this shortcut's.
+/// One registered shortcut, as opaque handles Carbon takes back from any thread.
 private struct CarbonRegistration: @unchecked Sendable {
     let identifier: UInt32
     let hotKey: EventHotKeyRef
 }
 
-/// Where a fired hot key goes, keyed by the id Carbon carries in the event.
-///
-/// The handler is a C function pointer and so can capture nothing. The alternative —
-/// passing the monitor to Carbon as a `userData` pointer — would mean promising, with
-/// an unchecked-Sendable box, that an object stays alive for a registration whose
-/// lifetime Carbon does not track. Keying a registry on the `EventHotKeyID` that Carbon
-/// already puts in the event means only a `UInt32` crosses the C boundary, and the
-/// mutex is the whole of the concurrency story.
+/// Whether the shortcut is down, and which key code it is.
+private struct HeldKey: Sendable, Equatable {
+    var edge = HeldModifierEdge()
+    var keyCode: UInt32 = 0
+}
+
+/// Where a fired hot key goes, so only a `UInt32` crosses the C boundary.
 private let hotkeySinks = Mutex<[UInt32: @Sendable (HotkeyEvent) -> Void]>([:])
 
 private let lastHotkeyIdentifier = Mutex<UInt32>(0)
 
-/// Never reused, so a callback still in flight for a stopped monitor cannot land on the
-/// next one.
+/// Never reused, so a callback in flight for a stopped monitor cannot land on the next.
 private func nextHotkeyIdentifier() -> UInt32 {
     lastHotkeyIdentifier.withLock { identifier in
         identifier += 1
@@ -195,9 +195,7 @@ private let carbonHotkeyHandler: EventHandlerUPP = { _, event, _ -> OSStatus in
     return OSStatus(noErr)
 }
 
-/// Carbon wants the main thread, and ``CarbonHotkeyMonitor/stop()`` can be called from
-/// anywhere. Registration does not come through here: it has an outcome to return, so
-/// its caller hops first and the isolation is stated in the signature instead.
+/// Hops to the main thread, which Carbon wants and ``CarbonHotkeyMonitor/stop()`` cannot promise.
 private func onMainThread(_ work: @escaping @Sendable () -> Void) {
     if Thread.isMainThread {
         work()

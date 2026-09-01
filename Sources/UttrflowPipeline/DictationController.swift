@@ -20,6 +20,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private let monitor: any HotkeyMonitoring
     private let cue: any RecordingCueing
     private let clock: ClockType
+    private let limit: DictationLimit
+    /// Told how a long recording is going, so the interface can say so and then stop it.
+    private let onAdvice: @Sendable (DictationAdvice) -> Void
+    private var limitTask: Task<Void, Never>?
 
     private var activation: HotkeyActivation
     private var pressedAt: ClockType.Instant?
@@ -45,13 +49,17 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         monitor: any HotkeyMonitoring,
         cue: any RecordingCueing = SilentCue(),
         activation: HotkeyActivation = .holdToTalk,
-        clock: ClockType
+        clock: ClockType,
+        limit: DictationLimit = .default,
+        onAdvice: @escaping @Sendable (DictationAdvice) -> Void = { _ in }
     ) {
         self.pipeline = pipeline
         self.monitor = monitor
         self.cue = cue
         self.activation = activation
         self.clock = clock
+        self.limit = limit
+        self.onAdvice = onAdvice
         (gestures, gestureSink) = AsyncStream<HotkeyEvent>.makeStream()
         Task { await self.consumeGestures() }
     }
@@ -96,6 +104,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         forwardingTask = nil
         eventTask?.cancel()
         eventTask = nil
+        stopWatchingTheLimit()
         monitor.stop()
     }
 
@@ -118,6 +127,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
         case (.pressToToggle, .pressed):
             if await pipeline.currentState.isListening {
+                stopWatchingTheLimit()
                 cue.playStop()
                 await pipeline.finishRecording()
             } else {
@@ -147,6 +157,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// dictation this way is a control, and a control is still there to stop it.
     public func toggleFromControl() async {
         if await pipeline.currentState.isListening {
+            stopWatchingTheLimit()
             cue.playStop()
             await pipeline.finishRecording()
         } else {
@@ -160,11 +171,44 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         // not make a sound as though everything had worked.
         if await pipeline.currentState.isListening {
             cue.playStart()
+            watchTheLimit()
         }
+    }
+
+    /// Warns before the cap and finishes at it, keeping the words. See `Docs/stuck-recording.md`.
+    private func watchTheLimit() {
+        limitTask?.cancel()
+        limitTask = Task { [weak self, clock, limit, onAdvice] in
+            do {
+                try await clock.sleep(for: limit.warnAfter)
+                onAdvice(limit.advice(at: limit.warnAfter))
+                try await clock.sleep(for: limit.stopAfter - limit.warnAfter)
+            } catch {
+                // Cancelled, which is the ordinary end of every dictation.
+                return
+            }
+            onAdvice(.finishNow)
+            await self?.finishAtTheLimit()
+        }
+    }
+
+    /// Ends a dictation that reached the cap, keeping every word of it.
+    private func finishAtTheLimit() async {
+        guard await pipeline.currentState.isListening else { return }
+        cue.playStop()
+        await pipeline.finishRecording()
+        stopWatchingTheLimit()
+    }
+
+    private func stopWatchingTheLimit() {
+        limitTask?.cancel()
+        limitTask = nil
+        onAdvice(.keepGoing)
     }
 
     private func endHold() async {
         defer { pressedAt = nil }
+        stopWatchingTheLimit()
         guard await pipeline.currentState.isListening else { return }
 
         if let pressedAt, pressedAt.duration(to: clock.now) < Self.minimumHold {

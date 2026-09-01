@@ -20,6 +20,8 @@ public enum SpeechModelReadiness: Sendable, Equatable {
     case ready
     /// Being fetched, with how far along it is when that is known.
     case downloading(fractionCompleted: Double?)
+    /// On disk, but not yet loaded into memory, which is cold-start slow.
+    case loading
     case notInstalled
 }
 
@@ -69,6 +71,8 @@ public struct MenuBarState: Sendable, Equatable {
     /// The last thing that went wrong and has not yet been dealt with.
     public var failure: FailurePresentation?
     public var speechModel: SpeechModelReadiness
+    /// How a long recording is going, so the status line can count it down.
+    public var recordingAdvice: DictationAdvice
     /// Newest first.
     public var recents: [MenuBarRecent]
     /// Whether this build has an update feed to ask. False in every build made before
@@ -82,6 +86,7 @@ public struct MenuBarState: Sendable, Equatable {
         activity: DictationActivity = .idle,
         failure: FailurePresentation? = nil,
         speechModel: SpeechModelReadiness = .ready,
+        recordingAdvice: DictationAdvice = .keepGoing,
         recents: [MenuBarRecent] = [],
         canCheckForUpdates: Bool = false,
         updateProgress: UpdateProgress = .idle
@@ -89,6 +94,7 @@ public struct MenuBarState: Sendable, Equatable {
         self.activity = activity
         self.failure = failure
         self.speechModel = speechModel
+        self.recordingAdvice = recordingAdvice
         self.recents = recents
         self.canCheckForUpdates = canCheckForUpdates
         self.updateProgress = updateProgress
@@ -352,12 +358,14 @@ public enum MenuBarPresenter {
         case .downloading(let fraction):
             guard let fraction else { return "Setting up…" }
             return "Setting up… \(percentage(of: fraction))%"
+        case .loading:
+            return "Getting ready…"
         case .notInstalled:
             return "Setup hasn't finished"
         case .ready:
             return switch state.activity {
             case .idle: "Ready"
-            case .listening: "Listening…"
+            case .listening: listeningLine(for: state.recordingAdvice)
             case .working: "Tidying up…"
             case .finished: "Inserted"
             }
@@ -481,6 +489,12 @@ public enum MenuBarPresenter {
     ///
     /// `.working` is deliberately not included: transcription cannot be stopped, and an
     /// enabled Stop that did nothing would be worse than a greyed one.
+    /// What a recording says about itself, counting down once it nears its cap.
+    static func listeningLine(for advice: DictationAdvice) -> String {
+        guard let remaining = RemainingTime.phrase(for: advice) else { return "Listening…" }
+        return "Listening… \(remaining)"
+    }
+
     static func isDictating(in state: MenuBarState) -> Bool {
         state.activity == .listening
     }

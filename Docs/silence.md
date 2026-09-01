@@ -77,3 +77,18 @@ hold-to-talk recording:
 
 The silence was 30% of the recording and 41% of the transcription time. A trimmed
 recording now costs exactly what the same speech costs with no padding at all.
+
+## The bracketed markers, which are a different thing
+
+Recognisers also emit explicit non-speech markers — `[BLANK_AUDIO]`, `(music)`,
+`[ Silence ]` — and `RawTranscript.cleaned` strips them. That is a separate defence from
+the one above and still earns its place: a recording that *does* hold speech can carry a
+marker in the middle of it.
+
+Three conditions have to hold together before a bracket is treated as a marker, because
+each one alone destroys real dictation:
+
+- the bracket stands alone, not attached to a word — otherwise `get_user(id)` loses its
+  argument, and dictating code is a headline use of this product;
+- the contents are only letters — otherwise `[1, 2, 3]` disappears;
+- there are at most three words — otherwise a spoken aside in parentheses goes with them.
