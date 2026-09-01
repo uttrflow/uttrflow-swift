@@ -487,17 +487,78 @@ private struct SettleView: View {
     }
 }
 
-/// Inserted: the mark's own stroke, straightening into a check.
+/// The mark and a checkmark, and the road between them.
 ///
-/// The `u` and a checkmark are the same drawing — a short arm, a turn, a long arm, both
-/// ends round — so confirming an insertion needs no second glyph. Turning the mark
-/// rather than swapping in `checkmark` is the difference between the brand doing the
-/// confirming and a system icon doing it.
+/// Both are one round-capped stroke: a short arm, a turn at the bottom, a long arm. The
+/// only differences are how wide the turn is and how far the arms are splayed — so the
+/// `u` becomes a check by *opening*, and confirming an insertion needs no second glyph.
+///
+/// Rotating the mark does not do this, which is worth writing down because it is the
+/// obvious thing to try and it looks nearly right in a description. The mark's two arms
+/// are parallel, and a rotated pair of parallel arms is a hook, not a tick. They have to
+/// come apart.
+private struct MarkCheck: Shape {
+    /// 0 is the mark, 1 is the checkmark.
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    /// Drawn on the mark's own 100-unit grid, so both ends of the animation are the
+    /// identity's geometry rather than an approximation of it.
+    private static let box = UttrflowMark.gridBox
+
+    func path(in rect: CGRect) -> Path {
+        let t = min(max(progress, 0), 1)
+        let scale = min(rect.width / Self.box.width, rect.height / Self.box.height)
+        let originX = rect.midX - Self.box.midX * scale
+        let originY = rect.midY - Self.box.midY * scale
+        func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: originX + x * scale, y: originY + y * scale)
+        }
+        func lerp(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * t }
+
+        // The turn tightens from the mark's bowl to a checkmark's vertex, and drops as
+        // it does so, because a check sits lower in its box than a u does.
+        let radius = lerp(24, 6)
+        let centre = CGPoint(x: 50, y: lerp(55, 64))
+        let leftFoot = CGPoint(x: centre.x - radius, y: centre.y)
+        let rightFoot = CGPoint(x: centre.x + radius, y: centre.y)
+
+        // And the arms swing out from vertical. The short one leans further: a
+        // checkmark's short arm is the steeper of the two.
+        func arm(from foot: CGPoint, length: CGFloat, degrees: CGFloat) -> CGPoint {
+            let radians = degrees * .pi / 180
+            return CGPoint(
+                x: foot.x - sin(radians) * length,
+                y: foot.y - cos(radians) * length)
+        }
+        let leftEnd = arm(from: leftFoot, length: lerp(18, 16), degrees: lerp(0, 44))
+        let rightEnd = arm(from: rightFoot, length: lerp(34, 44), degrees: lerp(0, -32))
+
+        var path = Path()
+        path.move(to: at(leftEnd.x, leftEnd.y))
+        path.addLine(to: at(leftFoot.x, leftFoot.y))
+        path.addArc(
+            center: at(centre.x, centre.y), radius: radius * scale,
+            startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
+        path.addLine(to: at(rightEnd.x, rightEnd.y))
+        return path
+    }
+}
+
+/// Inserted: the mark opening into a check.
+///
+/// Turning the identity into the confirmation, rather than swapping in a system
+/// `checkmark`, is the difference between the brand doing the confirming and an icon
+/// doing it — and it costs the same 26 points either way.
 private struct MarkTick: View {
     @State private var isTick = false
 
     var body: some View {
-        UttrflowMark()
+        MarkCheck(progress: isTick ? 1 : 0)
             .stroke(
                 isTick ? Color.dockSuccess : Color.dockSecondary,
                 style: StrokeStyle(
@@ -508,10 +569,8 @@ private struct MarkTick: View {
                 width: DockMetrics.markTickHeight * UttrflowMark.aspectRatio,
                 height: DockMetrics.markTickHeight
             )
-            .rotationEffect(.degrees(isTick ? -42 : 0))
-            .scaleEffect(isTick ? 0.86 : 1)
             .task {
-                withAnimation(.spring(duration: 0.42, bounce: 0.28)) { isTick = true }
+                withAnimation(.spring(duration: 0.44, bounce: 0.22)) { isTick = true }
             }
     }
 }

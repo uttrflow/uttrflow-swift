@@ -52,6 +52,19 @@ struct DockMeter {
     /// down.
     static let damping: [CGFloat] = [0.55, 0.78, 0.62, 0.86, 0.58, 0.81, 0.66, 0.73]
 
+    /// A fixed share of the level each bar shows, so the row has a shape at all.
+    ///
+    /// Without this the meter has a failure mode that only appears on a *sustained*
+    /// sound: attack is immediate for every bar, so while the level holds steady they
+    /// all sit at exactly the same height and the row becomes a solid block. Speech
+    /// fluctuates enough to hide it most of the time, and a held vowel does not.
+    ///
+    /// This is a fixed face rather than anything measured — the meter is one number and
+    /// says so — which is why the profile never changes and never moves. Scattered for
+    /// the same reason the damping is: a smooth hump would imply a spectrum, and a
+    /// gradient across the row would read as travel.
+    static let gain: [CGFloat] = [0.74, 1.0, 0.82, 0.93, 0.68, 0.97, 0.78, 0.88]
+
     /// The fraction of full height a bar shows when its follower is at zero, so the row
     /// reads as a resting meter rather than as a panel with nothing in it.
     static let floor: CGFloat = 0.12
@@ -70,8 +83,9 @@ struct DockMeter {
     /// than where the bar already is. Only the fall is damped, which is what makes the
     /// row arrive together and disperse.
     mutating func advance(to level: CGFloat) {
-        let target = min(max(level, 0), 1)
+        let level = min(max(level, 0), 1)
         for index in heights.indices {
+            let target = level * Self.gain[index]
             let released = heights[index] * Self.damping[index]
             heights[index] = max(max(target, released), Self.floor)
         }

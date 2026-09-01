@@ -73,13 +73,37 @@ struct DockMeterTests {
 
     /// Attack is immediate, and this is the property that makes the meter feel connected
     /// to the voice rather than trailing it.
-    @Test("every bar arrives together on the first loud frame")
+    @Test("every bar rises on the first loud frame")
     func attackIsImmediate() {
         var meter = DockMeter()
 
         meter.advance(to: 0.9)
 
-        #expect(meter.heights.allSatisfy { $0 == 0.9 })
+        #expect(meter.heights.allSatisfy { $0 > DockMeter.floor })
+        #expect(meter.heights.max()! > 0.8)
+    }
+
+    /// The failure a still frame finds and a moving one hides. Attack is immediate for
+    /// every bar, so on a held vowel — where the level stops changing — a meter with no
+    /// fixed profile has all eight bars at the same height and draws a solid block.
+    @Test("a sustained level still has a shape, rather than becoming a wall")
+    func sustainedLevelIsNotFlat() {
+        var meter = DockMeter()
+
+        for _ in 0..<20 { meter.advance(to: 0.8) }
+
+        #expect(Set(meter.heights).count > 4, "\(meter.heights) is flat")
+    }
+
+    /// And the profile is a face, not a reading: it must not imply a spectrum, and must
+    /// not ramp across the row, which is the travelling wave in another form.
+    @Test("the fixed profile is scattered, not a hump and not a ramp")
+    func gainIsScattered() {
+        let gain = DockMeter.gain
+
+        #expect(gain.count == DockMeter.damping.count)
+        #expect(gain != gain.sorted())
+        #expect(gain != gain.sorted(by: >))
     }
 
     /// And the property that makes it look alive rather than like one rigid shape being
@@ -92,6 +116,8 @@ struct DockMeterTests {
         meter.advance(to: 0)
 
         #expect(Set(meter.heights).count > 1)
+        // and specifically because the damping differs, not only because the gain does
+        #expect(meter.heights.max()! - meter.heights.min()! > 0.1)
     }
 
     /// The failure this design was asked to remove. Damping sorted along the row makes
