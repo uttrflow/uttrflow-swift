@@ -158,9 +158,48 @@
     .kbd { display: inline-flex; align-items: center; justify-content: center; height: 20px;
            padding: 0 6px; border-radius: 5px; background: rgba(120,120,130,0.20);
            font-size: var(--t-footnote); font-weight: 600; }
+
+    /* The resting grip carries no slab. Around a pill the glass reads as depth; around
+       nine points of dots its hairline and its shadow read as a box nobody meant to
+       draw, and the shipped build had two of them — the material's and the panel's. */
+    .bare-grip { width: 9px; height: 34px; display: flex; flex-direction: column;
+                 align-items: center; justify-content: center; gap: 3px;
+                 filter: drop-shadow(0 0.5px 1.5px rgba(255,255,255,0.9)); }
+    .dark-col .bare-grip { filter: drop-shadow(0 0.5px 1.5px rgba(0,0,0,0.55)); }
+    .bare-grip i { width: 3px; height: 3px; border-radius: 50%;
+                   background: rgba(0,0,0,0.6); }
+    .dark-col .bare-grip i { background: rgba(255,255,255,0.6); }
+
+    /* Listening and working are one size, because the panel must not change shape at
+       the moment the key is released. */
+    .compact { height: 32px; border-radius: 16px; display: flex; align-items: center;
+               gap: 9px; padding: 0 12px 0 5px; }
+    .weight { width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex;
+              align-items: center; justify-content: center; background: var(--accent); }
+    .glass.dark .weight { background: var(--accent-dark); }
+    .meter { display: flex; align-items: center; gap: 2.5px; height: 15px; }
+    .meter i { width: 2.5px; border-radius: 2px; background: var(--accent-2-deep);
+               display: block; }
+    .dark .meter i { background: var(--accent-2); }
+
+    /* A success needs no words: the disc is the whole notice. */
+    .disc { width: 26px; height: 26px; border-radius: 13px; display: flex;
+            align-items: center; justify-content: center; }
+    .struck { position: relative; width: 22px; height: 14px; display: flex;
+              align-items: center; justify-content: center; gap: 2px; }
+    .struck i { width: 2px; border-radius: 2px; background: currentColor; opacity: 0.45;
+                display: block; }
+    .struck::after { content: ""; position: absolute; width: 20px; height: 1.5px;
+                     background: currentColor; opacity: 0.62; transform: rotate(-34deg); }
+    .clip { height: 28px; border-radius: 14px; display: flex; align-items: center;
+            gap: 8px; padding: 0 9px; }
+    .notice { height: 40px; border-radius: 20px; display: flex; align-items: center;
+              gap: 12px; padding: 0 14px; width: 262px; }
+    .notice .t { font-size: var(--t-body); font-weight: 500; }
+    .notice .s { font-size: var(--t-footnote); opacity: 0.58; margin-top: 2px; }
 </style>
 </helmet>
-<div class="stage dock" style="width: 900px; height: 780px; padding: 34px">
+<div class="stage dock" style="width: 900px; height: 880px; padding: 34px">
   <div style="padding: 4px 0 0">
     <div class="row" style="margin-bottom: 15px">
       <div style="width: 96px"></div>
@@ -169,82 +208,52 @@
       <div style="width: 286px" class="col-h">On a dark desktop</div>
     </div>
       <div class="drow">
-        <div class="state-label"><div class="n">Resting</div><div class="d">always there, ignorable</div></div>
-        <div class="slot"><div class="glass grip"><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="state-label"><div class="n">Resting</div><div class="d">dots, and no box</div></div>
+        <div class="slot"><div class="bare-grip"><i></i><i></i><i></i></div></div>
         <div style="width: 36px"></div>
-        <div class="slot"><div class="glass dark grip"><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="slot dark-col"><div class="bare-grip"><i></i><i></i><i></i></div></div>
       </div>
       <div class="drow">
         <div class="state-label"><div class="n">Pointed at</div><div class="d">reminds you of the key</div></div>
-        <div class="slot"><div class="row" style="gap: 9px">
-          <div class="glass hint">Dictate <span class="kbd">&#8997;Space</span></div>
-          <div class="glass orb"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></div>
-        </div></div>
+        <div class="slot"><div class="row" style="gap: 9px"><div class="glass hint" style="height:30px;border-radius:15px">Dictate <span class="kbd">&#8997;Space</span></div><div class="glass orb" style="width:30px;height:30px"><div class="meter" style="height:11px"><i style="height:6px;background:currentColor;opacity:0.5"></i><i style="height:11px;background:currentColor;opacity:0.5"></i><i style="height:7px;background:currentColor;opacity:0.5"></i></div></div></div></div>
         <div style="width: 36px"></div>
-        <div class="slot"><div class="row" style="gap: 9px">
-          <div class="glass dark hint">Dictate <span class="kbd">&#8997;Space</span></div>
-          <div class="glass dark orb"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></div>
-        </div></div>
+        <div class="slot dark-col"><div class="row" style="gap: 9px"><div class="glass dark hint" style="height:30px;border-radius:15px">Dictate <span class="kbd">&#8997;Space</span></div><div class="glass dark orb" style="width:30px;height:30px"><div class="meter" style="height:11px"><i style="height:6px;background:currentColor;opacity:0.5"></i><i style="height:11px;background:currentColor;opacity:0.5"></i><i style="height:7px;background:currentColor;opacity:0.5"></i></div></div></div></div>
       </div>
       <div class="drow">
-        <div class="state-label"><div class="n">Listening</div><div class="d">a soft tick, then bars</div></div>
-        <div class="slot"><div class="glass pill ping">
-          <span class="rec-dot"></span>
-          <div style="flex:1"><div class="wave"><i style="height:7px"></i><i style="height:13px"></i><i style="height:20px"></i><i style="height:11px"></i><i style="height:24px"></i><i style="height:16px"></i><i style="height:9px"></i><i style="height:18px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:6px"></i><i style="height:15px"></i><i style="height:21px"></i><i style="height:10px"></i><i style="height:8px"></i><i style="height:17px"></i><i style="height:11px"></i></div></div>
-          <div style="font-size: var(--t-footnote); opacity: 0.55;
-               font-variant-numeric: tabular-nums">0:04</div>
-        </div></div>
+        <div class="state-label"><div class="n">Listening</div><div class="d">the level, actually driven</div></div>
+        <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:11px"></i><i style="height:6px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:9px"></i></div></div></div>
         <div style="width: 36px"></div>
-        <div class="slot"><div class="glass dark pill ping">
-          <span class="rec-dot"></span>
-          <div style="flex:1"><div class="wave"><i style="height:7px"></i><i style="height:13px"></i><i style="height:20px"></i><i style="height:11px"></i><i style="height:24px"></i><i style="height:16px"></i><i style="height:9px"></i><i style="height:18px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:6px"></i><i style="height:15px"></i><i style="height:21px"></i><i style="height:10px"></i><i style="height:8px"></i><i style="height:17px"></i><i style="height:11px"></i></div></div>
-          <div style="font-size: var(--t-footnote); opacity: 0.55;
-               font-variant-numeric: tabular-nums">0:04</div>
-        </div></div>
+        <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:11px"></i><i style="height:6px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:9px"></i></div></div></div>
       </div>
       <div class="drow">
-        <div class="state-label"><div class="n">Processing</div><div class="d">about a second</div></div>
-        <div class="slot"><div class="glass pill">
-          <span class="accented" style="flex:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9L12 3.5z"/><path d="M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/></svg></span>
-          <div style="flex:1"><div class="t">Tidying up&hellip;</div>
-            <div class="shimmer" style="margin-top:7px"><i></i></div></div>
-        </div></div>
+        <div class="state-label"><div class="n">Working</div><div class="d">the row settles, then folds to a tick</div></div>
+        <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i></div></div></div>
         <div style="width: 36px"></div>
-        <div class="slot"><div class="glass dark pill">
-          <span class="accented" style="flex:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9L12 3.5z"/><path d="M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/></svg></span>
-          <div style="flex:1"><div class="t">Tidying up&hellip;</div>
-            <div class="shimmer" style="margin-top:7px"><i></i></div></div>
-        </div></div>
+        <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i><i style="height:7px"></i></div></div></div>
       </div>
       <div class="drow">
-        <div class="state-label"><div class="n">Inserted</div><div class="d">fades after 2s</div></div>
-        <div class="slot"><div class="glass pill">
-          <span class="badge" style="background:#34C759"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>
-          <div style="flex:1"><div class="t">Inserted into Slack</div>
-            <div class="s">&ldquo;Hey John, I&rsquo;ll probably be about 20 minutes late&hellip;&rdquo;</div></div>
-        </div></div>
+        <div class="state-label"><div class="n">Inserted</div><div class="d">the mark turns into the tick</div></div>
+        <div class="slot"><div class="glass disc"><svg width="14" height="16" viewBox="19 14 62 72" fill="none" stroke="#34C759" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(-42deg) scale(0.86)"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div></div>
         <div style="width: 36px"></div>
-        <div class="slot"><div class="glass dark pill">
-          <span class="badge" style="background:#34C759"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>
-          <div style="flex:1"><div class="t">Inserted into Slack</div>
-            <div class="s">&ldquo;Hey John, I&rsquo;ll probably be about 20 minutes late&hellip;&rdquo;</div></div>
-        </div></div>
+        <div class="slot dark-col"><div class="glass dark disc"><svg width="14" height="16" viewBox="19 14 62 72" fill="none" stroke="#34C759" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(-42deg) scale(0.86)"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div></div>
       </div>
       <div class="drow">
-        <div class="state-label"><div class="n">Nowhere to type</div><div class="d">waits for you</div></div>
-        <div class="slot"><div class="glass pill">
-          <span class="badge" style="background:#FF8D28"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 2.8 20h18.4L12 4.5z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg></span>
-          <div style="flex:1"><div class="t">Nowhere to type</div>
-            <div class="s">Copied to the clipboard instead</div></div>
-          <button class="btn sm" style="flex:none">Paste</button>
-        </div></div>
+        <div class="state-label"><div class="n">Copied, not typed</div><div class="d">expands when pointed at</div></div>
+        <div class="slot"><div class="glass clip"><span class="kbd" style="color:#FF8D28">&#8984;V</span></div></div>
         <div style="width: 36px"></div>
-        <div class="slot"><div class="glass dark pill">
-          <span class="badge" style="background:#FF8D28"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 2.8 20h18.4L12 4.5z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg></span>
-          <div style="flex:1"><div class="t">Nowhere to type</div>
-            <div class="s">Copied to the clipboard instead</div></div>
-          <button class="btn sm" style="flex:none">Paste</button>
-        </div></div>
+        <div class="slot dark-col"><div class="glass dark clip"><span class="kbd" style="color:#FF8D28">&#8984;V</span></div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Nothing heard</div><div class="d">no red, no triangle, no sentence</div></div>
+        <div class="slot"><div class="glass disc"><div class="struck"><i style="height:5px"></i><i style="height:9px"></i><i style="height:6px"></i><i style="height:10px"></i><i style="height:4px"></i></div></div></div>
+        <div style="width: 36px"></div>
+        <div class="slot dark-col"><div class="glass dark disc"><div class="struck"><i style="height:5px"></i><i style="height:9px"></i><i style="height:6px"></i><i style="height:10px"></i><i style="height:4px"></i></div></div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Blocked</div><div class="d">the only one still wide</div></div>
+        <div class="slot"><div class="glass notice"><span class="badge" style="width:22px;height:22px;background:#FF8D28"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 2.8 20h18.4L12 4.5z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg></span><div style="flex:1"><div class="t">Microphone is off</div><div class="s">System Settings &rarr; Privacy</div></div><button class="btn sm" style="flex:none">Open</button></div></div>
+        <div style="width: 36px"></div>
+        <div class="slot dark-col"><div class="glass dark notice"><span class="badge" style="width:22px;height:22px;background:#FF8D28"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 2.8 20h18.4L12 4.5z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg></span><div style="flex:1"><div class="t">Microphone is off</div><div class="s">System Settings &rarr; Privacy</div></div><button class="btn sm" style="flex:none">Open</button></div></div>
       </div>
     <div style="margin-left: 96px; width: 608px; font-size: var(--t-callout);
          color: rgba(255,255,255,0.52); line-height: 1.55">
@@ -252,6 +261,11 @@
       takes focus, so the app you are dictating into stays active throughout. Press and hold the
       button, or hold the shortcut &mdash; both do the same thing and both start with the same
       soft tick so you know it heard you before you start talking.
+      <br><br>
+      Listening and working are the same 32 points tall, so nothing moves at the moment you let
+      go of the key. Three of the outcomes are the same 26-point disc, because a success needs no
+      words &mdash; when the text has landed you are already looking at it. Only the state with
+      something to do about it is wide, and after a run of discs that width is the message.
     </div>
   </div>
 </div>

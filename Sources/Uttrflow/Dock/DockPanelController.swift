@@ -54,6 +54,19 @@ final class DockPanelController {
     /// The button offered alongside a failure was clicked.
     var onRecoveryAction: ((RecoveryAction) -> Void)?
 
+    /// How loud the microphone is, asked for while a recording is open.
+    ///
+    /// A closure rather than a stored number because the meter has to be *pulled*: the
+    /// microphone's own callback arrives on a real-time thread roughly every 85 ms, and
+    /// letting it drive the window would put a redraw on the audio thread's critical
+    /// path. Polling on the main actor instead keeps the two clocks apart.
+    /// `@Sendable` because the timer's closure is: the value is read on the main run
+    /// loop, but the closure that reads it is handed to Foundation, which makes no
+    /// promise about where it keeps it. The capture engine is an actor, so the closure
+    /// the application passes satisfies this without ceremony.
+    private var levelSource: (@Sendable () -> Float)?
+    private var levelTimer: Timer?
+
     private let panel: DockPanel
     private let hostingView: DockHostingView<DockView>
     private let model: DockViewModel
@@ -111,6 +124,44 @@ final class DockPanelController {
     /// The only way the button's appearance ever changes.
     func update(with presentation: DockPresentation) {
         model.show(presentation)
+        // Started and stopped from the one place the state is already known, so a meter
+        // cannot outlive the recording it was drawn for — which, since the panel stays
+        // on screen after a dictation, would otherwise be a timer running for the rest
+        // of the session.
+        if presentation.isRecording { startMetering() } else { stopMetering() }
+    }
+
+    /// Says where to read the microphone's level from.
+    func setLevelSource(_ source: (@Sendable () -> Float)?) {
+        levelSource = source
+    }
+
+    /// Twenty times a second, which is chosen rather than inherited.
+    ///
+    /// The tap hands over 4096 frames at a time — about twelve blocks a second — so
+    /// polling faster than this would resample the same number, and polling much slower
+    /// would show a meter that steps. Sixty was never on the table: the level would be
+    /// crossing a thread boundary three times for every value that actually changed.
+    private static let meteringInterval: TimeInterval = 0.05
+
+    private func startMetering() {
+        guard levelTimer == nil, let levelSource else { return }
+        let timer = Timer(timeInterval: Self.meteringInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.model.level = levelSource()
+            }
+        }
+        // `.common`, not the default: a run loop tracking a mouse drag — which is what
+        // dragging the button to another corner is — stops servicing default-mode
+        // timers, and the meter would freeze for exactly as long as the drag.
+        RunLoop.main.add(timer, forMode: .common)
+        levelTimer = timer
+    }
+
+    private func stopMetering() {
+        levelTimer?.invalidate()
+        levelTimer = nil
+        model.level = 0
     }
 
     func setAnchor(_ anchor: DockAnchor) {
@@ -182,7 +233,11 @@ final class DockPanelController {
         ]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        // AppKit draws its own shadow around a transparent panel's opaque content, and
+        // every form here already carries the one the design asks for. Two shadows around
+        // a nine-point grip is what made the resting button look like a box with a black
+        // border: the window's ring outside the slab's own.
+        panel.hasShadow = false
         panel.isMovableByWindowBackground = false
         panel.isReleasedWhenClosed = false
         panel.contentView = hostingView

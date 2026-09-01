@@ -19,6 +19,14 @@ final class DockViewModel {
     var anchor: DockAnchor
     var isHovering = false
     var isPressed = false
+    /// How loud the microphone is right now, in `0...1`, as root mean square.
+    ///
+    /// Written by the controller at 20 Hz while a recording is open and left at zero
+    /// otherwise. It is deliberately not part of ``DockPresentation``: the presentation
+    /// is what the pipeline's state *means*, is pure, and is covered by tests that would
+    /// have to be rewritten to accommodate a number that changes twenty times a second
+    /// and means nothing on its own.
+    var level: Float = 0
     /// When the current recording started, for the clock on the pill.
     ///
     /// Stamped here rather than carried in the presentation because it is a fact about
@@ -44,6 +52,10 @@ final class DockViewModel {
             recordingStartedAt = recordingStartedAt ?? now
         } else {
             recordingStartedAt = nil
+            // Not carried past the end of a recording: the working animation starts from
+            // the row the voice left behind, and a level still arriving after the
+            // microphone closed would move it.
+            level = 0
         }
         self.presentation = presentation
     }
@@ -98,29 +110,38 @@ struct DockView: View {
     @ViewBuilder private var form: some View {
         let presentation = model.presentation
         if presentation.showsWaveform {
-            listening(presentation)
+            listening()
         } else if presentation.showsProgress {
-            processing(presentation)
+            working()
         } else if let line = presentation.primaryLine {
             notice(presentation, primaryLine: line)
         } else if model.isHovering || !model.shrinksToGrip {
-            hovered(presentation)
+            hovered()
         } else {
             resting
         }
     }
 
-    /// Always there, ignorable: a grip at the edge of the screen.
+    /// Always there, ignorable: three dots at the edge of the screen.
+    ///
+    /// Drawn straight onto the desktop, with no slab under them. Every other form is
+    /// built on ``glass(cornerRadius:)``, and around a pill that reads as depth — but
+    /// around nine points of dots, its hairline and its shadow at radius 12 read as a
+    /// box somebody forgot to delete. The hit target does not come from the slab: the
+    /// invisible padding below and the `.contentShape(.rect)` at the root are what make
+    /// this pointable, and both are still here.
     private var resting: some View {
         VStack(spacing: DockMetrics.gripDotSpacing) {
             ForEach(0..<DockMetrics.gripDotCount, id: \.self) { _ in
                 Circle()
-                    .fill(.primary.opacity(0.5))
+                    .fill(.primary.opacity(0.6))
                     .frame(width: DockMetrics.gripDotSize, height: DockMetrics.gripDotSize)
             }
         }
         .frame(width: DockMetrics.gripWidth, height: DockMetrics.gripHeight)
-        .glass(cornerRadius: DockMetrics.gripRadius)
+        // The one thing the slab was doing that was worth keeping: three points of ink
+        // are invisible on a pale wallpaper without something to lift them off it.
+        .shadow(color: .black.opacity(0.38), radius: 1.5, y: 0.5)
         // A nine-point strip is a hard thing to put a pointer on. The padding is
         // invisible but hoverable, which is the whole job of the resting form.
         .padding(DockMetrics.gripHitPadding)
@@ -130,10 +151,10 @@ struct DockView: View {
     ///
     /// The orb keeps the side the grip was on, so growing a hint beside it does not
     /// shift the thing the pointer is already over out from under the pointer.
-    private func hovered(_ presentation: DockPresentation) -> some View {
+    private func hovered() -> some View {
         let orbLeads = model.anchor == .bottomLeft
         return HStack(spacing: 9) {
-            if orbLeads { orb(presentation) }
+            if orbLeads { orb() }
             HStack(spacing: 8) {
                 Text("Dictate")
                     .font(.system(size: DockMetrics.bodySize))
@@ -143,74 +164,155 @@ struct DockView: View {
             .padding(.horizontal, 15)
             .frame(height: DockMetrics.hintHeight)
             .glass(cornerRadius: DockMetrics.hintHeight / 2)
-            if !orbLeads { orb(presentation) }
+            if !orbLeads { orb() }
         }
         .padding(DockMetrics.gripHitPadding)
     }
 
-    private func orb(_ presentation: DockPresentation) -> some View {
-        Image(systemName: presentation.symbolName)
-            .font(.system(size: 19, weight: .regular))
-            .frame(width: DockMetrics.orbSize, height: DockMetrics.orbSize)
-            .glass(cornerRadius: DockMetrics.orbSize / 2)
+    /// The idle orb wears the same three bars the meter is made of, at rest.
+    private func orb() -> some View {
+        HStack(spacing: 2.5) {
+            ForEach([6.0, 11.0, 7.0], id: \.self) { height in
+                Capsule()
+                    .fill(.primary.opacity(0.5))
+                    .frame(width: 2.5, height: height)
+            }
+        }
+        .frame(width: DockMetrics.orbSize, height: DockMetrics.orbSize)
+        .glass(cornerRadius: DockMetrics.orbSize / 2)
     }
 
-    /// Listening: the recording light, the bars, how long it has been open, and how to
-    /// stop.
+    /// Listening: the mark as a weight on the anchored edge, and the level beside it.
     ///
-    /// The clock is the one thing here somebody cannot see for themselves. A held key has
-    /// no edges — four seconds and fourteen feel the same — and a recording that is
-    /// quietly still running is the failure this button exists to make impossible.
-    private func listening(_ presentation: DockPresentation) -> some View {
-        pill {
-            if presentation.isRecording {
-                RecordingDot()
-            }
-            WaveformView()
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if let startedAt = model.recordingStartedAt {
-                TimelineView(.periodic(from: startedAt, by: 1)) { timeline in
-                    Text(
-                        DictationPresenter.elapsed(
-                            .seconds(timeline.date.timeIntervalSince(startedAt)))
-                    )
-                    .font(.system(size: DockMetrics.bodySize, weight: .medium))
-                    .monospacedDigit()
-                }
-            }
-            if let line = presentation.primaryLine {
-                Rectangle()
-                    .fill(.primary.opacity(0.16))
-                    .frame(width: 1, height: 16)
-                Text(line)
-                    .font(.system(size: DockMetrics.footnoteSize))
-                    .opacity(0.55)
-                    .fixedSize()
-            }
+    /// No words and no clock. What somebody holding a key down needs to know is that
+    /// they are being heard, and a meter that is actually driven by their voice says
+    /// that better than a sentence does — while a red light, seventeen bars, a running
+    /// clock and "Let go to finish" all saying it at once is how the old panel came to
+    /// need 286 points. The sentence survives in the accessibility label, which is read
+    /// by exactly the people who cannot see the meter.
+    private func listening() -> some View {
+        let weightLeads = model.anchor == .bottomLeft
+        return HStack(spacing: 9) {
+            if weightLeads { weight() }
+            LevelMeterView(level: model.level)
+            if !weightLeads { weight() }
         }
+        .padding(.leading, weightLeads ? 5 : 12)
+        .padding(.trailing, weightLeads ? 12 : 5)
+        .frame(height: DockMetrics.compactHeight)
+        .glass(cornerRadius: DockMetrics.compactHeight / 2)
+        .padding(DockMetrics.gripHitPadding)
     }
 
-    /// Processing: about a second, so a bar that moves rather than a number.
-    private func processing(_ presentation: DockPresentation) -> some View {
-        pill {
-            Image(systemName: presentation.symbolName)
-                .font(.system(size: 17, weight: .regular))
-                .foregroundStyle(Color.dockAccent)
-            VStack(alignment: .leading, spacing: 7) {
-                if let line = presentation.primaryLine {
-                    Text(line)
-                        .font(.system(size: DockMetrics.bodySize, weight: .medium))
-                }
-                ShimmerBar()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+    /// Working: the row the voice left behind, combing itself level and folding to a tick.
+    ///
+    /// Same footprint as listening, deliberately. The old form was a band of light
+    /// crossing a track on an infinite loop, which is the animation of a wait with no
+    /// end — and this one is about a second and always ends.
+    private func working() -> some View {
+        let weightLeads = model.anchor == .bottomLeft
+        return HStack(spacing: 9) {
+            if weightLeads { weight() }
+            SettleView()
+            if !weightLeads { weight() }
         }
+        .padding(.leading, weightLeads ? 5 : 12)
+        .padding(.trailing, weightLeads ? 12 : 5)
+        .frame(height: DockMetrics.compactHeight)
+        .glass(cornerRadius: DockMetrics.compactHeight / 2)
+        .padding(DockMetrics.gripHitPadding)
     }
 
-    /// Finished, one way or the other: what happened, and what can be done about it.
+    /// The mark, on the edge the panel is parked against.
+    private func weight() -> some View {
+        UttrflowMark()
+            .stroke(
+                Color.dockWeightInk,
+                style: StrokeStyle(
+                    lineWidth: UttrflowMark.lineWidth(forHeight: DockMetrics.weightMarkHeight),
+                    lineCap: .round, lineJoin: .round)
+            )
+            .frame(
+                width: DockMetrics.weightMarkHeight * UttrflowMark.aspectRatio,
+                height: DockMetrics.weightMarkHeight
+            )
+            .frame(width: DockMetrics.weightSize, height: DockMetrics.weightSize)
+            .background(Color.dockSecondary, in: .circle)
+    }
+
+    // MARK: - Notices
+
+    /// Finished, one way or the other.
+    ///
+    /// Which form is chosen follows the symbol the presenter picked, the same way the
+    /// badge tint already did — so a new state cannot arrive wearing the wrong shape.
+    ///
+    /// Three of the four are a 26-point disc, because a success needs no words: when the
+    /// text has landed in the document, a panel repeating it is narrating something the
+    /// reader is already looking at. Only the fourth has something to *do* about it, and
+    /// that one stays wide on purpose.
+    @ViewBuilder
     private func notice(_ presentation: DockPresentation, primaryLine: String) -> some View {
-        pill {
-            Badge(symbolName: presentation.symbolName, tint: badgeTint(for: presentation))
+        switch presentation.symbolName {
+        case "checkmark":
+            badgeForm { MarkTick() }
+        case "waveform.slash":
+            badgeForm { StruckLevel() }
+        case "doc.on.clipboard":
+            clipboardNotice(presentation)
+        default:
+            blocked(presentation, primaryLine: primaryLine)
+        }
+    }
+
+    /// The 26-point disc the quiet outcomes are drawn in.
+    private func badgeForm(@ViewBuilder _ content: () -> some View) -> some View {
+        content()
+            .frame(width: DockMetrics.badgeSize, height: DockMetrics.badgeSize)
+            .glass(cornerRadius: DockMetrics.badgeSize / 2)
+            .padding(DockMetrics.gripHitPadding)
+    }
+
+    /// Copied rather than typed: the two characters that are the whole instruction,
+    /// and the reason only if it is asked for.
+    ///
+    /// This is a failure wearing a success's clothes — the words exist but nobody typed
+    /// them — so it is amber rather than green, and it is the one quiet form that can
+    /// still be acted on. Putting the explanation behind the pointer is what lets it be
+    /// small: 64 points at rest, and the full sentence and the fix for anybody who goes
+    /// looking.
+    private func clipboardNotice(_ presentation: DockPresentation) -> some View {
+        HStack(spacing: 8) {
+            keycap("⌘V")
+                .foregroundStyle(Color.dockWarning)
+            if model.isHovering {
+                Text("Typing is blocked — paste it")
+                    .font(.system(size: DockMetrics.footnoteSize + 1))
+                    .opacity(0.6)
+                    .fixedSize()
+                if let action = presentation.action {
+                    Button("Fix") { onRecovery(action) }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .fixedSize()
+                }
+            }
+        }
+        .padding(.horizontal, 9)
+        .frame(height: DockMetrics.clipboardHeight)
+        .glass(cornerRadius: DockMetrics.clipboardHeight / 2)
+        .animation(.spring(duration: 0.26), value: model.isHovering)
+        .padding(DockMetrics.gripHitPadding)
+    }
+
+    /// The one state with something for the reader to do, and the only wide one left.
+    ///
+    /// Shrinking this too would spend the contrast the other three just bought: after a
+    /// run of 26-point discs, a panel that arrives at 262 points is unmistakably asking
+    /// for something.
+    private func blocked(_ presentation: DockPresentation, primaryLine: String) -> some View {
+        HStack(spacing: 12) {
+            Badge(symbolName: presentation.symbolName, tint: .dockWarning)
             VStack(alignment: .leading, spacing: 2) {
                 Text(primaryLine)
                     .font(.system(size: DockMetrics.bodySize, weight: .medium))
@@ -230,17 +332,13 @@ struct DockView: View {
                     .fixedSize()
             }
         }
+        .padding(.horizontal, 14)
+        .frame(width: DockMetrics.noticeMaxWidth, height: DockMetrics.noticeHeight)
+        .glass(cornerRadius: DockMetrics.noticeHeight / 2)
+        .padding(DockMetrics.gripHitPadding)
     }
 
     // MARK: - Pieces
-
-    private func pill(@ViewBuilder _ content: () -> some View) -> some View {
-        HStack(spacing: 12, content: content)
-            .padding(.horizontal, 18)
-            .frame(width: DockMetrics.pillWidth, height: DockMetrics.pillHeight)
-            .glass(cornerRadius: DockMetrics.pillHeight / 2)
-            .padding(DockMetrics.gripHitPadding)
-    }
 
     private func keycap(_ text: String) -> some View {
         Text(text)
@@ -249,16 +347,6 @@ struct DockView: View {
             .padding(.horizontal, 6)
             .frame(height: 20)
             .background(.primary.opacity(0.14), in: .rect(cornerRadius: 5))
-    }
-
-    /// The badge follows the symbol the presenter chose, so a new state cannot arrive
-    /// wearing the wrong colour.
-    private func badgeTint(for presentation: DockPresentation) -> Color {
-        switch presentation.symbolName {
-        case "checkmark": .dockSuccess
-        case "exclamationmark.triangle": .dockWarning
-        default: .dockAccent
-        }
     }
 
     private var pressGesture: some Gesture {
@@ -292,93 +380,164 @@ struct DockView: View {
 /// The measurements the design is drawn to.
 enum DockMetrics {
     static let gripWidth: CGFloat = 9
-    static let gripHeight: CGFloat = 46
-    static let gripRadius: CGFloat = 5
+    /// Three dots, not five. Twelve points shorter than it was, and the sliver at the
+    /// edge of the screen is a third smaller for it.
+    static let gripHeight: CGFloat = 34
     static let gripDotSize: CGFloat = 3
     static let gripDotSpacing: CGFloat = 3
-    static let gripDotCount = 5
+    static let gripDotCount = 3
     /// Invisible, hoverable margin around every form, and the room the shadow needs.
     static let gripHitPadding: CGFloat = 6
-    static let hintHeight: CGFloat = 34
-    static let orbSize: CGFloat = 44
-    static let pillWidth: CGFloat = 286
-    static let pillHeight: CGFloat = 52
+    static let hintHeight: CGFloat = 30
+    static let orbSize: CGFloat = 30
+    /// Listening and working, which must be identical: the panel cannot change shape at
+    /// the moment the key is released.
+    static let compactHeight: CGFloat = 32
+    static let weightSize: CGFloat = 22
+    static let weightMarkHeight: CGFloat = 10
+    /// The quiet outcomes — inserted, and nothing heard.
+    static let badgeSize: CGFloat = 26
+    static let clipboardHeight: CGFloat = 28
+    /// The one state still allowed to be wide, and the width it is allowed.
+    ///
+    /// Was `pillWidth`, and was applied to *every* form: listening was 286 points wide
+    /// because a 60-character transcript preview and a recovery button need 286 points,
+    /// and paid that on every dictation for a state it never entered.
+    static let noticeMaxWidth: CGFloat = 262
+    static let noticeHeight: CGFloat = 40
     static let bodySize: CGFloat = 13
     static let footnoteSize: CGFloat = 10
 }
 
 // MARK: - Parts
 
-/// The recording light. Lit, not blinking: a blink in the corner of the eye reads as a
-/// warning, and nothing is wrong.
-private struct RecordingDot: View {
-    var body: some View {
-        Circle()
-            .fill(Color.dockRecording)
-            .frame(width: 9, height: 9)
-            .background(
-                Circle()
-                    .fill(Color.dockRecording.opacity(0.22))
-                    .frame(width: 17, height: 17))
-    }
-}
-
-/// Bars that move while the microphone is live.
+/// The level, as eight bars that rise together and fall at their own rates.
 ///
-/// Not driven by the real signal: the level would have to cross an actor boundary
-/// sixty times a second to say something the user already knows. What this has to
-/// convey is that the app is still listening.
-private struct WaveformView: View {
-    @State private var isAnimating = false
+/// The follower lives in ``DockMeter`` so that what the bars do is testable without a
+/// microphone or a window; all this holds is the row of capsules and the short
+/// animation that keeps twenty updates a second from looking like twenty steps.
+private struct LevelMeterView: View {
+    let level: Float
 
-    private static let heights: [CGFloat] = [
-        7, 13, 20, 11, 24, 16, 9, 18, 22, 12, 6, 15, 21, 10, 8, 17, 11,
-    ]
+    @State private var meter = DockMeter()
 
     var body: some View {
-        HStack(spacing: 3) {
-            ForEach(Array(Self.heights.enumerated()), id: \.offset) { index, height in
+        HStack(spacing: DockMetrics.meterBarSpacing) {
+            ForEach(Array(meter.heights.enumerated()), id: \.offset) { _, height in
                 Capsule()
                     .fill(Color.dockWaveform)
-                    .frame(width: 3, height: height)
-                    .scaleEffect(y: isAnimating ? 0.32 : 1, anchor: .center)
-                    .animation(
-                        .easeInOut(duration: 0.36 + Double(index % 5) * 0.09)
-                            .repeatForever(autoreverses: true),
-                        value: isAnimating)
+                    .frame(
+                        width: DockMetrics.meterBarWidth,
+                        height: DockMetrics.meterBarMinHeight
+                            + height
+                            * (DockMetrics.meterHeight - DockMetrics.meterBarMinHeight))
             }
         }
-        .frame(height: 26)
-        .opacity(0.9)
-        .onAppear { isAnimating = true }
+        .frame(height: DockMetrics.meterHeight)
+        .animation(.linear(duration: 0.06), value: meter.heights)
+        .onChange(of: level, initial: true) { _, new in
+            meter.advance(to: DockLevel.scale(rms: new))
+        }
     }
 }
 
-/// A band of light crossing a track, for a wait too short to measure.
-private struct ShimmerBar: View {
-    @State private var isAnimating = false
+/// The working animation: the untidy row combs itself level, then folds into a tick.
+///
+/// It plays once and resolves, which is the whole difference from what it replaces. A
+/// loop says *indefinite* — it is the animation of a download with no progress bar — and
+/// tidying up a sentence takes about a second and always ends.
+private struct SettleView: View {
+    @State private var isSettled = false
+    @State private var isFolded = false
+
+    /// The row the voice left behind. Held rather than measured because by the time this
+    /// appears the microphone has closed, and starting from nothing would throw away the
+    /// one thing that makes the animation feel like a continuation.
+    private static let start: [CGFloat] = [0.62, 0.28, 0.86, 0.44, 0.74, 0.34, 0.68, 0.40]
 
     var body: some View {
-        GeometryReader { proxy in
-            let travel = proxy.size.width
-            Capsule()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.dockAccentLight.opacity(0), .dockAccentLight, .dockSecondary,
-                        ],
-                        startPoint: .leading, endPoint: .trailing)
-                )
-                .frame(width: travel * 0.45)
-                .offset(x: isAnimating ? travel : -travel * 0.45)
-                .animation(
-                    .easeInOut(duration: 1.1).repeatForever(autoreverses: false),
-                    value: isAnimating)
+        ZStack {
+            HStack(spacing: DockMetrics.meterBarSpacing) {
+                ForEach(Array(Self.start.enumerated()), id: \.offset) { _, height in
+                    Capsule()
+                        .fill(Color.dockWaveform)
+                        .frame(
+                            width: DockMetrics.meterBarWidth,
+                            height: DockMetrics.meterBarMinHeight
+                                + (isSettled ? 0.34 : height)
+                                * (DockMetrics.meterHeight - DockMetrics.meterBarMinHeight))
+                }
+            }
+            .frame(height: DockMetrics.meterHeight)
+            .scaleEffect(x: isFolded ? 0.08 : 1)
+            .opacity(isFolded ? 0 : 1)
+
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color.dockSuccess)
+                .scaleEffect(isFolded ? 1 : 0.2)
+                .opacity(isFolded ? 1 : 0)
         }
-        .frame(height: 6)
-        .background(.primary.opacity(0.16), in: .capsule)
-        .clipShape(.capsule)
-        .onAppear { isAnimating = true }
+        .frame(width: DockMetrics.meterWidth, height: DockMetrics.meterHeight)
+        .task {
+            withAnimation(.easeOut(duration: 0.34)) { isSettled = true }
+            try? await Task.sleep(for: .milliseconds(340))
+            withAnimation(.spring(duration: 0.3, bounce: 0.34)) { isFolded = true }
+        }
+    }
+}
+
+/// Inserted: the mark's own stroke, straightening into a check.
+///
+/// The `u` and a checkmark are the same drawing — a short arm, a turn, a long arm, both
+/// ends round — so confirming an insertion needs no second glyph. Turning the mark
+/// rather than swapping in `checkmark` is the difference between the brand doing the
+/// confirming and a system icon doing it.
+private struct MarkTick: View {
+    @State private var isTick = false
+
+    var body: some View {
+        UttrflowMark()
+            .stroke(
+                isTick ? Color.dockSuccess : Color.dockSecondary,
+                style: StrokeStyle(
+                    lineWidth: UttrflowMark.lineWidth(forHeight: DockMetrics.markTickHeight),
+                    lineCap: .round, lineJoin: .round)
+            )
+            .frame(
+                width: DockMetrics.markTickHeight * UttrflowMark.aspectRatio,
+                height: DockMetrics.markTickHeight
+            )
+            .rotationEffect(.degrees(isTick ? -42 : 0))
+            .scaleEffect(isTick ? 0.86 : 1)
+            .task {
+                withAnimation(.spring(duration: 0.42, bounce: 0.28)) { isTick = true }
+            }
+    }
+}
+
+/// Nothing heard: a level with a line through it.
+///
+/// No red, no warning triangle and no sentence. Nothing went wrong — the microphone was
+/// open and there was nothing in it — and drawing that costs the same 26 points as
+/// drawing success.
+private struct StruckLevel: View {
+    private static let heights: [CGFloat] = [5, 9, 6, 10, 4]
+
+    var body: some View {
+        ZStack {
+            HStack(spacing: 2) {
+                ForEach(Array(Self.heights.enumerated()), id: \.offset) { _, height in
+                    Capsule()
+                        .fill(.primary.opacity(0.45))
+                        .frame(width: 2, height: height)
+                }
+            }
+            Capsule()
+                .fill(.primary.opacity(0.62))
+                .frame(width: 20, height: 1.5)
+                .rotationEffect(.degrees(-34))
+        }
     }
 }
 
@@ -390,18 +549,29 @@ private struct Badge: View {
     var body: some View {
         Circle()
             .fill(tint)
-            .frame(width: 30, height: 30)
+            .frame(width: 22, height: 22)
             .overlay(
                 Image(systemName: symbolName)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white))
     }
+}
+
+extension DockMetrics {
+    static let meterBarWidth: CGFloat = 2.5
+    static let meterBarSpacing: CGFloat = 2.5
+    static let meterBarMinHeight: CGFloat = 3
+    static let meterHeight: CGFloat = 15
+    /// Eight bars and seven gaps, so the working animation can hold the width the
+    /// listening meter had while its own row collapses inside it.
+    static let meterWidth: CGFloat = 8 * meterBarWidth + 7 * meterBarSpacing
+    static let markTickHeight: CGFloat = 14
 }
 
 // MARK: - Material
 
 extension View {
-    /// The translucent slab every form is drawn on.
+    /// The translucent slab every form but the resting one is drawn on.
     fileprivate func glass(cornerRadius: CGFloat) -> some View {
         background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
             .overlay(
@@ -425,7 +595,13 @@ extension Color {
         .sRGB, red: 0x9E / 255, green: 0xDC / 255, blue: 0xD7 / 255)
     static let dockAccentWash = Color(
         .sRGB, red: 0xEF / 255, green: 0xF8 / 255, blue: 0xF7 / 255)
-    /// The live one: what is selected, what is running, the lit end of the waveform.
+    /// Recording, and destructive. The floating button no longer lights it — the meter
+    /// says it is listening better than a red dot beside a meter did — but the main
+    /// window's critical tone and its destructive buttons are the same red, and this is
+    /// still where the whole app's accent ramp is written down.
+    static let dockRecording = Color(
+        .sRGB, red: 0xFF / 255, green: 0x38 / 255, blue: 0x3C / 255)
+    /// The live one: what is selected, what is running, the weight the meter hangs off.
     ///
     /// Named "secondary" from when the brand was purple and this was the foil to it, but
     /// every one of its uses is a state rather than a counterpoint — so it is the mark's
@@ -433,8 +609,10 @@ extension Color {
     /// identity has one accent, and this is it.
     static let dockSecondary = Color(
         .sRGB, red: 0x29 / 255, green: 0xC0 / 255, blue: 0xB4 / 255)
-    static let dockRecording = Color(
-        .sRGB, red: 0xFF / 255, green: 0x38 / 255, blue: 0x3C / 255)
+    /// The mark drawn *inside* the weight, which is a teal disc — so it is the ink, not
+    /// the accent. Fixed rather than `.primary`: the disc is the same teal in both
+    /// appearances, so ink that followed the appearance would vanish in one of them.
+    static let dockWeightInk = Color(.sRGB, red: 0x04 / 255, green: 0x10 / 255, blue: 0x0F / 255)
     static let dockSuccess = Color(.sRGB, red: 0x34 / 255, green: 0xC7 / 255, blue: 0x59 / 255)
     static let dockWarning = Color(.sRGB, red: 0xFF / 255, green: 0x8D / 255, blue: 0x28 / 255)
 
