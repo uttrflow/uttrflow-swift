@@ -116,9 +116,16 @@ already editing down to the rule and re-record; do not rewrite the whole reposit
 one pass.
 
 ```bash
-python3 Scripts/comment_audit.py --report     # what is left, worst first
-python3 Scripts/comment_audit.py --update     # re-record after improving a file
+python3 Scripts/comment_audit.py --report                 # what is left, worst first
+python3 Scripts/comment_audit.py --update                 # re-record after improving a file
+python3 Scripts/comment_audit.py --update --after-merge   # only when main moved under you
 ```
+
+`--after-merge` is the one way a count may rise, and it exists because rebasing onto
+`main` brings in files this rule has not reached yet — blocking a branch on those would
+punish whoever rebased rather than whoever wrote them. It prints every rise and records
+it, so the increase appears in `comment_baseline.json`'s diff where a reviewer can see
+it. Do not reach for it to excuse your own comments.
 
 ## Where this sits
 

@@ -77,6 +77,11 @@ def survey():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--update", action="store_true", help="record the current counts")
+    parser.add_argument(
+        "--after-merge",
+        action="store_true",
+        help="with --update, accept counts that rose because main moved underneath",
+    )
     parser.add_argument("--report", action="store_true", help="list what is left, worst first")
     arguments = parser.parse_args()
 
@@ -103,11 +108,18 @@ def main():
             for path, count in long_blocks.items()
             if path in recorded and count > recorded[path]
         }
-        if risen:
+        if risen and not arguments.after_merge:
             print("Refusing to record a higher count. The baseline only goes down.")
             for path, (was, now) in sorted(risen.items()):
                 print(f"  {path}: {was} -> {now}")
+            print("\nIf these arrived from main rather than from your own work, re-record")
+            print("with --after-merge. The rise then shows in the baseline's diff, where a")
+            print("reviewer can see it, rather than passing unremarked.")
             return 1
+        if risen:
+            print("Absorbing counts that rose with main. Each is a file to bring down later:")
+            for path, (was, now) in sorted(risen.items()):
+                print(f"  {path}: {was} -> {now}")
         json.dump(
             {"total": total, "files": long_blocks},
             open(BASELINE, "w"),

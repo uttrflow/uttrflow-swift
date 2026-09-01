@@ -1,11 +1,12 @@
 {
   "files": {
-    "Sources/Uttrflow/AppDelegate.swift": 150,
+    "Sources/Uttrflow/AppDelegate.swift": 151,
     "Sources/Uttrflow/Brand/UttrflowMark.swift": 1,
     "Sources/Uttrflow/Brand/UttrflowMarkView.swift": 1,
     "Sources/Uttrflow/Dock/DockAnchor.swift": 7,
-    "Sources/Uttrflow/Dock/DockPanelController.swift": 8,
-    "Sources/Uttrflow/Dock/DockView.swift": 17,
+    "Sources/Uttrflow/Dock/DockLevel.swift": 6,
+    "Sources/Uttrflow/Dock/DockPanelController.swift": 13,
+    "Sources/Uttrflow/Dock/DockView.swift": 44,
     "Sources/Uttrflow/Main/AccountPageView.swift": 2,
     "Sources/Uttrflow/Main/ApplicationIconSource+System.swift": 1,
     "Sources/Uttrflow/Main/ApplicationIcons.swift": 4,
@@ -90,13 +91,13 @@
     "Sources/UttrflowAccount/Timestamp.swift": 2,
     "Sources/UttrflowAccount/TokenStore+Keychain.swift": 10,
     "Sources/UttrflowAccount/TokenStore.swift": 4,
-    "Sources/UttrflowAudio/AVAudioCaptureEngine.swift": 2,
+    "Sources/UttrflowAudio/AVAudioCaptureEngine.swift": 3,
     "Sources/UttrflowAudio/AudioFileReader.swift": 2,
     "Sources/UttrflowAudio/AudioResampler.swift": 7,
     "Sources/UttrflowAudio/MicrophoneSource.swift": 2,
     "Sources/UttrflowAudio/RecordingCue+System.swift": 7,
     "Sources/UttrflowAudio/RecordingCue.swift": 12,
-    "Sources/UttrflowAudio/SampleAccumulator.swift": 3,
+    "Sources/UttrflowAudio/SampleAccumulator.swift": 6,
     "Sources/UttrflowAudio/WAVEncoder.swift": 1,
     "Sources/UttrflowClipboard/Clip.swift": 23,
     "Sources/UttrflowClipboard/ClipColour.swift": 14,
@@ -232,7 +233,6 @@
     "Sources/UttrflowSettings/SettingsStore.swift": 17,
     "Sources/UttrflowSettings/UserDefaultsSettingsStore.swift": 8,
     "Sources/UttrflowSpeech/AppleSpeechBackend.swift": 3,
-    "Sources/UttrflowSpeech/RawTranscript+Mapping.swift": 1,
     "Sources/UttrflowSpeech/SpeechEngineFactory.swift": 2,
     "Sources/UttrflowSpeech/SpeechModel.swift": 5,
     "Sources/UttrflowSpeech/SpeechModelStore.swift": 12,
@@ -353,6 +353,7 @@
     "Tests/UttrflowAudioTests/AudioFileReaderTests.swift": 1,
     "Tests/UttrflowAudioTests/AudioResamplerTests.swift": 4,
     "Tests/UttrflowAudioTests/RecordingCueTests.swift": 1,
+    "Tests/UttrflowAudioTests/SampleAccumulatorTests.swift": 3,
     "Tests/UttrflowAudioTests/TestDoubles.swift": 2,
     "Tests/UttrflowClipboardTests/ClipColourTests.swift": 14,
     "Tests/UttrflowClipboardTests/ClipImageTests.swift": 9,
@@ -449,6 +450,7 @@
     "Tests/UttrflowTests/ClipboardAnnouncementTests.swift": 8,
     "Tests/UttrflowTests/DeadSwitchTests.swift": 6,
     "Tests/UttrflowTests/DockAnchorTests.swift": 4,
+    "Tests/UttrflowTests/DockBarsTests.swift": 7,
     "Tests/UttrflowTests/DockClockTests.swift": 3,
     "Tests/UttrflowTests/MainIntentWiringTests.swift": 18,
     "Tests/UttrflowTests/MainMenuTests.swift": 5,
@@ -517,5 +519,5 @@
     "Tests/UttrflowUXTests/StylePagePresentationTests.swift": 3,
     "Tests/UttrflowUXTests/UpdateGateTests.swift": 3
   },
-  "total": 4492
+  "total": 4544
 }
