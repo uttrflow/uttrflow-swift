@@ -1,9 +1,4 @@
-/// Finds the speech inside a recording, and says when there is none.
-///
-/// Whisper does not return nothing for audio with no speech in it — it returns
-/// "Thank you.", "...", or a line from the captions it was trained on. WhisperKit's
-/// own guard against that reads `noSpeechProb`, which its decoder never computes, so
-/// the audio has to be judged here before it is ever decoded. See `Docs/silence.md`.
+/// Finds the speech inside a recording, and says when there is none. See `Docs/silence.md`.
 public enum VoiceActivity: Sendable {
     /// Loudness is measured over frames this long, in seconds.
     static let frameDuration = 0.02
@@ -17,12 +12,7 @@ public enum VoiceActivity: Sendable {
     /// A burst shorter than this is a click or a bump rather than a word, in seconds.
     static let minimumSpeech = 0.12
 
-    /// Above this, audio is treated as speech whatever its shape, at about -26 dBFS.
-    ///
-    /// The stationarity test below cannot tell a steady tone from a steady hiss, and
-    /// getting that wrong in one direction costs a dictation while the other costs a
-    /// stray line of text. Noise loud enough to reach a speaking level is rare; someone
-    /// speaking loudly and evenly is not.
+    /// Above this, audio is speech whatever its shape, at about -26 dBFS.
     static let assumedSpeechLevel: Float = 0.05
 
     /// Audio kept either side of the speech, in seconds, so no onset is clipped.
@@ -38,8 +28,7 @@ public enum VoiceActivity: Sendable {
         let floor = percentile(sorted, 0.1)
         let ceiling = percentile(sorted, 0.95)
 
-        // A quiet room never reaches the floor. A fan or a hissing microphone does, and
-        // is caught instead by staying at one level where speech rises and falls.
+        // A quiet room fails the first test; a fan passes it and fails the second.
         guard ceiling >= absoluteFloor else { return nil }
         guard ceiling >= assumedSpeechLevel || ceiling >= floor * signalToNoise else { return nil }
 
@@ -47,8 +36,7 @@ public enum VoiceActivity: Sendable {
         let minimumFrames = Swift.max(1, Int(minimumSpeech / frameDuration))
         guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames)
         else {
-            // Loud and modulated, but no run long enough to point at. Transcribing all
-            // of it is the answer that cannot lose words.
+            // Loud and modulated, but no run long enough to point at: keep all of it.
             return samples.indices.isEmpty ? nil : 0..<samples.count
         }
 
@@ -67,8 +55,7 @@ public enum VoiceActivity: Sendable {
             var sum: Float = 0
             for index in start..<(start + frameLength) {
                 let sample = samples[index]
-                // A non-finite sample from a misbehaving driver would make the whole
-                // frame `nan`, and `nan` compares false against every threshold below.
+                // A `nan` from a misbehaving driver compares false against every threshold.
                 if sample.isFinite { sum += sample * sample }
             }
             loudness.append((sum / Float(frameLength)).squareRoot())
@@ -102,8 +89,7 @@ public enum VoiceActivity: Sendable {
                 runStart = nil
             }
         }
-        // A run still open at the end counts: speech does not have to stop before the
-        // user lets go of the key.
+        // A run still open at the end counts: speech need not stop before the key does.
         if let start = runStart, loudness.count - start >= minimumFrames {
             if first == nil { first = start }
             last = loudness.count

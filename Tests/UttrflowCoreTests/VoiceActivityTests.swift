@@ -53,8 +53,7 @@ struct VoiceActivityTests {
 
     @Test("keeps evenly-spoken speech, which is as stationary as noise is")
     func keepsSteadySpeech() {
-        // The stationarity test cannot tell these apart, so loudness decides, and it
-        // decides in favour of keeping the words.
+        // Loudness decides where stationarity cannot, in favour of keeping the words.
         #expect(VoiceActivity.speechRange(in: Signal.speech(3), sampleRate: Signal.rate) != nil)
     }
 
