@@ -9,6 +9,42 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-01
+
+### Changed
+- **The floating button's meter is the microphone now.** It was seventeen bars running a
+  canned loop with staggered durations — the same animation whether you shouted, whispered
+  or said nothing at all. It is a real level: root mean square, mapped in decibels because
+  speech sits near −30 dBFS and a linear meter spends nine tenths of its travel on the
+  loudest tenth.
+- **The meter is a recording rather than a decoration.** Capsules, mirrored about a centre
+  line, one per arrival, walking from the edge where sound comes in toward the mark — so
+  the horizontal axis is time and every bar on screen is a moment that was actually said.
+  Bars past half scale take the accent teal.
+- **Listening went from 286 × 52 points to 136 × 32**, and working is identical to it so
+  the panel cannot change shape at the instant the key is released. The old width was what
+  a sixty-character transcript preview and a recovery button need, paid on every dictation
+  for a state listening never enters.
+- **A success needs no words.** Inserted, copied and nothing-heard were a 286-point panel
+  each; they are a 26-point disc, an expanding ⌘V keycap and a struck level. When the text
+  has landed in the document, a panel repeating it narrates something you are already
+  looking at. Only a blocked microphone stays wide, because it is the one with something to
+  do about it.
+- **Inserted is the mark opening into a checkmark.** Both are one round-capped stroke — a
+  short arm, a turn, a long arm — so confirming an insertion needs no second glyph.
+- The resting grip is three dots rather than five, and 34 points tall rather than 46.
+
+### Fixed
+- **The resting grip had a box drawn round it, and in fact two.** Every form was built on
+  the same translucent slab, whose hairline and 34%-black shadow read as depth around a
+  pill and as an outline nobody meant to draw around nine points of dots — and the panel
+  was drawing a second ring outside the first. Both are gone; the dots keep a half-point
+  shadow so they hold on a pale wallpaper, and the hit target is unchanged because it never
+  came from the slab.
+- Working no longer loops. A loop says *indefinite*, which is the animation of a download
+  with no progress bar; tidying up a sentence takes about a second and always ends, so it
+  now plays once and resolves into the tick.
+
 ## [0.3.0] — 2026-08-30
 
 ### Added
@@ -48,6 +84,7 @@ where its code became readable.
 - One retention window now governs both copies of a transcript, rather than two that could
   disagree.
 
-[Unreleased]: https://github.com/uttrflow/uttrflow-swift/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/uttrflow/uttrflow-swift/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v0.4.0
 [0.3.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v0.3.0
 [0.2.2]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v0.2.2
