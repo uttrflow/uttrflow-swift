@@ -48,6 +48,78 @@ propose things that have already been rejected here for reasons the code does no
 `PLAN.md` is the live phase tracker. Read it rather than reconstructing the state of the
 project from `git log`.
 
+## Comments: one line, present tense — NON-NEGOTIABLE
+
+**A comment is one line. A doc comment is one line. Both say what the code does now.**
+
+```swift
+/// Refuses audio with no speech in it, so silence is not transcribed as words.
+```
+
+Not:
+
+```swift
+/// Refuses audio with no speech in it.
+///
+/// This used to return quietly to idle, which was indistinguishable from the app
+/// being broken — the user held the key, spoke, let go, and nothing happened. It was
+/// then changed to throw, but the error had no severity, so the menu bar showed it as
+/// a fault. Three attempts later it became what it is now...
+```
+
+Both describe the same function. Only the first is still true in four months.
+
+### The rule
+
+1. **One line per comment block.** No `///` or `//` run longer than one line.
+2. **Present tense, about the present code.** What this function does, what this line
+   is for, what the value means. Not what it did before, not what somebody tried,
+   not how many times something has gone wrong.
+3. **A reason is allowed when it changes what a reader would do** — "kept under the
+   lock because `deinit` can run on any thread" earns its place. A reason that is only
+   a story does not.
+4. **The trailing comment on a line of code is exempt from the length rule** and still
+   bound by the rest.
+
+### Where the rest goes
+
+Some of what these comments carry is genuinely worth keeping: a measured number, a
+platform trap, an approach that was tried and does not work. That belongs in `Docs/`,
+under a heading, where it can be read on purpose and revised as a piece —
+`Docs/silence.md` and `Docs/stuck-recording.md` are what this looks like. Link to it in
+the one line:
+
+```swift
+/// Judges the audio before it is decoded. See `Docs/silence.md`.
+```
+
+**Deleting a hard-won measurement is not the point of this rule.** Moving it somewhere
+it stays true is.
+
+### Why
+
+The comments in this repository were written as a running account of how each decision
+was reached, and there are 17,000 lines of them against 36,000 lines of code. After a
+few months that account is a liability rather than an asset: it describes code that has
+since moved, it buries the one sentence a reader needs under six they do not, and the
+reader cannot tell which parts still hold. What a function *does* is checkable against
+the code in front of you. What it *used to do* is not checkable at all.
+
+### How it is enforced
+
+`Scripts/comment_audit.py` counts multi-line comment blocks per file and fails when any
+file gains one, against `Scripts/comment_baseline.json`. It runs in `make verify`.
+
+The baseline only ever goes down — `--update` refuses to record a higher count for any
+file, and shrinking one file does not pay for growing another. Bring a file you are
+already editing down to the rule and re-record; do not rewrite the whole repository in
+one pass.
+
+```bash
+python3 Scripts/comment_audit.py --report     # what is left, worst first
+python3 Scripts/comment_audit.py --update     # re-record after improving a file
+```
+
 ## Where this sits
 
 Four pieces: this app, `uttrflow-backend` (Go on ECS, the only thing that touches the
