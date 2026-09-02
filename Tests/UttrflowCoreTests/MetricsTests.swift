@@ -95,8 +95,7 @@ struct ManualClockTests {
             try await clock.sleep(until: clock.now.advanced(by: .seconds(10)), tolerance: nil)
         }
 
-        while clock.sleeperCount == 0 { await Task.yield() }
-        clock.advance(by: .seconds(10))
+        await clock.advanceWhenSomethingIsWaiting(by: .seconds(10))
         try await sleeping.value
 
         #expect(ManualClock.Instant(offset: .zero).duration(to: clock.now) == .seconds(10))
@@ -116,7 +115,7 @@ struct ManualClockTests {
         let sleeping = Task {
             try await clock.sleep(until: clock.now.advanced(by: .seconds(10)), tolerance: nil)
         }
-        while clock.sleeperCount == 0 { await Task.yield() }
+        await clock.waitUntilSomethingIsWaiting()
         sleeping.cancel()
 
         let result = await sleeping.result

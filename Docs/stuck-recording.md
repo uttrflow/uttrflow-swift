@@ -87,3 +87,49 @@ which is the worst moment to find out. The minute of warning between the two is 
 lets a speaker end their own sentence rather than have it ended for them.
 
 The limits are `DictationLimit.default` and nothing reads them from settings yet.
+
+## Testing a timeout without hanging the whole suite
+
+The tests that drive `StageTimeout` hold a `ManualClock` and have to move it at exactly
+the right moment: a stage's deadline can only be expired once that stage has installed
+it. The obvious way to arrange that is to poll:
+
+```swift
+while clock.sleeperCount == 0 { await Task.yield() }   // something is waiting
+clock.advance(by: limit)                               // so expire it
+```
+
+**That is two steps, and it is wrong.** The count is read, the lock is released, and the
+advance happens later against a clock that may have changed. Instrumenting the tidying
+test caught the window open on 1 run in 25:
+
+```
+PROBE advance stage=tidying limit=30.0s sleepers=0 now=0.0s
+```
+
+Non-zero when the loop exited, zero by the time the advance ran. The sleeper that
+satisfied the guard belonged to the *previous* stage and was torn down in between.
+
+The cost of losing that race is not a failed test. The clock moves to 30s with nothing
+installed; the tidying stage then installs its deadline at 60s; nothing ever advances
+again; `withStageTimeout` never returns, so `finishRecording()` never returns, so the
+test awaits a value that cannot arrive. Swift Testing runs tests concurrently, so the
+run stops producing output and never finishes — no failure, no summary, just an idle
+process until CI kills the job at its 45-minute cap. That happened on `main` and on a
+pull request branch, and cost two runner-hours before it was tracked down.
+
+It is timing-dependent, so it survives a fast machine — 40 stress runs under CPU load
+did not reproduce it — and bites a loaded runner, where these tests took 11 seconds
+each instead of the whole suite taking three.
+
+**So the wait and the advance are one step.** `advanceWhenSomethingIsWaiting(by:)` parks
+the request when nothing is sleeping yet, and `sleep` carries it out inside the same
+lock acquisition that installs the sleeper, where nothing can come apart in between.
+`sleeperCount` is gone rather than deprecated: it cannot be read without inviting the
+same two-step back.
+
+One thing the atomicity does not fix on its own is picking the *right* deadline. When a
+stage begins, the previous stage's deadline can still be installed, and advancing then
+expires that one instead. `expire` therefore advances until the pipeline leaves the
+stage rather than exactly once; firing an already-resolved deadline is harmless, because
+the race it belonged to has an outcome and ignores a second answer.
