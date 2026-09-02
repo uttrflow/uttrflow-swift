@@ -50,6 +50,19 @@ dictation on Fn, that still happens and both fire alongside this. The setting is
 System Settings → Keyboard → "Press 🌐 to", and the honest thing is to say so where the
 shortcut is chosen rather than let it look like a bug.
 
+## Arming it again when it could not be armed
+
+`HeldModifierMonitor.start` refuses without Accessibility, and Carbon refuses a
+combination another application already owns. Both were reported once, as a transient
+notice, and never retried — so a key that failed to arm at launch stayed dead until the
+app was relaunched, with nothing on screen connecting the two.
+
+Two things fix that between them. Granting Accessibility through Uttrflow's own button
+re-arms it directly. And **anything else the user does elsewhere** — granting the
+permission in System Settings, or quitting whatever owned the combination — is picked up
+when they come back to Uttrflow, because `applicationDidBecomeActive` retries whenever
+the last attempt failed. Neither of those events tells the app anything on its own.
+
 ## Neither is trusted to deliver the release
 
 Both reconcile against the real key state every 250 ms. See `Docs/stuck-recording.md`.

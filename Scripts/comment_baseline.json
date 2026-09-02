@@ -1,6 +1,6 @@
 {
   "files": {
-    "Sources/Uttrflow/AppDelegate.swift": 151,
+    "Sources/Uttrflow/AppDelegate.swift": 149,
     "Sources/Uttrflow/Brand/UttrflowMark.swift": 1,
     "Sources/Uttrflow/Brand/UttrflowMarkView.swift": 1,
     "Sources/Uttrflow/Dock/DockAnchor.swift": 7,
@@ -516,5 +516,5 @@
     "Tests/UttrflowUXTests/StylePagePresentationTests.swift": 3,
     "Tests/UttrflowUXTests/UpdateGateTests.swift": 3
   },
-  "total": 4413
+  "total": 4411
 }
