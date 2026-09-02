@@ -157,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// compile error but a silent second row. Naming the thing after the guarantee, and
     /// having exactly one of it, is what makes the next inserter get it by default.
     private lazy var announcingPasteboard = SystemPasteboard {
-        [clipboardWatcher] in clipboardWatcher.ignoreNextWrite()
+        [clipboardWatcher] in clipboardWatcher.ignoreNextWrite(of: $0)
     }
 
     /// Puts a chosen clip where the caret is.
@@ -969,6 +969,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 Self.log.error("picture missing at paste: \(clip.id, privacy: .public)")
                 return
             }
+            // No text to name, so the count is all this one has to go on.
             clipboardWatcher.ignoreNextWrite()
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setData(data, forType: .png)
@@ -1064,7 +1065,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// copying it and does not climb to the top of the panel.
     private func putOnClipboard(_ text: String, richText: String? = nil, used: Clip.ID?) {
         markUsed(used)
-        clipboardWatcher.ignoreNextWrite()
+        clipboardWatcher.ignoreNextWrite(of: text)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         // E2, E3 — both flavours together, so the receiving application takes the one it

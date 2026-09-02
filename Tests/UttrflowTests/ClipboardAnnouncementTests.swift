@@ -118,8 +118,10 @@ struct ClipboardAnnouncementTests {
                 // makes it exact: a tick landing between the two still sees it. Ten lines
                 // is room for the guard clauses that sit in between, and no more.
                 let window = lines[max(0, number - 10)..<number].joined(separator: "\n")
+                // `ignoreNextWrite(` with or without the text it is about to write: a
+                // picture has none to name.
                 #expect(
-                    window.contains("ignoreNextWrite()"),
+                    window.contains("ignoreNextWrite("),
                     """
                     \(file.lastPathComponent):\(number + 1) clears the clipboard without \
                     telling the watcher first, so the write will be read as a copy.
