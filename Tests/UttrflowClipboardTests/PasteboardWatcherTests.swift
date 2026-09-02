@@ -192,6 +192,34 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
 
+    /// The failure this prevents: a copy in the same tick as a paste never reaching the panel.
+    @Test("a copy that lands in the same tick as an Uttrflow paste is still noticed")
+    func aCopyRacingThePasteSurvives() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+
+        watcher.ignoreNextWrite(of: "pasted by Uttrflow")
+        clipboard.write("pasted by Uttrflow")
+        // Copied before the next tick, so one tick sees both changes.
+        clipboard.write("copied by the user")
+
+        #expect(await watcher.newClip(at: noon)?.clip.text == "copied by the user")
+    }
+
+    @Test("still ignores its own write when the copy arrives first")
+    func announcementSurvivesUntilItsOwnWriteArrives() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+
+        watcher.ignoreNextWrite(of: "pasted by Uttrflow")
+        clipboard.write("copied by the user")
+        #expect(await watcher.newClip(at: noon)?.clip.text == "copied by the user")
+
+        // Not spent by somebody else's copy, so Uttrflow's own write is still ignored.
+        clipboard.write("pasted by Uttrflow")
+        #expect(await watcher.newClip(at: noon)?.clip == nil)
+    }
+
     @Test("goes back to noticing copies after the announced write")
     func announcementIsSpentOnce() async {
         let clipboard = FakeClipboard()
