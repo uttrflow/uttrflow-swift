@@ -81,3 +81,92 @@ struct SampleAccumulatorTests {
         #expect(accumulator.peakLevel == 0.25)
     }
 }
+
+/// ``SampleAccumulator/peakLevel`` is a high-water mark and never falls, which is what
+/// makes it right for asking afterwards whether the microphone was muted and wrong for
+/// drawing a meter — one loud syllable would peg the bars for the rest of the recording.
+/// The momentary level is the one the floating button reads.
+@Suite("The momentary level")
+struct MomentaryLevelTests {
+    @Test("is zero before anything is heard")
+    func startsAtZero() {
+        #expect(SampleAccumulator().momentaryLevel == 0)
+    }
+
+    @Test("is the block's root mean square, not its peak")
+    func isRootMeanSquare() {
+        let accumulator = SampleAccumulator()
+
+        // One loud sample among sixteen quiet ones. A peak meter reads 1; the ear, and
+        // this, read something much smaller.
+        accumulator.append([1] + Array(repeating: 0, count: 15))
+
+        #expect(accumulator.peakLevel == 1)
+        #expect(abs(accumulator.momentaryLevel - 0.25) < 0.0001)
+    }
+
+    /// The difference that matters: this one comes back down.
+    @Test("falls between blocks, where the peak does not")
+    func fallsWhenQuiet() {
+        let accumulator = SampleAccumulator()
+        accumulator.append(Array(repeating: 0.8, count: 64))
+        let loud = accumulator.momentaryLevel
+
+        accumulator.append(Array(repeating: 0, count: 64))
+
+        #expect(accumulator.momentaryLevel < loud)
+        #expect(accumulator.peakLevel == 0.8)
+    }
+
+    /// Gradually, though. A meter that dropped to nothing in one block would flicker at
+    /// every gap between syllables.
+    @Test("falls gradually rather than cutting out")
+    func fallsGradually() {
+        let accumulator = SampleAccumulator()
+        accumulator.append(Array(repeating: 0.8, count: 64))
+
+        accumulator.append(Array(repeating: 0, count: 64))
+
+        #expect(accumulator.momentaryLevel > 0.4)
+    }
+
+    @Test("rises the moment a louder block arrives")
+    func attackIsImmediate() {
+        let accumulator = SampleAccumulator()
+        accumulator.append(Array(repeating: 0.1, count: 64))
+
+        accumulator.append(Array(repeating: 0.9, count: 64))
+
+        #expect(abs(accumulator.momentaryLevel - 0.9) < 0.0001)
+    }
+
+    @Test("a block of broken samples cannot produce a broken level")
+    func survivesNonFinite() {
+        let accumulator = SampleAccumulator()
+        accumulator.append(Array(repeating: 0.5, count: 8))
+
+        accumulator.append([.nan, .infinity, -.infinity, .nan])
+
+        #expect(accumulator.momentaryLevel.isFinite)
+    }
+
+    @Test("a finished recording cannot leak its level into the next one")
+    func resetClearsIt() {
+        let accumulator = SampleAccumulator()
+        accumulator.append(Array(repeating: 0.7, count: 32))
+
+        accumulator.reset()
+
+        #expect(accumulator.momentaryLevel == 0)
+    }
+
+    @Test("taking the samples clears it too")
+    func takeClearsIt() {
+        let accumulator = SampleAccumulator()
+        accumulator.append(Array(repeating: 0.7, count: 32))
+
+        _ = accumulator.take()
+
+        #expect(accumulator.momentaryLevel == 0)
+    }
+}

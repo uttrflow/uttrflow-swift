@@ -72,6 +72,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The token is not needed after the checkout — nothing here pushes, and the
+          # release publishes through `gh` with RELEASES_TOKEN rather than through the
+          # git remote. Left persisted it sits in .git/config where every later step can
+          # read it, and in the release job those steps include building third-party
+          # Swift dependencies in the same job that holds the signing keychain.
+          persist-credentials: false
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app

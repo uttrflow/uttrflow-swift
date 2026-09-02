@@ -21,6 +21,14 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     /// Loudest sample heard in the current recording, in `0...1`.
     public var peakLevel: Float { accumulator.peakLevel }
 
+    /// How loud the microphone is at this moment, in `0...1`.
+    ///
+    /// `nonisolated` deliberately. The accumulator is a lock-guarded `Sendable` box
+    /// rather than actor state, so a meter can read this from the main actor without
+    /// hopping onto this actor twenty times a second — and without the reads queueing
+    /// behind a `stop()` that is busy converting a recording.
+    public nonisolated var momentaryLevel: Float { accumulator.momentaryLevel }
+
     /// Samples captured so far. Lets a caller show a duration while recording.
     public var capturedFrameCount: Int { accumulator.count }
 

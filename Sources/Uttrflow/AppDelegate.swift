@@ -406,8 +406,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 await (dictionary.allEntries(), context.currentContext(), Date())
             })
 
+        // Held rather than left inside the capture engine so the floating button can
+        // read the level without going through an actor: the accumulator is a
+        // lock-guarded `Sendable` box, and a meter polling it twenty times a second
+        // should not have to queue behind a `stop()` busy converting a recording.
+        let microphone = AVAudioCaptureEngine(
+            source: AVAudioEngineMicrophoneSource())
+        dock.setLevelSource { microphone.momentaryLevel }
+
         let pipeline = DictationPipeline(
-            capture: AVAudioCaptureEngine(source: AVAudioEngineMicrophoneSource()),
+            capture: microphone,
             speech: speech,
             cleaner: TextTransformers.router(configuration: settings.engines),
             context: context,
