@@ -2,11 +2,7 @@ public import UttrflowCore
 
 // MARK: - What the menu needs to know
 
-/// Where a dictation has got to, in as much detail as a menu needs.
-///
-/// Deliberately not the pipeline's own state: this module cannot see it, and a menu
-/// does not care about the difference between transcribing and tidying — both are a
-/// wait, and naming them apart would describe the machinery rather than the moment.
+/// Where a dictation has got to, in as much detail as a menu needs and no more.
 public enum DictationActivity: Sendable, Equatable, CaseIterable {
     case idle
     case listening
@@ -27,11 +23,9 @@ public enum SpeechModelReadiness: Sendable, Equatable {
 
 /// A recent dictation, as much of it as a menu can show.
 public struct MenuBarRecent: Sendable, Equatable {
-    /// Already shortened to one line by whoever keeps the list, because how long a line
-    /// a menu can take is not something two places should have an opinion about.
+    /// Already shortened by whoever keeps the list, so only one place decides a menu's width.
     public let title: String
-    /// The whole of it, for the tooltip. Showing only the shortened form would be a lie
-    /// about what clicking the row is going to insert.
+    /// The whole of it, for the tooltip, since the row says less than it will insert.
     public let fullText: String
 
     public init(title: String, fullText: String) {
@@ -40,26 +34,15 @@ public struct MenuBarRecent: Sendable, Equatable {
     }
 }
 
-/// How far along an update is, when one is happening at all.
-///
-/// Updating was entirely silent before this existed: an update downloaded, waited for a
-/// quiet minute, and then the app replaced itself and came back — with nothing anywhere
-/// having said so. An app that vanishes and reappears without explanation reads as a
-/// crash, and the one moment a user most wants to be told is the moment they are least
-/// able to ask.
+/// How far along an update is, so an app that replaces itself does not read as a crash.
 public enum UpdateProgress: Sendable, Equatable {
     /// Nothing is happening, which is almost always true.
     case idle
     /// The feed has been asked and has not answered yet.
     case checking
-    /// An update exists and is coming down. The fraction is absent until enough has
-    /// arrived to estimate one.
+    /// Coming down, with no fraction until enough has arrived to estimate one.
     case downloading(fraction: Double?)
-    /// Downloaded and verified, waiting for the app to be quiet for a minute.
-    ///
-    /// Its own case rather than folding into ``installing`` because the wait is the part
-    /// that needs explaining: an update that says "ready" and then sits there looks
-    /// stuck, and the honest line says what it is waiting for.
+    /// Downloaded and waiting for a quiet minute, which is the part that needs explaining.
     case readyToInstall
     /// About to replace the app and relaunch. The last thing shown before it happens.
     case installing
@@ -75,9 +58,7 @@ public struct MenuBarState: Sendable, Equatable {
     public var recordingAdvice: DictationAdvice
     /// Newest first.
     public var recents: [MenuBarRecent]
-    /// Whether this build has an update feed to ask. False in every build made before
-    /// one was configured, and in every development build — where an enabled item that
-    /// does nothing would read as a broken app.
+    /// Whether this build has a feed to ask, so no item is enabled that could do nothing.
     public var canCheckForUpdates: Bool
     /// How far along an update is, if one is under way.
     public var updateProgress: UpdateProgress
@@ -103,47 +84,25 @@ public struct MenuBarState: Sendable, Equatable {
 
 // MARK: - What the menu is
 
-/// What choosing a menu item means.
-///
-/// The menu names what it wants rather than reaching for it: window intents carry a
-/// ``Destination`` so that the app owns every window and the menu owns none of them.
+/// What choosing a menu item means, named so the app owns every window and the menu none.
 public enum MenuBarIntent: Sendable, Equatable {
     case startDictation
-    /// Ends a dictation the menu itself began.
-    ///
-    /// Its own intent rather than a second meaning for `startDictation`, so the app
-    /// cannot mistake one for the other while the menu is being rebuilt.
+    /// Ends a dictation, as its own intent so a rebuild cannot mistake it for starting one.
     case stopDictation
     /// Carry out the one fix the current failure offered.
     case recover(RecoveryAction)
-    /// Positions into ``MenuBarState/recents``, so the menu never carries the text of a
-    /// dictation back to the app that already has it.
+    /// A position into ``MenuBarState/recents``, so no text travels back to the app that has it.
     case insertRecent(index: Int)
     case copyRecent(index: Int)
     case open(Destination)
-    /// Opens the clipboard panel, the same one ⇧⌘V opens.
-    ///
-    /// Here because it was nowhere. The panel had exactly one way in, a shortcut nothing
-    /// on screen mentioned, so a user who had not been told it existed could not find it —
-    /// and a comment elsewhere in this app justified the shortcut being optional on the
-    /// grounds that the menu bar could still reach it, which was untrue.
+    /// Opens the clipboard panel, which is otherwise reachable only by a shortcut nothing mentions.
     case openClipboard
-    /// Ask the update feed now, rather than waiting for the next scheduled check.
-    ///
-    /// The one path allowed to put an update window in front of somebody: they asked
-    /// for it. Everything else about updating happens without a window at all.
+    /// Ask the feed now, and the one path allowed to put an update window on screen.
     case checkForUpdates
     case quit
 }
 
-/// One modifier a menu shortcut can use.
-///
-/// An enumeration as well as an option set, because the app target has to translate
-/// these into AppKit's flags and a translation written as a list of `if`s is a list
-/// somebody has to remember to extend. `shift` was added here for the clipboard's
-/// ⇧⌘V and the translation was not, so the menu printed ⌘V beside it — and bound
-/// ⌘V, which is paste. Iterating `allCases` and switching over them makes the next
-/// addition a compile error instead of a wrong shortcut on screen.
+/// One modifier, as a case as well as a flag, so translating them is a switch and not a list of `if`s.
 public enum MenuBarModifier: CaseIterable, Sendable, Equatable {
     case command
     case option
@@ -160,8 +119,7 @@ public struct MenuBarModifiers: OptionSet, Sendable, Equatable {
 
     public static let command = MenuBarModifiers(rawValue: 1 << 0)
     public static let option = MenuBarModifiers(rawValue: 1 << 1)
-    /// Added for the clipboard's ⇧⌘V. The set had only the two the dictation
-    /// shortcut needed, which is why nothing here could describe the other half of the app.
+    /// Added for the clipboard's ⇧⌘V, which the dictation shortcut's two could not describe.
     public static let shift = MenuBarModifiers(rawValue: 1 << 2)
 
     /// The one-modifier value for each case, so the two spellings cannot drift apart.
@@ -189,12 +147,7 @@ public struct MenuBarShortcut: Sendable, Equatable {
         self.modifiers = modifiers
     }
 
-    /// The shortcut the product ships with for dictating.
-    ///
-    /// Held as a constant rather than read from the user's binding because a menu needs
-    /// the character that is typed and a binding stores a positional key code — only
-    /// the platform layer can turn one into the other, and it is not on this side of
-    /// the boundary.
+    /// The shipping dictation shortcut, as a character because a binding stores a key code.
     public static let dictation = MenuBarShortcut(key: " ", modifiers: .option)
 }
 
@@ -203,8 +156,7 @@ public struct MenuBarCommand: Sendable, Equatable {
     public let title: String
     public let intent: MenuBarIntent
     public let shortcut: MenuBarShortcut?
-    /// A disabled item reads as "not yet"; an enabled one that does nothing reads as a
-    /// broken app. Which of the two an item is, is decided here and nowhere else.
+    /// Decided here and nowhere else: an enabled item that does nothing reads as a broken app.
     public let isEnabled: Bool
     /// Shown in place of the row above it while Option is held.
     public let isAlternate: Bool
@@ -242,15 +194,9 @@ public enum MenuBarItem: Sendable, Equatable {
     case command(MenuBarCommand)
 }
 
-/// What is drawn in the menu bar slot.
-///
-/// Two kinds, because the slot answers two different questions. At rest it says whose
-/// app this is, and the mark does that better than any system symbol can. The moment
-/// something is happening it has to say *what*, and there the shared vocabulary of SF
-/// Symbols is worth more than a logo.
+/// What is drawn in the slot: the mark at rest, and a symbol the moment something is happening.
 public enum MenuBarIcon: Sendable, Hashable {
-    /// The Uttrflow mark, shipped as a template image so the system tints it for a
-    /// light or dark bar.
+    /// The Uttrflow mark, a template image so the system tints it for the bar.
     case mark
     /// An SF Symbol, by name.
     case symbol(String)
@@ -262,8 +208,7 @@ public struct MenuBarPresentation: Sendable, Equatable {
     public let icon: MenuBarIcon
     public let statusLine: String
     public let emphasis: MenuBarEmphasis
-    /// Read aloud by VoiceOver. An icon is not a sentence, and for many users the
-    /// icon is the only part of Uttrflow that is ever on screen.
+    /// Read aloud by VoiceOver, for whom the icon is often the only part of Uttrflow on screen.
     public let accessibilityLabel: String
     public let items: [MenuBarItem]
 
@@ -278,12 +223,10 @@ public struct MenuBarPresentation: Sendable, Equatable {
         self.items = items
     }
 
-    /// Whether the icon should be tinted rather than drawn as a plain template.
-    /// Derived, so the icon and the status line cannot disagree about the same moment.
+    /// Whether the icon is tinted, derived so it cannot disagree with the status line.
     public var isAttentionNeeded: Bool { emphasis == .attention }
 
-    /// Every command in the menu, in order. Lets a caller — most usefully a test — ask
-    /// what is on offer without walking past the separators and headers.
+    /// Every command in order, so a caller need not walk past separators and headers.
     public var commands: [MenuBarCommand] {
         items.compactMap { if case .command(let command) = $0 { command } else { nil } }
     }
@@ -291,17 +234,10 @@ public struct MenuBarPresentation: Sendable, Equatable {
 
 // MARK: - Deciding it
 
-/// Works out the whole menu from the state of the product.
-///
-/// Pure, and the only place that decides what the menu bar offers. The controller that
-/// draws it makes no judgement of its own, so the icon, the status line, VoiceOver and
-/// whether an item is greyed out can never tell the user three different stories about
-/// the same moment.
+/// Works out the whole menu, and is the only place that decides what the menu bar offers.
 public enum MenuBarPresenter {
     public static func present(_ state: MenuBarState) -> MenuBarPresentation {
-        // Only a failure that has been placed in the menu bar may light the icon up. A
-        // degraded one already said its piece next to the work; shouting about it here
-        // as well would leave an orange menu bar over an app that is working fine.
+        // Only a failure placed here lights the icon, or a working app wears an orange bar.
         let needsAttention = state.failure?.placement == .menuBar
         let emphasis: MenuBarEmphasis =
             if needsAttention {
@@ -324,11 +260,7 @@ public enum MenuBarPresenter {
 
     // MARK: The icon
 
-    /// Idle, recording, working, done — and, above all of them, something wrong.
-    ///
-    /// Resting is the mark; the rest are symbols. All four still differ from one
-    /// another, which is the point: someone who never opens the menu can still tell
-    /// from the bar alone whether the microphone is live.
+    /// Four states that differ at a glance, so the bar alone says whether the microphone is live.
     static func icon(for activity: DictationActivity, needsAttention: Bool) -> MenuBarIcon {
         guard !needsAttention else { return .symbol("exclamationmark.triangle.fill") }
         return switch activity {
@@ -341,17 +273,11 @@ public enum MenuBarPresenter {
 
     // MARK: The status line
 
-    /// What is happening, in one short line.
-    ///
-    /// A failure takes precedence over everything: it is the reason the user opened the
-    /// menu. Otherwise setting up outranks resting, because a "Ready" that cannot
-    /// dictate is worse than saying nothing at all.
+    /// What is happening, failure first, and setting up above resting.
     static func statusLine(for state: MenuBarState) -> String {
         if let failure = state.failure { return failure.headline }
 
-        // Above the model and the dictation activity, and below a failure. An update
-        // that is installing is about to take the app away, which outranks anything the
-        // app is otherwise doing — but it is not a problem, so it does not outrank one.
+        // Above the model and the activity, below a failure: it takes the app away, but is not a fault.
         if let updating = updateLine(for: state.updateProgress) { return updating }
 
         switch state.speechModel {
@@ -372,13 +298,7 @@ public enum MenuBarPresenter {
         }
     }
 
-    /// What an update in progress says, or `nil` when none is.
-    ///
-    /// "Checking" is deliberately absent: a check happens every six hours on a timer
-    /// nobody asked about, and a status line that flickers between "Ready" and
-    /// "Checking for updates…" four times a day is noise about something that needs no
-    /// attention. It is shown only when the user pressed the button — which is the one
-    /// case where somebody is waiting for the answer.
+    /// What an update in progress says, with "checking" absent unless the user asked.
     static func updateLine(for progress: UpdateProgress) -> String? {
         switch progress {
         case .idle: nil
@@ -394,16 +314,12 @@ public enum MenuBarPresenter {
         }
     }
 
-    /// Clamped because a download reporting 103% is a bug in the downloader, and the
-    /// menu bar is the wrong place to find out about it.
+    /// Clamped, because the menu bar is the wrong place to learn the downloader has a bug.
     static func percentage(of fraction: Double) -> Int {
         Int((min(max(fraction, 0), 1) * 100).rounded())
     }
 
-    /// The status line as VoiceOver should read it.
-    ///
-    /// Built from the same string rather than written out a second time: two lists of
-    /// wordings drift, and the one that drifts is always the one nobody can see.
+    /// The status line as VoiceOver reads it, built from the same string so the two cannot drift.
     static func spokenForm(of statusLine: String) -> String {
         // An ellipsis means "still going" to the eye and nothing at all to the ear.
         let spoken = String(statusLine.filter { $0 != "…" })
@@ -418,20 +334,14 @@ public enum MenuBarPresenter {
     ) -> [MenuBarItem] {
         var items: [MenuBarItem] = [.status(text: statusLine, emphasis: emphasis)]
 
-        // The problem and its one fix sit together at the top. Anything between them
-        // would make the user hunt for the way out of the thing they came here about.
+        // The problem and its fix together at the top, with nothing between them.
         if let action = state.failure?.action {
             items.append(
                 .command(MenuBarCommand(title: menuTitle(for: action), intent: .recover(action.recovery))))
         }
         items.append(.separator)
 
-        // A toggle, not a one-way door. It used to say "Start Dictation" always, with no
-        // stop anywhere in the menu: a dictation begun from here left the microphone open
-        // with the item still reading "Start Dictation" and still enabled, and the only
-        // way out was the shortcut — a short tap of which hits the slip rule and silently
-        // discards everything recorded, while a long hold dumps the whole accumulated
-        // buffer into whatever happens to be focused by then.
+        // A toggle, so a dictation begun here has a way to end here.
         items.append(
             .command(
                 MenuBarCommand(
@@ -440,8 +350,7 @@ public enum MenuBarPresenter {
                     shortcut: .dictation,
                     isEnabled: isDictating(in: state) || canStartDictation(in: state))))
 
-        // Directly under dictation, because these are the app's two halves and the menu is
-        // where somebody looks when they have forgotten the shortcut for either.
+        // Directly under dictation: the app's two halves, and this is where a forgotten shortcut is looked up.
         items.append(
             .command(
                 MenuBarCommand(
@@ -451,8 +360,7 @@ public enum MenuBarPresenter {
         items.append(contentsOf: recentItems(for: state))
 
         items.append(.separator)
-        // Both windows exist as of this phase, so both are offered. The menu names the
-        // place and the app opens it; nothing here knows a window from a hole in the wall.
+        // The menu names the place and the app opens it.
         items.append(
             .command(
                 MenuBarCommand(
@@ -463,9 +371,7 @@ public enum MenuBarPresenter {
                 MenuBarCommand(
                     title: "Settings…", intent: .open(.settings(.general)),
                     shortcut: MenuBarShortcut(key: ",", modifiers: .command))))
-        // Only in a build that can actually update. An enabled item that does nothing
-        // reads as a broken app, and a disabled one in every development build reads as
-        // a feature somebody forgot to finish.
+        // Only in a build that can update, since neither an enabled nor a greyed item would read well.
         if state.canCheckForUpdates {
             items.append(
                 .command(
@@ -481,24 +387,18 @@ public enum MenuBarPresenter {
         return items
     }
 
-    /// Three separate reasons dictation cannot begin, and the item is greyed for all of
-    /// them: pressing something and having nothing happen reads as a broken app, and a
-    /// user who has just been refused the microphone would believe it.
-    /// Whether the microphone is open right now, and so whether the item must offer a
-    /// way to close it.
-    ///
-    /// `.working` is deliberately not included: transcription cannot be stopped, and an
-    /// enabled Stop that did nothing would be worse than a greyed one.
     /// What a recording says about itself, counting down once it nears its cap.
     static func listeningLine(for advice: DictationAdvice) -> String {
         guard let remaining = RemainingTime.phrase(for: advice) else { return "Listening…" }
         return "Listening… \(remaining)"
     }
 
+    /// Whether the microphone is open, and so whether Stop must be offered. Never while working.
     static func isDictating(in state: MenuBarState) -> Bool {
         state.activity == .listening
     }
 
+    /// Greyed for all three reasons dictation cannot begin, since a dead item reads as broken.
     static func canStartDictation(in state: MenuBarState) -> Bool {
         guard state.failure?.severity != .blocking else { return false }
         guard state.speechModel == .ready else { return false }
@@ -508,15 +408,11 @@ public enum MenuBarPresenter {
         }
     }
 
-    /// The Recent section, or nothing at all.
-    ///
-    /// Absent rather than present-and-empty: a permanently greyed "No recent dictations"
-    /// row is a line of the menu spent telling the user something they can already see.
+    /// The Recent section, absent rather than empty, since a greyed row says nothing.
     static func recentItems(for state: MenuBarState) -> [MenuBarItem] {
         guard !state.recents.isEmpty else { return [] }
 
-        // Reaching into the pipeline's output while the pipeline is running it would
-        // race the insertion that is already on its way.
+        // Reaching in while the pipeline runs would race the insertion already on its way.
         let isEnabled = !isBusy(state.activity)
         var items: [MenuBarItem] = [.sectionHeader("Recent")]
         for (index, recent) in state.recents.enumerated() {
@@ -525,8 +421,7 @@ public enum MenuBarPresenter {
                     MenuBarCommand(
                         title: recent.title, intent: .insertRecent(index: index),
                         isEnabled: isEnabled, tooltip: recent.fullText)))
-            // Copying is the rarer wish, so it hides behind Option on the same row
-            // rather than doubling the length of the section.
+            // Copying hides behind Option rather than doubling the section's length.
             items.append(
                 .command(
                     MenuBarCommand(
@@ -544,8 +439,7 @@ public enum MenuBarPresenter {
         }
     }
 
-    /// The same words as the banner button, plus the ellipsis that macOS menus put on
-    /// anything which opens something else before it does what it says.
+    /// The banner button's words, plus the ellipsis macOS puts on anything that opens something first.
     static func menuTitle(for action: FailureAction) -> String {
         switch action.recovery {
         case .openSystemSettings: "\(action.title)…"
