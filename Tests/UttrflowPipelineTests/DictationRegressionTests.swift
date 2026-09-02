@@ -193,7 +193,10 @@ private final class SteppingClock: Clock, Sendable {
 
     var minimumResolution: Duration { .nanoseconds(1) }
 
-    func sleep(until deadline: Instant, tolerance: Duration?) async throws {}
+    /// Waits to be cancelled: returning at once would make every deadline win its race.
+    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+        try await Task.sleep(for: .seconds(60))
+    }
 }
 
 // MARK: - Fixtures

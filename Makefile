@@ -34,6 +34,14 @@ lint: ## Fail on any style or documentation violation.
 offline-audit: ## Prove the dictation path still cannot reach the network.
 	./Scripts/offline_audit.sh
 
+.PHONY: comment-audit
+comment-audit: ## Prove no file gained a multi-line comment. Needs no build.
+	@python3 Scripts/comment_audit.py
+
+.PHONY: comment-report
+comment-report: ## List the multi-line comments left, worst file first.
+	@python3 Scripts/comment_audit.py --report
+
 .PHONY: pii-audit
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
 	./Scripts/pii_audit.sh
@@ -52,7 +60,7 @@ pii-audit: ## Prove no personal data is in the tree. Needs no build.
 # without anybody noticing: a check nothing runs is a check that is already wrong, and
 # this one polices the claim the whole product is sold on.
 .PHONY: verify
-verify: pii-audit lint build coverage offline-audit ## The whole gate: PII, lint, build, tests, coverage floor, offline audit.
+verify: pii-audit comment-audit lint build coverage offline-audit ## The whole gate: PII, comments, lint, build, tests, coverage floor, offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.

@@ -1,15 +1,14 @@
 public import UttrflowCore
 
 extension RawTranscript {
-    /// Turns a recogniser's raw output into the product's ``Transcription``.
-    ///
-    /// Pure, and shared by every backend, so the rules below hold no matter which
-    /// recogniser produced the text.
-    public func transcription(audioDuration: Duration) -> Transcription {
+    /// Turns any recogniser's raw output into the product's ``Transcription``, shifted by `offset`.
+    public func transcription(
+        audioDuration: Duration, startingAt offset: Duration = .zero
+    ) -> Transcription {
         Transcription(
             text: Self.cleaned(text),
             detectedLanguage: detectedLanguage,
-            segments: segments.map(\.transcriptionSegment),
+            segments: segments.map { $0.transcriptionSegment(shiftedBy: offset) },
             audioDuration: audioDuration
         )
     }
@@ -19,18 +18,7 @@ extension RawTranscript {
         return DetectedLanguage(code: code, confidence: languageProbability)
     }
 
-    /// Removes the bracketed markers recognisers emit for things that are not speech
-    /// — `[BLANK_AUDIO]`, `(music)`, `[ Silence ]`.
-    ///
-    /// Whisper produces these routinely on a quiet recording, and typing them into
-    /// the user's document would be worse than typing nothing. Three conditions have
-    /// to hold together, because each alone destroys real dictation:
-    ///
-    /// - the bracket stands alone, not attached to a word — otherwise `get_user(id)`
-    ///   loses its argument, and dictating code is a headline use of this product;
-    /// - the contents are only letters — otherwise `[1, 2, 3]` disappears;
-    /// - there are at most three words — otherwise a spoken aside in parentheses goes
-    ///   with them.
+    /// Removes bracketed non-speech markers such as `[BLANK_AUDIO]`. See `Docs/silence.md`.
     static func cleaned(_ text: String) -> String {
         var result: [Substring] = []
         var remainder = Substring(text)
@@ -70,15 +58,13 @@ extension RawTranscript {
 }
 
 extension RawSegment {
-    fileprivate var transcriptionSegment: TranscriptionSegment {
+    fileprivate func transcriptionSegment(shiftedBy offset: Duration) -> TranscriptionSegment {
         TranscriptionSegment(
             text: RawTranscript.cleaned(text),
-            start: .seconds(start),
-            end: .seconds(end),
+            start: .seconds(start) + offset,
+            end: .seconds(end) + offset,
             words: (words ?? []).map {
-                // Trimmed because Whisper emits its words with the leading space that
-                // joins them, and a token with a space in it is not the word a
-                // correction indexes.
+                // Whisper emits a leading space on each word, which no correction indexes.
                 TranscribedWord(
                     text: $0.text.trimmingCharacters(in: .whitespaces),
                     confidence: $0.probability)

@@ -40,7 +40,9 @@ public enum DictationPresenter {
         return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
     }
 
-    public static func dock(for state: DictationState) -> DockPresentation {
+    public static func dock(
+        for state: DictationState, advice: DictationAdvice = .keepGoing
+    ) -> DockPresentation {
         switch state {
         case .idle:
             DockPresentation(
@@ -53,9 +55,12 @@ public enum DictationPresenter {
                 // What to do rather than what is happening: the waveform and the
                 // recording light already say it is listening, and the one thing
                 // somebody holding a key down needs told is how to stop.
-                symbolName: "mic.fill", primaryLine: "Let go to finish", secondaryLine: nil,
+                symbolName: "mic.fill", primaryLine: "Let go to finish",
+                secondaryLine: RemainingTime.phrase(for: advice),
                 showsWaveform: true, showsProgress: false, isRecording: true, action: nil,
-                accessibilityLabel: "Listening. Let go to finish.")
+                accessibilityLabel: RemainingTime.phrase(for: advice)
+                    .map { "Listening. Let go to finish. \($0)." }
+                    ?? "Listening. Let go to finish.")
 
         // Transcribing and tidying are one wait to the person waiting. Naming them
         // separately would describe the machinery rather than the moment.

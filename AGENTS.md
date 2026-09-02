@@ -1,11 +1,12 @@
 # Working in this repository
 
-<!-- release-policy:v2 -->
+<!-- release-policy:v3 -->
 ## Branching & Release Policy — NON-NEGOTIABLE
 
-**Effective 2026-08-29, when this repository became public and became the only home for
-this project. This supersedes release-policy:v1 and anything in any agent's memory about a
-`beta` branch — that branch belonged to the private repository and does not exist here.**
+**Effective 2026-09-02. Supersedes release-policy:v2, which said agents never merge to
+`main`; rule 5 below now says they may, once a pull request is green. Everything else
+stands, including that this repository is the only home for the project and that the
+`beta` branch in any agent's memory belonged to the private one and does not exist here.**
 
 **One long-lived branch, `main`, always releasable. A release is a tag, not a branch.**
 
@@ -22,12 +23,20 @@ branch / fork  ──PR──>  main  ──tag v0.3.0-rc.1──>  prerelease  
    `make verify` and builds the app bundle; CodeQL and dependency review run beside it.
    Run `make verify` locally anyway — it is the same command, and finding out here is
    faster than finding out in a queue.
-4. **Nobody pushes to `main`.** A ruleset requires a reviewed pull request and blocks
-   force-pushes and deletions. Agents never merge to `main`, never force-push, and never
-   tag. Tagging is the release, and the release is the operator's.
-5. **Your task is done when the PR is open, green, and your branch is cleaned up** — not
-   when it is merged, and certainly not when it is released. Do not ask for a review and do
-   not nudge one along.
+4. **Nobody pushes to `main` directly.** A ruleset blocks force-pushes and deletions,
+   and everything reaches `main` through a pull request. Never force-push `main`, and
+   never tag: tagging is the release, and the release is the operator's.
+5. **An agent may merge its own pull request once it is green** — every required check
+   passed, and the branch up to date with `main` so what merges is what was tested. This
+   reverses release-policy:v2, which said agents never merge. The gate was written for a
+   team with reviewers in it; on a one-person org the review requirement could never be
+   satisfied, so it was not a gate but a queue. What actually catches mistakes here is
+   CI, and CI runs before the merge either way.
+6. **Green means green, not nearly.** A check still running is not a passed check. If
+   you merge past a failing or unfinished check, you are doing it because the operator
+   said to, and you say so plainly when you report it — never silently with `--admin`.
+7. **Your task is done when the work is merged and your branch is cleaned up.** Do not
+   tag, and do not release.
 
 **Releases stay batched and infrequent.** That has not changed; only the mechanism has.
 `main` accumulates merged work, and the operator decides when a commit on it becomes
@@ -47,6 +56,85 @@ propose things that have already been rejected here for reasons the code does no
 
 `PLAN.md` is the live phase tracker. Read it rather than reconstructing the state of the
 project from `git log`.
+
+## Comments: one line, present tense — NON-NEGOTIABLE
+
+**A comment is one line. A doc comment is one line. Both say what the code does now.**
+
+```swift
+/// Refuses audio with no speech in it, so silence is not transcribed as words.
+```
+
+Not:
+
+```swift
+/// Refuses audio with no speech in it.
+///
+/// This used to return quietly to idle, which was indistinguishable from the app
+/// being broken — the user held the key, spoke, let go, and nothing happened. It was
+/// then changed to throw, but the error had no severity, so the menu bar showed it as
+/// a fault. Three attempts later it became what it is now...
+```
+
+Both describe the same function. Only the first is still true in four months.
+
+### The rule
+
+1. **One line per comment block.** No `///` or `//` run longer than one line.
+2. **Present tense, about the present code.** What this function does, what this line
+   is for, what the value means. Not what it did before, not what somebody tried,
+   not how many times something has gone wrong.
+3. **A reason is allowed when it changes what a reader would do** — "kept under the
+   lock because `deinit` can run on any thread" earns its place. A reason that is only
+   a story does not.
+4. **The trailing comment on a line of code is exempt from the length rule** and still
+   bound by the rest.
+
+### Where the rest goes
+
+Some of what these comments carry is genuinely worth keeping: a measured number, a
+platform trap, an approach that was tried and does not work. That belongs in `Docs/`,
+under a heading, where it can be read on purpose and revised as a piece —
+`Docs/silence.md` and `Docs/stuck-recording.md` are what this looks like. Link to it in
+the one line:
+
+```swift
+/// Judges the audio before it is decoded. See `Docs/silence.md`.
+```
+
+**Deleting a hard-won measurement is not the point of this rule.** Moving it somewhere
+it stays true is.
+
+### Why
+
+The comments in this repository were written as a running account of how each decision
+was reached, and there are 17,000 lines of them against 36,000 lines of code. After a
+few months that account is a liability rather than an asset: it describes code that has
+since moved, it buries the one sentence a reader needs under six they do not, and the
+reader cannot tell which parts still hold. What a function *does* is checkable against
+the code in front of you. What it *used to do* is not checkable at all.
+
+### How it is enforced
+
+`Scripts/comment_audit.py` counts multi-line comment blocks per file and fails when any
+file gains one, against `Scripts/comment_baseline.json`. It runs in `make verify`.
+
+The baseline only ever goes down — `--update` refuses to record a higher count for any
+file, and shrinking one file does not pay for growing another. Bring a file you are
+already editing down to the rule and re-record; do not rewrite the whole repository in
+one pass.
+
+```bash
+python3 Scripts/comment_audit.py --report                 # what is left, worst first
+python3 Scripts/comment_audit.py --update                 # re-record after improving a file
+python3 Scripts/comment_audit.py --update --after-merge   # only when main moved under you
+```
+
+`--after-merge` is the one way a count may rise, and it exists because rebasing onto
+`main` brings in files this rule has not reached yet — blocking a branch on those would
+punish whoever rebased rather than whoever wrote them. It prints every rise and records
+it, so the increase appears in `comment_baseline.json`'s diff where a reviewer can see
+it. Do not reach for it to excuse your own comments.
 
 ## Where this sits
 
@@ -135,11 +223,16 @@ lunchtime, and rebasing is what keeps the diff in the pull request the change yo
 made. Rebasing an unpushed branch is not rewriting pushed history,
 so the rule above does not conflict with this one.
 
-**Nothing an agent does touches `main` except through a reviewed pull request.** Not a
-direct merge, not a rebase onto it, not a tag, not a docs commit that seems too small to
-matter. A ruleset blocks it at the server, so this is a description of what will happen
-rather than a request. If you find yourself with a commit on `main`, stop and say so
-rather than tidying it away.
+**Nothing an agent does touches `main` except through a pull request.** Not a direct
+push, not a rebase onto it, not a tag, not a docs commit that seems too small to matter.
+A ruleset blocks it at the server, so this is a description of what will happen rather
+than a request. If you find yourself with a commit on `main`, stop and say so rather
+than tidying it away.
+
+**Merging is not reviewing.** Nobody else read the change, so the pull request is where
+you write down what you would have wanted a reviewer to know: what was measured, what
+was assumed, and what you are least sure of. A merge that ends the conversation is worse
+than no merge at all.
 
 **Clear the worktree the moment the work is merged.** `git worktree remove` and delete the
 branch. Four stale worktrees once sat holding pre-rename copies of the whole tree, and an

@@ -88,19 +88,39 @@ struct ManualClockTests {
         #expect(start.duration(to: clock.now) == .seconds(3))
     }
 
-    @Test("jumps straight to a deadline instead of waiting")
-    func sleepIsInstant() async throws {
+    @Test("waits until the clock is advanced to the deadline")
+    func sleepWaitsForTheDeadline() async throws {
         let clock = ManualClock()
-        try await clock.sleep(until: clock.now.advanced(by: .seconds(10)), tolerance: nil)
+        let sleeping = Task {
+            try await clock.sleep(until: clock.now.advanced(by: .seconds(10)), tolerance: nil)
+        }
+
+        while clock.sleeperCount == 0 { await Task.yield() }
+        clock.advance(by: .seconds(10))
+        try await sleeping.value
+
         #expect(ManualClock.Instant(offset: .zero).duration(to: clock.now) == .seconds(10))
     }
 
-    @Test("never moves backwards when asked to sleep until a past deadline")
+    @Test("returns at once when the deadline has already passed")
     func sleepDoesNotRewind() async throws {
         let clock = ManualClock()
         clock.advance(by: .seconds(5))
         try await clock.sleep(until: ManualClock.Instant(offset: .seconds(1)), tolerance: nil)
         #expect(ManualClock.Instant(offset: .zero).duration(to: clock.now) == .seconds(5))
+    }
+
+    @Test("a cancelled sleep throws instead of waiting for ever")
+    func sleepIsCancellable() async {
+        let clock = ManualClock()
+        let sleeping = Task {
+            try await clock.sleep(until: clock.now.advanced(by: .seconds(10)), tolerance: nil)
+        }
+        while clock.sleeperCount == 0 { await Task.yield() }
+        sleeping.cancel()
+
+        let result = await sleeping.result
+        #expect(throws: CancellationError.self) { try result.get() }
     }
 
     @Test("orders instants by their offset")
