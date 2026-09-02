@@ -1,15 +1,11 @@
 public import Foundation
 public import UttrflowClipboard
 
-/// What choosing something on a row means.
-///
-/// Named rather than carried as a closure, for the reason ``MainIntent`` gives: a row has
-/// to be comparable in a test, and a closure is not.
+/// What choosing something on a row means, named rather than a closure so a row compares.
 public enum PanelIntent: Sendable, Equatable {
     /// Put this clip where the cursor was, and close. Exactly what Return does.
     case insert(Clip.ID)
-    /// Put it back on the clipboard without pasting it, for a paste the user will make
-    /// themselves, somewhere the panel cannot reach.
+    /// Put it back on the clipboard without pasting, for somewhere the panel cannot reach.
     case copy(Clip.ID)
     case pin(Clip.ID)
     case unpin(Clip.ID)
@@ -28,10 +24,7 @@ public enum PanelIntent: Sendable, Equatable {
     case makeNote(Clip.ID)
     /// E5 — tick or untick a box in a note.
     case tickBox(Clip.ID, index: Int)
-    /// F9 — put back the clip the last delete removed.
-    ///
-    /// Carries no identity because the clip no longer has one the panel can see: the
-    /// store has forgotten it and only the app is still holding it.
+    /// F9 — put back the clip the last delete removed, which only the app still holds.
     case undoDelete
     /// H3 — keep the text of a search that found nothing.
     case keepQuery(String)
@@ -48,13 +41,7 @@ public enum PanelIntent: Sendable, Equatable {
     /// G6 — delete it, having first asked where its clips go.
     case deleteCategory(String)
 
-    /// The keystroke this intent is, where the panel can answer it itself.
-    ///
-    /// `nil` for the ones only the store can carry out. The mapping lives here so that a
-    /// row's Insert button and the Return key are provably one path: a second
-    /// implementation of "insert the clip on this row" is a second thing to keep in step
-    /// with the first, and the day they part is the day the mouse and the keyboard paste
-    /// different clips.
+    /// The keystroke this intent is, so the Insert button and Return are provably one path.
     public var key: PanelKey? {
         switch self {
         case .insert(let id): .choose(id)
@@ -67,12 +54,7 @@ public enum PanelIntent: Sendable, Equatable {
         case .tickBox(let id, let index): .tickBox(id, index: index)
         case .renameCategory(let name): .renameCategory(name)
         case .deleteCategory(let name): .deleteCategory(name)
-        // D5 belongs here and not above. Running a formatter means running another
-        // program, which this model cannot do, so the app has to hear about it. It used
-        // to answer `.format` with a key, and both the view and the app short-circuit on
-        // a key — so the intent went to the model, the model had nothing to do with it,
-        // and the button did nothing at all. A key here is not a small inaccuracy; it is
-        // the difference between the action happening and not.
+        // D5 — no key: running a formatter is another program, which only the app can do.
         case .scope(let scope): .scope(scope)
         case .format, .copy, .pin, .unpin, .undoDelete, .keepQuery, .openAccessibilitySettings,
             .openSettings, .dictate:
@@ -81,24 +63,14 @@ public enum PanelIntent: Sendable, Equatable {
     }
 }
 
-/// What a bottom-bar button is drawn with.
-///
-/// Two cases rather than a string, because one of the four tabs is Uttrflow's own and the
-/// mark is a `Shape` rather than anything a name can fetch. The alternative was a
-/// reserved symbol name the view knew to intercept — a string that means "not a string",
-/// which the copy tests cannot tell apart from a typo in a real one.
+/// What a bottom-bar button is drawn with, as cases rather than a name a `Shape` cannot answer.
 public enum PanelTabGlyph: Sendable, Equatable {
     case symbol(String)
-    /// The Uttrflow mark, drawn at the size the bar asks for. Carries no colour of its
-    /// own; the bar tints it like every other glyph, active or dim.
+    /// The Uttrflow mark, tinted by the bar like every other glyph.
     case brandMark
 }
 
-/// One button in the bottom bar.
-///
-/// `intent` rather than a bare scope, because the bar mixes two kinds of thing: four
-/// slices of the clipboard and one way out of it. A view that had to tell them apart
-/// would be deciding, which is not its job.
+/// One button in the bottom bar, carrying an intent because the bar mixes slices with a way out.
 public struct PanelTab: Sendable, Equatable, Identifiable {
     public let title: String
     public let glyph: PanelTabGlyph
@@ -120,12 +92,7 @@ public struct PanelAction: Sendable, Equatable, Identifiable {
     public let title: String
     public let symbolName: String
     public let intent: PanelIntent
-    /// Whether this action takes something away.
-    ///
-    /// Decided here rather than inferred by whoever draws it. The view's guess would have
-    /// been the trash symbol or the last position in the list, and both are true of Delete
-    /// today by coincidence: an action added after it, or given a different icon, would
-    /// silently stop being marked.
+    /// Whether this action takes something away, decided here. See `Docs/panel.md`.
     public let isDestructive: Bool
 
     public var id: String { title }
@@ -148,64 +115,34 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let kind: ClipKind
     /// SF Symbol for the icon at the head of the row.
     public let symbolName: String
-    /// How long ago, in words: "2 minutes ago".
-    ///
-    /// No longer drawn on the row. It said "1 day ago" on eleven rows at once — a column
-    /// repeating itself down the panel, answering a question nobody asks while scanning.
-    /// It survives inside ``detail``, which the ⋯ menu puts above one clip at the moment
-    /// that clip is being asked about.
+    /// How long ago, in words, for ``detail`` — the row itself does not draw it.
     public let when: String
-    /// The line under the clip's own words in the ⋯ menu: what it is, when it arrived and
-    /// where from — "Text · 41 minutes ago · Claude".
-    ///
-    /// Assembled here because each part is a presentation decision and two of them are
-    /// conditional: a clip old enough to predate the source being recorded has no "where
-    /// from", and saying so would be a dangling separator.
+    /// The ⋯ menu's line — "Text · 41 minutes ago · Claude" — joined only where each part exists.
     public let detail: String
     /// The handle the user gave it, shown as they typed it.
     public let alias: String?
     public let category: String?
     public let isPinned: Bool
-    /// Whether what is drawn is bullets rather than the clip. Said out loud so the view
-    /// can mark the row, and so nothing downstream mistakes the bullets for the text.
+    /// Whether bullets are drawn rather than the clip, so nothing mistakes one for the other.
     public let isMasked: Bool
     public let isSelected: Bool
     /// Why this row is in the list. `nil` when nothing was typed and every clip is here.
     public let matched: PanelMatchField?
-    /// K4 — what a picture clip says about itself: "PNG · 1024 × 768 · 240 KB".
-    ///
-    /// A picture has no text, so without this its row is a blank line with an icon. The
-    /// numbers are what distinguishes one screenshot from the four below it.
+    /// K4 — what a picture row says about itself, since it has no text. See `Docs/panel.md`.
     public let measurements: String?
     /// K4 — the picture to draw beside the row, or `nil` when there is none to draw.
     public let imageFile: URL?
-    /// B8 — the picture this row is about is no longer on disk.
-    ///
-    /// The row stays: the clip is still a real record of something copied, and removing it
-    /// would look like the app had lost it rather than the file having gone.
+    /// B8 — the picture has gone from disk, though the row stays. See `Docs/panel.md`.
     public let isImageMissing: Bool
-    /// E5 — how much of a checklist is done, as "2 of 5", or `nil` when the clip has no
-    /// boxes. A checklist is the one kind of note whose state is the interesting part.
+    /// E5 — how much of a checklist is done, as "2 of 5", or `nil` when it has no boxes.
     public let checklist: String?
-    /// D1 — the language chip, or `nil` when there is no confident answer. Short, because
-    /// it sits on a 420-point row: "ts", not "TypeScript".
+    /// D1 — the language chip, short enough for a 420-point row: "ts", not "TypeScript".
     public let language: String?
-    /// Whether the summary is set in a monospaced face. Decided here, like everything
-    /// else about the row, so that the view has no judgement of its own to get wrong.
+    /// Whether the summary is monospaced, decided here so the view has no judgement to get wrong.
     public let isMonospaced: Bool
     public let actions: [PanelAction]
 
-    /// C6 — the whole line, shown after a pause, because a row truncates and a pointer
-    /// resting on one is a question about the rest.
-    ///
-    /// `nil` on a masked row. Not because the secret would otherwise escape — ``summary``
-    /// is already bullets by then, so the tooltip would show bullets too — but because a
-    /// tooltip exists to give back what the row had to cut, and a masked row cut nothing
-    /// the pointer is entitled to. A panel of bullets appearing under the cursor would
-    /// read as the mask being lifted, and it is not.
-    ///
-    /// Here rather than in the view, where it used to be a conditional on `.help` that no
-    /// test could reach — the same place the menu bar's lost shift modifier was hiding.
+    /// C6 — the whole line for a truncated row, and never on a masked one. See `Docs/panel.md`.
     public var tooltip: String? {
         isMasked ? nil : summary
     }
@@ -273,31 +210,16 @@ public struct PanelCategoryChip: Sendable, Equatable, Identifiable {
     public let title: String
     /// The collection, or `nil` for the chip that shows all of them.
     public let category: String?
-    /// The ⌘-number printed beside it. Absent past the ninth, because there is no ⌘10
-    /// and printing a shortcut that does not work is worse than printing none.
+    /// The ⌘-number printed beside it, absent past the ninth. See `Docs/panel.md`.
     public let shortcut: Int?
-    /// Which collection this is, counting from 2 — 1 belongs to "everything".
-    ///
-    /// Separate from ``shortcut`` because they answer different questions. A shortcut is
-    /// what is *printed*, and stops at the ninth; a position is what pressing the chip
-    /// *means*, and does not. Reusing the shortcut for both made every collection past
-    /// the ninth send 0, which the snapshot rejects — so the tenth chip was drawn like
-    /// the others, said nothing about being different, and did nothing when clicked.
+    /// Which collection this is, counting from 2, and not the same as ``shortcut``. See `Docs/panel.md`.
     public let position: Int
     public let isActive: Bool
 
-    /// The number pressing this chip sends.
-    ///
-    /// Its own position, unless this is already the collection being shown — then 1,
-    /// which means everything. That is the whole way out of a collection: press it
-    /// again. There is no "All" chip beside the collections, because the row they share
-    /// already begins with the kind filters' own All, and two chips reading "All" a few
-    /// points apart, meaning different things, reads as a bug rather than a choice.
+    /// What pressing this chip sends: its position, or 1 when it is already chosen. See `Docs/panel.md`.
     public var chosen: Int { isActive ? 1 : position }
 
-    /// Distinct even from a collection somebody has named "All": the identity is the
-    /// collection itself, and the chip that shows everything is the one with no
-    /// collection behind it.
+    /// The collection itself, so a collection named "All" is still distinct from everything.
     public var id: String { category ?? "" }
 
     public init(
@@ -317,40 +239,25 @@ public struct PanelPresentation: Sendable, Equatable {
     public let filters: [PanelFilterChip]
     /// The bottom bar, left to right.
     public let tabs: [PanelTab]
-    /// Empty when nothing has been filed anywhere: a lone "All" chip is a row of the
-    /// panel spent telling the user something they can already see.
+    /// Empty when nothing is filed anywhere, rather than a lone chip saying nothing.
     public let categories: [PanelCategoryChip]
     public let query: String
     public let searchPlaceholder: String
-    /// Set when — and only when — ``rows`` is empty, and it says which of the four
-    /// nothings this is.
+    /// Set only when ``rows`` is empty, naming which of the four nothings this is.
     public let emptyState: MainEmptyState?
     /// The line along the bottom that teaches the three keystrokes.
     public let hint: String
-    /// Where the clips live, said out loud along the very bottom.
-    ///
-    /// A panel holding everything the user has copied invites the question, and the
-    /// answer has to be here rather than in the view. This line replaced one that said
-    /// the history was "synced across devices", under a tick — a sentence copied from
-    /// the reference design of a product that does sync, describing one that does not.
-    /// It was in the view, where the copy tests cannot see it, which is exactly how it
-    /// survived; every other word the panel says is decided here for that reason.
-    /// The sheet on top of the list — naming, filing or confirming a delete — or `nil`
-    /// when the panel is just a list.
+    /// The sheet over the list — naming, filing or confirming a delete — or `nil` for a plain list.
     public let sheet: PanelSheetPresentation?
-    /// H1 — the same rows, cut into the runs the list is drawn in. Empty when nothing
-    /// has been typed, because then no row is here for a reason worth heading.
+    /// H1 — the same rows cut into runs, and empty until something is typed.
     public let groups: [PanelResultGroup]
-    /// H3 — the one thing to do about an empty result set, or nothing when there is
-    /// nothing sensible to offer. Separate from ``MainEmptyState/action``, which speaks
-    /// the main window's vocabulary rather than the panel's.
+    /// H3 — the one thing to do about an empty result, in the panel's vocabulary.
     public let emptyAction: PanelAction?
     /// B3–B5 — what the panel is saying about a clip it could only copy.
     public let notice: PanelNotice?
     /// I1–I7 — the microphone, and what it can do right now.
     public let microphone: PanelMicrophone
-    /// H7 — what the list is scoped to, when that differs from the chip the user last
-    /// pressed. `nil` while browsing, where the active chip already says it.
+    /// H7 — what the list is scoped to when that differs from the chip last pressed.
     public let scope: String?
 
     public init(
@@ -385,48 +292,31 @@ public struct PanelPresentation: Sendable, Equatable {
         self.scope = scope
     }
 
-    /// The row Return would insert. Lets the view scroll it into sight, and lets the app
-    /// aim a row action at it, without either of them counting rows for itself.
+    /// The row Return would insert, so neither the view nor the app counts rows itself.
     public var selectedRow: PanelRow? { rows.first { $0.isSelected } }
 }
 
-/// Turns the panel's state into the panel.
-///
-/// Pure, and the only place that decides what the panel says. The view draws exactly
-/// this, so the highlight, the mask over a secret and the words under the list cannot
-/// tell three different stories about the same moment.
+/// Turns the panel's state into the panel, and is the only place that decides what it says.
 public enum PanelPresenter {
     /// Says what the field is for *and* teaches the one thing that makes the panel fast.
     public static let searchPlaceholder = "Search, or type an alias"
 
-    /// What is drawn under an empty list is the truth about why it is empty; what is
-    /// drawn under a full one is the gesture, because the panel is most people's first
-    /// and last lesson in how it works.
+    /// The gesture, drawn under a full list, because the panel is most people's only lesson in it.
     public static let hint = "↑↓ to choose · ⏎ to paste · esc to close"
     public static let emptyHint = "esc to close"
-    /// While a sheet is up, `esc` backs out of it rather than closing the panel and
-    /// Return commits it rather than pasting. Saying so is the difference between one
-    /// press of esc and two by reflex, the second of which loses the list.
+    /// A sheet's own keys, which differ from the list's. See `Docs/panel.md`.
     public static let sheetHint = "⏎ to save · esc to go back"
-    /// Offered, not merely available. F7 trades the confirmation dialog away *for* this
-    /// undo, so an undo nobody is told about turns that trade into a loss — the clip is
-    /// gone with neither a question beforehand nor a way back afterwards.
+    /// Offered rather than merely available, because F7 traded the dialog away for it.
     public static let undoHint = "Deleted · ⌘Z to put it back"
 
-    /// Which line goes under the list.
-    ///
-    /// The undo takes precedence while it is live, because it expires in seconds and the
-    /// keys it displaces are on screen every other moment of the panel's life.
+    /// Which line goes under the list, undo first because it expires. See `Docs/panel.md`.
     static func hint(for snapshot: PanelSnapshot, isEmpty: Bool) -> String {
         if snapshot.sheet != nil { return sheetHint }
         if snapshot.canUndoDelete { return undoHint }
         return isEmpty ? emptyHint : hint
     }
 
-    /// A fixed number of bullets, not one per character.
-    ///
-    /// The length of a token is worth something to whoever is looking over the user's
-    /// shoulder, and a mask that leaks it is a mask that only pretends to work.
+    /// A fixed count, not one per character, so the mask cannot leak a token's length.
     static let mask = String(repeating: "•", count: 12)
 
     public static func present(_ snapshot: PanelSnapshot) -> PanelPresentation {
@@ -437,10 +327,7 @@ public enum PanelPresenter {
 
         return PanelPresentation(
             rows: rows,
-            // Off entirely while a collection is the chosen chip. The kind is `.all` in
-            // that state, so without this the row would light All *and* the collection —
-            // two chips on at once, which is the thing the single-selection rule exists
-            // to prevent.
+            // Off while a collection is chosen, or All and the collection would both light.
             filters: PanelFilter.allCases.map {
                 PanelFilterChip(
                     title: $0.title, filter: $0,
@@ -451,8 +338,7 @@ public enum PanelPresenter {
             query: snapshot.query,
             searchPlaceholder: searchPlaceholder,
             emptyState: rows.isEmpty ? emptyState(for: snapshot) : nil,
-            // A sheet has its own keys, so the line teaching the list's keys would be
-            // teaching the wrong ones while one is open.
+            // A sheet has its own keys, so the list's line would be teaching the wrong ones.
             hint: hint(for: snapshot, isEmpty: rows.isEmpty),
             sheet: sheet(for: snapshot),
             groups: groups(
@@ -474,9 +360,7 @@ public enum PanelPresenter {
         let clip = result.clip
         let isMasked = clip.kind == .secret && !snapshot.revealed.contains(clip.id)
         let isGone = clip.image != nil && snapshot.missingImages.contains(clip.id)
-        // H5 — a content match further down a long clip is shown where it was found. A
-        // masked clip is never re-cut: the mask is the whole point, and an excerpt around
-        // the match would print the part of the secret the user searched for.
+        // H5 — never on a masked clip, or the excerpt prints the secret. See `Docs/panel.md`.
         let excerpt =
             isMasked || result.match != .content
             ? nil
@@ -489,8 +373,7 @@ public enum PanelPresenter {
             summary: isMasked ? mask : (excerpt ?? clip.summary),
             kind: clip.kind,
             symbolName: symbolName(for: clip.kind),
-            // The same words the history page uses for the same user's own moments: two
-            // lists that describe "just now" differently make the app look assembled.
+            // The same words the history page uses, or "just now" means two things.
             when: HistoryPresenter.when(
                 clip.copiedAt, relativeTo: snapshot.now, locale: snapshot.locale),
             detail: detail(of: clip, in: snapshot),
@@ -507,16 +390,13 @@ public enum PanelPresenter {
                     snapshot.imagesFolder?.appending(path: image.file, directoryHint: .notDirectory)
                 },
             isImageMissing: isGone,
-            // E5 — a ticked box is content, so its count belongs on the row. Not on a
-            // masked one: how much of a hidden thing is done is still something about it.
+            // E5 — a ticked box is content, so its count belongs on the row.
             checklist: isMasked
                 ? nil
                 : clip.richText.flatMap(NoteChecklist.progress(in:)).map {
                     "\($0.done) of \($0.total)"
                 },
-            // Never on a masked row. The language of a credential is not a secret, but a
-            // chip is one more thing on a row whose entire point is to say as little as
-            // possible until the user asks.
+            // Never on a masked row, which says as little as possible until asked.
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),
             actions: actions(for: clip, isMasked: isMasked, in: snapshot)
@@ -536,20 +416,16 @@ public enum PanelPresenter {
         }
     }
 
-    /// Where the characters matter one by one rather than as words. A masked secret is
-    /// bullets and set the same way, so revealing one does not make the row jump.
+    /// Where characters matter one by one, and masked the same way so revealing does not jump.
     static func isMonospaced(_ kind: ClipKind) -> Bool {
         switch kind {
-        // A path is monospaced for the same reason code is: it is read character by
-        // character, and a mistyped one fails in a way that looks like a missing file.
+        // A path is read character by character, as code is.
         case .code, .colour, .secret, .filePath: true
         case .text, .link, .image: false
         }
     }
 
-    /// Insert first, because it is what the row is for. Reveal comes next on a masked
-    /// row — it is the thing that has to happen before the user can judge the rest — and
-    /// pinning is last, because it is about tomorrow rather than about this second.
+    /// Insert first because it is what the row is for, then reveal, and pinning last.
     static func actions(
         for clip: Clip, isMasked: Bool, in snapshot: PanelSnapshot
     )
@@ -566,19 +442,13 @@ public enum PanelPresenter {
             clip.isPinned
                 ? PanelAction(title: "Unpin", symbolName: "pin.slash", intent: .unpin(clip.id))
                 : PanelAction(title: "Pin", symbolName: "pin", intent: .pin(clip.id)))
-        // Reads Rename when there is already a name: "Name" over a clip that has one
-        // invites the user to expect a second alias rather than a change to the one it has.
+        // Rename when there is a name, or the user expects a second alias.
         actions.append(
             PanelAction(
                 title: clip.alias == nil ? "Name" : "Rename", symbolName: "tag",
                 intent: .alias(clip.id)))
         actions.append(PanelAction(title: "Move", symbolName: "folder", intent: .move(clip.id)))
-        // D4 — offered only when it would do something. `reindented` answers `nil` both for
-        // a clip that is already consistent and for every clip it cannot be certain about,
-        // so the presence of this action is itself the promise that pressing it is safe.
-        // D5 — offered only where a formatter for that language is installed. Never
-        // automatic: a formatter rewrites code, and the user asks for that or it does not
-        // happen.
+        // D4, D5 — offered only where it would do something and a formatter exists.
         if let language = clip.language, snapshot.formattableLanguages.contains(language) {
             actions.append(
                 PanelAction(
@@ -589,9 +459,7 @@ public enum PanelPresenter {
                 PanelAction(
                     title: "Re-indent", symbolName: "text.alignleft", intent: .reindent(clip.id)))
         }
-        // E6 — offered only on a clip that is not already a note. Promoting twice would
-        // replace a note the user has written with a fresh copy of its own plain text,
-        // which is the one way this action could destroy something.
+        // E6 — never on a note already, or promoting replaces what the user wrote.
         if clip.richText == nil {
             actions.append(
                 PanelAction(
@@ -606,21 +474,7 @@ public enum PanelPresenter {
         return actions
     }
 
-    /// K4 — what a picture row says about itself, and B8 — what it says instead when the
-    /// picture has gone. The reason replaces the numbers rather than joining them: the
-    /// size of a file that is not there is not the useful half.
-    /// What a picture row says about itself: where it came from, and what it weighs.
-    ///
-    /// The application, not the pixel dimensions, because the question a row has to
-    /// answer is "which screenshot is this" and 922 × 1362 does not answer it. The name
-    /// of the file would be better still and there is never one: a screenshot copied
-    /// with the keyboard puts raw PNG on the pasteboard and nothing else — no URL, no
-    /// name — and an image file copied in Finder arrives as a path, which becomes a file
-    /// clip whose row already shows that path. So the application it was taken from is
-    /// the identifying thing that actually exists, and it is the one people recognise.
-    ///
-    /// Dimensions are the fallback rather than the answer, for the clips old enough to
-    /// predate the source being recorded.
+    /// K4, B8 — what a picture row says, or why it cannot. See `Docs/panel.md`.
     static func measurements(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
         guard let image = clip.image else { return nil }
         if snapshot.missingImages.contains(clip.id) {
@@ -633,12 +487,7 @@ public enum PanelPresenter {
         return "\(from) · \(weight)"
     }
 
-    /// What the ⋯ menu says under the clip's own words.
-    ///
-    /// Three parts, joined only where they exist. The kind is named as the user would name
-    /// it rather than as the enum spells it; the source is absent on clips that predate it
-    /// being recorded, and on anything Uttrflow made it is the word "Dictation", which is
-    /// the one case where the provenance is worth more than the application name.
+    /// What the ⋯ menu says under the clip's words: kind, age and source, where each exists.
     static func detail(of clip: Clip, in snapshot: PanelSnapshot) -> String {
         var parts = [noun(for: clip.kind).capitalized]
         parts.append(
@@ -672,14 +521,7 @@ public enum PanelPresenter {
 
     // MARK: - The chips
 
-    /// The collection the row draws as chosen, which is not always the one the snapshot
-    /// holds.
-    ///
-    /// While there is a query the search spans every collection, so drawing one as chosen
-    /// would tell the user their search had been narrowed when it had not — and the rows
-    /// from other collections would read as a bug. The snapshot keeps its collection
-    /// regardless: this is what is *shown*, and emptying the field brings it straight
-    /// back.
+    /// The collection drawn as chosen, which a query replaces with All. See `Docs/panel.md`.
     static func shownCategory(for snapshot: PanelSnapshot) -> String? {
         let searching = !snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return searching ? nil : PanelSnapshot.name(snapshot.category)
@@ -689,25 +531,9 @@ public enum PanelPresenter {
         let names = snapshot.categories
         guard !names.isEmpty else { return [] }
 
-        // While there is a query the search spans every tab, so All is the chip that is
-        // true. Drawing the open tab as active over a result set that is not confined to
-        // it would tell the user their search had been narrowed when it had not — and
-        // the rows from other tabs would read as a bug.
-        //
-        // The snapshot keeps its category regardless: this is what is *shown*, and
-        // emptying the search field brings the tab straight back.
+        // A query spans every tab, so All is the chip that is true.
         let active = shownCategory(for: snapshot)
-        // No "All" chip at all.
-        //
-        // The collections share a row with the kind filters, and that row already begins
-        // with an "All" meaning every *kind*. A second one a few points away meaning
-        // every *collection* reads as a bug rather than as a choice — and drawing it
-        // only while a collection was chosen just moved the confusion to the moment
-        // somebody was looking at it.
-        //
-        // The way out of a collection is the collection itself, pressed again; see
-        // `PanelCategoryChip.chosen`. Command-1 still means everything, so the
-        // collections keep numbering from 2 whether anything is drawn for 1 or not.
+        // No "All" chip: the shared row already begins with one. See `Docs/panel.md`.
         var chips: [PanelCategoryChip] = []
         for (offset, name) in names.enumerated() {
             let number = offset + 2
@@ -721,16 +547,7 @@ public enum PanelPresenter {
         return chips
     }
 
-    /// The bottom bar: the four slices of the clipboard, then the way to settings.
-    ///
-    /// Settings is last and never drawn as active, because it is not a place the panel
-    /// can be — it is a door out of it. Everything before it is somewhere the list can
-    /// actually be, and exactly one of those is on.
-    ///
-    /// The order is ``PanelScope``'s own, which puts From Uttrflow second — beside
-    /// History, since the two are the same question asked of two streams, and before the
-    /// two tabs that are about what the user did with a clip rather than where it came
-    /// from.
+    /// The bottom bar: four slices the list can be, then settings, which it cannot.
     static func tabs(for snapshot: PanelSnapshot) -> [PanelTab] {
         PanelScope.allCases.map {
             PanelTab(
@@ -744,11 +561,7 @@ public enum PanelPresenter {
             ]
     }
 
-    /// Where the panel is looking, for the sentence an empty one has to write.
-    ///
-    /// Four strings rather than one, because the same place is named differently depending
-    /// on what else is narrowing: "Nothing pinned" on its own, "No Code pinned" as a title
-    /// beside a kind, and "Nothing you have pinned is code" as the sentence under it.
+    /// Where the panel is looking, named four ways because the narrowing changes the wording.
     public struct PanelEmptyPlace: Sendable, Equatable {
         /// The glyph above the sentence.
         public let symbolName: String
@@ -778,8 +591,7 @@ public enum PanelPresenter {
     static func emptyState(for snapshot: PanelSnapshot) -> MainEmptyState {
         let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // A clipboard with nothing in it, which is the only one of these that is about
-        // the clipboard rather than about what the user has narrowed it to.
+        // The only nothing that is about the clipboard rather than the narrowing.
         if snapshot.clips.isEmpty {
             return MainEmptyState(
                 symbolName: "doc.on.clipboard",
@@ -787,12 +599,7 @@ public enum PanelPresenter {
                 message: "Whatever you copy turns up here, ready to put back.")
         }
 
-        // An arrivals tab emptied by the user having put everything away, which is a
-        // different thing from never having copied anything and now common enough to be
-        // worth telling apart: pinning and filing both take a clip out of here, so
-        // somebody who keeps a tidy clipboard arrives at an empty History with fifty clips
-        // in the panel. "Nothing copied yet" over a full clipboard is the specific-and-
-        // wrong sentence this file has been corrected for twice.
+        // Emptied by tidying, not by never copying. See `Docs/panel.md`.
         if query.isEmpty, snapshot.filter == .all, PanelSnapshot.name(snapshot.category) == nil,
             let arrivals = arrivalsOrigin(of: snapshot.scope),
             snapshot.clips.contains(where: { $0.origin == arrivals })
@@ -805,27 +612,19 @@ public enum PanelPresenter {
                     : "Everything Uttrflow made is pinned or filed.")
         }
 
-        // A search spans everything by design, so nothing else is narrowing here and
-        // naming the tab would be describing a constraint that is not applied.
+        // A search spans everything, so naming a tab would describe a constraint not applied.
         if !query.isEmpty {
             return MainEmptyState(
                 symbolName: "magnifyingglass",
                 title: "No matches",
-                // "Nothing you have copied" was true while the clipboard was one list.
-                // A search now spans what Uttrflow made as well, and on a clipboard of
-                // nothing but dictations that sentence told the user their search had
-                // looked somewhere it had not.
+                // Not "nothing you have copied": a search spans what Uttrflow made too.
                 message: "Nothing on your clipboard mentions “\(query)”.")
         }
 
         return narrowedEmptyState(for: snapshot)
     }
 
-    /// Which arrivals tab this is, if it is one.
-    ///
-    /// The two that list what has not been put anywhere. Pinned and Collections are the
-    /// places clips are put, so an empty one of those means the user has not put anything
-    /// there — which their own sentences already say.
+    /// Which arrivals tab this is, of the two that list what has not been put anywhere.
     static func arrivalsOrigin(of scope: PanelScope) -> ClipOrigin? {
         switch scope {
         case .history: .copied
@@ -834,15 +633,7 @@ public enum PanelPresenter {
         }
     }
 
-    /// What to say when the clipboard has clips in it and the narrowing has hidden all
-    /// of them.
-    ///
-    /// Assembled from the narrowings that are actually on, rather than picked from the
-    /// first one that matches. Picking the first is how the panel came to say "Nothing
-    /// in db — nothing you have copied is filed here" while the Code filter was also on:
-    /// there were clips in db, and the sentence told the user there were not. An empty
-    /// state that names one of two reasons is worse than a vague one, because it is
-    /// specific and wrong.
+    /// What to say when the narrowing hid everything, assembled from every narrowing that is on. See `Docs/panel.md`.
     static func narrowedEmptyState(for snapshot: PanelSnapshot) -> MainEmptyState {
         let category = PanelSnapshot.name(snapshot.category)
         let kind = snapshot.filter == .all ? nil : snapshot.filter
@@ -858,15 +649,7 @@ public enum PanelPresenter {
             message: "Nothing \(place.subject) is \(kind.noun).")
     }
 
-    /// Where the user is looking: a tab, a collection, or both at once.
-    ///
-    /// Total, since History stopped meaning everything. It used to answer `nil` for
-    /// History with no collection, because that combination narrowed by kind alone and
-    /// there was no place to name — and the sentence for it was written separately. Now
-    /// History is "what you copied", so it has a name like the other three, and the
-    /// separate sentence would have been a second place deciding the same words. What an
-    /// empty History says therefore gained the word: "No Links **copied**", beside "No
-    /// Code pinned" and "No Code filed", which is the shape the table was already in.
+    /// Where the user is looking: a tab, a collection, or both. Total, so no case needs its own sentence.
     static func place(for scope: PanelScope, category: String?) -> PanelEmptyPlace {
         switch (scope, category) {
         case (.pinned, .some(let name)):
@@ -880,12 +663,7 @@ public enum PanelPresenter {
                 subject: "you have pinned",
                 alone: "Pin a clip and it waits here, however long it has been.")
         case (.uttrflow, .some(let name)):
-            // Named as both, because it is both. The shared arm below says "Nothing in
-            // db — nothing you have copied is filed here", and on this tab every clause
-            // of that is false: db is not empty, the clips in it were not copied, and
-            // the reason the list is empty is the tab rather than the collection. That is
-            // the same specific-and-wrong sentence this table was corrected for once
-            // before, arriving on a new axis.
+            // Named as both, or the shared arm says three things that are false here.
             PanelEmptyPlace(
                 symbolName: "waveform", title: "Nothing from Uttrflow in \(name)",
                 suffix: "from Uttrflow in \(name)", subject: "Uttrflow made in \(name)",
@@ -902,9 +680,7 @@ public enum PanelPresenter {
                 alone: "Move a clip into a collection and it turns up here.")
         case (.uttrflow, .none):
             PanelEmptyPlace(
-                // A waveform rather than the mark: this is the glyph above a sentence,
-                // where a logo would read as branding on an empty screen, and the tab
-                // that got the user here is already wearing it.
+                // A waveform, not the mark, which would read as branding on an empty screen.
                 symbolName: "waveform", title: "Nothing from Uttrflow", suffix: "from Uttrflow",
                 subject: "Uttrflow has made",
                 alone: "Dictate something and it waits here, out of the way of what you copy.")
@@ -912,10 +688,7 @@ public enum PanelPresenter {
             PanelEmptyPlace(
                 symbolName: "doc.on.clipboard", title: "Nothing copied yet", suffix: "copied",
                 subject: "you have copied",
-                // The same sentence a wholly empty clipboard gets, and deliberately so:
-                // this tab is now reachable while the clipboard holds a hundred
-                // dictations and not one ⌘C, and in that state "nothing copied yet" is
-                // the plain truth rather than a claim about the file.
+                // The empty-clipboard sentence, which is the plain truth on this tab too.
                 alone: "Whatever you copy turns up here, ready to put back.")
         }
     }

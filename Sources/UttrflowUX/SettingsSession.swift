@@ -122,7 +122,8 @@ public struct SettingsSession: Sendable, Equatable {
             return nil
         }
         rejection = nil
-        guard removal.confirmation == nil else {
+        // Both: ``SettingsReset/isConfirmed`` is the rule, the row only carries the wording.
+        guard removal.confirmation == nil, !removal.reset.isConfirmed else {
             pendingRemoval = removal
             return nil
         }
@@ -145,6 +146,11 @@ public struct SettingsSession: Sendable, Equatable {
         pendingRemoval = nil
         guard removal.confirmation != nil else { return nil }
         return removal.reset
+    }
+
+    /// Whether a removal can be asked about, which a confirmed one needs before it may run.
+    public static func isAnswerable(_ removal: SettingsRemoval) -> Bool {
+        !removal.reset.isConfirmed || removal.confirmation != nil
     }
 
     /// The user said no, or dismissed the question. Nothing is removed.
