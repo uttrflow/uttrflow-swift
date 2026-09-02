@@ -1,11 +1,12 @@
 # Working in this repository
 
-<!-- release-policy:v2 -->
+<!-- release-policy:v3 -->
 ## Branching & Release Policy — NON-NEGOTIABLE
 
-**Effective 2026-08-29, when this repository became public and became the only home for
-this project. This supersedes release-policy:v1 and anything in any agent's memory about a
-`beta` branch — that branch belonged to the private repository and does not exist here.**
+**Effective 2026-09-02. Supersedes release-policy:v2, which said agents never merge to
+`main`; rule 5 below now says they may, once a pull request is green. Everything else
+stands, including that this repository is the only home for the project and that the
+`beta` branch in any agent's memory belonged to the private one and does not exist here.**
 
 **One long-lived branch, `main`, always releasable. A release is a tag, not a branch.**
 
@@ -22,12 +23,20 @@ branch / fork  ──PR──>  main  ──tag v0.3.0-rc.1──>  prerelease  
    `make verify` and builds the app bundle; CodeQL and dependency review run beside it.
    Run `make verify` locally anyway — it is the same command, and finding out here is
    faster than finding out in a queue.
-4. **Nobody pushes to `main`.** A ruleset requires a reviewed pull request and blocks
-   force-pushes and deletions. Agents never merge to `main`, never force-push, and never
-   tag. Tagging is the release, and the release is the operator's.
-5. **Your task is done when the PR is open, green, and your branch is cleaned up** — not
-   when it is merged, and certainly not when it is released. Do not ask for a review and do
-   not nudge one along.
+4. **Nobody pushes to `main` directly.** A ruleset blocks force-pushes and deletions,
+   and everything reaches `main` through a pull request. Never force-push `main`, and
+   never tag: tagging is the release, and the release is the operator's.
+5. **An agent may merge its own pull request once it is green** — every required check
+   passed, and the branch up to date with `main` so what merges is what was tested. This
+   reverses release-policy:v2, which said agents never merge. The gate was written for a
+   team with reviewers in it; on a one-person org the review requirement could never be
+   satisfied, so it was not a gate but a queue. What actually catches mistakes here is
+   CI, and CI runs before the merge either way.
+6. **Green means green, not nearly.** A check still running is not a passed check. If
+   you merge past a failing or unfinished check, you are doing it because the operator
+   said to, and you say so plainly when you report it — never silently with `--admin`.
+7. **Your task is done when the work is merged and your branch is cleaned up.** Do not
+   tag, and do not release.
 
 **Releases stay batched and infrequent.** That has not changed; only the mechanism has.
 `main` accumulates merged work, and the operator decides when a commit on it becomes
@@ -214,11 +223,16 @@ lunchtime, and rebasing is what keeps the diff in the pull request the change yo
 made. Rebasing an unpushed branch is not rewriting pushed history,
 so the rule above does not conflict with this one.
 
-**Nothing an agent does touches `main` except through a reviewed pull request.** Not a
-direct merge, not a rebase onto it, not a tag, not a docs commit that seems too small to
-matter. A ruleset blocks it at the server, so this is a description of what will happen
-rather than a request. If you find yourself with a commit on `main`, stop and say so
-rather than tidying it away.
+**Nothing an agent does touches `main` except through a pull request.** Not a direct
+push, not a rebase onto it, not a tag, not a docs commit that seems too small to matter.
+A ruleset blocks it at the server, so this is a description of what will happen rather
+than a request. If you find yourself with a commit on `main`, stop and say so rather
+than tidying it away.
+
+**Merging is not reviewing.** Nobody else read the change, so the pull request is where
+you write down what you would have wanted a reviewer to know: what was measured, what
+was assumed, and what you are least sure of. A merge that ends the conversation is worse
+than no merge at all.
 
 **Clear the worktree the moment the work is merged.** `git worktree remove` and delete the
 branch. Four stale worktrees once sat holding pre-rename copies of the whole tree, and an
