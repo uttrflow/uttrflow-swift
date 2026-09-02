@@ -37,12 +37,36 @@ public struct TemporaryDefaultsSuite {
     /// Where `cfprefsd` keeps this domain. Exposed so a test can assert the file is
     /// gone; deleting it is necessary to clean up but, on its own, not sufficient — see
     /// `remove()`.
-    public var fileURL: URL { Self.fileURL(forName: name) }
+    public var fileURL: URL { Self.domainFileURL(forName: name) }
+
+    /// Every domain this helper has ever made starts with this, which is what lets a later
+    /// run recognise what an earlier one abandoned.
+    public static let namePrefix = "com.uttrflow.tests."
+
+    /// Removes domain files left by runs that have already finished.
+    ///
+    /// Only files older than `age` are touched, so a suite in use by a concurrently
+    /// running test process — in another worktree, say — is never taken out from under it.
+    public static func sweepStaleSuites(olderThan age: TimeInterval = 600) {
+        let directory = domainFileURL(forName: "unused").deletingLastPathComponent()
+        let manager = FileManager.default
+        guard let entries = try? manager.contentsOfDirectory(atPath: directory.path) else { return }
+        let cutoff = Date().addingTimeInterval(-age)
+        for entry in entries
+        where entry.hasPrefix(namePrefix) && entry.hasSuffix(".plist") {
+            let url = directory.appending(path: entry)
+            let modified = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+                .contentModificationDate
+            guard let modified, modified < cutoff else { continue }
+            preferencesDaemonForget(String(entry.dropLast(".plist".count)))
+            try? manager.removeItem(at: url)
+        }
+    }
 
     /// Resolved through the library directory rather than hard-coded under `$HOME`, so it
     /// stays correct if these tests are ever run from inside a sandbox, where the
     /// domain's file lives in the container instead.
-    static func fileURL(forName name: String) -> URL {
+    public static func domainFileURL(forName name: String) -> URL {
         let library =
             FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
             ?? URL.homeDirectory.appending(path: "Library", directoryHint: .isDirectory)
@@ -71,6 +95,7 @@ public struct TemporaryDefaultsSuite {
     /// `withTemporaryDefaultsSuite(_:)`, so it cannot take the handle and skip this.
     func remove() {
         defaults.removePersistentDomain(forName: name)
+        defaults.synchronize()
         defaults.removeSuite(named: name)
         UserDefaults.standard.removeSuite(named: name)
         Self.preferencesDaemonForget(name)
@@ -80,7 +105,7 @@ public struct TemporaryDefaultsSuite {
     /// Hands the domain to `cfprefsd` for removal from outside this process. Failure is
     /// ignored on purpose: `defaults delete` exits non-zero for a domain that is already
     /// gone, which is the good case, and a test must not fail over its own tidying.
-    private static func preferencesDaemonForget(_ name: String) {
+    static func preferencesDaemonForget(_ name: String) {
         let tool = Process()
         tool.executableURL = URL(filePath: "/usr/bin/defaults")
         tool.arguments = ["delete", name]
@@ -99,8 +124,22 @@ public struct TemporaryDefaultsSuite {
 /// - Parameter body: Receives the suite. Its name goes to any adapter taking a
 ///   `suiteName:`; its `defaults` is the domain itself.
 /// - Returns: Whatever `body` returns.
+/// Runs once per test process, the first time any test asks for a suite.
+///
+/// Deleting the file cannot be made reliable from inside the process — see `remove()` —
+/// so this closes the gap from the other end. A suite created by this helper exists for
+/// the few milliseconds of one closure, which means any file matching the prefix that is
+/// *older than a few minutes* was abandoned by a run that has already finished. Removing
+/// those bounds the damage to whatever a single run leaves behind, instead of letting it
+/// grow by a couple of files every few runs for ever, which is how 466 of them arrived.
+///
+/// The age threshold is what makes this safe when two checkouts run their tests at once:
+/// a live suite is seconds old and can never be caught by a ten-minute cutoff.
+private let sweptStaleSuites: Void = TemporaryDefaultsSuite.sweepStaleSuites()
+
 public func withTemporaryDefaultsSuite<T>(_ body: (TemporaryDefaultsSuite) throws -> T) rethrows -> T {
-    let name = "com.uttrflow.tests.\(UUID().uuidString)"
+    _ = sweptStaleSuites
+    let name = TemporaryDefaultsSuite.namePrefix + UUID().uuidString
     guard let defaults = UserDefaults(suiteName: name) else {
         // Unreachable. `init(suiteName:)` refuses only a nil name, the main bundle's own
         // identifier and the global domain, none of which a fresh UUID can collide with.

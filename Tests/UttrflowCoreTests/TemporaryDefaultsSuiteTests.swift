@@ -94,6 +94,34 @@ struct TemporaryDefaultsSuiteTests {
         #expect(!FileManager.default.fileExists(atPath: suite.fileURL.path))
     }
 
+    /// The sweep is the half of this that does not depend on winning a race, so it needs
+    /// its own evidence: an aged file goes, a fresh one stays.
+    ///
+    /// The second half matters more than it looks. Two checkouts running their tests at
+    /// once is normal in this repository, and a sweep without an age threshold would
+    /// delete a suite another process was in the middle of using.
+    @Test("removes abandoned domain files and spares ones still in use")
+    func sweepsOnlyStaleFiles() throws {
+        let manager = FileManager.default
+        let prefix = TemporaryDefaultsSuite.namePrefix
+        let stale = TemporaryDefaultsSuite.domainFileURL(forName: prefix + UUID().uuidString)
+        let fresh = TemporaryDefaultsSuite.domainFileURL(forName: prefix + UUID().uuidString)
+        defer {
+            try? manager.removeItem(at: stale)
+            try? manager.removeItem(at: fresh)
+        }
+
+        #expect(manager.createFile(atPath: stale.path, contents: Data()))
+        #expect(manager.createFile(atPath: fresh.path, contents: Data()))
+        let longAgo = Date().addingTimeInterval(-3600)
+        try manager.setAttributes([.modificationDate: longAgo], ofItemAtPath: stale.path)
+
+        TemporaryDefaultsSuite.sweepStaleSuites()
+
+        #expect(!manager.fileExists(atPath: stale.path), "an abandoned file survived the sweep")
+        #expect(manager.fileExists(atPath: fresh.path), "the sweep took a file that was still in use")
+    }
+
     /// The helper cannot stop a leak it is not asked about, and the previous version of
     /// this leak was written in perfectly reasonable-looking test code four times over.
     /// So the invariant is enforced against the tree rather than left to review: any test
