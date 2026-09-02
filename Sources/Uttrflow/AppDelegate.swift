@@ -87,6 +87,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// any one dictation: the page reports on the session, not the last utterance.
     private let diagnostics = DiagnosticsRecorder()
 
+    /// Whether the recogniser can dictate, which is not whether its files are on disk.
+    private var speechReadiness: SpeechModelReadiness = .notInstalled
+
+    /// How the recording in progress is going against ``DictationLimit``.
+    private var recordingAdvice: DictationAdvice = .keepGoing
+
     private var pipeline: DictationPipeline?
     private var controller: DictationController<ContinuousClock>?
     private var stateTask: Task<Void, Never>?
@@ -251,7 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         wireInterface()
         startWatchingForTheShortcut()
         startWatchingTheClipboard()
-        Task { await pipeline?.prepare() }
+        loadSpeechModel()
         refreshAccount()
         presentOnboardingIfNeeded()
         // Shown at launch, because an interface reachable only through a menu-bar icon is
@@ -268,11 +274,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Redraw when it changes. Without this the line would only appear the next time
         // something *else* redrew the menu bar — which, on an idle Mac waiting out its
         // quiet minute, is nothing at all.
-        updates.onProgressChanged = { [weak self] in
-            guard let self else { return }
-            menuBar.update(with: MenuBarPresenter.present(menuBarState(for: lastDictationState)))
-        }
+        updates.onProgressChanged = { [weak self] in self?.refreshMenuBar() }
         updates.begin(automatically: settings.installsUpdatesAutomatically)
+    }
+
+    /// Loads the recogniser, saying so until it can dictate. See `Docs/startup.md`.
+    private func loadSpeechModel() {
+        guard modelStore.isInstalled(.default) else {
+            speechReadiness = .notInstalled
+            return
+        }
+        speechReadiness = .loading
+        refreshMenuBar()
+        Task { [weak self] in
+            await self?.pipeline?.prepare()
+            guard let self, let pipeline else { return }
+            speechReadiness = await pipeline.isReady ? .ready : .notInstalled
+            refreshMenuBar()
+        }
+    }
+
+    /// Redraws the menu bar from whatever the app currently knows.
+    private func refreshMenuBar() {
+        menuBar.update(with: MenuBarPresenter.present(menuBarState(for: lastDictationState)))
     }
 
     /// Re-reads the account from the server, in the background, at every launch.
@@ -450,8 +474,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             cue: settings.playsSoundWhenRecordingStarts
                 ? SoundPlayingRecordingCue(player: SystemSoundPlayer()) : SilentCue(),
             activation: settings.hotkeyActivation,
-            clock: ContinuousClock()
+            clock: ContinuousClock(),
+            onAdvice: { [weak self] advice in
+                Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
+            }
         )
+    }
+
+    /// Redraws the menu bar and the floating button as a recording nears its cap.
+    private func recordingAdviceChanged(to advice: DictationAdvice) {
+        guard advice != recordingAdvice else { return }
+        recordingAdvice = advice
+        refreshMenuBar()
+        dock.update(with: DictationPresenter.dock(for: lastDictationState, advice: advice))
     }
 
     private func wireInterface() {
@@ -675,7 +710,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard await microphone.status() == .granted else {
             return .unavailable(.microphoneNotGranted)
         }
-        guard modelStore.isInstalled(.default) else {
+        // The same question the menu bar asks: loaded, not merely on disk.
+        guard speechReadiness == .ready else {
             return .unavailable(.modelNotReady(percent: nil))
         }
         return .ready
@@ -1166,8 +1202,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // widen the pipeline's surface to ask.
         lastDictationState = state
 
+        // Cleared as soon as the recording ends, so a countdown cannot outlive it.
+        if !state.isListening { recordingAdvice = .keepGoing }
         menuBar.update(with: MenuBarPresenter.present(menuBarState(for: state)))
-        dock.update(with: DictationPresenter.dock(for: state))
+        dock.update(with: DictationPresenter.dock(for: state, advice: recordingAdvice))
         refreshMainWindow()
 
         scheduleDismissal(after: state)
@@ -1215,7 +1253,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return MenuBarState(
             activity: activity,
             failure: failure,
-            speechModel: modelStore.isInstalled(.default) ? .ready : .notInstalled,
+            speechModel: speechReadiness,
+            recordingAdvice: recordingAdvice,
             recents: recents.previews.map {
                 MenuBarRecent(title: $0.title, fullText: $0.dictation.text)
             },
