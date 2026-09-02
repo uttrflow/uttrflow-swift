@@ -184,18 +184,21 @@ public final class MacContextEngine: ContextEngine, Sendable {
     /// - Parameter work: The reading to attempt, which records what it gets as it goes.
     private func withinBudget(_ work: @escaping @Sendable () async -> Void) async {
         let race = FirstPast()
+        var timer: Task<Void, Never>?
         await withCheckedContinuation { continuation in
-            // Armed before either racer exists, so neither can arrive at an empty race.
+            // Armed before either racer exists, or `FirstPast.finish` does nothing at all.
             race.arm(continuation)
             Task {
                 await work()
                 race.finish()
             }
-            Task { [clock] in
+            timer = Task { [clock] in
                 try? await clock.sleep(for: Self.budget)
                 race.finish()
             }
         }
+        // Cancelled so a clock that sleeps for real does not leave a task per reading.
+        timer?.cancel()
     }
 
     /// Drops what carries no information, so ``AppContext/isEmpty`` means what it says.
