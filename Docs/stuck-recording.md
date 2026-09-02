@@ -33,6 +33,14 @@ quarter of a second, which is under what anybody perceives as a hang.
 Reading the hardware rather than waiting to be told is the whole idea. The poll is the
 source of truth and the event is the fast path.
 
+**The poll runs only while a key is down.** It starts on the press and stops on the
+release, which is what the guarantee actually needs — secure input turning on *during* a
+hold is the case that loses a release, and by then the press has already started the
+timer. A timer running the rest of the time would wake an idle menu-bar app four times a
+second for its whole life, and a monitor dropped without `stop()` would leave one firing
+for the life of the process. That second half is not hypothetical: it kept a CI runner's
+test binary alive for forty minutes after every test had passed.
+
 ### 2. A stage never returns
 
 Every stage of a dictation runs somebody else's code — a CoreML decode, an on-device

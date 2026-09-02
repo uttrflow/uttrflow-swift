@@ -27,6 +27,15 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
         (events, continuation) = AsyncStream.makeStream()
     }
 
+    deinit {
+        // Not `stop()`, which hops to a main thread this may never come back from.
+        reconciliation.withLock { $0?.cancel() }
+        if let live = registration.withLock({ $0 }) {
+            hotkeySinks.withLock { $0[live.identifier] = nil }
+            _ = UnregisterEventHotKey(live.hotKey)
+        }
+    }
+
     /// The one handler this process installs, never removed, dispatching every shortcut by id.
     private static let sharedHandler = Mutex<EventHandlerRef?>(nil)
 
@@ -98,7 +107,6 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
         registration.withLock {
             $0 = CarbonRegistration(identifier: identifier, hotKey: hotKey)
         }
-        startReconciling()
     }
 
     /// Reports one event, and only when it changes whether the key is down.
@@ -108,22 +116,27 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
             return key.edge.flagsChanged(isDownNow: event == .pressed)
         }
         guard let happened else { return }
+        // Only while a key is down, so an idle app never wakes and no timer outlives one.
+        switch happened {
+        case .pressed: startReconciling(keyCode)
+        case .released: stopReconciling()
+        }
         continuation.yield(happened)
     }
 
     /// Reads the real key state, so a release Carbon never delivers is still noticed. See `Docs/stuck-recording.md`.
-    private func startReconciling() {
+    private func startReconciling(_ keyCode: UInt32) {
         let timer = DispatchSource.makeTimerSource(queue: .main)
         timer.schedule(
             deadline: .now() + .milliseconds(Self.reconciliationMilliseconds),
             repeating: .milliseconds(Self.reconciliationMilliseconds))
         timer.setEventHandler { [weak self] in
-            guard let self else { return }
-            let key = held.withLock { $0 }
-            guard key.edge.isDown else { return }
-            guard !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(key.keyCode))
+            // A monitor released mid-hold cancels its own timer rather than firing for ever.
+            guard let self else { timer.cancel(); return }
+            guard held.withLock({ $0.edge.isDown }) else { return }
+            guard !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(keyCode))
             else { return }
-            deliver(.released, keyCode: key.keyCode)
+            deliver(.released, keyCode: keyCode)
         }
         timer.resume()
         reconciliation.withLock { existing in
@@ -132,11 +145,15 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
         }
     }
 
-    private func unregister() {
+    private func stopReconciling() {
         reconciliation.withLock { timer in
             timer?.cancel()
             timer = nil
         }
+    }
+
+    private func unregister() {
+        stopReconciling()
         // A hold interrupted by unregistering is a release, or the microphone stays open.
         let owed = held.withLock { $0.edge.stopped() }
         if let owed { continuation.yield(owed) }

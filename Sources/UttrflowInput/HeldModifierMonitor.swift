@@ -50,7 +50,6 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
             $0.global = global
             $0.local = local
         }
-        startReconciling()
     }
 
     /// The flags a binding is a hold of, answering Fn first because it names none of the four.
@@ -84,6 +83,11 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
         let isDownNow = !wanted.isEmpty && present == wanted
         let happened = state.withLock { $0.edge.flagsChanged(isDownNow: isDownNow) }
         guard let happened else { return }
+        // Only while a key is down, so an idle app never wakes and no timer outlives one.
+        switch happened {
+        case .pressed: startReconciling()
+        case .released: stopReconciling()
+        }
         continuation.yield(happened)
     }
 
@@ -97,7 +101,8 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
             deadline: .now() + .milliseconds(Self.reconciliationMilliseconds),
             repeating: .milliseconds(Self.reconciliationMilliseconds))
         timer.setEventHandler { [weak self] in
-            guard let self else { return }
+            // A monitor released mid-hold cancels its own timer rather than firing for ever.
+            guard let self else { timer.cancel(); return }
             update(with: NSEvent.modifierFlags)
         }
         timer.resume()
@@ -107,11 +112,15 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
         }
     }
 
-    public func stop() {
+    private func stopReconciling() {
         reconciliation.withLock { timer in
             timer?.cancel()
             timer = nil
         }
+    }
+
+    public func stop() {
+        stopReconciling()
         // A hold interrupted by stopping is a release, or the microphone stays open.
         let owed = state.withLock { watch -> HotkeyEvent? in
             watch.removeMonitors()
