@@ -35,6 +35,7 @@ let package = Package(
         .library(name: "UttrflowClipboard", targets: ["UttrflowClipboard"]),
         .library(name: "UttrflowAccount", targets: ["UttrflowAccount"]),
         .library(name: "UttrflowContext", targets: ["UttrflowContext"]),
+        .library(name: "UttrflowPredict", targets: ["UttrflowPredict"]),
         // UttrflowEval is deliberately NOT a library product.
         //
         // It knows how to reach a private bucket holding real people's recordings, and
@@ -198,6 +199,12 @@ let package = Package(
             swiftSettings: sharedSwiftSettings
         ),
 
+        // What the user is about to type. Pure decisions; the store and the model are elsewhere.
+        .target(
+            name: "UttrflowPredict",
+            swiftSettings: sharedSwiftSettings
+        ),
+
         // Measuring how well a transformer did. Pure scoring, no model anywhere near it.
         .target(
             name: "UttrflowEval",
@@ -349,6 +356,11 @@ let package = Package(
         .testTarget(
             name: "UttrflowContextTests",
             dependencies: ["UttrflowContext", "UttrflowTestSupport"],
+            swiftSettings: sharedSwiftSettings
+        ),
+        .testTarget(
+            name: "UttrflowPredictTests",
+            dependencies: ["UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
