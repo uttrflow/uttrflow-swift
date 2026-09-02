@@ -47,11 +47,7 @@ public enum SettingsResetTarget: Sendable, Equatable, CaseIterable {
 }
 
 extension SettingsReset {
-    /// Everything this level removes, in the order it is removed.
-    ///
-    /// ``learnedWords`` and ``everyWord`` are deliberately never both present: they are
-    /// two different opinions about the dictionary, and running both would mean the
-    /// count shown to the user described only the first.
+    /// Everything this level removes, in order, and never two opinions about the dictionary.
     public var targets: [SettingsResetTarget] {
         switch self {
         case .learnedWords: [.learnedWords]
@@ -59,11 +55,7 @@ extension SettingsReset {
         }
     }
 
-    /// Whether the user is asked before anything goes.
-    ///
-    /// Forgetting what was learned is not: it costs a few days of the app noticing
-    /// things again, and it is recovered simply by carrying on using the app. A reset
-    /// is, because nothing brings a year of history back.
+    /// Whether the user is asked first, which only what nothing brings back requires.
     public var isConfirmed: Bool {
         switch self {
         case .learnedWords: false

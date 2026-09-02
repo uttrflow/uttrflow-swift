@@ -257,7 +257,6 @@
     "Sources/UttrflowUX/MainDictationPresentation.swift": 28,
     "Sources/UttrflowUX/MainPresentation.swift": 24,
     "Sources/UttrflowUX/MainShell.swift": 12,
-    "Sources/UttrflowUX/MenuBarPresentation.swift": 39,
     "Sources/UttrflowUX/OnboardingFlow.swift": 39,
     "Sources/UttrflowUX/OnboardingPage.swift": 16,
     "Sources/UttrflowUX/OnboardingPresenter.swift": 22,
@@ -272,7 +271,6 @@
     "Sources/UttrflowUX/PanelInsertion.swift": 7,
     "Sources/UttrflowUX/PanelKeyboard.swift": 25,
     "Sources/UttrflowUX/PanelPlacement.swift": 5,
-    "Sources/UttrflowUX/PanelPresentation.swift": 64,
     "Sources/UttrflowUX/PanelResize.swift": 14,
     "Sources/UttrflowUX/PanelResults.swift": 18,
     "Sources/UttrflowUX/PanelResume.swift": 8,
@@ -283,7 +281,7 @@
     "Sources/UttrflowUX/SettingsEditor.swift": 14,
     "Sources/UttrflowUX/SettingsPresentation.swift": 16,
     "Sources/UttrflowUX/SettingsPresenter.swift": 22,
-    "Sources/UttrflowUX/SettingsReset.swift": 17,
+    "Sources/UttrflowUX/SettingsReset.swift": 15,
     "Sources/UttrflowUX/SettingsSession.swift": 13,
     "Sources/UttrflowUX/SettingsShortcut.swift": 7,
     "Sources/UttrflowUX/SidebarPresentation.swift": 12,
@@ -506,6 +504,7 @@
     "Tests/UttrflowUXTests/PanelSearchStatesTests.swift": 14,
     "Tests/UttrflowUXTests/PanelSheetPresentationTests.swift": 2,
     "Tests/UttrflowUXTests/PanelUndoHintTests.swift": 3,
+    "Tests/UttrflowUXTests/SettingsConfirmationRuleTests.swift": 2,
     "Tests/UttrflowUXTests/SettingsEditorTests.swift": 8,
     "Tests/UttrflowUXTests/SettingsPresenterTests.swift": 10,
     "Tests/UttrflowUXTests/SettingsPrivacyCopyTests.swift": 11,
@@ -517,5 +516,5 @@
     "Tests/UttrflowUXTests/StylePagePresentationTests.swift": 3,
     "Tests/UttrflowUXTests/UpdateGateTests.swift": 3
   },
-  "total": 4516
+  "total": 4413
 }
