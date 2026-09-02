@@ -192,9 +192,7 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
 
-    /// The failure this prevents: paste a clip, copy something else within the same
-    /// tick, and the copy never reaches the panel. Silent loss from a clipboard
-    /// manager's history is the one thing it may not do.
+    /// The failure this prevents: a copy in the same tick as a paste never reaching the panel.
     @Test("a copy that lands in the same tick as an Uttrflow paste is still noticed")
     func aCopyRacingThePasteSurvives() async {
         let clipboard = FakeClipboard()
@@ -202,7 +200,7 @@ struct PasteboardWatcherTests {
 
         watcher.ignoreNextWrite(of: "pasted by Uttrflow")
         clipboard.write("pasted by Uttrflow")
-        // The user copies before the next tick, so one tick sees both changes.
+        // Copied before the next tick, so one tick sees both changes.
         clipboard.write("copied by the user")
 
         #expect(await watcher.newClip(at: noon)?.clip.text == "copied by the user")
@@ -217,8 +215,7 @@ struct PasteboardWatcherTests {
         clipboard.write("copied by the user")
         #expect(await watcher.newClip(at: noon)?.clip.text == "copied by the user")
 
-        // The announcement was not spent by somebody else's copy, so Uttrflow's own
-        // write is still not read as one.
+        // Not spent by somebody else's copy, so Uttrflow's own write is still ignored.
         clipboard.write("pasted by Uttrflow")
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
