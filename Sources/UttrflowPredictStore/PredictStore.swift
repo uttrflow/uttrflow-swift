@@ -74,16 +74,19 @@ public actor PredictStore: PredictionStore {
     }
 
     /// The range scan the whole design rests on, written as a range and never as a LIKE.
+    static let prefixQuery = """
+        SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
+        WHERE surface_id = ? AND text >= ? AND text < ? AND superseded_by IS NULL
+        ORDER BY count DESC LIMIT ?
+        """
+
+    /// Every candidate whose opening is exactly what was typed.
     private func exactCandidates(
         surfaceIdentifier id: Int64, typed: String
     ) throws(PredictStoreError) -> [Candidate] {
         guard let upper = Self.upperBound(of: typed) else { return [] }
         return try rows(
-            """
-            SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
-            WHERE surface_id = ? AND text >= ? AND text < ? AND superseded_by IS NULL
-            ORDER BY count DESC LIMIT ?
-            """,
+            Self.prefixQuery,
             {
                 $0.bind(1, id)
                 $0.bind(2, typed)

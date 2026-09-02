@@ -24,7 +24,24 @@ Three things follow, and the third was not expected.
 **Write the range scan, not `LIKE`.** Four times slower here for a bare `LIMIT 8`. An
 earlier measurement of the same comparison *with* `ORDER BY count DESC` put the penalty
 near seventeen times, because the sort has to see every match before it can rank them.
-The real store ranks, so expect the larger figure and measure it again in phase 2.
+
+Phase 2 found out *why* the gap varies, by asking SQLite rather than timing it:
+
+```
+RANGE: SEARCH entry USING INDEX entry_prefix (surface_id=? AND text>? AND text<?)
+LIKE : SEARCH entry USING INDEX entry_prefix (surface_id=?)
+```
+
+`LIKE` is not a full table scan — it is a full *surface* scan. Both use the index, but
+only the range constrains the text column, so `LIKE` reads every row belonging to that
+field and filters them one by one. The penalty therefore grows with how much one field
+holds, which is why a small corpus shows four times and a ranked query over a large one
+shows far more.
+
+This is asserted in the test suite as a query plan rather than a timing. A wall-clock
+threshold measures whichever machine CI happens to run on — a 200 µs bound calibrated
+here failed at 495 µs on a shared runner — while the plan is the same everywhere and
+fails precisely when somebody rewrites the query as a `LIKE`.
 
 **Fuzzy stays a fallback, never a parallel path.** `git p` matches 925 entries exactly
 and 2,776 within one edit — and the extra matches are other commands, `git commit` among

@@ -95,6 +95,11 @@ final class Database {
         }
     }
 
+    /// What SQLite says it will do for a statement, which is checkable where a timing is not.
+    func plan(of sql: String) throws(PredictStoreError) -> [String] {
+        try rows("EXPLAIN QUERY PLAN " + sql, { _ in }) { $0.text(3) }
+    }
+
     /// The row id the last insert produced, for a caller that needs to point at it.
     var lastInsertedIdentifier: Int64 { sqlite3_last_insert_rowid(handle) }
 

@@ -324,14 +324,16 @@ struct RecoveryTests {
 }
 
 @Suite("The query that runs on every keystroke")
-struct PerformanceTests {
-    /// Fills a database directly, because twenty thousand round trips through the actor is not the point.
+struct QueryPlanTests {
+    /// Fills a database directly, because the point is the plan and not the round trips.
     private func seed(_ path: String, surfaces: Int, each: Int) throws {
         let database = try Database(path: path)
         try Schema.migrate(database)
         try database.execute("BEGIN")
         for surface in 0..<surfaces {
-            try database.run("INSERT INTO surface (bundle_id, role, locator, scope) VALUES (?, ?, '', '')") {
+            try database.run(
+                "INSERT INTO surface (bundle_id, role, locator, scope) VALUES (?, ?, '', '')"
+            ) {
                 $0.bind(1, "com.example.app\(surface)")
                 $0.bind(2, "AXTextArea")
             }
@@ -350,23 +352,41 @@ struct PerformanceTests {
         try database.execute("COMMIT")
     }
 
-    @Test("A prefix query stays under the budget with twenty thousand entries behind it.")
-    func prefixQueryIsFast() async throws {
+    @Test("The prefix query narrows on the text as well as the field, which is the whole point of the index.")
+    func usesBothIndexColumns() throws {
+        let corpus = Corpus()
+        try seed(corpus.path, surfaces: 4, each: 500)
+        let database = try Database(path: corpus.path)
+        let plan = try database.plan(of: PredictStore.prefixQuery).joined(separator: " | ")
+        #expect(plan.contains("USING INDEX entry_prefix"), "the plan was: \(plan)")
+        #expect(plan.contains("text>?"), "the plan was: \(plan)")
+        #expect(!plan.contains("SCAN entry"), "the plan was: \(plan)")
+    }
+
+    @Test(
+        "Written as a LIKE the same query reads every row of the field, which is why it is not written that way."
+    )
+    func likeReadsTheWholeSurface() throws {
+        let corpus = Corpus()
+        try seed(corpus.path, surfaces: 4, each: 500)
+        let database = try Database(path: corpus.path)
+        let asLike = """
+            SELECT text FROM entry
+            WHERE surface_id = ? AND text LIKE ? AND superseded_by IS NULL
+            ORDER BY count DESC LIMIT ?
+            """
+        let plan = try database.plan(of: asLike).joined(separator: " | ")
+        #expect(!plan.contains("text>?"), "LIKE unexpectedly narrowed the text: \(plan)")
+    }
+
+    @Test("A query against twenty thousand entries still returns only what was asked for.")
+    func staysBoundedAtScale() async throws {
         let corpus = Corpus()
         try seed(corpus.path, surfaces: 10, each: 2_000)
-        let store = try store(corpus)
+        let store = try PredictStore(path: corpus.path)
         let surface = Surface(bundleIdentifier: "com.example.app3", role: "AXTextArea")
-
-        for _ in 0..<20 { _ = try await store.candidates(for: surface, matching: "git command 1") }
-
-        var timings: [Double] = []
-        for _ in 0..<200 {
-            let started = DispatchTime.now().uptimeNanoseconds
-            _ = try await store.candidates(for: surface, matching: "git command 1")
-            timings.append(Double(DispatchTime.now().uptimeNanoseconds - started) / 1000)
-        }
-        timings.sort()
-        let p95 = timings[Int(Double(timings.count) * 0.95)]
-        #expect(p95 < 200, "prefix query p95 was \(p95) µs, which is over the budget")
+        let found = try await store.candidates(for: surface, matching: "git command 1")
+        #expect(found.count <= PredictStore.candidateLimit)
+        #expect(found.allSatisfy { $0.text.hasPrefix("git command 1") })
     }
 }
