@@ -390,21 +390,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         onboarding.present(skippingWelcome: skippingWelcome, askingToSignIn: askingToSignIn)
     }
 
-    /// Finishes the dictation in flight before letting the process die.
-    ///
-    /// Quitting mid-dictation used to take the audio, the transcript and the cleaned
-    /// text with it, silently. Nothing is written to disk yet, so the only way not to
-    /// lose the words is not to exit until they have somewhere to go.
+    /// How long quitting waits for a dictation to land. See `Docs/quitting.md`.
+    private static let quitBudget = Duration.seconds(15)
+
+    /// Finishes the dictation in flight before letting the process die, but not for ever.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let pipeline else { return .terminateNow }
 
-        Task { [weak self] in
-            if await pipeline.currentState.isBusy {
-                for await state in await pipeline.states() where !state.isBusy {
-                    break
-                }
+        Task { [weak self, pipeline] in
+            // A recording waits on the user, not the app, and the key may never come up.
+            if await pipeline.currentState.isListening { await pipeline.finishRecording() }
+
+            _ = try? await withStageTimeout(Self.quitBudget, clock: ContinuousClock()) {
+                for await state in await pipeline.states() where !state.isBusy { return }
             }
             await self?.controller?.stop()
+            // On every path: an unanswered `terminateLater` is an app that cannot be quit.
             NSApplication.shared.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
@@ -413,6 +414,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationWillTerminate(_ notification: Notification) {
         stateTask?.cancel()
         dismissalTask?.cancel()
+    }
+
+    /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard shortcutFailure != nil else { return }
+        startWatchingForTheShortcut()
     }
 
     // MARK: Assembly
@@ -533,21 +540,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Why the shortcut is not armed, or `nil` when it is. Retried on the way back in.
+    private var shortcutFailure: HotkeyError?
+
     private func startWatchingForTheShortcut() {
         guard let controller else { return }
         let binding = settings.hotkey
         Task { [weak self] in
             do throws(HotkeyError) {
                 try await controller.start(binding: binding)
+                self?.shortcutFailure = nil
             } catch {
-                // Carbon needs no permission, so this should not happen — but a
-                // shortcut already claimed by another app can refuse. Say so rather
-                // than leaving the user with a key that does nothing.
-                //
-                // The catch used to name `ClipboardStoreError`, which `start` cannot
-                // throw — so the clause matched nothing, the `Task` swallowed the real
-                // `HotkeyError`, and a shortcut that failed to register did exactly what
-                // this comment says it must not: nothing, silently.
+                self?.shortcutFailure = error
+                // Said rather than swallowed: a key that does nothing, silently, is the
+                // whole product gone. Retried when the app is next activated.
                 self?.render(.failed(DictationFailure(error)))
             }
         }
@@ -717,22 +723,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return .ready
     }
 
-    /// Answers one keystroke the panel has reported, and does what the answer says.
-    ///
-    /// The decision is not taken here — ``PanelSnapshot/applying(_:)`` decides what the
-    /// key means and ``PanelOutcome/effect`` decides what to do about it, both under
-    /// test. This file is excluded from the coverage gate, so it relays and nothing more.
-    /// A8 — the application the panel opened over has quit while it was up.
-    ///
-    /// Asked here rather than at the moment of the paste, because by then the panel has
-    /// closed and there is nowhere left to say anything. The answer is folded into the
-    /// snapshot so the ordinary ``PanelOutcome/copyOnly(_:_:)`` path reports it: the words
-    /// go to the clipboard and the panel says where they went, which is what the
-    /// specification asks for instead of failing at the moment of paste.
-    ///
-    /// It is a fact about the machine and so cannot live in the model, but the *decision*
-    /// still does — this only supplies a fresher answer to the question the model already
-    /// asks.
+    /// A8 — answers a keystroke, noting first whether the application underneath has quit.
     private func panelAnswered(_ key: PanelKey, behind: NSRunningApplication?) {
         if let behind, behind.isTerminated, panel?.insertion == .atCaret {
             panel?.insertion = .clipboardOnly(.nothingFocused)
