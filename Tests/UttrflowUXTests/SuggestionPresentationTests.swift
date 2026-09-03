@@ -36,7 +36,7 @@ struct SuggestionPresentationTests {
         let presentation = SuggestionPresentation(.certain("hello@example.com"))
         #expect(presentation.style == .ghost)
         #expect(presentation.rows.count == 1)
-        #expect(presentation.rows[0].text == "hello@example.com")
+        #expect(presentation.rows[0].ghost == "hello@example.com")
         #expect(presentation.rows[0].isSelected)
         #expect(!presentation.rows[0].showsMark)
         #expect(SuggestionPresentation.ghostOpacity == 0.45)
@@ -46,7 +46,7 @@ struct SuggestionPresentationTests {
     func choiceListsTheLeaderFirst() {
         let presentation = SuggestionPresentation(
             .choice(leader: "Sydney", others: ["Sydenham", "Sydney Road"]))
-        #expect(presentation.rows.map(\.text) == ["Sydney", "Sydenham", "Sydney Road"])
+        #expect(presentation.rows.map(\.ghost) == ["Sydney", "Sydenham", "Sydney Road"])
         #expect(presentation.rows.map(\.isSelected) == [true, false, false])
     }
 
@@ -68,15 +68,99 @@ struct SuggestionPresentationTests {
     @Test("An empty alternative is dropped rather than listed as a blank row")
     func emptyAlternativesAreDropped() {
         let presentation = SuggestionPresentation(.choice(leader: "Sydney", others: ["", "  "]))
-        #expect(presentation.rows.map(\.text) == ["Sydney"])
+        #expect(presentation.rows.map(\.ghost) == ["Sydney"])
         #expect(!presentation.rows[0].showsMark)
     }
 
     @Test("A choice whose leader is empty falls back to its first real alternative")
     func anEmptyLeaderIsDropped() {
         let presentation = SuggestionPresentation(.choice(leader: "", others: ["Sydenham"]))
-        #expect(presentation.rows.map(\.text) == ["Sydenham"])
+        #expect(presentation.rows.map(\.ghost) == ["Sydenham"])
         #expect(presentation.rows[0].isSelected)
+    }
+
+    // MARK: - What is left to type
+
+    @Test("The ghost offers only what is still to come, never a repeat of what is on screen")
+    func theGhostIsTheTailAndNotTheWholeCandidate() {
+        let presentation = SuggestionPresentation(.certain("git commit"), typed: "git com")
+        #expect(presentation.rows.map(\.ghost) == ["mit"])
+        #expect(presentation.rows[0].candidate == "git commit")
+        #expect(presentation.rows[0].consumed.isEmpty)
+        #expect(!presentation.rows[0].isReplacement)
+    }
+
+    @Test("A line the user has already finished typing is drawn as nothing")
+    func nothingLeftToOfferIsHidden() {
+        let presentation = SuggestionPresentation(.certain("git commit"), typed: "git commit")
+        #expect(presentation.style == .hidden)
+        #expect(presentation.rows.isEmpty)
+    }
+
+    @Test("Every alternative is trimmed against what is typed, not only the leader")
+    func alternativesAreTrimmedToo() {
+        let presentation = SuggestionPresentation(
+            .choice(leader: "Sydney", others: ["Sydenham", "Sydney Road"]), typed: "Syd")
+        #expect(presentation.rows.map(\.ghost) == ["ney", "enham", "ney Road"])
+        #expect(presentation.rows.map(\.candidate) == ["Sydney", "Sydenham", "Sydney Road"])
+        #expect(presentation.rows.map(\.isSelected) == [true, false, false])
+    }
+
+    @Test("An alternative the user has finished typing leaves the rest of the list alone")
+    func aFinishedAlternativeIsDropped() {
+        let presentation = SuggestionPresentation(
+            .choice(leader: "Sydney", others: ["Sydenham"]), typed: "Sydney")
+        #expect(presentation.rows.map(\.candidate) == ["Sydenham"])
+        #expect(presentation.rows[0].isSelected)
+    }
+
+    // MARK: - What a replacement costs
+
+    @Test("A replacement shows the typed characters Tab consumes as well as what it adds")
+    func aReplacementShowsWhatItConsumes() {
+        let presentation = SuggestionPresentation(.certain("git commit -m"), typed: "gti c")
+        let row = presentation.rows[0]
+        #expect(row.consumed == "ti c")
+        #expect(row.ghost == "it commit -m")
+        #expect(row.isReplacement)
+    }
+
+    @Test("An append is marked as costing nothing, so only a replacement draws a strike")
+    func anAppendConsumesNothing() {
+        let presentation = SuggestionPresentation(.certain("Sydney"), typed: "Syd")
+        #expect(!presentation.rows[0].isReplacement)
+        #expect(presentation.rows[0].consumed.isEmpty)
+    }
+
+    @Test("A rejected alternative carries its own cost rather than the leader's")
+    func eachRowCarriesItsOwnCost() {
+        let presentation = SuggestionPresentation(
+            .choice(leader: "Sydney", others: ["Sydenham"]), typed: "Sydn")
+        #expect(presentation.rows.map(\.consumed) == ["", "n"])
+        #expect(presentation.rows.map(\.isReplacement) == [false, true])
+    }
+
+    // MARK: - Drawing and doing cannot disagree
+
+    @Test(
+        "What is drawn on top of what is typed is exactly what acceptance leaves behind",
+        arguments: [
+            ("git commit", "git com"), ("git commit -m", "gti c"), ("Sydney", ""),
+            ("Sydney", "Sydney Roa"), ("🚀 launch now", "🚀 launch"), ("git", "git commit"),
+        ])
+    func whatIsDrawnAgreesWithWhatAcceptanceDoes(candidate: String, typed: String) throws {
+        let presentation = SuggestionPresentation(.certain(candidate), typed: typed)
+        let row = try #require(presentation.rows.first)
+        #expect(row.edit.applied(to: typed) == candidate)
+        #expect(String(typed.dropLast(row.consumed.count)) + row.ghost == candidate)
+    }
+
+    @Test("The leader is drawn from the very edit acceptance will apply")
+    func theLeaderDrawsTheAcceptedEdit() throws {
+        let suggestion = Suggestion.choice(leader: "git commit -m", others: ["git checkout"])
+        let presentation = SuggestionPresentation(suggestion, typed: "gti c")
+        let row = try #require(presentation.rows.first)
+        #expect(row.edit == suggestion.edit(after: "gti c"))
     }
 
     // MARK: - Accessibility
@@ -169,6 +253,29 @@ struct SuggestionPresentationTests {
             SuggestionPresentation(.choice(leader: "Sydney", others: ["Sydenham", "Soho"]))
                 .accessibilityLabel
                 == "Suggestion: Sydney. Tab to accept. Alternatives: Sydenham, Soho.")
+    }
+
+    @Test("A replacement says out loud how much of the user's own typing it takes back")
+    func labelForAReplacement() {
+        #expect(
+            SuggestionPresentation(.certain("git commit -m"), typed: "gti c").accessibilityLabel
+                == "Suggestion: git commit -m. Tab to accept, replacing 4 characters.")
+    }
+
+    @Test("A one-character replacement is counted in the singular")
+    func labelForASingleCharacterReplacement() {
+        #expect(
+            SuggestionPresentation(.certain("git y"), typed: "git x").accessibilityLabel
+                == "Suggestion: git y. Tab to accept, replacing 1 character.")
+    }
+
+    @Test("VoiceOver hears the whole line on offer, not the part still to be typed")
+    func labelNamesTheWholeCandidate() {
+        #expect(
+            SuggestionPresentation(
+                .choice(leader: "Sydney", others: ["Sydenham"]), typed: "Syd"
+            ).accessibilityLabel
+                == "Suggestion: Sydney. Tab to accept. Alternatives: Sydenham.")
     }
 
     // MARK: - Equality

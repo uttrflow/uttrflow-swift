@@ -17,6 +17,11 @@ public enum Acceptance {
 
         /// Whether this destroys text the user typed rather than only adding to it.
         public var isReplacement: Bool { !replaced.isEmpty }
+
+        /// The line this leaves behind, which is what the surface draws ahead of the keypress.
+        public func applied(to typed: String) -> String {
+            String(typed.dropLast(replacedCount)) + inserted
+        }
     }
 
     /// The edit that turns what is typed into the suggestion, or `nil` when it already is it.

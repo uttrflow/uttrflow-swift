@@ -127,16 +127,32 @@ refuses to select backwards falls through to keystrokes rather than the replacem
 dropped: a completion the user has to press ⌘Z five times to undo is still better than a
 Tab that does nothing.
 
+## What the surface draws, and why it is the same answer
+
+`SuggestionPresentation` is built from the `Suggestion` **and what is typed**, and each of
+its rows holds the `Acceptance.Edit` for that candidate — the very value
+`SuggestionAcceptor.accept` applies. The ghost is `edit.inserted` and nothing else, so
+`git com` draws `mit` at `caret.maxX` and the line reads `git commit` rather than
+`git comgit commit`. A row that has nothing left to offer is dropped, so a suggestion the
+user has finished typing takes the surface away instead of drawing an empty one.
+
+`Edit.applied(to:)` is what makes the agreement checkable: what is drawn on top of what is
+typed equals the candidate, and a test asserts it over both shapes.
+
+**A replacement is drawn as its cost.** `edit.replaced` — the typed characters Tab
+destroys — is drawn struck through immediately before the inserted text, so `gti c` shows
+~~ti c~~`it commit -m` and the four characters about to go are visible before the keypress.
+It carries no colour or opacity of its own: the strike is the whole signal, and it
+inherits whatever the enclosing style is, which is how it stays legible when Increase
+Contrast or Reduce Transparency turns the ghost into a solid chip. VoiceOver hears the
+same fact as "Tab to accept, replacing 4 characters".
+
+The struck-through text sits inside the panel rather than over the user's own characters,
+because the panel is anchored at the caret and shifting it left far enough to overlay them
+would mean measuring the field's own font from outside the application. It is an echo of
+what goes, not a mark on it.
+
 ## Not settled here
 
-- **Whether the surface can show that a replacement is a replacement.** It cannot today.
-  `SuggestionPresentation` is built from the `Suggestion` alone and never sees what is
-  typed, so it draws the whole candidate and has no way to mark which of the user's own
-  characters Tab will consume. `SuggestionAcceptor.accept` takes the same `Suggestion`
-  value the panel was handed, so the two cannot disagree about *what the line becomes* —
-  but they say nothing to the user about what it costs.
-- **Whether the inline ghost should draw the whole candidate or only the tail.** It draws
-  the whole one, at `caret.maxX`, so `git com` reads `git comgit commit` on screen. That
-  is a drawing question, and settling it settles the one above with it: a surface handed
-  the `Edit` could draw the inserted part after the caret and the replaced part struck
-  through behind it.
+- **Whether the strike should overlay the user's own characters rather than echo them.**
+  That needs the field's text metrics, which `SuggestionGeometry` does not have.

@@ -13,6 +13,8 @@ final class SuggestionPanel: NSPanel {
 /// What the surface was last asked to draw, so a display setting can change under it.
 private struct SuggestionRequest {
     var suggestion: Suggestion = .silent
+    /// What is already in the field, so the surface offers only what the suggestion adds.
+    var typed: String = ""
     var placement: SuggestionPlacement = .windowStrip
     var caret: CGRect?
     var window: CGRect?
@@ -48,14 +50,15 @@ final class SuggestionPanelController {
     /// Says what to draw and what to draw it against; `.silent` takes the surface away.
     func show(
         _ suggestion: Suggestion,
+        typed: String = "",
         placement: SuggestionPlacement,
         caret: CGRect? = nil,
         window: CGRect? = nil,
         fieldPointSize: CGFloat? = nil
     ) {
         request = SuggestionRequest(
-            suggestion: suggestion, placement: placement, caret: caret, window: window,
-            fieldPointSize: fieldPointSize)
+            suggestion: suggestion, typed: typed, placement: placement, caret: caret,
+            window: window, fieldPointSize: fieldPointSize)
         render()
     }
 
@@ -70,7 +73,7 @@ final class SuggestionPanelController {
     /// Redraws from the last request and this Mac's current display settings.
     private func render() {
         let presentation = SuggestionPresentation(
-            request.suggestion, fieldPointSize: request.fieldPointSize,
+            request.suggestion, typed: request.typed, fieldPointSize: request.fieldPointSize,
             appearance: Self.appearance())
         hostingView.rootView = SuggestionView(
             presentation: presentation,

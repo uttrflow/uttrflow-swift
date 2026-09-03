@@ -97,6 +97,18 @@ struct AcceptanceTests {
         #expect(replacing.replacedCount == 8)
     }
 
+    @Test("An edit says what the line becomes, which is what the surface can draw ahead of Tab.")
+    func anEditSaysWhatTheLineBecomes() throws {
+        let appending = try #require(Acceptance.edit(accepting: "git commit", after: "git com"))
+        #expect(appending.applied(to: "git com") == "git commit")
+
+        let replacing = try #require(Acceptance.edit(accepting: "git commit -m", after: "gti c"))
+        #expect(replacing.applied(to: "gti c") == "git commit -m")
+
+        let deleting = try #require(Acceptance.edit(accepting: "git", after: "git commit"))
+        #expect(deleting.applied(to: "git commit") == "git")
+    }
+
     @Test("A suggestion carries its own edit, so what is drawn and what is done are one answer.")
     func theSuggestionAnswersForItself() throws {
         #expect(Suggestion.silent.edit(after: "git com") == nil)
