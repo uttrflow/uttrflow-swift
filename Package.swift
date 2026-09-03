@@ -197,7 +197,7 @@ let package = Package(
         // What the user is looking at, so terms can be got right.
         .target(
             name: "UttrflowContext",
-            dependencies: ["UttrflowCore"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
