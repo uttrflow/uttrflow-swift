@@ -44,8 +44,9 @@ final class SuggestionCoordinator {
     private let acceptor: SuggestionAcceptor
     private let acceptKeys = AcceptKeys.standard
     /// What exists on this machine right now, which the corpus cannot know. See `Docs/predict.md`.
-    private let environment = EnvironmentSource(
-        index: EnvironmentIndex(reader: SystemEnvironmentReader()))
+    private let environment: EnvironmentSource
+    /// The gates that decide whether a candidate is right, which is not what the ranking measures.
+    private let verifier: Verifier
 
     private var session = SuggestionSession()
     private var monitors: [Any] = []
@@ -64,7 +65,14 @@ final class SuggestionCoordinator {
 
     /// Opens the corpus beside the clipboard's file, or reports why it could not.
     init(container: URL) throws(PredictStoreError) {
-        store = try PredictStore(path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
+        let store = try PredictStore(
+            path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
+        self.store = store
+        // One index behind both, so asking the machine for a completion also warms what attests it.
+        let index = EnvironmentIndex(reader: SystemEnvironmentReader())
+        environment = EnvironmentSource(index: index)
+        // No scorer is wired, so the statistical tiers answer alone. See `Docs/predict.md`.
+        verifier = Verifier(index: index, supersession: store)
         capture = CaptureSession(
             sink: store,
             preferencesFile: CapturePreferencesFile(
@@ -179,13 +187,35 @@ final class SuggestionCoordinator {
             draw(update, in: snapshot)
         case .query(let query):
             let candidates = await candidates(for: query)
-            let elapsed = Int(Date().timeIntervalSince(started) * 1000)
-            guard
-                let update = session.resolve(
-                    candidates, for: query, now: Date(), elapsedMilliseconds: elapsed)
-            else { return }
-            draw(update, in: snapshot)
+            switch session.resolve(
+                candidates, for: query, now: Date(), elapsedMilliseconds: since(started))
+            {
+            case .settled(let update):
+                draw(update, in: snapshot)
+            case .verify(let request):
+                await verify(request, in: snapshot, since: started)
+            case nil:
+                return
+            }
         }
+    }
+
+    /// Puts the head of the ranking through the gates and draws whatever survives them.
+    private func verify(
+        _ request: VerificationRequest, in snapshot: FocusedFieldSnapshot, since started: Date
+    ) async {
+        let allowed = await verifier.verified(
+            request.candidates, in: request.surface, typed: request.typed, now: Date())
+        guard
+            let update = session.resolve(
+                allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
+        else { return }
+        draw(update, in: snapshot)
+    }
+
+    /// How long this turn has taken, which is what decides whether its answer is still worth drawing.
+    private func since(_ started: Date) -> Int {
+        Int(Date().timeIntervalSince(started) * 1000)
     }
 
     /// What the corpus remembers and what this machine holds, which never waits on a read.
@@ -270,11 +300,11 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// Applies the accepted edit to the field and counts the acceptance, which the corpus discounts.
+    /// Puts the tail into the field and counts the acceptance, which the corpus discounts.
     private func take(_ text: String, after typed: String, in surface: Surface?) async {
         do {
-            // The routed text is the whole line the offer leaves behind, which is what a certain suggestion carries.
-            _ = try await acceptor.accept(.certain(text), after: typed)
+            // What the gates left is a whole line, so taking it may replace characters as well as add.
+            try await acceptor.accept(.certain(text), after: typed)
         } catch {
             Self.log.error("a completion landed nowhere: \(error.userMessage, privacy: .public)")
             return

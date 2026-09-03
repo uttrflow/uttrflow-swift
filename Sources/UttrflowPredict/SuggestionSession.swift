@@ -16,6 +16,25 @@ public struct SuggestionQuery: Sendable, Equatable {
     }
 }
 
+/// What the gates must judge before a turn can be drawn.
+public struct VerificationRequest: Sendable, Equatable {
+    /// The field the candidates were offered for.
+    public let surface: Surface
+    /// What has been typed into it, which is the context a verdict is reached in.
+    public let typed: String
+    /// The ranked head of the candidates, which is everything that could be drawn and nothing else.
+    public let candidates: [Candidate]
+    /// Which turn asked, so a verdict arriving after the user typed on is dropped.
+    public let generation: Int
+
+    public init(surface: Surface, typed: String, candidates: [Candidate], generation: Int) {
+        self.surface = surface
+        self.typed = typed
+        self.candidates = candidates
+        self.generation = generation
+    }
+}
+
 /// What to draw and what the tap must swallow, decided together so the two cannot disagree.
 public struct SuggestionUpdate: Sendable, Equatable {
     public let suggestion: Suggestion
@@ -36,6 +55,14 @@ public enum SuggestionStep: Sendable, Equatable {
     case settled(SuggestionUpdate)
     /// Ask the store this, then hand the answer back to ``SuggestionSession/resolve(_:for:now:elapsedMilliseconds:)``.
     case query(SuggestionQuery)
+}
+
+/// What the store's answer comes to: something to draw, or something the gates must judge first.
+public enum SuggestionResolution: Sendable, Equatable {
+    /// Nothing is on offer, so this is drawn without the gates being troubled at all.
+    case settled(SuggestionUpdate)
+    /// Something is on offer, so ask the gates about these before anything is drawn.
+    case verify(VerificationRequest)
 }
 
 /// One turn: what to do next, and what the user typed past on the way here.
@@ -67,6 +94,9 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// How long a turn may take before its answer is stale enough to be worth nothing.
     public static let turnBudgetInMilliseconds = 40
+
+    /// How many of the ranked candidates the gates judge, which is every one that could be drawn.
+    public static let verifiedDepth = PredictionEngine.maximumChoices
 
     /// The field the loop is following, or nothing when none is focused.
     public private(set) var surface: Surface?
@@ -123,16 +153,35 @@ public struct SuggestionSession: Sendable, Equatable {
         return SuggestionTurn(step: .query(query), rejected: rejected)
     }
 
-    /// Turns the store's answer into what to draw, or nothing when the user has moved on.
+    /// Turns the store's answer into what to draw or what to verify, nothing once the user has moved on.
     public mutating func resolve(
         _ candidates: [Candidate], for query: SuggestionQuery, now: Date, elapsedMilliseconds: Int
-    ) -> SuggestionUpdate? {
+    ) -> SuggestionResolution? {
         guard query.generation == generation, query.surface == surface, let pending else { return nil }
         // A slow read or a slow query has already cost the user the moment it was answering.
-        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return settle(.silent) }
+        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return .settled(settle(.silent)) }
         // A candidate the user has already finished typing adds nothing, and drawing it doubles the line.
         let offerable = candidates.filter { $0.text != pending.typed }
-        return settle(PredictionEngine.suggestion(from: offerable, in: pending, now: now))
+        let drawable = PredictionEngine.suggestion(from: offerable, in: pending, now: now)
+        // A turn with nothing on offer has nothing to be wrong about, so the gates are never troubled.
+        guard drawable.accepting != nil else { return .settled(settle(drawable)) }
+        let head = Ranking(offerable, now: now).candidates.prefix(Self.verifiedDepth).map(\.candidate)
+        return .verify(
+            VerificationRequest(
+                surface: query.surface, typed: pending.typed, candidates: head,
+                generation: generation))
+    }
+
+    /// Turns what the gates left of the head into what is drawn, nothing once the user has moved on.
+    public mutating func resolve(
+        _ verified: [Candidate], for request: VerificationRequest, now: Date, elapsedMilliseconds: Int
+    ) -> SuggestionUpdate? {
+        guard request.generation == generation, request.surface == surface, let pending else {
+            return nil
+        }
+        // A verdict reached after the moment it was judging has already cost the user that moment.
+        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return settle(.silent) }
+        return settle(PredictionEngine.suggestion(from: verified, in: pending, now: now))
     }
 
     /// Takes one keystroke the tap swallowed and answers with what it means.

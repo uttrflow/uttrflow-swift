@@ -391,6 +391,29 @@ struct QueryPlanTests {
     }
 }
 
+@Suite("Superseding through the verification tier")
+struct StoreSupersessionTests {
+    @Test("What the gates corrected is superseded here without them having anywhere to report a failure.")
+    func recordsThroughTheProtocol() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git comit", in: terminal, at: moment)
+        let recording: any SupersessionRecording = store
+        await recording.recordSupersession(of: "git comit", by: "git commit", in: terminal)
+        #expect(try await store.candidates(for: terminal, matching: "git c").isEmpty)
+    }
+
+    @Test("What the gates refused is put out of reach here, with nothing named as replacing it.")
+    func recordsARejection() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git zqxjw", in: terminal, at: moment)
+        let recording: any SupersessionRecording = store
+        await recording.recordRejection(of: "git zqxjw", in: terminal)
+        #expect(try await store.candidates(for: terminal, matching: "git z").isEmpty)
+    }
+}
+
 @Suite("Where the corpus lives")
 struct PredictStoreLocationTests {
     @Test("It sits in Uttrflow's own folder, versioned in its name.")
@@ -406,18 +429,5 @@ struct PredictStoreLocationTests {
         let file = PredictStore.defaultFile(in: root)
         _ = try PredictStore(path: file.path(percentEncoded: false))
         #expect(FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
-    }
-}
-
-@Suite("Superseding through the verification tier")
-struct StoreSupersessionTests {
-    @Test("What the gates corrected is superseded here without them having anywhere to report a failure.")
-    func recordsThroughTheProtocol() async throws {
-        let corpus = Corpus()
-        let store = try store(corpus)
-        try await store.record("git comit", in: terminal, at: moment)
-        let recording: any SupersessionRecording = store
-        await recording.recordSupersession(of: "git comit", by: "git commit", in: terminal)
-        #expect(try await store.candidates(for: terminal, matching: "git c").isEmpty)
     }
 }

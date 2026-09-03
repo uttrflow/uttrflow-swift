@@ -1147,7 +1147,11 @@ are built and the app now runs them behind a defaults key that is off by default
 | 3 | Capture and measure — record what is committed, per field | ✅ **Done** |
 | 4 | Accept — Tab, the insertion, and what acceptance is worth | ✅ **Done** |
 | 5 | Surface — the ghost, the chip, the strip, and drawing nothing | ✅ **Done** |
-| 6 | Verify — the four gates that put correctness above habit | ✅ **Done** |
+| 2 | Store — the corpus on disk, and matching what was nearly typed | ✅ **Done** |
+| 3 | Capture and measure — record what is committed, per field | ✅ **Done** |
+| 4 | Accept — Tab, the insertion, and what acceptance is worth | ✅ **Done** |
+| 5 | Surface — the ghost, the chip, the strip, and drawing nothing | ✅ **Done** |
+| 6 | Verify — the four gates that put correctness above habit | ✅ **Done**, wired |
 | 6b | The numbers, on the Insights page | **Not started** |
 | 7 | Generate — prose at an idle pause | **Deferred** until phase 3's numbers justify it |
 | 8 | Ship — settings, the resets, onboarding | **Not started** |
@@ -1159,9 +1163,15 @@ against the real machine; `AppDelegate` builds the coordinator when
 `com.uttrflow.predict.enabled` says so, and nothing at all when it does not.
 [Docs/predict.md](Docs/predict.md) has the steps for turning it on.
 
-Still open after it: nothing draws the numbers on the Insights page (phase 6), the only
-way to turn the feature on is a `defaults write` (phase 8), consent per application is an
-`NSAlert` rather than anything designed, and the placement ladder is still chosen from
+The gates run inside that loop, between ranking and drawing. `resolve` hands back the head
+of the ranking to be verified, `Verifier` judges it against one deadline for the whole
+keystroke, and the second `resolve` draws what survived — corrected silently where the
+machine knew better, dropped where it did not, and reported to the corpus either way.
+
+Still open after it: no scorer is wired into the coordinator, so gate 2 never runs on a
+real machine; nothing draws the numbers on the Insights page (phase 6b); the only way to
+turn the feature on is a `defaults write` (phase 8); consent per application is an
+`NSAlert` rather than anything designed; and the placement ladder is still chosen from
 what each field answers rather than from a sweep that has been run.
 
 The runbook and the rules that hold across all nine are in
