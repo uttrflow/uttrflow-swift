@@ -95,6 +95,24 @@ struct PredictionEngineTests {
         #expect(suggestion([faint]) == .silent)
     }
 
+    @Test("A line entered once is offered from the moment it is learned.")
+    func aSingleFreshExactEntryDraws() {
+        #expect(suggestion([remembered("git commit -m", count: 1)]) == .certain("git commit -m"))
+    }
+
+    @Test("A single near-typed match is offered when it is the only candidate.")
+    func aSingleFuzzyMatchDraws() {
+        let fuzzy = remembered("git commit -m", count: 1, editDistance: 1)
+        #expect(Frecency.score(fuzzy, now: now) >= PredictionEngine.supportFloor)
+        #expect(suggestion([fuzzy]) == .certain("git commit -m"))
+    }
+
+    @Test("A two-edit guess on a single use is too uncertain to draw, so the floor is not zero.")
+    func aDistantSingleFuzzyMatchStaysQuiet() {
+        let distant = remembered("git commit -m", count: 1, editDistance: 2)
+        #expect(suggestion([distant]) == .silent)
+    }
+
     @Test("A list is capped, because past four options it is a search and not a choice.")
     func listIsCapped() {
         let crowd = (0..<9).map { remembered("candidate \($0)", count: 10) }

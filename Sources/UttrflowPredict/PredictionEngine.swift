@@ -5,8 +5,8 @@ public enum PredictionEngine {
     /// How far ahead the leader must be to be shown alone, which is what certainty means here.
     public static let separationThreshold = 0.20
 
-    /// How much evidence the leader needs before anything is worth drawing.
-    public static let supportFloor = 0.6
+    /// How much evidence the leader needs before anything is worth drawing, below one plain use of a line.
+    public static let supportFloor = 0.15
 
     /// How many candidates a list may hold before it stops being a choice and becomes a search.
     public static let maximumChoices = 4
