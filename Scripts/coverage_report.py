@@ -36,6 +36,10 @@ EXCLUDED_FILES = {
     "UttrflowContext/MacContextEngine+System.swift": "reads other apps' windows through Accessibility",
     "UttrflowContext/SurfaceProbe+System.swift": "asks other apps about their focused field",
     "UttrflowPredictCapture/FieldReader+System.swift": "asks other apps what their focused field is called",
+    "UttrflowContext/CompositionProbe+System.swift": (
+        "asks the focused field and the Text Input Sources database about input-method "
+        "composition; the rule it feeds is Composition, which is tested"
+    ),
     "UttrflowInput/SystemInput.swift": "drives the clipboard, the keyboard and other apps' windows",
     "UttrflowAccount/BackendTransport+URLSession.swift": (
         "the one place this app opens a socket; every decision worth getting wrong is in "

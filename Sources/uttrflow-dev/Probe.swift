@@ -2,13 +2,14 @@ import ArgumentParser
 private import ApplicationServices
 private import Foundation
 private import UttrflowContext
+private import UttrflowPredict
 
 /// Phase 0's measurements: what fields will tell us, what retrieval costs, whether the tap works.
 struct Probe: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "probe",
         abstract: "Measure what tab-to-complete can rely on, before any of it is built.",
-        subcommands: [ProbeSurface.self, ProbeRetrieval.self, ProbeTap.self]
+        subcommands: [ProbeSurface.self, ProbeRetrieval.self, ProbeTap.self, ProbeIME.self]
     )
 }
 
@@ -136,5 +137,54 @@ struct ProbeTap: AsyncParsableCommand {
         try await Task.sleep(for: .seconds(seconds))
         observer.stop()
         print(observer.summary())
+    }
+}
+
+/// Watches whether the focused field will admit to an input method composing in it.
+struct ProbeIME: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "ime",
+        abstract: "Report the marked-text range and the input source. See Docs/predict-ime.md."
+    )
+
+    @Option(name: .long, help: "How long to watch for, in seconds.")
+    var seconds: Int = 60
+
+    func run() async throws {
+        guard AXIsProcessTrusted() else {
+            print("Accessibility is not granted to this binary, so every read would return nothing.")
+            throw ExitCode.failure
+        }
+
+        print("Watching for \(seconds)s. Switch to an input method and type, so composition shows.\n")
+        var previous = ""
+        for tick in 0..<seconds {
+            let marked = CompositionProbe.markedText()
+            let source = CompositionProbe.inputSourceKind()
+            let composing = Composition.isComposing(markedText: marked, inputSource: source)
+            let line =
+                "\(describe(marked)) · input source is a \(describe(source)) · composing=\(composing)"
+            if line != previous {
+                print("  \(line)")
+                previous = line
+            }
+            if tick < seconds - 1 { try await Task.sleep(for: .seconds(1)) }
+        }
+    }
+
+    private func describe(_ marked: MarkedText) -> String {
+        switch marked {
+        case .present: "the field reports marked text"
+        case .absent: "the field reports no marked text"
+        case .unanswered: "the field does not publish a marked range"
+        }
+    }
+
+    private func describe(_ kind: InputSourceKind) -> String {
+        switch kind {
+        case .layout: "plain layout"
+        case .inputMethod: "input method"
+        case .unknown: "source that could not be read"
+        }
     }
 }
