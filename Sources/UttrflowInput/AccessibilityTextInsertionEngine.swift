@@ -1,10 +1,6 @@
 public import UttrflowCore
 
-/// Writes text straight into the focused field through the Accessibility API.
-///
-/// Preferred over pasting because it leaves the user's clipboard alone and puts the
-/// text exactly where the caret is. It only works where the app exposes a text field
-/// to Accessibility, which many do not — hence the strategies beneath it.
+/// Writes straight into the focused field, which leaves the clipboard alone and writes at the caret.
 public struct AccessibilityTextInsertionEngine: TextInsertionEngine {
     public let method: TextInsertionMethod = .accessibility
 
@@ -21,5 +17,15 @@ public struct AccessibilityTextInsertionEngine: TextInsertionEngine {
     public func insert(_ text: String) async throws(TextInsertionError) {
         guard let field = focus.focusedTextField() else { throw .noFocusedTextField }
         try field.replaceSelection(with: text)
+    }
+}
+
+extension AccessibilityTextInsertionEngine: CompletionWriting {
+    public func canWrite() async -> Bool { await canInsert() }
+
+    /// One write, so the field's own undo sees one edit rather than a delete and a typing run.
+    public func write(_ text: String, replacing characters: Int) async throws(TextInsertionError) {
+        guard let field = focus.focusedTextField() else { throw .noFocusedTextField }
+        try field.replaceSelection(precededBy: characters, with: text)
     }
 }

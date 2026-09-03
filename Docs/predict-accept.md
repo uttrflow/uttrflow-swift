@@ -84,15 +84,59 @@ phantom entry in their own clip history — from a feature they experience as au
 So `TextInsertion.completion` is Accessibility first and synthesised keystrokes second,
 with nothing beneath, and a completion that lands nowhere is simply not accepted.
 
-Only the tail is inserted: the head is already in the field, the caret is at the end of
-it, and no route here can replace text the user did not select. A suggestion that does not
-continue what was typed therefore cannot be accepted at all, and `Acceptance.remainder`
-returns nothing for it.
+## What accepting inserts, and what it takes back
+
+`Acceptance.edit(accepting:after:)` answers with an `Edit`: the already-typed characters
+immediately before the caret that go, and the text that replaces them. An append is that
+edit with nothing replaced, so the common case stays trivial and destroys nothing.
+
+The edit is the difference from the longest opening the two strings share. `git com` →
+`git commit` shares all seven typed characters, so nothing is replaced and `mit` is typed.
+`gti c` → `git commit -m` shares only `g`, so four characters go and `it commit -m`
+arrives. Two features produce exactly that second shape and both used to draw a suggestion
+and then do nothing when Tab was pressed: the store's fuzzy fallback, and verification's
+correction of what was typed.
+
+What is replaced is always a suffix of what the user typed — it is cut from that string
+and no other — so the count cannot exceed what they have entered, and the edit can never
+reach text they did not type at this caret. `Quieting` has already refused the moment
+before this if the caret is not at the end or anything is selected.
+
+The route takes it two ways. Accessibility widens the field's own selection back over
+those characters and then writes once, which is why it is tried first. Where the field
+will not report or set its selection, `TypedTextInsertionEngine` presses Delete once per
+character and then types — which works everywhere and costs what the next section says.
+
+## What ⌘Z does afterwards
+
+**One press, on the Accessibility route.** Setting `kAXSelectedText` on an AppKit field
+goes through `insertText:replacementRange:`, which registers one undo action; moving the
+selection first registers none, because a selection change is not an edit.
+
+**Several, on the keystroke route, and this cannot be fixed from outside the
+application.** Each synthesised Delete is a separate `deleteBackward:` in the target, and
+no undo manager coalesces a run of deletions with the typing that follows it — the kinds
+differ, so the group is broken between them. AppKit therefore charges roughly one press
+per character replaced plus one for the typing; Chromium and Electron coalesce
+same-kind edits within a time window and so charge about two. Undo grouping belongs to the
+target's own undo manager and there is no cross-process API that opens a group in it, so
+this is a property of the route rather than a defect to be fixed later.
+
+This is the whole argument for preferring Accessibility, and it is why a field that
+refuses to select backwards falls through to keystrokes rather than the replacement being
+dropped: a completion the user has to press ⌘Z five times to undo is still better than a
+Tab that does nothing.
 
 ## Not settled here
 
-- **Case-insensitive continuation.** `Git com` does not accept `git commit` today. Doing
-  it properly means replacing the typed head, which needs a selection the insertion route
-  does not have.
-- **Whether ⌘Z reverts an accepted completion in one step.** A property of each target
-  application; it needs the surface sweep in `Docs/predict-probe.md` to have been run.
+- **Whether the surface can show that a replacement is a replacement.** It cannot today.
+  `SuggestionPresentation` is built from the `Suggestion` alone and never sees what is
+  typed, so it draws the whole candidate and has no way to mark which of the user's own
+  characters Tab will consume. `SuggestionAcceptor.accept` takes the same `Suggestion`
+  value the panel was handed, so the two cannot disagree about *what the line becomes* —
+  but they say nothing to the user about what it costs.
+- **Whether the inline ghost should draw the whole candidate or only the tail.** It draws
+  the whole one, at `caret.maxX`, so `git com` reads `git comgit commit` on screen. That
+  is a drawing question, and settling it settles the one above with it: a surface handed
+  the `Edit` could draw the inserted part after the caret and the replaced part struck
+  through behind it.

@@ -1,23 +1,23 @@
 public import UttrflowCore
-private import UttrflowPredict
+public import UttrflowPredict
 
 /// Puts an accepted suggestion into the field, and never onto the clipboard. See `Docs/predict-accept.md`.
 public struct SuggestionAcceptor: Sendable {
-    private let coordinator: TextInsertionCoordinator
+    private let completion: CompletionRoute
 
-    public init(coordinator: TextInsertionCoordinator) {
-        self.coordinator = coordinator
+    public init(completion: CompletionRoute) {
+        self.completion = completion
     }
 
     /// The strategies this will try, so a caller can prove the clipboard is not among them.
-    public var route: [TextInsertionMethod] { coordinator.route }
+    public var route: [TextInsertionMethod] { completion.route }
 
-    /// Inserts what the suggestion adds to what is typed, or nothing when it adds nothing.
+    /// Does to the field exactly what the drawn suggestion promised, or nothing when it promised nothing.
     @discardableResult
     public func accept(
-        _ suggestion: String, after typed: String
+        _ suggestion: Suggestion, after typed: String
     ) async throws(TextInsertionError) -> TextInsertionMethod? {
-        guard let remainder = Acceptance.remainder(of: suggestion, after: typed) else { return nil }
-        return try await coordinator.insert(remainder)
+        guard let edit = suggestion.edit(after: typed) else { return nil }
+        return try await completion.write(edit.inserted, replacing: edit.replacedCount)
     }
 }

@@ -69,7 +69,33 @@ public struct CGEventTypist: KeystrokeTyping {
     /// How many UTF-16 units one event may carry; longer strings are silently truncated by the system.
     private static let unitsPerEvent = 16
 
+    /// Virtual key code for Delete, positional and so correct on any keyboard layout.
+    private static let deleteKeyCode: CGKeyCode = 51
+
     public init() {}
+
+    /// One press per character, because there is no bulk delete a synthetic keyboard can reach for.
+    public func deleteBackwards(_ count: Int) throws(TextInsertionError) {
+        guard count > 0 else { return }
+        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            throw .insertionRejected(description: "could not create the keystroke")
+        }
+        for _ in 0..<count {
+            guard
+                let keyDown = CGEvent(
+                    keyboardEventSource: source, virtualKey: Self.deleteKeyCode, keyDown: true),
+                let keyUp = CGEvent(
+                    keyboardEventSource: source, virtualKey: Self.deleteKeyCode, keyDown: false)
+            else { throw .insertionRejected(description: "could not create the keystroke") }
+
+            // Cleared so a modifier the user is still holding cannot widen the delete.
+            keyDown.flags = []
+            keyUp.flags = []
+            keyDown.post(tap: .cghidEventTap)
+            keyUp.post(tap: .cghidEventTap)
+        }
+    }
 
     public func type(_ text: String) throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
@@ -170,6 +196,57 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
             throw .insertionRejected(
                 description: "the field accepted the text and did not change")
         }
+    }
+
+    /// Grows the selection back over `characters` first, so one write replaces them and undo sees one edit.
+    func replaceSelection(
+        precededBy characters: Int, with text: String
+    ) throws(TextInsertionError) {
+        if characters > 0 { try selectBackwards(characters) }
+        try replaceSelection(with: text)
+    }
+
+    /// Moves the selection's start back over `characters`, which a field that hides its range refuses.
+    private func selectBackwards(_ characters: Int) throws(TextInsertionError) {
+        guard let whole = value(), let selection = selectedRange() else {
+            throw .insertionRejected(description: "the field will not report its selection")
+        }
+        guard
+            let widened = BackwardSelection.range(
+                in: whole, endingAt: selection.location, covering: characters)
+        else {
+            throw .insertionRejected(description: "the field has too little text before the caret")
+        }
+
+        var range = CFRange(
+            location: widened.lowerBound,
+            length: selection.length + (selection.location - widened.lowerBound))
+        guard let value = AXValueCreate(.cfRange, &range) else {
+            throw .insertionRejected(description: "could not describe the selection")
+        }
+        let result = AXUIElementSetAttributeValue(
+            element, kAXSelectedTextRangeAttribute as CFString, value)
+        guard result == .success else {
+            throw .insertionRejected(
+                description: "the field refused the selection (\(result.rawValue))")
+        }
+    }
+
+    /// Where the caret is, in UTF-16 units, when the field will say.
+    private func selectedRange() -> CFRange? {
+        var current: AnyObject?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXSelectedTextRangeAttribute as CFString, &current) == .success,
+            let value = current, CFGetTypeID(value) == AXValueGetTypeID()
+        else { return nil }
+
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        var range = CFRange()
+        guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range) else {
+            return nil
+        }
+        return range
     }
 
     /// The field's whole contents, when it will say.

@@ -1,14 +1,26 @@
 public import UttrflowCore
 
-/// The text field the user is typing in, reduced to the one operation insertion needs.
-///
-/// Replacing *the selection* is the whole contract. With a caret and no selection that
-/// inserts at the caret; with text selected it replaces exactly what was selected —
-/// which is what the user asked for by selecting it. Nothing here can touch the rest
-/// of the field, so "never overwrite content the user did not select" is guaranteed by
-/// the shape of the API rather than by remembering to be careful.
+/// The text field the user is typing in, reduced to the two writes insertion needs. See `Docs/predict-accept.md`.
 public protocol FocusedTextField: Sendable {
+    /// Replaces the selection, or inserts at the caret when there is none.
     func replaceSelection(with text: String) throws(TextInsertionError)
+
+    /// Replaces the selection *and* the `characters` before it, which only an accepted completion asks for.
+    func replaceSelection(
+        precededBy characters: Int, with text: String
+    ) throws(TextInsertionError)
+}
+
+extension FocusedTextField {
+    /// A field that cannot select backwards refuses, so the keystroke route takes the replacement instead.
+    public func replaceSelection(
+        precededBy characters: Int, with text: String
+    ) throws(TextInsertionError) {
+        guard characters == 0 else {
+            throw .insertionRejected(description: "the field cannot select backwards")
+        }
+        try replaceSelection(with: text)
+    }
 }
 
 /// Finds the text field the user is typing in.
@@ -16,19 +28,9 @@ public protocol AccessibilityFocus: Sendable {
     /// The focused text field, or `nil` when what is focused cannot take text.
     func focusedTextField() -> (any FocusedTextField)?
 
-    /// Whether anything at all is focused that could plausibly receive typing.
-    ///
-    /// Deliberately weaker than ``focusedTextField()``, and the gap between them is the
-    /// point. That one additionally requires the element to report its *selection*, and
-    /// plenty of fields refuse the read while happily accepting a paste — Electron apps,
-    /// web views, and anything drawing its own text. Pasting needs to know only that
-    /// there is somewhere for a ⌘V to land, and answering the stricter question on its
-    /// behalf sends every one of those apps to the clipboard instead of their document.
+    /// Whether anything at all is focused that could take a paste, which many fields allow while refusing a selection read.
     func hasFocusedElement() -> Bool
 
-    /// Whether Uttrflow itself is the application in front.
-    ///
-    /// Nothing may be typed or pasted in that case: the target would be Uttrflow's own
-    /// window, and the user's dictation would land in the app that produced it.
+    /// Whether Uttrflow itself is the application in front, in which case nothing may be typed or pasted.
     func isSelfFrontmost() -> Bool
 }
