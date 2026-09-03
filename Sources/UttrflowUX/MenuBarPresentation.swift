@@ -48,6 +48,55 @@ public enum UpdateProgress: Sendable, Equatable {
     case installing
 }
 
+/// One of the three halves of the product, each switched on and off without touching the others.
+public enum MenuBarFeature: String, Sendable, Equatable, CaseIterable {
+    case dictation
+    case clipboard
+    case suggestions
+
+    /// What the switch is called in the menu.
+    public var title: String {
+        switch self {
+        case .dictation: "Dictation"
+        case .clipboard: "Clipboard"
+        case .suggestions: "Suggestions"
+        }
+    }
+}
+
+/// Which of the three are on, held as three answers so switching one cannot move another.
+public struct MenuBarFeatures: Sendable, Equatable {
+    public var dictation: Bool
+    public var clipboard: Bool
+    /// Off to begin with, the same as the setting it stands for.
+    public var suggestions: Bool
+
+    public init(dictation: Bool = true, clipboard: Bool = true, suggestions: Bool = false) {
+        self.dictation = dictation
+        self.clipboard = clipboard
+        self.suggestions = suggestions
+    }
+
+    public func isOn(_ feature: MenuBarFeature) -> Bool {
+        switch feature {
+        case .dictation: dictation
+        case .clipboard: clipboard
+        case .suggestions: suggestions
+        }
+    }
+
+    /// Answers a copy with one switch moved, which is the whole of the independence promise.
+    public func setting(_ feature: MenuBarFeature, isOn: Bool) -> MenuBarFeatures {
+        var updated = self
+        switch feature {
+        case .dictation: updated.dictation = isOn
+        case .clipboard: updated.clipboard = isOn
+        case .suggestions: updated.suggestions = isOn
+        }
+        return updated
+    }
+}
+
 /// What the product is doing, in the only terms the menu bar needs it.
 public struct MenuBarState: Sendable, Equatable {
     public var activity: DictationActivity
@@ -63,6 +112,9 @@ public struct MenuBarState: Sendable, Equatable {
     /// How far along an update is, if one is under way.
     public var updateProgress: UpdateProgress
 
+    /// Which of the three halves of the product are switched on.
+    public var features: MenuBarFeatures
+
     public init(
         activity: DictationActivity = .idle,
         failure: FailurePresentation? = nil,
@@ -70,7 +122,8 @@ public struct MenuBarState: Sendable, Equatable {
         recordingAdvice: DictationAdvice = .keepGoing,
         recents: [MenuBarRecent] = [],
         canCheckForUpdates: Bool = false,
-        updateProgress: UpdateProgress = .idle
+        updateProgress: UpdateProgress = .idle,
+        features: MenuBarFeatures = MenuBarFeatures()
     ) {
         self.activity = activity
         self.failure = failure
@@ -79,6 +132,7 @@ public struct MenuBarState: Sendable, Equatable {
         self.recents = recents
         self.canCheckForUpdates = canCheckForUpdates
         self.updateProgress = updateProgress
+        self.features = features
     }
 }
 
@@ -99,6 +153,8 @@ public enum MenuBarIntent: Sendable, Equatable {
     case openClipboard
     /// Ask the feed now, and the one path allowed to put an update window on screen.
     case checkForUpdates
+    /// Move one of the three switches, naming the one it moves so the other two cannot follow.
+    case setFeature(MenuBarFeature, isOn: Bool)
     case quit
 }
 
@@ -162,10 +218,13 @@ public struct MenuBarCommand: Sendable, Equatable {
     public let isAlternate: Bool
     /// The whole of a title that had to be shortened.
     public let tooltip: String?
+    /// Whether the item wears a tick, which only a switch ever does.
+    public let isChecked: Bool
 
     public init(
         title: String, intent: MenuBarIntent, shortcut: MenuBarShortcut? = nil,
-        isEnabled: Bool = true, isAlternate: Bool = false, tooltip: String? = nil
+        isEnabled: Bool = true, isAlternate: Bool = false, tooltip: String? = nil,
+        isChecked: Bool = false
     ) {
         self.title = title
         self.intent = intent
@@ -173,6 +232,7 @@ public struct MenuBarCommand: Sendable, Equatable {
         self.isEnabled = isEnabled
         self.isAlternate = isAlternate
         self.tooltip = tooltip
+        self.isChecked = isChecked
     }
 }
 
@@ -355,9 +415,13 @@ public enum MenuBarPresenter {
             .command(
                 MenuBarCommand(
                     title: "Clipboard", intent: .openClipboard,
-                    shortcut: MenuBarShortcut(key: "v", modifiers: [.command, .shift]))))
+                    shortcut: MenuBarShortcut(key: "v", modifiers: [.command, .shift]),
+                    isEnabled: state.features.clipboard)))
 
         items.append(contentsOf: recentItems(for: state))
+
+        items.append(.separator)
+        items.append(contentsOf: featureItems(for: state.features))
 
         items.append(.separator)
         // The menu names the place and the app opens it.
@@ -387,6 +451,19 @@ public enum MenuBarPresenter {
         return items
     }
 
+    /// The three switches, always all three, so turning one off never hides another.
+    static func featureItems(for features: MenuBarFeatures) -> [MenuBarItem] {
+        [.sectionHeader("Turn on and off")]
+            + MenuBarFeature.allCases.map { feature in
+                let isOn = features.isOn(feature)
+                return .command(
+                    MenuBarCommand(
+                        title: feature.title,
+                        intent: .setFeature(feature, isOn: !isOn),
+                        isChecked: isOn))
+            }
+    }
+
     /// What a recording says about itself, counting down once it nears its cap.
     static func listeningLine(for advice: DictationAdvice) -> String {
         guard let remaining = RemainingTime.phrase(for: advice) else { return "Listening…" }
@@ -400,6 +477,7 @@ public enum MenuBarPresenter {
 
     /// Greyed for all three reasons dictation cannot begin, since a dead item reads as broken.
     static func canStartDictation(in state: MenuBarState) -> Bool {
+        guard state.features.dictation else { return false }
         guard state.failure?.severity != .blocking else { return false }
         guard state.speechModel == .ready else { return false }
         return switch state.activity {

@@ -1,4 +1,5 @@
 public import UttrflowCore
+public import UttrflowPredict
 public import UttrflowSettings
 
 // MARK: - What a screen is made of
@@ -128,6 +129,9 @@ public enum SettingsControl: Sendable, Equatable {
     /// and inherit its red treatment and its confirmation.
     case action(title: String, change: SettingsChange)
 
+    /// A switch for a row that stands for one application rather than one named field.
+    case applicationSwitch(isOn: Bool, change: SettingsChange)
+
     /// A value with nothing to press — a version number, a count, a date.
     ///
     /// A row rather than an explanation because it is an *answer*, and answers belong
@@ -202,6 +206,8 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case playsSoundWhenRecordingStarts
     case opensAtLogin
     case installsUpdatesAutomatically
+    case suggestionsEnabled
+    case quietSuggestions
 }
 
 /// Everything the user can ask for on this screen.
@@ -219,6 +225,15 @@ public enum SettingsChange: Sendable, Equatable {
     case spokenLanguage(LanguageCode, isSpoken: Bool)
     case retention(days: Int)
     case appearance(AppAppearance)
+
+    /// Switches suggestions on or off in one application, which is the only way back out of the shipped deny list.
+    case suggestionsHere(application: String, isOn: Bool)
+
+    /// Chooses the key that takes a suggestion in one application.
+    case suggestionAcceptKey(application: String, key: AcceptKey)
+
+    /// Starts the half-hour pause everywhere, or lifts one that is still running.
+    case pauseSuggestions(isOn: Bool)
 
     /// Ask the update feed now rather than waiting for the next scheduled check.
     ///

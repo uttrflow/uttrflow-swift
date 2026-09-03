@@ -1,4 +1,6 @@
+public import struct Foundation.Date
 import UttrflowCore
+import UttrflowPredict
 public import UttrflowSettings
 
 /// The whole window, as the view is given it.
@@ -30,6 +32,8 @@ public enum SettingsPresenter {
                 SettingsTabItem(tab: tab, title: "Languages", symbolName: "globe")
             case .dictation:
                 SettingsTabItem(tab: tab, title: "Dictation", symbolName: "mic")
+            case .suggestions:
+                SettingsTabItem(tab: tab, title: "Suggestions", symbolName: "text.cursor")
             case .privacy:
                 SettingsTabItem(tab: tab, title: "Privacy", symbolName: "lock")
             }
@@ -40,14 +44,15 @@ public enum SettingsPresenter {
         showing tab: SettingsTab,
         settings: Settings,
         capabilities: SettingsCapabilities = .everything,
-        personalisation: SettingsPersonalisation = .nothing
+        personalisation: SettingsPersonalisation = .nothing,
+        at moment: Date = Date()
     ) -> SettingsWindowPresentation {
         SettingsWindowPresentation(
             tabs: tabs(),
             selected: tab,
             pane: pane(
                 for: tab, settings: settings, capabilities: capabilities,
-                personalisation: personalisation)
+                personalisation: personalisation, at: moment)
         )
     }
 
@@ -55,12 +60,14 @@ public enum SettingsPresenter {
         for tab: SettingsTab,
         settings: Settings,
         capabilities: SettingsCapabilities = .everything,
-        personalisation: SettingsPersonalisation = .nothing
+        personalisation: SettingsPersonalisation = .nothing,
+        at moment: Date = Date()
     ) -> SettingsPane {
         switch tab {
         case .general: general(settings, capabilities)
         case .languages: languages(settings, capabilities)
         case .dictation: dictation(settings, capabilities, personalisation)
+        case .suggestions: suggestions(settings, personalisation, moment)
         case .privacy: privacy(settings, personalisation)
         }
     }
@@ -308,6 +315,158 @@ public enum SettingsPresenter {
     private static func qualityOption(_ quality: SettingsTranscriptionQuality) -> SettingsOption {
         SettingsOption(
             id: quality.rawValue, title: quality.title, change: .transcription(quality))
+    }
+
+    // MARK: - Suggestions
+
+    /// What tab-to-complete does, where it does it, and every place it has been switched off.
+    private static func suggestions(
+        _ settings: Settings,
+        _ personalisation: SettingsPersonalisation,
+        _ moment: Date
+    ) -> SettingsPane {
+        SettingsPane(
+            tab: .suggestions,
+            title: "Suggestions",
+            banner: nil,
+            groups: [
+                SettingsGroup(
+                    id: "suggestions",
+                    title: nil,
+                    rows: [
+                        toggleRow(
+                            .suggestionsEnabled,
+                            label: "Finish what I am typing",
+                            explanation:
+                                "Uttrflow completes lines you have typed on this Mac before. "
+                                + "Off until you ask for it.",
+                            settings, .everything),
+                        toggleRow(
+                            .quietSuggestions,
+                            label: "Only suggest when it is sure",
+                            explanation: "Never offers a list to choose between.",
+                            settings, .everything),
+                        pauseRow(settings, moment),
+                    ]),
+                applicationGroup(settings, personalisation),
+            ],
+            callout: SettingsCallout(
+                symbolName: "lock",
+                message:
+                    "Completions come from what you have typed on this Mac. Nothing is uploaded, "
+                    + "and a password field is never read."))
+    }
+
+    /// The half-hour pause, which lifts itself and so is a button rather than a switch.
+    static func pauseRow(_ settings: Settings, _ moment: Date) -> SettingsRow {
+        let remaining = settings.suggestions.pauseRemaining(at: moment)
+        return SettingsRow(
+            id: "pauseSuggestions",
+            label: "Pause everywhere",
+            explanation: pauseSentence(remaining),
+            control: .action(
+                title: remaining == nil ? "Pause for 30 Minutes" : "Resume",
+                change: .pauseSuggestions(isOn: remaining == nil)),
+            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff)
+    }
+
+    /// What a running pause has left, rounded up so a pause never reads as "0 minutes left".
+    static func pauseSentence(_ remaining: Double?) -> String {
+        guard let remaining else {
+            return "Stops for half an hour, then comes back on its own."
+        }
+        let minutes = max(1, Int((remaining / 60).rounded(.up)))
+        return "Paused. Comes back on its own in \(counted(minutes, "minute", "minutes"))."
+    }
+
+    /// Every application the screen knows about, the shipped editors and everything switched off among them, each with the switch that turns it back on.
+    static func applicationGroup(
+        _ settings: Settings, _ personalisation: SettingsPersonalisation
+    ) -> SettingsGroup {
+        let preferences = settings.suggestions
+        let rows =
+            preferences
+            .knownApplications(learnedIn: personalisation.applicationsWithSuggestions)
+            .flatMap { applicationRows($0, preferences, settings, personalisation) }
+        return SettingsGroup(id: "suggestionApplications", title: "Applications", rows: rows)
+    }
+
+    /// One application: its switch, the key that accepts there, and what it has taught.
+    private static func applicationRows(
+        _ application: SuggestionApplication,
+        _ preferences: SuggestionPreferences,
+        _ settings: Settings,
+        _ personalisation: SettingsPersonalisation
+    ) -> [SettingsRow] {
+        let identifier = application.bundleIdentifier
+        let state = preferences.state(of: identifier)
+        let off = settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff
+        var rows: [SettingsRow] = [
+            SettingsRow(
+                id: "suggestionsIn.\(identifier)",
+                label: application.name,
+                explanation: applicationSentence(state),
+                control: .applicationSwitch(
+                    isOn: state.isOn,
+                    change: .suggestionsHere(application: identifier, isOn: !state.isOn)),
+                unavailability: off)
+        ]
+        if state.isOn {
+            rows.append(acceptKeyRow(application, preferences, unavailability: off))
+        }
+        if personalisation.suggestions(from: identifier) > 0 {
+            rows.append(forgetSuggestionsRow(application, personalisation))
+        }
+        return rows
+    }
+
+    /// Why an application is off, said only when the reason is not the user's own choice.
+    static func applicationSentence(_ state: SuggestionApplicationState) -> String? {
+        switch state {
+        case .on: nil
+        case .turnedOff: "You turned suggestions off here."
+        case .offByDefault:
+            "Off to begin with: its own completion already reads the whole file."
+        }
+    }
+
+    /// Which key takes a completion here, since Tab is spoken for in terminals and editors.
+    private static func acceptKeyRow(
+        _ application: SuggestionApplication,
+        _ preferences: SuggestionPreferences,
+        unavailability: String?
+    ) -> SettingsRow {
+        let identifier = application.bundleIdentifier
+        let key = preferences.acceptKeys.key(forBundleIdentifier: identifier)
+        return SettingsRow(
+            id: "suggestionAcceptKey.\(identifier)",
+            label: "Accept with",
+            explanation: key.explanation,
+            control: .menu(
+                options: AcceptKey.allCases.map { offered in
+                    SettingsOption(
+                        id: offered.rawValue, title: offered.title,
+                        change: .suggestionAcceptKey(application: identifier, key: offered))
+                },
+                selectedID: key.rawValue),
+            unavailability: unavailability)
+    }
+
+    /// The fifth level: everything one application taught, counted before it is taken.
+    private static func forgetSuggestionsRow(
+        _ application: SuggestionApplication,
+        _ personalisation: SettingsPersonalisation
+    ) -> SettingsRow {
+        let reset = SettingsReset.suggestions(inApplication: application.bundleIdentifier)
+        let learned = personalisation.suggestions(from: application.bundleIdentifier)
+        return SettingsRow(
+            id: "forgetSuggestions.\(application.bundleIdentifier)",
+            label: "Forget what it learned here",
+            explanation:
+                "Forget \(counted(learned, "completion", "completions")) from "
+                + "\(application.name). Everywhere else is untouched.",
+            control: .removal(SettingsRemoval(reset: reset, title: "Forget", confirmation: nil)),
+            unavailability: SettingsEditor.unavailability(of: reset, given: personalisation))
     }
 
     // MARK: - Privacy
@@ -564,6 +723,8 @@ public enum SettingsPresenter {
         case .playsSoundWhenRecordingStarts: settings.playsSoundWhenRecordingStarts
         case .opensAtLogin: settings.opensAtLogin
         case .installsUpdatesAutomatically: settings.installsUpdatesAutomatically
+        case .suggestionsEnabled: settings.suggestions.isEnabled
+        case .quietSuggestions: settings.suggestions.isQuiet
         }
     }
 }

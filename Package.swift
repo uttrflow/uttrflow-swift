@@ -130,7 +130,7 @@ let package = Package(
         // What the user has chosen, kept between launches.
         .target(
             name: "UttrflowSettings",
-            dependencies: ["UttrflowCore"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -334,7 +334,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowSettingsTests",
-            dependencies: ["UttrflowSettings", "UttrflowTestSupport"],
+            dependencies: ["UttrflowPredict", "UttrflowSettings", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
