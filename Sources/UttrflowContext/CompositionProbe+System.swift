@@ -17,13 +17,13 @@ public enum CompositionProbe {
     @MainActor private static var observing = false
 
     /// Whether an input method is composing right now, from the field first and the input source second.
-    public static func isComposing() -> Bool {
-        Composition.isComposing(markedText: markedText(), inputSource: inputSourceKind())
+    public static func isComposing(of app: FrontmostApp) -> Bool {
+        Composition.isComposing(markedText: markedText(of: app), inputSource: inputSourceKind())
     }
 
     /// What the focused field says about its marked text, which most fields decline to answer.
-    public static func markedText() -> MarkedText {
-        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication,
+    public static func markedText(of app: FrontmostApp) -> MarkedText {
+        guard AXIsProcessTrusted(),
             let field = SurfaceProbe.focusedField(of: app.processIdentifier)
         else { return .unanswered }
 

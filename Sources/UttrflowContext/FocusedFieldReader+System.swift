@@ -1,9 +1,23 @@
 import AppKit
 import ApplicationServices
+import CoreText
 import Foundation
 import UttrflowPredict
 
 private import Synchronization
+
+/// The frontmost application's identity, taken on the main thread where `NSWorkspace` is safe to read.
+public struct FrontmostApp: Sendable {
+    public let processIdentifier: Int32
+    public let bundleIdentifier: String
+    public let name: String
+
+    public init(processIdentifier: Int32, bundleIdentifier: String, name: String) {
+        self.processIdentifier = processIdentifier
+        self.bundleIdentifier = bundleIdentifier
+        self.name = name
+    }
+}
 
 /// Reads the focused field once, for everything the suggestion loop needs. See `Docs/predict.md`.
 public enum FocusedFieldReader {
@@ -37,18 +51,30 @@ public enum FocusedFieldReader {
         cachedPrimaryScreenMaxY.withLock { $0 = maxY }
     }
 
+    /// The frontmost application's identity, read on the main thread the one place `NSWorkspace` allows.
+    @MainActor
+    public static func frontmostApp() -> FrontmostApp? {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+            let bundleIdentifier = app.bundleIdentifier
+        else { return nil }
+        return FrontmostApp(
+            processIdentifier: app.processIdentifier, bundleIdentifier: bundleIdentifier,
+            name: app.localizedName ?? bundleIdentifier)
+    }
+
     /// One reading, off the main thread, or `nil` when nothing usable is focused.
     public static func read() async -> FocusedFieldSnapshot? {
-        await withCheckedContinuation { continuation in
-            queue.async { continuation.resume(returning: snapshot()) }
+        // Identity is taken on the main actor first, because the blocking read below may not touch `NSWorkspace`.
+        guard let app = await frontmostApp() else { return nil }
+        return await withCheckedContinuation { continuation in
+            queue.async { continuation.resume(returning: snapshot(app: app)) }
         }
     }
 
-    /// The same reading, synchronously, which only the queue above calls.
-    static func snapshot() -> FocusedFieldSnapshot? {
+    /// The same reading, synchronously, which only the queue above calls with an identity read on main.
+    static func snapshot(app: FrontmostApp) -> FocusedFieldSnapshot? {
         let started = DispatchTime.now().uptimeNanoseconds
-        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication,
-            let bundleIdentifier = app.bundleIdentifier,
+        guard AXIsProcessTrusted(),
             let field = SurfaceProbe.focusedField(of: app.processIdentifier),
             let role = string(field, kAXRoleAttribute)
         else { return nil }
@@ -60,8 +86,8 @@ public enum FocusedFieldReader {
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
 
         return FocusedFieldSnapshot(
-            bundleIdentifier: bundleIdentifier,
-            applicationName: app.localizedName ?? bundleIdentifier,
+            bundleIdentifier: app.bundleIdentifier,
+            applicationName: app.name,
             role: role,
             subrole: subrole,
             identifier: string(field, kAXIdentifierAttribute),
@@ -129,10 +155,20 @@ public enum FocusedFieldReader {
         guard
             let answer = parameterized(
                 field, kAXAttributedStringForRangeParameterizedAttribute, widened),
-            let attributed = answer as? NSAttributedString, attributed.length > 0,
-            let font = attributed.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+            CFGetTypeID(answer) == CFAttributedStringGetTypeID()
         else { return nil }
-        return font.pointSize
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        return pointSize(inAttributed: unsafeDowncast(answer, to: CFAttributedString.self))
+    }
+
+    /// The font size in an attributed string, read through Core Text so no AppKit object is built off-main.
+    static func pointSize(inAttributed attributed: CFAttributedString) -> CGFloat? {
+        guard CFAttributedStringGetLength(attributed) > 0,
+            let font = CFAttributedStringGetAttribute(attributed, 0, kCTFontAttributeName, nil),
+            CFGetTypeID(font) == CTFontGetTypeID()
+        else { return nil }
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        return CTFontGetSize(unsafeDowncast(font, to: CTFont.self))
     }
 
     /// One `AXValue` attribute, unwrapped into the Core Graphics type it stands for.

@@ -36,7 +36,10 @@ struct ProbeSurface: AsyncParsableCommand {
         print("Sweeping for \(seconds)s. Click into a text field in each app you want measured.\n")
         var sweep = CapabilitySweep()
         for tick in 0..<seconds {
-            if let reading = SurfaceProbe.read() {
+            // Identity comes from the main thread, where NSWorkspace is safe to read.
+            if let app = await MainActor.run(body: { FocusedFieldReader.frontmostApp() }),
+                let reading = SurfaceProbe.read(of: app)
+            {
                 let known = sweep.readings.count
                 sweep.record(reading)
                 if sweep.readings.count > known {
@@ -159,7 +162,8 @@ struct ProbeIME: AsyncParsableCommand {
         print("Watching for \(seconds)s. Switch to an input method and type, so composition shows.\n")
         var previous = ""
         for tick in 0..<seconds {
-            let marked = CompositionProbe.markedText()
+            let marked = await MainActor.run(body: { FocusedFieldReader.frontmostApp() })
+                .map { CompositionProbe.markedText(of: $0) } ?? .unanswered
             let source = await MainActor.run { CompositionProbe.refreshInputSourceKind() }
             let composing = Composition.isComposing(markedText: marked, inputSource: source)
             let line =

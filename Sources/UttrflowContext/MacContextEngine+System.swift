@@ -12,15 +12,15 @@ extension MacContextEngine {
     /// The engine as the app uses it.
     public convenience init() {
         self.init(
-            readFrontmostApplication: { MacContextEngine.frontmostApplication() },
+            readFrontmostApplication: { await MainActor.run { MacContextEngine.frontmostApplication() } },
             readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0) },
             ownBundleIdentifier: Bundle.main.bundleIdentifier,
             ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier
         )
     }
 
-    /// Identity, from NSWorkspace. Costs no permission, so this much context survives
-    /// for the many users who will never grant Accessibility.
+    /// Identity, from NSWorkspace, on the main thread the one place it is safe to read.
+    @MainActor
     static func frontmostApplication() -> FrontmostApplication? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
         return FrontmostApplication(
