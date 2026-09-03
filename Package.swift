@@ -36,6 +36,7 @@ let package = Package(
         .library(name: "UttrflowAccount", targets: ["UttrflowAccount"]),
         .library(name: "UttrflowContext", targets: ["UttrflowContext"]),
         .library(name: "UttrflowPredict", targets: ["UttrflowPredict"]),
+        .library(name: "UttrflowPredictStore", targets: ["UttrflowPredictStore"]),
         // UttrflowEval is deliberately NOT a library product.
         //
         // It knows how to reach a private bucket holding real people's recordings, and
@@ -205,6 +206,13 @@ let package = Package(
             swiftSettings: sharedSwiftSettings
         ),
 
+        // The corpus on disk. The app's only SQL, over the system's own libsqlite3.
+        .target(
+            name: "UttrflowPredictStore",
+            dependencies: ["UttrflowPredict"],
+            swiftSettings: sharedSwiftSettings
+        ),
+
         // Measuring how well a transformer did. Pure scoring, no model anywhere near it.
         .target(
             name: "UttrflowEval",
@@ -361,6 +369,11 @@ let package = Package(
         .testTarget(
             name: "UttrflowPredictTests",
             dependencies: ["UttrflowPredict"],
+            swiftSettings: sharedSwiftSettings
+        ),
+        .testTarget(
+            name: "UttrflowPredictStoreTests",
+            dependencies: ["UttrflowPredictStore"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
