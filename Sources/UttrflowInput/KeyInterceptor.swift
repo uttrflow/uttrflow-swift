@@ -141,6 +141,7 @@ private final class TapState: @unchecked Sendable {
     private let written = Atomic<UInt64>(0)
     private let read = Atomic<UInt64>(0)
     private let disables = Atomic<Int>(0)
+    private let lastDisable = Atomic<UInt64>(0)
     private let tapPointer = Atomic<UnsafeMutableRawPointer?>(nil)
     private let signal: any DispatchSourceUserDataAdd
 
@@ -178,13 +179,15 @@ private final class TapState: @unchecked Sendable {
         signal.add(data: 1)
     }
 
-    /// Whether the tap should be turned back on, which it is once and not twice.
+    /// Whether the tap should be turned back on, which it is unless it keeps being disabled within a short window.
     func shouldReEnable() -> Bool {
-        guard disables.wrappingAdd(1, ordering: .relaxed).newValue < 2 else {
-            enqueue(Self.gaveUp)
-            return false
-        }
-        return true
+        let now = DispatchTime.now().uptimeNanoseconds
+        let last = lastDisable.exchange(now, ordering: .relaxed)
+        let (count, reEnable) = TapDisableWindow.decide(
+            last: last, now: now, count: disables.load(ordering: .relaxed))
+        disables.store(count, ordering: .relaxed)
+        if !reEnable { enqueue(Self.gaveUp) }
+        return reEnable
     }
 
     /// Everything written since the last drain, oldest first.
