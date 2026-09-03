@@ -51,6 +51,11 @@ EXCLUDED_FILES = {
         "— parsing the request line and the page it answers with — are tested directly"
     ),
     "UttrflowInput/CarbonHotkeyMonitor.swift": "registers a system-wide hotkey with Carbon",
+    "UttrflowInput/KeyInterceptor.swift": (
+        "creates a CGEventTap, which needs Accessibility and a window server; every rule "
+        "it holds — which keys are armed, and what each one means — is KeyRouting, which "
+        "is tested"
+    ),
     "UttrflowInput/HeldModifierMonitor.swift": (
         "watches NSEvent's global and local flag monitors, which need a window server; "
         "the two rules it used to hold are HeldModifierEdge, which is tested"

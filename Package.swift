@@ -112,10 +112,11 @@ let package = Package(
             swiftSettings: mlxSwiftSettings
         ),
 
-        // Getting finished text into whatever the user is typing in.
+        // Getting finished text into whatever the user is typing in, and taking the keys
+        // that accept a suggestion before the application beneath sees them.
         .target(
             name: "UttrflowInput",
-            dependencies: ["UttrflowCore"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -368,7 +369,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowInputTests",
-            dependencies: ["UttrflowInput", "UttrflowTestSupport"],
+            dependencies: ["UttrflowInput", "UttrflowPredict", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

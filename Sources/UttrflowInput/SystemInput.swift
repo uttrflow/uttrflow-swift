@@ -64,6 +64,37 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
     }
 }
 
+/// Types characters by posting key events that carry them, which no test can assert anything about.
+public struct CGEventTypist: KeystrokeTyping {
+    /// How many UTF-16 units one event may carry; longer strings are silently truncated by the system.
+    private static let unitsPerEvent = 16
+
+    public init() {}
+
+    public func type(_ text: String) throws(TextInsertionError) {
+        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            throw .insertionRejected(description: "could not create the keystroke")
+        }
+        let units = Array(text.utf16)
+        for start in stride(from: 0, to: units.count, by: Self.unitsPerEvent) {
+            var chunk = Array(units[start..<min(start + Self.unitsPerEvent, units.count)])
+            guard
+                let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
+                let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
+            else { throw .insertionRejected(description: "could not create the keystroke") }
+
+            // Cleared so a modifier the user is still holding cannot turn the text into a shortcut.
+            keyDown.flags = []
+            keyUp.flags = []
+            keyDown.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
+            keyUp.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
+            keyDown.post(tap: .cghidEventTap)
+            keyUp.post(tap: .cghidEventTap)
+        }
+    }
+}
+
 /// The focused text field, found through the Accessibility API against a real window.
 public struct AXAccessibilityFocus: AccessibilityFocus {
     public init() {}
