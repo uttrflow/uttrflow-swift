@@ -189,7 +189,7 @@ let package = Package(
             name: "UttrflowUX",
             dependencies: [
                 "UttrflowAccount", "UttrflowClipboard", "UttrflowCore", "UttrflowDictionary",
-                "UttrflowHistory",
+                "UttrflowHistory", "UttrflowPredict",
                 "UttrflowSettings",
             ],
             swiftSettings: sharedSwiftSettings
@@ -277,8 +277,8 @@ let package = Package(
             dependencies: [
                 "UttrflowAI", "UttrflowAudio", "UttrflowContext", "UttrflowCore", "UttrflowInput",
                 "UttrflowAccount", "UttrflowClipboard", "UttrflowDictionary",
-                "UttrflowHistory", "UttrflowPermissions", "UttrflowPipeline", "UttrflowSettings",
-                "UttrflowSpeech", "UttrflowUX",
+                "UttrflowHistory", "UttrflowPermissions", "UttrflowPipeline", "UttrflowPredict",
+                "UttrflowSettings", "UttrflowSpeech", "UttrflowUX",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             // The mark, for the panel and the menu bar slot. The bare monogram rather
@@ -359,7 +359,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowUXTests",
-            dependencies: ["UttrflowUX", "UttrflowTestSupport"],
+            dependencies: ["UttrflowPredict", "UttrflowUX", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

@@ -119,6 +119,11 @@ EXCLUDED_FILES = {
     "Uttrflow/Main/HistoryPageView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/DiagnosticsPageView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Dock/DockPanelController.swift": "owns an on-screen floating window",
+    "Uttrflow/Suggestion/SuggestionPanelController.swift": (
+        "owns an on-screen floating window; where it puts it is SuggestionGeometry and "
+        "what it draws is SuggestionPresentation, both of which are tested"
+    ),
+    "Uttrflow/Suggestion/SuggestionView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Panel/QuickPanelController.swift": "owns an on-screen floating window",
     "Uttrflow/Panel/QuickPanelView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Dock/DockView.swift": "SwiftUI, drawn from a tested presentation",
