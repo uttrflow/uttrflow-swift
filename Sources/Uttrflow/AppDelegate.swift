@@ -68,17 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
     private var completions: SuggestionCoordinator?
 
-    /// Whether tab-to-complete may run, which is off unless its defaults key says otherwise.
-    private let completionPreference: CompletionPreference
-
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
-        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
-        completionPreference: CompletionPreference = .system
+        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin()
     ) {
         self.container = container
         self.loginItem = loginItem
-        self.completionPreference = completionPreference
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
         dictionary = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: container))
@@ -276,14 +271,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
     private func startCompletingWhatIsTyped() {
-        guard completionPreference.isEnabled else { return }
+        guard settings.suggestions.isEnabled, completions == nil else { return }
         do {
-            let coordinator = try SuggestionCoordinator(container: container)
+            let coordinator = try SuggestionCoordinator(
+                container: container, preferences: settings.suggestions)
             completions = coordinator
             coordinator.start()
         } catch {
             Self.log.error("the corpus would not open: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    /// Follows the Suggestions screen: builds the loop, takes it away, or hands it what changed.
+    private func suggestionsChanged() {
+        guard settings.suggestions.isEnabled else {
+            completions?.stop()
+            completions = nil
+            return
+        }
+        guard let completions else { return startCompletingWhatIsTyped() }
+        completions.follow(settings.suggestions)
     }
 
     /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.
@@ -1368,6 +1375,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // As above: a switch that drew itself and changed nothing.
         if updated.installsUpdatesAutomatically != previous.installsUpdatesAutomatically {
             updates.setInstallsAutomatically(updated.installsUpdatesAutomatically)
+        }
+        // The master switch on the Suggestions screen is what builds and unbuilds the loop.
+        if updated.suggestions != previous.suggestions {
+            suggestionsChanged()
         }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))

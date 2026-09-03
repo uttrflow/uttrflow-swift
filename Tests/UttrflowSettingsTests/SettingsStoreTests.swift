@@ -462,21 +462,6 @@ struct SystemUserDefaultsTests {
     }
 }
 
-@Suite("Whether tab-to-complete runs at all")
-struct CompletionPreferenceTests {
-    @Test("It reads the one key it names, and nothing else.")
-    func readsItsOwnKey() {
-        #expect(CompletionPreference { $0 == CompletionPreference.key }.isEnabled)
-        #expect(!CompletionPreference { $0 == "something.else" }.isEnabled)
-    }
-
-    @Test("A Mac where nobody has written the key has the feature off.")
-    func offUntilAskedFor() {
-        #expect(!CompletionPreference { _ in false }.isEnabled)
-        #expect(!CompletionPreference.system.isEnabled)
-    }
-}
-
 // MARK: - Tab-to-complete
 
 @Suite("Suggestions inside the settings")

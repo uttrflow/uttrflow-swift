@@ -18,6 +18,11 @@ public enum Suggestion: Sendable, Equatable {
         }
     }
 
+    /// The same answer with everything short of certainty removed, which is what quiet mode draws.
+    public var certainOnly: Suggestion {
+        if case .choice = self { .silent } else { self }
+    }
+
     /// What Tab does to a field holding `typed`, which is the one answer the surface also draws.
     public func edit(after typed: String) -> Acceptance.Edit? {
         guard let accepting else { return nil }

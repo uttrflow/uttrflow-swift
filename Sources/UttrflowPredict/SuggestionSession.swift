@@ -121,6 +121,8 @@ public struct SuggestionSession: Sendable, Equatable {
 
     private var isMinimised = false
     private var acceptKey = AcceptKey.tab
+    /// Whether only a completion this session is sure of may be drawn, never a list to choose from.
+    private var isQuiet = false
     private var pending: PredictionContext?
     private var generation = 0
 
@@ -128,9 +130,11 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Takes one moment in one field and answers with what to do about it.
     public mutating func turn(
-        in surface: Surface?, at moment: PredictionContext, acceptKey: AcceptKey = .tab
+        in surface: Surface?, at moment: PredictionContext, acceptKey: AcceptKey = .tab,
+        isQuiet: Bool = false
     ) -> SuggestionTurn {
         self.acceptKey = acceptKey
+        self.isQuiet = isQuiet
         let rejected = adopt(surface, typing: moment.typed)
         typed = moment.typed
 
@@ -249,7 +253,8 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Records what is now on screen and reports it with the keys it claims.
-    private mutating func settle(_ next: Suggestion) -> SuggestionUpdate {
+    private mutating func settle(_ shown: Suggestion) -> SuggestionUpdate {
+        let next = isQuiet ? shown.certainOnly : shown
         if next != suggestion { selection = .untouched }
         suggestion = next
         return armed(showing: next)

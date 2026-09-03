@@ -1154,13 +1154,14 @@ are built and the app now runs them behind a defaults key that is off by default
 | 6 | Verify — the four gates that put correctness above habit | ✅ **Done**, wired |
 | 6b | The numbers, on the Insights page | **Not started** |
 | 7 | Generate — prose at an idle pause | **Deferred** until phase 3's numbers justify it |
-| 8 | Ship — settings, the resets, onboarding | **Not started** |
+| 8 | Ship — settings, the resets, onboarding | **Settings wired**; the resets and onboarding are not |
 
 ### What the wiring delivered
 
 `SuggestionSession` sequences the loop as pure code and `SuggestionCoordinator` runs it
-against the real machine; `AppDelegate` builds the coordinator when
-`com.uttrflow.predict.enabled` says so, and nothing at all when it does not.
+against the real machine; `AppDelegate` builds the coordinator when the Suggestions screen's
+master switch says so, takes it away when the switch goes off, and hands it every other
+choice on that screen as it is made.
 [Docs/predict.md](Docs/predict.md) has the steps for turning it on.
 
 The gates run inside that loop, between ranking and drawing. `resolve` hands back the head
@@ -1169,10 +1170,11 @@ keystroke, and the second `resolve` draws what survived — corrected silently w
 machine knew better, dropped where it did not, and reported to the corpus either way.
 
 Still open after it: no scorer is wired into the coordinator, so gate 2 never runs on a
-real machine; nothing draws the numbers on the Insights page (phase 6b); the only way to
-turn the feature on is a `defaults write` (phase 8); consent per application is an
-`NSAlert` rather than anything designed; and the placement ladder is still chosen from
-what each field answers rather than from a sweep that has been run.
+real machine; nothing draws the numbers on the Insights page (phase 6b); the settings
+window does not reach the corpus, so the per-application counts and the "forget what this
+application taught" buttons never appear (phase 8); consent per application is an `NSAlert`
+rather than anything designed; and the placement ladder is still chosen from what each
+field answers rather than from a sweep that has been run.
 
 The runbook and the rules that hold across all nine are in
 [Docs/predict.md](Docs/predict.md); phase 0's measurements are in

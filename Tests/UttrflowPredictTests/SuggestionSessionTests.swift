@@ -33,10 +33,10 @@ private func settled(_ turn: SuggestionTurn) -> SuggestionUpdate? {
 func draw(
     _ session: inout SuggestionSession, typing typed: String, candidates: [Candidate] = lone(),
     context: PredictionContext? = nil, elapsed: Int = 0, in surface: Surface = field,
-    acceptKey: AcceptKey = .tab
+    acceptKey: AcceptKey = .tab, isQuiet: Bool = false
 ) throws -> SuggestionUpdate? {
     let moment = context ?? PredictionContext(typed: typed)
-    let turn = session.turn(in: surface, at: moment, acceptKey: acceptKey)
+    let turn = session.turn(in: surface, at: moment, acceptKey: acceptKey, isQuiet: isQuiet)
     if let update = settled(turn) { return update }
     let asked = try query(turn)
     switch session.resolve(candidates, for: asked, now: now, elapsedMilliseconds: elapsed) {
@@ -282,5 +282,45 @@ struct SuggestionRoutingTests {
         #expect(update == .quiet)
         #expect(!session.isEnabled)
         #expect(try draw(&session, typing: "git c", in: other) == .quiet)
+    }
+}
+
+/// Two candidates close enough that the engine offers a list rather than one answer.
+private func crowd() -> [Candidate] {
+    [remembered("git commit -m", count: 10), remembered("git checkout", count: 9)]
+}
+
+@Suite("Only suggesting when it is sure")
+struct QuietSuggestionTests {
+    @Test("A list is what the session is unsure about, so quiet mode draws none of it.")
+    func quietDrawsNoList() throws {
+        var session = SuggestionSession()
+        let update = try #require(try draw(&session, typing: "git c", candidates: crowd(), isQuiet: true))
+        #expect(update.suggestion == .silent)
+        #expect(update.armed.isEmpty)
+        #expect(session.suggestion == .silent)
+    }
+
+    @Test("The same field with quiet mode off is offered the list.")
+    func theListIsThereWithoutQuietMode() throws {
+        var session = SuggestionSession()
+        let update = try #require(try draw(&session, typing: "git c", candidates: crowd()))
+        #expect(update.suggestion == .choice(leader: "git commit -m", others: ["git checkout"]))
+    }
+
+    @Test("A completion it is sure of is still drawn, and still claims the accept key.")
+    func quietStillDrawsCertainty() throws {
+        var session = SuggestionSession()
+        let update = try #require(try draw(&session, typing: "git c", isQuiet: true))
+        #expect(update.suggestion == .certain("git commit -m"))
+        #expect(update.armed.contains(.tab))
+    }
+
+    @Test("Removing everything short of certainty leaves every other answer alone.")
+    func certainOnlyTouchesOnlyTheList() {
+        #expect(Suggestion.choice(leader: "git commit", others: ["git checkout"]).certainOnly == .silent)
+        #expect(Suggestion.certain("git commit").certainOnly == .certain("git commit"))
+        #expect(Suggestion.silent.certainOnly == .silent)
+        #expect(Suggestion.minimised.certainOnly == .minimised)
     }
 }

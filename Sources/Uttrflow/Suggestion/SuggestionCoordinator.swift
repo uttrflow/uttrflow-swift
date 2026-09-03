@@ -42,7 +42,8 @@ final class SuggestionCoordinator {
     private let panel = SuggestionPanelController()
     private let interceptor = KeyInterceptor()
     private let acceptor: SuggestionAcceptor
-    private let acceptKeys = AcceptKeys.standard
+    /// What the user has decided on the Suggestions screen, which the app hands over as it changes.
+    private var preferences: SuggestionPreferences
     /// What exists on this machine right now, which the corpus cannot know. See `Docs/predict.md`.
     private let environment: EnvironmentSource
     /// The gates that decide whether a candidate is right, which is not what the ranking measures.
@@ -64,7 +65,8 @@ final class SuggestionCoordinator {
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
 
     /// Opens the corpus beside the clipboard's file, or reports why it could not.
-    init(container: URL) throws(PredictStoreError) {
+    init(container: URL, preferences: SuggestionPreferences) throws(PredictStoreError) {
+        self.preferences = preferences
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
         self.store = store
@@ -82,6 +84,11 @@ final class SuggestionCoordinator {
 
     isolated deinit {
         stop()
+    }
+
+    /// Takes what the user has just chosen, so a change on the Suggestions screen holds from the next keystroke.
+    func follow(_ preferences: SuggestionPreferences) {
+        self.preferences = preferences
     }
 
     /// Arms the tap and starts watching, or says why it cannot.
@@ -165,7 +172,9 @@ final class SuggestionCoordinator {
     private func turn(because reason: SuggestionReason) async {
         let started = Date()
         guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier != ownBundleIdentifier,
-            let snapshot = await FocusedFieldReader.read()
+            let snapshot = await FocusedFieldReader.read(),
+            // An application switched off, or a pause still running, is read from and drawn into no more than a field that is not there.
+            preferences.isEnabled(in: snapshot.bundleIdentifier, at: started)
         else {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
@@ -179,7 +188,8 @@ final class SuggestionCoordinator {
 
         let turn = session.turn(
             in: reading.surface, at: context(of: snapshot, at: started),
-            acceptKey: acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier))
+            acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
+            isQuiet: preferences.isQuiet)
         if let rejected = turn.rejected, let surface = reading.surface {
             try? await store.recordRejected(rejected, in: surface)
         }

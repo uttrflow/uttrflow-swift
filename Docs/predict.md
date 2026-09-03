@@ -78,21 +78,32 @@ tracks the nine phases.
 
 ## Turning it on
 
-Off for everybody who has not asked for it, and asked for by name:
+Settings → Suggestions → **Finish what I am typing**. Off for everybody who has not asked
+for it, and on from the moment the switch is thrown — the app builds the loop there and
+then rather than at the next launch. The same switch takes it away again.
 
-```bash
-defaults write com.uttrflow.Uttrflow com.uttrflow.predict.enabled -bool YES
-```
+The defaults key this used to read, `com.uttrflow.predict.enabled`, is gone. The switch
+writes `suggestions.isEnabled` inside the settings blob, which is the same value the rest
+of that screen edits, so there is one answer to "is this on" rather than two that can
+disagree.
 
-Restart Uttrflow, and grant it Accessibility — the loop needs it three times over, to read
-the focused field, to watch the keyboard, and to put the completion into the field.
-`defaults delete com.uttrflow.Uttrflow com.uttrflow.predict.enabled` turns it back off.
+Grant Accessibility — the loop needs it three times over, to read the focused field, to
+watch the keyboard, and to put the completion into the field.
+
+The rest of the screen follows from the master switch: **Only suggest when it is sure**
+draws a completion and never a list, **Pause everywhere** stops for half an hour, and the
+**Applications** list carries the four editors that ship switched off, everything the user
+has switched off since, and everything the corpus has learned from — so a switch that is
+off can always be found and turned back on.
 
 The first time a value is committed in an application, Uttrflow asks once whether it may
 learn from that application, and remembers the answer in
 `~/Library/Application Support/Uttrflow/predict-consent.v1.json`. Until that question is
 answered nothing is recorded and nothing can be suggested, so the first field you try is
 always silent — type something, press Return, answer the question, then type it again.
+
+`Uttrflow` in that path is the folder this build writes under, and a development build
+writes under its own — see [development-build.md](development-build.md).
 
 ## The loop, once per keystroke
 
