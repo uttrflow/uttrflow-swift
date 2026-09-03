@@ -80,7 +80,12 @@ struct SuggestionView: View {
         // The strike is the whole signal, so it takes the colour of the style around it.
         consumed.strikethroughStyle = .single
         return Text(consumed + AttributedString(row.ghost))
-            .font(.system(size: presentation.pointSize))
+            .font(.system(size: presentation.pointSize, design: fontDesign))
+    }
+
+    /// Monospaced where the field would not say what its own font is, so a terminal ghost still lines up.
+    private var fontDesign: Font.Design {
+        presentation.prefersMonospaced ? .monospaced : .default
     }
 
     /// A hairline marker, so the key that takes the suggestion is never a thing to guess.

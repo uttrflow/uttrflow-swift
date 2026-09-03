@@ -79,6 +79,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let rows: [Row]
     /// The field's own type size, so the surface reads as part of the line it sits on.
     public let pointSize: CGFloat
+    /// Whether to set the ghost in a monospaced face, chosen when the field would not say what its own is.
+    public let prefersMonospaced: Bool
     /// Whether a change of state is allowed to animate.
     public let animates: Bool
 
@@ -100,6 +102,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
             }
         rows = offered
         pointSize = Self.pointSize(fieldPointSize)
+        // With no reported size, the field's own font is unknown too, so a monospaced default reads best at a caret.
+        prefersMonospaced = fieldPointSize == nil
         animates = !appearance.reducesMotion
     }
 
