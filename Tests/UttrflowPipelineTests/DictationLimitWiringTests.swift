@@ -63,8 +63,7 @@ struct DictationLimitWiringTests {
 
     /// Lets the clock reach `deadline`, once something is actually waiting for it.
     private func advance(_ clock: ManualClock, to deadline: Duration) async {
-        while clock.sleeperCount == 0 { await Task.yield() }
-        clock.advance(by: deadline)
+        await clock.advanceWhenSomethingIsWaiting(by: deadline)
     }
 
     @Test("warns a minute before the cap rather than cutting the speaker off")
