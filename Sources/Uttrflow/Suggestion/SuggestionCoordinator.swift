@@ -18,7 +18,7 @@ private enum SuggestionReason {
     /// Time passed, which is the only way a pause can be noticed.
     case tick
 
-    /// The event capture is handed for this turn.
+    /// The event capture is handed for this turn, carrying the line rather than the whole field.
     func event(holding value: String, at moment: Date) -> CaptureEvent {
         switch self {
         case .keystroke, .applicationChanged: .keystroke(value, at: moment)
@@ -237,7 +237,7 @@ final class SuggestionCoordinator {
         if case .applicationChanged = reason, let leaving = lastReading, leaving != reading {
             _ = try? await capture.handle(.applicationDeactivated(at: moment), in: leaving)
         }
-        let event = reason.event(holding: snapshot.value ?? "", at: moment)
+        let event = reason.event(holding: snapshot.currentLine, at: moment)
         guard let outcome = try? await capture.handle(event, in: reading) else { return }
         guard case .refused(let refusal) = outcome, refusal.asksTheUser else { return }
         await askAboutLearning(from: snapshot)
@@ -262,7 +262,8 @@ final class SuggestionCoordinator {
             return
         }
         panel.show(
-            update.suggestion, placement: snapshot.placement ?? .windowStrip, caret: snapshot.caret,
+            update.suggestion, typed: session.typed,
+            placement: snapshot.placement ?? .windowStrip, caret: snapshot.caret,
             window: snapshot.window, fieldPointSize: snapshot.pointSize)
     }
 
@@ -344,7 +345,7 @@ final class SuggestionCoordinator {
     /// Everything about this moment that can silence a suggestion.
     private func context(of snapshot: FocusedFieldSnapshot, at moment: Date) -> PredictionContext {
         PredictionContext(
-            typed: snapshot.value ?? "", caretAtEnd: snapshot.caretAtEnd,
+            typed: snapshot.currentLine, caretAtLineEnd: snapshot.caretAtLineEnd,
             hasSelection: snapshot.hasSelection, isComposing: snapshot.isComposing,
             isSecure: snapshot.isSecure, isProse: snapshot.isProse,
             millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000))

@@ -241,7 +241,7 @@ public struct SuggestionSession: Sendable, Equatable {
     /// The moment with the three facts only this session knows filled in.
     private func contextualised(_ moment: PredictionContext) -> PredictionContext {
         PredictionContext(
-            typed: moment.typed, caretAtEnd: moment.caretAtEnd, hasSelection: moment.hasSelection,
+            typed: moment.typed, caretAtLineEnd: moment.caretAtLineEnd, hasSelection: moment.hasSelection,
             isComposing: moment.isComposing, isSecure: moment.isSecure, isProse: moment.isProse,
             millisecondsSinceKeystroke: moment.millisecondsSinceKeystroke,
             isEnabledHere: isEnabled && !isSilencedHere, isMinimised: isMinimised,

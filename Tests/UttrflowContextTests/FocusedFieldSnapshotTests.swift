@@ -6,6 +6,7 @@ import Testing
 
 /// One reading, named only by what each test is about.
 private func snapshot(
+    bundleIdentifier: String = "com.apple.Terminal",
     role: String = "AXTextField",
     identifier: String? = nil,
     placeholder: String? = nil,
@@ -17,7 +18,7 @@ private func snapshot(
     isSecure: Bool = false
 ) -> FocusedFieldSnapshot {
     FocusedFieldSnapshot(
-        bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: role,
+        bundleIdentifier: bundleIdentifier, applicationName: "Terminal", role: role,
         identifier: identifier, placeholder: placeholder,
         accessibilityDescription: accessibilityDescription, value: value, selection: selection,
         caret: caret, pointSize: pointSize, isSecure: isSecure, readMicroseconds: 400)
@@ -68,19 +69,79 @@ struct FocusedFieldSnapshotTests {
 
     @Test("The caret is at the end when nothing follows it.")
     func caretAtTheEnd() {
-        #expect(snapshot().caretAtEnd)
-        #expect(!snapshot(selection: NSRange(location: 2, length: 0)).caretAtEnd)
+        #expect(snapshot().caretAtLineEnd)
+        #expect(!snapshot(selection: NSRange(location: 2, length: 0)).caretAtLineEnd)
     }
 
     @Test("A selection reaching the end still counts as the end.")
     func aSelectionToTheEndIsTheEnd() {
-        #expect(snapshot(selection: NSRange(location: 1, length: 4)).caretAtEnd)
+        #expect(snapshot(selection: NSRange(location: 1, length: 4)).caretAtLineEnd)
     }
 
     @Test("A field that says nothing about its caret is not at the end of anything.")
     func noSelectionIsNotTheEnd() {
-        #expect(!snapshot(selection: nil).caretAtEnd)
-        #expect(!snapshot(value: nil).caretAtEnd)
+        #expect(!snapshot(selection: nil).caretAtLineEnd)
+        #expect(!snapshot(value: nil).caretAtLineEnd)
+    }
+
+    @Test("The end of a line counts as the end, however many lines follow it.")
+    func theEndOfALineIsTheEnd() {
+        let document = "one\ntwo\nthree"
+        #expect(snapshot(value: document, selection: NSRange(location: 3, length: 0)).caretAtLineEnd)
+        #expect(snapshot(value: document, selection: NSRange(location: 7, length: 0)).caretAtLineEnd)
+        #expect(!snapshot(value: document, selection: NSRange(location: 5, length: 0)).caretAtLineEnd)
+    }
+
+    @Test("What a completion continues is the caret's own line, not the whole document.")
+    func theLineIsWhatIsTyped() {
+        let document = "Deploy the notes\nThe quick brown fox\nThe qui"
+        #expect(
+            snapshot(value: document, selection: NSRange(location: 44, length: 0)).currentLine == "The qui")
+        #expect(snapshot(value: document, selection: NSRange(location: 22, length: 0)).currentLine == "The q")
+        #expect(
+            snapshot(value: document, selection: NSRange(location: 16, length: 0)).currentLine
+                == "Deploy the notes")
+    }
+
+    @Test("A field with no newline in it is all one line.")
+    func oneLineIsTheWholeValue() {
+        #expect(snapshot().currentLine == "git c")
+        #expect(snapshot(value: nil).currentLine.isEmpty)
+    }
+
+    @Test("A caret at the very start, and one just after a newline, are both on an empty line.")
+    func anEmptyLineIsEmpty() {
+        #expect(snapshot(value: "one\ntwo", selection: NSRange(location: 0, length: 0)).currentLine.isEmpty)
+        #expect(snapshot(value: "one\ntwo", selection: NSRange(location: 4, length: 0)).currentLine.isEmpty)
+        #expect(snapshot(value: "one\n", selection: NSRange(location: 4, length: 0)).currentLine.isEmpty)
+    }
+
+    @Test("A field that will not say where its caret is is read to the end of what it holds.")
+    func noCaretReadsToTheEnd() {
+        #expect(snapshot(value: "one\ntwo", selection: nil).currentLine == "two")
+    }
+
+    @Test("A caret counted in UTF-16 lands where the characters are, not where the code units are.")
+    func caretOffsetsAreUTF16() {
+        #expect(snapshot(value: "🐕 wag", selection: NSRange(location: 6, length: 0)).currentLine == "🐕 wag")
+        #expect(snapshot(value: "🐕 wag", selection: NSRange(location: 2, length: 0)).currentLine == "🐕")
+        #expect(
+            snapshot(value: "e\u{301}clair", selection: NSRange(location: 3, length: 0)).currentLine
+                == "\u{e9}c")
+    }
+
+    @Test("A caret inside one character is read as being before it, so no character is cut in half.")
+    func aSplitCharacterIsNotCut() {
+        #expect(snapshot(value: "🐕 wag", selection: NSRange(location: 1, length: 0)).currentLine.isEmpty)
+        #expect(
+            snapshot(value: "e\u{301}clair", selection: NSRange(location: 1, length: 0)).currentLine.isEmpty)
+        #expect(!snapshot(value: "e\u{301}clair", selection: NSRange(location: 1, length: 0)).caretAtLineEnd)
+    }
+
+    @Test("A caret beyond what the field holds is read as being at its end.")
+    func aCaretPastTheEndIsTheEnd() {
+        #expect(snapshot(value: "one", selection: NSRange(location: 99, length: 0)).currentLine == "one")
+        #expect(snapshot(value: "one", selection: NSRange(location: -1, length: 0)).currentLine.isEmpty)
     }
 
     @Test("Selected text is text the next keystroke would replace.")
@@ -92,7 +153,18 @@ struct FocusedFieldSnapshotTests {
 
     @Test("A multi-line field is the only one that reads as prose.")
     func onlyTextAreasAreProse() {
-        #expect(snapshot(role: FocusedFieldSnapshot.proseRole).isProse)
-        #expect(!snapshot().isProse)
+        #expect(
+            snapshot(bundleIdentifier: "com.example.editor", role: FocusedFieldSnapshot.proseRole)
+                .isProse)
+        #expect(!snapshot(bundleIdentifier: "com.example.editor").isProse)
+    }
+
+    @Test("A terminal publishes the prose role and is still not prose, so it answers at once.")
+    func terminalsAreNeverProse() {
+        for bundleIdentifier in TerminalApplications.bundleIdentifiers {
+            #expect(
+                !snapshot(bundleIdentifier: bundleIdentifier, role: FocusedFieldSnapshot.proseRole)
+                    .isProse)
+        }
     }
 }

@@ -390,7 +390,9 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowPredictCaptureTests",
-            dependencies: ["UttrflowPredict", "UttrflowPredictCapture"],
+            dependencies: [
+                "UttrflowContext", "UttrflowPredict", "UttrflowPredictCapture", "UttrflowPredictStore",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

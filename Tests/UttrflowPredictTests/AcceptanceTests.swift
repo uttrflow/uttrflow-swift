@@ -87,6 +87,17 @@ struct AcceptanceTests {
         }
     }
 
+    @Test("The line is the whole of what may be replaced, so the lines above it are never reached.")
+    func aReplacementNeverLeavesTheLine() throws {
+        let line = "The qui"
+        let continuing = try #require(Acceptance.edit(accepting: "The quick brown fox", after: line))
+        #expect(continuing.replaced.isEmpty)
+
+        let disagreeing = try #require(Acceptance.edit(accepting: "A slow badger", after: line))
+        #expect(disagreeing.replacedCount == line.count)
+        #expect(disagreeing.applied(to: line) == "A slow badger")
+    }
+
     @Test("The count is in characters, so an emoji in the field is one press of Delete and not two.")
     func countedInCharacters() throws {
         let edit = try #require(Acceptance.edit(accepting: "🚀 launch now", after: "🚀 launch"))

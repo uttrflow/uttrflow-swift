@@ -91,18 +91,45 @@ extension FocusedFieldSnapshot {
     /// Where a suggestion may be drawn for this field, or nothing where none may be.
     public var placement: SuggestionPlacement? { capability.placement }
 
-    /// Whether the caret sits at the end of what the field holds, which completing presumes.
-    public var caretAtEnd: Bool {
+    /// The line the caret is on, up to the caret, which is the whole of what a completion continues.
+    public var currentLine: String {
+        guard let value else { return "" }
+        return Self.line(of: value, endingAt: selection?.location ?? value.utf16.count)
+    }
+
+    /// Whether the caret sits at the end of the line it is on, which completing presumes.
+    public var caretAtLineEnd: Bool {
         guard let selection, let value else { return false }
-        return selection.location + selection.length == value.utf16.count
+        let index = Self.index(in: value, atUTF16Offset: selection.location + selection.length)
+        return index == value.endIndex || value[index].isNewline
+    }
+
+    /// The text between the newline before the given caret and the caret itself.
+    static func line(of value: String, endingAt utf16Offset: Int) -> String {
+        let head = value[..<index(in: value, atUTF16Offset: utf16Offset)]
+        guard let newline = head.lastIndex(where: \.isNewline) else { return String(head) }
+        return String(head[head.index(after: newline)...])
+    }
+
+    /// The offset as a character index, clamped into the string and moved back off any split character.
+    static func index(in value: String, atUTF16Offset utf16Offset: Int) -> String.Index {
+        let units = value.utf16
+        let clamped = min(max(utf16Offset, 0), units.count)
+        var index = units.index(units.startIndex, offsetBy: clamped)
+        while index > value.startIndex, String.Index(index, within: value) == nil {
+            index = units.index(before: index)
+        }
+        return index
     }
 
     /// Whether any text is selected, which the next keystroke would replace.
     public var hasSelection: Bool { (selection?.length ?? 0) > 0 }
 
-    /// The role a multi-line field publishes, which is the only signal that it holds prose.
+    /// The role a multi-line field publishes, which a document and a shell both use.
     public static let proseRole = "AXTextArea"
 
     /// Whether the field holds prose rather than a command or an address.
-    public var isProse: Bool { role == Self.proseRole }
+    public var isProse: Bool {
+        role == Self.proseRole && !TerminalApplications.contains(bundleIdentifier)
+    }
 }

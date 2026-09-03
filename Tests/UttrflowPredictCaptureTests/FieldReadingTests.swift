@@ -80,6 +80,19 @@ struct FieldReadingTests {
         #expect(scope("/") == "/")
     }
 
+    @Test("A document is scoped to the folder it sits in, so a project's files share one corpus.")
+    func documentScopeIsTheContainingDirectory() {
+        func scope(_ document: String) -> String? {
+            FieldReading(bundleIdentifier: "com.example.editor", role: "AXTextArea", document: document)
+                .scope
+        }
+        #expect(scope("file:///Users/someone/work/notes.rtf") == "/Users/someone/work")
+        #expect(scope("/Users/someone/work/notes.rtf") == scope("/Users/someone/work/plan.rtf"))
+        #expect(scope("file:///Users/someone/with%20space/notes.txt") == "/Users/someone/with space")
+        #expect(scope("~/work/notes.md") == "~/work")
+        #expect(scope("/notes.txt") == "/")
+    }
+
     @Test("A document that is neither an address nor a path scopes nothing, rather than guessing.")
     func unrecognisedDocumentIsNoScope() {
         func scope(_ document: String?) -> String? {

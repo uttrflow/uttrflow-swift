@@ -16,7 +16,7 @@ struct QuietingTests {
             (PredictionContext(typed: "x", isSecure: true), .secureField),
             (PredictionContext(typed: "x", hasSelection: true), .textSelected),
             (PredictionContext(typed: "x", isComposing: true), .inputMethodComposing),
-            (PredictionContext(typed: "x", caretAtEnd: false), .caretInsideText),
+            (PredictionContext(typed: "x", caretAtLineEnd: false), .caretInsideText),
             (PredictionContext(typed: "x", rejectionsThisSession: 3), .rejectedTooOften),
             (
                 PredictionContext(typed: "x", isProse: true, millisecondsSinceKeystroke: 100),
@@ -31,7 +31,7 @@ struct QuietingTests {
     @Test("Being turned off here outranks every other reason, so the report names the one that matters.")
     func prioritised() {
         let everything = PredictionContext(
-            typed: "x", caretAtEnd: false, hasSelection: true, isComposing: true, isSecure: true,
+            typed: "x", caretAtLineEnd: false, hasSelection: true, isComposing: true, isSecure: true,
             isEnabledHere: false)
         #expect(Quieting.reason(everything) == .turnedOffHere)
     }

@@ -23,8 +23,8 @@ it is never uploaded, and the network is still reachable from `UttrflowAccount` 
 
 The path through them is one direction per keystroke. Capture writes what the user
 finished entering into the store, keyed by `Surface` — bundle identifier, Accessibility
-role, whatever locator the field publishes, and the page host or working directory.
-Retrieval asks the store for candidates matching what has been typed so far. The engine
+role, whatever locator the field publishes, and the page host or containing directory.
+Retrieval asks the store for candidates matching what has been typed on the current line. The engine
 scores them against the moment and answers with one `Suggestion` — `.silent`, `.certain`,
 `.choice` or `.minimised`. The surface draws that and nothing else; it is handed text, not
 a decision. Accept turns Tab into an insertion and tells the store, which counts the use
@@ -32,6 +32,45 @@ at a discount.
 
 `PredictionStore` is a protocol in the pure module, so the engine is tested against
 candidates in an array rather than a database.
+
+## The unit of a completion is the line
+
+**A completion continues the line the caret is on — not the field, not the sentence, not
+the word.** `FocusedFieldSnapshot.currentLine` derives it: the text from the newline before
+the caret up to the caret, with the caret offset read as UTF-16 (which is what
+Accessibility publishes) and moved back onto a character boundary so a split emoji or a
+combining mark cannot be cut in half. `caretAtLineEnd` asks the matching question — is the
+caret at the end of *that* line — so text on the lines below does not silence the feature.
+
+This was found by running the app rather than by reading it. `PredictionContext.typed` was
+the whole field value, so in a three-line TextEdit document the prefix query looked for
+entries beginning with the entire document; nothing could ever match, and no suggestion was
+ever drawn in any text area. Capture had the same root, and after two commits the corpus
+held one entry containing the whole document — unretrievable, and unbounded in size.
+
+**Both ends must use the same unit or the corpus fills with values nothing can find.**
+`SuggestionCoordinator` derives the line once and hands it to prediction and to capture, so
+`CaptureEvent.keystroke` carries the line and `CommitDetector` commits the line.
+`Acceptance.edit(accepting:after:)` is given the same string, so what a replacement can
+destroy is bounded by the current line by construction.
+
+**What is drawn is the tail, not the whole candidate.** `SuggestionCoordinator` hands the
+line to the surface as well as to the engine, so the ghost shows only what Tab will add.
+Without it the surface drew the entire candidate over the text already typed — the
+acceptance was still correct, because `Acceptance` was given the line either way, but what
+the user saw repeated what they had written.
+
+**A terminal publishes the prose role and is not prose.** `AXTextArea` is what a document
+and a shell both publish, so the 400 ms hesitation gate was quieting terminals — the case
+where an instant answer matters most. `TerminalApplications` in `UttrflowContext` names the
+shells by bundle identifier, which is the only signal that separates them; a fuller dialect
+registry will own that question later. An editor's terminal pane cannot be told from its
+editor by bundle identifier, so those are still read as prose.
+
+**A document's scope is the folder it sits in.** Scoping a document to its own file path
+gave every file its own corpus, so nothing learned in one document helped in another. A
+path that names a file is scoped to the directory containing it; a path that is already a
+directory — a terminal's working directory — is scoped to itself, which is the same idea.
 
 **Status.** Every piece exists and the app now runs them: `SuggestionCoordinator` owns the
 loop, verification sits between ranking and drawing, and `AppDelegate` builds it. `PLAN.md`
@@ -190,7 +229,7 @@ full separation, and never appears among the alternatives of a `.choice` at any 
 
 Before any of that, `Quieting.reason` runs seven ordered predicates and returns the first
 that fires: turned off here, secure field, text selected, an input method composing,
-caret not at the end, three suggestions typed past in this field already, or a prose
+caret not at the end of its line, three suggestions typed past in this field already, or a prose
 writer who has not yet paused for 400 ms. It returns *which* rule fired, so the
 diagnostics can say why nothing was drawn instead of leaving silence indistinguishable
 from a broken feature.

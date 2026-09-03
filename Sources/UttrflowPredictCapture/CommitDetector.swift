@@ -2,7 +2,7 @@ public import Foundation
 
 /// One thing that happened in a text field, carrying the moment it happened rather than reading a clock.
 public enum CaptureEvent: Sendable, Equatable {
-    /// The whole of what the field holds after a key was pressed.
+    /// The line the caret is on after a key was pressed, which is what a completion matches.
     case keystroke(String, at: Date)
     /// Return was pressed, which is the user saying the value is finished.
     case returnPressed(at: Date)
@@ -46,9 +46,9 @@ public struct Commit: Sendable, Equatable {
     }
 }
 
-/// Decides when a field holds a finished value, so nothing is ever remembered per keystroke.
+/// Decides when a line holds a finished value, so nothing is ever remembered per keystroke.
 public struct CommitDetector: Sendable, Equatable {
-    /// How long a field sits untouched before what is in it counts as finished.
+    /// How long a line sits untouched before what is in it counts as finished.
     public static let idleInterval: TimeInterval = 3
 
     private var pending = ""
