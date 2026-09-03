@@ -63,7 +63,7 @@ public actor PersonalDictionaryStore {
     ///   test has a reason to pass one.
     /// - Returns: The file the dictionary is read from and written to.
     public static func defaultFile(in directory: URL = .applicationSupportDirectory) -> URL {
-        directory.appending(path: "Uttrflow/dictionary.v1.json", directoryHint: .notDirectory)
+        LocalStore.file("dictionary.v1.json", in: directory)
     }
 
     // MARK: - Reading

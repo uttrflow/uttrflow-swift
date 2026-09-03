@@ -1,3 +1,4 @@
+import UttrflowCore
 public import UttrflowPredict
 
 public import struct Foundation.Date
@@ -23,7 +24,7 @@ public actor PredictStore: PredictionStore {
 
     /// Where the corpus lives, beside the clipboard and the history, versioned in its name.
     public static func defaultFile(in directory: URL) -> URL {
-        directory.appending(path: "Uttrflow/predict.v1.sqlite", directoryHint: .notDirectory)
+        LocalStore.file("predict.v1.sqlite", in: directory)
     }
 
     /// Opens and migrates, and on corruption starts again rather than leaving the app broken.

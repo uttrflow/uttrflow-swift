@@ -211,7 +211,7 @@ let package = Package(
         // The corpus on disk. The app's only SQL, over the system's own libsqlite3.
         .target(
             name: "UttrflowPredictStore",
-            dependencies: ["UttrflowPredict"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -220,7 +220,9 @@ let package = Package(
         // thing it must not reimplement: the rules that recognise a credential.
         .target(
             name: "UttrflowPredictCapture",
-            dependencies: ["UttrflowClipboard", "UttrflowPredict", "UttrflowPredictStore"],
+            dependencies: [
+                "UttrflowClipboard", "UttrflowCore", "UttrflowPredict", "UttrflowPredictStore",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
 

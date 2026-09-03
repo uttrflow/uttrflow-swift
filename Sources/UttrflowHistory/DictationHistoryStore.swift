@@ -65,7 +65,7 @@ public actor DictationHistoryStore {
     ///   test has a reason to pass one.
     /// - Returns: The file the history is read from and written to.
     public static func defaultFile(in directory: URL = .applicationSupportDirectory) -> URL {
-        directory.appending(path: "Uttrflow/history.v1.json", directoryHint: .notDirectory)
+        LocalStore.file("history.v1.json", in: directory)
     }
 
     // MARK: - Reading
