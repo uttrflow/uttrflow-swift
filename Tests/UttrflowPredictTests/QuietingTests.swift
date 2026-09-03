@@ -15,7 +15,6 @@ struct QuietingTests {
             (PredictionContext(typed: "x", isEnabledHere: false), Quieting.Reason.turnedOffHere),
             (PredictionContext(typed: "x", isSecure: true), .secureField),
             (PredictionContext(typed: "x", hasSelection: true), .textSelected),
-            (PredictionContext(typed: "x", isComposing: true), .inputMethodComposing),
             (PredictionContext(typed: "x", caretAtLineEnd: false), .caretInsideText),
             (PredictionContext(typed: "x", rejectionsThisSession: 3), .rejectedTooOften),
             (
@@ -34,6 +33,12 @@ struct QuietingTests {
             typed: "x", caretAtLineEnd: false, hasSelection: true, isComposing: true, isSecure: true,
             isEnabledHere: false)
         #expect(Quieting.reason(everything) == .turnedOffHere)
+    }
+
+    @Test("An input method mid-composition does not quiet the suggestion; drawing takes priority.")
+    func composingDoesNotQuiet() {
+        #expect(Quieting.reason(PredictionContext(typed: "x", isComposing: true)) == nil)
+        #expect(!Quieting.refuses(PredictionContext(typed: "x", isComposing: true)))
     }
 
     @Test("Fluency only quiets prose; a command field answers at once.")

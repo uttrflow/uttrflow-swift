@@ -53,12 +53,11 @@ public enum Quieting {
         reason(context) != nil
     }
 
-    /// Why nothing may be drawn, for the diagnostics page and for tests that name one rule.
+    /// Why nothing may be drawn; composition is deliberately not consulted, so the IME never gates drawing.
     public static func reason(_ context: PredictionContext) -> Reason? {
         if !context.isEnabledHere { return .turnedOffHere }
         if context.isSecure { return .secureField }
         if context.hasSelection { return .textSelected }
-        if context.isComposing { return .inputMethodComposing }
         if !context.caretAtLineEnd { return .caretInsideText }
         if context.rejectionsThisSession >= rejectionsBeforeSilence { return .rejectedTooOften }
         if context.isProse, context.millisecondsSinceKeystroke < proseHesitationInMilliseconds {
