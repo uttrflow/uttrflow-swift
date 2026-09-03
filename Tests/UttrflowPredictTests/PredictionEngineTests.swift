@@ -133,6 +133,17 @@ struct PredictionEngineTests {
         #expect(result == .choice(leader: "git push", others: ["git pull"]))
     }
 
+    @Test("A single irreversible command alone is never auto-offered, so one Tab cannot run it.")
+    func loneIrreversibleIsSilent() {
+        let alone = suggestion([remembered("git push --force", count: 90, irreversible: true)])
+        #expect(alone == .silent)
+    }
+
+    @Test("A single reversible command alone is still offered when it is strong.")
+    func loneReversibleIsCertain() {
+        #expect(suggestion([remembered("git status", count: 90)]) == .certain("git status"))
+    }
+
     @Test("A leader whose only rivals were barred is shown alone rather than as a choice of one.")
     func lonelyLeaderIsCertain() {
         let result = suggestion([

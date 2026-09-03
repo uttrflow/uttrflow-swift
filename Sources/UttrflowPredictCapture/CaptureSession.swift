@@ -65,11 +65,13 @@ public actor CaptureSession {
         for path in ShellHistory.paths(inHomeDirectory: home) {
             let commands = ShellHistory.read(atPath: path)
             guard !commands.isEmpty else { continue }
-            for command in commands {
+            var stored = 0
+            for command in commands where !DestructiveCommand.matches(command) {
                 try await sink.record(
                     command, in: surface, after: nil, selfSourced: false, at: moment)
+                stored += 1
             }
-            return commands.count
+            return stored
         }
         return 0
     }

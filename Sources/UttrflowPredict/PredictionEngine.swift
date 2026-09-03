@@ -24,7 +24,9 @@ public enum PredictionEngine {
         }
 
         let separated = ranking.separation >= separationThreshold
-        guard !leader.candidate.isIrreversible || separated else { return .silent }
+        // An irreversible completion is offered only when it clearly beats a real rival, never alone on thin evidence.
+        let dominatesRivals = separated && ranking.candidates.count > 1
+        guard !leader.candidate.isIrreversible || dominatesRivals else { return .silent }
         guard !separated else { return .certain(leader.text) }
 
         let others =

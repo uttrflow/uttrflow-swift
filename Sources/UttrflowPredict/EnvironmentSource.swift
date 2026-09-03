@@ -104,7 +104,11 @@ public struct EnvironmentSource: Sendable {
                 offered.append(value)
             }
         }
-        return offered.map { Candidate(text: completing.leading + $0, source: .environment) }
+        return offered.map {
+            let text = completing.leading + $0
+            return Candidate(
+                text: text, source: .environment, isIrreversible: DestructiveCommand.matches(text))
+        }
     }
 
     /// The directory a terminal is sitting in, absent for a field whose scope is a web host.

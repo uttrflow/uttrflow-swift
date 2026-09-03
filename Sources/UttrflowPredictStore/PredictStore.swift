@@ -77,7 +77,10 @@ public actor PredictStore: PredictionStore {
         var candidates: [Candidate] = []
         for text in texts {
             guard let evidence = try entry(surfaceIdentifier: id, text: text) else { continue }
-            candidates.append(Candidate(text: text, source: .succession, evidence: evidence))
+            candidates.append(
+                Candidate(
+                    text: text, source: .succession, evidence: evidence,
+                    isIrreversible: DestructiveCommand.matches(text)))
         }
         return candidates
     }
@@ -133,7 +136,7 @@ public actor PredictStore: PredictionStore {
             matched.append(
                 Candidate(
                     text: candidate.text, source: candidate.source, evidence: candidate.evidence,
-                    editDistance: distance))
+                    editDistance: distance, isIrreversible: candidate.isIrreversible))
         }
         return Array(matched.prefix(Self.candidateLimit))
     }
@@ -270,7 +273,8 @@ public actor PredictStore: PredictionStore {
                     text: row.text(0), count: row.integer(1), accepted: row.integer(2),
                     rejected: row.integer(3), selfSourced: row.integer(4),
                     lastUsed: Date(timeIntervalSince1970: row.double(5))),
-                editDistance: distance)
+                editDistance: distance,
+                isIrreversible: DestructiveCommand.matches(row.text(0)))
         }
     }
 
