@@ -35,10 +35,14 @@ public struct FieldReading: Sendable, Equatable {
 
 extension FieldReading {
     /// The role and subrole a password field is published under, by the two conventions in use.
-    public static let secureRole = "AXSecureTextField"
+    public static let secureRole = SecureField.secureRole
 
-    /// Whether the field hides what is typed into it, which AppKit says as a subrole and others as a role.
-    public var isSecure: Bool { role == Self.secureRole || subrole == Self.secureRole }
+    /// Whether the field hides what is typed, from its role, its subrole, or a name that betrays a password.
+    public var isSecure: Bool {
+        SecureField.isDeclaredSecure(
+            role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
+            description: accessibilityDescription)
+    }
 
     /// The field as the corpus knows it, or nothing when it does not say enough to be told apart.
     public var surface: Surface? {

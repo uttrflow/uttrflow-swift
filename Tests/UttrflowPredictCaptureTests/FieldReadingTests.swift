@@ -125,3 +125,32 @@ struct FieldReadingTests {
         #expect(one.surface != other.surface)
     }
 }
+
+@Suite("A field that hides what is typed is refused")
+struct FieldReadingSecrecyTests {
+    @Test("The secure role and subrole are both recognised.")
+    func rolesAreSecure() {
+        #expect(FieldReading(bundleIdentifier: "com.example.app", role: "AXSecureTextField").isSecure)
+        #expect(
+            FieldReading(
+                bundleIdentifier: "com.example.app", role: "AXTextField",
+                subrole: "AXSecureTextField"
+            ).isSecure)
+    }
+
+    @Test("A password field that names itself is secure even without the role, as web fields are.")
+    func namedPasswordIsSecure() {
+        #expect(
+            FieldReading(
+                bundleIdentifier: "com.example.app", role: "AXTextField", identifier: "user_password"
+            ).isSecure)
+    }
+
+    @Test("An ordinary field is not treated as secure.")
+    func ordinaryIsNotSecure() {
+        #expect(
+            !FieldReading(
+                bundleIdentifier: "com.example.app", role: "AXTextField", identifier: "search"
+            ).isSecure)
+    }
+}

@@ -80,9 +80,16 @@ public enum FocusedFieldReader {
         else { return nil }
 
         let subrole = string(field, kAXSubroleAttribute)
-        let value = string(field, kAXValueAttribute)
+        let identifier = string(field, kAXIdentifierAttribute)
+        let placeholder = string(field, kAXPlaceholderValueAttribute)
+        let description = string(field, kAXDescriptionAttribute)
+        // Decided before the value is fetched, so a declared secure field's contents are never read at all.
+        let declaredSecure = SecureField.isDeclaredSecure(
+            role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
+            description: description)
+        let value = declaredSecure ? nil : string(field, kAXValueAttribute)
+        let secure = declaredSecure || (value.map(SecureField.looksMasked) ?? false)
         let range: CFRange? = axValue(field, kAXSelectedTextRangeAttribute, .cfRange)
-        let secure = kAXSecureTextFieldSubrole as String
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
 
         return FocusedFieldSnapshot(
@@ -90,16 +97,16 @@ public enum FocusedFieldReader {
             applicationName: app.name,
             role: role,
             subrole: subrole,
-            identifier: string(field, kAXIdentifierAttribute),
-            placeholder: string(field, kAXPlaceholderValueAttribute),
-            accessibilityDescription: string(field, kAXDescriptionAttribute),
+            identifier: identifier,
+            placeholder: placeholder,
+            accessibilityDescription: description,
             document: document(of: field),
-            value: value,
+            value: secure ? nil : value,
             selection: range.map { NSRange(location: $0.location, length: $0.length) },
             caret: range.flatMap { caret(field, at: $0) }.map { flip($0, below: flipped) },
             window: windowFrame(of: field).map { flip($0, below: flipped) },
             pointSize: range.flatMap { pointSize(field, at: $0) },
-            isSecure: role == secure || subrole == secure,
+            isSecure: secure,
             isComposing: Composition.isComposing(
                 markedText: markedText(field), inputSource: CompositionProbe.inputSourceKind()),
             readMicroseconds: Int((DispatchTime.now().uptimeNanoseconds - started) / 1000)
