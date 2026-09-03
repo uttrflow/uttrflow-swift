@@ -65,6 +65,8 @@ final class SuggestionCoordinator {
     /// Applications already asked about this launch, so a declined question is not repeated.
     private var asked: Set<String> = []
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
+    /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
+    var onTurnedOffEverywhere: (() -> Void)?
 
     /// Opens the corpus beside the clipboard's file, or reports why it could not.
     init(container: URL, preferences: SuggestionPreferences) throws(PredictStoreError) {
@@ -318,7 +320,10 @@ final class SuggestionCoordinator {
             case .nothing:
                 break
             }
-            if !session.isEnabled { stop() }
+            // ⌥⎋ turns the feature off everywhere; persist it so the switch agrees and a later enable rebuilds this.
+            if !session.isEnabled {
+                if let onTurnedOffEverywhere { onTurnedOffEverywhere() } else { stop() }
+            }
         }
     }
 

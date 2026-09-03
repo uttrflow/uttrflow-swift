@@ -275,6 +275,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         do {
             let coordinator = try SuggestionCoordinator(
                 container: container, preferences: settings.suggestions)
+            // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
+            coordinator.onTurnedOffEverywhere = { [weak self] in
+                self?.apply(.toggle(.suggestionsEnabled, isOn: false))
+            }
             completions = coordinator
             coordinator.start()
         } catch {
