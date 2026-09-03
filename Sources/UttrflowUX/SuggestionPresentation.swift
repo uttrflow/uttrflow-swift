@@ -23,8 +23,8 @@ public struct SuggestionAppearance: Sendable, Equatable {
     /// Nothing turned on, which is what most Macs report.
     public static let standard = Self()
 
-    /// Whether ghost text has to become a chip to be legible.
-    var demandsChip: Bool { increasesContrast || reducesTransparency }
+    /// Whether the ghost must drop its transparency to stay legible, keeping the text but not the grey.
+    var demandsOpaqueGhost: Bool { increasesContrast || reducesTransparency }
 }
 
 /// What the suggestion surface draws, decided without drawing it.
@@ -35,8 +35,6 @@ public struct SuggestionPresentation: Sendable, Equatable {
         case hidden
         /// Grey text on the user's own line, with no chip and no border.
         case ghost
-        /// Solid bordered text, for a display setting under which grey text fails.
-        case chip
         /// One dot, which is all that is left after the user presses escape.
         case dot
     }
@@ -65,6 +63,9 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// Grey text is drawn at this share of the line's own colour.
     public static let ghostOpacity = 0.45
 
+    /// Ghost text drawn at full strength, for a display setting under which faint grey fails to read.
+    public static let opaqueGhostOpacity = 1.0
+
     /// The dot's diameter, in points.
     public static let dotDiameter: CGFloat = 7
 
@@ -83,28 +84,30 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let prefersMonospaced: Bool
     /// Whether a change of state is allowed to animate.
     public let animates: Bool
+    /// The share of the line's colour the ghost is drawn at, raised to full under a contrast setting.
+    public let opacity: Double
 
     public init(
         _ suggestion: Suggestion,
         typed: String = "",
+        selection: Int = 0,
         fieldPointSize: CGFloat? = nil,
-        appearance: SuggestionAppearance = .standard,
-        detached: Bool = false
+        appearance: SuggestionAppearance = .standard
     ) {
-        let offered = Self.rows(of: suggestion, after: typed)
-        // Detached from the line it completes, ghost text floats over nothing and cannot be read, so it becomes a chip.
-        let demandsChip = appearance.demandsChip || detached
+        let offered = Self.rows(of: suggestion, after: typed, selected: selection)
         style =
             switch suggestion {
             case .minimised: .dot
             case .silent, .certain, .choice:
-                offered.isEmpty ? .hidden : (demandsChip ? .chip : .ghost)
+                offered.isEmpty ? .hidden : .ghost
             }
         rows = offered
         pointSize = Self.pointSize(fieldPointSize)
         // With no reported size, the field's own font is unknown too, so a monospaced default reads best at a caret.
         prefersMonospaced = fieldPointSize == nil
         animates = !appearance.reducesMotion
+        // Faint grey is the intent; a contrast setting keeps the text but drops the transparency.
+        opacity = appearance.demandsOpaqueGhost ? Self.opaqueGhostOpacity : Self.ghostOpacity
     }
 
     /// What VoiceOver is told the surface is offering, and what taking it costs.
@@ -124,8 +127,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
         return ", replacing \(count) character\(count == 1 ? "" : "s")"
     }
 
-    /// The leader is selected, the alternatives are not, and a lone leader carries no mark.
-    private static func rows(of suggestion: Suggestion, after typed: String) -> [Row] {
+    /// The highlighted row is selected and carries the mark; a lone candidate carries no mark.
+    private static func rows(of suggestion: Suggestion, after typed: String, selected: Int) -> [Row] {
         let offered: [String] =
             switch suggestion {
             case .silent, .minimised: []
@@ -144,9 +147,12 @@ public struct SuggestionPresentation: Sendable, Equatable {
                 Row(candidate: $0.candidate, edit: $0.edit, isSelected: true, showsMark: false)
             }
         }
+        // The highlight can be moved with the arrow keys, so it follows the chosen row, not always the leader.
+        let chosen = min(max(selected, 0), usable.count - 1)
         return usable.enumerated().map {
             Row(
-                candidate: $1.candidate, edit: $1.edit, isSelected: $0 == 0, showsMark: $0 == 0)
+                candidate: $1.candidate, edit: $1.edit, isSelected: $0 == chosen,
+                showsMark: $0 == chosen)
         }
     }
 

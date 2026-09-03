@@ -15,31 +15,20 @@ public struct SuggestionAnchor: Sendable, Equatable {
 
 /// Turns a placement, a caret and a window into a rectangle, in AppKit's space where `y` grows up.
 public enum SuggestionGeometry {
-    /// The gap between the surface and the caret it hangs off.
-    public static let gap: CGFloat = 4
-
-    /// The gap between the surface and the edge it is parked against.
-    public static let margin: CGFloat = 8
-
-    /// The frame to occupy inside the screen, one row an inline ghost and more a list below the caret.
+    /// The frame at the caret, or `nil` when there is no on-screen caret and so nothing is drawn.
     public static func anchor(
         for placement: SuggestionPlacement,
         caret: CGRect?,
         window: CGRect?,
         screen: CGRect,
-        size: CGSize,
-        rows: Int = 1
-    ) -> SuggestionAnchor {
-        let (reached, origin): (SuggestionPlacement, CGPoint) =
-            switch (placement, usable(caret, on: screen)) {
-            case (.inlineGhost, .some(let caret)):
-                (.inlineGhost, caretAnchored(caret: caret, size: size, rows: rows))
-            default:
-                (.windowStrip, strip(along: usable(window, on: screen) ?? screen, size: size))
-            }
+        size: CGSize
+    ) -> SuggestionAnchor? {
+        guard placement == .inlineGhost, let caret = usable(caret, on: screen) else { return nil }
         return SuggestionAnchor(
-            placement: reached,
-            frame: CGRect(origin: clamped(origin, size: size, in: screen), size: size))
+            placement: .inlineGhost,
+            frame: CGRect(
+                origin: clamped(caretAnchored(caret: caret, size: size), size: size, in: screen),
+                size: size))
     }
 
     /// Turns an Accessibility rectangle, whose `y` grows downwards, into AppKit's space.
@@ -48,24 +37,9 @@ public enum SuggestionGeometry {
             x: rect.minX, y: primaryScreenMaxY - rect.maxY, width: rect.width, height: rect.height)
     }
 
-    /// Where a lone inline ghost begins: at the caret, continuing the user's own line.
-    static func inlineOrigin(caret: CGRect) -> CGPoint {
-        CGPoint(x: caret.maxX, y: caret.minY)
-    }
-
-    /// The top-left of the list drawn below the caret, left-aligned to the caret's own x.
-    static func belowCaretOrigin(caret: CGRect, size: CGSize) -> CGPoint {
-        CGPoint(x: caret.minX, y: caret.maxY - size.height)
-    }
-
-    /// A lone ghost sits on the caret's line; a list hangs from the caret's top so its rows fall below.
-    private static func caretAnchored(caret: CGRect, size: CGSize, rows: Int) -> CGPoint {
-        rows > 1 ? belowCaretOrigin(caret: caret, size: size) : inlineOrigin(caret: caret)
-    }
-
-    /// The strip stands on the bottom edge of whatever it was given, centred on it.
-    private static func strip(along frame: CGRect, size: CGSize) -> CGPoint {
-        CGPoint(x: frame.midX - size.width / 2, y: frame.minY + margin)
+    /// The panel's top-left, hung from the caret's top edge so the leader sits on the line and rows fall below.
+    static func caretAnchored(caret: CGRect, size: CGSize) -> CGPoint {
+        CGPoint(x: caret.maxX, y: caret.maxY - size.height)
     }
 
     /// A rectangle from another display, or from a window since closed, is no rectangle.

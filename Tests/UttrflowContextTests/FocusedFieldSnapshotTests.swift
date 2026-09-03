@@ -36,9 +36,9 @@ struct FocusedFieldSnapshotTests {
         #expect(snapshot(pointSize: nil).placement == .inlineGhost)
     }
 
-    @Test("A field that hides its caret leaves only the strip.")
-    func noCaretMeansTheStrip() {
-        #expect(snapshot(caret: nil).placement == .windowStrip)
+    @Test("A field that hides its caret can take nothing, because nothing is drawn off the line.")
+    func noCaretMeansNothingDrawn() {
+        #expect(snapshot(caret: nil).placement == nil)
     }
 
     @Test("A field that will not say what it holds can take nothing at all.")

@@ -65,14 +65,13 @@ would be missed.
 
 | The field reports | Placement |
 |---|---|
-| Its text, its caret rectangle and its styling | Inline ghost |
-| Its text and its caret rectangle | Caret chip |
-| Its text only | Window strip |
+| Its text and its caret rectangle (styling optional) | Inline ghost |
+| Its text only, with no caret rectangle | Nothing is drawn |
 | Nothing, or it is a secure field | Nothing is drawn |
 
 `CapabilitySweep` aggregates readings and answers the one question phase 0 exists to
 settle: whether the inline ghost reaches enough fields to lead with. Below 30% it does
-not, and the window strip is the product.
+not — and since the inline ghost is the only surface, there is nothing to fall back on.
 
 ## The application sweep — pending the operator
 

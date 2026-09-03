@@ -166,38 +166,35 @@ struct SuggestionPresentationTests {
     // MARK: - Accessibility
 
     @Test(
-        "Grey text becomes a solid bordered chip where a display setting forbids it",
+        "The ghost stays ghost text under every display setting; it is never boxed",
         arguments: [highContrast, opaque])
-    func ghostBecomesAChip(appearance: SuggestionAppearance) {
-        #expect(SuggestionPresentation(.certain("Sydney"), appearance: appearance).style == .chip)
+    func ghostIsNeverBoxed(appearance: SuggestionAppearance) {
+        #expect(SuggestionPresentation(.certain("Sydney"), appearance: appearance).style == .ghost)
         #expect(
             SuggestionPresentation(
                 .choice(leader: "Sydney", others: ["Sydenham"]), appearance: appearance
             ).style
-                == .chip)
+                == .ghost)
     }
 
-    @Test("A detached placement draws a solid chip, so a caret chip or window strip is not invisible.")
-    func detachedBecomesAChip() {
+    @Test(
+        "A display setting drops the ghost's transparency rather than boxing it",
+        arguments: [highContrast, opaque])
+    func settingMakesTheGhostOpaque(appearance: SuggestionAppearance) {
         #expect(
-            SuggestionPresentation(.certain("Sydney"), detached: true).style == .chip)
+            SuggestionPresentation(.certain("Sydney"), appearance: appearance).opacity
+                == SuggestionPresentation.opaqueGhostOpacity)
+    }
+
+    @Test("With no display setting, the ghost is drawn at its faint grey opacity.")
+    func plainGhostIsFaint() {
         #expect(
-            SuggestionPresentation(
-                .choice(leader: "Sydney", others: ["Sydenham"]), detached: true
-            ).style == .chip)
+            SuggestionPresentation(.certain("Sydney")).opacity
+                == SuggestionPresentation.ghostOpacity)
+        #expect(SuggestionPresentation(.certain("Sydney")).style == .ghost)
     }
 
-    @Test("Drawn inline on the line it completes, a suggestion stays ghost text.")
-    func inlineStaysGhost() {
-        #expect(SuggestionPresentation(.certain("Sydney"), detached: false).style == .ghost)
-    }
-
-    @Test("A detached silent suggestion is still nothing.")
-    func detachedSilentIsHidden() {
-        #expect(SuggestionPresentation(.silent, detached: true).style == .hidden)
-    }
-
-    @Test("Neither setting turns a silent suggestion into a chip")
+    @Test("Neither setting turns a silent suggestion into anything")
     func nothingIsStillNothingUnderTheSettings() {
         #expect(SuggestionPresentation(.silent, appearance: highContrast).style == .hidden)
         #expect(SuggestionPresentation(.minimised, appearance: opaque).style == .dot)
@@ -224,9 +221,9 @@ struct SuggestionPresentationTests {
         #expect(!SuggestionAppearance.standard.increasesContrast)
         #expect(!SuggestionAppearance.standard.reducesTransparency)
         #expect(!SuggestionAppearance.standard.reducesMotion)
-        #expect(!SuggestionAppearance.standard.demandsChip)
-        #expect(highContrast.demandsChip)
-        #expect(opaque.demandsChip)
+        #expect(!SuggestionAppearance.standard.demandsOpaqueGhost)
+        #expect(highContrast.demandsOpaqueGhost)
+        #expect(opaque.demandsOpaqueGhost)
     }
 
     // MARK: - Type

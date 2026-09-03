@@ -17,7 +17,7 @@ it is never uploaded, and the network is still reachable from `UttrflowAccount` 
 | Store | `Sources/UttrflowPredictStore` | The corpus on disk, the range scan, fuzzy fallback, forgetting |
 | Capture | `Sources/UttrflowPredictCapture` | Noticing that a field was committed, and recording what went into it |
 | Accept | `Sources/UttrflowInput` | Swallowing Tab, inserting the completion, recording that it was taken |
-| Surface | `Sources/Uttrflow/Suggestion` | Drawing the ghost, the chip or the strip, and drawing nothing |
+| Surface | `Sources/Uttrflow/Suggestion` | Drawing the inline ghost at the caret, and drawing nothing |
 | Verify | `Sources/UttrflowPredict` | Whether a candidate is *correct*, which is not what the ranking measures |
 | Loop | `SuggestionSession`, `SuggestionCoordinator` | Sequencing all of the above, once per keystroke |
 

@@ -15,7 +15,7 @@ private let caret = CGRect(x: 620, y: 500, width: 2, height: 17)
 /// The window that caret belongs to.
 private let documentWindow = CGRect(x: 380, y: 200, width: 900, height: 700)
 
-/// The strip, which is wider than it is tall because it is a line of text.
+/// The surface, wider than it is tall because it is a line of text, taller than one line for a list.
 private let strip = CGSize(width: 260, height: 24)
 
 @Suite("Suggestion geometry")
@@ -23,13 +23,15 @@ struct SuggestionGeometryTests {
 
     // MARK: - The inline ghost
 
-    @Test("The ghost starts where the caret is, on the caret's own line")
+    @Test("The ghost hangs from the caret's top, so its first line sits on the caret's own line")
     func ghostContinuesTheLine() {
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen,
             size: strip)
-        #expect(anchor.placement == .inlineGhost)
-        #expect(anchor.frame.origin == CGPoint(x: caret.maxX, y: caret.minY))
+        #expect(anchor?.placement == .inlineGhost)
+        // The surface's top edge is the caret's top edge, and it begins where the caret is.
+        #expect(anchor?.frame.origin == CGPoint(x: caret.maxX, y: caret.maxY - strip.height))
+        #expect(anchor?.frame.maxY == caret.maxY)
     }
 
     @Test("A ghost that would run off the right of the screen is pulled back onto it")
@@ -37,155 +39,117 @@ struct SuggestionGeometryTests {
         let late = CGRect(x: mainScreen.maxX - 6, y: 500, width: 2, height: 17)
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: late, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.placement == .inlineGhost)
-        #expect(mainScreen.contains(anchor.frame))
-        #expect(anchor.frame.maxX == mainScreen.maxX)
+        #expect(anchor?.placement == .inlineGhost)
+        #expect(anchor.map { mainScreen.contains($0.frame) } == true)
+        #expect(anchor?.frame.maxX == mainScreen.maxX)
     }
 
-    @Test("A thin insertion caret with no width is still a caret, not a fall to the strip")
+    @Test("A thin insertion caret with no width is still a caret, not nothing")
     func zeroWidthCaretIsUsable() {
         let thin = CGRect(x: 620, y: 500, width: 0, height: 17)
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: thin, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.placement == .inlineGhost)
+        #expect(anchor?.placement == .inlineGhost)
     }
 
     // MARK: - The list below the caret
 
-    @Test("More than one candidate hangs the surface from the caret's top, so the list falls below it")
+    @Test("A taller surface hangs from the caret's top, so the list falls below the leader's line")
     func listHangsBelowTheCaret() {
+        let list = CGSize(width: 260, height: 72)
         let anchor = SuggestionGeometry.anchor(
-            for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: strip,
-            rows: 3)
-        #expect(anchor.placement == .inlineGhost)
+            for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: list)
+        #expect(anchor?.placement == .inlineGhost)
         // The surface's top sits on the caret's top, so the leader is on the line and the rest below.
-        #expect(anchor.frame.maxY == caret.maxY)
-        // The list is left-aligned to the caret's own x.
-        #expect(anchor.frame.minX == caret.minX)
+        #expect(anchor?.frame.maxY == caret.maxY)
+        // The whole surface begins where the caret is, so the list is left-aligned under the leader.
+        #expect(anchor?.frame.minX == caret.maxX)
     }
 
-    @Test("A single candidate is a lone inline ghost on the caret's own line")
+    @Test("A single candidate hangs from the caret's top the same way a list does")
     func loneGhostStaysInline() {
         let anchor = SuggestionGeometry.anchor(
-            for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: strip,
-            rows: 1)
-        #expect(anchor.frame.origin == CGPoint(x: caret.maxX, y: caret.minY))
+            for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: strip)
+        #expect(anchor?.frame.origin == CGPoint(x: caret.maxX, y: caret.maxY - strip.height))
     }
 
-    // MARK: - The window strip
+    // MARK: - Nothing is drawn off the caret's line
 
-    @Test("The strip stands on the window's bottom edge, centred on the window")
-    func stripAlongTheWindow() {
+    @Test("The window strip is gone: it is never a placement the geometry will produce")
+    func theStripIsGone() {
         let anchor = SuggestionGeometry.anchor(
             for: .windowStrip, caret: caret, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.placement == .windowStrip)
-        #expect(anchor.frame.midX == documentWindow.midX)
-        #expect(anchor.frame.minY == documentWindow.minY + SuggestionGeometry.margin)
+        #expect(anchor == nil)
     }
 
-    @Test("With no window to stand on, the strip stands on the bottom of the screen")
-    func stripFallsBackToTheScreen() {
-        let anchor = SuggestionGeometry.anchor(
-            for: .windowStrip, caret: nil, window: nil, screen: mainScreen, size: strip)
-        #expect(anchor.frame.midX == mainScreen.midX)
-        #expect(anchor.frame.minY == mainScreen.minY + SuggestionGeometry.margin)
-    }
-
-    @Test("A window on a display that is no longer there is not stood on")
-    func stripIgnoresAWindowOffTheScreen() {
-        let elsewhere = CGRect(x: -4000, y: -3000, width: 900, height: 700)
-        let anchor = SuggestionGeometry.anchor(
-            for: .windowStrip, caret: nil, window: elsewhere, screen: mainScreen, size: strip)
-        #expect(anchor.frame.midX == mainScreen.midX)
-        #expect(mainScreen.contains(anchor.frame))
-    }
-
-    // MARK: - Falling down the ladder
-
-    @Test("The inline ghost with no caret rectangle falls all the way to the strip")
-    func noCaretFallsToTheStrip() {
+    @Test("An inline ghost with no caret rectangle draws nothing, rather than falling to a box")
+    func noCaretDrawsNothing() {
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: nil, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.placement == .windowStrip)
-        #expect(anchor.frame.minY == documentWindow.minY + SuggestionGeometry.margin)
+        #expect(anchor == nil)
     }
 
     @Test("A caret on a display this screen does not cover is no caret at all")
-    func caretOffTheScreenFallsToTheStrip() {
+    func caretOffTheScreenDrawsNothing() {
         let elsewhere = CGRect(x: -1700, y: -100, width: 2, height: 17)
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: elsewhere, window: documentWindow, screen: mainScreen,
             size: strip)
-        #expect(anchor.placement == .windowStrip)
+        #expect(anchor == nil)
     }
 
     @Test("A null caret rectangle is treated as no caret")
-    func nullCaretFallsToTheStrip() {
+    func nullCaretDrawsNothing() {
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: .null, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.placement == .windowStrip)
+        #expect(anchor == nil)
     }
 
-    @Test("With neither a caret nor a window, every rung lands on the bottom of the screen")
-    func nothingKnownFallsToTheScreen() {
+    @Test("With no caret, no placement draws anything, whatever the window")
+    func nothingKnownDrawsNothing() {
         for placement in SuggestionPlacement.allCases {
             let anchor = SuggestionGeometry.anchor(
-                for: placement, caret: nil, window: nil, screen: mainScreen, size: strip)
-            #expect(anchor.placement == .windowStrip)
-            #expect(anchor.frame.minY == mainScreen.minY + SuggestionGeometry.margin)
-            #expect(anchor.frame.midX == mainScreen.midX)
+                for: placement, caret: nil, window: documentWindow, screen: mainScreen, size: strip)
+            #expect(anchor == nil)
         }
-    }
-
-    @Test("A rung is never climbed, only fallen from")
-    func neverClimbsTheLadder() {
-        let anchor = SuggestionGeometry.anchor(
-            for: .windowStrip, caret: caret, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.placement == .windowStrip)
     }
 
     // MARK: - Staying on the screen
 
-    @Test("Every rung lands inside the screen", arguments: SuggestionPlacement.allCases)
-    func staysOnTheMainScreen(placement: SuggestionPlacement) {
+    @Test("The ghost always lands inside the screen")
+    func staysOnTheMainScreen() {
         let anchor = SuggestionGeometry.anchor(
-            for: placement, caret: caret, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(mainScreen.contains(anchor.frame))
+            for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: strip)
+        #expect(anchor.map { mainScreen.contains($0.frame) } == true)
     }
 
-    @Test(
-        "Every rung lands inside a screen with negative coordinates",
-        arguments: SuggestionPlacement.allCases)
-    func staysOnANegativeOriginScreen(placement: SuggestionPlacement) {
+    @Test("The ghost lands inside a screen with negative coordinates")
+    func staysOnANegativeOriginScreen() {
         let farCaret = CGRect(x: -1400, y: 300, width: 2, height: 17)
         let farWindow = CGRect(x: -1800, y: 60, width: 1000, height: 800)
         let anchor = SuggestionGeometry.anchor(
-            for: placement, caret: farCaret, window: farWindow, screen: leftScreen, size: strip)
-        #expect(leftScreen.contains(anchor.frame))
+            for: .inlineGhost, caret: farCaret, window: farWindow, screen: leftScreen, size: strip)
+        #expect(anchor.map { leftScreen.contains($0.frame) } == true)
         // The failure this guards is arithmetic done as though the screen began at zero.
-        #expect(anchor.frame.minX < 0)
+        #expect((anchor?.frame.minX ?? 0) < 0)
     }
 
-    @Test(
-        "A caret at the very top of the screen keeps its chip on the screen",
-        arguments: SuggestionPlacement.allCases)
-    func caretAtTheTop(placement: SuggestionPlacement) {
+    @Test("A caret at the very top of the screen keeps the ghost on the screen")
+    func caretAtTheTop() {
         let high = CGRect(x: 1500, y: mainScreen.maxY - 4, width: 2, height: 17)
         let anchor = SuggestionGeometry.anchor(
-            for: placement, caret: high, window: nil, screen: mainScreen, size: strip)
-        #expect(mainScreen.contains(anchor.frame))
+            for: .inlineGhost, caret: high, window: nil, screen: mainScreen, size: strip)
+        #expect(anchor.map { mainScreen.contains($0.frame) } == true)
     }
 
-    @Test(
-        "A surface larger than the screen is pinned rather than pushed off it",
-        arguments: SuggestionPlacement.allCases)
-    func surfaceLargerThanTheScreen(placement: SuggestionPlacement) {
+    @Test("A surface larger than the screen is pinned rather than pushed off it")
+    func surfaceLargerThanTheScreen() {
         let tiny = CGRect(x: 200, y: 100, width: 120, height: 90)
         let huge = CGSize(width: 400, height: 300)
         let anchor = SuggestionGeometry.anchor(
-            for: placement, caret: CGRect(x: 240, y: 140, width: 2, height: 17),
+            for: .inlineGhost, caret: CGRect(x: 240, y: 140, width: 2, height: 17),
             window: tiny, screen: tiny, size: huge)
-        #expect(anchor.frame.origin == CGPoint(x: tiny.minX, y: tiny.minY))
+        #expect(anchor?.frame.origin == CGPoint(x: tiny.minX, y: tiny.minY))
     }
 
     // MARK: - The other coordinate convention
@@ -208,9 +172,12 @@ struct SuggestionGeometryTests {
 
     @Test("Two anchors of the same rung and rectangle are the same anchor")
     func anchorsCompareByValue() {
-        let one = SuggestionAnchor(placement: .inlineGhost, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
-        let other = SuggestionAnchor(placement: .inlineGhost, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
+        let one = SuggestionAnchor(
+            placement: .inlineGhost, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
+        let other = SuggestionAnchor(
+            placement: .inlineGhost, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
         #expect(one == other)
-        #expect(one != SuggestionAnchor(placement: .windowStrip, frame: one.frame))
+        #expect(
+            one != SuggestionAnchor(placement: .inlineGhost, frame: CGRect(x: 9, y: 9, width: 9, height: 9)))
     }
 }

@@ -15,10 +15,12 @@ private struct SuggestionRequest {
     var suggestion: Suggestion = .silent
     /// What is already in the field, so the surface offers only what the suggestion adds.
     var typed: String = ""
-    var placement: SuggestionPlacement = .windowStrip
+    var placement: SuggestionPlacement = .inlineGhost
     var caret: CGRect?
     var window: CGRect?
     var fieldPointSize: CGFloat?
+    /// Which row the arrow keys have moved the highlight to, counting the leader as zero.
+    var selection: Int = 0
 }
 
 /// Owns the panel the suggestion is drawn in.
@@ -28,8 +30,6 @@ final class SuggestionPanelController {
     private let hostingView: NSHostingView<SuggestionView>
     private var request = SuggestionRequest()
     private var panelSize = CGSize(width: 1, height: 1)
-    /// How many rows the surface last drew, which decides whether a list hangs below the caret.
-    private var rowCount = 1
     private var appearanceObserver: (any NSObjectProtocol)?
 
     init() {
@@ -56,11 +56,12 @@ final class SuggestionPanelController {
         placement: SuggestionPlacement,
         caret: CGRect? = nil,
         window: CGRect? = nil,
-        fieldPointSize: CGFloat? = nil
+        fieldPointSize: CGFloat? = nil,
+        selection: Int = 0
     ) {
         request = SuggestionRequest(
             suggestion: suggestion, typed: typed, placement: placement, caret: caret,
-            window: window, fieldPointSize: fieldPointSize)
+            window: window, fieldPointSize: fieldPointSize, selection: selection)
         render()
     }
 
@@ -75,19 +76,15 @@ final class SuggestionPanelController {
     /// Redraws from the last request and this Mac's current display settings.
     private func render() {
         let presentation = SuggestionPresentation(
-            request.suggestion, typed: request.typed, fieldPointSize: request.fieldPointSize,
-            appearance: Self.appearance(),
-            // A caret chip or a window strip stands off the line, so its text must be a solid chip to be seen.
-            detached: request.placement != .inlineGhost)
-        rowCount = presentation.rows.count
+            request.suggestion, typed: request.typed, selection: request.selection,
+            fieldPointSize: request.fieldPointSize, appearance: Self.appearance())
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
-        guard presentation.style != .hidden else {
+        guard presentation.style != .hidden, reposition() else {
             panel.orderOut(nil)
             return
         }
-        reposition()
         // `orderFrontRegardless`, never `makeKeyAndOrderFront`: no keyboard is taken.
         panel.orderFrontRegardless()
     }
@@ -111,19 +108,25 @@ final class SuggestionPanelController {
         }
     }
 
-    /// The view measures itself and reports what it wants; the panel follows.
+    /// The view measures itself and reports what it wants; the panel follows and stays on screen.
     private func resize(to size: CGSize) {
         let wanted = CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
         guard wanted.width > 0, wanted.height > 0, wanted != panelSize else { return }
         panelSize = wanted
-        reposition()
+        guard reposition() else { return }
+        panel.orderFrontRegardless()
     }
 
-    private func reposition() {
-        let anchor = SuggestionGeometry.anchor(
-            for: request.placement, caret: request.caret, window: request.window,
-            screen: visibleFrame, size: panelSize, rows: rowCount)
+    /// Places the panel at the caret, or reports that there is nowhere on the line to draw it.
+    @discardableResult
+    private func reposition() -> Bool {
+        guard
+            let anchor = SuggestionGeometry.anchor(
+                for: request.placement, caret: request.caret, window: request.window,
+                screen: visibleFrame, size: panelSize)
+        else { return false }
         panel.setFrame(anchor.frame, display: true)
+        return true
     }
 
     private var visibleFrame: CGRect {

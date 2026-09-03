@@ -31,9 +31,7 @@ struct SuggestionView: View {
         case .dot:
             dot
         case .ghost:
-            lines.foregroundStyle(.primary.opacity(SuggestionPresentation.ghostOpacity))
-        case .chip:
-            chip
+            lines
         }
     }
 
@@ -46,18 +44,7 @@ struct SuggestionView: View {
                 height: SuggestionPresentation.dotDiameter)
     }
 
-    /// Solid and bordered, because grey text on the user's own line is what the setting refuses.
-    private var chip: some View {
-        lines
-            .padding(.horizontal, presentation.pointSize * 0.4)
-            .padding(.vertical, presentation.pointSize * 0.25)
-            .background(.background, in: RoundedRectangle(cornerRadius: 5))
-            .overlay {
-                RoundedRectangle(cornerRadius: 5).strokeBorder(.primary, lineWidth: 1)
-            }
-    }
-
-    /// The leader, then the alternatives under it.
+    /// The leader on the caret's own line, then any alternatives as grey lines directly below it.
     private var lines: some View {
         VStack(alignment: .leading, spacing: presentation.pointSize * 0.25) {
             ForEach(Array(presentation.rows.enumerated()), id: \.offset) { _, row in
@@ -72,6 +59,13 @@ struct SuggestionView: View {
             offer(row)
             if row.isSelected { tabGlyph }
         }
+        // The leader is drawn at the ghost's own strength; an unselected alternative is dimmer still.
+        .foregroundStyle(.primary.opacity(rowOpacity(row)))
+    }
+
+    /// Full ghost strength for the row Tab would take, and half that for the ones it would not.
+    private func rowOpacity(_ row: SuggestionPresentation.Row) -> Double {
+        row.isSelected ? presentation.opacity : presentation.opacity * 0.55
     }
 
     /// The typed characters Tab consumes, struck through, and then the ones it puts in.

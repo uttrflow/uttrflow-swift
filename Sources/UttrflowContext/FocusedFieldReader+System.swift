@@ -142,15 +142,13 @@ public enum FocusedFieldReader {
         return CGRect(origin: origin, size: size)
     }
 
-    /// The insertion point's screen rectangle, without which no ghost can be drawn.
-    ///
-    /// A zero-length range works in Cocoa fields but returns a heightless origin in Terminal, which
-    /// only answers for a one-character range; so a heightless answer is retried a character wide.
+    /// The insertion point's screen rectangle, retried a character wide when a zero-length range is heightless.
     private static func caret(_ field: AXUIElement, at range: CFRange) -> CGRect? {
         if let rect = bounds(field, range), rect.height > 0 { return rect }
         let location = range.location
         if location > 0, let before = bounds(field, CFRange(location: location - 1, length: 1)),
-            before.height > 0 {
+            before.height > 0
+        {
             return CGRect(x: before.maxX, y: before.minY, width: 0, height: before.height)
         }
         if let at = bounds(field, CFRange(location: location, length: 1)), at.height > 0 {

@@ -184,8 +184,7 @@ final class SuggestionCoordinator {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
-        // The clock starts after the field read, so the cross-process read is not charged against the
-        // turn budget; a keystroke arriving during the read bumps the generation and drops this answer instead.
+        // The clock starts after the field read, so the cross-process read is not charged against the budget.
         let started = Date()
         guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
@@ -279,14 +278,17 @@ final class SuggestionCoordinator {
     /// Arms the tap first and draws second, so no key is claimed that nothing is offering.
     private func draw(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot?) {
         interceptor.arm(update.armed)
-        guard update.suggestion != .silent, let snapshot else {
+        // Nothing is drawn off the caret's line, so a field that reports no inline placement is left alone.
+        guard update.suggestion != .silent, let snapshot, snapshot.placement == .inlineGhost,
+            let caret = snapshot.caret
+        else {
             panel.hide()
             return
         }
         panel.show(
-            update.suggestion, typed: session.typed,
-            placement: snapshot.placement ?? .windowStrip, caret: snapshot.caret,
-            window: snapshot.window, fieldPointSize: snapshot.pointSize)
+            update.suggestion, typed: session.typed, placement: .inlineGhost, caret: caret,
+            window: snapshot.window, fieldPointSize: snapshot.pointSize,
+            selection: session.selection.index)
     }
 
     // MARK: Accepting

@@ -144,8 +144,8 @@ destroys — is drawn struck through immediately before the inserted text, so `g
 ~~ti c~~`it commit -m` and the four characters about to go are visible before the keypress.
 It carries no colour or opacity of its own: the strike is the whole signal, and it
 inherits whatever the enclosing style is, which is how it stays legible when Increase
-Contrast or Reduce Transparency turns the ghost into a solid chip. VoiceOver hears the
-same fact as "Tab to accept, replacing 4 characters".
+Contrast or Reduce Transparency drops the ghost's transparency to full strength. VoiceOver
+hears the same fact as "Tab to accept, replacing 4 characters".
 
 The struck-through text sits inside the panel rather than over the user's own characters,
 because the panel is anchored at the caret and shifting it left far enough to overlay them

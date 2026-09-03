@@ -4,7 +4,7 @@ import Foundation
 public enum SuggestionPlacement: String, Sendable, CaseIterable, Comparable {
     /// Grey text at the caret, on the user's own line, with any alternatives listed below it.
     case inlineGhost
-    /// A strip on the window's bottom edge, the last resort for a field that hides its caret.
+    /// The old bottom-edge strip, kept only for the phase-0 probe's tally; nothing is ever drawn here now.
     case windowStrip
 
     /// Orders the ladder so the best placement is the smallest.
@@ -54,12 +54,10 @@ public struct SurfaceCapability: Sendable, Equatable {
         self.readMicroseconds = readMicroseconds
     }
 
-    /// The best placement this field can support, or `nil` where nothing may be drawn.
+    /// The inline ghost when the caret can be placed, or `nil` where nothing may be drawn off the line.
     public var placement: SuggestionPlacement? {
-        guard !isSecure, reportsValue else { return nil }
-        // A caret is all the inline ghost needs; the field's font is followed when known and defaulted when not.
-        if reportsCaretRect { return .inlineGhost }
-        return .windowStrip
+        guard !isSecure, reportsValue, reportsCaretRect else { return nil }
+        return .inlineGhost
     }
 
     /// Identifies the field across readings, so a second visit refines rather than duplicates.
@@ -81,7 +79,7 @@ public struct SurfaceCapability: Sendable, Equatable {
 
 /// The readings from one probe run, and the decision they add up to.
 public struct CapabilitySweep: Sendable, Equatable {
-    /// Below this share of fields reaching the inline ghost, the window strip is the product.
+    /// Below this share of fields reaching the inline ghost, the feature is not worth leading with.
     public static let inlineThreshold = 0.30
 
     private var byIdentity: [String: SurfaceCapability] = [:]
@@ -121,7 +119,7 @@ public struct CapabilitySweep: Sendable, Equatable {
         share { $0.placement == .inlineGhost }
     }
 
-    /// Whether the inline ghost is worth building, or the window strip is the whole product.
+    /// Whether the inline ghost reaches enough fields to be worth leading with, since it is the only surface.
     public var inlineIsWorthBuilding: Bool {
         !isEmpty && inlineShare >= Self.inlineThreshold
     }
