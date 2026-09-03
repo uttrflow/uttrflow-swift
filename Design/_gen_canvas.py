@@ -47,6 +47,18 @@ ROWS = [
      [("Dock-States.dc.html", 900, 780, None), ("Dock-Placement.dc.html", 900, 700, None),
       ("MenuBar.dc.html", 700, 620, None)]),
 
+    ("predict",
+     "Tab to complete\nThe suggestion surface, in the five shapes it can take. Which one is drawn is not a preference but a capability: the placement ladder in Docs/predict-probe.md reads what a field publishes, and a field that gives up its caret rectangle gets the inline ghost while one that gives up only its text gets the strip along the bottom of its window. The list is deliberately almost empty — a mark, a string and a Tab glyph, with no counts, percentages or confidence bars — because a number beside a completion has to be priced before a keypress that saves a quarter of a second. The last pair is what the system asks for under Increase Contrast: ghost text measures 2.8:1 on light and 3.9:1 on dark, so it is replaced rather than dimmed.",
+     [pair for stem, size in [
+         ("Predict-Certain", (820, 500)),
+         ("Predict-Choice", (820, 580)),
+         ("Predict-Minimised", (820, 480)),
+         ("Predict-Window-Strip", (820, 560)),
+         ("Predict-High-Contrast", (820, 700)),
+     ] for pair in (
+         (f"{stem}.dc.html", *size, None),
+         (f"{stem}-Dark.dc.html", *size, None))]),
+
     ("dictation",
      "The app window: Dictation\nThe sidebar turns a utility into an application. Product mark at the top, a flat list of destinations, the active one in accent, and — where a competitor puts a promo banner — your own most recent dictation. Dictation is the home surface: today's list newest first, hover actions on the row, and a rail of the three things the app can actually measure. Empty is a returning user who has not spoken today, so it shows yesterday rather than nothing.",
      [("Main-Dictation.dc.html", *MAIN, None), ("Main-Dictation-Dark.dc.html", *MAIN, None),
