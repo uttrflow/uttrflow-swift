@@ -93,6 +93,8 @@ final class SuggestionCoordinator {
             return
         }
         interceptor.arm([])
+        // Before the first keystroke, because the reader's queue may not call AppKit or HIToolbox.
+        FocusedFieldReader.prepare()
         watchSwallowedKeys()
         watchForActivity()
     }

@@ -148,6 +148,34 @@ The field's own answer always wins where there is one, so an AppKit text view un
 Japanese input method that is *not* composing still gets its suggestion. That is the whole
 reason the state signal is worth having despite its reach.
 
+## Text Input Sources must be called on the main queue, so it is not called on the read path
+
+`TISCopyCurrentKeyboardInputSource` and `TSMGetInputSourceProperty` go through HIToolbox's
+`islGetInputSourceListWithAdditions`, which calls `dispatch_assert_queue` on the main queue.
+Called from anywhere else the process is killed outright with `EXC_BREAKPOINT` —
+reproduced three times, on the first keystroke after tab-to-complete was armed, because
+`FocusedFieldReader` deliberately reads on a private queue so an Accessibility read can
+never block the keystroke path.
+
+Hopping to the main queue and waiting would put exactly that block back, on exactly the
+path the private queue exists to keep clear. So the input source is not read on the read
+path at all. It is read once on the main queue when the loop starts, re-read on the main
+queue whenever `kTISNotifySelectedKeyboardInputSourceChanged` arrives through
+`DistributedNotificationCenter`, and kept in a `Mutex` that any thread may read with no
+system call in it. The input source changes when a person presses a key combination to
+change it, which is many orders of magnitude rarer than a keystroke, so a cache is both
+correct and cheaper than the call it replaces.
+
+Until the first read lands the cache holds `.unknown`, and `.unknown` may compose — so the
+window before start-up completes suppresses suggestions rather than drawing one over live
+marked text. That is the same side of the trade taken everywhere else on this page.
+
+`NSScreen` is main-thread-only for the same reason and was being read on the same private
+queue, for the primary screen's top edge that flips Accessibility coordinates into AppKit
+ones. It is cached the same way, refreshed on `NSApplication.didChangeScreenParametersNotification`.
+`NSWorkspace.shared.frontmostApplication` is also read there and is left alone: it vends
+`NSRunningApplication`, which Apple documents as safe from any thread.
+
 ## Residual risk
 
 1. **WebKit is unmeasured.** Safari is the single most valuable unknown in the table.

@@ -3,10 +3,39 @@ import ApplicationServices
 import Foundation
 import UttrflowPredict
 
+private import Synchronization
+
 /// Reads the focused field once, for everything the suggestion loop needs. See `Docs/predict.md`.
 public enum FocusedFieldReader {
     /// Its own thread, because these calls block until the other application answers.
     private static let queue = DispatchQueue(label: "com.uttrflow.focused-field", qos: .userInitiated)
+
+    /// The primary screen's top edge, cached because `NSScreen` is main-thread-only and this reads off it.
+    private static let cachedPrimaryScreenMaxY = Mutex<CGFloat>(0)
+
+    /// Whether the caches are already being kept up to date, so preparing twice observes once.
+    @MainActor private static var prepared = false
+
+    /// Fills the caches the off-main read depends on and keeps them filled. See `Docs/predict-ime.md`.
+    @MainActor
+    public static func prepare() {
+        guard !prepared else { return }
+        prepared = true
+        CompositionProbe.startObservingInputSource()
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
+        ) { _ in
+            DispatchQueue.main.async { MainActor.assumeIsolated { refreshPrimaryScreenMaxY() } }
+        }
+        refreshPrimaryScreenMaxY()
+    }
+
+    /// Asks AppKit where the primary screen ends, the one place in the read path that touches `NSScreen`.
+    @MainActor
+    private static func refreshPrimaryScreenMaxY() {
+        let maxY = NSScreen.screens.first?.frame.maxY ?? 0
+        cachedPrimaryScreenMaxY.withLock { $0 = maxY }
+    }
 
     /// One reading, off the main thread, or `nil` when nothing usable is focused.
     public static func read() async -> FocusedFieldSnapshot? {
@@ -28,7 +57,7 @@ public enum FocusedFieldReader {
         let value = string(field, kAXValueAttribute)
         let range: CFRange? = axValue(field, kAXSelectedTextRangeAttribute, .cfRange)
         let secure = kAXSecureTextFieldSubrole as String
-        let flipped = NSScreen.screens.first?.frame.maxY ?? 0
+        let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
 
         return FocusedFieldSnapshot(
             bundleIdentifier: bundleIdentifier,

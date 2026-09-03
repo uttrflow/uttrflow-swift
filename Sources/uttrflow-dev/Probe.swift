@@ -160,7 +160,7 @@ struct ProbeIME: AsyncParsableCommand {
         var previous = ""
         for tick in 0..<seconds {
             let marked = CompositionProbe.markedText()
-            let source = CompositionProbe.inputSourceKind()
+            let source = await MainActor.run { CompositionProbe.refreshInputSourceKind() }
             let composing = Composition.isComposing(markedText: marked, inputSource: source)
             let line =
                 "\(describe(marked)) · input source is a \(describe(source)) · composing=\(composing)"
