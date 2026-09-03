@@ -52,7 +52,7 @@ public actor Verifier {
         guard let token = CompletionToken(candidate.text) else { return .plausible }
 
         let known = await known(for: token, in: surface, now: now)
-        guard !known.contains(token.token) else {
+        guard !Verification.attests(token.token, known) else {
             cache.remember(.attested, for: key, now: now)
             return .attested
         }

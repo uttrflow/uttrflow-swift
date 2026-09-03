@@ -60,9 +60,15 @@ public enum Verification {
 
     /// The verdict the gates reach together, from what the machine knows and whether the model objects.
     public static func verdict(word: String, known: Set<String>, modelObjects: Bool) -> Verdict {
-        guard !known.contains(word) else { return .attested }
+        guard !attests(word, known) else { return .attested }
         if let neighbour = nearestNeighbour(of: word, among: known) { return .corrected(neighbour) }
         return modelObjects ? .rejected : .plausible
+    }
+
+    /// Whether the machine vouches for a word, ignoring case, so a capitalised first letter still attests.
+    public static func attests(_ word: String, _ known: Set<String>) -> Bool {
+        let lowered = word.lowercased()
+        return known.contains { $0.lowercased() == lowered }
     }
 
     /// Whether the model finds a candidate too unlikely to stand, false whenever it has no opinion.
@@ -80,7 +86,10 @@ public enum Verification {
 
         var best: String?
         var bestScore = -Double.infinity
+        let lowered = word.lowercased()
         for candidate in known.sorted() {
+            // A difference only of case is not a typo, so it is never corrected or superseded.
+            guard candidate.lowercased() != lowered else { continue }
             let bytes = Array(candidate.utf8)
             let mask = FuzzyMatch.mask(bytes.prefix(width))
             guard FuzzyMatch.couldMatch(query: queryMask, candidate: mask, within: 1) else { continue }

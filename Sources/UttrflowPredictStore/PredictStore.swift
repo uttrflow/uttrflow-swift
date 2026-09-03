@@ -82,23 +82,24 @@ public actor PredictStore: PredictionStore {
         return candidates
     }
 
-    /// The range scan the whole design rests on, written as a range and never as a LIKE.
+    /// The range scan the whole design rests on, over the lowercased text so it ignores case yet keeps the index.
     static let prefixQuery = """
         SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
-        WHERE surface_id = ? AND text >= ? AND text < ? AND superseded_by IS NULL
+        WHERE surface_id = ? AND text_lower >= ? AND text_lower < ? AND superseded_by IS NULL
         ORDER BY count DESC LIMIT ?
         """
 
-    /// Every candidate whose opening is exactly what was typed.
+    /// Every candidate whose opening is what was typed, matched without regard to case.
     private func exactCandidates(
         surfaceIdentifier id: Int64, typed: String
     ) throws(PredictStoreError) -> [Candidate] {
-        guard let upper = Self.upperBound(of: typed) else { return [] }
+        let lowered = typed.lowercased()
+        guard let upper = Self.upperBound(of: lowered) else { return [] }
         return try rows(
             Self.prefixQuery,
             {
                 $0.bind(1, id)
-                $0.bind(2, typed)
+                $0.bind(2, lowered)
                 $0.bind(3, upper)
                 $0.bind(4, Int64(Self.candidateLimit))
             }, distance: 0)
@@ -148,8 +149,8 @@ public actor PredictStore: PredictionStore {
         guard let id = try identifier(of: surface, creating: true) else { return }
         try database.run(
             """
-            INSERT INTO entry (surface_id, text, count, self_sourced, last_used)
-            VALUES (?, ?, 1, ?, ?)
+            INSERT INTO entry (surface_id, text, text_lower, count, self_sourced, last_used)
+            VALUES (?, ?, ?, 1, ?, ?)
             ON CONFLICT (surface_id, text) DO UPDATE SET
               count = count + 1,
               self_sourced = self_sourced + excluded.self_sourced,
@@ -158,8 +159,9 @@ public actor PredictStore: PredictionStore {
             {
                 $0.bind(1, id)
                 $0.bind(2, text)
-                $0.bind(3, Int64(selfSourced ? 1 : 0))
-                $0.bind(4, moment.timeIntervalSince1970)
+                $0.bind(3, text.lowercased())
+                $0.bind(4, Int64(selfSourced ? 1 : 0))
+                $0.bind(5, moment.timeIntervalSince1970)
             })
         if let previous, !previous.isEmpty {
             try database.run(

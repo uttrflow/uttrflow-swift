@@ -1,7 +1,7 @@
 /// The tables the corpus lives in, and the one place their shape is written down.
 enum Schema {
     /// What this build expects on disk; a file at any other version is migrated to it.
-    static let version = 1
+    static let version = 2
 
     /// Everything a fresh database needs, in the order it must be created.
     static let statements = [
@@ -28,6 +28,7 @@ enum Schema {
           id           INTEGER PRIMARY KEY,
           surface_id   INTEGER NOT NULL REFERENCES surface(id) ON DELETE CASCADE,
           text         TEXT NOT NULL,
+          text_lower   TEXT NOT NULL DEFAULT '',
           count        INTEGER NOT NULL DEFAULT 1,
           accepted     INTEGER NOT NULL DEFAULT 0,
           rejected     INTEGER NOT NULL DEFAULT 0,
@@ -37,8 +38,8 @@ enum Schema {
           UNIQUE (surface_id, text)
         )
         """,
-        // The range scan every keystroke runs, which is why this index exists at all.
-        "CREATE INDEX IF NOT EXISTS entry_prefix ON entry (surface_id, text)",
+        // The range scan every keystroke runs is over the lowercased text, so matching ignores case but keeps the index.
+        "CREATE INDEX IF NOT EXISTS entry_prefix ON entry (surface_id, text_lower)",
         """
         CREATE TABLE IF NOT EXISTS succession (
           surface_id INTEGER NOT NULL REFERENCES surface(id) ON DELETE CASCADE,
@@ -64,5 +65,25 @@ enum Schema {
         }
         // A file from a newer build is not something this one can safely write to.
         guard current <= version else { throw .corrupt }
+        if current < 2 { try migrateToLowercasedPrefix(database) }
+    }
+
+    /// Adds the lowercased column an existing v1 file lacks, fills it, and moves the index onto it.
+    private static func migrateToLowercasedPrefix(_ database: Database) throws(PredictStoreError) {
+        if !hasColumn("text_lower", in: "entry", database) {
+            try database.execute("ALTER TABLE entry ADD COLUMN text_lower TEXT NOT NULL DEFAULT ''")
+        }
+        try database.execute("UPDATE entry SET text_lower = lower(text)")
+        try database.execute("DROP INDEX IF EXISTS entry_prefix")
+        try database.execute("CREATE INDEX entry_prefix ON entry (surface_id, text_lower)")
+        try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(version)) }
+    }
+
+    /// Whether a table already has a column, so a migration does not add one twice.
+    private static func hasColumn(
+        _ column: String, in table: String, _ database: Database
+    ) -> Bool {
+        let names = (try? database.rows("PRAGMA table_info(\(table))", { _ in }) { $0.text(1) }) ?? []
+        return names.contains(column)
     }
 }

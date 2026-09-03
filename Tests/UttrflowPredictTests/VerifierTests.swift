@@ -266,3 +266,28 @@ struct VerifiedCandidateTests {
         #expect(offered.map(\.text) == ["git commit"])
     }
 }
+
+@Suite("A difference only of case is not a typo")
+struct VerifierCaseTests {
+    @Test("A filename that differs from disk only in case is attested, not corrected.")
+    func caseOnlyIsAttested() async {
+        let verdict = await decided(
+            "cat readme.md", typed: "cat r", machine: [.file: ["README.md"]])
+        #expect(verdict == .attested)
+    }
+
+    @Test("A case-only difference is never superseded, so the entry is not condemned.")
+    func caseOnlyIsNotSuperseded() async {
+        let store = RecordingSupersession()
+        _ = await decided(
+            "cat readme.md", typed: "cat r", machine: [.file: ["README.md"]], supersession: store)
+        #expect(await store.recorded.isEmpty)
+    }
+
+    @Test("A real typo beside a case difference is still corrected.")
+    func aRealTypoIsStillCorrected() async {
+        let verdict = await decided(
+            "cat readmee.md", typed: "cat r", machine: [.file: ["README.md"]])
+        #expect(verdict == .corrected("cat README.md"))
+    }
+}

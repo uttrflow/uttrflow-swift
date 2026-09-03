@@ -340,12 +340,13 @@ struct QueryPlanTests {
             let id = database.lastInsertedIdentifier
             for index in 0..<each {
                 try database.run(
-                    "INSERT INTO entry (surface_id, text, count, last_used) VALUES (?, ?, ?, ?)"
+                    "INSERT INTO entry (surface_id, text, text_lower, count, last_used) VALUES (?, ?, ?, ?, ?)"
                 ) {
                     $0.bind(1, id)
                     $0.bind(2, "git command \(index) --flag=\(index)")
-                    $0.bind(3, Int64(index % 40 + 1))
-                    $0.bind(4, moment.timeIntervalSince1970)
+                    $0.bind(3, "git command \(index) --flag=\(index)")
+                    $0.bind(4, Int64(index % 40 + 1))
+                    $0.bind(5, moment.timeIntervalSince1970)
                 }
             }
         }
@@ -359,7 +360,7 @@ struct QueryPlanTests {
         let database = try Database(path: corpus.path)
         let plan = try database.plan(of: PredictStore.prefixQuery).joined(separator: " | ")
         #expect(plan.contains("USING INDEX entry_prefix"), "the plan was: \(plan)")
-        #expect(plan.contains("text>?"), "the plan was: \(plan)")
+        #expect(plan.contains("text_lower>?"), "the plan was: \(plan)")
         #expect(!plan.contains("SCAN entry"), "the plan was: \(plan)")
     }
 
@@ -376,7 +377,7 @@ struct QueryPlanTests {
             ORDER BY count DESC LIMIT ?
             """
         let plan = try database.plan(of: asLike).joined(separator: " | ")
-        #expect(!plan.contains("text>?"), "LIKE unexpectedly narrowed the text: \(plan)")
+        #expect(!plan.contains("text_lower>?"), "LIKE unexpectedly narrowed the text: \(plan)")
     }
 
     @Test("A query against twenty thousand entries still returns only what was asked for.")
