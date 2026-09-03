@@ -11,6 +11,7 @@ import UttrflowHistory
 import UttrflowInput
 import UttrflowPermissions
 import UttrflowPipeline
+import UttrflowPredictStore
 import UttrflowSettings
 import UttrflowSpeech
 import UttrflowUX
@@ -61,9 +62,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private let clipboard: ClipboardStore
 
+    /// Where every local store lives, kept because tab-to-complete opens its corpus after launch.
+    private let container: URL
+
+    /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
+    private var completions: SuggestionCoordinator?
+
+    /// Whether tab-to-complete may run, which is off unless its defaults key says otherwise.
+    private let completionPreference: CompletionPreference
+
     /// Builds the app around one folder, which a test points at a temporary one.
-    init(container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin()) {
+    init(
+        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
+        completionPreference: CompletionPreference = .system
+    ) {
+        self.container = container
         self.loginItem = loginItem
+        self.completionPreference = completionPreference
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
         dictionary = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: container))
@@ -142,6 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         wireInterface()
         startWatchingForTheShortcut()
         startWatchingTheClipboard()
+        startCompletingWhatIsTyped()
         loadSpeechModel()
         refreshAccount()
         presentOnboardingIfNeeded()
@@ -255,6 +271,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationWillTerminate(_ notification: Notification) {
         stateTask?.cancel()
         dismissalTask?.cancel()
+        completions?.stop()
+    }
+
+    /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
+    private func startCompletingWhatIsTyped() {
+        guard completionPreference.isEnabled else { return }
+        do {
+            let coordinator = try SuggestionCoordinator(container: container)
+            completions = coordinator
+            coordinator.start()
+        } catch {
+            Self.log.error("the corpus would not open: \(String(describing: error), privacy: .public)")
+        }
     }
 
     /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.

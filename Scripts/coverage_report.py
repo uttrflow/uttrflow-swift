@@ -35,6 +35,10 @@ EXCLUDED_FILES = {
     "UttrflowSettings/LaunchAtLogin+System.swift": "registers a login item with the system",
     "UttrflowContext/MacContextEngine+System.swift": "reads other apps' windows through Accessibility",
     "UttrflowContext/SurfaceProbe+System.swift": "asks other apps about their focused field",
+    "UttrflowContext/FocusedFieldReader+System.swift": (
+        "reads the focused field of another app through Accessibility; everything decided "
+        "from what it reads is FocusedFieldSnapshot, which is tested"
+    ),
     "UttrflowPredictCapture/FieldReader+System.swift": "asks other apps what their focused field is called",
     "UttrflowContext/CompositionProbe+System.swift": (
         "asks the focused field and the Text Input Sources database about input-method "
@@ -123,6 +127,11 @@ EXCLUDED_FILES = {
     "Uttrflow/Main/HistoryPageView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/DiagnosticsPageView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Dock/DockPanelController.swift": "owns an on-screen floating window",
+    "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
+        "wiring only: an event tap, a global key monitor and another app's focused field, "
+        "none of which a headless test has; every rule it sequences is SuggestionSession, "
+        "which is tested"
+    ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
         "owns an on-screen floating window; where it puts it is SuggestionGeometry and "
         "what it draws is SuggestionPresentation, both of which are tested"

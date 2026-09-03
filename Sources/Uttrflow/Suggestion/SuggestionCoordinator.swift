@@ -1,0 +1,319 @@
+import AppKit
+import Foundation
+import OSLog
+import UttrflowContext
+import UttrflowInput
+import UttrflowPredict
+import UttrflowPredictCapture
+import UttrflowPredictStore
+
+/// Why the loop is running this turn, which decides what capture is told about it.
+private enum SuggestionReason {
+    /// A key was pressed in another application.
+    case keystroke
+    /// Return was pressed, which is the user saying the value is finished.
+    case returnPressed
+    /// The application in front changed.
+    case applicationChanged
+    /// Time passed, which is the only way a pause can be noticed.
+    case tick
+
+    /// The event capture is handed for this turn.
+    func event(holding value: String, at moment: Date) -> CaptureEvent {
+        switch self {
+        case .keystroke, .applicationChanged: .keystroke(value, at: moment)
+        case .returnPressed: .returnPressed(at: moment)
+        case .tick: .tick(at: moment)
+        }
+    }
+}
+
+/// Runs tab-to-complete end to end: reads the field, asks the corpus, draws, accepts, records.
+@MainActor
+final class SuggestionCoordinator {
+    /// Says why nothing is being suggested, which silence alone cannot.
+    private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
+
+    /// How often the field is re-read with nothing else happening, which is what notices a pause.
+    private static let tickInterval: TimeInterval = 1
+
+    private let store: PredictStore
+    private let capture: CaptureSession
+    private let panel = SuggestionPanelController()
+    private let interceptor = KeyInterceptor()
+    private let acceptor: SuggestionAcceptor
+    private let acceptKeys = AcceptKeys.standard
+    /// What exists on this machine right now, which the corpus cannot know. See `Docs/predict.md`.
+    private let environment = EnvironmentSource(
+        index: EnvironmentIndex(reader: SystemEnvironmentReader()))
+
+    private var session = SuggestionSession()
+    private var monitors: [Any] = []
+    private var activations: (any NSObjectProtocol)?
+    private var ticker: Timer?
+    private var swallowed: Task<Void, Never>?
+    private var lastReading: FieldReading?
+    /// The last field read, so the highlight can move without reading anything again.
+    private var lastSnapshot: FocusedFieldSnapshot?
+    private var lastKeystroke = Date.distantPast
+    private var running = false
+    private var again: SuggestionReason?
+    /// Applications already asked about this launch, so a declined question is not repeated.
+    private var asked: Set<String> = []
+    private let ownBundleIdentifier = Bundle.main.bundleIdentifier
+
+    /// Opens the corpus beside the clipboard's file, or reports why it could not.
+    init(container: URL) throws(PredictStoreError) {
+        store = try PredictStore(path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
+        capture = CaptureSession(
+            sink: store,
+            preferencesFile: CapturePreferencesFile(
+                path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)))
+        acceptor = SuggestionAcceptor(coordinator: TextInsertion.completion())
+    }
+
+    isolated deinit {
+        stop()
+    }
+
+    /// Arms the tap and starts watching, or says why it cannot.
+    func start() {
+        do {
+            try interceptor.start()
+        } catch {
+            Self.log.error("tab-to-complete is off: \(String(describing: error), privacy: .public)")
+            return
+        }
+        interceptor.arm([])
+        watchSwallowedKeys()
+        watchForActivity()
+    }
+
+    /// Takes the surface away, disarms the tap and stops watching.
+    func stop() {
+        interceptor.arm([])
+        interceptor.stop()
+        panel.hide()
+        swallowed?.cancel()
+        swallowed = nil
+        ticker?.invalidate()
+        ticker = nil
+        for monitor in monitors { NSEvent.removeMonitor(monitor) }
+        monitors = []
+        if let activations { NSWorkspace.shared.notificationCenter.removeObserver(activations) }
+        activations = nil
+    }
+
+    // MARK: What wakes the loop
+
+    /// Keystrokes elsewhere, the application in front changing, and a clock for the pauses.
+    private func watchForActivity() {
+        let keys = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+            MainActor.assumeIsolated { self?.keyPressed(Key(keyCode: event.keyCode)) }
+        }
+        if let keys { monitors.append(keys) }
+        activations = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.wake(.applicationChanged) }
+        }
+        ticker = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) {
+            [weak self] _ in MainActor.assumeIsolated { self?.wake(.tick) }
+        }
+    }
+
+    /// One key pressed in another application, which is the only thing that moves the caret for us.
+    private func keyPressed(_ key: Key) {
+        lastKeystroke = Date()
+        wake(key == .return ? .returnPressed : .keystroke)
+    }
+
+    /// Runs one turn, or notes that another is wanted, so two never run at once.
+    private func wake(_ reason: SuggestionReason) {
+        guard !running else {
+            again = reason
+            return
+        }
+        running = true
+        Task { [weak self] in
+            await self?.turn(because: reason)
+            self?.finished()
+        }
+    }
+
+    /// Runs whatever arrived while the last turn was in flight.
+    private func finished() {
+        running = false
+        guard let next = again else { return }
+        again = nil
+        wake(next)
+    }
+
+    // MARK: One turn
+
+    /// Reads the field, asks the corpus and draws the answer, all off the keystroke path.
+    private func turn(because reason: SuggestionReason) async {
+        let started = Date()
+        guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier != ownBundleIdentifier,
+            let snapshot = await FocusedFieldReader.read()
+        else {
+            draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
+            return
+        }
+
+        let reading = reading(of: snapshot)
+        // A password field is refused here, before its value has been passed to anything at all.
+        if !snapshot.isSecure { await remember(snapshot, as: reading, because: reason, at: started) }
+        lastReading = reading
+        lastSnapshot = snapshot
+
+        let turn = session.turn(
+            in: reading.surface, at: context(of: snapshot, at: started),
+            acceptKey: acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier))
+        if let rejected = turn.rejected, let surface = reading.surface {
+            try? await store.recordRejected(rejected, in: surface)
+        }
+
+        switch turn.step {
+        case .settled(let update):
+            draw(update, in: snapshot)
+        case .query(let query):
+            let candidates = await candidates(for: query)
+            let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+            guard
+                let update = session.resolve(
+                    candidates, for: query, now: Date(), elapsedMilliseconds: elapsed)
+            else { return }
+            draw(update, in: snapshot)
+        }
+    }
+
+    /// What the corpus remembers and what this machine holds, which never waits on a read.
+    private func candidates(for query: SuggestionQuery) async -> [Candidate] {
+        let remembered =
+            (try? await store.candidates(for: query.surface, matching: query.typed)) ?? []
+        let here = await environment.candidates(
+            for: query.surface, matching: query.typed, now: Date())
+        return remembered + here
+    }
+
+    /// Tells capture what happened, and asks the user once about an application it has not met.
+    private func remember(
+        _ snapshot: FocusedFieldSnapshot, as reading: FieldReading, because reason: SuggestionReason,
+        at moment: Date
+    ) async {
+        if case .applicationChanged = reason, let leaving = lastReading, leaving != reading {
+            _ = try? await capture.handle(.applicationDeactivated(at: moment), in: leaving)
+        }
+        let event = reason.event(holding: snapshot.value ?? "", at: moment)
+        guard let outcome = try? await capture.handle(event, in: reading) else { return }
+        guard case .refused(let refusal) = outcome, refusal.asksTheUser else { return }
+        await askAboutLearning(from: snapshot)
+    }
+
+    // MARK: Drawing
+
+    /// Draws whatever a turn with no field behind it settled on, which is always nothing.
+    private func draw(_ step: SuggestionStep) {
+        guard case .settled(let update) = step else { return }
+        interceptor.arm(update.armed)
+        panel.hide()
+        lastReading = nil
+        lastSnapshot = nil
+    }
+
+    /// Arms the tap first and draws second, so no key is claimed that nothing is offering.
+    private func draw(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot?) {
+        interceptor.arm(update.armed)
+        guard update.suggestion != .silent, let snapshot else {
+            panel.hide()
+            return
+        }
+        panel.show(
+            update.suggestion, placement: snapshot.placement ?? .windowStrip, caret: snapshot.caret,
+            window: snapshot.window, fieldPointSize: snapshot.pointSize)
+    }
+
+    // MARK: Accepting
+
+    /// Every key the tap took, decided in the session and carried out here.
+    private func watchSwallowedKeys() {
+        swallowed = Task { [weak self, interceptor] in
+            for await event in interceptor.events {
+                guard let self else { return }
+                await handle(event)
+            }
+        }
+    }
+
+    /// One key the tap took, which is either the tap giving up or something the session decides.
+    private func handle(_ event: InterceptedEvent) async {
+        switch event {
+        case .stopped(let failure):
+            Self.log.error("the tap stopped: \(String(describing: failure), privacy: .public)")
+            stop()
+        case .swallowed(let stroke):
+            let typed = session.typed
+            let surface = session.surface
+            switch session.route(stroke) {
+            case .accept(let text):
+                panel.hide()
+                interceptor.arm([])
+                await take(text, after: typed, in: surface)
+                wake(.keystroke)
+            case .redraw(let update):
+                draw(update, in: lastSnapshot)
+            case .nothing:
+                break
+            }
+            if !session.isEnabled { stop() }
+        }
+    }
+
+    /// Puts the tail into the field and counts the acceptance, which the corpus discounts.
+    private func take(_ text: String, after typed: String, in surface: Surface?) async {
+        do {
+            try await acceptor.accept(text, after: typed)
+        } catch {
+            Self.log.error("a completion landed nowhere: \(error.userMessage, privacy: .public)")
+            return
+        }
+        guard let surface else { return }
+        try? await store.recordAccepted(text, in: surface)
+        try? await store.record(text, in: surface, selfSourced: true, at: Date())
+    }
+
+    // MARK: Consent
+
+    /// Asks once whether this application may be learned from, and remembers the answer.
+    private func askAboutLearning(from snapshot: FocusedFieldSnapshot) async {
+        guard asked.insert(snapshot.bundleIdentifier).inserted else { return }
+        let alert = NSAlert()
+        alert.messageText = "Let Uttrflow finish what you type in \(snapshot.applicationName)?"
+        alert.informativeText =
+            "What you enter there is kept on this Mac, in Uttrflow's own folder, and is never uploaded."
+        alert.addButton(withTitle: "Learn Here")
+        alert.addButton(withTitle: "Not Here")
+        NSApplication.shared.activate()
+        let allowed = alert.runModal() == .alertFirstButtonReturn
+        try? await capture.record(allowed ? .allowed : .declined, for: snapshot.bundleIdentifier)
+    }
+
+    /// What the field publishes about itself, in the shape the corpus keys entries by.
+    private func reading(of snapshot: FocusedFieldSnapshot) -> FieldReading {
+        FieldReading(
+            bundleIdentifier: snapshot.bundleIdentifier, role: snapshot.role,
+            subrole: snapshot.subrole, identifier: snapshot.identifier,
+            placeholder: snapshot.placeholder,
+            accessibilityDescription: snapshot.accessibilityDescription, document: snapshot.document)
+    }
+
+    /// Everything about this moment that can silence a suggestion.
+    private func context(of snapshot: FocusedFieldSnapshot, at moment: Date) -> PredictionContext {
+        PredictionContext(
+            typed: snapshot.value ?? "", caretAtEnd: snapshot.caretAtEnd,
+            hasSelection: snapshot.hasSelection, isComposing: snapshot.isComposing,
+            isSecure: snapshot.isSecure, isProse: snapshot.isProse,
+            millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000))
+    }
+}

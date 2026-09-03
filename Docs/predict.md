@@ -15,10 +15,11 @@ it is never uploaded, and the network is still reachable from `UttrflowAccount` 
 |---|---|---|
 | Engine | `Sources/UttrflowPredict` | Whether to speak, about one candidate or several, and about which |
 | Store | `Sources/UttrflowPredictStore` | The corpus on disk, the range scan, fuzzy fallback, forgetting |
-| Capture | not built | Noticing that a field was committed, and recording what went into it |
-| Accept | not built | Swallowing Tab, inserting the completion, recording that it was taken |
-| Surface | not built | Drawing the ghost, the chip or the strip, and drawing nothing |
+| Capture | `Sources/UttrflowPredictCapture` | Noticing that a field was committed, and recording what went into it |
+| Accept | `Sources/UttrflowInput` | Swallowing Tab, inserting the completion, recording that it was taken |
+| Surface | `Sources/Uttrflow/Suggestion` | Drawing the ghost, the chip or the strip, and drawing nothing |
 | Verify | `Sources/UttrflowPredict` | Whether a candidate is *correct*, which is not what the ranking measures |
+| Loop | `SuggestionSession`, `SuggestionCoordinator` | Sequencing all of the above, once per keystroke |
 
 The path through them is one direction per keystroke. Capture writes what the user
 finished entering into the store, keyed by `Surface` — bundle identifier, Accessibility
@@ -32,9 +33,41 @@ at a discount.
 `PredictionStore` is a protocol in the pure module, so the engine is tested against
 candidates in an array rather than a database.
 
-**Status.** The probe, the decision layer, the store, capture, accept, the surface and the
-verification tier are built. Nothing in the app depends on `UttrflowPredict` yet, so there
-is no completion to see on screen and no number on any page. `PLAN.md` tracks the phases.
+**Status.** Every piece exists and the app now runs them: `SuggestionCoordinator` owns the
+loop, verification sits between ranking and drawing, and `AppDelegate` builds it. `PLAN.md`
+tracks the nine phases.
+
+## Turning it on
+
+Off for everybody who has not asked for it, and asked for by name:
+
+```bash
+defaults write com.uttrflow.Uttrflow com.uttrflow.predict.enabled -bool YES
+```
+
+Restart Uttrflow, and grant it Accessibility — the loop needs it three times over, to read
+the focused field, to watch the keyboard, and to put the completion into the field.
+`defaults delete com.uttrflow.Uttrflow com.uttrflow.predict.enabled` turns it back off.
+
+The first time a value is committed in an application, Uttrflow asks once whether it may
+learn from that application, and remembers the answer in
+`~/Library/Application Support/Uttrflow/predict-consent.v1.json`. Until that question is
+answered nothing is recorded and nothing can be suggested, so the first field you try is
+always silent — type something, press Return, answer the question, then type it again.
+
+## The loop, once per keystroke
+
+`SuggestionSession` in `UttrflowPredict` is the whole sequence as pure code: it holds the
+field, what is drawn, where the highlight sits, how many suggestions have been typed past
+and how far the escape ladder has been walked. It answers a moment with either what to
+draw or a question for the store, and it stamps every question with a generation so an
+answer that arrives after the user has typed on is dropped rather than drawn.
+
+`SuggestionCoordinator` in the app is the part that cannot be tested headlessly: a global
+key monitor, a one-second tick, the Accessibility read on a queue of its own, the event
+tap, the panel, and the corpus. It reads the field off the main thread, and a turn that
+takes longer than `SuggestionSession.turnBudgetInMilliseconds` draws nothing at all —
+answering a moment that has passed is worse than answering nothing.
 
 ## Correctness above habit
 

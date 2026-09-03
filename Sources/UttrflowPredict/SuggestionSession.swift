@@ -1,0 +1,221 @@
+public import struct Foundation.Date
+
+/// What the store must answer before a turn can be finished.
+public struct SuggestionQuery: Sendable, Equatable {
+    /// The field the answer belongs to.
+    public let surface: Surface
+    /// What has been typed into it so far.
+    public let typed: String
+    /// Which turn asked, so an answer arriving after the user moved on is dropped.
+    public let generation: Int
+
+    public init(surface: Surface, typed: String, generation: Int) {
+        self.surface = surface
+        self.typed = typed
+        self.generation = generation
+    }
+}
+
+/// What to draw and what the tap must swallow, decided together so the two cannot disagree.
+public struct SuggestionUpdate: Sendable, Equatable {
+    public let suggestion: Suggestion
+    public let armed: ArmedKeys
+
+    public init(suggestion: Suggestion, armed: ArmedKeys) {
+        self.suggestion = suggestion
+        self.armed = armed
+    }
+
+    /// Nothing drawn and no key taken, which is what most turns come to.
+    public static let quiet = SuggestionUpdate(suggestion: .silent, armed: [])
+}
+
+/// What one turn of the loop needs next.
+public enum SuggestionStep: Sendable, Equatable {
+    /// Nothing needs asking, so draw this and arm that.
+    case settled(SuggestionUpdate)
+    /// Ask the store this, then hand the answer back to ``SuggestionSession/resolve(_:for:now:elapsedMilliseconds:)``.
+    case query(SuggestionQuery)
+}
+
+/// One turn: what to do next, and what the user typed past on the way here.
+public struct SuggestionTurn: Sendable, Equatable {
+    public let step: SuggestionStep
+    /// The suggestion just typed past, which the corpus counts against it.
+    public let rejected: String?
+
+    public init(step: SuggestionStep, rejected: String? = nil) {
+        self.step = step
+        self.rejected = rejected
+    }
+}
+
+/// What a keystroke the tap took comes to.
+public enum SuggestionAction: Sendable, Equatable {
+    /// Take this text: insert what it adds to what is typed, and count it as accepted.
+    case accept(String)
+    /// Draw this instead, which a move or a dismissal produces.
+    case redraw(SuggestionUpdate)
+    /// The keystroke changed nothing here.
+    case nothing
+}
+
+/// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
+public struct SuggestionSession: Sendable, Equatable {
+    /// Beyond this many characters a field is a document, and its whole value is not a prefix worth matching.
+    public static let maximumTypedLength = 256
+
+    /// How long a turn may take before its answer is stale enough to be worth nothing.
+    public static let turnBudgetInMilliseconds = 40
+
+    /// The field the loop is following, or nothing when none is focused.
+    public private(set) var surface: Surface?
+
+    /// What is on screen right now.
+    public private(set) var suggestion: Suggestion = .silent
+
+    /// Where the highlight sits in what is offered.
+    public private(set) var selection: SuggestionSelection = .untouched
+
+    /// Whether the feature is on at all, which ⌥⎋ turns off.
+    public private(set) var isEnabled = true
+
+    /// Whether this field has been silenced for the rest of its life, which ⎋⎋ does.
+    public private(set) var isSilencedHere = false
+
+    /// How many suggestions have been typed past in this field.
+    public private(set) var rejectionsHere = 0
+
+    /// What the field held when it was last read, which is what an accepted suggestion continues.
+    public private(set) var typed = ""
+
+    private var isMinimised = false
+    private var acceptKey = AcceptKey.tab
+    private var pending: PredictionContext?
+    private var generation = 0
+
+    public init() {}
+
+    /// Takes one moment in one field and answers with what to do about it.
+    public mutating func turn(
+        in surface: Surface?, at moment: PredictionContext, acceptKey: AcceptKey = .tab
+    ) -> SuggestionTurn {
+        self.acceptKey = acceptKey
+        let rejected = adopt(surface, typing: moment.typed)
+        typed = moment.typed
+
+        guard let surface else { return SuggestionTurn(step: .settled(.quiet), rejected: rejected) }
+        let context = contextualised(moment)
+        pending = context
+
+        guard !Quieting.refuses(context) else {
+            return SuggestionTurn(step: .settled(settle(.silent)), rejected: rejected)
+        }
+        guard !context.isMinimised else {
+            return SuggestionTurn(step: .settled(settle(.minimised)), rejected: rejected)
+        }
+        guard !context.typed.isEmpty, context.typed.count <= Self.maximumTypedLength else {
+            return SuggestionTurn(step: .settled(settle(.silent)), rejected: rejected)
+        }
+
+        generation += 1
+        let query = SuggestionQuery(surface: surface, typed: context.typed, generation: generation)
+        return SuggestionTurn(step: .query(query), rejected: rejected)
+    }
+
+    /// Turns the store's answer into what to draw, or nothing when the user has moved on.
+    public mutating func resolve(
+        _ candidates: [Candidate], for query: SuggestionQuery, now: Date, elapsedMilliseconds: Int
+    ) -> SuggestionUpdate? {
+        guard query.generation == generation, query.surface == surface, let pending else { return nil }
+        // A slow read or a slow query has already cost the user the moment it was answering.
+        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return settle(.silent) }
+        // A candidate the user has already finished typing adds nothing, and drawing it doubles the line.
+        let offerable = candidates.filter { $0.text != pending.typed }
+        return settle(PredictionEngine.suggestion(from: offerable, in: pending, now: now))
+    }
+
+    /// Takes one keystroke the tap swallowed and answers with what it means.
+    public mutating func route(_ stroke: KeyStroke) -> SuggestionAction {
+        switch KeyRouting.decision(
+            for: stroke, showing: suggestion, selection: selection, acceptKey: acceptKey)
+        {
+        case .accept(let text):
+            // The offer is gone the moment it is taken, and so is any answer still in flight for it.
+            generation += 1
+            clearDrawing()
+            typed = text
+            return .accept(text)
+        case .moveSelection(let moved):
+            selection = moved
+            return .redraw(armed(showing: suggestion))
+        case .dismiss(let dismissal):
+            return .redraw(dismiss(dismissal))
+        case .passThrough:
+            return .nothing
+        }
+    }
+
+    /// Applies one rung of the escape ladder and says what is left on screen.
+    private mutating func dismiss(_ dismissal: Dismissal) -> SuggestionUpdate {
+        generation += 1
+        switch dismissal {
+        case .minimise:
+            isMinimised = true
+            return settle(.minimised)
+        case .silenceField:
+            isSilencedHere = true
+            isMinimised = false
+            return settle(.silent)
+        case .turnOff:
+            isEnabled = false
+            isMinimised = false
+            return settle(.silent)
+        }
+    }
+
+    /// Follows the focus, forgetting everything that belonged to the field being left.
+    private mutating func adopt(_ surface: Surface?, typing: String) -> String? {
+        guard surface == self.surface else {
+            self.surface = surface
+            isSilencedHere = false
+            isMinimised = false
+            rejectionsHere = 0
+            clearDrawing()
+            return nil
+        }
+        guard let offered = suggestion.accepting, !offered.hasPrefix(typing) else { return nil }
+        rejectionsHere += 1
+        return offered
+    }
+
+    /// The moment with the three facts only this session knows filled in.
+    private func contextualised(_ moment: PredictionContext) -> PredictionContext {
+        PredictionContext(
+            typed: moment.typed, caretAtEnd: moment.caretAtEnd, hasSelection: moment.hasSelection,
+            isComposing: moment.isComposing, isSecure: moment.isSecure, isProse: moment.isProse,
+            millisecondsSinceKeystroke: moment.millisecondsSinceKeystroke,
+            isEnabledHere: isEnabled && !isSilencedHere, isMinimised: isMinimised,
+            rejectionsThisSession: rejectionsHere)
+    }
+
+    /// Records what is now on screen and reports it with the keys it claims.
+    private mutating func settle(_ next: Suggestion) -> SuggestionUpdate {
+        if next != suggestion { selection = .untouched }
+        suggestion = next
+        return armed(showing: next)
+    }
+
+    /// Pairs a suggestion with the keys it claims, which is the only place the two are put together.
+    private func armed(showing next: Suggestion) -> SuggestionUpdate {
+        SuggestionUpdate(
+            suggestion: next,
+            armed: KeyRouting.arming(showing: next, selection: selection, acceptKey: acceptKey))
+    }
+
+    /// Takes the surface away without disturbing what the field has been told about itself.
+    private mutating func clearDrawing() {
+        suggestion = .silent
+        selection = .untouched
+    }
+}
