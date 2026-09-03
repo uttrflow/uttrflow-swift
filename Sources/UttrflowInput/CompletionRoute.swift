@@ -8,8 +8,8 @@ public protocol CompletionWriting: Sendable {
     /// Whether this strategy can write into what is currently focused.
     func canWrite() async -> Bool
 
-    /// Writes `text` at the caret, having first taken back `characters` of what is already there.
-    func write(_ text: String, replacing characters: Int) async throws(TextInsertionError)
+    /// Writes `text` at the caret, having first taken back the `replaced` characters already there.
+    func write(_ text: String, replacing replaced: String) async throws(TextInsertionError)
 }
 
 /// Tries each completion strategy in order and ends in nothing, never in the clipboard. See `Docs/predict-accept.md`.
@@ -26,11 +26,11 @@ public struct CompletionRoute: Sendable {
     /// Writes the completion, returning how it got there.
     @discardableResult
     public func write(
-        _ text: String, replacing characters: Int
+        _ text: String, replacing replaced: String
     ) async throws(TextInsertionError) -> TextInsertionMethod {
         let outcome = await FallbackRunner.firstSuccess(among: strategies) { strategy in
             guard await strategy.canWrite() else { throw TextInsertionError.noFocusedTextField }
-            try await strategy.write(text, replacing: characters)
+            try await strategy.write(text, replacing: replaced)
             return strategy.method
         }
 

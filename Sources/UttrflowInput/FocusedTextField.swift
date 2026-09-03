@@ -33,4 +33,12 @@ public protocol AccessibilityFocus: Sendable {
 
     /// Whether Uttrflow itself is the application in front, in which case nothing may be typed or pasted.
     func isSelfFrontmost() -> Bool
+
+    /// The `count` characters immediately before the caret, or `nil` when the field will not say.
+    func precedingText(_ count: Int) -> String?
+}
+
+extension AccessibilityFocus {
+    /// Most fields on the typed route cannot be read, so the guard falls back to the cap alone.
+    public func precedingText(_ count: Int) -> String? { nil }
 }

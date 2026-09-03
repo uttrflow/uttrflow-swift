@@ -18,6 +18,6 @@ public struct SuggestionAcceptor: Sendable {
         _ suggestion: Suggestion, after typed: String
     ) async throws(TextInsertionError) -> TextInsertionMethod? {
         guard let edit = suggestion.edit(after: typed) else { return nil }
-        return try await completion.write(edit.inserted, replacing: edit.replacedCount)
+        return try await completion.write(edit.inserted, replacing: edit.replaced)
     }
 }

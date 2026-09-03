@@ -171,6 +171,31 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         return unsafeDowncast(element, to: AXUIElement.self)
     }
 
+    /// The `count` characters before the caret, when the field will report both its value and its caret.
+    public func precedingText(_ count: Int) -> String? {
+        guard count > 0, let element = focusedElement() else { return nil }
+        var valueRef: AnyObject?
+        guard
+            AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef) == .success,
+            let value = valueRef as? String
+        else { return nil }
+        var rangeRef: AnyObject?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
+            let rangeRef, CFGetTypeID(rangeRef) == AXValueGetTypeID()
+        else { return nil }
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        var range = CFRange()
+        guard AXValueGetValue(unsafeDowncast(rangeRef, to: AXValue.self), .cfRange, &range) else {
+            return nil
+        }
+        let units = Array(value.utf16)
+        let caret = range.location
+        guard caret >= count, caret <= units.count else { return nil }
+        return String(utf16CodeUnits: Array(units[(caret - count)..<caret]), count: count)
+    }
+
     public func focusedTextField() -> (any FocusedTextField)? {
         guard let candidate = focusedElement() else { return nil }
 

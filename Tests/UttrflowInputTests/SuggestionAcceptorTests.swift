@@ -9,9 +9,11 @@ import Testing
 private struct StubFocus: AccessibilityFocus {
     var field: (any FocusedTextField)?
     var selfFrontmost = false
+    var preceding: String?
     func focusedTextField() -> (any FocusedTextField)? { field }
     func hasFocusedElement() -> Bool { field != nil }
     func isSelfFrontmost() -> Bool { selfFrontmost }
+    func precedingText(_ count: Int) -> String? { preceding }
 }
 
 /// A field that keeps what was written into it, and how far back each write reached.
@@ -113,7 +115,7 @@ struct TypedTextInsertionEngineTests {
         let typist = RecordingTypist()
         let engine = TypedTextInsertionEngine(focus: StubFocus(), typist: typist)
 
-        try await engine.write("mit", replacing: 0)
+        try await engine.write("mit", replacing: "")
 
         #expect(typist.deletions.isEmpty)
         #expect(typist.text == ["mit"])
@@ -124,10 +126,33 @@ struct TypedTextInsertionEngineTests {
         let typist = RecordingTypist()
         let engine = TypedTextInsertionEngine(focus: StubFocus(), typist: typist)
 
-        try await engine.write("it commit -m", replacing: 4)
+        try await engine.write("it commit -m", replacing: "git ")
 
         #expect(typist.deletions == [4])
         #expect(typist.text == ["it commit -m"])
+    }
+
+    @Test("It refuses when what is before the caret is not what it means to replace, so no prompt is eaten.")
+    func refusesWhenPrecedingTextDiffers() async {
+        let typist = RecordingTypist()
+        let engine = TypedTextInsertionEngine(focus: StubFocus(preceding: "$ ru"), typist: typist)
+
+        await #expect(throws: (any Error).self) {
+            try await engine.write("n build", replacing: "git ")
+        }
+        #expect(typist.deletions.isEmpty, "nothing is deleted when the guard refuses")
+        #expect(typist.text.isEmpty)
+    }
+
+    @Test("It proceeds when the text before the caret is exactly what it will replace.")
+    func proceedsWhenPrecedingTextMatches() async throws {
+        let typist = RecordingTypist()
+        let engine = TypedTextInsertionEngine(focus: StubFocus(preceding: "git "), typist: typist)
+
+        try await engine.write("it commit", replacing: "git ")
+
+        #expect(typist.deletions == [4])
+        #expect(typist.text == ["it commit"])
     }
 }
 
@@ -138,7 +163,7 @@ struct AccessibilityCompletionTests {
         let field = RecordingField()
         let engine = AccessibilityTextInsertionEngine(focus: StubFocus(field: field))
 
-        try await engine.write("it commit -m", replacing: 4)
+        try await engine.write("it commit -m", replacing: "git ")
 
         #expect(field.text == ["it commit -m"])
         #expect(field.replaced == [4])
@@ -150,7 +175,7 @@ struct AccessibilityCompletionTests {
 
         #expect(await engine.canWrite() == false)
         await #expect(throws: TextInsertionError.noFocusedTextField) {
-            try await engine.write("mit", replacing: 0)
+            try await engine.write("mit", replacing: "")
         }
     }
 
@@ -159,10 +184,10 @@ struct AccessibilityCompletionTests {
         let field = NarrowField()
         let engine = AccessibilityTextInsertionEngine(focus: StubFocus(field: field))
 
-        try await engine.write("mit", replacing: 0)
+        try await engine.write("mit", replacing: "")
         #expect(field.text == ["mit"])
 
-        await #expect(throws: (any Error).self) { try await engine.write("mit", replacing: 1) }
+        await #expect(throws: (any Error).self) { try await engine.write("mit", replacing: "x") }
         #expect(field.text == ["mit"])
     }
 }
@@ -184,7 +209,7 @@ struct CompletionRouteTests {
         let typist = RecordingTypist()
         let route = TextInsertion.completion(focus: StubFocus(field: field), typist: typist)
 
-        #expect(try await route.write("mit", replacing: 0) == .accessibility)
+        #expect(try await route.write("mit", replacing: "") == .accessibility)
         #expect(field.text == ["mit"])
         #expect(typist.text.isEmpty, "typing is the fallback, not the first attempt")
     }
@@ -194,7 +219,7 @@ struct CompletionRouteTests {
         let typist = RecordingTypist()
         let route = TextInsertion.completion(focus: StubFocus(), typist: typist)
 
-        #expect(try await route.write("mit", replacing: 0) == .typed)
+        #expect(try await route.write("mit", replacing: "") == .typed)
         #expect(typist.text == ["mit"])
     }
 
@@ -204,7 +229,7 @@ struct CompletionRouteTests {
         let typist = RecordingTypist()
         let route = TextInsertion.completion(focus: StubFocus(field: field), typist: typist)
 
-        #expect(try await route.write("it commit -m", replacing: 4) == .typed)
+        #expect(try await route.write("it commit -m", replacing: "git ") == .typed)
         #expect(field.text.isEmpty)
         #expect(typist.deletions == [4])
         #expect(typist.text == ["it commit -m"])
@@ -217,7 +242,7 @@ struct CompletionRouteTests {
             typist: RecordingTypist(error: .accessibilityDenied))
 
         await #expect(throws: TextInsertionError.noFocusedTextField) {
-            try await route.write("mit", replacing: 0)
+            try await route.write("mit", replacing: "")
         }
     }
 
@@ -227,7 +252,7 @@ struct CompletionRouteTests {
 
         #expect(route.route.isEmpty)
         await #expect(throws: TextInsertionError.noFocusedTextField) {
-            try await route.write("mit", replacing: 0)
+            try await route.write("mit", replacing: "")
         }
     }
 }

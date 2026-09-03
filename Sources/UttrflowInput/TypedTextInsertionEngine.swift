@@ -33,8 +33,16 @@ extension TypedTextInsertionEngine: CompletionWriting {
     public func canWrite() async -> Bool { await canInsert() }
 
     /// Backspaces then types, which the target's undo sees as several edits. See `Docs/predict-accept.md`.
-    public func write(_ text: String, replacing characters: Int) async throws(TextInsertionError) {
-        if characters > 0 { try typist.deleteBackwards(characters) }
+    public func write(_ text: String, replacing replaced: String) async throws(TextInsertionError) {
+        let count = replaced.count
+        if count > 0 {
+            // A blind backspace could eat a shell prompt, so what is there is checked when the field will say.
+            if let preceding = focus.precedingText(count), preceding != replaced {
+                throw .insertionRejected(
+                    description: "the text before the caret is not what would be replaced")
+            }
+            try typist.deleteBackwards(count)
+        }
         try typist.type(text)
     }
 }
