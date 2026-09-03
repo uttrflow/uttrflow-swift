@@ -29,6 +29,9 @@ public protocol CandidateScoring: Sendable {
 public protocol SupersessionRecording: Sendable {
     /// Records that one text is replaced by another, which is what stops it being proposed again.
     func recordSupersession(of text: String, by replacement: String, in surface: Surface) async
+
+    /// Records that one text is wrong with nothing on this machine to put in its place.
+    func recordRejection(of text: String, in surface: Surface) async
 }
 
 /// What the model managed to say about a candidate inside the budget.

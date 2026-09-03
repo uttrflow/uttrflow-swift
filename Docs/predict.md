@@ -63,6 +63,15 @@ and how far the escape ladder has been walked. It answers a moment with either w
 draw or a question for the store, and it stamps every question with a generation so an
 answer that arrives after the user has typed on is dropped rather than drawn.
 
+The store's answer is not drawn directly. `resolve` ranks it, and a turn with anything on
+offer comes back as `.verify`, carrying the head of the ranking —
+`SuggestionSession.verifiedDepth` candidates, which is every one that could be drawn and
+no more. Those go through `Verifier`, and the second `resolve` draws whatever the gates
+left. A turn with nothing on offer settles without the gates being troubled, because a
+candidate that is not going to be shown has nothing to be wrong about. Both halves carry
+the same generation, so a verdict reached after the user typed on is dropped, and both
+are measured against `turnBudgetInMilliseconds` from the moment the field was read.
+
 `SuggestionCoordinator` in the app is the part that cannot be tested headlessly: a global
 key monitor, a one-second tick, the Accessibility read on a queue of its own, the event
 tap, the panel, and the corpus. It reads the field off the main thread, and a turn that
@@ -105,9 +114,12 @@ characters is ever corrected. The corrected form is what gets offered, silently.
 nothing is corrected and nothing is rejected. Getting this wrong would correct a
 legitimate alias during the five seconds before the first read lands.
 
-**4. Superseding.** A candidate that was corrected is passed to
+**4. Superseding.** A candidate the gates corrected or refused is passed to
 `SupersessionRecording`, which `PredictStore` implements with the `supersede` it already
-had. The entry stops accruing weight and is never proposed again.
+had — a correction names its replacement, and a refusal names itself, since nothing on
+this machine replaces it. Either way the entry stops accruing weight and is never proposed
+again, even if the user types it a hundred more times. An over-budget verdict is not
+reported: that is the clock failing, not the candidate.
 
 ### The budget, and what a missed one is allowed to show
 
@@ -129,14 +141,25 @@ does is testable without a model or a machine. Sixty-four verdicts, oldest dropp
 each believed for five seconds — the same lifetime `EnvironmentIndex` gives an answer,
 because an alias defined a moment ago has to be able to win.
 
+### What a correction does, from the keystroke to the field
+
+The user has typed `git comi`. The store offers `git comit`, which they have entered a
+hundred times, and the ranking puts it first. `resolve` asks the gates about it; the
+machine's `git` denies `comit` and knows `commit`, so the verdict is
+`.corrected("git commit")` and `git comit` is superseded in the corpus on the way past.
+The engine runs again over what survived and draws `.certain("git commit")` — the user is
+handed the right command with nothing said about the wrong one. Tab then asks
+`Acceptance.edit(accepting:after:)` what that costs: `git comi` and `git commit` agree on
+`git com`, so the edit replaces `i` and inserts `mit`, and `CompletionRoute` writes it
+with one backspace before the insertion.
+
 ### What this leaves unfinished
 
-**A correction does not always extend what was typed.** `git comi` corrected to
-`git commit` is not a completion of `git comi`, so `Acceptance.remainder(of:after:)`
-returns `nil` and Tab would insert nothing. Handing the user the right command means
-replacing characters they have already typed, which is an insertion the accept path
-cannot currently make. Phase 4's rules decide what happens here; the verification tier
-answers with the correct text and does not pretend the insertion is solved.
+**No scorer is wired into the app.** `SuggestionCoordinator` builds its `Verifier` with
+`scoring: nil`, so gate 2 never runs on a real machine and the statistical tiers answer
+alone. That is the correct failure mode rather than a stopgap — nothing may block a
+keystroke on a model that is loading — but it does mean the only thing the app currently
+rejects is a candidate the machine denied and nothing near it explains.
 
 **`plausibilityFloor` has not been measured.** It is a mean log-probability per token and
 nothing has yet scored a real corpus against a real model to say where the line sits.

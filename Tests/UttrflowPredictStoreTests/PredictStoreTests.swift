@@ -402,6 +402,16 @@ struct StoreSupersessionTests {
         await recording.recordSupersession(of: "git comit", by: "git commit", in: terminal)
         #expect(try await store.candidates(for: terminal, matching: "git c").isEmpty)
     }
+
+    @Test("What the gates refused is put out of reach here, with nothing named as replacing it.")
+    func recordsARejection() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git zqxjw", in: terminal, at: moment)
+        let recording: any SupersessionRecording = store
+        await recording.recordRejection(of: "git zqxjw", in: terminal)
+        #expect(try await store.candidates(for: terminal, matching: "git z").isEmpty)
+    }
 }
 
 @Suite("Where the corpus lives")

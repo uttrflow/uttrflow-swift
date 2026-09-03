@@ -29,16 +29,25 @@ private func settled(_ turn: SuggestionTurn) -> SuggestionUpdate? {
     return update
 }
 
-/// Runs one whole turn, from the moment to the drawn answer.
-private func draw(
+/// Runs one whole turn with gates that allow everything, so each test names only what it is about.
+func draw(
     _ session: inout SuggestionSession, typing typed: String, candidates: [Candidate] = lone(),
-    context: PredictionContext? = nil, elapsed: Int = 0, in surface: Surface = field
+    context: PredictionContext? = nil, elapsed: Int = 0, in surface: Surface = field,
+    acceptKey: AcceptKey = .tab
 ) throws -> SuggestionUpdate? {
     let moment = context ?? PredictionContext(typed: typed)
-    let turn = session.turn(in: surface, at: moment)
+    let turn = session.turn(in: surface, at: moment, acceptKey: acceptKey)
     if let update = settled(turn) { return update }
     let asked = try query(turn)
-    return session.resolve(candidates, for: asked, now: now, elapsedMilliseconds: elapsed)
+    switch session.resolve(candidates, for: asked, now: now, elapsedMilliseconds: elapsed) {
+    case .settled(let update):
+        return update
+    case .verify(let request):
+        return session.resolve(
+            request.candidates, for: request, now: now, elapsedMilliseconds: elapsed)
+    case nil:
+        return nil
+    }
 }
 
 @Suite("Sequencing one field's suggestions")
@@ -63,10 +72,7 @@ struct SuggestionSessionTests {
     @Test("The accept key follows the application, so a terminal is not robbed of Tab.")
     func followsTheAcceptKey() throws {
         var session = SuggestionSession()
-        let turn = session.turn(
-            in: field, at: PredictionContext(typed: "git c"), acceptKey: .rightArrow)
-        let update = try #require(
-            session.resolve(lone(), for: try query(turn), now: now, elapsedMilliseconds: 0))
+        let update = try #require(try draw(&session, typing: "git c", acceptKey: .rightArrow))
         #expect(update.armed.contains(.rightArrow))
         #expect(!update.armed.contains(.tab))
     }

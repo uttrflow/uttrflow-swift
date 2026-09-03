@@ -61,16 +61,30 @@ public actor Verifier {
             of: candidate.text, following: typed, before: deadline)
         guard plausibility != .overBudget else { return .rejected }
 
-        var verdict = Verification.verdict(
-            word: token.token, known: known, modelObjects: Verification.objects(to: plausibility))
-        if case .corrected(let word) = verdict {
-            let corrected = token.leading + word
-            verdict = .corrected(corrected)
-            await supersession?.recordSupersession(
-                of: candidate.text, by: corrected, in: surface)
-        }
+        let verdict = await reported(
+            Verification.verdict(
+                word: token.token, known: known,
+                modelObjects: Verification.objects(to: plausibility)),
+            on: candidate.text, leading: token.leading, in: surface)
         cache.remember(verdict, for: key, now: now)
         return verdict
+    }
+
+    /// The verdict in the whole line's terms, told to the store whenever it condemns the candidate.
+    private func reported(
+        _ verdict: Verdict, on text: String, leading: String, in surface: Surface
+    ) async -> Verdict {
+        switch verdict {
+        case .corrected(let word):
+            let corrected = leading + word
+            await supersession?.recordSupersession(of: text, by: corrected, in: surface)
+            return .corrected(corrected)
+        case .rejected:
+            await supersession?.recordRejection(of: text, in: surface)
+            return .rejected
+        case .attested, .plausible:
+            return verdict
+        }
     }
 
     /// Forgets every verdict, which is what leaving a field and the reset in Settings both ask for.

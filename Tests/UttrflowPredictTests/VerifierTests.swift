@@ -28,9 +28,14 @@ actor ScriptedScoring: CandidateScoring {
 /// A store that only remembers being told a candidate was wrong.
 actor RecordingSupersession: SupersessionRecording {
     private(set) var recorded: [String] = []
+    private(set) var rejected: [String] = []
 
     func recordSupersession(of text: String, by replacement: String, in surface: Surface) {
         recorded.append("\(text) → \(replacement)")
+    }
+
+    func recordRejection(of text: String, in surface: Surface) {
+        rejected.append(text)
     }
 }
 
