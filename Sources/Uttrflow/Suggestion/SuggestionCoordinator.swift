@@ -69,7 +69,7 @@ final class SuggestionCoordinator {
             sink: store,
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)))
-        acceptor = SuggestionAcceptor(coordinator: TextInsertion.completion())
+        acceptor = SuggestionAcceptor(completion: TextInsertion.completion())
     }
 
     isolated deinit {
@@ -270,10 +270,11 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// Puts the tail into the field and counts the acceptance, which the corpus discounts.
+    /// Applies the accepted edit to the field and counts the acceptance, which the corpus discounts.
     private func take(_ text: String, after typed: String, in surface: Surface?) async {
         do {
-            try await acceptor.accept(text, after: typed)
+            // The routed text is the whole line the offer leaves behind, which is what a certain suggestion carries.
+            _ = try await acceptor.accept(.certain(text), after: typed)
         } catch {
             Self.log.error("a completion landed nowhere: \(error.userMessage, privacy: .public)")
             return
