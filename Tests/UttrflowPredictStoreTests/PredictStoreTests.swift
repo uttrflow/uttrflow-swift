@@ -406,6 +406,9 @@ struct PredictStoreLocationTests {
         let file = PredictStore.defaultFile(in: root)
         _ = try PredictStore(path: file.path(percentEncoded: false))
         #expect(FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
+    }
+}
+
 @Suite("Superseding through the verification tier")
 struct StoreSupersessionTests {
     @Test("What the gates corrected is superseded here without them having anywhere to report a failure.")

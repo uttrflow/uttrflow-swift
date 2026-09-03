@@ -8,7 +8,7 @@ struct DestinationTests {
     /// reordering that nobody meant would show up here rather than in a screenshot.
     @Test("settings tabs are in the approved design's sidebar order")
     func settingsTabOrder() {
-        #expect(SettingsTab.allCases == [.general, .languages, .dictation, .privacy])
+        #expect(SettingsTab.allCases == [.general, .languages, .dictation, .suggestions, .privacy])
     }
 
     @Test("main tabs are in the order the window shows them")

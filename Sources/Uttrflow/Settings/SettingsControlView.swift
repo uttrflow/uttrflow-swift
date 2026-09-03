@@ -37,6 +37,17 @@ struct SettingsControlView: View {
             .labelsHidden()
             .toggleStyle(SettingsSwitchStyle())
 
+        case .applicationSwitch(let isOn, let change):
+            // The same switch as `.toggle`, for a row standing for an application.
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { isOn },
+                    set: { _ in model.apply(change) })
+            )
+            .labelsHidden()
+            .toggleStyle(SettingsSwitchStyle())
+
         case .segmented(let options, let selectedID):
             SettingsSegmented(
                 options: options.map { (id: $0.id, title: $0.title) },

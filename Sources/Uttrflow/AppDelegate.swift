@@ -923,9 +923,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 MenuBarRecent(title: $0.title, fullText: $0.dictation.text)
             },
             canCheckForUpdates: UpdateController.isConfigured,
-            updateProgress: updates.progress
+            updateProgress: updates.progress,
+            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled)
         )
     }
+
+    /// The menu bar's three switches; only suggestions has a stored setting behind it, so the other two hold for this launch.
+    private var menuSwitches = MenuBarFeatures()
 
     /// Carries out whatever the menu was asked for.
     private func carryOut(_ intent: MenuBarIntent) {
@@ -949,6 +953,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Task { await toggleQuickPanel() }
         case .checkForUpdates:
             updates.checkForUpdates()
+        case .setFeature(let feature, let isOn):
+            menuSwitches = menuSwitches.setting(feature, isOn: isOn)
+            if feature == .suggestions { apply(.toggle(.suggestionsEnabled, isOn: isOn)) }
+            refreshMenuBar()
         case .quit:
             NSApplication.shared.terminate(nil)
         }

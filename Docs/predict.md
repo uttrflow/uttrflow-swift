@@ -19,6 +19,7 @@ it is never uploaded, and the network is still reachable from `UttrflowAccount` 
 | Accept | `Sources/UttrflowInput` | Swallowing Tab, inserting the completion, recording that it was taken |
 | Surface | `Sources/Uttrflow/Suggestion` | Drawing the ghost, the chip or the strip, and drawing nothing |
 | Verify | `Sources/UttrflowPredict` | Whether a candidate is *correct*, which is not what the ranking measures |
+| Settings | `SuggestionPreferences`, `SettingsPresenter` | The master switch, the per-application list, the accept key, quiet mode and the pause |
 | Loop | `SuggestionSession`, `SuggestionCoordinator` | Sequencing all of the above, once per keystroke |
 
 The path through them is one direction per keystroke. Capture writes what the user
@@ -190,6 +191,44 @@ Read them together, because each one alone is misleading in the same direction:
   wrong there specifically and should be turned off for it.
 - **Corpus size is not quality.** 2,000 entries in one field is the eviction cap being
   reached, not a well-learned field.
+
+## The controls, and the ladder behind them
+
+`SuggestionPreferences` in `Sources/UttrflowPredict` is the whole of what the user has
+decided, and it lives inside `Settings` so it is saved with everything else. It ships
+**off**, and it ships off in four editors — Visual Studio Code, Cursor, Xcode and Zed —
+because each of those already completes from the whole file and a second opinion from a
+line-based corpus is noise beside it.
+
+Escape is a ladder rather than a single command, since the surface can only report that
+it was pressed. `SuggestionEscapeLadder` holds how far the presses in this field have
+climbed:
+
+1. **Dismiss this suggestion.** Nothing outlives the keystroke.
+2. **Silence this field** until the caret leaves it and comes back.
+3. **Switch this application off**, permanently, in the same list Settings shows.
+4. **Pause everywhere for thirty minutes.**
+5. **Switch the feature off everywhere.**
+
+The pause is a **deadline compared against an injected moment**, never a scheduled timer.
+A timer can fail to be scheduled, fail to fire, or be lost across a relaunch, and every
+one of those failures leaves the product switched off with nothing to switch it back on.
+A deadline in the settings expires by arithmetic, so the worst a lost notification costs
+is a redraw.
+
+**Nothing can be switched off into a place the user cannot find.** Every application in
+`turnedOff`, every application in `turnedOn`, every one of the four shipped editors and
+every application the corpus has learned from appears in one list on the Suggestions tab,
+each with the switch that turns it back on. That is why the shipped editors are named
+individually rather than matched by a rule: a rule can silence applications the list
+cannot enumerate.
+
+The accept key is per application — Tab by default, the right arrow in terminals, and
+Option-Tab in editors, with whatever the user chose on top. `AcceptKeys` is the single
+answer; see [`Docs/predict-accept.md`](predict-accept.md).
+
+Forgetting now works at four sizes: one entry, one application's completions (the fifth
+level of `SettingsReset`), every completion, and a fresh install.
 
 ## The rules that do not bend
 

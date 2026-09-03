@@ -20,6 +20,7 @@ public enum SettingsTab: String, Sendable, Equatable, Hashable, CaseIterable, Co
     case general
     case languages
     case dictation
+    case suggestions
     case privacy
 }
 
