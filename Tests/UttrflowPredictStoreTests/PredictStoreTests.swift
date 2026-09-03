@@ -60,6 +60,43 @@ struct RecordingTests {
         #expect(try await store.entryCount() == 0)
     }
 
+    @Test("A fragment left behind by an idle is not stored once the whole line it belongs to is known.")
+    func fragmentOfALongerLineIsNotStored() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git status", in: terminal, at: moment)
+        try await store.record("git statu", in: terminal, at: moment)
+        try await store.record("gi", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "gi").map(\.text) == ["git status"])
+    }
+
+    @Test("A longer line retires the fragments it grew out of, so only the whole value is offered.")
+    func longerLineSupersedesItsFragments() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git statu", in: terminal, at: moment)
+        try await store.record("git status", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "git s").map(\.text) == ["git status"])
+    }
+
+    @Test("Prefix hygiene ignores case, so a capitalised fragment is still recognised as one.")
+    func fragmentSuppressionIgnoresCase() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("Git Status", in: terminal, at: moment)
+        try await store.record("git st", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "git").map(\.text) == ["Git Status"])
+    }
+
+    @Test("A line that only shares an opening is not a fragment, so both are kept.")
+    func siblingsAreBothKept() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git push", in: terminal, at: moment)
+        try await store.record("git pull", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "git p").count == 2)
+    }
+
     @Test("Nothing typed means nothing offered, because everything would match.")
     func emptyQueryOffersNothing() async throws {
         let corpus = Corpus()

@@ -150,6 +150,8 @@ public actor PredictStore: PredictionStore {
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         guard let id = try identifier(of: surface, creating: true) else { return }
+        // A half-typed fragment is not stored when a longer line the user already entered begins with it.
+        if try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text) { return }
         try database.run(
             """
             INSERT INTO entry (surface_id, text, text_lower, count, self_sourced, last_used)
@@ -166,6 +168,8 @@ public actor PredictStore: PredictionStore {
                 $0.bind(4, Int64(selfSourced ? 1 : 0))
                 $0.bind(5, moment.timeIntervalSince1970)
             })
+        // This whole value retires the shorter fragments it grew out of, so only it is ever proposed.
+        try supersedeFragments(surfaceIdentifier: id, of: text)
         if let previous, !previous.isEmpty {
             try database.run(
                 """
@@ -229,6 +233,60 @@ public actor PredictStore: PredictionStore {
     /// How many entries are held, for the tests and the diagnostics page.
     public func entryCount() throws(PredictStoreError) -> Int {
         try database.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) }.first ?? 0
+    }
+
+    // MARK: - Prefix hygiene
+
+    /// Whether a longer non-superseded line the user entered begins with this one, making it a fragment.
+    private func isFragmentOfLongerEntry(
+        surfaceIdentifier id: Int64, text: String
+    ) throws(PredictStoreError) -> Bool {
+        let lowered = text.lowercased()
+        let length = Int64(lowered.count)
+        let found = try database.rows(
+            """
+            SELECT 1 FROM entry
+            WHERE surface_id = ? AND superseded_by IS NULL
+              AND length(text_lower) > ? AND substr(text_lower, 1, ?) = ?
+            LIMIT 1
+            """,
+            {
+                $0.bind(1, id)
+                $0.bind(2, length)
+                $0.bind(3, length)
+                $0.bind(4, lowered)
+            }
+        ) { $0.integer(0) }
+        return !found.isEmpty
+    }
+
+    /// Retires every shorter non-superseded entry that this value begins with, pointing each at this value.
+    private func supersedeFragments(
+        surfaceIdentifier id: Int64, of text: String
+    ) throws(PredictStoreError) {
+        let lowered = text.lowercased()
+        let fragments = try database.rows(
+            """
+            SELECT text FROM entry
+            WHERE surface_id = ? AND superseded_by IS NULL AND text <> ?
+              AND length(text_lower) < ? AND text_lower = substr(?, 1, length(text_lower))
+            """,
+            {
+                $0.bind(1, id)
+                $0.bind(2, text)
+                $0.bind(3, Int64(lowered.count))
+                $0.bind(4, lowered)
+            }
+        ) { $0.text(0) }
+        for fragment in fragments {
+            try database.run(
+                "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
+                {
+                    $0.bind(1, text)
+                    $0.bind(2, id)
+                    $0.bind(3, fragment)
+                })
+        }
     }
 
     // MARK: - Plumbing

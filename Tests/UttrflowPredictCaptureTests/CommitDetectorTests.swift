@@ -66,6 +66,35 @@ struct CommitDetectorTests {
         #expect(detector.receive(.tick(at: start.addingTimeInterval(600))) == nil)
     }
 
+    @Test("A half-typed single token is not learned from an idle, so `gi` and `git` are never stored.")
+    func idleDoesNotCommitAFragment() {
+        var detector = CommitDetector()
+        _ = typing("git", into: &detector)
+        #expect(detector.receive(.tick(at: start.addingTimeInterval(600))) == nil)
+    }
+
+    @Test("A single token abandoned by Return is still committed, because ending it is explicit.")
+    func returnCommitsASingleToken() {
+        var detector = CommitDetector()
+        _ = typing("git", into: &detector)
+        #expect(detector.receive(.returnPressed(at: start.addingTimeInterval(1)))?.text == "git")
+    }
+
+    @Test("A single token abandoned by leaving the field is still committed.")
+    func focusLeavingCommitsASingleToken() {
+        var detector = CommitDetector()
+        _ = typing("gif", into: &detector)
+        #expect(detector.receive(.focusLeft(at: start.addingTimeInterval(1)))?.text == "gif")
+    }
+
+    @Test("A finished, multi-token line is learned from an idle, because it looks like a whole value.")
+    func idleCommitsACompleteLine() {
+        var detector = CommitDetector()
+        _ = typing("git status", into: &detector)
+        let commit = detector.receive(.tick(at: start.addingTimeInterval(600)))
+        #expect(commit?.text == "git status")
+    }
+
     @Test("An empty field commits nothing whatever ends it.")
     func emptyFieldCommitsNothing() {
         var detector = CommitDetector()

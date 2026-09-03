@@ -48,14 +48,19 @@ public struct Commit: Sendable, Equatable {
 
 /// Decides when a line holds a finished value, so nothing is ever remembered per keystroke.
 public struct CommitDetector: Sendable, Equatable {
-    /// How long a line sits untouched before what is in it counts as finished.
-    public static let idleInterval: TimeInterval = 3
+    /// How long a line sits genuinely untouched before an idle commit will consider it finished.
+    public static let idleInterval: TimeInterval = 8
 
     private var pending = ""
     private var lastKeystroke: Date?
     private var committed: String?
 
     public init() {}
+
+    /// Whether an idle alone may learn a line, which needs more than a bare single token still being typed.
+    static func looksComplete(_ text: String) -> Bool {
+        text.contains(" ")
+    }
 
     /// Takes one event and answers with the value to record, which is nothing almost every time.
     public mutating func receive(_ event: CaptureEvent) -> Commit? {
@@ -73,7 +78,9 @@ public struct CommitDetector: Sendable, Equatable {
             return finishing(.applicationDeactivated)
         case .tick(let moment):
             guard let lastKeystroke,
-                moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval
+                moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval,
+                // A still-being-typed fragment is left for Return or focus change to commit, not the idle timer.
+                Self.looksComplete(pending)
             else { return nil }
             return commit(.wentIdle)
         }
