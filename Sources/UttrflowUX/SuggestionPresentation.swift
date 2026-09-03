@@ -86,14 +86,17 @@ public struct SuggestionPresentation: Sendable, Equatable {
         _ suggestion: Suggestion,
         typed: String = "",
         fieldPointSize: CGFloat? = nil,
-        appearance: SuggestionAppearance = .standard
+        appearance: SuggestionAppearance = .standard,
+        detached: Bool = false
     ) {
         let offered = Self.rows(of: suggestion, after: typed)
+        // Detached from the line it completes, ghost text floats over nothing and cannot be read, so it becomes a chip.
+        let demandsChip = appearance.demandsChip || detached
         style =
             switch suggestion {
             case .minimised: .dot
             case .silent, .certain, .choice:
-                offered.isEmpty ? .hidden : (appearance.demandsChip ? .chip : .ghost)
+                offered.isEmpty ? .hidden : (demandsChip ? .chip : .ghost)
             }
         rows = offered
         pointSize = Self.pointSize(fieldPointSize)

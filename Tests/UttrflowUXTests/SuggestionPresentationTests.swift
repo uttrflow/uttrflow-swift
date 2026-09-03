@@ -177,6 +177,26 @@ struct SuggestionPresentationTests {
                 == .chip)
     }
 
+    @Test("A detached placement draws a solid chip, so a caret chip or window strip is not invisible.")
+    func detachedBecomesAChip() {
+        #expect(
+            SuggestionPresentation(.certain("Sydney"), detached: true).style == .chip)
+        #expect(
+            SuggestionPresentation(
+                .choice(leader: "Sydney", others: ["Sydenham"]), detached: true
+            ).style == .chip)
+    }
+
+    @Test("Drawn inline on the line it completes, a suggestion stays ghost text.")
+    func inlineStaysGhost() {
+        #expect(SuggestionPresentation(.certain("Sydney"), detached: false).style == .ghost)
+    }
+
+    @Test("A detached silent suggestion is still nothing.")
+    func detachedSilentIsHidden() {
+        #expect(SuggestionPresentation(.silent, detached: true).style == .hidden)
+    }
+
     @Test("Neither setting turns a silent suggestion into a chip")
     func nothingIsStillNothingUnderTheSettings() {
         #expect(SuggestionPresentation(.silent, appearance: highContrast).style == .hidden)

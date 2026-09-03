@@ -74,7 +74,9 @@ final class SuggestionPanelController {
     private func render() {
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, fieldPointSize: request.fieldPointSize,
-            appearance: Self.appearance())
+            appearance: Self.appearance(),
+            // A caret chip or a window strip stands off the line, so its text must be a solid chip to be seen.
+            detached: request.placement != .inlineGhost)
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
