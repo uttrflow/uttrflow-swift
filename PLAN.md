@@ -1147,8 +1147,9 @@ are built and the app now runs them behind a defaults key that is off by default
 | 3 | Capture and measure — record what is committed, per field | ✅ **Done** |
 | 4 | Accept — Tab, the insertion, and what acceptance is worth | ✅ **Done** |
 | 5 | Surface — the ghost, the chip, the strip, and drawing nothing | ✅ **Done** |
-| 6 | Verify — the numbers, on the Insights page | **Not started** |
-| 7 | Generate — candidates beyond what was typed here | ✅ **Done** |
+| 6 | Verify — the four gates that put correctness above habit | ✅ **Done** |
+| 6b | The numbers, on the Insights page | **Not started** |
+| 7 | Generate — prose at an idle pause | **Deferred** until phase 3's numbers justify it |
 | 8 | Ship — settings, the resets, onboarding | **Not started** |
 
 ### What the wiring delivered
@@ -1182,6 +1183,21 @@ bytes, and the fixed width fails silently. And `git p` matches 925 entries exact
 and no clock, so a 21-day decay is exact in a test rather than nearly right. Certainty is
 separation rather than magnitude; quieting is seven ordered predicates, each naming itself
 so the diagnostics can say why nothing was drawn. **46 tests, 100% line coverage.**
+
+### What phase 6 delivered
+
+The verification tier: `Verdict`, `Verification`, `VerdictCache` and `Verifier`, all in
+`UttrflowPredict`, plus `MLXCandidateScorer` behind the `CandidateScoring` protocol. Four
+ordered gates — existence, plausibility, the nearest correct neighbour, and superseding
+what was corrected — with a 20 ms budget whose failure shows only what the machine had
+already attested. `Docs/predict.md` has the rules and the three things it leaves
+unfinished. **49 tests.**
+
+The gate that mattered was the first one, and it is not the typo model. `git cm` is a typo
+to any language model and a real alias to the machine, so existence runs first and nothing
+below it may interfere; a machine that has not answered yet is treated as having said
+nothing rather than as having said no. `EnvironmentKind` grew `.gitSubcommand` and
+`.gitAlias` for it, since a shell alias and a git alias are read differently.
 
 ### What is still unanswered
 

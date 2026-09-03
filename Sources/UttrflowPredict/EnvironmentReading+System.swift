@@ -30,6 +30,8 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         case .file: return names(in: path)
         case .executable: return executables()
         case .alias: return aliases()
+        case .gitSubcommand: return await gitSubcommands(in: path)
+        case .gitAlias: return await gitAliases(in: path)
         }
     }
 
@@ -69,6 +71,26 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     private func contents(of directory: String) -> [String] {
         let contents = (try? FileManager.default.contentsOfDirectory(atPath: directory)) ?? []
         return contents.filter { !$0.hasPrefix(".") }
+    }
+
+    /// Every subcommand this machine's git accepts, asked of git rather than written down here.
+    private func gitSubcommands(in directory: String) async -> [String] {
+        guard let git = Self.gitPaths.first(where: FileManager.default.isExecutableFile(atPath:)) else {
+            return []
+        }
+        let listed = await run(
+            git, arguments: ["-C", directory, "--list-cmds=builtins,main,others,alias"])
+        return Array(listed.split(separator: "\n").map(String.init).prefix(Self.limit))
+    }
+
+    /// Every name the user's git configuration binds, which no typo model may be allowed to undo.
+    private func gitAliases(in directory: String) async -> [String] {
+        guard let git = Self.gitPaths.first(where: FileManager.default.isExecutableFile(atPath:)) else {
+            return []
+        }
+        let declared = await run(
+            git, arguments: ["-C", directory, "config", "--get-regexp", "^alias\\."])
+        return Array(GitAliases.names(in: declared).prefix(Self.limit))
     }
 
     /// Every alias the user's shell configuration declares, read as text rather than by running it.

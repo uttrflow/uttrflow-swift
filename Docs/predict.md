@@ -18,6 +18,7 @@ it is never uploaded, and the network is still reachable from `UttrflowAccount` 
 | Capture | `Sources/UttrflowPredictCapture` | Noticing that a field was committed, and recording what went into it |
 | Accept | `Sources/UttrflowInput` | Swallowing Tab, inserting the completion, recording that it was taken |
 | Surface | `Sources/Uttrflow/Suggestion` | Drawing the ghost, the chip or the strip, and drawing nothing |
+| Verify | `Sources/UttrflowPredict` | Whether a candidate is *correct*, which is not what the ranking measures |
 | Loop | `SuggestionSession`, `SuggestionCoordinator` | Sequencing all of the above, once per keystroke |
 
 The path through them is one direction per keystroke. Capture writes what the user

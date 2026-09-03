@@ -406,5 +406,15 @@ struct PredictStoreLocationTests {
         let file = PredictStore.defaultFile(in: root)
         _ = try PredictStore(path: file.path(percentEncoded: false))
         #expect(FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
+@Suite("Superseding through the verification tier")
+struct StoreSupersessionTests {
+    @Test("What the gates corrected is superseded here without them having anywhere to report a failure.")
+    func recordsThroughTheProtocol() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git comit", in: terminal, at: moment)
+        let recording: any SupersessionRecording = store
+        await recording.recordSupersession(of: "git comit", by: "git commit", in: terminal)
+        #expect(try await store.candidates(for: terminal, matching: "git c").isEmpty)
     }
 }
