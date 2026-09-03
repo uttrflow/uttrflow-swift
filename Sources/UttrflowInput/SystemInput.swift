@@ -59,6 +59,9 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
 
         keyDown.flags = .maskCommand
         keyUp.flags = .maskCommand
+        // Marked as ours so the feature's own tap and monitor never take it for something the user typed.
+        SyntheticEvent.tag(keyDown)
+        SyntheticEvent.tag(keyUp)
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
     }
@@ -92,6 +95,9 @@ public struct CGEventTypist: KeystrokeTyping {
             // Cleared so a modifier the user is still holding cannot widen the delete.
             keyDown.flags = []
             keyUp.flags = []
+            // Marked as ours so the feature's own tap and monitor never take it for something the user typed.
+            SyntheticEvent.tag(keyDown)
+            SyntheticEvent.tag(keyUp)
             keyDown.post(tap: .cghidEventTap)
             keyUp.post(tap: .cghidEventTap)
         }
@@ -115,6 +121,9 @@ public struct CGEventTypist: KeystrokeTyping {
             keyUp.flags = []
             keyDown.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
             keyUp.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
+            // Marked as ours so the feature's own tap and monitor never take it for something the user typed.
+            SyntheticEvent.tag(keyDown)
+            SyntheticEvent.tag(keyUp)
             keyDown.post(tap: .cghidEventTap)
             keyUp.post(tap: .cghidEventTap)
         }

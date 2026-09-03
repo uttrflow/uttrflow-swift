@@ -59,6 +59,8 @@ final class SuggestionCoordinator {
     private var lastSnapshot: FocusedFieldSnapshot?
     private var lastKeystroke = Date.distantPast
     private var running = false
+    /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
+    private var isInserting = false
     private var again: SuggestionReason?
     /// Applications already asked about this launch, so a declined question is not repeated.
     private var asked: Set<String> = []
@@ -126,6 +128,8 @@ final class SuggestionCoordinator {
     /// Keystrokes elsewhere, the application in front changing, and a clock for the pauses.
     private func watchForActivity() {
         let keys = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+            // A key this app inserted must not wake another turn, or the feature types on its own.
+            if let cgEvent = event.cgEvent, SyntheticEvent.isOurs(cgEvent) { return }
             MainActor.assumeIsolated { self?.keyPressed(Key(keyCode: event.keyCode)) }
         }
         if let keys { monitors.append(keys) }
@@ -141,6 +145,8 @@ final class SuggestionCoordinator {
 
     /// One key pressed in another application, which is the only thing that moves the caret for us.
     private func keyPressed(_ key: Key) {
+        // Keys arriving while we insert are our own, so they neither reset the pause clock nor wake a turn.
+        guard !isInserting else { return }
         lastKeystroke = Date()
         wake(key == .return ? .returnPressed : .keystroke)
     }
@@ -302,7 +308,10 @@ final class SuggestionCoordinator {
             case .accept(let text):
                 panel.hide()
                 interceptor.arm([])
+                // Held across the insert so the keys it posts are ignored on both the tap and the monitor.
+                isInserting = true
                 await take(text, after: typed, in: surface)
+                isInserting = false
                 wake(.keystroke)
             case .redraw(let update):
                 draw(update, in: lastSnapshot)

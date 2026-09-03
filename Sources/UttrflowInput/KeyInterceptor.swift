@@ -215,6 +215,8 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
 
     switch type {
     case .keyDown:
+        // The feature's own inserted keys reach this tap upstream; passing them through stops the loop.
+        guard !SyntheticEvent.isOurs(event) else { return Unmanaged.passUnretained(event) }
         let stroke = KeyStroke(
             keyCode: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
             modifiers: KeyModifiers(event.flags))
