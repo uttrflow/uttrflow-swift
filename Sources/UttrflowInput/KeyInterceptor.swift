@@ -224,6 +224,10 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
         guard !slot.isEmpty, state.armed.load(ordering: .relaxed) & slot.rawValue != 0 else {
             return Unmanaged.passUnretained(event)
         }
+        // Swallowing a navigation key claims Return here and now, so a fast Down-then-Return never runs the command.
+        if slot == .downArrow || slot == .upArrow {
+            state.armed.bitwiseOr(ArmedKeys.return.rawValue, ordering: .relaxed)
+        }
         state.enqueue(slot.rawValue)
         return nil
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
