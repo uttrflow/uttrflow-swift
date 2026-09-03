@@ -35,6 +35,7 @@ EXCLUDED_FILES = {
     "UttrflowSettings/LaunchAtLogin+System.swift": "registers a login item with the system",
     "UttrflowContext/MacContextEngine+System.swift": "reads other apps' windows through Accessibility",
     "UttrflowContext/SurfaceProbe+System.swift": "asks other apps about their focused field",
+    "UttrflowPredictCapture/FieldReader+System.swift": "asks other apps what their focused field is called",
     "UttrflowInput/SystemInput.swift": "drives the clipboard, the keyboard and other apps' windows",
     "UttrflowAccount/BackendTransport+URLSession.swift": (
         "the one place this app opens a socket; every decision worth getting wrong is in "

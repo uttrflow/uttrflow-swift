@@ -14,8 +14,8 @@ import Foundation
 /// The rules are shapes, not entropy alone. A shape — `ghp_`, `eyJ`, `-----BEGIN` — is
 /// exact and ages well, and the statistical rule at the end is the net beneath them for
 /// the tokens nobody has standardised.
-enum SecretShapes {
-    static func matches(_ text: String) -> Bool {
+public enum SecretShapes {
+    public static func matches(_ text: String) -> Bool {
         if text.contains(pemHeader) { return true }
         if text.firstMatch(of: jsonWebToken) != nil { return true }
         if text.firstMatch(of: credentialledURL) != nil { return true }
