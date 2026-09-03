@@ -10,6 +10,10 @@ public enum EnvironmentKind: Sendable, Hashable {
     case executable
     /// A name the user's shell configuration binds to a command.
     case alias
+    /// A subcommand the git on this machine accepts.
+    case gitSubcommand
+    /// A name the user's git configuration binds to a subcommand.
+    case gitAlias
 }
 
 /// Reads one kind of fact off this machine, which only the system half can really do.
@@ -130,8 +134,15 @@ struct CompletionToken: Equatable {
     let leading: String
     /// The word being completed, never empty.
     let token: String
+
+    /// How many whole words come before this one, which tells a command from its arguments.
+    var precedingWords: Int { leading.split(separator: " ").count }
+
     /// Whether the word is the command rather than one of its arguments.
-    let isFirstWord: Bool
+    var isFirstWord: Bool { precedingWords == 0 }
+
+    /// The command this word belongs to, absent when it is the command itself.
+    var command: String? { leading.split(separator: " ").first.map(String.init) }
 
     /// The word a line ends on, absent when it ends on a space and there is nothing to finish.
     init?(_ typed: String) {
@@ -140,7 +151,6 @@ struct CompletionToken: Equatable {
         else { return nil }
         leading = String(typed.dropLast(last.count))
         token = String(last)
-        isFirstWord = leading.allSatisfy { $0 == " " }
     }
 }
 
@@ -166,5 +176,21 @@ public enum ShellAliases {
     private static func isNameCharacter(_ character: Character) -> Bool {
         character.isLetter || character.isNumber || character == "_" || character == "-"
             || character == "."
+    }
+}
+
+/// Reads the names git binds to subcommands, which is the half of "wrong" that is actually right.
+public enum GitAliases {
+    /// Every alias name in the output of `git config --get-regexp`, in the order it lists them.
+    public static func names(in configuration: String) -> [String] {
+        configuration.split(separator: "\n").compactMap(name(in:))
+    }
+
+    /// The name one line binds, absent for anything that is not an alias declaration.
+    private static func name(in line: some StringProtocol) -> String? {
+        guard line.hasPrefix("alias.") else { return nil }
+        let name = line.dropFirst(6).prefix { $0 != " " }
+        guard !name.isEmpty else { return nil }
+        return String(name)
     }
 }

@@ -102,7 +102,7 @@ let package = Package(
         .target(
             name: "UttrflowLocalModel",
             dependencies: [
-                "UttrflowAI", "UttrflowCore",
+                "UttrflowAI", "UttrflowCore", "UttrflowPredict",
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
