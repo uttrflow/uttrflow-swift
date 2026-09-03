@@ -109,6 +109,25 @@ struct FocusedFieldSnapshotTests {
         #expect(snapshot(value: nil).currentLine.isEmpty)
     }
 
+    @Test("An indented line drops its leading whitespace, so it matches what capture stored.")
+    func indentationIsDropped() {
+        let indented = "    git status"
+        #expect(
+            snapshot(value: indented, selection: NSRange(location: indented.utf16.count, length: 0))
+                .currentLine == "git status")
+        // A tab-indented continuation line, up to the caret, is trimmed the same way.
+        let block = "def run():\n\tgit status"
+        #expect(
+            snapshot(value: block, selection: NSRange(location: block.utf16.count, length: 0))
+                .currentLine == "git status")
+    }
+
+    @Test("Whitespace typed after the content is kept, so accepting does not double a space.")
+    func trailingWhitespaceIsKept() {
+        #expect(
+            snapshot(value: "git ", selection: NSRange(location: 4, length: 0)).currentLine == "git ")
+    }
+
     @Test("A caret at the very start, and one just after a newline, are both on an empty line.")
     func anEmptyLineIsEmpty() {
         #expect(snapshot(value: "one\ntwo", selection: NSRange(location: 0, length: 0)).currentLine.isEmpty)

@@ -95,8 +95,14 @@ extension FocusedFieldSnapshot {
     public var currentLine: String {
         guard let value else { return "" }
         let line = Self.line(of: value, endingAt: selection?.location ?? value.utf16.count)
-        guard TerminalApplications.contains(bundleIdentifier) else { return line }
-        return ShellPrompt.input(in: line)
+        let input = TerminalApplications.contains(bundleIdentifier) ? ShellPrompt.input(in: line) : line
+        // Leading indentation is dropped so an indented line matches what capture stored, which is trimmed.
+        return Self.droppingLeadingWhitespace(input)
+    }
+
+    /// The text with leading spaces and tabs removed, which is what makes the query match a trimmed entry.
+    static func droppingLeadingWhitespace(_ text: String) -> String {
+        String(text.drop { $0 == " " || $0 == "\t" })
     }
 
     /// Whether the caret sits at the end of the line it is on, which completing presumes.
