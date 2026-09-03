@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 
 /// Whether the user has been asked about an application, and what they said.
 public enum ConsentState: String, Sendable, Codable, Equatable, CaseIterable {
@@ -60,6 +60,11 @@ public struct CapturePreferencesFile: Sendable {
 
     public init(path: String) {
         self.path = path
+    }
+
+    /// Where the answers live, beside the corpus they gate.
+    public static func defaultFile(in directory: URL) -> URL {
+        directory.appending(path: "Uttrflow/predict-consent.v1.json", directoryHint: .notDirectory)
     }
 
     /// Reads what was saved, treating a missing or unreadable file as nothing having been said.

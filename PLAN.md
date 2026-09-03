@@ -1135,20 +1135,33 @@ else depends on.
 ## Tab-to-complete 🟡
 
 The field the user is typing into finishes itself, from what this Mac has typed into that
-same field before. Nine phases, each ending in something a person can run: the first two
-are merged, the third is in review, and nothing in the app depends on the module yet.
+same field before. Nine phases, each ending in something a person can run. Phases 0 to 7
+are built and the app now runs them behind a defaults key that is off by default; phase 8
+— the settings screen, the resets and the onboarding — is what is left.
 
 | # | Phase | Status |
 |---|-------|--------|
 | 0 | Probe — what fields, retrieval and the event tap allow | ✅ **Done** |
 | 1 | Engine core — ranking, quieting, the decision, as pure code | ✅ **Done** |
-| 2 | Store — the corpus on disk, and matching what was nearly typed | 🟡 **In review** |
-| 3 | Capture and measure — record what is committed, per field | **Not started** |
-| 4 | Accept — Tab, the insertion, and what acceptance is worth | **Not started** |
-| 5 | Surface — the ghost, the chip, the strip, and drawing nothing | **Not started** |
+| 2 | Store — the corpus on disk, and matching what was nearly typed | ✅ **Done** |
+| 3 | Capture and measure — record what is committed, per field | ✅ **Done** |
+| 4 | Accept — Tab, the insertion, and what acceptance is worth | ✅ **Done** |
+| 5 | Surface — the ghost, the chip, the strip, and drawing nothing | ✅ **Done** |
 | 6 | Verify — the numbers, on the Insights page | **Not started** |
-| 7 | Generate — candidates beyond what was typed here | **Not started** |
+| 7 | Generate — candidates beyond what was typed here | ✅ **Done** |
 | 8 | Ship — settings, the resets, onboarding | **Not started** |
+
+### What the wiring delivered
+
+`SuggestionSession` sequences the loop as pure code and `SuggestionCoordinator` runs it
+against the real machine; `AppDelegate` builds the coordinator when
+`com.uttrflow.predict.enabled` says so, and nothing at all when it does not.
+[Docs/predict.md](Docs/predict.md) has the steps for turning it on.
+
+Still open after it: nothing draws the numbers on the Insights page (phase 6), the only
+way to turn the feature on is a `defaults write` (phase 8), consent per application is an
+`NSAlert` rather than anything designed, and the placement ladder is still chosen from
+what each field answers rather than from a sweep that has been run.
 
 The runbook and the rules that hold across all nine are in
 [Docs/predict.md](Docs/predict.md); phase 0's measurements are in

@@ -390,3 +390,21 @@ struct QueryPlanTests {
         #expect(found.allSatisfy { $0.text.hasPrefix("git command 1") })
     }
 }
+
+@Suite("Where the corpus lives")
+struct PredictStoreLocationTests {
+    @Test("It sits in Uttrflow's own folder, versioned in its name.")
+    func inTheAppsOwnFolder() {
+        let file = PredictStore.defaultFile(in: URL(filePath: "/tmp/support"))
+        #expect(file.path(percentEncoded: false) == "/tmp/support/Uttrflow/predict.v1.sqlite")
+    }
+
+    @Test("A folder that does not exist yet is made rather than refused.")
+    func makesItsOwnFolder() throws {
+        let root = URL(filePath: NSTemporaryDirectory()).appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = PredictStore.defaultFile(in: root)
+        _ = try PredictStore(path: file.path(percentEncoded: false))
+        #expect(FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
+    }
+}

@@ -2,6 +2,7 @@ public import UttrflowPredict
 
 public import struct Foundation.Date
 public import class Foundation.FileManager
+public import struct Foundation.URL
 
 /// The corpus on disk: what the user has entered where, and what usually follows what.
 public actor PredictStore: PredictionStore {
@@ -20,8 +21,15 @@ public actor PredictStore: PredictionStore {
         self.database = try Self.opened(at: path)
     }
 
+    /// Where the corpus lives, beside the clipboard and the history, versioned in its name.
+    public static func defaultFile(in directory: URL) -> URL {
+        directory.appending(path: "Uttrflow/predict.v1.sqlite", directoryHint: .notDirectory)
+    }
+
     /// Opens and migrates, and on corruption starts again rather than leaving the app broken.
     private static func opened(at path: String) throws(PredictStoreError) -> Database {
+        try? FileManager.default.createDirectory(
+            at: URL(filePath: path).deletingLastPathComponent(), withIntermediateDirectories: true)
         do {
             let database = try Database(path: path)
             try Schema.migrate(database)

@@ -278,7 +278,8 @@ let package = Package(
                 "UttrflowAI", "UttrflowAudio", "UttrflowContext", "UttrflowCore", "UttrflowInput",
                 "UttrflowAccount", "UttrflowClipboard", "UttrflowDictionary",
                 "UttrflowHistory", "UttrflowPermissions", "UttrflowPipeline", "UttrflowPredict",
-                "UttrflowSettings", "UttrflowSpeech", "UttrflowUX",
+                "UttrflowPredictCapture", "UttrflowPredictStore", "UttrflowSettings",
+                "UttrflowSpeech", "UttrflowUX",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             // The mark, for the panel and the menu bar slot. The bare monogram rather
