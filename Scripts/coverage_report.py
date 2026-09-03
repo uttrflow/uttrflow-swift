@@ -60,6 +60,11 @@ EXCLUDED_FILES = {
         "for needing a window server, so there is nothing here a test could reach"
     ),
     "UttrflowClipboard/CodeFormatting+System.swift": "spawns another program and pipes bytes through it",
+    "UttrflowPredict/EnvironmentReading+System.swift": (
+        "runs git, reads directories and scans PATH; what is done with the answers — which "
+        "kinds are asked for, what finishes the line, and how long an answer is believed — is "
+        "decided in EnvironmentSource and tested there against a substitute machine"
+    ),
     "Uttrflow/UttrflowApp.swift": "the process entry point",
     "Uttrflow/AppDelegate.swift": (
         "assembles the real engines, windows and permission gates; the intents that "
