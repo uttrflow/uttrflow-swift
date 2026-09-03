@@ -178,12 +178,16 @@ final class SuggestionCoordinator {
 
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path.
     private func turn(because reason: SuggestionReason) async {
-        let started = Date()
         guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier != ownBundleIdentifier,
-            let snapshot = await FocusedFieldReader.read(),
-            // An application switched off, or a pause still running, is read from and drawn into no more than a field that is not there.
-            preferences.isEnabled(in: snapshot.bundleIdentifier, at: started)
+            let snapshot = await FocusedFieldReader.read()
         else {
+            draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
+            return
+        }
+        // The clock starts after the field read, so the cross-process read is not charged against the
+        // turn budget; a keystroke arriving during the read bumps the generation and drops this answer instead.
+        let started = Date()
+        guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
