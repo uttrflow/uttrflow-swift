@@ -198,11 +198,9 @@
     "Sources/UttrflowHistory/DictationHistoryStore.swift": 16,
     "Sources/UttrflowHistory/DictationRecord.swift": 7,
     "Sources/UttrflowHistory/Retention.swift": 2,
-    "Sources/UttrflowInput/AccessibilityTextInsertionEngine.swift": 1,
     "Sources/UttrflowInput/ActivationMonitor.swift": 2,
     "Sources/UttrflowInput/CarbonHotkeyTranslation.swift": 5,
     "Sources/UttrflowInput/ClipboardTextInsertionEngine.swift": 1,
-    "Sources/UttrflowInput/FocusedTextField.swift": 3,
     "Sources/UttrflowInput/HeldModifierEdge.swift": 1,
     "Sources/UttrflowInput/Pasteboard.swift": 3,
     "Sources/UttrflowInput/PasteboardTextInsertionEngine.swift": 6,
@@ -418,7 +416,7 @@
     "Tests/UttrflowInputTests/CarbonHotkeyTranslationTests.swift": 11,
     "Tests/UttrflowInputTests/HeldModifierEdgeTests.swift": 4,
     "Tests/UttrflowInputTests/PasteboardInsertionTests.swift": 12,
-    "Tests/UttrflowInputTests/TextInsertionCoordinatorTests.swift": 14,
+    "Tests/UttrflowInputTests/TextInsertionCoordinatorTests.swift": 13,
     "Tests/UttrflowPermissionsTests/AccessibilityPermissionGateTests.swift": 2,
     "Tests/UttrflowPermissionsTests/MicrophonePermissionGateTests.swift": 2,
     "Tests/UttrflowPipelineTests/DictationChangesTests.swift": 7,
@@ -512,5 +510,5 @@
     "Tests/UttrflowUXTests/StylePagePresentationTests.swift": 3,
     "Tests/UttrflowUXTests/UpdateGateTests.swift": 3
   },
-  "total": 4228
+  "total": 4223
 }

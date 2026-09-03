@@ -9,12 +9,18 @@ public enum Suggestion: Sendable, Equatable {
     /// The user pressed escape, so only the dot remains.
     case minimised
 
-    /// The text Tab would insert, or `nil` when nothing is on offer.
+    /// The whole line Tab would leave behind, or `nil` when nothing is on offer.
     public var accepting: String? {
         switch self {
         case .certain(let text): text
         case .choice(let leader, _): leader
         case .silent, .minimised: nil
         }
+    }
+
+    /// What Tab does to a field holding `typed`, which is the one answer the surface also draws.
+    public func edit(after typed: String) -> Acceptance.Edit? {
+        guard let accepting else { return nil }
+        return Acceptance.edit(accepting: accepting, after: typed)
     }
 }

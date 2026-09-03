@@ -4,6 +4,9 @@ public import UttrflowCore
 public protocol KeystrokeTyping: Sendable {
     /// Types `text` into whatever has focus.
     func type(_ text: String) throws(TextInsertionError)
+
+    /// Presses Delete `count` times, which is the only way this route takes typed characters back.
+    func deleteBackwards(_ count: Int) throws(TextInsertionError)
 }
 
 /// Puts text in by typing it, for the fields Accessibility cannot write into.
@@ -22,6 +25,16 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
     public func canInsert() async -> Bool { !focus.isSelfFrontmost() }
 
     public func insert(_ text: String) async throws(TextInsertionError) {
+        try typist.type(text)
+    }
+}
+
+extension TypedTextInsertionEngine: CompletionWriting {
+    public func canWrite() async -> Bool { await canInsert() }
+
+    /// Backspaces then types, which the target's undo sees as several edits. See `Docs/predict-accept.md`.
+    public func write(_ text: String, replacing characters: Int) async throws(TextInsertionError) {
+        if characters > 0 { try typist.deleteBackwards(characters) }
         try typist.type(text)
     }
 }

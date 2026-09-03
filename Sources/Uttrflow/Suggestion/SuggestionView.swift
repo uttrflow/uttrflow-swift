@@ -69,9 +69,18 @@ struct SuggestionView: View {
     private func line(_ row: SuggestionPresentation.Row) -> some View {
         HStack(spacing: presentation.pointSize * 0.35) {
             if row.showsMark { UttrflowMarkView(height: presentation.pointSize * 0.8) }
-            Text(row.text).font(.system(size: presentation.pointSize))
+            offer(row)
             if row.isSelected { tabGlyph }
         }
+    }
+
+    /// The typed characters Tab consumes, struck through, and then the ones it puts in.
+    private func offer(_ row: SuggestionPresentation.Row) -> some View {
+        var consumed = AttributedString(row.consumed)
+        // The strike is the whole signal, so it takes the colour of the style around it.
+        consumed.strikethroughStyle = .single
+        return Text(consumed + AttributedString(row.ghost))
+            .font(.system(size: presentation.pointSize))
     }
 
     /// A hairline marker, so the key that takes the suggestion is never a thing to guess.

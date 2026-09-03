@@ -30,8 +30,8 @@ public enum TextInsertion {
     public static func completion(
         focus: any AccessibilityFocus = AXAccessibilityFocus(),
         typist: any KeystrokeTyping = CGEventTypist()
-    ) -> TextInsertionCoordinator {
-        TextInsertionCoordinator(strategies: [
+    ) -> CompletionRoute {
+        CompletionRoute(strategies: [
             AccessibilityTextInsertionEngine(focus: focus),
             TypedTextInsertionEngine(focus: focus, typist: typist),
         ])

@@ -84,15 +84,75 @@ phantom entry in their own clip history — from a feature they experience as au
 So `TextInsertion.completion` is Accessibility first and synthesised keystrokes second,
 with nothing beneath, and a completion that lands nowhere is simply not accepted.
 
-Only the tail is inserted: the head is already in the field, the caret is at the end of
-it, and no route here can replace text the user did not select. A suggestion that does not
-continue what was typed therefore cannot be accepted at all, and `Acceptance.remainder`
-returns nothing for it.
+## What accepting inserts, and what it takes back
+
+`Acceptance.edit(accepting:after:)` answers with an `Edit`: the already-typed characters
+immediately before the caret that go, and the text that replaces them. An append is that
+edit with nothing replaced, so the common case stays trivial and destroys nothing.
+
+The edit is the difference from the longest opening the two strings share. `git com` →
+`git commit` shares all seven typed characters, so nothing is replaced and `mit` is typed.
+`gti c` → `git commit -m` shares only `g`, so four characters go and `it commit -m`
+arrives. Two features produce exactly that second shape and both used to draw a suggestion
+and then do nothing when Tab was pressed: the store's fuzzy fallback, and verification's
+correction of what was typed.
+
+What is replaced is always a suffix of what the user typed — it is cut from that string
+and no other — so the count cannot exceed what they have entered, and the edit can never
+reach text they did not type at this caret. `Quieting` has already refused the moment
+before this if the caret is not at the end or anything is selected.
+
+The route takes it two ways. Accessibility widens the field's own selection back over
+those characters and then writes once, which is why it is tried first. Where the field
+will not report or set its selection, `TypedTextInsertionEngine` presses Delete once per
+character and then types — which works everywhere and costs what the next section says.
+
+## What ⌘Z does afterwards
+
+**One press, on the Accessibility route.** Setting `kAXSelectedText` on an AppKit field
+goes through `insertText:replacementRange:`, which registers one undo action; moving the
+selection first registers none, because a selection change is not an edit.
+
+**Several, on the keystroke route, and this cannot be fixed from outside the
+application.** Each synthesised Delete is a separate `deleteBackward:` in the target, and
+no undo manager coalesces a run of deletions with the typing that follows it — the kinds
+differ, so the group is broken between them. AppKit therefore charges roughly one press
+per character replaced plus one for the typing; Chromium and Electron coalesce
+same-kind edits within a time window and so charge about two. Undo grouping belongs to the
+target's own undo manager and there is no cross-process API that opens a group in it, so
+this is a property of the route rather than a defect to be fixed later.
+
+This is the whole argument for preferring Accessibility, and it is why a field that
+refuses to select backwards falls through to keystrokes rather than the replacement being
+dropped: a completion the user has to press ⌘Z five times to undo is still better than a
+Tab that does nothing.
+
+## What the surface draws, and why it is the same answer
+
+`SuggestionPresentation` is built from the `Suggestion` **and what is typed**, and each of
+its rows holds the `Acceptance.Edit` for that candidate — the very value
+`SuggestionAcceptor.accept` applies. The ghost is `edit.inserted` and nothing else, so
+`git com` draws `mit` at `caret.maxX` and the line reads `git commit` rather than
+`git comgit commit`. A row that has nothing left to offer is dropped, so a suggestion the
+user has finished typing takes the surface away instead of drawing an empty one.
+
+`Edit.applied(to:)` is what makes the agreement checkable: what is drawn on top of what is
+typed equals the candidate, and a test asserts it over both shapes.
+
+**A replacement is drawn as its cost.** `edit.replaced` — the typed characters Tab
+destroys — is drawn struck through immediately before the inserted text, so `gti c` shows
+~~ti c~~`it commit -m` and the four characters about to go are visible before the keypress.
+It carries no colour or opacity of its own: the strike is the whole signal, and it
+inherits whatever the enclosing style is, which is how it stays legible when Increase
+Contrast or Reduce Transparency turns the ghost into a solid chip. VoiceOver hears the
+same fact as "Tab to accept, replacing 4 characters".
+
+The struck-through text sits inside the panel rather than over the user's own characters,
+because the panel is anchored at the caret and shifting it left far enough to overlay them
+would mean measuring the field's own font from outside the application. It is an echo of
+what goes, not a mark on it.
 
 ## Not settled here
 
-- **Case-insensitive continuation.** `Git com` does not accept `git commit` today. Doing
-  it properly means replacing the typed head, which needs a selection the insertion route
-  does not have.
-- **Whether ⌘Z reverts an accepted completion in one step.** A property of each target
-  application; it needs the surface sweep in `Docs/predict-probe.md` to have been run.
+- **Whether the strike should overlay the user's own characters rather than echo them.**
+  That needs the field's text metrics, which `SuggestionGeometry` does not have.

@@ -43,12 +43,23 @@ public struct SuggestionPresentation: Sendable, Equatable {
 
     /// One line of the surface, and what marks it as the line Tab takes.
     public struct Row: Sendable, Equatable {
-        /// The text this row offers.
-        public let text: String
+        /// The whole line this row leaves behind, which is what VoiceOver reads out.
+        public let candidate: String
+        /// What Tab does to what is typed, which is the same value acceptance applies.
+        public let edit: Acceptance.Edit
         /// Whether Tab takes this row, which is also what puts the Tab glyph on it.
         public let isSelected: Bool
         /// Whether the mark is drawn beside the text, which only a list of choices does.
         public let showsMark: Bool
+
+        /// The text drawn after the caret, which is only what this row adds to the line.
+        public var ghost: String { edit.inserted }
+
+        /// The typed characters Tab destroys, drawn struck through and empty for a plain append.
+        public var consumed: String { edit.replaced }
+
+        /// Whether taking this row costs the user characters they typed themselves.
+        public var isReplacement: Bool { edit.isReplacement }
     }
 
     /// Grey text is drawn at this share of the line's own colour.
@@ -73,10 +84,11 @@ public struct SuggestionPresentation: Sendable, Equatable {
 
     public init(
         _ suggestion: Suggestion,
+        typed: String = "",
         fieldPointSize: CGFloat? = nil,
         appearance: SuggestionAppearance = .standard
     ) {
-        let offered = Self.rows(of: suggestion)
+        let offered = Self.rows(of: suggestion, after: typed)
         style =
             switch suggestion {
             case .minimised: .dot
@@ -88,29 +100,46 @@ public struct SuggestionPresentation: Sendable, Equatable {
         animates = !appearance.reducesMotion
     }
 
-    /// What VoiceOver is told the surface is offering.
+    /// What VoiceOver is told the surface is offering, and what taking it costs.
     public var accessibilityLabel: String {
         guard let leader = rows.first else { return "" }
-        let alternatives = rows.dropFirst().map(\.text)
-        guard !alternatives.isEmpty else { return "Suggestion: \(leader.text). Tab to accept." }
-        return "Suggestion: \(leader.text). Tab to accept. Alternatives: "
+        let alternatives = rows.dropFirst().map(\.candidate)
+        let take = "Tab to accept\(Self.cost(of: leader))."
+        guard !alternatives.isEmpty else { return "Suggestion: \(leader.candidate). \(take)" }
+        return "Suggestion: \(leader.candidate). \(take) Alternatives: "
             + alternatives.joined(separator: ", ") + "."
     }
 
+    /// Says how much of the user's own typing a row takes back, and nothing when it only adds.
+    private static func cost(of row: Row) -> String {
+        let count = row.edit.replacedCount
+        guard count > 0 else { return "" }
+        return ", replacing \(count) character\(count == 1 ? "" : "s")"
+    }
+
     /// The leader is selected, the alternatives are not, and a lone leader carries no mark.
-    private static func rows(of suggestion: Suggestion) -> [Row] {
+    private static func rows(of suggestion: Suggestion, after typed: String) -> [Row] {
         let offered: [String] =
             switch suggestion {
             case .silent, .minimised: []
             case .certain(let text): [text]
             case .choice(let leader, let others): [leader] + others
             }
-        let usable = offered.filter { !$0.allSatisfy(\.isWhitespace) }
+        // The edit is the one acceptance applies, so drawing and doing cannot disagree.
+        let usable: [(candidate: String, edit: Acceptance.Edit)] = offered.compactMap {
+            guard !$0.allSatisfy(\.isWhitespace),
+                let edit = Acceptance.edit(accepting: $0, after: typed)
+            else { return nil }
+            return ($0, edit)
+        }
         guard usable.count > 1 else {
-            return usable.map { Row(text: $0, isSelected: true, showsMark: false) }
+            return usable.map {
+                Row(candidate: $0.candidate, edit: $0.edit, isSelected: true, showsMark: false)
+            }
         }
         return usable.enumerated().map {
-            Row(text: $1, isSelected: $0 == 0, showsMark: $0 == 0)
+            Row(
+                candidate: $1.candidate, edit: $1.edit, isSelected: $0 == 0, showsMark: $0 == 0)
         }
     }
 
