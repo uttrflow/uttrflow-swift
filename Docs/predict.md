@@ -18,6 +18,7 @@ it is never uploaded, and the network is still reachable from `UttrflowAccount` 
 | Capture | not built | Noticing that a field was committed, and recording what went into it |
 | Accept | not built | Swallowing Tab, inserting the completion, recording that it was taken |
 | Surface | not built | Drawing the ghost, the chip or the strip, and drawing nothing |
+| Verify | `Sources/UttrflowPredict` | Whether a candidate is *correct*, which is not what the ranking measures |
 
 The path through them is one direction per keystroke. Capture writes what the user
 finished entering into the store, keyed by `Surface` — bundle identifier, Accessibility
@@ -31,10 +32,88 @@ at a discount.
 `PredictionStore` is a protocol in the pure module, so the engine is tested against
 candidates in an array rather than a database.
 
-**Status.** Phases 0 and 1 are merged: the probe, the placement ladder, and the whole
-decision layer as pure code. Phase 2 — the store and `FuzzyMatch` — is in review. Nothing
-in the app depends on `UttrflowPredict` yet, so there is no completion to see on screen
-and no number on any page. `PLAN.md` tracks the nine phases.
+**Status.** The probe, the decision layer, the store, capture, accept, the surface and the
+verification tier are built. Nothing in the app depends on `UttrflowPredict` yet, so there
+is no completion to see on screen and no number on any page. `PLAN.md` tracks the phases.
+
+## Correctness above habit
+
+Frequency says what the user does, not what is right. Somebody who has typed `git comit` a
+hundred times has an entry with a hundred uses behind it, and `Ranking` — which measures
+evidence and nothing else — will put it first. The verification tier is what stops that
+entry ever being offered, and it runs before anything is drawn.
+
+`Verifier` runs four gates in order and `Verification` holds the rules they apply.
+
+**1. Existence, first and unconditionally.** If the machine itself says the word exists —
+a program on `PATH`, a subcommand this machine's `git` accepts, a name the user's shell or
+git configuration binds — the verdict is `.attested` and nothing below may touch it. This
+is the gate that matters, because half of what looks like a typo is a real alias:
+somebody who has bound `cm` to `commit` gets `git cm` offered, and a tier that "helpfully"
+corrected it would be arguing with the user about their own configuration. The model is
+not even asked.
+
+**2. Plausibility.** The local model scores the candidate's mean log-likelihood per token
+in context — one forward pass, no generation — against `plausibilityFloor`. A model with
+no opinion, and a model that is not loaded, are both *no objection*: the statistical tiers
+answer alone and the feature is less clever rather than slower.
+
+**3. The nearest correct neighbour.** A word the machine has *denied* — it answered, and
+this word is not in its answer — is looked up against everything it does know. The match
+is `TypoModel`'s own channel rather than a new distance: a neighbour is offered only when
+one slip no dearer than `TypoModel.indelCost` explains the difference, which admits a
+transposition, a doubled letter and a neighbouring key, and excludes a distant
+substitution and anything in the first character. `FuzzyMatch`'s character mask is the
+prefilter, and `FuzzyMatch.budget(forQueryOfLength:)` is why nothing under three
+characters is ever corrected. The corrected form is what gets offered, silently.
+
+**Silence is not a denial.** A machine that has not answered yet — a cold
+`EnvironmentIndex`, or a field with no working directory at all — knows nothing, so
+nothing is corrected and nothing is rejected. Getting this wrong would correct a
+legitimate alias during the five seconds before the first read lands.
+
+**4. Superseding.** A candidate that was corrected is passed to
+`SupersessionRecording`, which `PredictStore` implements with the `supersede` it already
+had. The entry stops accruing weight and is never proposed again.
+
+### The budget, and what a missed one is allowed to show
+
+Twenty milliseconds, in `Verification.budgetInMilliseconds`. Only the model can spend it,
+so it is raced against a sleep: if the sleep wins, the verdict is `.rejected` and the
+candidate is not shown. **A verification over budget shows only what the environment had
+already attested** — and since gate 1 returns before the model is asked at all, an
+attested candidate never reaches the race. An over-budget verdict is deliberately *not*
+cached, so the next keystroke may ask again.
+
+The budget belongs to the keystroke rather than to the candidate. `Verifier.verified` takes
+one deadline and shares it across the whole set, and a candidate reached after it has passed
+is not scored at all — sixteen candidates cannot cost sixteen budgets.
+
+### The cache
+
+`VerdictCache` is keyed by `(candidate, context)` and is a plain value type, so what it
+does is testable without a model or a machine. Sixty-four verdicts, oldest dropped first,
+each believed for five seconds — the same lifetime `EnvironmentIndex` gives an answer,
+because an alias defined a moment ago has to be able to win.
+
+### What this leaves unfinished
+
+**A correction does not always extend what was typed.** `git comi` corrected to
+`git commit` is not a completion of `git comi`, so `Acceptance.remainder(of:after:)`
+returns `nil` and Tab would insert nothing. Handing the user the right command means
+replacing characters they have already typed, which is an insertion the accept path
+cannot currently make. Phase 4's rules decide what happens here; the verification tier
+answers with the correct text and does not pretend the insertion is solved.
+
+**`plausibilityFloor` has not been measured.** It is a mean log-probability per token and
+nothing has yet scored a real corpus against a real model to say where the line sits.
+
+**`MLXCandidateScorer` has never been run.** It is a single forward pass over
+`context + candidate` taking the mean log-probability of the candidate's own tokens, and it
+compiles — but MLX needs `xcodebuild` and the Metal toolchain, so nothing in `make verify`
+executes it and no number from it has been checked. It also re-tokenises `context` and
+`context + candidate` separately, which a tokenizer is free to split differently at the
+join.
 
 ## The engine decides three things
 
