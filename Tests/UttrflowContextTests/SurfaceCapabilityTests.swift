@@ -26,9 +26,9 @@ struct PlacementTests {
         #expect(reading().placement == .inlineGhost)
     }
 
-    @Test("A field that hides its styling falls to the caret chip.")
+    @Test("A field that hides its styling still takes the inline ghost, in a defaulted font.")
     func noStyle() {
-        #expect(reading(style: false).placement == .caretChip)
+        #expect(reading(style: false).placement == .inlineGhost)
     }
 
     @Test("A field that hides its caret falls to the window strip.")
@@ -53,8 +53,7 @@ struct PlacementTests {
 
     @Test("The ladder orders best first.")
     func order() {
-        #expect(SuggestionPlacement.inlineGhost < SuggestionPlacement.caretChip)
-        #expect(SuggestionPlacement.caretChip < SuggestionPlacement.windowStrip)
+        #expect(SuggestionPlacement.inlineGhost < SuggestionPlacement.windowStrip)
     }
 }
 
@@ -121,7 +120,8 @@ struct SweepTests {
             reading(application: "C", caret: false, style: false),
             reading(application: "D", secure: true),
         ])
-        #expect(sweep.inlineShare == 0.25)
+        // A and B both reach the inline ghost now, because a caret is all it needs.
+        #expect(sweep.inlineShare == 0.5)
         #expect(sweep.eligibleShare == 0.75)
         #expect(sweep.count(of: nil) == 1)
     }

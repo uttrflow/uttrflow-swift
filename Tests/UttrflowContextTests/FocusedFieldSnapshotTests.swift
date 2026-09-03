@@ -31,9 +31,9 @@ struct FocusedFieldSnapshotTests {
         #expect(snapshot().placement == .inlineGhost)
     }
 
-    @Test("A field that hides its styling gets the chip under the caret instead.")
-    func noStyleMeansAChip() {
-        #expect(snapshot(pointSize: nil).placement == .caretChip)
+    @Test("A field that hides its styling still takes the inline ghost, in a defaulted font.")
+    func noStyleStillTakesTheGhost() {
+        #expect(snapshot(pointSize: nil).placement == .inlineGhost)
     }
 
     @Test("A field that hides its caret leaves only the strip.")

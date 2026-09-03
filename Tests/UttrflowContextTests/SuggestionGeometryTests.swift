@@ -42,24 +42,34 @@ struct SuggestionGeometryTests {
         #expect(anchor.frame.maxX == mainScreen.maxX)
     }
 
-    // MARK: - The caret chip
-
-    @Test("The chip hangs a gap under the caret, centred on it")
-    func chipUnderTheCaret() {
+    @Test("A thin insertion caret with no width is still a caret, not a fall to the strip")
+    func zeroWidthCaretIsUsable() {
+        let thin = CGRect(x: 620, y: 500, width: 0, height: 17)
         let anchor = SuggestionGeometry.anchor(
-            for: .caretChip, caret: caret, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.placement == .caretChip)
-        #expect(anchor.frame.midX == caret.midX)
-        #expect(anchor.frame.maxY == caret.minY - SuggestionGeometry.gap)
+            for: .inlineGhost, caret: thin, window: documentWindow, screen: mainScreen, size: strip)
+        #expect(anchor.placement == .inlineGhost)
     }
 
-    @Test("A chip with no room under the caret flips above it rather than off the screen")
-    func chipFlipsAboveTheCaret() {
-        let low = CGRect(x: 620, y: mainScreen.minY + 4, width: 2, height: 17)
+    // MARK: - The list below the caret
+
+    @Test("More than one candidate hangs the surface from the caret's top, so the list falls below it")
+    func listHangsBelowTheCaret() {
         let anchor = SuggestionGeometry.anchor(
-            for: .caretChip, caret: low, window: documentWindow, screen: mainScreen, size: strip)
-        #expect(anchor.frame.minY == low.maxY + SuggestionGeometry.gap)
-        #expect(mainScreen.contains(anchor.frame))
+            for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: strip,
+            rows: 3)
+        #expect(anchor.placement == .inlineGhost)
+        // The surface's top sits on the caret's top, so the leader is on the line and the rest below.
+        #expect(anchor.frame.maxY == caret.maxY)
+        // The list is left-aligned to the caret's own x.
+        #expect(anchor.frame.minX == caret.minX)
+    }
+
+    @Test("A single candidate is a lone inline ghost on the caret's own line")
+    func loneGhostStaysInline() {
+        let anchor = SuggestionGeometry.anchor(
+            for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: strip,
+            rows: 1)
+        #expect(anchor.frame.origin == CGPoint(x: caret.maxX, y: caret.minY))
     }
 
     // MARK: - The window strip
@@ -92,12 +102,10 @@ struct SuggestionGeometryTests {
 
     // MARK: - Falling down the ladder
 
-    @Test(
-        "A caret rung with no caret rectangle falls all the way to the strip",
-        arguments: [SuggestionPlacement.inlineGhost, .caretChip])
-    func noCaretFallsToTheStrip(placement: SuggestionPlacement) {
+    @Test("The inline ghost with no caret rectangle falls all the way to the strip")
+    func noCaretFallsToTheStrip() {
         let anchor = SuggestionGeometry.anchor(
-            for: placement, caret: nil, window: documentWindow, screen: mainScreen, size: strip)
+            for: .inlineGhost, caret: nil, window: documentWindow, screen: mainScreen, size: strip)
         #expect(anchor.placement == .windowStrip)
         #expect(anchor.frame.minY == documentWindow.minY + SuggestionGeometry.margin)
     }
@@ -114,7 +122,7 @@ struct SuggestionGeometryTests {
     @Test("A null caret rectangle is treated as no caret")
     func nullCaretFallsToTheStrip() {
         let anchor = SuggestionGeometry.anchor(
-            for: .caretChip, caret: .null, window: documentWindow, screen: mainScreen, size: strip)
+            for: .inlineGhost, caret: .null, window: documentWindow, screen: mainScreen, size: strip)
         #expect(anchor.placement == .windowStrip)
     }
 
@@ -200,8 +208,8 @@ struct SuggestionGeometryTests {
 
     @Test("Two anchors of the same rung and rectangle are the same anchor")
     func anchorsCompareByValue() {
-        let one = SuggestionAnchor(placement: .caretChip, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
-        let other = SuggestionAnchor(placement: .caretChip, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
+        let one = SuggestionAnchor(placement: .inlineGhost, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
+        let other = SuggestionAnchor(placement: .inlineGhost, frame: CGRect(x: 1, y: 2, width: 3, height: 4))
         #expect(one == other)
         #expect(one != SuggestionAnchor(placement: .windowStrip, frame: one.frame))
     }

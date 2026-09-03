@@ -21,20 +21,19 @@ public enum SuggestionGeometry {
     /// The gap between the surface and the edge it is parked against.
     public static let margin: CGFloat = 8
 
-    /// The frame to occupy, inside the screen, on the best rung these inputs support.
+    /// The frame to occupy inside the screen, one row an inline ghost and more a list below the caret.
     public static func anchor(
         for placement: SuggestionPlacement,
         caret: CGRect?,
         window: CGRect?,
         screen: CGRect,
-        size: CGSize
+        size: CGSize,
+        rows: Int = 1
     ) -> SuggestionAnchor {
         let (reached, origin): (SuggestionPlacement, CGPoint) =
             switch (placement, usable(caret, on: screen)) {
             case (.inlineGhost, .some(let caret)):
-                (.inlineGhost, inline(after: caret))
-            case (.caretChip, .some(let caret)):
-                (.caretChip, chip(under: caret, screen: screen, size: size))
+                (.inlineGhost, caretAnchored(caret: caret, size: size, rows: rows))
             default:
                 (.windowStrip, strip(along: usable(window, on: screen) ?? screen, size: size))
             }
@@ -49,16 +48,19 @@ public enum SuggestionGeometry {
             x: rect.minX, y: primaryScreenMaxY - rect.maxY, width: rect.width, height: rect.height)
     }
 
-    /// The ghost continues the user's own line, so it starts where the caret is.
-    private static func inline(after caret: CGRect) -> CGPoint {
+    /// Where a lone inline ghost begins: at the caret, continuing the user's own line.
+    static func inlineOrigin(caret: CGRect) -> CGPoint {
         CGPoint(x: caret.maxX, y: caret.minY)
     }
 
-    /// The chip hangs under the caret, and flips above it rather than off the screen.
-    private static func chip(under caret: CGRect, screen: CGRect, size: CGSize) -> CGPoint {
-        let below = caret.minY - gap - size.height
-        let y = below >= screen.minY + margin ? below : caret.maxY + gap
-        return CGPoint(x: caret.midX - size.width / 2, y: y)
+    /// The top-left of the list drawn below the caret, left-aligned to the caret's own x.
+    static func belowCaretOrigin(caret: CGRect, size: CGSize) -> CGPoint {
+        CGPoint(x: caret.minX, y: caret.maxY - size.height)
+    }
+
+    /// A lone ghost sits on the caret's line; a list hangs from the caret's top so its rows fall below.
+    private static func caretAnchored(caret: CGRect, size: CGSize, rows: Int) -> CGPoint {
+        rows > 1 ? belowCaretOrigin(caret: caret, size: size) : inlineOrigin(caret: caret)
     }
 
     /// The strip stands on the bottom edge of whatever it was given, centred on it.
@@ -68,8 +70,12 @@ public enum SuggestionGeometry {
 
     /// A rectangle from another display, or from a window since closed, is no rectangle.
     private static func usable(_ rect: CGRect?, on screen: CGRect) -> CGRect? {
-        guard let rect, !rect.isNull, rect.intersects(screen) else { return nil }
-        return rect
+        guard let rect, !rect.isNull, !rect.isInfinite else { return nil }
+        // A thin insertion caret has zero width, so it never "intersects" a screen; ask whether its point is on one.
+        if rect.isEmpty {
+            return screen.contains(CGPoint(x: rect.minX, y: rect.midY)) ? rect : nil
+        }
+        return rect.intersects(screen) ? rect : nil
     }
 
     /// Pulls a surface that would hang over an edge back inside the screen, the lower bound winning.

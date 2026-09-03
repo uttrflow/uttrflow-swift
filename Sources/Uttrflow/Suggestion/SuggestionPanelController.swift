@@ -28,6 +28,8 @@ final class SuggestionPanelController {
     private let hostingView: NSHostingView<SuggestionView>
     private var request = SuggestionRequest()
     private var panelSize = CGSize(width: 1, height: 1)
+    /// How many rows the surface last drew, which decides whether a list hangs below the caret.
+    private var rowCount = 1
     private var appearanceObserver: (any NSObjectProtocol)?
 
     init() {
@@ -77,6 +79,7 @@ final class SuggestionPanelController {
             appearance: Self.appearance(),
             // A caret chip or a window strip stands off the line, so its text must be a solid chip to be seen.
             detached: request.placement != .inlineGhost)
+        rowCount = presentation.rows.count
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
@@ -119,7 +122,7 @@ final class SuggestionPanelController {
     private func reposition() {
         let anchor = SuggestionGeometry.anchor(
             for: request.placement, caret: request.caret, window: request.window,
-            screen: visibleFrame, size: panelSize)
+            screen: visibleFrame, size: panelSize, rows: rowCount)
         panel.setFrame(anchor.frame, display: true)
     }
 

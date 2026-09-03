@@ -55,7 +55,6 @@ public struct ProbeReport: Sendable {
     private func name(_ placement: SuggestionPlacement?) -> String {
         switch placement {
         case .inlineGhost: "inline ghost"
-        case .caretChip: "caret chip"
         case .windowStrip: "window strip"
         case nil: "nothing"
         }

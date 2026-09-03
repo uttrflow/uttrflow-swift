@@ -59,7 +59,6 @@ struct ProbeSurface: AsyncParsableCommand {
     private func describe(_ reading: SurfaceCapability) -> String {
         switch reading.placement {
         case .inlineGhost: "inline ghost"
-        case .caretChip: "caret chip"
         case .windowStrip: "window strip"
         case nil: reading.isSecure ? "nothing — secure field" : "nothing — hides its text"
         }

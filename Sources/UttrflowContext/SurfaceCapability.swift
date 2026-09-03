@@ -2,11 +2,9 @@ import Foundation
 
 /// Where a suggestion can be drawn for one text field, best first.
 public enum SuggestionPlacement: String, Sendable, CaseIterable, Comparable {
-    /// Grey text on the user's own line, in the field's own font.
+    /// Grey text at the caret, on the user's own line, with any alternatives listed below it.
     case inlineGhost
-    /// A capsule just below the caret, for a field that hides its styling.
-    case caretChip
-    /// A strip on the window's bottom edge, for a field that hides its caret.
+    /// A strip on the window's bottom edge, the last resort for a field that hides its caret.
     case windowStrip
 
     /// Orders the ladder so the best placement is the smallest.
@@ -59,7 +57,8 @@ public struct SurfaceCapability: Sendable, Equatable {
     /// The best placement this field can support, or `nil` where nothing may be drawn.
     public var placement: SuggestionPlacement? {
         guard !isSecure, reportsValue else { return nil }
-        if reportsCaretRect { return reportsTextStyle ? .inlineGhost : .caretChip }
+        // A caret is all the inline ghost needs; the field's font is followed when known and defaulted when not.
+        if reportsCaretRect { return .inlineGhost }
         return .windowStrip
     }
 
