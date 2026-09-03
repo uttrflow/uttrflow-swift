@@ -162,8 +162,8 @@ struct ProbeIME: AsyncParsableCommand {
         print("Watching for \(seconds)s. Switch to an input method and type, so composition shows.\n")
         var previous = ""
         for tick in 0..<seconds {
-            let marked = await MainActor.run(body: { FocusedFieldReader.frontmostApp() })
-                .map { CompositionProbe.markedText(of: $0) } ?? .unanswered
+            let app = await MainActor.run(body: { FocusedFieldReader.frontmostApp() })
+            let marked = app.map { CompositionProbe.markedText(of: $0) } ?? .unanswered
             let source = await MainActor.run { CompositionProbe.refreshInputSourceKind() }
             let composing = Composition.isComposing(markedText: marked, inputSource: source)
             let line =
