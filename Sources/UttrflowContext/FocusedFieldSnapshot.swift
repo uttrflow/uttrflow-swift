@@ -91,10 +91,12 @@ extension FocusedFieldSnapshot {
     /// Where a suggestion may be drawn for this field, or nothing where none may be.
     public var placement: SuggestionPlacement? { capability.placement }
 
-    /// The line the caret is on, up to the caret, which is the whole of what a completion continues.
+    /// The line the caret is on, up to the caret, less the shell prompt a terminal reports in front of it.
     public var currentLine: String {
         guard let value else { return "" }
-        return Self.line(of: value, endingAt: selection?.location ?? value.utf16.count)
+        let line = Self.line(of: value, endingAt: selection?.location ?? value.utf16.count)
+        guard TerminalApplications.contains(bundleIdentifier) else { return line }
+        return ShellPrompt.input(in: line)
     }
 
     /// Whether the caret sits at the end of the line it is on, which completing presumes.

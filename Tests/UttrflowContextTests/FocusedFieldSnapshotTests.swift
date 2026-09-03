@@ -159,6 +159,32 @@ struct FocusedFieldSnapshotTests {
         #expect(!snapshot(bundleIdentifier: "com.example.editor").isProse)
     }
 
+    @Test("A terminal's line is what was typed at the prompt, not the prompt the shell drew.")
+    func aTerminalLineDropsThePrompt() {
+        let prompt = "(experiments) naveenbhatt@Naveens-MacBook-Pro-2 experiments % sud"
+        for bundleIdentifier in TerminalApplications.bundleIdentifiers {
+            #expect(
+                snapshot(bundleIdentifier: bundleIdentifier, value: prompt, selection: nil)
+                    .currentLine == "sud")
+        }
+    }
+
+    @Test("Only the caret's own line has a prompt taken off it, and only in a terminal.")
+    func onlyTerminalsDropThePrompt() {
+        let scrollback = "user@host:~/dir$ git status\nuser@host:~/dir$ git a"
+        #expect(snapshot(value: scrollback, selection: nil).currentLine == "git a")
+        #expect(
+            snapshot(bundleIdentifier: "com.example.editor", value: "user@host:~/dir$ git a", selection: nil)
+                .currentLine == "user@host:~/dir$ git a")
+    }
+
+    @Test("A terminal line holding only a prompt is empty, so nothing is captured from it.")
+    func anEmptyPromptCapturesNothing() {
+        #expect(
+            snapshot(value: "naveenbhatt@Naveens-MacBook-Pro-2 experiments % ", selection: nil)
+                .currentLine.isEmpty)
+    }
+
     @Test("A terminal publishes the prose role and is still not prose, so it answers at once.")
     func terminalsAreNeverProse() {
         for bundleIdentifier in TerminalApplications.bundleIdentifiers {
