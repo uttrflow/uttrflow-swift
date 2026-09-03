@@ -143,14 +143,30 @@ public enum FocusedFieldReader {
     }
 
     /// The insertion point's screen rectangle, without which no ghost can be drawn.
+    ///
+    /// A zero-length range works in Cocoa fields but returns a heightless origin in Terminal, which
+    /// only answers for a one-character range; so a heightless answer is retried a character wide.
     private static func caret(_ field: AXUIElement, at range: CFRange) -> CGRect? {
+        if let rect = bounds(field, range), rect.height > 0 { return rect }
+        let location = range.location
+        if location > 0, let before = bounds(field, CFRange(location: location - 1, length: 1)),
+            before.height > 0 {
+            return CGRect(x: before.maxX, y: before.minY, width: 0, height: before.height)
+        }
+        if let at = bounds(field, CFRange(location: location, length: 1)), at.height > 0 {
+            return CGRect(x: at.minX, y: at.minY, width: 0, height: at.height)
+        }
+        return nil
+    }
+
+    /// The screen rectangle Accessibility reports for one text range, or nothing when it will not say.
+    private static func bounds(_ field: AXUIElement, _ range: CFRange) -> CGRect? {
         guard let answer = parameterized(field, kAXBoundsForRangeParameterizedAttribute, range),
             CFGetTypeID(answer) == AXValueGetTypeID()
         else { return nil }
         var rect = CGRect.zero
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        guard AXValueGetValue(unsafeDowncast(answer, to: AXValue.self), .cgRect, &rect),
-            !rect.isNull
+        guard AXValueGetValue(unsafeDowncast(answer, to: AXValue.self), .cgRect, &rect), !rect.isNull
         else { return nil }
         return rect
     }
