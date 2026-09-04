@@ -142,18 +142,23 @@ public enum FocusedFieldReader {
         return CGRect(origin: origin, size: size)
     }
 
-    /// The insertion point's screen rectangle, retried a character wide when a zero-length range is heightless.
+    /// The caret's screen rectangle, read off the glyph beside it because its own zero-length bounds lies.
     private static func caret(_ field: AXUIElement, at range: CFRange) -> CGRect? {
-        if let rect = bounds(field, range), rect.height > 0 { return rect }
+        // A real selection, unlike a caret, reports its own bounds honestly.
+        if range.length > 0, let rect = bounds(field, range), rect.height > 0 { return rect }
         let location = range.location
+        // The caret sits at the trailing edge of the glyph before it, which is what typing just moved past.
         if location > 0, let before = bounds(field, CFRange(location: location - 1, length: 1)),
             before.height > 0
         {
             return CGRect(x: before.maxX, y: before.minY, width: 0, height: before.height)
         }
+        // At the very start there is no glyph before, so the caret takes the leading edge of the one after.
         if let at = bounds(field, CFRange(location: location, length: 1)), at.height > 0 {
             return CGRect(x: at.minX, y: at.minY, width: 0, height: at.height)
         }
+        // An empty line has no glyph beside the caret, so its own bounds is all there is.
+        if let rect = bounds(field, range), rect.height > 0 { return rect }
         return nil
     }
 
