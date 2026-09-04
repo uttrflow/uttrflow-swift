@@ -1,47 +1,42 @@
+import UttrflowEval
 import UttrflowPredict
 
 /// One situation the generator is measured on: where the caret is, what is around it, and what would count as right.
 struct Fixture {
-    /// The category and the case, as `category/case`, so hit rates can be read per category.
+    /// The category first, then the case, as `category/case…`, so hit rates can be read per category.
     let name: String
     let situation: GenerationSituation
     let typed: String
-    /// Continuations past the typed text that count as a hit; empty when any continuation in register counts.
-    let acceptable: [String]
-    /// How long the first continuation may be, in characters, which is the register's verbosity made checkable.
-    let lengthBand: ClosedRange<Int>
-    /// Text from the context that a continuation must never repeat, since the earlier text is never the line.
-    let forbidden: [String]
+    /// What counts as right here: the acceptable continuations, the length band, the text never to echo.
+    let expectation: CompletionExpectation
+
+    init(_ name: String, _ situation: GenerationSituation, typed: String, expectation: CompletionExpectation) {
+        self.name = name
+        self.situation = situation
+        self.typed = typed
+        self.expectation = expectation
+    }
 
     init(
         _ name: String, _ situation: GenerationSituation, typed: String, acceptable: [String] = [],
         band: ClosedRange<Int>, forbidden: [String] = []
     ) {
-        self.name = name
-        self.situation = situation
-        self.typed = typed
-        self.acceptable = acceptable
-        lengthBand = band
-        self.forbidden = forbidden
+        self.init(
+            name, situation, typed: typed,
+            expectation: CompletionExpectation(acceptable: acceptable, band: band, forbidden: forbidden))
     }
 
     /// Whether any of the completions continues the line the way the fixture expects.
-    func hits(_ completions: [String]) -> Bool {
-        let continuations = completions.map { String($0.dropFirst(typed.count)).lowercased() }
-        guard !acceptable.isEmpty else { return !continuations.isEmpty }
-        return continuations.contains { got in acceptable.contains { got.hasPrefix($0.lowercased()) } }
-    }
+    func hits(_ completions: [String]) -> Bool { expectation.hits(completions, typed: typed) }
 
     /// Whether the first completion keeps to the register: the expected length, and none of the context echoed.
-    func conforms(_ completions: [String]) -> Bool {
-        guard let first = completions.first else { return false }
-        let continuation = String(first.dropFirst(typed.count))
-        guard lengthBand.contains(continuation.count) else { return false }
-        return !forbidden.contains { first.lowercased().contains($0.lowercased()) }
-    }
+    func conforms(_ completions: [String]) -> Bool { expectation.conforms(completions, typed: typed) }
 
     /// The category half of the name.
     var category: String { String(name.split(separator: "/").first ?? "") }
+
+    /// Every situation the generator is held to: the hand-written cases first, then the generated catalogue.
+    static let all: [Fixture] = handwritten + FixtureCatalogue.all
 }
 
 /// The scrollback a terminal shows before its prompt, which is what a shell command is continued from.
@@ -132,8 +127,8 @@ private let search = GenerationSituation(
     recentLines: ["invoice august", "tax 2025", "invoice july"])
 
 extension Fixture {
-    /// Every situation the generator is held to, across the registers people actually type in.
-    static let all: [Fixture] = [
+    /// The cases written one by one, across the registers people actually type in.
+    static let handwritten: [Fixture] = [
         Fixture(
             "terminal/git-c", terminal(recent: commands), typed: "git c", acceptable: ["ommit", "heckout"],
             band: 4...40),

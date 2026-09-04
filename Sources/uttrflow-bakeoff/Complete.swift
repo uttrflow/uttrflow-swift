@@ -28,6 +28,12 @@ struct Complete: AsyncParsableCommand {
     @Option(name: .long, help: "Only fixtures whose name starts with this, e.g. chat/ or terminal/.")
     var only: String?
 
+    @Option(name: .long, help: "Run only the first N fixtures left after --only.")
+    var limit: Int?
+
+    @Option(name: .long, help: "Write every fixture's result and the summary as JSON to this path.")
+    var json: String?
+
     func run() async throws {
         guard let chosen = Self.model(named: model) else {
             print("no such model: \(model)")
@@ -57,42 +63,36 @@ struct Complete: AsyncParsableCommand {
         for completion in completions { print("  \(completion)") }
     }
 
-    /// Every fixture in turn, each timed, with the rates that decide whether a phase held.
+    /// Every chosen fixture in turn, each timed, then the rates that decide whether a phase held and the failures.
     private func measure(with scorer: MLXCandidateScorer) async {
-        let chosen = Fixture.all.filter { only.map($0.name.hasPrefix) ?? true }
+        var chosen = Fixture.all.filter { only.map($0.name.hasPrefix) ?? true }
+        if let limit { chosen = Array(chosen.prefix(limit)) }
         // One pass first, so the Metal kernels are compiled before anything is timed.
         if let first = chosen.first {
             _ = await scorer.completions(for: first.typed, in: first.situation)
         }
-        var rows: [(Fixture, Int, Bool, Bool, String)] = []
+        var results: [FixtureResult] = []
         for fixture in chosen {
             let started = ContinuousClock.now
             let completions = await scorer.completions(for: fixture.typed, in: fixture.situation)
             let elapsed = Int((ContinuousClock.now - started) / .milliseconds(1))
-            let hit = fixture.hits(completions)
-            let conforms = fixture.conforms(completions)
-            let first = completions.first ?? "-"
-            rows.append((fixture, elapsed, hit, conforms, first))
-            print(
-                "\(hit ? "✓" : "✗")\(conforms ? "✓" : "✗") \(String(elapsed).leftPadded(to: 5))ms  "
-                    + "\(fixture.name.leftPadded(to: 18))  \(first.debugDescription)")
+            let result = FixtureResult(
+                name: fixture.name, category: fixture.category, typed: fixture.typed,
+                hit: fixture.hits(completions), conforms: fixture.conforms(completions), elapsedMs: elapsed,
+                first: completions.first)
+            results.append(result)
+            print(result.row)
         }
-        print("")
-        for category in Set(chosen.map(\.category)).sorted() {
-            let inCategory = rows.filter { $0.0.category == category }
-            let hits = inCategory.filter(\.2).count
-            let conforming = inCategory.filter(\.3).count
-            print(
-                "\(category.leftPadded(to: 10))  hit \(hits)/\(inCategory.count)  "
-                    + "in register \(conforming)/\(inCategory.count)")
+        let report = FixtureReport(results: results)
+        report.printSummary()
+        report.printFailures()
+        guard let json else { return }
+        do {
+            try report.write(to: json)
+            print("\nwritten to \(json)")
+        } catch {
+            print("\ncould not write \(json): \(error)")
         }
-        let times = rows.map(\.1).sorted()
-        guard !times.isEmpty else { return }
-        let p50 = times[times.count / 2]
-        let p95 = times[min(times.count - 1, Int(Double(times.count) * 0.95))]
-        print(
-            "\nall  hit \(rows.filter(\.2).count)/\(rows.count)  in register \(rows.filter(\.3).count)/\(rows.count)"
-                + "  p50 \(p50)ms  p95 \(p95)ms")
     }
 
     /// The names the app's two Gemma sizes go by, beside every repository name the bake-off knows.
