@@ -47,6 +47,8 @@ moment the person returns, because it shares their keyboard.
 
 | 3 — 2026-09-05, Release, after the line is written into the model's turn with token healing, the generation fallback, the register kind and the address-field evidence | 1 090 | 1 004 (92 %) | 1 066 (98 %) | 758 ms | 919 ms | 144 fixed, 7 regressed. The empty class is 2 (both fabricated URLs cut by the budget). Of the 84 wrong, 35 are the address bar (`git` → `git commit -m`, `localhost` → `localhost:8080/api`), the rest the model's own pick where the typed word is also a whole word (`git l` → `git l -S`, `npm i` → `npm i -D`). Five regressions share one cause: a complete line (`Thanks, see you tomorrow.`, `SELECT count(*) FROM orders;`) expects nothing, and healing's "one visible character more" forced a continuation — fixed next by letting a last word that ends in terminal punctuation end the line. Latency measured with `make verify` running beside it; the same build gave p50 692 / p95 858 ms on the 223-case subset alone. |
 
+| 4 — 2026-09-05, Release, after a closing word may end the line | 1 090 | 1 009 (93 %) | 1 071 (98 %) | 752 ms | 883 ms | 5 fixed, 0 regressed: every complete-line fixture answers nothing again. What remains is 79 wrong answers — 35 in the address bar, the rest the model's own pick where the typed word is also a whole word — and 2 fabricated URLs cut by the budget. From run 1: hit 78 % → 93 %, in register 83 % → 98 %, p95 941 → 883 ms, with the gate running beside this run too. |
+
 ## How to run one cycle
 
 1. `xcodebuild -scheme uttrflow-bakeoff -configuration Release -derivedDataPath .build/xcode … build`
