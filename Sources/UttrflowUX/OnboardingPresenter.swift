@@ -464,10 +464,7 @@ private struct PermissionWording {
         symbolName: "mic",
         title: "Let Uttrflow hear you",
         subtitle: "It needs your microphone to do anything at all.",
-        body: """
-            Audio is processed on this Mac and discarded the moment it becomes text. \
-            Recordings are never saved, and nothing you say is uploaded.
-            """,
+        body: "\(SettingsPresenter.recordingsPromise) Nothing you say is uploaded.",
         allow: "Allow Microphone Access",
         blocked: OnboardingNote(
             symbolName: "exclamationmark.triangle",

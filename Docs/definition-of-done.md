@@ -25,7 +25,7 @@ Verdicts were produced by running the checks in the right-hand column, not by re
 | 19 | Whatever fails, the user's words stay reachable | `FallbackRunner` under insertion; a failed tidy-up inserts the raw transcript; a failed insertion keeps the text and routes the user to Recent | ✅ enforced, with the salvage path now actually writing to history |
 | 20 | Report idle memory, the speech model loaded, and the language model | `uttrflow-bakeoff profile` and `footprint` | ✅ measured: 10.9 MB idle, +113 MB for the speech model, 273.6 MB peak mid-dictation. Leak check over 30 dictations: **clean** — footprint falls. `Docs/performance.md` |
 | 22 | The numbers are for reading on the machine, never sent | Diagnostics is in-memory and bounded; nothing serialises or uploads it | ✅ — and see `Docs/offline.md` for the network audit |
-| 29 | No audio saved | Nothing in the product writes audio to disk. `WAVEncoder` is reachable only from the developer CLI and the evaluation corpus | ✅ — the plan briefly recorded a deviation here; it was withdrawn, never built |
+| 29 | No audio saved | **Deviated, deliberately (2026-09-04).** Each dictation's audio is written beside the live buffer and deleted the moment its words land; it is kept for a day only when the words were lost, so the dictation can be retried. Nothing leaves the Mac. `Docs/recordings.md` | ⚠️ recorded deviation; the privacy copy and `SettingsPrivacyCopyTests` say what is now true |
 | 31 | No tiny fallback LLM | **Deviated, deliberately.** A local open-weight model ships, because Apple's Foundation Models have no Hindi | ⚠️ recorded deviation |
 | 32 | The requirements' own worked example | Shipped as corpus case `late-to-meeting` | ✅ verified live, below |
 

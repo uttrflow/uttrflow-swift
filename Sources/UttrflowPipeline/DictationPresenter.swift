@@ -70,6 +70,13 @@ public enum DictationPresenter {
                 showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
                 accessibilityLabel: "Working on what you said.")
 
+        case .inserted(let outcome) where outcome.method == .clipboard && outcome.fromRecording:
+            DockPresentation(
+                symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",
+                secondaryLine: preview(of: outcome.text),
+                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
+                accessibilityLabel: "Copied to the clipboard. Press Command V to paste it. \(outcome.text)")
+
         case .inserted(let outcome) where outcome.method == .clipboard:
             // Nothing was typed. Saying "Inserted" here is the difference between a
             // user pressing ⌘V and a user believing the app is broken because their

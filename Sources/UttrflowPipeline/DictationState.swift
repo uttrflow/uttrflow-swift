@@ -45,6 +45,11 @@ public struct DictationFailure: Sendable, Equatable {
                 severity: .recoverable, transcript: transcript)
         }
     }
+
+    /// The same failure offering a different next step.
+    public func offering(_ recovery: RecoveryAction?) -> DictationFailure {
+        DictationFailure(message: message, recovery: recovery, severity: severity, transcript: transcript)
+    }
 }
 
 /// What the product finished doing.
@@ -83,11 +88,13 @@ public struct DictationOutcome: Sendable, Equatable {
     /// and cannot undo, and there would be no way to tell from outside that it had
     /// happened at all.
     public let changes: AppliedChanges
+    /// Whether this came from a kept recording rather than the microphone, so it was copied, not typed.
+    public let fromRecording: Bool
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
-        spokenFor: Duration? = nil, changes: AppliedChanges = .none
+        spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false
     ) {
         self.text = text
         self.method = method
@@ -96,6 +103,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.insertedIntoIdentifier = insertedIntoIdentifier
         self.spokenFor = spokenFor
         self.changes = changes
+        self.fromRecording = fromRecording
     }
 }
 

@@ -118,6 +118,7 @@ public enum FailurePresenter {
         case .retry: "arrow.clockwise"
         case .pasteManually: "doc.on.clipboard"
         case .showRecentDictations: "menubar.arrow.up.rectangle"
+        case .retryFromRecording: "arrow.clockwise"
         }
     }
 
@@ -130,6 +131,7 @@ public enum FailurePresenter {
         case .downloadSpeechModel: "Finish Setup"
         case .pasteManually: "Paste"
         case .showRecentDictations: "Show Recent"
+        case .retryFromRecording: "Retry"
         }
     }
 }
