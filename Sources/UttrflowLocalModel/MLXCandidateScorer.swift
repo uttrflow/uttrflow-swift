@@ -211,7 +211,8 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
                 let iterator = try TokenIterator(
                     input: feed, model: context.model, cache: cache,
                     processor: TokenHealing(
-                        vocabulary: vocabulary, owed: opening.owed, wordComplete: opening.isWordComplete),
+                        vocabulary: vocabulary, owed: opening.owed, wordComplete: opening.isWordComplete,
+                        mayEnd: opening.mayEnd),
                     sampler: parameters.sampler(), maxTokens: parameters.maxTokens)
                 return generateTask(
                     promptTokenCount: feed.text.tokens.size, modelConfiguration: context.configuration,

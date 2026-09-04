@@ -67,15 +67,18 @@ struct TokenHealing: LogitProcessor {
     let vocabulary: Vocabulary
     /// Whether the person finished the word with a space, so it is written exactly and what follows begins with one.
     let wordComplete: Bool
+    /// Whether the line may end with the word, which a word closing a sentence or a statement does.
+    let mayEnd: Bool
     /// What the model must still write before it is free: the rest of the typed word, then one visible character more.
     private(set) var owed: [UInt8]
     /// Whether the word is complete and continued, after which every token is the model's own.
     private(set) var isFree = false
 
-    init(vocabulary: Vocabulary, owed: String, wordComplete: Bool) {
+    init(vocabulary: Vocabulary, owed: String, wordComplete: Bool, mayEnd: Bool = false) {
         self.vocabulary = vocabulary
         self.owed = Array(owed.utf8)
         self.wordComplete = wordComplete
+        self.mayEnd = mayEnd
     }
 
     mutating func prompt(_ prompt: MLXArray) {}
@@ -118,6 +121,8 @@ struct TokenHealing: LogitProcessor {
             isFree = true
         } else if owed.starts(with: written) {
             owed.removeFirst(written.count)
+            // A word that closes the line owes nothing more once written, so the model may stop there.
+            if owed.isEmpty, mayEnd { isFree = true }
         } else {
             // A token the mask should have refused: the word cannot be held any longer, so the model is left free.
             owed = []

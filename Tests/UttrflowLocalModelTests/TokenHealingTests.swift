@@ -124,4 +124,15 @@ struct TokenHealingTests {
         #expect(healing.owed.isEmpty && !healing.isFree)
         #expect(spelt.allowed(owing: [], wordComplete: true) == [false, false, false, false, true, false])
     }
+
+    @Test(
+        "A word that closes the line frees the model once written, so a finished sentence can be left alone.")
+    func aClosingWordMayEndTheLine() {
+        var closing = TokenHealing(vocabulary: vocabulary, owed: " l", wordComplete: false, mayEnd: true)
+        closing.took(" l")
+        #expect(closing.isFree)
+        var open = healing(owing: " l")
+        open.took(" l")
+        #expect(!open.isFree)
+    }
 }

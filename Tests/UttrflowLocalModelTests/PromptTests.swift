@@ -125,6 +125,11 @@ struct PromptTests {
             Ask.one.opening(of: "happy birthday 🎂  ")
                 == Ask.Opening(written: "happy birthday", owed: " 🎂", isWordComplete: true))
         #expect(Ask.one.opening(of: "   ") == nil)
+        // A word closing a sentence or statement may end the line, unless a space after it asks for more.
+        #expect(Ask.one.opening(of: "See you at 8!")?.mayEnd == true)
+        #expect(Ask.one.opening(of: "SELECT count(*) FROM orders;")?.mayEnd == true)
+        #expect(Ask.one.opening(of: "See you at 8! ")?.mayEnd == false)
+        #expect(Ask.one.opening(of: "git c")?.mayEnd == false)
         #expect(Ask.others(excluding: "git commit -m").opening(of: "git c") == nil)
     }
 

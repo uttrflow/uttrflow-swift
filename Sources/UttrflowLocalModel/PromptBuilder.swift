@@ -18,6 +18,12 @@ enum Ask: Equatable, Sendable {
         let owed: String
         /// Whether the person finished that word with a space, so it must not be lengthened and what follows begins with one.
         let isWordComplete: Bool
+
+        /// Whether the line may end with the word: it closes with a full stop, a question or exclamation mark or a semicolon and nothing was typed after, so the model is free to stop.
+        var mayEnd: Bool {
+            guard !isWordComplete, let last = owed.last else { return false }
+            return ".!?;".contains(last)
+        }
     }
 
     /// The opening for one line, or nothing for several lines, which must each repeat the line.
