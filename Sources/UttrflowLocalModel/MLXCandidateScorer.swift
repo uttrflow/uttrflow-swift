@@ -122,6 +122,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         let taken = takeAlong(probabilities[(start - 1)..<(whole.count - 1)], targets, axis: 1)
         let mean = taken.mean()
         eval(mean)
-        return mean.item(Double.self)
+        // Read the scalar as Float, since Metal has no double precision and casting to Float64 errors.
+        return Double(mean.item(Float.self))
     }
 }
