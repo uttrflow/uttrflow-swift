@@ -125,6 +125,8 @@ public struct SuggestionSession: Sendable, Equatable {
     private var isQuiet = false
     private var pending: PredictionContext?
     private var generation = 0
+    /// Whether what is on screen was invented by the model rather than remembered, which decides what typing past it means.
+    private var shownIsGenerated = false
 
     public init() {}
 
@@ -199,7 +201,9 @@ public struct SuggestionSession: Sendable, Equatable {
         }
         guard let leader = usable.first else { return settle(.silent) }
         let others = Array(usable.dropFirst().prefix(Self.verifiedDepth - 1))
-        return settle(others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others))
+        let update = settle(others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others))
+        shownIsGenerated = true
+        return update
     }
 
     /// Takes one keystroke the tap swallowed and answers with what it means.
@@ -251,7 +255,11 @@ public struct SuggestionSession: Sendable, Equatable {
             clearDrawing()
             return nil
         }
+        // An emptied line is a fresh start, so the suggestions typed past before it no longer count against the field.
+        if typing.isEmpty { rejectionsHere = 0 }
         guard let offered = suggestion.accepting, !offered.hasPrefix(typing) else { return nil }
+        // Typing past a guess the model invented says the model was wrong, not that the field wants quiet.
+        guard !shownIsGenerated else { return nil }
         rejectionsHere += 1
         return offered
     }
@@ -268,6 +276,7 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Records what is now on screen and reports it with the keys it claims.
     private mutating func settle(_ shown: Suggestion) -> SuggestionUpdate {
+        shownIsGenerated = false
         let next = isQuiet ? shown.certainOnly : shown
         if next != suggestion { selection = .untouched }
         suggestion = next
@@ -285,5 +294,6 @@ public struct SuggestionSession: Sendable, Equatable {
     private mutating func clearDrawing() {
         suggestion = .silent
         selection = .untouched
+        shownIsGenerated = false
     }
 }

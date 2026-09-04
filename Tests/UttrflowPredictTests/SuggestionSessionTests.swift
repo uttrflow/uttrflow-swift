@@ -184,6 +184,39 @@ struct SuggestionRejectionTests {
         #expect(session.rejectionsHere == Quieting.rejectionsBeforeSilence)
         #expect(try draw(&session, typing: "git c") == .quiet)
     }
+
+    @Test("Clearing the line starts the count again, so three wrong guesses never silence a terminal.")
+    func anEmptiedLineForgetsTheRefusals() throws {
+        var session = SuggestionSession()
+        for round in 0..<Quieting.rejectionsBeforeSilence {
+            _ = try draw(&session, typing: "git c")
+            _ = session.turn(in: field, at: PredictionContext(typed: "zzz\(round)"))
+            _ = session.turn(in: field, at: PredictionContext(typed: ""))
+        }
+        #expect(session.rejectionsHere == 0)
+        #expect(try draw(&session, typing: "git c") != .quiet)
+    }
+
+    @Test("Typing past a guess the model invented is not a refusal: the model was wrong, not the field.")
+    func aGeneratedGuessIsNotRefused() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git checkout"], for: asked, elapsedMilliseconds: 0)
+        #expect(session.suggestion == .certain("git checkout"))
+        let turn = session.turn(in: field, at: PredictionContext(typed: "git x"))
+        #expect(turn.rejected == nil)
+        #expect(session.rejectionsHere == 0)
+    }
+
+    @Test("A remembered suggestion drawn after a generated one counts again when typed past.")
+    func aRememberedSuggestionCountsAgain() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git checkout"], for: asked, elapsedMilliseconds: 0)
+        _ = try draw(&session, typing: "git co")
+        #expect(session.turn(in: field, at: PredictionContext(typed: "git x")).rejected == "git commit -m")
+        #expect(session.rejectionsHere == 1)
+    }
 }
 
 @Suite("What the tap's keystrokes come to")
