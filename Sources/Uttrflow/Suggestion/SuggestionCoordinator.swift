@@ -50,8 +50,16 @@ final class SuggestionCoordinator {
     private let verifier: Verifier
     /// The model that invents a suggestion when the corpus has none, absent until the app hands one over.
     private let generator: (any CandidateGenerating)?
-    /// The model's last answer, so a tick re-asking about an unchanged line costs no second pass on the GPU.
+    /// The model's last answer, reused for as long as the line still begins one of its lines, so typing on or back costs no pass.
     private var lastGenerated: (surface: Surface, typed: String, completions: [String])?
+    /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
+    private var generating: Task<[String], Never>?
+    /// A turn booked for the moment a rule stops refusing, so a prose pause is answered then, not at the next tick.
+    private var pendingWake: Task<Void, Never>?
+    /// How long a burst of keystrokes must pause before the model is asked about its last prefix.
+    private static let generationDebounceInMilliseconds = 120
+    /// How much of the text before the caret's line the model is shown, enough for the sentence or command before it.
+    private static let precedingContextLength = 400
 
     private var session = SuggestionSession()
     private var monitors: [Any] = []
@@ -125,6 +133,8 @@ final class SuggestionCoordinator {
         panel.hide()
         swallowed?.cancel()
         swallowed = nil
+        generating?.cancel()
+        pendingWake?.cancel()
         ticker?.invalidate()
         ticker = nil
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
@@ -158,7 +168,20 @@ final class SuggestionCoordinator {
         // Keys arriving while we insert are our own, so they neither reset the pause clock nor wake a turn.
         guard !isInserting else { return }
         lastKeystroke = Date()
+        // The line just changed, so a pass about its old prefix and a wake booked for it are both stale.
+        generating?.cancel()
+        pendingWake?.cancel()
         wake(key == .return ? .returnPressed : .keystroke)
+    }
+
+    /// Books one turn for later, replacing any already booked, which is how a pause is answered the moment it is long enough.
+    private func wake(_ reason: SuggestionReason, afterMilliseconds delay: Int) {
+        pendingWake?.cancel()
+        pendingWake = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(max(delay, 1)))
+            guard !Task.isCancelled else { return }
+            self?.wake(reason)
+        }
     }
 
     /// Runs one turn, or notes that another is wanted, so two never run at once.
@@ -225,6 +248,11 @@ final class SuggestionCoordinator {
                 Self.log.debug(
                     "QUIET typed=\(snapshot.currentLine, privacy: .public) reason=\(String(describing: reason), privacy: .public) rejections=\(self.session.rejectionsHere) silencedHere=\(self.session.isSilencedHere) enabled=\(self.session.isEnabled)"
                 )
+                // A prose pause is answered the moment it is long enough, rather than at whatever tick comes next.
+                if reason == .writingFluently {
+                    let waited = Int(started.timeIntervalSince(lastKeystroke) * 1000)
+                    wake(.tick, afterMilliseconds: Quieting.proseHesitationInMilliseconds - waited + 20)
+                }
             }
             draw(update, in: snapshot)
         case .query(let query):
@@ -259,13 +287,29 @@ final class SuggestionCoordinator {
         let situation = GenerationSituation(
             application: snapshot.applicationName,
             field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
-            document: snapshot.document)
+            document: snapshot.document,
+            preceding: snapshot.preceding(maxLength: Self.precedingContextLength))
         let completions: [String]
-        if let lastGenerated, lastGenerated.surface == query.surface, lastGenerated.typed == query.typed {
-            completions = lastGenerated.completions
+        let lowered = query.typed.lowercased()
+        // What the model already said about this line still holds while the line begins one of its answers.
+        let kept =
+            (lastGenerated?.surface == query.surface ? lastGenerated?.completions : nil)?
+            .filter { $0.lowercased().hasPrefix(lowered) && $0 != query.typed } ?? []
+        if !kept.isEmpty {
+            completions = kept
         } else {
-            completions = await generator.completions(for: query.typed, in: situation)
-            // An empty answer is not kept, so a cancelled or failed pass is asked again next time.
+            let pass = Task { [generator] in
+                // A short quiet first, so a burst of keystrokes costs one pass for its last prefix rather than one per key.
+                try? await Task.sleep(for: .milliseconds(Self.generationDebounceInMilliseconds))
+                guard !Task.isCancelled else { return [String]() }
+                return await generator.completions(for: query.typed, in: situation)
+            }
+            generating = pass
+            completions = await pass.value
+            generating = nil
+            // A pass the next keystroke cancelled answers a line that is gone, so nothing of it is drawn or kept.
+            guard !pass.isCancelled else { return }
+            // An empty answer is not kept, so a failed pass is asked again next time.
             if !completions.isEmpty { lastGenerated = (query.surface, query.typed, completions) }
         }
         Self.log.debug(

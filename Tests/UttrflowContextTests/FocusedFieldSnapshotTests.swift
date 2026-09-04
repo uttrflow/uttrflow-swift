@@ -112,6 +112,26 @@ struct FocusedFieldSnapshotTests {
                 == "Deploy the notes")
     }
 
+    @Test("What came before the caret's line is handed on as context, most recent part first to go, trimmed.")
+    func precedingTextIsTheEarlierLines() {
+        let document = "Deploy the notes\nThe quick brown fox  \n  The qui"
+        let caret = NSRange(location: document.utf16.count, length: 0)
+        #expect(
+            snapshot(value: document, selection: caret).preceding(maxLength: 400)
+                == "Deploy the notes\nThe quick brown fox")
+        #expect(snapshot(value: document, selection: caret).preceding(maxLength: 11) == "brown fox")
+        let firstLine = snapshot(value: document, selection: NSRange(location: 16, length: 0))
+        #expect(firstLine.preceding(maxLength: 400) == nil)
+    }
+
+    @Test("A single line, an empty field and whitespace-only earlier lines give no context at all.")
+    func nothingBeforeMeansNoContext() {
+        #expect(snapshot().preceding(maxLength: 400) == nil)
+        #expect(snapshot(value: nil).preceding(maxLength: 400) == nil)
+        let blankAbove = snapshot(value: "   \n\nls", selection: NSRange(location: 7, length: 0))
+        #expect(blankAbove.preceding(maxLength: 400) == nil)
+    }
+
     @Test("A field with no newline in it is all one line.")
     func oneLineIsTheWholeValue() {
         #expect(snapshot().currentLine == "git c")

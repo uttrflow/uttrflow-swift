@@ -69,17 +69,21 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         typed — a shell command, a database query, a URL, code, a sentence — and reply with up to four \
         ways to finish it, most likely first, one per line. Each line must repeat the given text and then \
         continue it into a complete, valid line. Never output the text unchanged. No code fences, no \
-        numbering, no explanation.
+        numbering, no explanation. When earlier text is given it is only context: continue the last \
+        line, never the earlier text.
         Example — application Terminal, text "git che" → git checkout main
         Example — application DBeaver, text "SELECT * FROM u" → SELECT * FROM users
         """
 
-    /// Puts the live situation into one sentence the model reads, naming the app without judging it.
+    /// Puts the live situation into one message the model reads: where the caret is, what came before, and the line to finish.
     private static func prompt(typed: String, in situation: GenerationSituation) -> String {
         var located = "application \(situation.application)"
         if let field = situation.field { located += ", field \(field)" }
         if let document = situation.document { located += ", document \(document)" }
-        return "In \(located), continue this text:\n\(typed)"
+        guard let preceding = situation.preceding else {
+            return "In \(located), continue this text:\n\(typed)"
+        }
+        return "In \(located), the text before the line reads:\n\(preceding)\n\nContinue this line:\n\(typed)"
     }
 
     /// The phrase the prompt ends with, which a line quoting the prompt back carries and a real completion never does.

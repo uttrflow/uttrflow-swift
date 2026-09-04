@@ -104,6 +104,18 @@ extension FocusedFieldSnapshot {
         return Self.droppingLeadingWhitespace(input)
     }
 
+    /// The text before the caret's line, at most this long, which is what the line is a continuation of.
+    public func preceding(maxLength: Int) -> String? {
+        guard let value else { return nil }
+        let caret = Self.index(in: value, atUTF16Offset: selection?.location ?? value.utf16.count)
+        let head = value[..<caret]
+        guard let newline = head.lastIndex(where: \.isNewline) else { return nil }
+        var earlier = head[..<newline].suffix(maxLength)
+        while let last = earlier.last, last.isWhitespace { earlier.removeLast() }
+        while let first = earlier.first, first.isWhitespace { earlier.removeFirst() }
+        return earlier.isEmpty ? nil : String(earlier)
+    }
+
     /// The text with leading spaces and tabs removed, which is what makes the query match a trimmed entry.
     static func droppingLeadingWhitespace(_ text: String) -> String {
         String(text.drop { $0 == " " || $0 == "\t" })

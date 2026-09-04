@@ -262,6 +262,10 @@ public struct SuggestionSession: Sendable, Equatable {
         guard let offered = suggestion.accepting, !offered.lowercased().hasPrefix(lowered) else { return nil }
         // Finishing the suggestion by hand and typing on is taking it, not typing past it.
         guard !lowered.hasPrefix(offered.lowercased()) else { return nil }
+        // Whitespace alone typed past a suggestion is a pause or a slip of the space bar, not a refusal.
+        let earlier = typed.lowercased()
+        guard !(lowered.hasPrefix(earlier) && lowered.dropFirst(earlier.count).allSatisfy(\.isWhitespace))
+        else { return nil }
         // Typing past a guess the model invented says the model was wrong, not that the field wants quiet.
         guard !shownIsGenerated else { return nil }
         // Only a completion of what was typed counts toward quiet; a correction typed past says the guess was wrong.

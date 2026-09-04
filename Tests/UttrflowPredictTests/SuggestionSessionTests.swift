@@ -235,6 +235,17 @@ struct SuggestionRejectionTests {
         #expect(session.rejectionsHere == 0)
     }
 
+    @Test("A second space typed past a suggestion is a slip, not a refusal, so backspacing costs nothing.")
+    func whitespaceAloneIsNotTypingPast() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        #expect(session.turn(in: field, at: PredictionContext(typed: "git c  ")).rejected == nil)
+        #expect(session.rejectionsHere == 0)
+        _ = try draw(&session, typing: "git c")
+        #expect(session.turn(in: field, at: PredictionContext(typed: "git cx")).rejected == "git commit -m")
+        #expect(session.rejectionsHere == 1)
+    }
+
     @Test("A correction typed past is reported to the store but does not count toward quieting the field.")
     func aCorrectionTypedPastIsReportedNotCounted() throws {
         var session = SuggestionSession()

@@ -6,11 +6,15 @@ public struct GenerationSituation: Sendable, Equatable {
     public let field: String?
     /// The page or directory the field belongs to: a web host, a working directory.
     public let document: String?
+    /// The text before the caret's line, which is what the line continues from: the command before, the sentence before.
+    public let preceding: String?
 
-    public init(application: String, field: String? = nil, document: String? = nil) {
+    public init(application: String, field: String? = nil, document: String? = nil, preceding: String? = nil)
+    {
         self.application = application
         self.field = field
         self.document = document
+        self.preceding = preceding
     }
 }
 
