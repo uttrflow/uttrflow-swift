@@ -257,10 +257,15 @@ public struct SuggestionSession: Sendable, Equatable {
         }
         // An emptied line is a fresh start, so the suggestions typed past before it no longer count against the field.
         if typing.isEmpty { rejectionsHere = 0 }
-        guard let offered = suggestion.accepting, !offered.hasPrefix(typing) else { return nil }
+        let lowered = typing.lowercased()
+        // Case alone is not typing past, since the store matched the line regardless of it.
+        guard let offered = suggestion.accepting, !offered.lowercased().hasPrefix(lowered) else { return nil }
+        // Finishing the suggestion by hand and typing on is taking it, not typing past it.
+        guard !lowered.hasPrefix(offered.lowercased()) else { return nil }
         // Typing past a guess the model invented says the model was wrong, not that the field wants quiet.
         guard !shownIsGenerated else { return nil }
-        rejectionsHere += 1
+        // Only a completion of what was typed counts toward quiet; a correction typed past says the guess was wrong.
+        if offered.lowercased().hasPrefix(typed.lowercased()) { rejectionsHere += 1 }
         return offered
     }
 

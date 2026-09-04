@@ -45,8 +45,13 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
 
     public var isReady: Bool { container != nil }
 
+    /// Fewer typed characters than this is a guess about nothing, which the model answers with noise.
+    public static let minimumTypedLength = 2
+
     public func completions(for typed: String, in situation: GenerationSituation) async -> [String] {
-        guard let container, !typed.isEmpty, !Task.isCancelled else { return [] }
+        guard let container, !Task.isCancelled,
+            typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
+        else { return [] }
         do {
             let session = ChatSession(
                 container, instructions: Self.instructions,
@@ -77,18 +82,35 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         return "In \(located), continue this text:\n\(typed)"
     }
 
+    /// The phrase the prompt ends with, which a line quoting the prompt back carries and a real completion never does.
+    static let promptMarker = "continue this text"
+
+    /// A continuation longer than this is a paragraph, not the rest of a line.
+    static let maximumContinuationLength = 160
+
     /// The model's lines, kept only where they extend what was typed, in order and without repeats.
-    private static func parse(_ response: String, typed: String) -> [String] {
+    static func parse(_ response: String, typed: String) -> [String] {
         var seen: Set<String> = []
         var results: [String] = []
         for line in response.split(whereSeparator: \.isNewline) {
             let text = Self.unmarked(line.trimmingCharacters(in: .whitespaces))
             guard !text.isEmpty, text != typed,
-                text.lowercased().hasPrefix(typed.lowercased()), seen.insert(text).inserted
+                text.lowercased().hasPrefix(typed.lowercased()),
+                !text.lowercased().contains(promptMarker),
+                !isDegenerate(String(text.dropFirst(typed.count))),
+                seen.insert(text).inserted
             else { continue }
             results.append(text)
         }
         return results
+    }
+
+    /// Whether a continuation is the model looping or rambling rather than finishing the line.
+    static func isDegenerate(_ continuation: String) -> Bool {
+        guard continuation.count <= maximumContinuationLength else { return true }
+        let words = continuation.split(whereSeparator: \.isWhitespace)
+        // Six or more words drawn from a third as many distinct ones is a repetition, not a sentence.
+        return words.count >= 6 && Set(words).count * 3 <= words.count
     }
 
     /// Strips a code fence, bullet, or numbering the model added despite being asked not to.

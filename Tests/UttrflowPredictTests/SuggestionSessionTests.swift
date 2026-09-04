@@ -217,6 +217,34 @@ struct SuggestionRejectionTests {
         #expect(session.turn(in: field, at: PredictionContext(typed: "git x")).rejected == "git commit -m")
         #expect(session.rejectionsHere == 1)
     }
+
+    @Test("A difference only of case is still typing the suggestion, not typing past it.")
+    func caseAloneIsNotTypingPast() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        #expect(session.turn(in: field, at: PredictionContext(typed: "Git co")).rejected == nil)
+        #expect(session.rejectionsHere == 0)
+    }
+
+    @Test("Finishing the suggestion by hand and typing on is taking it, not typing past it.")
+    func typingOnPastTheEndIsNotARefusal() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        let turn = session.turn(in: field, at: PredictionContext(typed: "git commit -m 'fix'"))
+        #expect(turn.rejected == nil)
+        #expect(session.rejectionsHere == 0)
+    }
+
+    @Test("A correction typed past is reported to the store but does not count toward quieting the field.")
+    func aCorrectionTypedPastIsReportedNotCounted() throws {
+        var session = SuggestionSession()
+        let corrected = [remembered("git commit -m", count: 40, editDistance: 1)]
+        let update = try draw(&session, typing: "gti c", candidates: corrected)
+        #expect(update?.suggestion.accepting == "git commit -m")
+        let turn = session.turn(in: field, at: PredictionContext(typed: "gti co"))
+        #expect(turn.rejected == "git commit -m")
+        #expect(session.rejectionsHere == 0)
+    }
 }
 
 @Suite("What the tap's keystrokes come to")
