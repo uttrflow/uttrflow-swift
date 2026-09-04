@@ -38,6 +38,32 @@ struct CompletionParsingTests {
         #expect(MLXCandidateScorer.comparable("A™  b\u{200E}C") == "a bc")
     }
 
+    @Test(
+        "One slip inside the echo, two characters swapped or one added or changed, still reads past what was typed."
+    )
+    func oneSlipInTheEchoIsReadPast() {
+        #expect(MLXCandidateScorer.continuation(of: "don't know", past: "dont") == " know")
+        #expect(MLXCandidateScorer.continuation(of: "the quick fix", past: "teh") == " quick fix")
+        #expect(MLXCandidateScorer.continuation(of: "receive the parcel", past: "recieve") == " the parcel")
+        #expect(MLXCandidateScorer.continuation(of: "git commit -m", past: "gitcommit") == " -m")
+        #expect(MLXCandidateScorer.continuation(of: "colour scheme", past: "color") == " scheme")
+        #expect(MLXCandidateScorer.continuation(of: "git  commit -m", past: "git commit") == " -m")
+        #expect(MLXCandidateScorer.parse("don't know\n", typed: "dont") == ["dont know"])
+        #expect(MLXCandidateScorer.parse("The quick fix", typed: "teh") == ["teh quick fix"])
+    }
+
+    @Test(
+        "A second slip, or a changed last character with nothing typed after it, is another line and not an echo."
+    )
+    func twoSlipsOrAChangedEndAreNotAnEcho() {
+        #expect(MLXCandidateScorer.continuation(of: "git status", past: "git c") == nil)
+        #expect(MLXCandidateScorer.continuation(of: "do'n't know", past: "dont") == nil)
+        #expect(MLXCandidateScorer.continuation(of: "§§dont know", past: "dont") == nil)
+        #expect(
+            MLXCandidateScorer.parse("git status\ngit checkout main", typed: "git c") == ["git checkout main"]
+        )
+    }
+
     @Test("A line the model returned unchanged, or with only whitespace added, is nothing to offer.")
     func unchangedLinesAreNothing() {
         #expect(MLXCandidateScorer.parse("git c\ngit c  ", typed: "git c").isEmpty)

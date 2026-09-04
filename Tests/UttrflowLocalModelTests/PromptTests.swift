@@ -86,21 +86,59 @@ struct PromptTests {
         #expect(others.hasSuffix("one per line:\ngit c"))
     }
 
-    @Test("A single line is done once the model has moved past it, and not before.")
+    @Test(
+        "A pass for one line ends at the newline the model writes; a pass for several runs on to its budget.")
     func oneLineEndsAtItsNewline() {
-        #expect(!MLXCandidateScorer.holdsOneLine("git commit -m"))
-        #expect(!MLXCandidateScorer.holdsOneLine("\n"))
-        #expect(!MLXCandidateScorer.holdsOneLine("  \n"))
-        #expect(MLXCandidateScorer.holdsOneLine("git commit -m\n"))
-        #expect(MLXCandidateScorer.holdsOneLine("git commit -m\ngit ch"))
+        #expect(Ask.one.stopStrings == ["\n"])
+        #expect(Ask.others(excluding: "git commit -m").stopStrings == nil)
     }
 
-    @Test("Trimming keeps the end of a text and the newest lines, and nothing at all when there is no room.")
+    @Test(
+        "A pass budgets the echo of the line for every answer on top of the completion, which alone is capped."
+    )
+    func theBudgetPaysForTheEcho() {
+        #expect(MLXCandidateScorer.tokenBudget(perLine: 24, lines: 1, echo: 10, cap: 128) == 34)
+        #expect(MLXCandidateScorer.tokenBudget(perLine: 60, lines: 3, echo: 5, cap: 128) == 143)
+        #expect(MLXCandidateScorer.tokenBudget(perLine: 96, lines: 1, echo: 0, cap: 128) == 96)
+    }
+
+    @Test(
+        "Trimming keeps the end of a text, the start of a name and the newest lines, and nothing when there is no room."
+    )
     func trimmingKeepsWhatIsNearest() {
         #expect(PromptBuilder.tail("abcdef", within: 3) == "def")
         #expect(PromptBuilder.tail("abc", within: 10) == "abc")
         #expect(PromptBuilder.tail("abc", within: 0) == "")
+        #expect(PromptBuilder.head("abcdef", within: 3) == "abc")
+        #expect(PromptBuilder.head("abc", within: 0) == "")
         #expect(PromptBuilder.newest(["new", "older", "oldest"], within: 10) == ["new", "older"])
-        #expect(PromptBuilder.newest(["new"], within: 2) == [])
+        #expect(PromptBuilder.newest(["new"], within: 1) == [])
+        #expect(PromptBuilder.newest([], within: 100) == [])
+    }
+
+    @Test(
+        "A newest line too long for its allowance is kept cut down rather than dropped with the person's whole voice."
+    )
+    func theNewestLineIsCutRatherThanDropped() {
+        let long = String(repeating: "n", count: 520)
+        #expect(PromptBuilder.newest([long, "short"], within: 500) == [String(repeating: "n", count: 499)])
+        #expect(PromptBuilder.newest(["newest line"], within: 4) == ["new"])
+    }
+
+    @Test(
+        "A window title as long as a page keeps its first characters only, so the person's lines still fit.")
+    func aLongWindowTitleIsCapped() {
+        let title = String(repeating: "t", count: 2_000)
+        let situation = GenerationSituation(
+            application: "Safari", field: String(repeating: "f", count: 500), windowTitle: title,
+            surroundings: "Search or enter website name", recentLines: ["on my way", "running late, sorry"])
+        let prompt = message("yes, ", situation)
+        #expect(prompt.count <= PromptBuilder.budgetInCharacters + 200)
+        #expect(
+            prompt.contains(
+                "window \"" + String(repeating: "t", count: PromptBuilder.locatorCap) + "\", field"))
+        #expect(!prompt.contains(String(repeating: "t", count: PromptBuilder.locatorCap + 1)))
+        #expect(prompt.contains("Lines this person wrote here before:\non my way\nrunning late, sorry"))
+        #expect(prompt.contains("On screen around the field:\nSearch or enter website name"))
     }
 }

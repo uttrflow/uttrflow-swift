@@ -8,6 +8,7 @@ import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
 import MLXNN
+import OSLog
 import Tokenizers
 
 /// One token the model was judged on, and how likely it found it.
@@ -26,6 +27,9 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     private let model: LocalModel
     private let maximumTokens: Int
     private var container: ModelContainer?
+
+    /// Where a pass reports its timing and its failures: numbers and error text only, never the prompt.
+    private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
     public init(model: LocalModel, maximumTokens: Int = 128) {
         self.model = model
@@ -58,6 +62,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     private func warmInstructions() async -> WarmInstructions? {
         guard let container else { return nil }
         return try? await container.perform { context in
+            try Task.checkCancellation()
             let first = try await Self.promptTokens(for: "alpha", context: context)
             let second = try await Self.promptTokens(for: "omega bravo charlie", context: context)
             let shared = zip(first, second).prefix { $0 == $1 }.count
@@ -96,7 +101,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         return others.filter { $0 != leader }
     }
 
-    /// One pass over the model, streamed so it can stop the moment the line asked for is complete.
+    /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line.
     private func generate(
         typed: String, in situation: GenerationSituation, asking ask: Ask, tokenShare: Int
     ) async -> [String] {
@@ -105,43 +110,68 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         else { return [] }
         // The register decides how much of a pass this line is worth: a command a little, a paragraph more.
         let register = Register.infer(from: situation, typed: typed)
-        let parameters = GenerateParameters(
-            maxTokens: min(maximumTokens, register.maxTokens * tokenShare), temperature: 0)
         let message = PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
         let warm = self.warm
-        let answer = try? await container.perform { context in
-            let input = try await context.processor.prepare(
-                input: UserInput(chat: [.system(Self.instructions), .user(message)]))
-            let all = input.text.tokens.asArray(Int32.self).map(Int.init)
-            var feed = input
-            var cache: [KVCache]?
-            // When the prompt opens exactly as the warm cache read it, the pass pays only for the tokens past that.
-            if let warm, all.count > warm.tokens.count, Array(all[..<warm.tokens.count]) == warm.tokens {
-                var rest = MLXArray(all[warm.tokens.count...].map(Int32.init))
-                if input.text.tokens.ndim == 2 { rest = rest.expandedDimensions(axis: 0) }
-                feed = LMInput(text: LMInput.Text(tokens: rest))
-                cache = warm.cache.map { $0.copy() }
+        let perLine = register.maxTokens
+        let cap = maximumTokens
+        let stream: AsyncStream<Generation>
+        do {
+            stream = try await container.perform { loaded in
+                try Task.checkCancellation()
+                var context = loaded
+                // The producer ends at the newline itself when one line is wanted, so no decode step is spent past it.
+                if let stop = ask.stopStrings { context.configuration.stopStrings = stop }
+                let input = try await context.processor.prepare(
+                    input: UserInput(chat: [.system(Self.instructions), .user(message)]))
+                precondition(input.text.tokens.ndim == 1, "the processor hands over one flat run of tokens")
+                let all = input.text.tokens.asArray(Int32.self).map(Int.init)
+                var feed = input
+                var cache: [KVCache]?
+                // When the prompt opens exactly as the warm cache read it, the pass pays only for the tokens past that.
+                if let warm, all.count > warm.tokens.count, Array(all[..<warm.tokens.count]) == warm.tokens {
+                    let rest = MLXArray(all[warm.tokens.count...].map(Int32.init))
+                    feed = LMInput(text: LMInput.Text(tokens: rest))
+                    cache = warm.cache.map { $0.copy() }
+                }
+                // Every answer repeats the line before adding to it, so its echo is budgeted on top of the completion.
+                let echo = context.tokenizer.encode(text: typed).count
+                let parameters = GenerateParameters(
+                    maxTokens: Self.tokenBudget(perLine: perLine, lines: tokenShare, echo: echo, cap: cap),
+                    temperature: 0)
+                try Task.checkCancellation()
+                return try MLXLMCommon.generate(
+                    input: feed, cache: cache, parameters: parameters, context: context)
             }
-            var text = ""
-            let stream = try MLXLMCommon.generate(
-                input: feed, cache: cache, parameters: parameters, context: context)
-            for await generation in stream {
-                // A cancelled pass stops here, between tokens, rather than running on for a line nobody wants.
-                if Task.isCancelled { break }
-                guard let chunk = generation.chunk else { continue }
-                text += chunk
-                // Ending the stream cancels the pass, so nothing is generated past the line that was asked for.
-                if ask == .one, Self.holdsOneLine(text) { break }
-            }
-            return text
+        } catch is CancellationError {
+            return []
+        } catch {
+            Self.log.error("PASS failed: \(String(describing: error), privacy: .public)")
+            return []
         }
-        return Self.parse(answer ?? "", typed: typed)
+        var text = ""
+        var info: GenerateCompletionInfo?
+        for await generation in stream {
+            // A cancelled pass stops here, between tokens, rather than running on for a line nobody wants.
+            if Task.isCancelled { break }
+            switch generation {
+            case .chunk(let chunk): text += chunk
+            case .info(let completion): info = completion
+            case .toolCall: break
+            }
+        }
+        if let info {
+            Self.log.debug(
+                "PASS prompt=\(info.promptTokenCount) promptMs=\(Int(info.promptTime * 1_000)) generated=\(info.generationTokenCount) generateMs=\(Int(info.generateTime * 1_000))"
+            )
+            // A line the budget cut short is not the line, so none of it is shown.
+            if ask == .one, info.stopReason == .length { return [] }
+        }
+        return Self.parse(text, typed: typed)
     }
 
-    /// Whether the answer has a first line and the model has moved on past it, which is when a single line is done.
-    static func holdsOneLine(_ answer: String) -> Bool {
-        guard let newline = answer.firstIndex(where: \.isNewline) else { return false }
-        return answer[..<newline].contains { !$0.isWhitespace }
+    /// The tokens a pass may spend: the register's share per line, capped, plus the echo of the line each answer repeats.
+    static func tokenBudget(perLine: Int, lines: Int, echo: Int, cap: Int) -> Int {
+        min(cap, perLine * lines) + echo * lines
     }
 
     /// One instruction for every field: infer the kind of input from the words, then continue it.
@@ -172,10 +202,12 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         var seen: Set<String> = []
         var results: [String] = []
         for line in response.split(whereSeparator: \.isNewline) {
-            let text = Self.unmarked(line.trimmingCharacters(in: .whitespaces))
-            // The model's copy of the line may differ in case, marks or spacing; the whole is rebuilt on what was typed.
-            guard let continuation = Self.continuation(of: text, past: typed),
-                continuation.contains(where: { !$0.isWhitespace }),
+            let text = line.trimmingCharacters(in: .whitespaces)
+            // A bullet or number the person typed is part of the line, so it is read as it is before it is unmarked.
+            guard
+                let continuation = Self.continuation(of: text, past: typed)
+                    ?? Self.continuation(of: Self.unmarked(text), past: typed),
+                Self.comparable(continuation).contains(where: { $0 != " " }),
                 !promptMarkers.contains(where: text.lowercased().contains),
                 !isDegenerate(continuation)
             else { continue }
@@ -186,23 +218,79 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         return results
     }
 
-    /// What the line adds past the typed text, read through the ™-type marks, case and spacing a model rewrites.
+    /// What the line adds past the typed text, read through the marks, case and spacing a model rewrites and one slip in its echo.
     static func continuation(of line: String, past typed: String) -> String? {
         let wanted = Array(comparable(typed))
         guard !wanted.isEmpty else { return line }
-        var matched = 0
-        var index = line.startIndex
+        var end: String.Index
+        switch echo(of: wanted, in: line, from: line.startIndex, matched: 0) {
+        case .read(let index):
+            end = index
+        case .slip(let index, let matched):
+            guard let index = repaired(line, at: index, wanted: wanted, matched: matched) else { return nil }
+            end = index
+        case .short:
+            return nil
+        }
+        // Marks ending the typed text fall out of the comparison, so the echo's copies are stepped over rather than added again.
+        if typed.last.map(ignoredMarks.contains) == true {
+            while end < line.endIndex, ignoredMarks.contains(line[end]) {
+                end = line.index(after: end)
+            }
+        }
+        return String(line[end...])
+    }
+
+    /// How far the echo of the typed text reads from a point in the line when no slip is allowed.
+    private enum Echo {
+        /// The typed text is all there, and the line goes on from here.
+        case read(String.Index)
+        /// The echo departs from the typed text at this character, with this many typed characters matched.
+        case slip(at: String.Index, matched: Int)
+        /// The line ends before the typed text does.
+        case short
+    }
+
+    /// Reads the line against the typed text character by character, stopping at the first departure.
+    private static func echo(
+        of wanted: [Character], in line: String, from start: String.Index, matched: Int
+    ) -> Echo {
+        var matched = matched
+        var index = start
         while matched < wanted.count, index < line.endIndex {
             let piece = Array(comparable(String(line[index])))
-            guard
-                piece.isEmpty
-                    || (wanted.count - matched >= piece.count
-                        && Array(wanted[matched..<matched + piece.count]) == piece)
-            else { return nil }
-            matched += piece.count
+            // A further space in a run is the one already matched, since comparing folds a run to one space.
+            let folded = piece == [" "] && matched > 0 && wanted[matched - 1] == " "
+            guard folded || piece.isEmpty || wanted[matched...].starts(with: piece) else {
+                return .slip(at: index, matched: matched)
+            }
+            if !folded { matched += piece.count }
             index = line.index(after: index)
         }
-        return matched == wanted.count ? String(line[index...]) : nil
+        return matched == wanted.count ? .read(index) : .short
+    }
+
+    /// Where the echo ends once one slip in it — two characters swapped, one added or one changed — is read past, or nothing.
+    private static func repaired(
+        _ line: String, at index: String.Index, wanted: [Character], matched: Int
+    ) -> String.Index? {
+        let piece = Array(comparable(String(line[index])))
+        let next = line.index(after: index)
+        var resumes: [(String.Index, Int)] = []
+        // Two characters swapped are both there, so the echo is trusted through to its end.
+        if piece.count == 1, matched + 1 < wanted.count, piece[0] == wanted[matched + 1],
+            next < line.endIndex,
+            comparable(String(line[next])) == String(wanted[matched])
+        {
+            resumes.append((line.index(after: next), matched + 2))
+        }
+        // An added character is stepped over; a changed one stands in for a typed one only when more typed text follows to vouch for it.
+        resumes.append((next, matched))
+        if matched + piece.count < wanted.count { resumes.append((next, matched + piece.count)) }
+        for (start, matched) in resumes {
+            if case .read(let end) = echo(of: wanted, in: line, from: start, matched: matched) { return end }
+        }
+        return nil
     }
 
     /// The text as it compares: lowercased, without the marks and repeated spaces a model tends to rewrite.
