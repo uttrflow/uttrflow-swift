@@ -10,6 +10,8 @@ struct FixtureResult: Encodable {
     let elapsedMs: Int
     /// The first completion the model offered, or nothing when it offered none.
     let first: String?
+    /// How the pass ended and every word the model wrote, recorded only when the run asked for it.
+    let raw: String?
 
     /// Whether this row belongs in the failures section.
     var failed: Bool { !hit || !conforms }

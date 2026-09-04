@@ -34,6 +34,14 @@ struct Complete: AsyncParsableCommand {
     @Option(name: .long, help: "Write every fixture's result and the summary as JSON to this path.")
     var json: String?
 
+    @Flag(
+        name: .long, help: "Record how each pass ended and every word the model wrote, so a miss can be read."
+    )
+    var raw = false
+
+    @Option(name: .long, help: "Run only the fixtures that missed in this earlier run's JSON.")
+    var failedIn: String?
+
     func run() async throws {
         guard let chosen = Self.model(named: model) else {
             print("no such model: \(model)")
@@ -72,6 +80,13 @@ struct Complete: AsyncParsableCommand {
     /// Every chosen fixture in turn, each timed, then the rates that decide whether a phase held and the failures.
     private func measure(with scorer: MLXCandidateScorer) async {
         var chosen = Fixture.all.filter { only.map($0.name.hasPrefix) ?? true }
+        if let failedIn {
+            guard let missed = Self.misses(recordedIn: failedIn) else {
+                print("could not read the earlier run at \(failedIn)")
+                return
+            }
+            chosen = chosen.filter { missed.contains($0.name) }
+        }
         if let limit { chosen = Array(chosen.prefix(limit)) }
         // One pass first, so the Metal kernels are compiled before anything is timed.
         if let first = chosen.first {
@@ -83,8 +98,15 @@ struct Complete: AsyncParsableCommand {
             // A pass that fails is a miss whose answer names the error, so the report tells it from a model with nothing to say.
             var completions: [String] = []
             var failure: String?
+            var words: String?
             do {
-                completions = try await scorer.completions(for: fixture.typed, in: fixture.situation)
+                if raw {
+                    let pass = try await scorer.pass(for: fixture.typed, in: fixture.situation)
+                    completions = pass?.completions ?? []
+                    words = pass.map { "[\($0.stopReason)] \($0.text)" } ?? "[not asked]"
+                } else {
+                    completions = try await scorer.completions(for: fixture.typed, in: fixture.situation)
+                }
             } catch {
                 failure = "error: \(error)"
             }
@@ -92,7 +114,7 @@ struct Complete: AsyncParsableCommand {
             let result = FixtureResult(
                 name: fixture.name, category: fixture.category, typed: fixture.typed,
                 hit: fixture.hits(completions), conforms: fixture.conforms(completions), elapsedMs: elapsed,
-                first: failure ?? completions.first)
+                first: failure ?? completions.first, raw: words)
             results.append(result)
             print(result.row)
         }
@@ -106,6 +128,21 @@ struct Complete: AsyncParsableCommand {
         } catch {
             print("\ncould not write \(json): \(error)")
         }
+    }
+
+    /// The names of the fixtures an earlier run's JSON records as missed, or nothing when the file cannot be read.
+    private static func misses(recordedIn path: String) -> Set<String>? {
+        struct Earlier: Decodable {
+            struct Result: Decodable {
+                let name: String
+                let hit: Bool
+            }
+            let results: [Result]
+        }
+        guard let data = FileManager.default.contents(atPath: path),
+            let earlier = try? JSONDecoder().decode(Earlier.self, from: data)
+        else { return nil }
+        return Set(earlier.results.filter { !$0.hit }.map(\.name))
     }
 
     /// The names the app's two Gemma sizes go by, beside every repository name the bake-off knows.

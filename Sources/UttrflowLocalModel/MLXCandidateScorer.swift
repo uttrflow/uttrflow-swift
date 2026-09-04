@@ -93,6 +93,26 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         try await generate(typed: typed, in: situation, asking: .one, tokenShare: 1)
     }
 
+    /// One pass as the model wrote it, beside what the parser made of it, so a bake-off can read why a miss was a miss.
+    public struct Pass: Sendable {
+        /// Every token the model produced, unparsed.
+        public let text: String
+        /// Why the pass ended: a stop token, the length budget, or a cancellation.
+        public let stopReason: String
+        /// What `completions(for:in:)` would have answered from the same pass.
+        public let completions: [String]
+    }
+
+    /// The one-line pass for `typed`, raw and parsed together; nothing when the line is too short to ask about.
+    public func pass(for typed: String, in situation: GenerationSituation) async throws -> Pass? {
+        guard let run = try await run(typed: typed, in: situation, asking: .one, tokenShare: 1) else {
+            return nil
+        }
+        return Pass(
+            text: run.text, stopReason: run.stop.map { String(describing: $0) } ?? "none",
+            completions: Self.completions(from: run, typed: typed, asking: .one))
+    }
+
     public func alternatives(
         for typed: String, in situation: GenerationSituation, excluding leader: String
     ) async throws -> [String] {
@@ -101,13 +121,35 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         return others.filter { $0 != leader }
     }
 
-    /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line; a pass that fails throws, so the caller can tell it from an empty answer.
+    /// The lines a pass comes to, or none when there was nothing to ask.
     private func generate(
         typed: String, in situation: GenerationSituation, asking ask: Ask, tokenShare: Int
     ) async throws -> [String] {
+        guard let run = try await run(typed: typed, in: situation, asking: ask, tokenShare: tokenShare) else {
+            return []
+        }
+        return Self.completions(from: run, typed: typed, asking: ask)
+    }
+
+    /// The model's words and how the pass ended.
+    private struct Run {
+        let text: String
+        let stop: GenerateStopReason?
+    }
+
+    /// What the parser makes of a pass: nothing when one line was wanted and the budget cut it, since none of a cut line is the line.
+    private static func completions(from run: Run, typed: String, asking ask: Ask) -> [String] {
+        if ask == .one, run.stop == .length { return [] }
+        return parse(run.text, typed: typed)
+    }
+
+    /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line; a pass that fails throws, so the caller can tell it from an empty answer.
+    private func run(
+        typed: String, in situation: GenerationSituation, asking ask: Ask, tokenShare: Int
+    ) async throws -> Run? {
         guard let container, !Task.isCancelled,
             typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
-        else { return [] }
+        else { return nil }
         // The register decides how much of a pass this line is worth: a command a little, a paragraph more.
         let register = Register.infer(from: situation, typed: typed)
         let message = PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
@@ -144,7 +186,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
             }
         } catch is CancellationError {
             // A cancelled pass answers a line that is gone, and nothing is drawn for it either way.
-            return []
+            return nil
         }
         var text = ""
         var info: GenerateCompletionInfo?
@@ -161,10 +203,8 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
             Self.log.debug(
                 "PASS prompt=\(info.promptTokenCount) promptMs=\(Int(info.promptTime * 1_000)) generated=\(info.generationTokenCount) generateMs=\(Int(info.generateTime * 1_000))"
             )
-            // A line the budget cut short is not the line, so none of it is shown.
-            if ask == .one, info.stopReason == .length { return [] }
         }
-        return Self.parse(text, typed: typed)
+        return Run(text: text, stop: info?.stopReason)
     }
 
     /// The tokens a pass may spend: the register's share per line, capped, plus the echo of the line each answer repeats.
