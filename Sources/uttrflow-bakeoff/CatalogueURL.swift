@@ -8,7 +8,8 @@ extension FixtureCatalogue {
             situation: GenerationSituation(
                 application: "Chrome", field: "Address and search bar", windowTitle: "New Tab",
                 recentLines: [
-                    "github.com/brightleaf/api/pulls", "localhost:3000/dashboard", "linear.app/brightleaf/team",
+                    "github.com/brightleaf/api/pulls", "localhost:3000/dashboard",
+                    "linear.app/brightleaf/team",
                     "developer.apple.com/documentation/swift", "github.com/brightleaf/web/issues",
                     "stackoverflow.com/questions",
                 ]),
@@ -16,7 +17,8 @@ extension FixtureCatalogue {
             known: ["github.com/brightleaf/web", "localhost:8000/docs", "docs.python.org/3"],
             lines: [
                 "github.com/brightleaf/api/pulls", "github.com/brightleaf/web/issues",
-                "developer.apple.com/documentation/swift", "stackoverflow.com/questions", "docs.python.org/3/library",
+                "developer.apple.com/documentation/swift", "stackoverflow.com/questions",
+                "docs.python.org/3/library",
                 "localhost:3000/dashboard", "localhost:8000/docs", "linear.app/brightleaf/team",
                 "en.wikipedia.org/wiki/Autocomplete", "news.ycombinator.com", "npmjs.com/package/zod",
                 "developer.mozilla.org/en-US/docs/Web", "swiftpackageindex.com", "figma.com/files",
@@ -31,8 +33,10 @@ extension FixtureCatalogue {
                 ]),
             cuts: .prose, determinacy: .any, band: 1...50,
             lines: [
-                "swift concurrency actors", "docker compose restart single service", "best coffee grinder under 100",
-                "weather tomorrow", "how to renew a passport", Line("python list comprehension", determinacy: .word),
+                "swift concurrency actors", "docker compose restart single service",
+                "best coffee grinder under 100",
+                "weather tomorrow", "how to renew a passport",
+                Line("python list comprehension", determinacy: .word),
                 "flights to goa in december", "bookcase 80cm wide", "swiftui list performance",
                 Line("kubectl rollout restart", determinacy: .word),
             ]),

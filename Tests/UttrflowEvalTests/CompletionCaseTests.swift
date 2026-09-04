@@ -23,14 +23,17 @@ struct CompletionCaseTests {
         #expect(LineCut.afterWord(0).typed(of: line) == nil)
     }
 
-    @Test("Words are runs of non-space characters, so double spaces and leading indentation do not make words.")
+    @Test(
+        "Words are runs of non-space characters, so double spaces and leading indentation do not make words.")
     func wordsSkipSpaces() {
         #expect(LineCut.words(in: Array("  return  a")) == [2..<8, 10..<11])
         #expect(LineCut.afterWord(1).typed(of: "git  status") == "git ")
         #expect(LineCut.words(in: []).isEmpty)
     }
 
-    @Test("A segment cut inside a word determines the rest of that word and of every sibling sharing the prefix.")
+    @Test(
+        "A segment cut inside a word determines the rest of that word and of every sibling sharing the prefix."
+    )
     func segmentAcceptable() {
         let siblings = ["git commit -m 'fix'", "git clone", "svn checkout"]
         let got = CompletionExpectation.acceptable(
@@ -51,15 +54,19 @@ struct CompletionCaseTests {
     @Test("Whole-line, any and nothing say the rest, anything, and silence respectively.")
     func otherDeterminacies() {
         #expect(
-            CompletionExpectation.acceptable(for: line, typed: "git", determinacy: .line, among: ["git", "gi"])
+            CompletionExpectation.acceptable(
+                for: line, typed: "git", determinacy: .line, among: ["git", "gi"])
                 == [" checkout main"])
-        #expect(CompletionExpectation.acceptable(for: line, typed: "git", determinacy: .any, among: []).isEmpty)
+        #expect(
+            CompletionExpectation.acceptable(for: line, typed: "git", determinacy: .any, among: []).isEmpty)
         #expect(
             CompletionExpectation.acceptable(for: line, typed: line, determinacy: .nothing, among: [])
                 == [CompletionExpectation.nothing])
     }
 
-    @Test("A hit is any completion whose continuation opens with an acceptable, or any at all when none is named.")
+    @Test(
+        "A hit is any completion whose continuation opens with an acceptable, or any at all when none is named."
+    )
     func hits() {
         let named = CompletionExpectation(acceptable: ["heckout", "ommit"], band: 1...40)
         #expect(named.hits(["git Commit -m", "git clone"], typed: "git c"))
@@ -97,7 +104,9 @@ struct CompletionCaseTests {
         #expect(CompletionExpectation.band(fitting: [], atLeast: 8) == 1...8)
     }
 
-    @Test("A slug is the first words in letters and digits, hyphenated, or a placeholder for a line without any.")
+    @Test(
+        "A slug is the first words in letters and digits, hyphenated, or a placeholder for a line without any."
+    )
     func slugs() {
         #expect(CutLine.slug(of: "SELECT * FROM users WHERE id = 42;") == "select-from-users")
         #expect(CutLine.slug(of: "haha yes 😂") == "haha-yes")
@@ -105,7 +114,9 @@ struct CompletionCaseTests {
         #expect(CutLine.slug(of: "on my way", words: 2) == "on-my")
     }
 
-    @Test("Cases are distinct cuts that leave enough typed and something to write, named by their typed length.")
+    @Test(
+        "Cases are distinct cuts that leave enough typed and something to write, named by their typed length."
+    )
     func casesFromCuts() {
         let cut = CutLine(
             "ls -la", cuts: [.afterWord(1), .intoWord(2, by: 1), .midWord(2), .afterWord(2), .midWord(1)],
@@ -129,7 +140,8 @@ struct CompletionCaseTests {
         let spoken = CutLine("git status", cuts: [.whole, .characters(1), .characters(2)], determinacy: .any)
         #expect(spoken.cases(in: register).map(\.typed) == ["gi"])
         #expect(CutLine("  ok", cuts: [.characters(2)], determinacy: .any).cases(in: register).isEmpty)
-        #expect(CutLine("x y", slug: "xy", cuts: [.afterWord(1)], determinacy: .any).cases(in: register).isEmpty)
+        #expect(
+            CutLine("x y", slug: "xy", cuts: [.afterWord(1)], determinacy: .any).cases(in: register).isEmpty)
     }
 
     @Test("A thread's speaker labels are each named once, and only long messages leave a snippet.")
@@ -146,7 +158,8 @@ struct CompletionCaseTests {
             ScreenThread.snippets(in: thread) == [
                 "where did the notarisati", "Standup moved to 10:30 t", "a bare line with no spea",
             ])
-        #expect(ScreenThread.snippets(in: thread, atLeast: 40) == ["Standup moved to 10:30 tomorrow, please "])
+        #expect(
+            ScreenThread.snippets(in: thread, atLeast: 40) == ["Standup moved to 10:30 tomorrow, please "])
         #expect(ScreenThread.labels(in: "\n  \n").isEmpty)
     }
 }

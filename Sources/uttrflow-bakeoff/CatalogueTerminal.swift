@@ -45,12 +45,14 @@ extension FixtureCatalogue {
                     staging
                     """,
                 recent: [
-                    "kubectl config current-context", "docker ps", "docker compose up -d", "docker logs -f api",
+                    "kubectl config current-context", "docker ps", "docker compose up -d",
+                    "docker logs -f api",
                     "kubectl get pods -n staging", "docker compose down",
                 ]),
             cuts: .command, determinacy: .command, band: 1...48,
             known: [
-                "docker run --rm -it", "docker pull", "docker push", "docker stop", "docker rm", "docker images",
+                "docker run --rm -it", "docker pull", "docker push", "docker stop", "docker rm",
+                "docker images",
                 "docker inspect", "docker volume ls", "docker network ls", "kubectl delete pod",
                 "kubectl port-forward", "kubectl exec -it", "kubectl top pods", "kubectl scale",
             ],
@@ -58,7 +60,8 @@ extension FixtureCatalogue {
                 "docker compose up -d", "docker compose down", "docker ps -a", "docker build -t api:latest .",
                 "docker logs -f api", "docker exec -it api sh", "docker image prune -f",
                 "kubectl get pods -n staging", "kubectl describe pod api", "kubectl logs -f deploy/api",
-                "kubectl apply -f k8s/deployment.yaml", "kubectl rollout restart deploy/api", "kubectl get svc",
+                "kubectl apply -f k8s/deployment.yaml", "kubectl rollout restart deploy/api",
+                "kubectl get svc",
                 "kubectl config use-context staging",
             ]),
         Scenario(
@@ -76,7 +79,8 @@ extension FixtureCatalogue {
                     ✓ built in 1.84s
                     """,
                 recent: [
-                    "npm run build", "npm run dev", "npm install", "npx tsc --noEmit", "npm test", "git status",
+                    "npm run build", "npm run dev", "npm install", "npx tsc --noEmit", "npm test",
+                    "git status",
                 ]),
             cuts: .command, determinacy: .command, band: 1...48,
             known: [
@@ -106,9 +110,11 @@ extension FixtureCatalogue {
                 ]),
             cuts: .command, determinacy: .command, band: 1...48,
             known: [
-                "ls -l", "ls -lh", "ls -a", "cd -", "cd ~", "grep -i", "grep -c", "ssh -i", "python3 -m pytest",
+                "ls -l", "ls -lh", "ls -a", "cd -", "cd ~", "grep -i", "grep -c", "ssh -i",
+                "python3 -m pytest",
                 "python3 -m http.server", "make clean", "make build", "make lint", "brew update", "brew list",
-                "brew services", "cat README.md", "mkdir build", "tail -n 100", "chmod 644", "curl -I", "open -a",
+                "brew services", "cat README.md", "mkdir build", "tail -n 100", "chmod 644", "curl -I",
+                "open -a",
             ],
             lines: [
                 Line("ls -la", determinacy: .any), "cd ~/projects/web", Line("cd ..", determinacy: .any),

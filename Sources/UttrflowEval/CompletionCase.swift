@@ -48,7 +48,9 @@ public struct CompletionExpectation: Sendable, Equatable {
         case .segment(let separators):
             // A cut ending on a separator has finished its piece, so the next one is nobody's to determine.
             guard let last = typed.last, !separators.contains(last) else { return [] }
-            return rests(of: [line] + siblings, past: typed) { String($0.prefix { !separators.contains($0) }) }
+            return rests(of: [line] + siblings, past: typed) {
+                String($0.prefix { !separators.contains($0) })
+            }
         case .line:
             return rests(of: [line] + siblings, past: typed) { $0 }
         }
@@ -82,7 +84,9 @@ public struct CutRegister: Sendable, Equatable {
     /// The fewest non-blank characters the generator answers, below which a cut is not a case.
     public let minimumTyped: Int
 
-    public init(band: ClosedRange<Int>, forbidden: [String] = [], siblings: [String] = [], minimumTyped: Int = 2) {
+    public init(
+        band: ClosedRange<Int>, forbidden: [String] = [], siblings: [String] = [], minimumTyped: Int = 2
+    ) {
         self.band = band
         self.forbidden = forbidden
         self.siblings = siblings
@@ -172,7 +176,8 @@ public enum ScreenThread {
         thread.split(whereSeparator: \.isNewline).compactMap { line in
             let text = String(line)
             guard text.contains(where: { !$0.isWhitespace }) else { return nil }
-            guard let colon = text.firstIndex(of: ":"), text.distance(from: text.startIndex, to: colon) < labelLength
+            guard let colon = text.firstIndex(of: ":"),
+                text.distance(from: text.startIndex, to: colon) < labelLength
             else { return (nil, text) }
             let label = String(text[...colon])
             let body = text[text.index(after: colon)...].drop { $0 == " " }

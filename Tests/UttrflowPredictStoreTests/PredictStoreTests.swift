@@ -365,7 +365,9 @@ struct TransactionTests {
         try Schema.migrate(database)
         #expect(throws: PredictStoreError.self) {
             try database.transaction { () throws(PredictStoreError) in
-                try database.run("INSERT INTO surface (bundle_id, role) VALUES ('com.example.app', 'AXTextArea')") {
+                try database.run(
+                    "INSERT INTO surface (bundle_id, role) VALUES ('com.example.app', 'AXTextArea')"
+                ) {
                     _ in
                 }
                 try database.execute("SELECT FROM WHERE")

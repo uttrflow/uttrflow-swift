@@ -130,7 +130,9 @@ struct CommitDetectorTests {
         #expect(commit == Commit(text: "git push --force", supersedes: "git pu", reason: .returnPressed))
     }
 
-    @Test("Replacing an idle draft with something else entirely still retires the draft when the line is finished.")
+    @Test(
+        "Replacing an idle draft with something else entirely still retires the draft when the line is finished."
+    )
     func retypingSupersedesTheIdleDraft() {
         var detector = CommitDetector()
         _ = typing("git pu", into: &detector)
@@ -140,7 +142,9 @@ struct CommitDetectorTests {
         #expect(commit == Commit(text: "make", supersedes: "git pu", reason: .returnPressed))
     }
 
-    @Test("Backspacing over an idle draft and retyping past it retires the draft rather than leaving it standing.")
+    @Test(
+        "Backspacing over an idle draft and retyping past it retires the draft rather than leaving it standing."
+    )
     func backspacingAndRetypingSupersedesTheIdleDraft() {
         var detector = CommitDetector()
         _ = typing("git pu", into: &detector)

@@ -90,7 +90,9 @@ struct FrecencyTests {
         #expect(Frecency.acceptance(Entry(text: "x", count: 3, lastUsed: now)) == 1)
     }
 
-    @Test("Always taken lifts by the whole lift, always refused lowers by the same amount, and never below the floor.")
+    @Test(
+        "Always taken lifts by the whole lift, always refused lowers by the same amount, and never below the floor."
+    )
     func acceptanceSpansItsRange() {
         let taken = Frecency.acceptance(Entry(text: "x", count: 3, accepted: 5, lastUsed: now))
         let refused = Frecency.acceptance(Entry(text: "x", count: 3, rejected: 5, lastUsed: now))
@@ -102,7 +104,9 @@ struct FrecencyTests {
         #expect(Frecency.acceptanceFloor > 0)
     }
 
-    @Test("A line typed past every time it was offered ranks below one with the same use that was never offered.")
+    @Test(
+        "A line typed past every time it was offered ranks below one with the same use that was never offered."
+    )
     func heavyRejectionRanksBelowFresh() {
         let refused = Frecency.score(remembered(count: 4, rejected: 12), now: now)
         let fresh = Frecency.score(remembered(count: 4), now: now)

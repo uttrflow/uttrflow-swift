@@ -67,11 +67,15 @@ extension FixtureCatalogue {
                     FROM users u
                     JOIN orders o ON o.user_id = u.id
                     """,
-                recent: ["JOIN orders o ON o.user_id = u.id", "FROM users u", "SELECT u.email, count(o.id) AS order_count"]),
+                recent: [
+                    "JOIN orders o ON o.user_id = u.id", "FROM users u",
+                    "SELECT u.email, count(o.id) AS order_count",
+                ]),
             cuts: .clause, determinacy: .query, band: 1...60, forbidden: ["FROM users u", "count(o.id) AS"],
             known: ["WHERE u.created_at > '2026-01-01'", "ORDER BY u.email", "GROUP BY 1"],
             lines: [
-                "WHERE o.status = 'paid'", "GROUP BY u.email", "ORDER BY order_count DESC", "HAVING count(o.id) > 3",
+                "WHERE o.status = 'paid'", "GROUP BY u.email", "ORDER BY order_count DESC",
+                "HAVING count(o.id) > 3",
                 Line("LIMIT 50;", determinacy: .any), "LEFT JOIN products p ON p.id = o.product_id",
             ]),
         Scenario(
@@ -85,7 +89,8 @@ extension FixtureCatalogue {
                     JOIN books b ON b.id = l.book_id
                     """,
                 recent: ["JOIN books b ON b.id = l.book_id", "FROM loans l", "SELECT b.title, l.due_at"]),
-            cuts: .clause, determinacy: .query, band: 1...60, forbidden: ["FROM loans l", "b.id = l.book_id"],
+            cuts: .clause, determinacy: .query, band: 1...60,
+            forbidden: ["FROM loans l", "b.id = l.book_id"],
             known: ["WHERE l.due_at < now()", "ORDER BY b.title"],
             lines: [
                 "WHERE l.returned_at IS NULL", "ORDER BY l.due_at", "AND l.member_id = 12",

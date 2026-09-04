@@ -18,7 +18,8 @@ struct Scenario {
     let lines: [Line]
 
     init(
-        category: String, name: String, situation: GenerationSituation, cuts: [LineCut], determinacy: Determinacy,
+        category: String, name: String, situation: GenerationSituation, cuts: [LineCut],
+        determinacy: Determinacy,
         band: ClosedRange<Int>, forbidden: [String] = [], known: [String] = [], lines: [Line]
     ) {
         self.category = category
@@ -43,10 +44,12 @@ struct Scenario {
             let seen = slugs[cut.slug, default: 0] + 1
             slugs[cut.slug] = seen
             if seen > 1 {
-                cut = CutLine(cut.text, slug: "\(cut.slug)-\(seen)", cuts: cut.cuts, determinacy: cut.determinacy)
+                cut = CutLine(
+                    cut.text, slug: "\(cut.slug)-\(seen)", cuts: cut.cuts, determinacy: cut.determinacy)
             }
             return cut.cases(in: register).map {
-                Fixture("\(category)/\(name)/\($0.name)", situation, typed: $0.typed, expectation: $0.expectation)
+                Fixture(
+                    "\(category)/\(name)/\($0.name)", situation, typed: $0.typed, expectation: $0.expectation)
             }
         }
     }

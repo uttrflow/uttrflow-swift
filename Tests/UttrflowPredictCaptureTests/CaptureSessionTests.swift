@@ -163,7 +163,9 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.isEmpty)
     }
 
-    @Test("In a shell only Return finishes the line, so what Tab-cycling left behind is not learned on the way out.")
+    @Test(
+        "In a shell only Return finishes the line, so what Tab-cycling left behind is not learned on the way out."
+    )
     func shellsFinishOnReturnAlone() async throws {
         let scratch = Scratch()
         let recorder = Recorder()

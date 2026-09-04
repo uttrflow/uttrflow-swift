@@ -85,7 +85,8 @@ struct FixtureReport: Encodable {
         for result in failures {
             print(
                 "\(result.hit ? "✓" : "✗")\(result.conforms ? "✓" : "✗") \(result.name.padded(to: 44)) "
-                    + "typed \(result.typed.debugDescription)  first \((result.first ?? "-").debugDescription)")
+                    + "typed \(result.typed.debugDescription)  first \((result.first ?? "-").debugDescription)"
+            )
         }
     }
 

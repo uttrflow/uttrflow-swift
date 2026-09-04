@@ -10,7 +10,8 @@ struct Fixture {
     /// What counts as right here: the acceptable continuations, the length band, the text never to echo.
     let expectation: CompletionExpectation
 
-    init(_ name: String, _ situation: GenerationSituation, typed: String, expectation: CompletionExpectation) {
+    init(_ name: String, _ situation: GenerationSituation, typed: String, expectation: CompletionExpectation)
+    {
         self.name = name
         self.situation = situation
         self.typed = typed
