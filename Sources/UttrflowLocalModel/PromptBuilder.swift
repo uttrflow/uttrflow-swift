@@ -1,7 +1,7 @@
 import UttrflowPredict
 
 /// What one pass asks the model for: the one line the person waits for, or the others behind it.
-enum Ask: Equatable {
+enum Ask: Equatable, Sendable {
     /// The single most likely way to finish the line, on one line.
     case one
     /// Up to three other ways, none of them the line already on screen.

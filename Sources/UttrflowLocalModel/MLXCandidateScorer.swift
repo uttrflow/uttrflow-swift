@@ -41,6 +41,41 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
             configuration: ModelConfiguration(id: model.identifier),
             progressHandler: { onProgress($0.fractionCompleted) }
         )
+        warm = await warmInstructions()
+    }
+
+    /// The instructions as the model has already read them, so a pass pays only for the moment's own tokens.
+    private var warm: WarmInstructions?
+
+    /// The tokens every prompt opens with and the model's state after reading them, copied for each pass.
+    private struct WarmInstructions: @unchecked Sendable {
+        // Built once and only ever copied afterwards, which is what makes sharing it across passes safe.
+        let tokens: [Int]
+        let cache: [KVCache]
+    }
+
+    /// Reads the instructions into a cache once, taking their exact tokens as the run two different messages share.
+    private func warmInstructions() async -> WarmInstructions? {
+        guard let container else { return nil }
+        return try? await container.perform { context in
+            let first = try await Self.promptTokens(for: "alpha", context: context)
+            let second = try await Self.promptTokens(for: "omega bravo charlie", context: context)
+            let shared = zip(first, second).prefix { $0 == $1 }.count
+            guard shared > 0 else { return nil }
+            let prefix = Array(first[..<shared])
+            let cache = context.model.newCache(parameters: nil)
+            let tokens = MLXArray(prefix.map(Int32.init)).expandedDimensions(axis: 0)
+            _ = context.model(LMInput.Text(tokens: tokens), cache: cache, state: nil)
+            eval(cache.flatMap(\.state))
+            return WarmInstructions(tokens: prefix, cache: cache)
+        }
+    }
+
+    /// The whole prompt as the model reads it, instructions and chat template included.
+    private static func promptTokens(for message: String, context: ModelContext) async throws -> [Int] {
+        let input = try await context.processor.prepare(
+            input: UserInput(chat: [.system(instructions), .user(message)]))
+        return input.text.tokens.asArray(Int32.self).map(Int.init)
     }
 
     public var isReady: Bool { container != nil }
@@ -70,23 +105,35 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         else { return [] }
         // The register decides how much of a pass this line is worth: a command a little, a paragraph more.
         let register = Register.infer(from: situation, typed: typed)
-        let session = ChatSession(
-            container, instructions: Self.instructions,
-            generateParameters: GenerateParameters(
-                maxTokens: min(maximumTokens, register.maxTokens * tokenShare), temperature: 0))
+        let parameters = GenerateParameters(
+            maxTokens: min(maximumTokens, register.maxTokens * tokenShare), temperature: 0)
         let message = PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
-        var answer = ""
-        do {
-            for try await generation in session.streamDetails(to: message) {
-                guard let chunk = generation.chunk else { continue }
-                answer += chunk
-                // Ending the stream cancels the pass, so nothing is generated past the line that was asked for.
-                if ask == .one, Self.holdsOneLine(answer) { break }
+        let warm = self.warm
+        let answer = try? await container.perform { context in
+            let input = try await context.processor.prepare(
+                input: UserInput(chat: [.system(Self.instructions), .user(message)]))
+            let all = input.text.tokens.asArray(Int32.self).map(Int.init)
+            var feed = input
+            var cache: [KVCache]?
+            // When the prompt opens exactly as the warm cache read it, the pass pays only for the tokens past that.
+            if let warm, all.count > warm.tokens.count, Array(all[..<warm.tokens.count]) == warm.tokens {
+                var rest = MLXArray(all[warm.tokens.count...].map(Int32.init))
+                if input.text.tokens.ndim == 2 { rest = rest.expandedDimensions(axis: 0) }
+                feed = LMInput(text: LMInput.Text(tokens: rest))
+                cache = warm.cache.map { $0.copy() }
             }
-        } catch {
-            return []
+            var text = ""
+            let stream = try MLXLMCommon.generate(
+                input: feed, cache: cache, parameters: parameters, context: context)
+            for await generation in stream {
+                guard let chunk = generation.chunk else { continue }
+                text += chunk
+                // Ending the stream cancels the pass, so nothing is generated past the line that was asked for.
+                if ask == .one, Self.holdsOneLine(text) { break }
+            }
+            return text
         }
-        return Self.parse(answer, typed: typed)
+        return Self.parse(answer ?? "", typed: typed)
     }
 
     /// Whether the answer has a first line and the model has moved on past it, which is when a single line is done.
