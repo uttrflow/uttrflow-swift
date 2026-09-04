@@ -65,7 +65,8 @@ wait_for_idle() {
   say "waiting for the user to be idle ${IDLE_REQUIRED}s (giving up after ${MAX_WAIT}s)"
   while :; do
     idle="$(idle_seconds)"
-    if ! flt "$idle" "$IDLE_REQUIRED"; then
+    # A locked screen is idle too, and the login window must never be typed into, so it waits like a person would.
+    if ! flt "$idle" "$IDLE_REQUIRED" && ! screen_locked; then
       LAST_SYNTH="$(now)"
       IDLE_WAITED="$(fsub "$LAST_SYNTH" "$start")"
       say "idle ${idle}s — starting"
@@ -77,9 +78,13 @@ wait_for_idle() {
   done
 }
 
-# Aborts when the HID idle time is shorter than the time since our own last key, which only a person can cause.
+# Whether the screen is locked or the login window is in front, which no scenario may type into.
+screen_locked() { [ "$("$HELPER" locked 2>/dev/null)" = "1" ]; }
+
+# Aborts when the HID idle time is shorter than the time since our own last key, which only a person can cause, or when the screen has locked.
 assert_idle() {
   local idle expected
+  if screen_locked; then abort "the screen is locked, so nothing is typed"; fi
   idle="$(idle_seconds)"
   expected="$(fsub "$(now)" "$LAST_SYNTH")"
   if flt "$idle" "$(fsub "$expected" 1.0)"; then

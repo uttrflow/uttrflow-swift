@@ -8,6 +8,7 @@ import Foundation
 //
 //   helper now                       epoch seconds with milliseconds
 //   helper front                     bundle identifier of the frontmost application
+//   helper locked                    1 when the screen is locked or at the login window, else 0
 //   helper windows <pid>             one on-screen window per line: number layer x y w h
 //   helper read <bundle-id> [field]  JSON: role, value, caret, line (caret's line up to the caret); or one field raw
 //   helper type <ms-per-char> <text> types text as unicode key events, one character at a time
@@ -173,6 +174,12 @@ case "now":
     print(String(format: "%.3f", Date().timeIntervalSince1970))
 case "front":
     print(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "")
+case "locked":
+    // A locked screen is idle too, and typing into the login window is the one thing this must never do.
+    let session = CGSessionCopyCurrentDictionary() as? [String: Any]
+    let isLocked = (session?["CGSSessionScreenIsLocked"] as? Bool) ?? false
+    let atLogin = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.loginwindow"
+    print(isLocked || atLogin ? 1 : 0)
 case "windows":
     guard let pid = rest.first.flatMap({ pid_t($0) }) else { fail("windows <pid>") }
     windows(pid: pid)
