@@ -1,3 +1,5 @@
+public import CoreGraphics
+
 /// One element tree as the collector walks it, so a test can hand it a tree of plain values instead of another app.
 public protocol ElementTree {
     associatedtype Element: Equatable
@@ -10,8 +12,8 @@ public protocol ElementTree {
     func children(of element: Element) -> [Element]
     /// The element this one sits in, or nothing at the window.
     func parent(of element: Element) -> Element?
-    /// Whether the element is on screen at all, since text in a collapsed pane is not what the user is looking at.
-    func isVisible(_ element: Element) -> Bool
+    /// Where the element is on screen, or nothing when it will not say, which is trusted.
+    func frame(of element: Element) -> CGRect?
 }
 
 /// What is on screen around the focused field, read for one pass and written nowhere. See `Docs/predict-context.md`.
@@ -46,56 +48,117 @@ public struct Surroundings: Sendable, Equatable {
     /// The roles never worth descending into, which are controls and their labels rather than what is being talked about.
     static let skippedRoles: Set<String> = [
         "AXMenuBar", "AXMenu", "AXMenuItem", "AXScrollBar", "AXToolbar", "AXPopUpButton", "AXSlider",
-        "AXButton", "AXCheckBox", "AXRadioButton", "AXMenuButton",
+        "AXButton", "AXCheckBox", "AXRadioButton", "AXMenuButton", "AXColorWell", "AXIncrementor",
+        "AXValueIndicator", "AXSplitter", "AXListMarker",
     ]
 
     /// Collects the text around the focused element, nearest first, within the budget and the caps.
     public static func collect<Tree: ElementTree>(
-        around focused: Tree.Element, in tree: Tree, windowTitle: String?,
+        around focused: Tree.Element, in tree: Tree, windowTitle: String?, windowFrame: CGRect? = nil,
         deadline: ContinuousClock.Instant = .now + .milliseconds(budgetInMilliseconds)
     ) -> Surroundings {
-        var walk = Walk<Tree>(tree: tree, deadline: deadline)
+        var walk = Walk<Tree>(tree: tree, window: windowFrame, deadline: deadline)
         var levels: [[String]] = []
         var child = focused
         // Each ancestor's other children are one ring further out, so the message list beside a compose box comes first.
         while let parent = tree.parent(of: child), !walk.isExhausted {
-            var ring: [String] = []
-            for sibling in tree.children(of: parent) where sibling != child {
-                walk.gather(sibling, into: &ring)
-            }
+            let siblings = tree.children(of: parent)
+            let at = siblings.firstIndex(of: child) ?? siblings.count
+            // Both sides are read nearest first, so what the caps cut is the farthest, then put back in reading order.
+            var before: [String] = []
+            walk.gather(siblings[..<at].reversed(), .backward, into: &before)
+            var after: [String] = []
+            walk.gather(siblings.suffix(from: min(at + 1, siblings.count)), .forward, into: &after)
+            let ring = before.reversed() + after
             if !ring.isEmpty { levels.append(ring) }
             child = parent
         }
-        // Farthest first and nearest last, so cutting to the cap keeps what sits closest to the field.
+        // Farthest first and nearest last, so the tail of the text is what sits closest to the field.
         let joined = levels.reversed().flatMap { $0 }.joined(separator: "\n")
-        let kept = joined.count > maximumCharacters ? String(joined.suffix(maximumCharacters)) : joined
-        return Surroundings(windowTitle: windowTitle, text: kept.isEmpty ? nil : kept)
+        return Surroundings(windowTitle: windowTitle, text: joined.isEmpty ? nil : joined)
     }
 
-    /// One read's running state: how many elements it has visited and when it has to stop.
+    /// One read's running state: how much it has visited and gathered, and when it has to stop.
     private struct Walk<Tree: ElementTree> {
+        /// Which way a subtree is read: forward in reading order, or backward from its last line to its label.
+        enum Direction { case forward, backward }
+
+        /// One thing left to do: read an element under the label of the container it sits in, or say a label held back.
+        enum Step {
+            case visit(Tree.Element, under: String?)
+            case say(String)
+        }
+
         let tree: Tree
+        let window: CGRect?
         let deadline: ContinuousClock.Instant
         var visited = 0
+        var gathered = 0
 
-        /// Whether the read has spent its budget or its element allowance.
-        var isExhausted: Bool { visited >= maximumElements || ContinuousClock.now >= deadline }
+        init(tree: Tree, window: CGRect?, deadline: ContinuousClock.Instant) {
+            self.tree = tree
+            self.window = window.flatMap { $0.isEmpty ? nil : $0 }
+            self.deadline = deadline
+        }
 
-        /// Every readable text under the element, in reading order, stopping the moment the read is exhausted.
-        mutating func gather(_ element: Tree.Element, into runs: inout [String]) {
-            var stack = [element]
-            while let next = stack.popLast(), !isExhausted {
-                visited += 1
-                guard tree.isVisible(next) else { continue }
-                let role = tree.role(of: next) ?? ""
-                guard !skippedRoles.contains(role) else { continue }
-                let text = Surroundings.trimmed(tree.text(of: next))
-                // A container's label names what it holds, as "Messages in chat with …" does, so it is read before its children.
-                if let text { runs.append(text) }
-                // A text element that says its text is a leaf, since its children only repeat it; one that says nothing is walked.
-                if textRoles.contains(role), text != nil { continue }
-                stack.append(contentsOf: tree.children(of: next).reversed())
+        /// How many characters the read may still take, the separator before them counted.
+        var room: Int { maximumCharacters - gathered - (gathered > 0 ? 1 : 0) }
+
+        /// Whether the read has spent its budget, its element allowance or its characters.
+        var isExhausted: Bool {
+            visited >= maximumElements || room <= 0 || ContinuousClock.now >= deadline
+        }
+
+        /// Every readable text under the roots, nearest root first, stopping the moment the read is exhausted.
+        mutating func gather<Roots: Sequence>(
+            _ roots: Roots, _ direction: Direction, into runs: inout [String]
+        ) where Roots.Element == Tree.Element {
+            var stack: [Step] = roots.reversed().map { .visit($0, under: nil) }
+            while !isExhausted, let step = stack.popLast() {
+                switch step {
+                case .say(let text): runs.append(take(text, direction))
+                case .visit(let element, let label):
+                    visit(element, under: label, direction, into: &runs, pending: &stack)
+                }
             }
+        }
+
+        /// Reads one element, then queues its children, and its label too when it is to be said after them.
+        private mutating func visit(
+            _ element: Tree.Element, under label: String?, _ direction: Direction, into runs: inout [String],
+            pending stack: inout [Step]
+        ) {
+            visited += 1
+            guard isOnScreen(element) else { return }
+            let role = tree.role(of: element) ?? ""
+            guard !skippedRoles.contains(role) else { return }
+            let text = Surroundings.trimmed(tree.text(of: element))
+            // A child that only repeats its container's label, as a sticker row does, adds nothing.
+            let said = text.flatMap { label?.contains($0) == true ? nil : $0 }
+            // A container's label names what it holds, so it reads before its children whichever way they are walked.
+            if let said, direction == .forward { runs.append(take(said, direction)) }
+            if let said, direction == .backward { stack.append(.say(said)) }
+            // A text element that says its text is a leaf, since its children only repeat it; one that says nothing is walked.
+            if textRoles.contains(role), text != nil { return }
+            let children = tree.children(of: element).map { Step.visit($0, under: text ?? label) }
+            stack.append(contentsOf: direction == .forward ? children.reversed() : children)
+        }
+
+        /// Whether the element is on screen: one with no frame is trusted, one with no size or outside the window is not.
+        private func isOnScreen(_ element: Tree.Element) -> Bool {
+            guard let frame = tree.frame(of: element) else { return true }
+            guard frame.width > 0, frame.height > 0 else { return false }
+            return window.map { frame.intersects($0) } ?? true
+        }
+
+        /// As much of the text as still fits, cut on its far side, which is the front when reading backward.
+        private mutating func take(_ text: String, _ direction: Direction) -> String {
+            let room = room
+            let piece =
+                text.count <= room
+                ? text : String(direction == .backward ? text.suffix(room) : text.prefix(room))
+            gathered += piece.count + (gathered > 0 ? 1 : 0)
+            return piece
         }
     }
 

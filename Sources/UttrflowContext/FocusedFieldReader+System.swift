@@ -97,11 +97,14 @@ public enum FocusedFieldReader {
 
     /// The same read, synchronously, which only the queue above calls with an identity read on main.
     static func surroundings(app: FrontmostApp) -> Surroundings? {
-        guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier)
+        // A field with no window, or a window focused as a whole, has nothing around it worth a walk.
+        guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier),
+            let window = element(field, kAXWindowAttribute), !CFEqual(field, window)
         else { return nil }
-        let window = element(field, kAXWindowAttribute)
-        let title = window.flatMap { string($0, kAXTitleAttribute) }
-        return Surroundings.collect(around: AXNode(field), in: AXElementTree(), windowTitle: title)
+        let answers = AXNode(window).answers
+        return Surroundings.collect(
+            around: AXNode(field), in: AXElementTree(), windowTitle: answers.title, windowFrame: answers.frame
+        )
     }
 
     /// The same reading, synchronously, which only the queue above calls with an identity read on main.
@@ -216,12 +219,14 @@ public enum FocusedFieldReader {
         let family: String?
     }
 
-    /// One element of another application, compared the way Accessibility compares them.
+    /// One element of another application, compared the way Accessibility compares them, its answers kept once asked.
     struct AXNode: Equatable {
         let element: AXUIElement
+        let answers: Answers
 
         init(_ element: AXUIElement) {
             self.element = element
+            answers = Answers(element)
             // Every question to this element gives up quickly, so a window that stops answering costs a moment, not the loop.
             _ = AXUIElementSetMessagingTimeout(element, elementTimeoutInSeconds)
         }
@@ -229,37 +234,84 @@ public enum FocusedFieldReader {
         static func == (lhs: AXNode, rhs: AXNode) -> Bool { CFEqual(lhs.element, rhs.element) }
     }
 
-    /// The other application's window as the surroundings collector walks it, one Accessibility call per question.
-    struct AXElementTree: ElementTree {
-        func role(of node: AXNode) -> String? { string(node.element, kAXRoleAttribute) }
+    /// Everything the collector asks one element, fetched in a single message the first time any of it is needed.
+    final class Answers {
+        /// The attributes asked for, in the order the answers come back.
+        private static let attributes = [
+            kAXRoleAttribute, kAXPositionAttribute, kAXSizeAttribute, kAXValueAttribute, kAXTitleAttribute,
+            kAXDescriptionAttribute, kAXChildrenAttribute, kAXParentAttribute,
+        ]
+
+        private let element: AXUIElement
+        private var fetched: [AnyObject]?
+
+        init(_ element: AXUIElement) {
+            self.element = element
+        }
+
+        /// The answers, one per attribute, an element that does not answer at all standing as none.
+        private var values: [AnyObject] {
+            if let fetched { return fetched }
+            var answers: CFArray?
+            let result = AXUIElementCopyMultipleAttributeValues(
+                element, Self.attributes as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &answers)
+            let values = result == .success ? (answers as? [AnyObject]) ?? [] : []
+            fetched = values.count == Self.attributes.count ? values : []
+            return fetched ?? []
+        }
+
+        /// One answer by attribute, or nothing when the element did not answer.
+        private subscript(_ attribute: String) -> AnyObject? {
+            Self.attributes.firstIndex(of: attribute).flatMap {
+                values.indices.contains($0) ? values[$0] : nil
+            }
+        }
+
+        var role: String? { self[kAXRoleAttribute] as? String }
+        var title: String? { self[kAXTitleAttribute] as? String }
 
         /// What the element says: its value, else its title, else its description, which is where a chat keeps its messages.
-        func text(of node: AXNode) -> String? {
+        var text: String? {
             for attribute in [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute] {
-                if let text = string(node.element, attribute), text.contains(where: { !$0.isWhitespace }) {
+                if let text = self[attribute] as? String, text.contains(where: { !$0.isWhitespace }) {
                     return text
                 }
             }
             return nil
         }
 
-        func children(of node: AXNode) -> [AXNode] {
-            var value: AnyObject?
-            guard
-                AXUIElementCopyAttributeValue(node.element, kAXChildrenAttribute as CFString, &value)
-                    == .success, let children = value as? [AXUIElement]
-            else { return [] }
-            return children.map(AXNode.init)
+        /// Where the element is, or nothing when it reports no position or no size.
+        var frame: CGRect? {
+            guard let origin: CGPoint = unwrap(self[kAXPositionAttribute], .cgPoint),
+                let size: CGSize = unwrap(self[kAXSizeAttribute], .cgSize)
+            else { return nil }
+            return CGRect(origin: origin, size: size)
         }
 
+        var children: [AXUIElement] { self[kAXChildrenAttribute] as? [AXUIElement] ?? [] }
+
+        var parent: AXUIElement? {
+            guard let value = self[kAXParentAttribute], CFGetTypeID(value) == AXUIElementGetTypeID() else {
+                return nil
+            }
+            // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+            return unsafeDowncast(value, to: AXUIElement.self)
+        }
+    }
+
+    /// The other application's window as the surroundings collector walks it, one Accessibility message per element.
+    struct AXElementTree: ElementTree {
+        func role(of node: AXNode) -> String? { node.answers.role }
+        func text(of node: AXNode) -> String? { node.answers.text }
+        func frame(of node: AXNode) -> CGRect? { node.answers.frame }
+        func children(of node: AXNode) -> [AXNode] { node.answers.children.map(AXNode.init) }
+
+        /// The element's parent, stopping at the window so the walk never crosses into the application's other windows.
         func parent(of node: AXNode) -> AXNode? {
-            element(node.element, kAXParentAttribute).map(AXNode.init)
-        }
-
-        /// An element with a size is on screen; one that reports none is trusted, since many text runs report no frame.
-        func isVisible(_ node: AXNode) -> Bool {
-            guard let size: CGSize = axValue(node.element, kAXSizeAttribute, .cgSize) else { return true }
-            return size.width > 0 && size.height > 0
+            guard node.answers.role != kAXWindowRole, let parent = node.answers.parent.map(AXNode.init),
+                parent.answers.role != kAXApplicationRole
+            else { return nil }
+            return parent
         }
     }
 
@@ -313,9 +365,15 @@ public enum FocusedFieldReader {
         _ owner: AXUIElement, _ attribute: String, _ kind: AXValueType
     ) -> T? {
         var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXValueGetTypeID()
-        else { return nil }
+        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success else {
+            return nil
+        }
+        return unwrap(value, kind)
+    }
+
+    /// One `AXValue`, already fetched, unwrapped into the Core Graphics type it stands for.
+    private static func unwrap<T>(_ value: AnyObject?, _ kind: AXValueType) -> T? {
+        guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
         let unwrapped = UnsafeMutablePointer<T>.allocate(capacity: 1)
         defer { unwrapped.deallocate() }
