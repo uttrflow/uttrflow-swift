@@ -296,18 +296,7 @@ final class SuggestionCoordinator {
 
         switch turn.step {
         case .settled(let update):
-            // The session names why nothing is offered, so silence is never logged without its reason.
-            if let silence = update.silence {
-                Self.log.debug(
-                    "QUIET typed=\(snapshot.currentLine, privacy: .public) reason=\(silence.rawValue, privacy: .public) rejections=\(self.session.rejectionsHere) silencedHere=\(self.session.isSilencedHere) enabled=\(self.session.isEnabled)"
-                )
-                // A prose pause is answered the moment it is long enough, rather than at whatever tick comes next.
-                if silence == .writingFluently {
-                    let waited = Int(started.timeIntervalSince(lastKeystroke) * 1000)
-                    wake(.tick, afterMilliseconds: Quieting.proseHesitationInMilliseconds - waited + 20)
-                }
-            }
-            draw(update, in: snapshot)
+            settle(update, in: snapshot, since: started)
         case .query(let query):
             let candidates = await candidates(for: query)
             let ready = await generator?.isReady ?? false
@@ -315,21 +304,41 @@ final class SuggestionCoordinator {
             Self.log.debug(
                 "QUERY typed=\(query.typed, privacy: .public) corpus=\(candidates.count) generatorReady=\(ready)"
             )
-            // With nothing remembered for this line, the model invents the suggestion instead.
-            if candidates.isEmpty, let generator, ready {
+            guard let update = await remembered(number, candidates, for: query, since: started),
+                turns.isCurrent(number)
+            else { return }
+            // When nothing remembered can be drawn — nothing held, the line itself, or a line the gates refused — the model invents the suggestion instead.
+            if update.suggestion.accepting == nil, update.silence != .overBudget, let generator, ready {
                 await generate(number, with: generator, for: query, in: snapshot, since: started)
-                return
+            } else {
+                settle(update, in: snapshot, since: started)
             }
-            switch session.resolve(
-                candidates, for: query, now: Date(), elapsedMilliseconds: since(started))
-            {
-            case .settled(let update):
-                draw(update, in: snapshot)
-            case .verify(let request):
-                await verify(number, request, in: snapshot, since: started)
-            case nil:
-                return
+        }
+    }
+
+    /// Draws the update and, when it draws nothing, says why, so a silence is never logged without its reason.
+    private func settle(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot, since started: Date) {
+        if let silence = update.silence {
+            Self.log.debug(
+                "QUIET typed=\(snapshot.currentLine, privacy: .public) reason=\(silence.rawValue, privacy: .public) rejections=\(self.session.rejectionsHere) silencedHere=\(self.session.isSilencedHere) enabled=\(self.session.isEnabled)"
+            )
+            // A prose pause is answered the moment it is long enough, rather than at whatever tick comes next.
+            if silence == .writingFluently {
+                let waited = Int(started.timeIntervalSince(lastKeystroke) * 1000)
+                wake(.tick, afterMilliseconds: Quieting.proseHesitationInMilliseconds - waited + 20)
             }
+        }
+        draw(update, in: snapshot)
+    }
+
+    /// What the corpus and the gates make of the line: the update they settle on, or nothing once the turn was left behind.
+    private func remembered(
+        _ number: Int, _ candidates: [Candidate], for query: SuggestionQuery, since started: Date
+    ) async -> SuggestionUpdate? {
+        switch session.resolve(candidates, for: query, now: Date(), elapsedMilliseconds: since(started)) {
+        case .settled(let update): return update
+        case .verify(let request): return await verify(number, request, since: started)
+        case nil: return nil
         }
     }
 
@@ -448,20 +457,16 @@ final class SuggestionCoordinator {
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
     private func verify(
-        _ number: Int, _ request: VerificationRequest, in snapshot: FocusedFieldSnapshot, since started: Date
-    ) async {
+        _ number: Int, _ request: VerificationRequest, since started: Date
+    ) async -> SuggestionUpdate? {
         let allowed = await verifier.verified(
             request.candidates, in: request.surface, typed: request.typed, now: Date())
-        guard turns.isCurrent(number) else { return }
+        guard turns.isCurrent(number) else { return nil }
         Self.log.debug(
             "VERIFY typed=\(request.typed, privacy: .public) in=\(request.candidates.count) out=\(allowed.count) elapsed=\(self.since(started))ms first=\(allowed.first?.text ?? "-", privacy: .public)"
         )
-        guard
-            let update = session.resolve(
-                allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
-        else { return }
-        // The gates answer within a moment, so the field read at the turn's start still stands.
-        draw(update, in: snapshot)
+        // The gates answer within a moment, so the field read at the turn's start still stands for whatever is drawn.
+        return session.resolve(allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
     }
 
     /// How long this turn has taken, which is what decides whether its answer is still worth drawing.
