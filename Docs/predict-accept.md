@@ -13,12 +13,20 @@ Option-Tab in editors, because Tab there is indentation and the language server'
 completion is already bound to it. The user can override any application, and the
 override wins over the kind.
 
-`AcceptKeys` recognises terminals and editors from a bundle-identifier prefix.
+`AcceptKeys` recognises editors from a bundle-identifier prefix. Terminals are recognised
+by `TerminalApplications`, which two callers read: `AcceptKeys`, to hand a shell the right
+arrow, and `FocusedFieldSnapshot` in `UttrflowContext`, to keep a shell's `AXTextArea` out
+of the prose rule and to strip its prompt from the line. Until recently those were two
+tables — a prefix list in `UttrflowPredict` and an exact-match set in `UttrflowContext` —
+and they disagreed: the prefix list knew Hyper and Tabby, the set did not, and Warp matched
+under one and not the other. There is one table now, `TerminalApplications` in
+`UttrflowPredict` — the lowest module both callers reach, since `UttrflowPredict` depends on
+nothing — matched by lowercased prefix, and `UttrflowContext` re-exports it under the same
+name.
+
 `AppKind` in `UttrflowAI` recognises overlapping sets for a different purpose — the one
-line of prompt text that describes the screen — and the two tables are deliberately not
-shared, because `UttrflowPredict` depends on nothing and `UttrflowAI` depends on Core and
-the dictionary. If a third caller ever needs the classification, the table moves into
-Core and both read it; two is not enough to pay for that.
+line of prompt text that describes the screen — and stays separate, because
+`UttrflowPredict` depends on nothing and `UttrflowAI` depends on Core and the dictionary.
 
 ## Return is the dangerous key
 
@@ -68,10 +76,17 @@ tap is to switch it off.
 ## Being switched off
 
 macOS disables an event tap that misses its deadline (`.tapDisabledByTimeout`) and when
-the user's own input demands it (`.tapDisabledByUserInput`). The callback turns it back on
-once. On a second disable it stops re-arming and reports `.disabledTwice` instead: a tap
-that has to be revived repeatedly is one that is costing the user keystrokes, and a
-feature that quietly fights the system forever is worse than one that says it has stopped.
+the user's own input demands it (`.tapDisabledByUserInput`). The callback turns it back on,
+and `TapDisableWindow` decides when to stop: two disables inside sixty seconds
+(`windowNanoseconds`, `limit`) count as one fault and the tap is left off, reported as
+`.disabledTwice`; a disable more than a minute after the last counts as the first again, so
+sleep and wake do not add up to a fault. A tap that has to be revived repeatedly is one
+that is costing the user keystrokes.
+
+Left off is not dead. `SuggestionCoordinator.restTap` disarms and stops the tap, rests it
+for 90 s — past the window in which disables count against it — and starts it again, since
+a disable is usually the system's doing and the feature need not die of it. The log says
+when the tap stopped and when it is back.
 
 ## The clipboard is not on the insertion route
 
@@ -106,6 +121,13 @@ The route takes it two ways. Accessibility widens the field's own selection back
 those characters and then writes once, which is why it is tried first. Where the field
 will not report or set its selection, `TypedTextInsertionEngine` presses Delete once per
 character and then types — which works everywhere and costs what the next section says.
+
+The typed route reads before it deletes. A blind backspace could eat a shell prompt, so
+`TypedTextInsertionEngine.write` asks the focused field for the characters before the caret
+(`precedingText`) and, when the field answers with something other than what would be
+replaced, throws `.insertionRejected` and types nothing. A field that will not say what
+precedes the caret is not held up by the check: the deletions go ahead, since a Tab that
+does nothing is the worse failure.
 
 ## What ⌘Z does afterwards
 

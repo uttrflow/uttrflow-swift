@@ -1,15 +1,22 @@
 # Detecting a composing input method
 
 `Docs/predict-probe.md` left this open: nothing in the Accessibility API obviously reports
-that a Hindi, Chinese or Japanese input method is mid-composition in another application,
-and tab-to-complete must draw nothing and swallow nothing while one is. This is what was
-measured, what works, and what it costs where it does not.
+that a Hindi, Chinese or Japanese input method is mid-composition in another application.
+This is what was measured, what works, and what it costs where it does not.
 
 Re-run any of it with `uttrflow-dev probe ime`.
 
 **Summary.** A real state signal exists and is public — `AXTextInputMarkedRange` — but it
 only reaches AppKit multi-line text views. Everywhere else the answer is a capability
 guess from the selected input source, which is a stopgap and is stated as one below.
+
+**What the signal does today: it is computed and carried, and it withholds nothing.**
+`Composition.isComposing` combines the field's marked range with the input source's kind,
+`FocusedFieldReader` writes the answer into `FocusedFieldSnapshot.isComposing`, and the
+coordinator copies it into `PredictionContext.isComposing`. `Quieting.reason` does not
+consult it — its comment says so — and `Reason.inputMethodComposing` stays in the enum
+without ever being returned. The bill below is what a gate on the fallback cost, and it is
+why the gate is off; the residual risk at the end is what being off costs instead.
 
 ## What works: `AXTextInputMarkedRange`
 
@@ -127,26 +134,28 @@ directions, and Hindi is the case that shows it:
   Vietnamese Telex builds its diacritics through marked text. The Roman test lets them
   through, and a ghost would be drawn over live marked text.
 
-So the shipped fallback is: the current source is not a plain keyboard layout, therefore
-assume composition. It is right where the Roman test is wrong in both of the cases above.
+So the fallback computes: the current source is not a plain keyboard layout, therefore
+composition is possible. It is right where the Roman test is wrong in both of the cases
+above.
 
 **It is still a stopgap, and here is the bill.** It is a capability, not a state: it says
-composition is *possible*, never that it is *happening*.
+composition is *possible*, never that it is *happening*. Used as a gate, which it no longer
+is, it cost this:
 
 - A user of any Chinese, Japanese, Korean, Vietnamese or Hindi-transliteration input
-  method gets no suggestions at all in any field that does not publish a marked range —
+  method got no suggestions at all in any field that does not publish a marked range —
   which, per the table above, is Chrome, every Electron application, Terminal, and every
   single-line field. That is most of the surface the feature exists for.
 - `com.apple.inputmethod.Kotoeri.RomajiTyping.Roman` — the ASCII mode a Japanese user
-  switches to in order to type English — is an input *mode*, so it is suppressed even
+  switches to in order to type English — is an input *mode*, so it was suppressed even
   though it can never compose. Refining with `kTISPropertyInputSourceIsASCIICapable` would
   rescue exactly that case and would re-break Vietnamese Telex and Kotoeri's parent mode,
-  both ASCII-capable and both composing. Drawing nothing is the safe side of that trade
-  and is the side taken.
+  both ASCII-capable and both composing.
 
-The field's own answer always wins where there is one, so an AppKit text view under a
-Japanese input method that is *not* composing still gets its suggestion. That is the whole
-reason the state signal is worth having despite its reach.
+The field's own answer always wins in the computed value where there is one, so an AppKit
+text view under a Japanese input method that is *not* composing reads as not composing.
+That is what would make the state signal worth gating on despite its reach, if the gate
+were ever turned back on: the fallback would then decide only where the field says nothing.
 
 ## Text Input Sources must be called on the main queue, so it is not called on the read path
 
@@ -166,15 +175,22 @@ system call in it. The input source changes when a person presses a key combinat
 change it, which is many orders of magnitude rarer than a keystroke, so a cache is both
 correct and cheaper than the call it replaces.
 
-Until the first read lands the cache holds `.unknown`, and `.unknown` may compose — so the
-window before start-up completes suppresses suggestions rather than drawing one over live
-marked text. That is the same side of the trade taken everywhere else on this page.
+Until the first read lands the cache holds `.unknown`, and `.unknown` may compose — so in
+the window before start-up completes the computed value reads as composing. With the gate
+off nothing is withheld by it; were the gate on, that window would be silent rather than
+risk a ghost over live marked text.
 
 `NSScreen` is main-thread-only for the same reason and was being read on the same private
 queue, for the primary screen's top edge that flips Accessibility coordinates into AppKit
 ones. It is cached the same way, refreshed on `NSApplication.didChangeScreenParametersNotification`.
-`NSWorkspace.shared.frontmostApplication` is also read there and is left alone: it vends
-`NSRunningApplication`, which Apple documents as safe from any thread.
+
+The frontmost application's identity is read on the main actor first. `FocusedFieldReader.read`
+and `.surroundings` both call `frontmostApp()`, a `@MainActor` function that asks
+`NSWorkspace.shared.frontmostApplication` for the process identifier, bundle identifier
+and name, and hand that `FrontmostApp` value to the private queue; the blocking read on
+the queue never touches `NSWorkspace`. The name is stripped of control and direction marks
+on the way, since some applications pad theirs and the model would otherwise read them
+verbatim.
 
 ## Residual risk
 
