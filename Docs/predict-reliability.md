@@ -37,6 +37,18 @@ moment the person returns, because it shares their keyboard.
 | Live, WhatsApp | replies ignored the conversation | messages exposed as empty-valued static texts with the text in the description; nested date headings; the recipient only as a group label | description as a text fallback, text roles walked when they say nothing, container labels kept, buttons skipped, marks stripped |
 | Live, Messages | a field went dead after three "refusals" | fuzzy matches, case-only differences and finishing a suggestion by hand all counted as typing past | only a real prefix completion typed past counts; empty line resets; generated guesses never count |
 
+## Open
+
+- **The loop ticks against the login window.** With the screen locked the coordinator still reads the
+  focused field once a second — 8 613 turns in one night, each answered `nothingFocused`. Harmless, but a
+  locked session is a signal to rest the ticker until the session unlocks.
+- **The address bar.** 35 of the 79 remaining wrong answers: with the register's hint and the kind named at
+  the line, the model still continues `git` into a shell command. The corpus of visited addresses is the
+  better source there; a per-register ranking of remembered lines over generation is the next lever.
+- **A whole word typed without a space.** `git l` → `git l -S`, `npm i` → `npm i -D`: healing allows both the
+  exact token and a longer one, and the model's own guess decides. Only the model can know whether the word
+  is finished; a second candidate that lengthens the word would let the person choose.
+
 ## Scorecards
 
 | Run | Cases | Hit | In register | p50 | p95 | Reading |
