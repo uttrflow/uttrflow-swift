@@ -74,7 +74,8 @@ final class SuggestionCoordinator {
     /// The last field read, so the highlight can move without reading anything again.
     private var lastSnapshot: FocusedFieldSnapshot?
     private var lastKeystroke = Date.distantPast
-    private var running = false
+    /// One turn at a time, with a turn that never returns left behind so the loop cannot die with it.
+    private var turns = TurnGate()
     /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
     private var isInserting = false
     private var again: SuggestionReason?
@@ -188,23 +189,31 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// Runs one turn, or notes that another is wanted, so two never run at once.
+    /// Runs one turn, or notes that another is wanted, so two never run at once and a stuck one never ends the loop.
     private func wake(_ reason: SuggestionReason) {
-        guard !running else {
+        switch turns.begin(at: Date()) {
+        case .busy:
             again = reason
-            return
-        }
-        running = true
-        Task { [weak self] in
-            await self?.turn(because: reason)
-            self?.finished()
+        case .stalled(let turn):
+            Self.log.error("STALL a turn ran past \(TurnGate.stallSeconds)s and is left behind")
+            generating?.cancel()
+            start(turn, because: reason)
+        case .free(let turn):
+            start(turn, because: reason)
         }
     }
 
-    /// Runs whatever arrived while the last turn was in flight.
-    private func finished() {
-        running = false
-        guard let next = again else { return }
+    /// Runs the turn the gate admitted and reports its end under the same number.
+    private func start(_ turn: Int, because reason: SuggestionReason) {
+        Task { [weak self] in
+            await self?.turn(because: reason)
+            self?.finished(turn)
+        }
+    }
+
+    /// Runs whatever arrived while the turn was in flight, unless the turn had already been left behind.
+    private func finished(_ turn: Int) {
+        guard turns.end(turn), let next = again else { return }
         again = nil
         wake(next)
     }
