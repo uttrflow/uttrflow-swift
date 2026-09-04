@@ -88,23 +88,23 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     /// Fewer typed characters than this is a guess about nothing, which the model answers with noise.
     public static let minimumTypedLength = 2
 
-    public func completions(for typed: String, in situation: GenerationSituation) async -> [String] {
+    public func completions(for typed: String, in situation: GenerationSituation) async throws -> [String] {
         // The person waits for one line, so one line is generated and the pass ends at its newline.
-        await generate(typed: typed, in: situation, asking: .one, tokenShare: 1)
+        try await generate(typed: typed, in: situation, asking: .one, tokenShare: 1)
     }
 
     public func alternatives(
         for typed: String, in situation: GenerationSituation, excluding leader: String
-    ) async -> [String] {
-        let others = await generate(
+    ) async throws -> [String] {
+        let others = try await generate(
             typed: typed, in: situation, asking: .others(excluding: leader), tokenShare: 3)
         return others.filter { $0 != leader }
     }
 
-    /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line.
+    /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line; a pass that fails throws, so the caller can tell it from an empty answer.
     private func generate(
         typed: String, in situation: GenerationSituation, asking ask: Ask, tokenShare: Int
-    ) async -> [String] {
+    ) async throws -> [String] {
         guard let container, !Task.isCancelled,
             typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
         else { return [] }
@@ -143,9 +143,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
                     input: feed, cache: cache, parameters: parameters, context: context)
             }
         } catch is CancellationError {
-            return []
-        } catch {
-            Self.log.error("PASS failed: \(String(describing: error), privacy: .public)")
+            // A cancelled pass answers a line that is gone, and nothing is drawn for it either way.
             return []
         }
         var text = ""

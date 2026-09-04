@@ -54,8 +54,14 @@ struct Complete: AsyncParsableCommand {
     /// One line, printed with everything the model offered for it.
     private func complete(_ typed: String, with scorer: MLXCandidateScorer) async {
         let situation = GenerationSituation(application: application, document: document)
-        let completions = await scorer.completions(for: typed, in: situation)
         print("completions for \(typed.debugDescription) in \(application):")
+        let completions: [String]
+        do {
+            completions = try await scorer.completions(for: typed, in: situation)
+        } catch {
+            print("  failed: \(error)")
+            return
+        }
         guard !completions.isEmpty else {
             print("  (none)")
             return
@@ -69,17 +75,24 @@ struct Complete: AsyncParsableCommand {
         if let limit { chosen = Array(chosen.prefix(limit)) }
         // One pass first, so the Metal kernels are compiled before anything is timed.
         if let first = chosen.first {
-            _ = await scorer.completions(for: first.typed, in: first.situation)
+            _ = try? await scorer.completions(for: first.typed, in: first.situation)
         }
         var results: [FixtureResult] = []
         for fixture in chosen {
             let started = ContinuousClock.now
-            let completions = await scorer.completions(for: fixture.typed, in: fixture.situation)
+            // A pass that fails is a miss whose answer names the error, so the report tells it from a model with nothing to say.
+            var completions: [String] = []
+            var failure: String?
+            do {
+                completions = try await scorer.completions(for: fixture.typed, in: fixture.situation)
+            } catch {
+                failure = "error: \(error)"
+            }
             let elapsed = Int((ContinuousClock.now - started) / .milliseconds(1))
             let result = FixtureResult(
                 name: fixture.name, category: fixture.category, typed: fixture.typed,
                 hit: fixture.hits(completions), conforms: fixture.conforms(completions), elapsedMs: elapsed,
-                first: completions.first)
+                first: failure ?? completions.first)
             results.append(result)
             print(result.row)
         }

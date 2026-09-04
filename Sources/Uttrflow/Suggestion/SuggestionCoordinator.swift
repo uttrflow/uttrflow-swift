@@ -63,8 +63,8 @@ final class SuggestionCoordinator {
     /// The model's last answer, reused for as long as the line still begins one of its lines, so typing on or back costs no pass.
     private var lastGenerated: (surface: Surface, typed: String, completions: [String])?
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
-    private var generating: Task<[String], Never>?
-    /// The line the model last had nothing for, so a tick does not ask the same question again until the line changes.
+    private var generating: Task<[String], any Error>?
+    /// The line the model last had nothing for, or failed on, so a tick does not ask the same question again until the line changes.
     private var lastEmpty: (surface: Surface, typed: String)?
     /// A turn booked for the moment a rule stops refusing, so a prose pause is answered then, not at the next tick.
     private var pendingWake: Task<Void, Never>?
@@ -358,7 +358,7 @@ final class SuggestionCoordinator {
         if !kept.isEmpty {
             completions = kept
         } else if let lastEmpty, lastEmpty.surface == query.surface, lastEmpty.typed == query.typed {
-            // The model already said it had nothing for this exact line, and a tick changes nothing about the line.
+            // The model's last word on this exact line was nothing, and a tick changes nothing about the line.
             return
         } else {
             let pass = Task { [generator, store] in
@@ -367,18 +367,28 @@ final class SuggestionCoordinator {
                 guard !Task.isCancelled else { return [String]() }
                 // The context is read only once a pass is certain, so a cancelled burst never pays for it.
                 let situation = await Self.situation(of: snapshot, for: query, store: store)
-                return await generator.completions(for: query.typed, in: situation)
+                return try await generator.completions(for: query.typed, in: situation)
             }
             generating = pass
-            completions = await pass.value
+            let answer = await pass.result
             generating = nil
             // A pass the next keystroke cancelled, or a turn left behind, answers a line that is gone: nothing is drawn or kept.
             guard !pass.isCancelled, turns.isCurrent(number) else { return }
-            if completions.isEmpty {
+            switch answer {
+            case .failure(let error):
+                // A failed pass is remembered like an empty one, so a tick never re-runs the failure, but it is never logged as one.
+                lastEmpty = (query.surface, query.typed)
+                Self.log.error(
+                    "GENERATE failed typed=\(query.typed, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+                return
+            case .success(let lines) where lines.isEmpty:
                 // An empty answer is remembered against this exact line only, so the next keystroke asks afresh.
                 lastEmpty = (query.surface, query.typed)
-            } else {
-                lastGenerated = (query.surface, query.typed, completions)
+                completions = lines
+            case .success(let lines):
+                lastGenerated = (query.surface, query.typed, lines)
+                completions = lines
             }
         }
         Self.log.debug(
@@ -393,14 +403,22 @@ final class SuggestionCoordinator {
         guard completions.count == 1, let leader = completions.first, turns.isCurrent(number) else { return }
         let more = Task { [generator, store] in
             let situation = await Self.situation(of: snapshot, for: query, store: store)
-            return await generator.alternatives(for: query.typed, in: situation, excluding: leader)
+            return try await generator.alternatives(for: query.typed, in: situation, excluding: leader)
         }
         generating = more
-        let others = await more.value
+        let followUp = await more.result
         generating = nil
-        guard !more.isCancelled, turns.isCurrent(number), !others.isEmpty,
-            let expanded = session.expandGenerated(others, for: query)
-        else { return }
+        guard !more.isCancelled, turns.isCurrent(number) else { return }
+        guard case .success(let others) = followUp else {
+            // The one line stays on screen; only the list behind it is missing, and the log says why.
+            if case .failure(let error) = followUp {
+                Self.log.error(
+                    "ALTERNATIVES failed typed=\(query.typed, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+            }
+            return
+        }
+        guard !others.isEmpty, let expanded = session.expandGenerated(others, for: query) else { return }
         lastGenerated = (query.surface, query.typed, [leader] + others)
         Self.log.debug(
             "ALTERNATIVES typed=\(query.typed, privacy: .public) got=\(others.count) elapsed=\(self.since(started))ms"

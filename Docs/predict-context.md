@@ -36,9 +36,15 @@ milliseconds, not hundreds.
 1. **Read surroundings (once per pass, budgeted, uncached).** `FocusedFieldReader.surroundings`
    reads the focused window's `AXTitle` and walks outward from the field ring by ring — the
    thread beside a compose box before the sidebar — taking the text of labels, messages,
-   headings, links, cells and other fields, nearest the field last. `Surroundings.collect`
-   stops at 60 ms, 400 elements, 400 characters per element and 1 200 in all, and returns
-   what it has. Around it, every Accessibility call into the other application gives up
+   headings, links, cells and other fields. Each ring is gathered nearest the field first and
+   put back into reading order afterwards, so when a thread outruns the allowance it is the
+   newest messages that survive, not the oldest. An element is read only where its frame meets
+   the window's: no frame is trusted, zero size is hidden, off-window is pruned with its whole
+   subtree; a label a container already carries is not read again from its children. Every
+   element costs one Accessibility message — role, frame, value, title, description, children
+   and parent in a single multiple-attribute call. `Surroundings.collect` stops at 60 ms,
+   400 elements, 400 characters per element and 1 200 in all — the moment the characters are
+   gathered, not a ring later — and returns what it has. Around it, every Accessibility call into the other application gives up
    after 50 ms (`elementTimeoutInSeconds`), the walk runs on its own queue, and the turn
    waits at most 200 ms for it (`Deadline`) before going on without it. There is no cache:
    the read happens once a pass is certain — after the debounce, never for a reused
@@ -136,7 +142,7 @@ offline audit still holds).
 
 | Phase | Deliverable | Files | Test |
 |---|---|---|---|
-| G1 Read — **done** | `Surroundings.collect` walks outward from the field, ring by ring (the thread beside a compose box before the sidebar), 60 ms and 400 elements, 400 chars per element, 1 200 in all, nearest last; read only once a pass is certain, after the debounce, never on a reused answer. `PredictStore.recent(in:limit:)` newest first, distinct, across the field's documents, wrong lines left out. Both in `GenerationSituation` and the prompt; the log records lengths only. | `UttrflowContext/Surroundings.swift`, Reader+System (`AXElementTree`), PredictStore, CandidateGeneration, MLXCandidateScorer.prompt, Coordinator.situation | `SurroundingsTests` (fake tree: order, skips, caps, budget, allowance), `RecentLinesTests`, `PromptTests` |
+| G1 Read — **done** | `Surroundings.collect` walks outward from the field, ring by ring (the thread beside a compose box before the sidebar), each ring nearest-first then restored to reading order so the newest messages survive the caps; frame-against-window visibility with off-window subtrees pruned; container labels not re-read from children; one multiple-attribute message per element; 60 ms and 400 elements, 400 chars per element, 1 200 in all, stopping the moment the characters are gathered; read only once a pass is certain, after the debounce, never on a reused answer. `PredictStore.recent(in:limit:)` newest first, distinct, across the field's documents, wrong lines left out. Both in `GenerationSituation` and the prompt; the log records lengths only. | `UttrflowContext/Surroundings.swift`, Reader+System (`AXElementTree`), PredictStore, CandidateGeneration, MLXCandidateScorer.prompt, Coordinator.situation | `SurroundingsTests` (fake tree: order, skips, caps, budget, allowance), `RecentLinesTests`, `PromptTests` |
 | G2 Register — **done** | `Register.infer` reads five facts off the moment (single/multi-line, typical length of this person's lines here or of the screen's turns, conversation on screen, symbol share — shell lines sit near 0.14, prose under 0.06, so the line is 0.10 — and sentence case), turns them into hints the prompt carries and a token budget `clamp(typical/2, 24, 96)`; `PromptBuilder` capped the message near 2 400 characters at G2, since halved to 1 400 (the last row of the table below), trimming the screen first, then the oldest own lines, the line never. | `UttrflowPredict/Register.swift`, `UttrflowLocalModel/PromptBuilder.swift`, MLXCandidateScorer | `RegisterTests`, `PromptTests` |
 | G3 Warm — **done** | Two changes, each measured. **One line first**: the pass asks for the single most likely completion and ends at its newline; the alternatives are fetched in a second pass once that line is on screen, which a keystroke cancels, so ↓ still opens a list. **Warm instructions**: at load the instruction prefix — the exact token run two different prompts share, template included — is prefilled into a KV-cache; each pass checks the real prompt opens with it and feeds only the remainder against a copy. | MLXCandidateScorer, SuggestionSession.expandGenerated, Coordinator.generate | fixtures before/after, table below |
 | G4 Prove — **done** | 29 fixtures across terminal, SQL, address bar, four kinds of chat, mail, notes, code and search, each with surroundings, the person's lines, preceding text, the typed prefix, acceptable continuations, a length band and text that must not be echoed; `bakeoff complete --fixtures [--only chat/]` prints per-fixture hit, register conformance and latency, then per-category rates and p50/p95. The live matrix is the user's own testing, read off `CONTEXT`/`GENERATE`/`ACCEPT` in the log. | `uttrflow-bakeoff/Fixtures.swift`, `Complete.swift` | the table below |

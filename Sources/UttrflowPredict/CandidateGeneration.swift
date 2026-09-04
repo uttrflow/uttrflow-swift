@@ -38,13 +38,13 @@ public protocol CandidateGenerating: Sendable {
     /// Whether the model can answer at once, since a keystroke may never wait on one still loading.
     var isReady: Bool { get async }
 
-    /// The most likely continuation of the typed text, alone, since one line is what the person waits for.
-    func completions(for typed: String, in situation: GenerationSituation) async -> [String]
+    /// The most likely continuation of the typed text, alone, since one line is what the person waits for; throws when the pass itself failed, which is not the same as having nothing to offer.
+    func completions(for typed: String, in situation: GenerationSituation) async throws -> [String]
 
     /// Other ways to finish the line, different from the one already offered, fetched once that one is on screen.
     func alternatives(
         for typed: String, in situation: GenerationSituation, excluding leader: String
-    ) async
+    ) async throws
         -> [String]
 }
 
@@ -52,7 +52,7 @@ extension CandidateGenerating {
     /// A generator that offers one line only has no alternatives, which the list then simply never opens on.
     public func alternatives(
         for typed: String, in situation: GenerationSituation, excluding leader: String
-    ) async
+    ) async throws
         -> [String]
     {
         []
