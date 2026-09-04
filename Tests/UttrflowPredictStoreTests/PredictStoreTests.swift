@@ -126,14 +126,28 @@ struct RecordingTests {
         #expect(try await store.candidates(for: omnibox, matching: "example").count == 1)
     }
 
-    @Test("The same field in two directories answers differently.")
-    func scopeSeparates() async throws {
+    @Test("The same field in two directories shares what was learned, not walled off by its folder.")
+    func scopeDoesNotSeparate() async throws {
         let corpus = Corpus()
         let store = try store(corpus)
         let here = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "~/one")
         let there = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "~/two")
         try await store.record("swift build", in: here, at: moment)
-        #expect(try await store.candidates(for: there, matching: "swift").isEmpty)
+        #expect(try await store.candidates(for: there, matching: "swift").count == 1)
+    }
+
+    @Test("A phrase entered in two directories is one candidate, its counts summed across both.")
+    func scopesMergeIntoOne() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let here = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "~/one")
+        let there = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "~/two")
+        try await store.record("swift build", in: here, at: moment)
+        try await store.record("swift build", in: there, at: moment)
+        try await store.record("swift build", in: there, at: moment)
+        let found = try await store.candidates(for: here, matching: "swift")
+        #expect(found.count == 1)
+        #expect(found.first?.evidence?.count == 3)
     }
 
     @Test("A suggestion taken rather than typed is recorded as ours, so it counts for less.")

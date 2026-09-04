@@ -49,14 +49,63 @@ public actor PredictStore: PredictionStore {
 
     // MARK: - Reading
 
-    /// What the user might be finishing, exact matches first and fuzzy ones only if there are none.
+    /// What the user might be finishing, drawn from every folder in this app they have typed it, not walled off by one.
     public func candidates(
         for surface: Surface, matching typed: String
     ) throws(PredictStoreError) -> [Candidate] {
-        guard let id = try identifier(of: surface, creating: false), !typed.isEmpty else { return [] }
-        let exact = try exactCandidates(surfaceIdentifier: id, typed: typed)
-        guard exact.isEmpty else { return exact }
-        return try fuzzyCandidates(surfaceIdentifier: id, typed: typed)
+        guard !typed.isEmpty else { return [] }
+        let ids = try surfaceIdentifiers(of: surface)
+        guard !ids.isEmpty else { return [] }
+        var exact: [Candidate] = []
+        for id in ids { exact += try exactCandidates(surfaceIdentifier: id, typed: typed) }
+        guard exact.isEmpty else { return merged(exact) }
+        var fuzzy: [Candidate] = []
+        for id in ids { fuzzy += try fuzzyCandidates(surfaceIdentifier: id, typed: typed) }
+        return merged(fuzzy)
+    }
+
+    /// Every surface that is the same field in the same application, whatever document it was in.
+    private func surfaceIdentifiers(of surface: Surface) throws(PredictStoreError) -> [Int64] {
+        try database.rows(
+            "SELECT id FROM surface WHERE bundle_id = ? AND role = ? AND locator = ?",
+            {
+                $0.bind(1, surface.bundleIdentifier)
+                $0.bind(2, surface.role)
+                $0.bind(3, surface.locator ?? "")
+            }
+        ) { Int64($0.integer(0)) }
+    }
+
+    /// Folds the same text learned in several places into one candidate, its counts summed so it ranks by real use.
+    private func merged(_ candidates: [Candidate]) -> [Candidate] {
+        var byText: [String: Candidate] = [:]
+        var order: [String] = []
+        for candidate in candidates {
+            guard let existing = byText[candidate.text] else {
+                byText[candidate.text] = candidate
+                order.append(candidate.text)
+                continue
+            }
+            byText[candidate.text] = Self.combine(existing, candidate)
+        }
+        return Array(order.compactMap { byText[$0] }.prefix(Self.candidateLimit))
+    }
+
+    /// One text known in two surfaces becomes one candidate: evidence summed, the nearer edit kept.
+    private static func combine(_ first: Candidate, _ second: Candidate) -> Candidate {
+        let evidence: Entry?
+        if let a = first.evidence, let b = second.evidence {
+            evidence = Entry(
+                text: a.text, count: a.count + b.count, accepted: a.accepted + b.accepted,
+                rejected: a.rejected + b.rejected, selfSourced: a.selfSourced + b.selfSourced,
+                lastUsed: max(a.lastUsed, b.lastUsed))
+        } else {
+            evidence = first.evidence ?? second.evidence
+        }
+        return Candidate(
+            text: first.text, source: first.source, evidence: evidence,
+            editDistance: min(first.editDistance, second.editDistance),
+            isIrreversible: first.isIrreversible)
     }
 
     /// What usually follows what was last entered here, for a field nothing has been typed into.
