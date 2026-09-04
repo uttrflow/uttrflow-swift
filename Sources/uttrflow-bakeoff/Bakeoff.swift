@@ -19,7 +19,7 @@ struct Bakeoff: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "uttrflow-bakeoff",
         abstract: "Score clean-up engines against the evaluation corpus.",
-        subcommands: [Footprint.self, Profile.self, Complete.self]
+        subcommands: [Footprint.self, Profile.self, Complete.self, Score.self]
     )
 
     @Option(name: .shortAndLong, help: "Comma-separated candidates. Defaults to every one.")

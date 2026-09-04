@@ -71,6 +71,15 @@ struct VerificationTests {
         #expect(Verification.verdict(word: "stash", known: subcommands, modelObjects: false) == .attested)
     }
 
+    @Test("The floor sits between what the 4B model gives a real line and what it gives nonsense.")
+    func floorSeparatesMeasuredScores() {
+        // Mean log-probabilities per token measured with `uttrflow-bakeoff score` on gemma-3-4b-it-qat-4bit.
+        let realLines = [-0.18, -1.24, -0.35, -1.64, -3.26, -4.65]
+        let nonsense = [-9.15, -13.60, -10.62, -11.77, -7.29]
+        for score in realLines { #expect(!Verification.objects(to: .scored(score)), "\(score)") }
+        for score in nonsense { #expect(Verification.objects(to: .scored(score)), "\(score)") }
+    }
+
     @Test("The model objects only when it has scored the candidate below the floor.")
     func objectionNeedsAScore() {
         #expect(Verification.objects(to: .scored(Verification.plausibilityFloor - 1)))

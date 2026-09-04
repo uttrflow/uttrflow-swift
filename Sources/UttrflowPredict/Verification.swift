@@ -21,7 +21,7 @@ public protocol CandidateScoring: Sendable {
     /// Whether the model can answer at once, since a keystroke may never wait on one still loading.
     var isReady: Bool { get async }
 
-    /// The candidate's mean log-likelihood per token in context, in one pass, abandoned when cancelled.
+    /// The whole candidate line's mean log-likelihood per token past what is typed, in one pass, abandoned when cancelled.
     func logLikelihood(of candidate: String, following context: String) async -> Double?
 }
 
@@ -49,8 +49,8 @@ public enum Verification {
     /// How long a verdict waits for the model before a candidate stands on the machine's word alone.
     public static let budgetInMilliseconds = 7_000
 
-    /// How unlikely, per token, a candidate may be before the model's objection counts.
-    public static let plausibilityFloor = -4.0
+    /// How unlikely, per token, a candidate may be before the model's objection counts, set from `uttrflow-bakeoff score`.
+    public static let plausibilityFloor = -6.0
 
     /// The dearest slip a correction may explain away, which is one plain insertion or deletion.
     public static let correctionCeiling = TypoModel.indelCost

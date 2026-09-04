@@ -211,15 +211,38 @@ alone. That is the correct failure mode rather than a stopgap — nothing may bl
 keystroke on a model that is loading — but it does mean the only thing the app currently
 rejects is a candidate the machine denied and nothing near it explains.
 
-**`plausibilityFloor` has not been measured.** It is a mean log-probability per token and
-nothing has yet scored a real corpus against a real model to say where the line sits.
+**`plausibilityFloor` is -6.0, measured with `uttrflow-bakeoff score`** on
+gemma-3-4b-it-qat-4bit (mean log-probability per judged token, Float32 softmax). Real
+lines the user had typed scored -0.18 (`ls` → `ls -l`), -1.24 (`ls -la`), -0.35
+(`git c` → `git commit -m`), -1.64 (`SELECT * FROM u` → `… users`), -3.26
+(`Deploy the re` → `Deploy the release candidate to production`) and -4.65 (`git c` →
+`git checkout main`); nonsense scored -9.15 (`ls --zzqx-bogus`), -13.60 (`git cxq`),
+-10.62 (`Deploy the rezzq flombat`), -11.77 (`SELECT * FROM uzqx WHERE`) and -7.29
+(`gizmo --frobnicate`). The gap is [-9.15, -4.65]; -6.0 leaves 1.35 above the weakest
+real line and 1.3 below the nearest nonsense. A plain typo (`git comit -m`, -5.76) passes
+this gate and is left to the nearest-neighbour tier, which is where a typo belongs.
 
-**`MLXCandidateScorer` has never been run.** It is a single forward pass over
-`context + candidate` taking the mean log-probability of the candidate's own tokens, and it
-compiles — but MLX needs `xcodebuild` and the Metal toolchain, so nothing in `make verify`
-executes it and no number from it has been checked. It also re-tokenises `context` and
-`context + candidate` separately, which a tokenizer is free to split differently at the
-join.
+**`MLXCandidateScorer` scores the candidate as the whole line it is.** `Verifier` hands it
+the stored line (`ls -l`) and what is typed (`ls`); the scorer tokenises the line itself,
+takes the typed opening from the line's own spelling, and judges only the tokens past
+where the two token streams diverge. It used to tokenise `context + candidate` — `lsls -l`
+— which is why every remembered line scored below the floor, was recorded as rejected
+(`superseded_by = text`) and never appeared again. Two measured traps remain:
+
+- Gemma 3 4B predicts nonsense from the first two positions after `<bos>` (`" git"` after
+  `<bos>$` scored -27; `" -"` after `<bos>$ ls` scored -0.06), so the scorer puts a
+  two-token lead-in (`"...\n"`) before every line. `"\n\n\n"` is one token and does not
+  help; a chat-template frame puts the instruction-tuned model into peaked answer mode
+  (`" commit"` -0.00, `" checkout"` -19.5) and is worse.
+- When the typed text ends inside a token (`gi` → `git status`), the divergence rule judges
+  `"git"` without knowing `gi` was typed — the cold prior for a line's first word, about
+  -10 — so such a line scores around -8 and is rejected. The correct score is
+  P(token | typed prefix) = P(token) / Σ P(tokens starting with the typed remainder), which
+  needs the vocabulary table; not built yet. Attested candidates (executables, subcommands)
+  never reach the model, which is why `lsof` and `lsbom` are unaffected in practice.
+
+Per-call cost is 80–115 ms warm and ~250–340 ms cold on the 4B model, so the seven
+sequential passes `verifiedDepth` allows fit in under a second of the 7 000 ms budget.
 
 ## The engine decides three things
 
