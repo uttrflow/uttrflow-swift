@@ -9,6 +9,31 @@ enum Ask: Equatable, Sendable {
 
     /// The decoded text that ends the pass: the newline after one line, or nothing when several lines are wanted.
     var stopStrings: Set<String>? { self == .one ? ["\n"] : nil }
+
+    /// How the model's turn opens when one line is wanted: the line up to its last word written for it, and that word still owed.
+    struct Opening: Equatable {
+        /// What is put into the model's turn before it writes, so the answer can only continue the line.
+        let written: String
+        /// The last word with the space before it, which the model must write again token by token before it is free.
+        let owed: String
+        /// Whether the person finished that word with a space, so it must not be lengthened and what follows begins with one.
+        let isWordComplete: Bool
+    }
+
+    /// The opening for one line, or nothing for several lines, which must each repeat the line.
+    func opening(of typed: String) -> Opening? {
+        guard self == .one, let last = typed.lastIndex(where: { !$0.isWhitespace }) else { return nil }
+        let line = typed[...last]
+        // The last word is the model's to write again: cut mid-token it cannot be continued, and finished it invites a newline.
+        var start = line.lastIndex(where: \.isWhitespace).map { line.index(after: $0) } ?? line.startIndex
+        while start > line.startIndex, line[line.index(before: start)].isWhitespace {
+            start = line.index(before: start)
+        }
+        let owed = String(line[start...])
+        return Opening(
+            written: String(line[..<start]), owed: owed,
+            isWordComplete: last < typed.index(before: typed.endIndex))
+    }
 }
 
 /// Lays one moment out for the model under a fixed budget, trimming the context before ever touching the line.
@@ -38,9 +63,9 @@ enum PromptBuilder {
         let closing =
             switch ask {
             case .one:
-                "Continue this line with the single most likely completion, on one line:\n\(typed)"
+                "Continue this \(register.kind) with the single most likely completion, on one line:\n\(typed)"
             case .others(let leader):
-                "Give up to three other ways to finish this line, each different from \"\(leader)\", "
+                "Give up to three other ways to finish this \(register.kind), each different from \"\(leader)\", "
                     + "one per line:\n\(typed)"
             }
 

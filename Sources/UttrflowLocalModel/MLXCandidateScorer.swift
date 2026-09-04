@@ -46,10 +46,18 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
             progressHandler: { onProgress($0.fractionCompleted) }
         )
         warm = await warmInstructions()
+        vocabulary = await container?.perform { context in
+            TokenHealing.Vocabulary(
+                tokenizer: context.tokenizer, endOfTurn: context.configuration.extraEOSTokens,
+                endingIds: context.configuration.eosTokenIds)
+        }
     }
 
     /// The instructions as the model has already read them, so a pass pays only for the moment's own tokens.
     private var warm: WarmInstructions?
+
+    /// Every token's text, read once, so a pass can hold the model to the word being typed.
+    private var vocabulary: TokenHealing.Vocabulary?
 
     /// The tokens every prompt opens with and the model's state after reading them, copied for each pass.
     private struct WarmInstructions: @unchecked Sendable {
@@ -95,7 +103,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
 
     /// One pass as the model wrote it, beside what the parser made of it, so a bake-off can read why a miss was a miss.
     public struct Pass: Sendable {
-        /// Every token the model produced, unparsed.
+        /// Every token the model produced, unparsed, after the line's own start that opened its turn.
         public let text: String
         /// Why the pass ended: a stop token, the length budget, or a cancellation.
         public let stopReason: String
@@ -131,16 +139,24 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         return Self.completions(from: run, typed: typed, asking: ask)
     }
 
-    /// The model's words and how the pass ended.
+    /// The model's words, how the pass ended, and the opening of its turn that was written for it.
     private struct Run {
         let text: String
         let stop: GenerateStopReason?
+        let written: String
     }
 
-    /// What the parser makes of a pass: nothing when one line was wanted and the budget cut it, since none of a cut line is the line.
+    /// What the parser makes of a pass; one line the budget cut is kept to its last whole word, which is still the line's own start.
     private static func completions(from run: Run, typed: String, asking ask: Ask) -> [String] {
-        if ask == .one, run.stop == .length { return [] }
-        return parse(run.text, typed: typed)
+        let text = ask == .one && run.stop == .length ? wholeWords(of: run.text) : run.text
+        // What was written for the model is the line's own start, so the answer is read as the whole line it would have echoed.
+        return parse(run.written + text, typed: typed)
+    }
+
+    /// The text up to the last word cut by the budget, or nothing when the cut fell inside its only word.
+    static func wholeWords(of text: String) -> String {
+        guard let cut = text.lastIndex(where: \.isWhitespace) else { return "" }
+        return String(text[..<cut])
     }
 
     /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line; a pass that fails throws, so the caller can tell it from an empty answer.
@@ -153,7 +169,9 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         // The register decides how much of a pass this line is worth: a command a little, a paragraph more.
         let register = Register.infer(from: situation, typed: typed)
         let message = PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
+        let opening = ask.opening(of: typed)
         let warm = self.warm
+        let vocabulary = self.vocabulary
         let perLine = register.maxTokens
         let cap = maximumTokens
         let stream: AsyncStream<Generation>
@@ -166,8 +184,12 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
                 let input = try await context.processor.prepare(
                     input: UserInput(chat: [.system(Self.instructions), .user(message)]))
                 precondition(input.text.tokens.ndim == 1, "the processor hands over one flat run of tokens")
-                let all = input.text.tokens.asArray(Int32.self).map(Int.init)
-                var feed = input
+                var all = input.text.tokens.asArray(Int32.self).map(Int.init)
+                // The line up to its last word opens the model's turn when one line is wanted, so decoding can only continue it.
+                if let opening, !opening.written.isEmpty {
+                    all += context.tokenizer.encode(text: opening.written, addSpecialTokens: false)
+                }
+                var feed = LMInput(text: LMInput.Text(tokens: MLXArray(all.map(Int32.init))))
                 var cache: [KVCache]?
                 // When the prompt opens exactly as the warm cache read it, the pass pays only for the tokens past that.
                 if let warm, all.count > warm.tokens.count, Array(all[..<warm.tokens.count]) == warm.tokens {
@@ -175,14 +197,26 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
                     feed = LMInput(text: LMInput.Text(tokens: rest))
                     cache = warm.cache.map { $0.copy() }
                 }
-                // Every answer repeats the line before adding to it, so its echo is budgeted on top of the completion.
-                let echo = context.tokenizer.encode(text: typed).count
+                // An answer that must repeat the line pays for the echo on top of the completion; an opened one pays only for the word it owes.
+                let echo = context.tokenizer.encode(text: opening?.owed ?? typed).count
                 let parameters = GenerateParameters(
                     maxTokens: Self.tokenBudget(perLine: perLine, lines: tokenShare, echo: echo, cap: cap),
                     temperature: 0)
                 try Task.checkCancellation()
-                return try MLXLMCommon.generate(
-                    input: feed, cache: cache, parameters: parameters, context: context)
+                guard let opening, let vocabulary else {
+                    return try MLXLMCommon.generate(
+                        input: feed, cache: cache, parameters: parameters, context: context)
+                }
+                // The first tokens are held to the word being typed, so a word cut inside a token is continued rather than replaced.
+                let iterator = try TokenIterator(
+                    input: feed, model: context.model, cache: cache,
+                    processor: TokenHealing(
+                        vocabulary: vocabulary, owed: opening.owed, wordComplete: opening.isWordComplete),
+                    sampler: parameters.sampler(), maxTokens: parameters.maxTokens)
+                return generateTask(
+                    promptTokenCount: feed.text.tokens.size, modelConfiguration: context.configuration,
+                    tokenizer: context.tokenizer, iterator: iterator
+                ).0
             }
         } catch is CancellationError {
             // A cancelled pass answers a line that is gone, and nothing is drawn for it either way.
@@ -204,7 +238,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
                 "PASS prompt=\(info.promptTokenCount) promptMs=\(Int(info.promptTime * 1_000)) generated=\(info.generationTokenCount) generateMs=\(Int(info.generateTime * 1_000))"
             )
         }
-        return Run(text: text, stop: info?.stopReason)
+        return Run(text: text, stop: info?.stopReason, written: opening?.written ?? "")
     }
 
     /// The tokens a pass may spend: the register's share per line, capped, plus the echo of the line each answer repeats.
@@ -228,8 +262,9 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
 
     /// The prompt's own headings, which a line quoting the prompt back carries and a real completion never does.
     static let promptMarkers = [
-        "continue this text", "continue this line", "on screen around the field",
-        "lines this person wrote here", "the text before the line reads", "hints:",
+        "continue this text", "continue this line", "continue this reply", "continue this web address",
+        "continue this command", "on screen around the field", "lines this person wrote here",
+        "the text before the line reads", "hints:",
     ]
 
     /// A continuation longer than this is a paragraph, not the rest of a line.
@@ -239,12 +274,14 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     static func parse(_ response: String, typed: String) -> [String] {
         var seen: Set<String> = []
         var results: [String] = []
+        // The line is read without its indentation, so the echo is matched against the typed text without its own.
+        let unindented = String(typed.drop(while: \.isWhitespace))
         for line in response.split(whereSeparator: \.isNewline) {
             let text = line.trimmingCharacters(in: .whitespaces)
             // A bullet or number the person typed is part of the line, so it is read as it is before it is unmarked.
             guard
-                let continuation = Self.continuation(of: text, past: typed)
-                    ?? Self.continuation(of: Self.unmarked(text), past: typed),
+                let continuation = Self.continuation(of: text, past: unindented)
+                    ?? Self.continuation(of: Self.unmarked(text), past: unindented),
                 Self.comparable(continuation).contains(where: { $0 != " " }),
                 !promptMarkers.contains(where: text.lowercased().contains),
                 !isDegenerate(continuation)

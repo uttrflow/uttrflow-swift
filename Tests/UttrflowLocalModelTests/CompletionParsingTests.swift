@@ -5,6 +5,14 @@ import Testing
 /// What the model's reply is allowed to become, decided without loading a model.
 @Suite("Completion parsing")
 struct CompletionParsingTests {
+    @Test(
+        "An indented line is read against the typed text without its indentation, and keeps it in the answer."
+    )
+    func indentationIsKept() {
+        #expect(MLXCandidateScorer.parse("    return a + b", typed: "    return ") == ["    return a + b"])
+        #expect(MLXCandidateScorer.parse("  return a + b;", typed: "  return a ") == ["  return a + b;"])
+    }
+
     @Test("Lines that extend what was typed are kept in order, once each, whatever marks the model added.")
     func extendingLinesAreKept() {
         let reply = "```\n1. git checkout main\n- git commit -m\n* git checkout main\ngit c\n```"

@@ -100,11 +100,36 @@ struct RegisterTests {
                 "the lines here are web addresses, so the line continues into a host and path"))
         #expect(!register.hints.contains("the text here is commands, code or queries rather than prose"))
         #expect(!Register.infer(from: shell, typed: "git c").writesAddresses)
+        // With no lines of the person's own, the field's own name is the evidence, in the words browsers publish.
+        let bare = GenerationSituation(application: "Browser", field: "Search or enter website name")
+        #expect(Register.infer(from: bare, typed: "git").writesAddresses)
+        // The same combined field with the person's queries in it is a search field, whatever it is called.
+        let searched = GenerationSituation(
+            application: "Browser", field: "Search or enter website name",
+            recentLines: ["swift actors tutorial", "weather tomorrow", "flights to goa december"])
+        #expect(!Register.infer(from: searched, typed: "bookcase ").writesAddresses)
+        #expect(Register.namesAddressField("Address and search bar"))
+        #expect(Register.namesAddressField("Search or enter address"))
+        #expect(Register.namesAddressField("URL"))
+        #expect(!Register.namesAddressField("Address line 1"))
+        #expect(!Register.namesAddressField("Email address"))
+        #expect(!Register.namesAddressField(nil))
         #expect(Register.looksLikeAddress("docs.python.org/3/library"))
         #expect(!Register.looksLikeAddress("git commit -m 'fix'"))
         #expect(!Register.looksLikeAddress(".hidden"))
         #expect(!Register.looksLikeAddress("v1.2"))
         #expect(Register.addressShare(of: []) == 0)
+    }
+
+    @Test(
+        "The kind names the line for the instruction beside it: an address, a command, a reply, or just a line."
+    )
+    func theKindNamesTheLine() {
+        #expect(Register.infer(from: friendChat, typed: "on m").kind == "reply")
+        #expect(Register.infer(from: shell, typed: "git c").kind == "command, query or line of code")
+        #expect(Register.infer(from: essay, typed: "We").kind == "line")
+        let addressBar = GenerationSituation(application: "Browser", field: "Address and search bar")
+        #expect(Register.infer(from: addressBar, typed: "git").kind.hasPrefix("web address, a host and path"))
     }
 
     @Test("The token budget is half the typical length, held between the shortest and longest pass allowed.")

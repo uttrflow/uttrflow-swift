@@ -49,7 +49,22 @@ public struct Register: Sendable, Equatable {
             isConversational: conversational,
             symbolShare: symbolShare(of: [situation.preceding ?? "", typed] + own),
             usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
-            writesAddresses: !own.isEmpty && addressShare(of: own) >= 0.5)
+            // The person's own lines decide where there are any; a combined search-and-address field takes queries too.
+            writesAddresses: own.isEmpty ? namesAddressField(situation.field) : addressShare(of: own) >= 0.5)
+    }
+
+    /// Whether the field's own accessibility name says it takes web addresses: browsers publish "Address and search bar", "Search or enter website name", "Search or enter address" or a URL field, while a postal or email address field never pairs the word with search.
+    static func namesAddressField(_ name: String?) -> Bool {
+        guard let name = name?.lowercased() else { return false }
+        return name.contains("url") || name.contains("website") || name.contains("web address")
+            || (name.contains("search") && name.contains("address"))
+    }
+
+    /// What the line is, in the word the instruction at the line uses, so the register is stated once more where a small model weighs it most.
+    public var kind: String {
+        if writesAddresses { return "web address, a host and path and never a command," }
+        if symbolShare > Self.symbolicShare { return "command, query or line of code" }
+        return isConversational ? "reply" : "line"
     }
 
     /// The share of the lines shaped like a web address: no spaces, a dot inside, letters after it.

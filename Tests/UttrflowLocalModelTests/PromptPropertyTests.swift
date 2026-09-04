@@ -82,7 +82,7 @@ struct PromptPropertyTests {
         // The opening runs to the first blank line and the closing from the last one before the ask.
         let opening = prompt.range(of: "\n\n").map { prompt[..<$0.lowerBound].count } ?? 0
         let closing =
-            (prompt.range(of: "\n\nContinue this line", options: .backwards)
+            (prompt.range(of: "\n\nContinue this ", options: .backwards)
             ?? prompt.range(of: "\n\nGive up to three", options: .backwards))
             .map { prompt[$0.lowerBound...].count - 2 } ?? 0
         #expect(opening > 0 && closing > 0)
@@ -100,8 +100,8 @@ struct PromptPropertyTests {
         case .one:
             #expect(
                 prompt.hasSuffix(
-                    "Continue this line with the single most likely completion, on one line:\n" + moment.typed
-                ))
+                    "Continue this \(moment.register.kind) with the single most likely completion, on one line:\n"
+                        + moment.typed))
         case .others(let leader):
             #expect(prompt.contains("each different from \"\(leader)\", one per line:\n" + moment.typed))
             #expect(prompt.hasSuffix("one per line:\n" + moment.typed))

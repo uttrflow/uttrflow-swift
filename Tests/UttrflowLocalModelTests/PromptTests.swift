@@ -36,7 +36,7 @@ struct PromptTests {
     func bareSituationStaysShort() {
         let prompt = message("git c", GenerationSituation(application: "Terminal"))
         #expect(prompt.hasPrefix("In application Terminal.\nHints: "))
-        let closing = "Continue this line with the single most likely completion, on one line:\ngit c"
+        let closing = "Continue this reply with the single most likely completion, on one line:\ngit c"
         #expect(prompt.hasSuffix("\n\n" + closing))
         #expect(!prompt.contains("On screen"))
         #expect(!prompt.contains("wrote here"))
@@ -78,10 +78,16 @@ struct PromptTests {
         let situation = GenerationSituation(application: "Terminal")
         let one = PromptBuilder.message(typed: "git c", in: situation, register: casual)
         #expect(
-            one.hasSuffix("Continue this line with the single most likely completion, on one line:\ngit c"))
+            one.hasSuffix("Continue this reply with the single most likely completion, on one line:\ngit c"))
+        // The instruction at the line names the register's kind, so a shell asks for a command and an address bar for an address.
+        let shell = Register(
+            isMultiline: false, typicalLength: 19, isConversational: false, symbolShare: 0.14,
+            usesSentenceCase: nil)
+        let command = PromptBuilder.message(typed: "git c", in: situation, register: shell)
+        #expect(command.contains("Continue this command, query or line of code with"))
         let others = PromptBuilder.message(
             typed: "git c", in: situation, register: casual, asking: .others(excluding: "git commit -m"))
-        #expect(others.contains("up to three other ways"))
+        #expect(others.contains("up to three other ways to finish this reply"))
         #expect(others.contains("different from \"git commit -m\""))
         #expect(others.hasSuffix("one per line:\ngit c"))
     }
@@ -91,6 +97,35 @@ struct PromptTests {
     func oneLineEndsAtItsNewline() {
         #expect(Ask.one.stopStrings == ["\n"])
         #expect(Ask.others(excluding: "git commit -m").stopStrings == nil)
+    }
+
+    @Test(
+        "One line opens the model's turn with the line up to its last word and owes that word; several lines open with nothing."
+    )
+    func oneLineOpensUpToItsLastWord() {
+        #expect(
+            Ask.one.opening(of: "git c") == Ask.Opening(written: "git", owed: " c", isWordComplete: false))
+        #expect(
+            Ask.one.opening(of: "npm install ")
+                == Ask.Opening(written: "npm", owed: " install", isWordComplete: true))
+        #expect(
+            Ask.one.opening(of: "The next rel")
+                == Ask.Opening(written: "The next", owed: " rel", isWordComplete: false))
+        #expect(
+            Ask.one.opening(of: "    return a ")
+                == Ask.Opening(written: "    return", owed: " a", isWordComplete: true))
+        #expect(
+            Ask.one.opening(of: "stackover")
+                == Ask.Opening(written: "", owed: "stackover", isWordComplete: false))
+        #expect(
+            MLXCandidateScorer.wholeWords(of: " members (id, name) VALUES (1, 'Ali")
+                == " members (id, name) VALUES (1,")
+        #expect(MLXCandidateScorer.wholeWords(of: "figma.com/file/jW66") == "")
+        #expect(
+            Ask.one.opening(of: "happy birthday 🎂  ")
+                == Ask.Opening(written: "happy birthday", owed: " 🎂", isWordComplete: true))
+        #expect(Ask.one.opening(of: "   ") == nil)
+        #expect(Ask.others(excluding: "git commit -m").opening(of: "git c") == nil)
     }
 
     @Test(
