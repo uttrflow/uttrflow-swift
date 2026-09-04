@@ -46,7 +46,8 @@ struct DeadlineTests {
             return "late"
         }
         #expect(answer == nil)
-        #expect(ContinuousClock.now - started < .milliseconds(allowance + 1_000))
+        // Half the work's length: a race that waited for the loser takes the full three seconds, and a loaded test run has been seen to add a second.
+        #expect(ContinuousClock.now - started < .milliseconds(allowance + 1_500))
     }
 
     @Test("Work that cannot be stopped is left to finish on its own rather than waited for.")
@@ -56,13 +57,14 @@ struct DeadlineTests {
             // A read on another queue answers when it answers; cancelling the waiting task does not hurry it.
             await withCheckedContinuation { continuation in
                 Task.detached {
-                    try? await Task.sleep(for: .seconds(2))
+                    try? await Task.sleep(for: .seconds(3))
                     continuation.resume(returning: "late")
                 }
             }
         }
         #expect(answer == nil)
-        #expect(ContinuousClock.now - started < .seconds(1))
+        // Half the work's length, for the same reason as above: waiting for it would take three seconds.
+        #expect(ContinuousClock.now - started < .milliseconds(1_500))
     }
 
     @Test(
