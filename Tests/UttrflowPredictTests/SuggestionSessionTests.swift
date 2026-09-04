@@ -208,6 +208,43 @@ struct SuggestionRejectionTests {
         #expect(session.rejectionsHere == 0)
     }
 
+    @Test(
+        "Alternatives that arrive after the one generated line turn it into a choice, without moving the highlight."
+    )
+    func alternativesExpandTheGeneratedLine() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git commit -m"], for: asked, elapsedMilliseconds: 0)
+        let expanded = session.expandGenerated(
+            ["git checkout main", "git commit -m", "svn clone", "git c", "git clone"], for: asked)
+        #expect(
+            expanded?.suggestion
+                == .choice(leader: "git commit -m", others: ["git checkout main", "git clone"]))
+        #expect(session.selection == .untouched)
+        #expect(session.turn(in: field, at: PredictionContext(typed: "git x")).rejected == nil)
+    }
+
+    @Test("Alternatives that add nothing, or arrive after the user has typed on, change nothing.")
+    func emptyOrStaleAlternativesAreDropped() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git commit -m"], for: asked, elapsedMilliseconds: 0)
+        #expect(session.expandGenerated([], for: asked) == nil)
+        #expect(session.expandGenerated(["git commit -m", "svn clone"], for: asked) == nil)
+        #expect(session.suggestion == .certain("git commit -m"))
+        _ = session.turn(in: field, at: PredictionContext(typed: "git co"))
+        #expect(session.expandGenerated(["git checkout main"], for: asked) == nil)
+    }
+
+    @Test("Alternatives never attach to a remembered line, which the gates chose and the model did not.")
+    func rememberedLinesTakeNoAlternatives() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        let current = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        #expect(session.suggestion == .certain("git commit -m"))
+        #expect(session.expandGenerated(["git checkout main"], for: current) == nil)
+    }
+
     @Test("A remembered suggestion drawn after a generated one counts again when typed past.")
     func aRememberedSuggestionCountsAgain() throws {
         var session = SuggestionSession()

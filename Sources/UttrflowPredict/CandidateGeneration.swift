@@ -38,6 +38,23 @@ public protocol CandidateGenerating: Sendable {
     /// Whether the model can answer at once, since a keystroke may never wait on one still loading.
     var isReady: Bool { get async }
 
-    /// Likely continuations of the typed text, most likely first, or none when it cannot say.
+    /// The most likely continuation of the typed text, alone, since one line is what the person waits for.
     func completions(for typed: String, in situation: GenerationSituation) async -> [String]
+
+    /// Other ways to finish the line, different from the one already offered, fetched once that one is on screen.
+    func alternatives(
+        for typed: String, in situation: GenerationSituation, excluding leader: String
+    ) async
+        -> [String]
+}
+
+extension CandidateGenerating {
+    /// A generator that offers one line only has no alternatives, which the list then simply never opens on.
+    public func alternatives(
+        for typed: String, in situation: GenerationSituation, excluding leader: String
+    ) async
+        -> [String]
+    {
+        []
+    }
 }

@@ -319,6 +319,23 @@ final class SuggestionCoordinator {
                 completions, for: query, elapsedMilliseconds: since(started))
         else { return }
         draw(update, in: snapshot)
+        // With the one line on screen, the others are fetched behind it, so Down has a list and the person never waited for it.
+        guard completions.count == 1, let leader = completions.first else { return }
+        let more = Task { [generator, store] in
+            let situation = await Self.situation(of: snapshot, for: query, store: store)
+            return await generator.alternatives(for: query.typed, in: situation, excluding: leader)
+        }
+        generating = more
+        let others = await more.value
+        generating = nil
+        guard !more.isCancelled, !others.isEmpty,
+            let expanded = session.expandGenerated(others, for: query)
+        else { return }
+        lastGenerated = (query.surface, query.typed, [leader] + others)
+        Self.log.debug(
+            "ALTERNATIVES typed=\(query.typed, privacy: .public) got=\(others.count) elapsed=\(self.since(started))ms"
+        )
+        draw(expanded, in: snapshot)
     }
 
     /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.

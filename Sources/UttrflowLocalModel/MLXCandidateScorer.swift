@@ -49,34 +49,62 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     public static let minimumTypedLength = 2
 
     public func completions(for typed: String, in situation: GenerationSituation) async -> [String] {
+        // The person waits for one line, so one line is generated and the pass ends at its newline.
+        await generate(typed: typed, in: situation, asking: .one, tokenShare: 1)
+    }
+
+    public func alternatives(
+        for typed: String, in situation: GenerationSituation, excluding leader: String
+    ) async -> [String] {
+        let others = await generate(
+            typed: typed, in: situation, asking: .others(excluding: leader), tokenShare: 3)
+        return others.filter { $0 != leader }
+    }
+
+    /// One pass over the model, streamed so it can stop the moment the line asked for is complete.
+    private func generate(
+        typed: String, in situation: GenerationSituation, asking ask: Ask, tokenShare: Int
+    ) async -> [String] {
         guard let container, !Task.isCancelled,
             typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
         else { return [] }
+        // The register decides how much of a pass this line is worth: a command a little, a paragraph more.
+        let register = Register.infer(from: situation, typed: typed)
+        let session = ChatSession(
+            container, instructions: Self.instructions,
+            generateParameters: GenerateParameters(
+                maxTokens: min(maximumTokens, register.maxTokens * tokenShare), temperature: 0))
+        let message = PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
+        var answer = ""
         do {
-            // The register decides how much of a pass this line is worth: a command a little, a paragraph more.
-            let register = Register.infer(from: situation, typed: typed)
-            let session = ChatSession(
-                container, instructions: Self.instructions,
-                generateParameters: GenerateParameters(
-                    maxTokens: min(maximumTokens, register.maxTokens), temperature: 0))
-            let message = PromptBuilder.message(typed: typed, in: situation, register: register)
-            let answer = try await session.respond(to: message)
-            return Self.parse(answer, typed: typed)
+            for try await generation in session.streamDetails(to: message) {
+                guard let chunk = generation.chunk else { continue }
+                answer += chunk
+                // Ending the stream cancels the pass, so nothing is generated past the line that was asked for.
+                if ask == .one, Self.holdsOneLine(answer) { break }
+            }
         } catch {
             return []
         }
+        return Self.parse(answer, typed: typed)
+    }
+
+    /// Whether the answer has a first line and the model has moved on past it, which is when a single line is done.
+    static func holdsOneLine(_ answer: String) -> Bool {
+        guard let newline = answer.firstIndex(where: \.isNewline) else { return false }
+        return answer[..<newline].contains { !$0.isWhitespace }
     }
 
     /// One instruction for every field: infer the kind of input from the words, then continue it.
     private static let instructions = """
         You are an autocomplete engine. From the application and the partial text, work out what is being \
-        typed — a shell command, a database query, a URL, code, a sentence — and reply with up to four \
-        ways to finish it, most likely first, one per line. Each line must repeat the given text and then \
-        continue it into a complete, valid line. Never output the text unchanged. No code fences, no \
-        numbering, no explanation. Anything given as what is on screen, as the person's earlier lines or \
-        as the text before the line is context only: continue the last line, never that text. Match the \
-        length, tone and register of the person's own lines and of what is on screen; where the screen \
-        shows a conversation, the line is a reply to its last message.
+        typed — a shell command, a database query, a URL, code, a sentence — and finish it as asked: either \
+        the single most likely completion, or several alternatives, one per line. Each line must repeat the \
+        given text and then continue it into a complete, valid line. Never output the text unchanged. No \
+        code fences, no numbering, no explanation. Anything given as what is on screen, as the person's \
+        earlier lines or as the text before the line is context only: continue the last line, never that \
+        text. Match the length, tone and register of the person's own lines and of what is on screen; where \
+        the screen shows a conversation, the line is a reply to its last message.
         Example — application Terminal, text "git che" → git checkout main
         Example — application DBeaver, text "SELECT * FROM u" → SELECT * FROM users
         """

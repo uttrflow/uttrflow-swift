@@ -1,18 +1,35 @@
 import UttrflowPredict
 
+/// What one pass asks the model for: the one line the person waits for, or the others behind it.
+enum Ask: Equatable {
+    /// The single most likely way to finish the line, on one line.
+    case one
+    /// Up to three other ways, none of them the line already on screen.
+    case others(excluding: String)
+}
+
 /// Lays one moment out for the model under a fixed budget, trimming the context before ever touching the line.
 enum PromptBuilder {
     /// About 700 tokens of Gemma's vocabulary, which keeps the prefill to a fraction of the pass.
     static let budgetInCharacters = 2_400
 
     /// The whole message: where the caret is, the register, what is around it, how this person writes here, the line.
-    static func message(typed: String, in situation: GenerationSituation, register: Register) -> String {
+    static func message(
+        typed: String, in situation: GenerationSituation, register: Register, asking ask: Ask = .one
+    ) -> String {
         var located = "application \(situation.application)"
         if let title = situation.windowTitle { located += ", window \"\(title)\"" }
         if let field = situation.field { located += ", field \(field)" }
         if let document = situation.document { located += ", document \(document)" }
         let opening = "In \(located).\nHints: \(register.hints.joined(separator: "; "))."
-        let closing = "Continue this line:\n\(typed)"
+        let closing =
+            switch ask {
+            case .one:
+                "Continue this line with the single most likely completion, on one line:\n\(typed)"
+            case .others(let leader):
+                "Give up to three other ways to finish this line, each different from \"\(leader)\", "
+                    + "one per line:\n\(typed)"
+            }
 
         // What is fixed is paid for first; the context gets whatever is left, farthest from the line trimmed first.
         var remaining = budgetInCharacters - opening.count - closing.count

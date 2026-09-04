@@ -29,14 +29,15 @@ struct PromptTests {
         #expect(prompt.contains("On screen around the field:\nPriya: are you coming tonight?"))
         #expect(prompt.contains("Lines this person wrote here before:\non my way\nrunning late, sorry"))
         #expect(prompt.contains("The text before the line reads:\nearlier paragraph"))
-        #expect(prompt.hasSuffix("Continue this line:\nyes, "))
+        #expect(prompt.hasSuffix("on one line:\nyes, "))
     }
 
     @Test("With nothing around the field, the prompt is the situation, the hints and the line.")
     func bareSituationStaysShort() {
         let prompt = message("git c", GenerationSituation(application: "Terminal"))
         #expect(prompt.hasPrefix("In application Terminal.\nHints: "))
-        #expect(prompt.hasSuffix("\n\nContinue this line:\ngit c"))
+        let closing = "Continue this line with the single most likely completion, on one line:\ngit c"
+        #expect(prompt.hasSuffix("\n\n" + closing))
         #expect(!prompt.contains("On screen"))
         #expect(!prompt.contains("wrote here"))
     }
@@ -64,11 +65,34 @@ struct PromptTests {
         let typed = String(repeating: "t", count: 300)
         let prompt = message(typed, situation)
         #expect(prompt.count <= PromptBuilder.budgetInCharacters + 200)
-        #expect(prompt.hasSuffix("Continue this line:\n\(typed)"))
+        #expect(prompt.hasSuffix("on one line:\n\(typed)"))
         #expect(prompt.contains("near the field"))
         #expect(prompt.contains("line number 0 of"))
         #expect(!prompt.contains("line number 39 of"))
         #expect(prompt.contains(" end\n"))
+    }
+
+    @Test(
+        "The pass asks for one line by default, and for others only once a line is on screen to differ from.")
+    func theAskNamesWhatIsWanted() {
+        let situation = GenerationSituation(application: "Terminal")
+        let one = PromptBuilder.message(typed: "git c", in: situation, register: casual)
+        #expect(
+            one.hasSuffix("Continue this line with the single most likely completion, on one line:\ngit c"))
+        let others = PromptBuilder.message(
+            typed: "git c", in: situation, register: casual, asking: .others(excluding: "git commit -m"))
+        #expect(others.contains("up to three other ways"))
+        #expect(others.contains("different from \"git commit -m\""))
+        #expect(others.hasSuffix("one per line:\ngit c"))
+    }
+
+    @Test("A single line is done once the model has moved past it, and not before.")
+    func oneLineEndsAtItsNewline() {
+        #expect(!MLXCandidateScorer.holdsOneLine("git commit -m"))
+        #expect(!MLXCandidateScorer.holdsOneLine("\n"))
+        #expect(!MLXCandidateScorer.holdsOneLine("  \n"))
+        #expect(MLXCandidateScorer.holdsOneLine("git commit -m\n"))
+        #expect(MLXCandidateScorer.holdsOneLine("git commit -m\ngit ch"))
     }
 
     @Test("Trimming keeps the end of a text and the newest lines, and nothing at all when there is no room.")

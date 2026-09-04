@@ -206,6 +206,21 @@ public struct SuggestionSession: Sendable, Equatable {
         return update
     }
 
+    /// Adds the alternatives that arrived after the one line was drawn, so Down has a list to open without redrawing the line.
+    public mutating func expandGenerated(_ others: [String], for query: SuggestionQuery) -> SuggestionUpdate?
+    {
+        guard query.generation == generation, query.surface == surface, let pending, shownIsGenerated,
+            case .certain(let leader) = suggestion
+        else { return nil }
+        let usable = others.filter {
+            $0 != leader && $0 != pending.typed && $0.lowercased().hasPrefix(pending.typed.lowercased())
+        }
+        guard !usable.isEmpty else { return nil }
+        let update = settle(.choice(leader: leader, others: Array(usable.prefix(Self.verifiedDepth - 1))))
+        shownIsGenerated = true
+        return update
+    }
+
     /// Takes one keystroke the tap swallowed and answers with what it means.
     public mutating func route(_ stroke: KeyStroke) -> SuggestionAction {
         switch KeyRouting.decision(
