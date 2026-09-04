@@ -13,8 +13,11 @@ struct Complete: AsyncParsableCommand {
     @Argument(help: "The partial text to complete.")
     var typed: String
 
-    @Flag(name: .long, help: "Treat the input as prose rather than a shell command.")
-    var prose = false
+    @Option(name: .long, help: "The application the caret is in, e.g. Terminal, DBeaver, Safari.")
+    var application = "Terminal"
+
+    @Option(name: .long, help: "The page or directory the field belongs to, if any.")
+    var document: String?
 
     @Option(name: .long, help: "Which model to run. Defaults to the one the app uses for suggestions.")
     var model = "gemma-3-1b-it-qat-4bit"
@@ -29,9 +32,9 @@ struct Complete: AsyncParsableCommand {
             FileHandle.standardError.write(Data("\r  loading \(Int(fraction * 100))% ".utf8))
         }
         FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
-        let surface = Surface(bundleIdentifier: "com.apple.Terminal", role: "AXTextArea")
-        let completions = await scorer.completions(for: typed, in: surface, isProse: prose)
-        print("completions for \(typed.debugDescription) (\(prose ? "prose" : "command")):")
+        let situation = GenerationSituation(application: application, document: document)
+        let completions = await scorer.completions(for: typed, in: situation)
+        print("completions for \(typed.debugDescription) in \(application):")
         guard !completions.isEmpty else {
             print("  (none)")
             return

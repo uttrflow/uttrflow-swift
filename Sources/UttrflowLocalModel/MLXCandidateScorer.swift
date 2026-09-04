@@ -34,26 +34,36 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
 
     public var isReady: Bool { container != nil }
 
-    public func completions(for typed: String, in surface: Surface, isProse: Bool) async -> [String] {
+    public func completions(for typed: String, in situation: GenerationSituation) async -> [String] {
         guard let container, !typed.isEmpty, !Task.isCancelled else { return [] }
         do {
             let session = ChatSession(
-                container, instructions: Self.instructions(isProse: isProse),
+                container, instructions: Self.instructions,
                 generateParameters: GenerateParameters(maxTokens: maximumTokens, temperature: 0))
-            return Self.parse(try await session.respond(to: typed), typed: typed)
+            let answer = try await session.respond(to: Self.prompt(typed: typed, in: situation))
+            return Self.parse(answer, typed: typed)
         } catch {
             return []
         }
     }
 
-    /// Tells the model what it is completing, so a shell command is not finished like a sentence.
-    private static func instructions(isProse: Bool) -> String {
-        let subject = isProse ? "a line of text" : "a shell command"
-        return """
-            You complete what a user is typing in \(subject). Reply with up to four of the most likely \
-            complete versions, most likely first, one per line. Each line must begin with the exact text \
-            given. Output only the completions, with no numbering and no explanation.
-            """
+    /// One instruction for every field: infer the kind of input from the words, then continue it.
+    private static let instructions = """
+        You are an autocomplete engine. From the application and the partial text, work out what is being \
+        typed — a shell command, a database query, a URL, code, a sentence — and reply with up to four \
+        ways to finish it, most likely first, one per line. Each line must repeat the given text and then \
+        continue it into a complete, valid line. Never output the text unchanged. No code fences, no \
+        numbering, no explanation.
+        Example — application Terminal, text "git che" → git checkout main
+        Example — application DBeaver, text "SELECT * FROM u" → SELECT * FROM users
+        """
+
+    /// Puts the live situation into one sentence the model reads, naming the app without judging it.
+    private static func prompt(typed: String, in situation: GenerationSituation) -> String {
+        var located = "application \(situation.application)"
+        if let field = situation.field { located += ", field \(field)" }
+        if let document = situation.document { located += ", document \(document)" }
+        return "In \(located), continue this text:\n\(typed)"
     }
 
     /// The model's lines, kept only where they extend what was typed, in order and without repeats.
@@ -61,13 +71,27 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         var seen: Set<String> = []
         var results: [String] = []
         for line in response.split(whereSeparator: \.isNewline) {
-            let text = line.trimmingCharacters(in: .whitespaces)
+            let text = Self.unmarked(line.trimmingCharacters(in: .whitespaces))
             guard !text.isEmpty, text != typed,
                 text.lowercased().hasPrefix(typed.lowercased()), seen.insert(text).inserted
             else { continue }
             results.append(text)
         }
         return results
+    }
+
+    /// Strips a code fence, bullet, or numbering the model added despite being asked not to.
+    private static func unmarked(_ line: String) -> String {
+        if line.hasPrefix("```") { return "" }
+        for marker in ["- ", "* ", "• "] where line.hasPrefix(marker) {
+            return String(line.dropFirst(marker.count))
+        }
+        if let dot = line.firstIndex(of: "."), dot != line.startIndex,
+            line[line.startIndex..<dot].allSatisfy(\.isNumber)
+        {
+            return String(line[line.index(after: dot)...]).trimmingCharacters(in: .whitespaces)
+        }
+        return line
     }
 
     public func logLikelihood(of candidate: String, following context: String) async -> Double? {

@@ -234,13 +234,16 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// Asks the model for a suggestion the corpus never held, and draws the order it returns.
+    /// Asks the model for a suggestion the corpus never held, from the field read live, and draws it.
     private func generate(
         with generator: any CandidateGenerating, for query: SuggestionQuery,
         in snapshot: FocusedFieldSnapshot, since started: Date
     ) async {
-        let completions = await generator.completions(
-            for: query.typed, in: query.surface, isProse: snapshot.isProse)
+        let situation = GenerationSituation(
+            application: snapshot.applicationName,
+            field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
+            document: snapshot.document)
+        let completions = await generator.completions(for: query.typed, in: situation)
         guard
             let update = session.resolveGenerated(
                 completions, for: query, elapsedMilliseconds: since(started))
