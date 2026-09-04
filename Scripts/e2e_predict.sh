@@ -416,7 +416,7 @@ run_step() {
     el) expect_ghost "$a" log ;;
     ex) expect_regex "$a" "$b" ;;
     first) expect_first "$a" "$b" "$c" ;;
-    eq) expect_regex "QUIET .*reason=Optional\\(.*\\.$a\\)" "$b" ;;
+    eq) expect_regex "QUIET .*reason=$a( |$)" "$b" ;;
     nx) expect_absent "$a" "$b" ;;
     count) expect_count "$a" "$b" ;;
     rb) expect_readback "$a" "$b" ;;
@@ -448,13 +448,13 @@ SCENARIOS=(
   "edit-lrm-prefixed-word|edit|t:15:${LRM}Deploy the re; el:4"
   "edit-emoji-line|edit|t:15:Let us ship 🚀 today and; ex:GENERATE .*typed=.*🚀.* got=:6"
   "edit-long-line-230|edit|t:6:${LONG230}; ex:GENERATE .*typed=.{200,} got=:6"
-  "edit-line-over-256-silent|edit|t:5:${LONG270}; ex:QUIET typed=.{240,} reason=nil:3; nx:(QUERY|GENERATE) .*typed=.{240,}:1"
+  "edit-line-over-256-silent|edit|t:5:${LONG270}; ex:QUIET typed=.{240,} reason=lineTooLong:3; nx:(QUERY|GENERATE) .*typed=.{240,}:1"
   "edit-typed-past-generated-5x-no-silence|edit|t:15:I wanted to let you know; el:6; t:15:x; p:300; k:51; t:15:y; p:300; k:51; t:15:z; p:300; k:51; t:15:w; p:300; k:51; t:15:v; p:800; count:rejectedTooOften:0"
   "edit-caret-inside-text-quiet|edit|t:15:Deploy the re; el:3; k:123; eq:caretInsideText:2"
   "safari-git-ghost|safari|t:25:git; el:5; ex:GENERATE .*typed=git got=[1-9]:5"
   "safari-lin-ghost|safari|t:25:lin; el:5; ex:GENERATE .*typed=lin got=[1-9]:5"
   "safari-escape-dismisses|safari|t:25:git; eg:4; k:53; ex:SWALLOWED key=escape .*decision=redraw:2; nx:SWALLOWED key=return:1"
-  "finder-search-short-query|finder|t:25:readme; ex:(GENERATE .*got=[1-9]|VERIFY .*out=[1-9]|QUIET typed=readme reason=Optional|TURN front=com.apple.finder .*placement=nil):4"
+  "finder-search-short-query|finder|t:25:readme; ex:(GENERATE .*got=[1-9]|VERIFY .*out=[1-9]|QUIET typed=readme reason=[a-zA-Z]|TURN front=com.apple.finder .*placement=nil):4"
   "cross-terminal-textedit-terminal|cross|t:25:git c; eg:3; front:edit; gone:1.5; t:15:Deploy the re; first:(GENERATE|VERIFY|QUERY) typed=:typed=Deploy the re:3; front:term; first:(GENERATE|VERIFY|QUERY) typed=:typed=git c:3"
 )
 
