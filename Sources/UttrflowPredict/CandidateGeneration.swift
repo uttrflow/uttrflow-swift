@@ -8,13 +8,24 @@ public struct GenerationSituation: Sendable, Equatable {
     public let document: String?
     /// The text before the caret's line, which is what the line continues from: the command before, the sentence before.
     public let preceding: String?
+    /// The window's title, which names the recipient, the page or the directory more often than not.
+    public let windowTitle: String?
+    /// The visible text around the field, nearest the field last: the thread being answered, the form being filled.
+    public let surroundings: String?
+    /// The lines this person most recently entered in this field, newest first, which is how they write here.
+    public let recentLines: [String]
 
-    public init(application: String, field: String? = nil, document: String? = nil, preceding: String? = nil)
-    {
+    public init(
+        application: String, field: String? = nil, document: String? = nil, preceding: String? = nil,
+        windowTitle: String? = nil, surroundings: String? = nil, recentLines: [String] = []
+    ) {
         self.application = application
         self.field = field
         self.document = document
         self.preceding = preceding
+        self.windowTitle = windowTitle
+        self.surroundings = surroundings
+        self.recentLines = recentLines
     }
 }
 

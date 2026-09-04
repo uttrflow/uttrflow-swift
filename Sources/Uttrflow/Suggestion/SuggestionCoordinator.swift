@@ -60,6 +60,8 @@ final class SuggestionCoordinator {
     private static let generationDebounceInMilliseconds = 120
     /// How much of the text before the caret's line the model is shown, enough for the sentence or command before it.
     private static let precedingContextLength = 400
+    /// How many of this person's recent lines in the field the model is shown, enough to hear their voice in it.
+    private static let recentLinesShown = 6
 
     private var session = SuggestionSession()
     private var monitors: [Any] = []
@@ -284,11 +286,6 @@ final class SuggestionCoordinator {
         with generator: any CandidateGenerating, for query: SuggestionQuery,
         in snapshot: FocusedFieldSnapshot, since started: Date
     ) async {
-        let situation = GenerationSituation(
-            application: snapshot.applicationName,
-            field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
-            document: snapshot.document,
-            preceding: snapshot.preceding(maxLength: Self.precedingContextLength))
         let completions: [String]
         let lowered = query.typed.lowercased()
         // What the model already said about this line still holds while the line begins one of its answers.
@@ -298,10 +295,12 @@ final class SuggestionCoordinator {
         if !kept.isEmpty {
             completions = kept
         } else {
-            let pass = Task { [generator] in
+            let pass = Task { [generator, store] in
                 // A short quiet first, so a burst of keystrokes costs one pass for its last prefix rather than one per key.
                 try? await Task.sleep(for: .milliseconds(Self.generationDebounceInMilliseconds))
                 guard !Task.isCancelled else { return [String]() }
+                // The context is read only once a pass is certain, so a cancelled burst never pays for it.
+                let situation = await Self.situation(of: snapshot, for: query, store: store)
                 return await generator.completions(for: query.typed, in: situation)
             }
             generating = pass
@@ -313,13 +312,31 @@ final class SuggestionCoordinator {
             if !completions.isEmpty { lastGenerated = (query.surface, query.typed, completions) }
         }
         Self.log.debug(
-            "GENERATE app=\(situation.application, privacy: .public) typed=\(query.typed, privacy: .public) got=\(completions.count) elapsed=\(self.since(started))ms first=\(completions.first ?? "-", privacy: .public)"
+            "GENERATE app=\(snapshot.applicationName, privacy: .public) typed=\(query.typed, privacy: .public) got=\(completions.count) elapsed=\(self.since(started))ms first=\(completions.first ?? "-", privacy: .public)"
         )
         guard
             let update = session.resolveGenerated(
                 completions, for: query, elapsedMilliseconds: since(started))
         else { return }
         draw(update, in: snapshot)
+    }
+
+    /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.
+    private static func situation(
+        of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore
+    ) async -> GenerationSituation {
+        let around = await FocusedFieldReader.surroundings()
+        let recent = (try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? []
+        // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
+        Self.log.debug(
+            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(snapshot.preceding(maxLength: Self.precedingContextLength)?.count ?? 0)"
+        )
+        return GenerationSituation(
+            application: snapshot.applicationName,
+            field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
+            document: snapshot.document,
+            preceding: snapshot.preceding(maxLength: Self.precedingContextLength),
+            windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent)
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.

@@ -15,6 +15,13 @@ struct CompletionParsingTests {
     func promptEchoesAreDropped() {
         let reply = "Notes, field AXTextArea, continue this text:\nnavigate to the settings"
         #expect(MLXCandidateScorer.parse(reply, typed: "n") == ["navigate to the settings"])
+        let headings = """
+            on my way. Continue this line:
+            on screen around the field: Priya
+            on my way, Lines this person wrote here before
+            on my way, be there at 7
+            """
+        #expect(MLXCandidateScorer.parse(headings, typed: "on my") == ["on my way, be there at 7"])
     }
 
     @Test("A continuation that loops on itself is dropped rather than drawn across the screen.")

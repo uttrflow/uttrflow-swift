@@ -71,6 +71,23 @@ public enum FocusedFieldReader {
         }
     }
 
+    /// What is on screen around the focused field, off the main thread, or `nil` when nothing usable is focused.
+    public static func surroundings() async -> Surroundings? {
+        guard let app = await frontmostApp() else { return nil }
+        return await withCheckedContinuation { continuation in
+            queue.async { continuation.resume(returning: surroundings(app: app)) }
+        }
+    }
+
+    /// The same read, synchronously, which only the queue above calls with an identity read on main.
+    static func surroundings(app: FrontmostApp) -> Surroundings? {
+        guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier)
+        else { return nil }
+        let window = element(field, kAXWindowAttribute)
+        let title = window.flatMap { string($0, kAXTitleAttribute) }
+        return Surroundings.collect(around: AXNode(field), in: AXElementTree(), windowTitle: title)
+    }
+
     /// The same reading, synchronously, which only the queue above calls with an identity read on main.
     static func snapshot(app: FrontmostApp) -> FocusedFieldSnapshot? {
         let started = DispatchTime.now().uptimeNanoseconds
@@ -180,6 +197,43 @@ public enum FocusedFieldReader {
     struct TypeStyle: Sendable, Equatable {
         let size: CGFloat?
         let family: String?
+    }
+
+    /// One element of another application, compared the way Accessibility compares them.
+    struct AXNode: Equatable {
+        let element: AXUIElement
+
+        init(_ element: AXUIElement) { self.element = element }
+
+        static func == (lhs: AXNode, rhs: AXNode) -> Bool { CFEqual(lhs.element, rhs.element) }
+    }
+
+    /// The other application's window as the surroundings collector walks it, one Accessibility call per question.
+    struct AXElementTree: ElementTree {
+        func role(of node: AXNode) -> String? { string(node.element, kAXRoleAttribute) }
+
+        func text(of node: AXNode) -> String? {
+            string(node.element, kAXValueAttribute) ?? string(node.element, kAXTitleAttribute)
+        }
+
+        func children(of node: AXNode) -> [AXNode] {
+            var value: AnyObject?
+            guard
+                AXUIElementCopyAttributeValue(node.element, kAXChildrenAttribute as CFString, &value)
+                    == .success, let children = value as? [AXUIElement]
+            else { return [] }
+            return children.map(AXNode.init)
+        }
+
+        func parent(of node: AXNode) -> AXNode? {
+            element(node.element, kAXParentAttribute).map(AXNode.init)
+        }
+
+        /// An element with a size is on screen; one that reports none is trusted, since many text runs report no frame.
+        func isVisible(_ node: AXNode) -> Bool {
+            guard let size: CGSize = axValue(node.element, kAXSizeAttribute, .cgSize) else { return true }
+            return size.width > 0 && size.height > 0
+        }
     }
 
     /// The font at the caret, so the ghost is set in the field's own face and size.

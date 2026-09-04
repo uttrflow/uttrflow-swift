@@ -69,25 +69,40 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         typed — a shell command, a database query, a URL, code, a sentence — and reply with up to four \
         ways to finish it, most likely first, one per line. Each line must repeat the given text and then \
         continue it into a complete, valid line. Never output the text unchanged. No code fences, no \
-        numbering, no explanation. When earlier text is given it is only context: continue the last \
-        line, never the earlier text.
+        numbering, no explanation. Anything given as what is on screen, as the person's earlier lines or \
+        as the text before the line is context only: continue the last line, never that text. Match the \
+        length, tone and register of the person's own lines and of what is on screen; where the screen \
+        shows a conversation, the line is a reply to its last message.
         Example — application Terminal, text "git che" → git checkout main
         Example — application DBeaver, text "SELECT * FROM u" → SELECT * FROM users
         """
 
-    /// Puts the live situation into one message the model reads: where the caret is, what came before, and the line to finish.
-    private static func prompt(typed: String, in situation: GenerationSituation) -> String {
+    /// One message: where the caret is, what is around it, how this person writes here, and the line to finish.
+    static func prompt(typed: String, in situation: GenerationSituation) -> String {
         var located = "application \(situation.application)"
+        if let title = situation.windowTitle { located += ", window \"\(title)\"" }
         if let field = situation.field { located += ", field \(field)" }
         if let document = situation.document { located += ", document \(document)" }
-        guard let preceding = situation.preceding else {
-            return "In \(located), continue this text:\n\(typed)"
+        var parts = ["In \(located)."]
+        if let surroundings = situation.surroundings {
+            parts.append("On screen around the field:\n\(surroundings)")
         }
-        return "In \(located), the text before the line reads:\n\(preceding)\n\nContinue this line:\n\(typed)"
+        if !situation.recentLines.isEmpty {
+            parts.append(
+                "Lines this person wrote here before:\n" + situation.recentLines.joined(separator: "\n"))
+        }
+        if let preceding = situation.preceding {
+            parts.append("The text before the line reads:\n\(preceding)")
+        }
+        parts.append("Continue this line:\n\(typed)")
+        return parts.joined(separator: "\n\n")
     }
 
-    /// The phrase the prompt ends with, which a line quoting the prompt back carries and a real completion never does.
-    static let promptMarker = "continue this text"
+    /// The prompt's own headings, which a line quoting the prompt back carries and a real completion never does.
+    static let promptMarkers = [
+        "continue this text", "continue this line", "on screen around the field",
+        "lines this person wrote here", "the text before the line reads",
+    ]
 
     /// A continuation longer than this is a paragraph, not the rest of a line.
     static let maximumContinuationLength = 160
@@ -98,9 +113,10 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         var results: [String] = []
         for line in response.split(whereSeparator: \.isNewline) {
             let text = Self.unmarked(line.trimmingCharacters(in: .whitespaces))
+            let lowered = text.lowercased()
             guard !text.isEmpty, text != typed,
-                text.lowercased().hasPrefix(typed.lowercased()),
-                !text.lowercased().contains(promptMarker),
+                lowered.hasPrefix(typed.lowercased()),
+                !promptMarkers.contains(where: lowered.contains),
                 !isDegenerate(String(text.dropFirst(typed.count))),
                 seen.insert(text).inserted
             else { continue }

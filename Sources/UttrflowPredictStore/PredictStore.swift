@@ -64,6 +64,24 @@ public actor PredictStore: PredictionStore {
         return merged(fuzzy)
     }
 
+    /// The lines this person most recently entered in this field, newest first and each once, which is how they write here.
+    public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
+        let ids = try surfaceIdentifiers(of: surface)
+        guard !ids.isEmpty, limit > 0 else { return [] }
+        let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
+        return try database.rows(
+            """
+            SELECT text, MAX(last_used) AS used FROM entry
+            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL
+            GROUP BY text ORDER BY used DESC LIMIT ?
+            """,
+            { statement in
+                for (offset, id) in ids.enumerated() { statement.bind(Int32(offset + 1), id) }
+                statement.bind(Int32(ids.count + 1), Int64(limit))
+            }
+        ) { $0.text(0) }
+    }
+
     /// Every surface that is the same field in the same application, whatever document it was in.
     private func surfaceIdentifiers(of surface: Surface) throws(PredictStoreError) -> [Int64] {
         try database.rows(
