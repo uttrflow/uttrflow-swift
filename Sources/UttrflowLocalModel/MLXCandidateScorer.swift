@@ -171,17 +171,54 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         var results: [String] = []
         for line in response.split(whereSeparator: \.isNewline) {
             let text = Self.unmarked(line.trimmingCharacters(in: .whitespaces))
-            let lowered = text.lowercased()
-            guard !text.isEmpty, text != typed,
-                lowered.hasPrefix(typed.lowercased()),
-                !promptMarkers.contains(where: lowered.contains),
-                !isDegenerate(String(text.dropFirst(typed.count))),
-                seen.insert(text).inserted
+            // The model's copy of the line may differ in case, marks or spacing; the whole is rebuilt on what was typed.
+            guard let continuation = Self.continuation(of: text, past: typed),
+                continuation.contains(where: { !$0.isWhitespace }),
+                !promptMarkers.contains(where: text.lowercased().contains),
+                !isDegenerate(continuation)
             else { continue }
-            results.append(text)
+            let whole = typed + continuation
+            guard seen.insert(whole).inserted else { continue }
+            results.append(whole)
         }
         return results
     }
+
+    /// What the line adds past the typed text, read through the ™-type marks, case and spacing a model rewrites.
+    static func continuation(of line: String, past typed: String) -> String? {
+        let wanted = Array(comparable(typed))
+        guard !wanted.isEmpty else { return line }
+        var matched = 0
+        var index = line.startIndex
+        while matched < wanted.count, index < line.endIndex {
+            let piece = Array(comparable(String(line[index])))
+            guard
+                piece.isEmpty
+                    || (wanted.count - matched >= piece.count
+                        && Array(wanted[matched..<matched + piece.count]) == piece)
+            else { return nil }
+            matched += piece.count
+            index = line.index(after: index)
+        }
+        return matched == wanted.count ? String(line[index...]) : nil
+    }
+
+    /// The text as it compares: lowercased, without the marks and repeated spaces a model tends to rewrite.
+    static func comparable(_ text: String) -> String {
+        var out = ""
+        for character in text.lowercased() {
+            if Self.ignoredMarks.contains(character) { continue }
+            if character.isWhitespace {
+                if out.last != " " { out.append(" ") }
+            } else {
+                out.append(character)
+            }
+        }
+        return out
+    }
+
+    /// Marks a model drops or rewrites when it repeats a line, so they never decide whether it repeated it.
+    static let ignoredMarks: Set<Character> = ["™", "®", "©", "\u{200E}", "\u{200F}", "\u{FEFF}"]
 
     /// Whether a continuation is the model looping or rambling rather than finishing the line.
     static func isDegenerate(_ continuation: String) -> Bool {

@@ -54,6 +54,8 @@ final class SuggestionCoordinator {
     private var lastGenerated: (surface: Surface, typed: String, completions: [String])?
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
     private var generating: Task<[String], Never>?
+    /// The line the model last had nothing for, so a tick does not ask the same question again until the line changes.
+    private var lastEmpty: (surface: Surface, typed: String)?
     /// A turn booked for the moment a rule stops refusing, so a prose pause is answered then, not at the next tick.
     private var pendingWake: Task<Void, Never>?
     /// How long a burst of keystrokes must pause before the model is asked about its last prefix.
@@ -294,6 +296,9 @@ final class SuggestionCoordinator {
             .filter { $0.lowercased().hasPrefix(lowered) && $0 != query.typed } ?? []
         if !kept.isEmpty {
             completions = kept
+        } else if let lastEmpty, lastEmpty.surface == query.surface, lastEmpty.typed == query.typed {
+            // The model already said it had nothing for this exact line, and a tick changes nothing about the line.
+            return
         } else {
             let pass = Task { [generator, store] in
                 // A short quiet first, so a burst of keystrokes costs one pass for its last prefix rather than one per key.
@@ -308,8 +313,12 @@ final class SuggestionCoordinator {
             generating = nil
             // A pass the next keystroke cancelled answers a line that is gone, so nothing of it is drawn or kept.
             guard !pass.isCancelled else { return }
-            // An empty answer is not kept, so a failed pass is asked again next time.
-            if !completions.isEmpty { lastGenerated = (query.surface, query.typed, completions) }
+            if completions.isEmpty {
+                // An empty answer is remembered against this exact line only, so the next keystroke asks afresh.
+                lastEmpty = (query.surface, query.typed)
+            } else {
+                lastGenerated = (query.surface, query.typed, completions)
+            }
         }
         Self.log.debug(
             "GENERATE app=\(snapshot.applicationName, privacy: .public) typed=\(query.typed, privacy: .public) got=\(completions.count) elapsed=\(self.since(started))ms first=\(completions.first ?? "-", privacy: .public)"

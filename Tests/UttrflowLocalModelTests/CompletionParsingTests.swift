@@ -24,6 +24,29 @@ struct CompletionParsingTests {
         #expect(MLXCandidateScorer.parse(headings, typed: "on my") == ["on my way, be there at 7"])
     }
 
+    @Test(
+        "A line the model repeated without its marks, in another case or spacing, is still read past what was typed."
+    )
+    func rewrittenEchoesAreStillRead() {
+        let typed = "what is the price of MitoActive™  serum"
+        let reply = "What is the price of MitoActive serum, and is it in stock?"
+        #expect(MLXCandidateScorer.parse(reply, typed: typed) == [typed + ", and is it in stock?"])
+        #expect(MLXCandidateScorer.continuation(of: "Git Commit -m", past: "git c") == "ommit -m")
+        #expect(MLXCandidateScorer.continuation(of: "svn commit", past: "git c") == nil)
+        #expect(MLXCandidateScorer.continuation(of: "git c", past: "git c") == "")
+        #expect(MLXCandidateScorer.continuation(of: "anything", past: "") == "anything")
+        #expect(MLXCandidateScorer.comparable("A™  b\u{200E}C") == "a bc")
+    }
+
+    @Test("A line the model returned unchanged, or with only whitespace added, is nothing to offer.")
+    func unchangedLinesAreNothing() {
+        #expect(MLXCandidateScorer.parse("git c\ngit c  ", typed: "git c").isEmpty)
+        #expect(
+            MLXCandidateScorer.parse(
+                "What is the price of MitoActive serum", typed: "what is the price of MitoActive™ serum"
+            ).isEmpty)
+    }
+
     @Test("A continuation that loops on itself is dropped rather than drawn across the screen.")
     func repetitionIsDropped() {
         let looping = "sr" + String(repeating: " -  sr", count: 40)
