@@ -516,7 +516,7 @@ final class SuggestionCoordinator {
         switch event {
         case .stopped(let failure):
             Self.log.error("the tap stopped: \(String(describing: failure), privacy: .public)")
-            stop()
+            restTap()
         case .swallowed(let stroke):
             let typed = session.typed
             let reading = lastReading
@@ -543,6 +543,26 @@ final class SuggestionCoordinator {
             // ⌥⎋ turns the feature off everywhere; persist it so the switch agrees and a later enable rebuilds this.
             if !session.isEnabled {
                 if let onTurnedOffEverywhere { onTurnedOffEverywhere() } else { stop() }
+            }
+        }
+    }
+
+    /// How long the tap rests after macOS disabled it twice, past the window in which disables count against it.
+    private static let tapRestSeconds = 90
+
+    /// Rests the tap and starts it again, since a disable is usually the system's doing and the feature need not die of it.
+    private func restTap() {
+        interceptor.arm([])
+        interceptor.stop()
+        panel.hide()
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.tapRestSeconds))
+            guard let self else { return }
+            do {
+                try interceptor.start()
+                Self.log.error("the tap is back after resting \(Self.tapRestSeconds)s")
+            } catch {
+                Self.log.error("the tap could not restart: \(String(describing: error), privacy: .public)")
             }
         }
     }

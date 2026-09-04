@@ -137,9 +137,16 @@ final class SuggestionPanelController {
         return true
     }
 
+    /// The screen the caret is on, so a field on another display is drawn there and not against the panel's last screen.
+    private var screenHoldingCaret: NSScreen? {
+        guard let caret = request.caret else { return nil }
+        return NSScreen.screens.first { $0.frame.contains(CGPoint(x: caret.minX, y: caret.midY)) }
+    }
+
     private var visibleFrame: CGRect {
         // With no screen to place against, staying put beats moving somewhere arbitrary.
-        (panel.screen ?? NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? panel.frame
+        (screenHoldingCaret ?? panel.screen ?? NSScreen.main ?? NSScreen.screens.first)?.visibleFrame
+            ?? panel.frame
     }
 
     private func configurePanel() {
