@@ -167,11 +167,10 @@ struct SuggestionApplicationListTests {
         }
     }
 
-    @Test("Lists an application the escape ladder switched off, exactly as the screen would.")
-    func theLadderCannotHideAnApplication() {
-        let preferences = SuggestionEscapeLadder.carriedOut(
-            .turnOffApplication, in: "com.apple.Notes",
-            to: SuggestionPreferences(isEnabled: true), at: noon)
+    @Test("Lists an application switched off by its own identifier, exactly as the screen would.")
+    func switchingOffCannotHideAnApplication() {
+        var preferences = SuggestionPreferences(isEnabled: true)
+        preferences.set("com.apple.Notes", isOn: false)
         #expect(preferences.state(of: "com.apple.Notes") == .turnedOff)
         #expect(preferences.knownApplications().contains { $0.bundleIdentifier == "com.apple.notes" })
     }

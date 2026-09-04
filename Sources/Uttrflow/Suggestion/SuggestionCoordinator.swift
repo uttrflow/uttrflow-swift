@@ -296,13 +296,13 @@ final class SuggestionCoordinator {
 
         switch turn.step {
         case .settled(let update):
-            if update.suggestion == .silent {
-                let reason = Quieting.reason(context(of: snapshot, at: started))
+            // The session names why nothing is offered, so silence is never logged without its reason.
+            if let silence = update.silence {
                 Self.log.debug(
-                    "QUIET typed=\(snapshot.currentLine, privacy: .public) reason=\(String(describing: reason), privacy: .public) rejections=\(self.session.rejectionsHere) silencedHere=\(self.session.isSilencedHere) enabled=\(self.session.isEnabled)"
+                    "QUIET typed=\(snapshot.currentLine, privacy: .public) reason=\(silence.rawValue, privacy: .public) rejections=\(self.session.rejectionsHere) silencedHere=\(self.session.isSilencedHere) enabled=\(self.session.isEnabled)"
                 )
                 // A prose pause is answered the moment it is long enough, rather than at whatever tick comes next.
-                if reason == .writingFluently {
+                if silence == .writingFluently {
                     let waited = Int(started.timeIntervalSince(lastKeystroke) * 1000)
                     wake(.tick, afterMilliseconds: Quieting.proseHesitationInMilliseconds - waited + 20)
                 }

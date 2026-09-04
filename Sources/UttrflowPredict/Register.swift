@@ -10,16 +10,19 @@ public struct Register: Sendable, Equatable {
     public let symbolShare: Double
     /// Whether this person writes in full sentences here, or nothing when they have written nothing here yet.
     public let usesSentenceCase: Bool?
+    /// Whether this person's lines here are web addresses, which a bare word then continues into a host, not a command.
+    public let writesAddresses: Bool
 
     public init(
         isMultiline: Bool, typicalLength: Int?, isConversational: Bool, symbolShare: Double,
-        usesSentenceCase: Bool?
+        usesSentenceCase: Bool?, writesAddresses: Bool = false
     ) {
         self.isMultiline = isMultiline
         self.typicalLength = typicalLength
         self.isConversational = isConversational
         self.symbolShare = symbolShare
         self.usesSentenceCase = usesSentenceCase
+        self.writesAddresses = writesAddresses
     }
 
     /// Above this share of symbols the text reads as commands, code or queries: shell lines sit near 0.14, prose under 0.06.
@@ -45,7 +48,22 @@ public struct Register: Sendable, Equatable {
             typicalLength: typical,
             isConversational: conversational,
             symbolShare: symbolShare(of: [situation.preceding ?? "", typed] + own),
-            usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5)
+            usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
+            writesAddresses: !own.isEmpty && addressShare(of: own) >= 0.5)
+    }
+
+    /// The share of the lines shaped like a web address: no spaces, a dot inside, letters after it.
+    static func addressShare(of lines: [String]) -> Double {
+        guard !lines.isEmpty else { return 0 }
+        return Double(lines.filter(looksLikeAddress).count) / Double(lines.count)
+    }
+
+    /// Whether one line is a host or a path rather than words: `docs.example.com/guide`, never `git commit -m`.
+    static func looksLikeAddress(_ line: String) -> Bool {
+        guard !line.contains(where: \.isWhitespace), let dot = line.firstIndex(of: "."),
+            dot != line.startIndex, line.index(after: dot) < line.endIndex
+        else { return false }
+        return line[line.index(after: dot)].isLetter
     }
 
     /// How many tokens a pass may spend: enough for a line the length of this person's lines, never less than a short one.
@@ -66,6 +84,11 @@ public struct Register: Sendable, Equatable {
         }
         if isConversational {
             hints.append("a conversation is on screen and the line answers its last message")
+        }
+        // An address bar's lines are symbolic too, but a bare word there continues into a host, not into a command.
+        if writesAddresses {
+            hints.append("the lines here are web addresses, so the line continues into a host and path")
+            return hints
         }
         if symbolShare > Self.symbolicShare {
             hints.append("the text here is commands, code or queries rather than prose")

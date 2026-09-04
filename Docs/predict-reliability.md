@@ -25,6 +25,12 @@ moment the person returns, because it shares their keyboard.
 | Live, WhatsApp | replies ignored the conversation | messages exposed as empty-valued static texts with the text in the description; nested date headings; the recipient only as a group label | description as a text fallback, text roles walked when they say nothing, container labels kept, buttons skipped, marks stripped |
 | Live, Messages | a field went dead after three "refusals" | fuzzy matches, case-only differences and finishing a suggestion by hand all counted as typing past | only a real prefix completion typed past counts; empty line resets; generated guesses never count |
 
+## Scorecards
+
+| Run | Cases | Hit | In register | p50 | p95 | Reading |
+|---|---|---|---|---|---|---|
+| 1 — 2026-09-05, Release, Gemma 3 4B | 1 090 | 849 (78 %) | 901 (83 %) | 764 ms | 941 ms | chat 87 %, mail 92 %, terminal 85 %; notes 60 %, URL 63 %, SQL 74 %, code 77 %. Of 248 failures, 180 are the model answering with **nothing usable** (`first "-"`) — concentrated on commands, SQL and notes, the shapes a model wraps in backticks or a code fence, which the parser did not strip and the one-line stop cut at; 68 are wrong answers, half of them an address bar treated like a shell (`git` → `git commit -m`, `news.ycombinat` → `news.ycombinator`), which the register now names (`writesAddresses`). The CLI aborts at exit in MLX/Metal teardown (`std::mutex::lock` in a static destructor) after writing its JSON; harmless to the app, noted here so nobody chases it as a run failure. |
+
 ## How to run one cycle
 
 1. `xcodebuild -scheme uttrflow-bakeoff -configuration Release -derivedDataPath .build/xcode … build`

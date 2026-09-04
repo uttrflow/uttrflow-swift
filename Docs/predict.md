@@ -315,10 +315,13 @@ three suggestions typed past in this field already, or a prose writer who has no
 paused for 400 ms. It returns *which* rule fired, so the diagnostics can say why nothing
 was drawn instead of leaving silence indistinguishable from a broken feature.
 
-Composition does not gate. `PredictionContext.isComposing` is still read and carried, and
-`Reason.inputMethodComposing` is still in the enum, but `Quieting.reason` never consults the
-one or returns the other. [predict-ime.md](predict-ime.md) has what the signal reaches and
-what a gate on it cost.
+Composition does not gate. `PredictionContext.isComposing` is still read and carried, but
+`Quieting.reason` never consults it, and no reason is named for it. Every other silence does
+carry its reason: `SuggestionUpdate.silence` is set wherever the session or the engine
+settles on nothing — an empty or over-long line, a minimised field, the gates leaving
+nothing, evidence too thin, a budget overrun — and the coordinator logs that, never a reason
+recomputed from outside. [predict-ime.md](predict-ime.md) has what the composition signal
+reaches and what a gate on it cost.
 
 ## The store
 

@@ -183,6 +183,34 @@ struct PredictionEngineTests {
         #expect(suggestion([remembered(count: 50)], context) == .silent)
     }
 
+    @Test(
+        "Every silence names its reason, and a drawing names none.",
+        arguments: [
+            ([Candidate](), PredictionContext(typed: "git c"), Quieting.Reason?.some(.nothingOffered)),
+            (
+                [remembered("git commit -m", count: 1, lastUsed: daysAgo(400))],
+                PredictionContext(typed: "git c"), .evidenceTooThin
+            ),
+            (
+                [remembered("git push --force", count: 90, irreversible: true)],
+                PredictionContext(typed: "git p"), .irreversibleNotCertain
+            ),
+            ([remembered(count: 50)], PredictionContext(typed: "git c", isMinimised: true), .minimised),
+            (
+                [remembered(count: 50)],
+                PredictionContext(typed: "hunter2", isSecure: true, isMinimised: true), .secureField
+            ),
+            ([remembered(count: 50)], PredictionContext(typed: "git c"), nil),
+        ])
+    func silenceNamesItsReason(
+        candidates: [Candidate], context: PredictionContext, expected: Quieting.Reason?
+    ) {
+        let decided = PredictionEngine.decision(from: candidates, in: context, now: now)
+        #expect(decided.silence == expected)
+        #expect(decided.suggestion == suggestion(candidates, context))
+        #expect((decided.silence == nil) == (decided.suggestion.accepting != nil))
+    }
+
     @Test("What Tab would insert is what is on screen.")
     func acceptingMatchesTheDisplay() {
         #expect(Suggestion.certain("a").accepting == "a")

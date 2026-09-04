@@ -80,7 +80,7 @@ struct SuggestionVerificationTests {
         let update = try await drawVerified(
             &session, typing: "git z", candidates: [habit("git zqxjw")],
             machine: [.gitSubcommand: ["commit"]], scoring: ScriptedScoring(disliked))
-        #expect(update == .quiet)
+        #expect(update == .quiet(because: .nothingOffered))
     }
 
     @Test("A refused candidate is reported to the store, so it stops accruing weight where it lives.")
@@ -121,7 +121,9 @@ struct SuggestionVerificationTests {
             Issue.record("expected a query")
             return
         }
-        #expect(session.resolve([], for: query, now: now, elapsedMilliseconds: 0) == .settled(.quiet))
+        #expect(
+            session.resolve([], for: query, now: now, elapsedMilliseconds: 0)
+                == .settled(.quiet(because: .nothingOffered)))
     }
 
     @Test("What is asked of the gates carries the field and what was typed into it.")
@@ -162,7 +164,7 @@ struct SuggestionVerificationBudgetTests {
         let update = try await drawVerified(
             &session, typing: "git c", candidates: [habit("git commit")],
             elapsed: SuggestionSession.turnBudgetInMilliseconds + 1)
-        #expect(update == .quiet)
+        #expect(update == .quiet(because: .overBudget))
     }
 
     @Test("A verdict for a moment the user has typed past is dropped rather than drawn.")

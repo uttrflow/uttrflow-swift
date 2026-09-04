@@ -15,19 +15,27 @@ public enum PredictionEngine {
     public static func suggestion(
         from candidates: [Candidate], in context: PredictionContext, now: Date
     ) -> Suggestion {
-        guard !Quieting.refuses(context) else { return .silent }
-        guard !context.isMinimised else { return .minimised }
+        decision(from: candidates, in: context, now: now).suggestion
+    }
+
+    /// What to draw and, when nothing is on offer, why, decided together so the two cannot disagree.
+    public static func decision(
+        from candidates: [Candidate], in context: PredictionContext, now: Date
+    ) -> (suggestion: Suggestion, silence: Quieting.Reason?) {
+        if let refused = Quieting.reason(context) { return (.silent, refused) }
+        guard !context.isMinimised else { return (.minimised, .minimised) }
 
         let ranking = Ranking(candidates, now: now)
-        guard let leader = ranking.candidates.first, ranking.support >= supportFloor else {
-            return .silent
-        }
+        guard let leader = ranking.candidates.first else { return (.silent, .nothingOffered) }
+        guard ranking.support >= supportFloor else { return (.silent, .evidenceTooThin) }
 
         let separated = ranking.separation >= separationThreshold
         // An irreversible completion is offered only when it clearly beats a real rival, never alone on thin evidence.
         let dominatesRivals = separated && ranking.candidates.count > 1
-        guard !leader.candidate.isIrreversible || dominatesRivals else { return .silent }
-        guard !separated else { return .certain(leader.text) }
+        guard !leader.candidate.isIrreversible || dominatesRivals else {
+            return (.silent, .irreversibleNotCertain)
+        }
+        guard !separated else { return (.certain(leader.text), nil) }
 
         let others =
             ranking.candidates
@@ -35,6 +43,6 @@ public enum PredictionEngine {
             .filter { !$0.candidate.isIrreversible }
             .prefix(maximumChoices - 1)
             .map(\.text)
-        return others.isEmpty ? .certain(leader.text) : .choice(leader: leader.text, others: others)
+        return (others.isEmpty ? .certain(leader.text) : .choice(leader: leader.text, others: others), nil)
     }
 }

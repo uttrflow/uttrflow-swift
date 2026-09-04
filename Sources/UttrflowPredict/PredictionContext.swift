@@ -66,14 +66,37 @@ public enum Quieting {
         return nil
     }
 
-    /// One reason a suggestion was withheld.
+    /// Why nothing is on offer, from the moment's own rules or from the turn that followed them.
     public enum Reason: String, Sendable, Equatable, CaseIterable {
+        /// Suggestions are off in this field, by ⎋⎋, by ⌥⎋ or by the preferences.
         case turnedOffHere
+        /// The field hides what is typed into it.
         case secureField
+        /// Text is selected, which the next keystroke would replace.
         case textSelected
-        case inputMethodComposing
+        /// The caret is not at the end of its line.
         case caretInsideText
+        /// Enough suggestions were typed past in this field to silence it.
         case rejectedTooOften
+        /// A prose writer is still in flow and has not paused.
         case writingFluently
+        /// No field has the focus.
+        case nothingFocused
+        /// An empty line is not a prefix of anything.
+        case emptyLine
+        /// A line past `SuggestionSession.maximumTypedLength` is a document, not a prefix.
+        case lineTooLong
+        /// The user pressed ⎋, so only the dot remains.
+        case minimised
+        /// Nothing extends the line: no candidate, none the gates allowed, or nothing usable from the model.
+        case nothingOffered
+        /// The leader has less evidence than `PredictionEngine.supportFloor`.
+        case evidenceTooThin
+        /// An irreversible leader does not clearly beat a real rival.
+        case irreversibleNotCertain
+        /// The turn ran past `SuggestionSession.turnBudgetInMilliseconds`.
+        case overBudget
+        /// Quiet mode dropped a list the session was unsure about.
+        case quietModeChoice
     }
 }

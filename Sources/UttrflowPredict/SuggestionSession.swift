@@ -39,14 +39,19 @@ public struct VerificationRequest: Sendable, Equatable {
 public struct SuggestionUpdate: Sendable, Equatable {
     public let suggestion: Suggestion
     public let armed: ArmedKeys
+    /// Why nothing is on offer, present exactly when `suggestion.accepting` is nil.
+    public let silence: Quieting.Reason?
 
-    public init(suggestion: Suggestion, armed: ArmedKeys) {
+    public init(suggestion: Suggestion, armed: ArmedKeys, silence: Quieting.Reason?) {
         self.suggestion = suggestion
         self.armed = armed
+        self.silence = silence
     }
 
-    /// Nothing drawn and no key taken, which is what most turns come to.
-    public static let quiet = SuggestionUpdate(suggestion: .silent, armed: [])
+    /// Nothing drawn and no key taken, for this reason, which is what most turns come to.
+    public static func quiet(because reason: Quieting.Reason) -> SuggestionUpdate {
+        SuggestionUpdate(suggestion: .silent, armed: [], silence: reason)
+    }
 }
 
 /// What one turn of the loop needs next.
@@ -139,24 +144,33 @@ public struct SuggestionSession: Sendable, Equatable {
         self.isQuiet = isQuiet
         let rejected = adopt(surface, typing: moment.typed)
         typed = moment.typed
+        // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
+        generation += 1
 
-        guard let surface else { return SuggestionTurn(step: .settled(.quiet), rejected: rejected) }
+        guard let surface else {
+            return SuggestionTurn(step: .settled(.quiet(because: .nothingFocused)), rejected: rejected)
+        }
         let context = contextualised(moment)
         pending = context
 
-        guard !Quieting.refuses(context) else {
-            return SuggestionTurn(step: .settled(settle(.silent)), rejected: rejected)
-        }
+        if let refused = Quieting.reason(context) { return settled(because: refused, rejected: rejected) }
         guard !context.isMinimised else {
-            return SuggestionTurn(step: .settled(settle(.minimised)), rejected: rejected)
+            return settled(.minimised, because: .minimised, rejected: rejected)
         }
-        guard !context.typed.isEmpty, context.typed.count <= Self.maximumTypedLength else {
-            return SuggestionTurn(step: .settled(settle(.silent)), rejected: rejected)
+        guard !context.typed.isEmpty else { return settled(because: .emptyLine, rejected: rejected) }
+        guard context.typed.count <= Self.maximumTypedLength else {
+            return settled(because: .lineTooLong, rejected: rejected)
         }
 
-        generation += 1
         let query = SuggestionQuery(surface: surface, typed: context.typed, generation: generation)
         return SuggestionTurn(step: .query(query), rejected: rejected)
+    }
+
+    /// A turn that draws nothing, or only the dot, and says why.
+    private mutating func settled(
+        _ shown: Suggestion = .silent, because reason: Quieting.Reason, rejected: String?
+    ) -> SuggestionTurn {
+        SuggestionTurn(step: .settled(settle(shown, silence: reason)), rejected: rejected)
     }
 
     /// Turns the store's answer into what to draw or what to verify, nothing once the user has moved on.
@@ -165,12 +179,16 @@ public struct SuggestionSession: Sendable, Equatable {
     ) -> SuggestionResolution? {
         guard query.generation == generation, query.surface == surface, let pending else { return nil }
         // A slow read or a slow query has already cost the user the moment it was answering.
-        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return .settled(settle(.silent)) }
+        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
+            return .settled(settle(.silent, silence: .overBudget))
+        }
         // A candidate the user has already finished typing adds nothing, and drawing it doubles the line.
         let offerable = candidates.filter { $0.text != pending.typed }
-        let drawable = PredictionEngine.suggestion(from: offerable, in: pending, now: now)
+        let decided = PredictionEngine.decision(from: offerable, in: pending, now: now)
         // A turn with nothing on offer has nothing to be wrong about, so the gates are never troubled.
-        guard drawable.accepting != nil else { return .settled(settle(drawable)) }
+        guard decided.suggestion.accepting != nil else {
+            return .settled(settle(decided.suggestion, silence: decided.silence))
+        }
         let head = Ranking(offerable, now: now).candidates.prefix(Self.verifiedDepth).map(\.candidate)
         return .verify(
             VerificationRequest(
@@ -186,8 +204,11 @@ public struct SuggestionSession: Sendable, Equatable {
             return nil
         }
         // A verdict reached after the moment it was judging has already cost the user that moment.
-        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return settle(.silent) }
-        return settle(PredictionEngine.suggestion(from: verified, in: pending, now: now))
+        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
+            return settle(.silent, silence: .overBudget)
+        }
+        let decided = PredictionEngine.decision(from: verified, in: pending, now: now)
+        return settle(decided.suggestion, silence: decided.silence)
     }
 
     /// Draws the model's invented continuations in its own order, since a generated line has no history to weigh.
@@ -195,13 +216,14 @@ public struct SuggestionSession: Sendable, Equatable {
         _ completions: [String], for query: SuggestionQuery, elapsedMilliseconds: Int
     ) -> SuggestionUpdate? {
         guard query.generation == generation, query.surface == surface, let pending else { return nil }
-        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return settle(.silent) }
-        let usable = completions.filter {
-            $0 != pending.typed && $0.lowercased().hasPrefix(pending.typed.lowercased())
+        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
+            return settle(.silent, silence: .overBudget)
         }
-        guard let leader = usable.first else { return settle(.silent) }
+        let usable = Self.drawable(completions, past: pending.typed)
+        guard let leader = usable.first else { return settle(.silent, silence: .nothingOffered) }
         let others = Array(usable.dropFirst().prefix(Self.verifiedDepth - 1))
-        let update = settle(others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others))
+        let update = settle(
+            others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others), silence: nil)
         shownIsGenerated = true
         return update
     }
@@ -209,16 +231,27 @@ public struct SuggestionSession: Sendable, Equatable {
     /// Adds the alternatives that arrived after the one line was drawn, so Down has a list to open without redrawing the line.
     public mutating func expandGenerated(_ others: [String], for query: SuggestionQuery) -> SuggestionUpdate?
     {
+        // Quiet mode never draws a list, so the alternatives have nothing to add and the line stays as it is.
         guard query.generation == generation, query.surface == surface, let pending, shownIsGenerated,
+            !isQuiet,
             case .certain(let leader) = suggestion
         else { return nil }
-        let usable = others.filter {
-            $0 != leader && $0 != pending.typed && $0.lowercased().hasPrefix(pending.typed.lowercased())
-        }
+        // The leader goes through the same sieve first, so an alternative repeating it in any case is dropped with the other repeats.
+        let usable = Self.drawable([leader] + others, past: pending.typed).dropFirst()
         guard !usable.isEmpty else { return nil }
-        let update = settle(.choice(leader: leader, others: Array(usable.prefix(Self.verifiedDepth - 1))))
+        let update = settle(
+            .choice(leader: leader, others: Array(usable.prefix(Self.verifiedDepth - 1))), silence: nil)
         shownIsGenerated = true
         return update
+    }
+
+    /// The model's lines that can be drawn over what is typed: each extending it, none repeated in any case, in the model's order.
+    private static func drawable(_ lines: [String], past typed: String) -> [String] {
+        var seen: Set<String> = []
+        let lowered = typed.lowercased()
+        return lines.filter {
+            $0 != typed && $0.lowercased().hasPrefix(lowered) && seen.insert($0.lowercased()).inserted
+        }
     }
 
     /// Takes one keystroke the tap swallowed and answers with what it means.
@@ -234,7 +267,7 @@ public struct SuggestionSession: Sendable, Equatable {
             return .accept(text)
         case .moveSelection(let moved):
             selection = moved
-            return .redraw(armed(showing: suggestion))
+            return .redraw(armed(showing: suggestion, silence: nil))
         case .dismiss(let dismissal):
             return .redraw(dismiss(dismissal))
         case .passThrough:
@@ -248,15 +281,15 @@ public struct SuggestionSession: Sendable, Equatable {
         switch dismissal {
         case .minimise:
             isMinimised = true
-            return settle(.minimised)
+            return settle(.minimised, silence: .minimised)
         case .silenceField:
             isSilencedHere = true
             isMinimised = false
-            return settle(.silent)
+            return settle(.silent, silence: .turnedOffHere)
         case .turnOff:
             isEnabled = false
             isMinimised = false
-            return settle(.silent)
+            return settle(.silent, silence: .turnedOffHere)
         }
     }
 
@@ -270,8 +303,11 @@ public struct SuggestionSession: Sendable, Equatable {
             clearDrawing()
             return nil
         }
-        // An emptied line is a fresh start, so the suggestions typed past before it no longer count against the field.
-        if typing.isEmpty { rejectionsHere = 0 }
+        // An emptied line is a fresh start, so neither the suggestions typed past before it nor the ⎋ still binds the field.
+        if typing.isEmpty {
+            rejectionsHere = 0
+            isMinimised = false
+        }
         let lowered = typing.lowercased()
         // Case alone is not typing past, since the store matched the line regardless of it.
         guard let offered = suggestion.accepting, !offered.lowercased().hasPrefix(lowered) else { return nil }
@@ -283,8 +319,9 @@ public struct SuggestionSession: Sendable, Equatable {
         else { return nil }
         // Typing past a guess the model invented says the model was wrong, not that the field wants quiet.
         guard !shownIsGenerated else { return nil }
-        // Only a completion of what was typed counts toward quiet; a correction typed past says the guess was wrong.
-        if offered.lowercased().hasPrefix(typed.lowercased()) { rejectionsHere += 1 }
+        // Only an offer that completed the line can be typed past; leaving a fuzzy or corrected one, or shortening the line, says nothing.
+        guard offered.lowercased().hasPrefix(typed.lowercased()) else { return nil }
+        rejectionsHere += 1
         return offered
     }
 
@@ -298,20 +335,23 @@ public struct SuggestionSession: Sendable, Equatable {
             rejectionsThisSession: rejectionsHere)
     }
 
-    /// Records what is now on screen and reports it with the keys it claims.
-    private mutating func settle(_ shown: Suggestion) -> SuggestionUpdate {
+    /// Records what is now on screen and reports it with the keys it claims and, when nothing is offered, why.
+    private mutating func settle(_ shown: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
         shownIsGenerated = false
         let next = isQuiet ? shown.certainOnly : shown
+        // A list quiet mode dropped is its own reason, since nothing upstream withheld it.
+        let reason = next == shown ? silence : Quieting.Reason.quietModeChoice
         if next != suggestion { selection = .untouched }
         suggestion = next
-        return armed(showing: next)
+        return armed(showing: next, silence: reason)
     }
 
-    /// Pairs a suggestion with the keys it claims, which is the only place the two are put together.
-    private func armed(showing next: Suggestion) -> SuggestionUpdate {
+    /// Pairs a suggestion with the keys it claims and the reason for its silence, which is the only place the three are put together.
+    private func armed(showing next: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
         SuggestionUpdate(
             suggestion: next,
-            armed: KeyRouting.arming(showing: next, selection: selection, acceptKey: acceptKey))
+            armed: KeyRouting.arming(showing: next, selection: selection, acceptKey: acceptKey),
+            silence: next.accepting == nil ? silence : nil)
     }
 
     /// Takes the surface away without disturbing what the field has been told about itself.

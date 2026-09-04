@@ -14,8 +14,8 @@ guess from the selected input source, which is a stopgap and is stated as one be
 `Composition.isComposing` combines the field's marked range with the input source's kind,
 `FocusedFieldReader` writes the answer into `FocusedFieldSnapshot.isComposing`, and the
 coordinator copies it into `PredictionContext.isComposing`. `Quieting.reason` does not
-consult it — its comment says so — and `Reason.inputMethodComposing` stays in the enum
-without ever being returned. The bill below is what a gate on the fallback cost, and it is
+consult it — its comment says so — and there is no reason named for it, since a reason
+that can never be returned would be a lie in every breakdown. The bill below is what a gate on the fallback cost, and it is
 why the gate is off; the residual risk at the end is what being off costs instead.
 
 ## What works: `AXTextInputMarkedRange`

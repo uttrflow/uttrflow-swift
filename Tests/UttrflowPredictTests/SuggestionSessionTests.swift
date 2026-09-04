@@ -81,28 +81,47 @@ struct SuggestionSessionTests {
     func noFieldIsQuiet() {
         var session = SuggestionSession()
         let turn = session.turn(in: nil, at: PredictionContext(typed: "git c"))
-        #expect(settled(turn) == .quiet)
+        #expect(settled(turn) == .quiet(because: .nothingFocused))
         #expect(session.surface == nil)
     }
 
     @Test("An empty field is not a prefix of anything, so nothing is asked.")
     func emptyIsQuiet() {
         var session = SuggestionSession()
-        #expect(settled(session.turn(in: field, at: PredictionContext(typed: ""))) == .quiet)
+        #expect(
+            settled(session.turn(in: field, at: PredictionContext(typed: ""))) == .quiet(because: .emptyLine))
     }
 
     @Test("A document's whole value is not a prefix worth matching.")
     func longValuesAreQuiet() {
         var session = SuggestionSession()
         let essay = String(repeating: "a", count: SuggestionSession.maximumTypedLength + 1)
-        #expect(settled(session.turn(in: field, at: PredictionContext(typed: essay))) == .quiet)
+        #expect(
+            settled(session.turn(in: field, at: PredictionContext(typed: essay)))
+                == .quiet(because: .lineTooLong))
     }
 
-    @Test("A quieting rule refuses before the store is asked at all.", arguments: [true, false])
+    @Test(
+        "A quieting rule refuses before the store is asked at all, and the update names the rule.",
+        arguments: [true, false])
     func quietingRefusesFirst(secure: Bool) {
         var session = SuggestionSession()
         let moment = PredictionContext(typed: "git c", hasSelection: !secure, isSecure: secure)
-        #expect(settled(session.turn(in: field, at: moment)) == .quiet)
+        #expect(
+            settled(session.turn(in: field, at: moment))
+                == .quiet(because: secure ? .secureField : .textSelected))
+    }
+
+    @Test(
+        "Each rule of the moment carries its own reason through the session.",
+        arguments: [
+            (PredictionContext(typed: "x", caretAtLineEnd: false), Quieting.Reason.caretInsideText),
+            (PredictionContext(typed: "x", isProse: true, millisecondsSinceKeystroke: 100), .writingFluently),
+            (PredictionContext(typed: "x", caretAtLineEnd: false, hasSelection: true), .textSelected),
+        ])
+    func eachRuleNamesItself(moment: PredictionContext, expected: Quieting.Reason) {
+        var session = SuggestionSession()
+        #expect(settled(session.turn(in: field, at: moment)) == .quiet(because: expected))
     }
 
     @Test("A slow turn draws nothing, because it is answering a moment that has passed.")
@@ -110,7 +129,53 @@ struct SuggestionSessionTests {
         var session = SuggestionSession()
         let update = try draw(
             &session, typing: "git c", elapsed: SuggestionSession.turnBudgetInMilliseconds + 1)
-        #expect(update == .quiet)
+        #expect(update == .quiet(because: .overBudget))
+    }
+
+    @Test("A verdict reached past the budget draws nothing either, for the same reason.")
+    func slowVerificationDrawsNothing() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        guard
+            case .verify(let request) = session.resolve(lone(), for: asked, now: now, elapsedMilliseconds: 0)
+        else {
+            Issue.record("a strong candidate should have gone to the gates")
+            return
+        }
+        let late = session.resolve(
+            request.candidates, for: request, now: now,
+            elapsedMilliseconds: SuggestionSession.turnBudgetInMilliseconds + 1)
+        #expect(late == .quiet(because: .overBudget))
+    }
+
+    @Test("The gates leaving nothing is nothing offered.")
+    func gatesLeavingNothingIsNothingOffered() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        guard
+            case .verify(let request) = session.resolve(lone(), for: asked, now: now, elapsedMilliseconds: 0)
+        else {
+            Issue.record("a strong candidate should have gone to the gates")
+            return
+        }
+        #expect(
+            session.resolve([], for: request, now: now, elapsedMilliseconds: 0)
+                == .quiet(because: .nothingOffered))
+    }
+
+    @Test("A leader too faint to draw says so, rather than that nothing was found.")
+    func thinEvidenceNamesItself() throws {
+        var session = SuggestionSession()
+        let faint = [remembered("git commit -m", count: 1, lastUsed: daysAgo(400))]
+        #expect(try draw(&session, typing: "git c", candidates: faint) == .quiet(because: .evidenceTooThin))
+    }
+
+    @Test("An irreversible command withheld for want of certainty says so.")
+    func irreversibleWithheldNamesItself() throws {
+        var session = SuggestionSession()
+        let alone = [remembered("rm -rf build", count: 90, irreversible: true)]
+        #expect(
+            try draw(&session, typing: "rm", candidates: alone) == .quiet(because: .irreversibleNotCertain))
     }
 
     @Test("A turn just inside the budget still draws.")
@@ -124,7 +189,7 @@ struct SuggestionSessionTests {
     @Test("A candidate the user has already finished typing is not offered back to them.")
     func nothingToAddIsNothingToDraw() throws {
         var session = SuggestionSession()
-        #expect(try draw(&session, typing: "git commit -m") == .quiet)
+        #expect(try draw(&session, typing: "git commit -m") == .quiet(because: .nothingOffered))
     }
 
     @Test("An answer for a question the user has moved on from is dropped.")
@@ -182,7 +247,7 @@ struct SuggestionRejectionTests {
             _ = session.turn(in: field, at: PredictionContext(typed: "zzz\(round)"))
         }
         #expect(session.rejectionsHere == Quieting.rejectionsBeforeSilence)
-        #expect(try draw(&session, typing: "git c") == .quiet)
+        #expect(try draw(&session, typing: "git c") == .quiet(because: .rejectedTooOften))
     }
 
     @Test("Clearing the line starts the count again, so three wrong guesses never silence a terminal.")
@@ -194,7 +259,7 @@ struct SuggestionRejectionTests {
             _ = session.turn(in: field, at: PredictionContext(typed: ""))
         }
         #expect(session.rejectionsHere == 0)
-        #expect(try draw(&session, typing: "git c") != .quiet)
+        #expect(try draw(&session, typing: "git c")?.suggestion == .certain("git commit -m"))
     }
 
     @Test("Typing past a guess the model invented is not a refusal: the model was wrong, not the field.")
@@ -283,14 +348,26 @@ struct SuggestionRejectionTests {
         #expect(session.rejectionsHere == 1)
     }
 
-    @Test("A correction typed past is reported to the store but does not count toward quieting the field.")
-    func aCorrectionTypedPastIsReportedNotCounted() throws {
+    /// Reporting here once meant every keystroke toward a correction filed a rejection against it, so the offer was wrongly worn down.
+    @Test(
+        "Typing toward a correction is neither counted nor reported, since the offer never continued the line."
+    )
+    func aCorrectionTypedPastIsNeitherReportedNorCounted() throws {
         var session = SuggestionSession()
         let corrected = [remembered("git commit -m", count: 40, editDistance: 1)]
         let update = try draw(&session, typing: "gti c", candidates: corrected)
         #expect(update?.suggestion.accepting == "git commit -m")
         let turn = session.turn(in: field, at: PredictionContext(typed: "gti co"))
-        #expect(turn.rejected == "git commit -m")
+        #expect(turn.rejected == nil)
+        #expect(session.rejectionsHere == 0)
+    }
+
+    @Test("Shortening the line under a corrected offer reports nothing either.")
+    func shorteningUnderACorrectionReportsNothing() throws {
+        var session = SuggestionSession()
+        let corrected = [remembered("git commit -m", count: 40, editDistance: 1)]
+        _ = try draw(&session, typing: "gti c", candidates: corrected)
+        #expect(session.turn(in: field, at: PredictionContext(typed: "gti ")).rejected == nil)
         #expect(session.rejectionsHere == 0)
     }
 }
@@ -346,6 +423,7 @@ struct SuggestionRoutingTests {
             return
         }
         #expect(update.suggestion == .minimised)
+        #expect(update.silence == .minimised)
         #expect(update.armed.contains(.escape))
     }
 
@@ -354,9 +432,19 @@ struct SuggestionRoutingTests {
         var session = SuggestionSession()
         _ = try draw(&session, typing: "git c")
         _ = session.route(KeyStroke(.escape))
+        let update = settled(session.turn(in: field, at: PredictionContext(typed: "git co")))
+        #expect(update?.suggestion == .minimised)
+        #expect(update?.silence == .minimised)
+    }
+
+    @Test("Clearing the line lifts one escape, so a terminal is not silenced for hours by a single press.")
+    func anEmptiedLineLiftsTheDot() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        _ = session.route(KeyStroke(.escape))
         #expect(
-            settled(session.turn(in: field, at: PredictionContext(typed: "git co")))?.suggestion
-                == .minimised)
+            settled(session.turn(in: field, at: PredictionContext(typed: ""))) == .quiet(because: .emptyLine))
+        #expect(try draw(&session, typing: "git c")?.suggestion == .certain("git commit -m"))
     }
 
     @Test("A second escape silences the field for the rest of its life.")
@@ -364,9 +452,9 @@ struct SuggestionRoutingTests {
         var session = SuggestionSession()
         _ = try draw(&session, typing: "git c")
         _ = session.route(KeyStroke(.escape))
-        _ = session.route(KeyStroke(.escape))
+        #expect(session.route(KeyStroke(.escape)) == .redraw(.quiet(because: .turnedOffHere)))
         #expect(session.isSilencedHere)
-        #expect(try draw(&session, typing: "git c") == .quiet)
+        #expect(try draw(&session, typing: "git c") == .quiet(because: .turnedOffHere))
     }
 
     @Test("Leaving the field lifts the silence, since it belonged to the field.")
@@ -388,9 +476,9 @@ struct SuggestionRoutingTests {
             Issue.record("option-escape should have redrawn")
             return
         }
-        #expect(update == .quiet)
+        #expect(update == .quiet(because: .turnedOffHere))
         #expect(!session.isEnabled)
-        #expect(try draw(&session, typing: "git c", in: other) == .quiet)
+        #expect(try draw(&session, typing: "git c", in: other) == .quiet(because: .turnedOffHere))
     }
 }
 
@@ -405,8 +493,7 @@ struct QuietSuggestionTests {
     func quietDrawsNoList() throws {
         var session = SuggestionSession()
         let update = try #require(try draw(&session, typing: "git c", candidates: crowd(), isQuiet: true))
-        #expect(update.suggestion == .silent)
-        #expect(update.armed.isEmpty)
+        #expect(update == .quiet(because: .quietModeChoice))
         #expect(session.suggestion == .silent)
     }
 
@@ -477,7 +564,22 @@ struct GeneratedSuggestionTests {
         var session = SuggestionSession()
         let asked = try asked(&session, typing: "git c")
         let update = session.resolveGenerated(["svn commit"], for: asked, elapsedMilliseconds: 0)
-        #expect(update?.suggestion == .silent)
+        #expect(update == .quiet(because: .nothingOffered))
+    }
+
+    @Test("An alternative that repeats the line, or the leader, in another case is not a second line.")
+    func caseVariantsAreOneLine() throws {
+        var session = SuggestionSession()
+        let first = try asked(&session, typing: "git c")
+        let update = session.resolveGenerated(
+            ["git checkout", "Git Checkout", "git commit"], for: first, elapsedMilliseconds: 0)
+        #expect(update?.suggestion == .choice(leader: "git checkout", others: ["git commit"]))
+        var again = SuggestionSession()
+        let lone = try asked(&again, typing: "git c")
+        _ = again.resolveGenerated(["git checkout"], for: lone, elapsedMilliseconds: 0)
+        #expect(again.expandGenerated(["GIT CHECKOUT", "Git Checkout"], for: lone) == nil)
+        let expanded = again.expandGenerated(["Git Checkout", "git commit", "GIT COMMIT"], for: lone)
+        #expect(expanded?.suggestion == .choice(leader: "git checkout", others: ["git commit"]))
     }
 
     @Test("A generation reached past the turn's budget is not drawn.")
@@ -487,6 +589,6 @@ struct GeneratedSuggestionTests {
         let update = session.resolveGenerated(
             ["git checkout"], for: asked,
             elapsedMilliseconds: SuggestionSession.turnBudgetInMilliseconds + 1)
-        #expect(update?.suggestion == .silent)
+        #expect(update == .quiet(because: .overBudget))
     }
 }

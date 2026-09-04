@@ -88,6 +88,25 @@ struct RegisterTests {
         #expect(bare.maxTokens == 64)
     }
 
+    @Test("Lines shaped like web addresses read as an address bar, so a bare word is not a command.")
+    func addressesAreNotCommands() {
+        let addressBar = GenerationSituation(
+            application: "Browser", field: "Address and search bar",
+            recentLines: ["github.com/example/app", "linear.app/example/team", "news.ycombinator.com"])
+        let register = Register.infer(from: addressBar, typed: "git")
+        #expect(register.writesAddresses)
+        #expect(
+            register.hints.contains(
+                "the lines here are web addresses, so the line continues into a host and path"))
+        #expect(!register.hints.contains("the text here is commands, code or queries rather than prose"))
+        #expect(!Register.infer(from: shell, typed: "git c").writesAddresses)
+        #expect(Register.looksLikeAddress("docs.python.org/3/library"))
+        #expect(!Register.looksLikeAddress("git commit -m 'fix'"))
+        #expect(!Register.looksLikeAddress(".hidden"))
+        #expect(!Register.looksLikeAddress("v1.2"))
+        #expect(Register.addressShare(of: []) == 0)
+    }
+
     @Test("The token budget is half the typical length, held between the shortest and longest pass allowed.")
     func theBudgetFollowsTheLength() {
         #expect(register(length: 10).maxTokens == 24)

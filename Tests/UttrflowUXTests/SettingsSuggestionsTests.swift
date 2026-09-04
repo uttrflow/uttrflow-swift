@@ -153,11 +153,10 @@ struct SettingsSuggestionApplicationListTests {
                 == .applicationSwitch(isOn: false, change: .suggestionsHere(application: notes, isOn: true)))
     }
 
-    @Test("lists an application the escape ladder switched off, so a keystroke cannot hide one")
-    func theLadderCannotHideAnApplication() throws {
+    @Test("lists an application that was switched off, so switching off cannot hide one")
+    func switchingOffCannotHideAnApplication() throws {
         var settings = switchedOn()
-        settings.suggestions = SuggestionEscapeLadder.carriedOut(
-            .turnOffApplication, in: notes, to: settings.suggestions, at: noon)
+        settings.suggestions.set(notes, isOn: false)
         #expect(row("suggestionsIn.\(notes)", in: pane(settings)) != nil)
     }
 
