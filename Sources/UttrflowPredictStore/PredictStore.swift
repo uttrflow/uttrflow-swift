@@ -72,7 +72,7 @@ public actor PredictStore: PredictionStore {
         return try database.rows(
             """
             SELECT text, MAX(last_used) AS used FROM entry
-            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL
+            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
             GROUP BY text ORDER BY used DESC LIMIT ?
             """,
             { statement in

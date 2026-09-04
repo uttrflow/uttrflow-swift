@@ -69,8 +69,11 @@ public enum FocusedFieldReader {
     public static func read() async -> FocusedFieldSnapshot? {
         // Identity is taken on the main actor first, because the blocking read below may not touch `NSWorkspace`.
         guard let app = await frontmostApp() else { return nil }
-        return await withCheckedContinuation { continuation in
-            queue.async { continuation.resume(returning: snapshot(app: app)) }
+        // A field that stops answering costs the turn half a second at most; the read finishes on its queue regardless.
+        return await Deadline.first(withinMilliseconds: 500) {
+            await withCheckedContinuation { continuation in
+                queue.async { continuation.resume(returning: snapshot(app: app)) }
+            }
         }
     }
 
@@ -104,10 +107,11 @@ public enum FocusedFieldReader {
     /// The same reading, synchronously, which only the queue above calls with an identity read on main.
     static func snapshot(app: FrontmostApp) -> FocusedFieldSnapshot? {
         let started = DispatchTime.now().uptimeNanoseconds
-        guard AXIsProcessTrusted(),
-            let field = SurfaceProbe.focusedField(of: app.processIdentifier),
-            let role = string(field, kAXRoleAttribute)
+        guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier)
         else { return nil }
+        // Every question to the field gives up quickly, so a field that stops answering costs a moment, not the loop.
+        _ = AXUIElementSetMessagingTimeout(field, elementTimeoutInSeconds)
+        guard let role = string(field, kAXRoleAttribute) else { return nil }
 
         let subrole = string(field, kAXSubroleAttribute)
         let identifier = string(field, kAXIdentifierAttribute)
@@ -340,7 +344,10 @@ public enum FocusedFieldReader {
             let value, CFGetTypeID(value) == AXUIElementGetTypeID()
         else { return nil }
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        return unsafeDowncast(value, to: AXUIElement.self)
+        let element = unsafeDowncast(value, to: AXUIElement.self)
+        // A window or parent reached from the field answers under the same short timeout as the field itself.
+        _ = AXUIElementSetMessagingTimeout(element, elementTimeoutInSeconds)
+        return element
     }
 
     private static func string(_ owner: AXUIElement, _ attribute: String) -> String? {

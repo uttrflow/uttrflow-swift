@@ -101,6 +101,11 @@ public enum Verification {
         return best
     }
 
+    /// Whether the kinds name everything there is, as programs and git's subcommands do and files and branches never do.
+    static func isClosedVocabulary(_ kinds: [EnvironmentKind]) -> Bool {
+        !kinds.contains(.file) && !kinds.contains(.branch)
+    }
+
     /// What could vouch for a word, which is decided by where in the line the word sits.
     static func attestingKinds(for token: CompletionToken) -> [EnvironmentKind] {
         guard !token.isFirstWord else { return [.executable, .alias] }

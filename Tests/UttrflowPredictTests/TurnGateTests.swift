@@ -35,6 +35,18 @@ struct TurnGateTests {
         #expect(!gate.isRunning)
     }
 
+    @Test("A turn left behind is no longer current, so it can ask before it touches anything.")
+    func aStalledTurnIsNotCurrent() {
+        var gate = TurnGate()
+        _ = gate.begin(at: start)
+        #expect(gate.isCurrent(1))
+        _ = gate.begin(at: start.addingTimeInterval(TurnGate.stallSeconds))
+        #expect(!gate.isCurrent(1))
+        #expect(gate.isCurrent(2))
+        _ = gate.end(2)
+        #expect(!gate.isCurrent(2))
+    }
+
     @Test("Just short of the stall time a running turn is still waited for.")
     func theStallTimeIsHonoured() {
         var gate = TurnGate()

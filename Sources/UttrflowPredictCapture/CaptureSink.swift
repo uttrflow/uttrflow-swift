@@ -13,6 +13,14 @@ public protocol CaptureSink: PredictionStore {
 
     /// Marks an entry wrong and points at what replaces it, so it is never proposed again.
     func supersede(_ text: String, with replacement: String, in surface: Surface) async throws
+
+    /// Counts one acceptance of a line already recorded, which the ranking weighs.
+    func recordAccepted(_ text: String, in surface: Surface) async throws
+}
+
+extension CaptureSink {
+    /// A sink that keeps no acceptance counts is not wrong, only less informed.
+    public func recordAccepted(_ text: String, in surface: Surface) async throws {}
 }
 
 /// The corpus on disk is the sink the app uses; nothing here is added to it.

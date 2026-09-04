@@ -43,6 +43,21 @@ public actor CaptureSession {
         return try await write(commit, from: reading, in: surface, at: event.moment)
     }
 
+    /// Records a completion the person took as a line of theirs, through the same refusals as anything they typed.
+    public func accepted(
+        _ text: String, in reading: FieldReading, at moment: Date
+    ) async throws -> CaptureOutcome {
+        guard let surface = reading.surface else { return .nothing }
+        if let refusal = CaptureGate.refusal(toRecord: text, from: reading, given: preferences) {
+            return .refused(refusal)
+        }
+        // The line is recorded before the acceptance is counted, so the first acceptance of a new line is not lost.
+        try await sink.record(text, in: surface, after: previous[surface], selfSourced: true, at: moment)
+        try await sink.recordAccepted(text, in: surface)
+        previous[surface] = text
+        return .recorded(text)
+    }
+
     /// What shadow mode has counted, per application, which is the whole point of this phase.
     public func measurements() -> [String: ShadowTally] { tallies }
 

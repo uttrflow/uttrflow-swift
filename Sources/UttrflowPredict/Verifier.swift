@@ -26,14 +26,17 @@ public actor Verifier {
     ) async -> [Candidate] {
         let deadline = deadline()
         var kept: [Candidate] = []
-        var seen: Set<String> = []
         for candidate in candidates {
             guard
                 let allowed = await allowed(
-                    candidate, in: surface, typed: typed, now: now, before: deadline),
-                seen.insert(allowed.text).inserted
+                    candidate, in: surface, typed: typed, now: now, before: deadline)
             else { continue }
-            kept.append(allowed)
+            // A corrected typo and the genuine line can land on the same text; the one typed as-is is the real one.
+            if let same = kept.firstIndex(where: { $0.text == allowed.text }) {
+                if allowed.editDistance < kept[same].editDistance { kept[same] = allowed }
+            } else {
+                kept.append(allowed)
+            }
         }
         return kept
     }
@@ -69,19 +72,21 @@ public actor Verifier {
             Verification.verdict(
                 word: token.token, known: known,
                 modelObjects: Verification.objects(to: plausibility)),
-            on: candidate.text, leading: token.leading, in: surface)
+            on: candidate.text, leading: token.leading, in: surface,
+            forGood: Verification.isClosedVocabulary(Verification.attestingKinds(for: token)))
         cache.remember(verdict, for: key, now: now)
         return verdict
     }
 
-    /// The verdict in the whole line's terms, told to the store whenever it condemns the candidate.
+    /// The verdict in the whole line's terms, told to the store whenever it condemns the candidate for good.
     private func reported(
-        _ verdict: Verdict, on text: String, leading: String, in surface: Surface
+        _ verdict: Verdict, on text: String, leading: String, in surface: Surface, forGood: Bool
     ) async -> Verdict {
         switch verdict {
         case .corrected(let word):
             let corrected = leading + word
-            await supersession?.recordSupersession(of: text, by: corrected, in: surface)
+            // A file or branch the machine does not know today may exist tomorrow, so only a closed vocabulary supersedes.
+            if forGood { await supersession?.recordSupersession(of: text, by: corrected, in: surface) }
             return .corrected(corrected)
         case .rejected:
             await supersession?.recordRejection(of: text, in: surface)

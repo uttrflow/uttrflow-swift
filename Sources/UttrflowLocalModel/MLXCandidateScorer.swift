@@ -126,6 +126,8 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
             let stream = try MLXLMCommon.generate(
                 input: feed, cache: cache, parameters: parameters, context: context)
             for await generation in stream {
+                // A cancelled pass stops here, between tokens, rather than running on for a line nobody wants.
+                if Task.isCancelled { break }
                 guard let chunk = generation.chunk else { continue }
                 text += chunk
                 // Ending the stream cancels the pass, so nothing is generated past the line that was asked for.
@@ -229,7 +231,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     }
 
     /// Strips a code fence, bullet, or numbering the model added despite being asked not to.
-    private static func unmarked(_ line: String) -> String {
+    static func unmarked(_ line: String) -> String {
         if line.hasPrefix("```") { return "" }
         for marker in ["- ", "* ", "• "] where line.hasPrefix(marker) {
             return String(line.dropFirst(marker.count))

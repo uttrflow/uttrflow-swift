@@ -24,6 +24,9 @@ public struct TurnGate: Sendable, Equatable {
     /// Whether a turn is running as far as the gate knows, which a stalled turn still counts as until replaced.
     public var isRunning: Bool { current != nil }
 
+    /// Whether this turn is still the one running, which a turn left behind must ask before touching anything.
+    public func isCurrent(_ turn: Int) -> Bool { current == turn }
+
     /// Admits a turn now, or says why not.
     public mutating func begin(at now: Date) -> Admission {
         if let startedAt {

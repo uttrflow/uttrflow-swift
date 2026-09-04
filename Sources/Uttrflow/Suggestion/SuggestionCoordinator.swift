@@ -18,6 +18,16 @@ private enum SuggestionReason {
     /// Time passed, which is the only way a pause can be noticed.
     case tick
 
+    /// What must not be lost to a later wake: a Return commits a line, a switch changes the field, a tick changes nothing.
+    var urgency: Int {
+        switch self {
+        case .returnPressed: 3
+        case .applicationChanged: 2
+        case .keystroke: 1
+        case .tick: 0
+        }
+    }
+
     /// The event capture is handed for this turn, carrying the line rather than the whole field.
     func event(holding value: String, at moment: Date) -> CaptureEvent {
         switch self {
@@ -158,10 +168,15 @@ final class SuggestionCoordinator {
             MainActor.assumeIsolated { self?.keyPressed(Key(keyCode: event.keyCode)) }
         }
         if let keys { monitors.append(keys) }
+        // A click moves the caret or the focus without a key, so it wakes a turn the way a pause does.
+        let clicks = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.wake(.tick) }
+        }
+        if let clicks { monitors.append(clicks) }
         activations = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.wake(.applicationChanged) }
+            MainActor.assumeIsolated { self?.applicationChanged() }
         }
         ticker = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) {
             [weak self] _ in MainActor.assumeIsolated { self?.wake(.tick) }
@@ -179,6 +194,15 @@ final class SuggestionCoordinator {
         wake(key == .return ? .returnPressed : .keystroke)
     }
 
+    /// Another application came to the front, so whatever was being worked out for the last field is stale now.
+    private func applicationChanged() {
+        generating?.cancel()
+        pendingWake?.cancel()
+        interceptor.arm([])
+        panel.hide()
+        wake(.applicationChanged)
+    }
+
     /// Books one turn for later, replacing any already booked, which is how a pause is answered the moment it is long enough.
     private func wake(_ reason: SuggestionReason, afterMilliseconds delay: Int) {
         pendingWake?.cancel()
@@ -193,7 +217,8 @@ final class SuggestionCoordinator {
     private func wake(_ reason: SuggestionReason) {
         switch turns.begin(at: Date()) {
         case .busy:
-            again = reason
+            // A Return or a switch waiting its turn is never overwritten by the tick that follows it.
+            if again.map({ reason.urgency > $0.urgency }) ?? true { again = reason }
         case .stalled(let turn):
             Self.log.error("STALL a turn ran past \(TurnGate.stallSeconds)s and is left behind")
             generating?.cancel()
@@ -206,7 +231,7 @@ final class SuggestionCoordinator {
     /// Runs the turn the gate admitted and reports its end under the same number.
     private func start(_ turn: Int, because reason: SuggestionReason) {
         Task { [weak self] in
-            await self?.turn(because: reason)
+            await self?.turn(turn, because: reason)
             self?.finished(turn)
         }
     }
@@ -220,10 +245,11 @@ final class SuggestionCoordinator {
 
     // MARK: One turn
 
-    /// Reads the field, asks the corpus and draws the answer, all off the keystroke path.
-    private func turn(because reason: SuggestionReason) async {
+    /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
+    private func turn(_ number: Int, because reason: SuggestionReason) async {
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
         let read = front == ownBundleIdentifier ? nil : await FocusedFieldReader.read()
+        guard turns.isCurrent(number) else { return }
         Self.log.debug(
             "TURN front=\(front, privacy: .public) read=\(read != nil) line=\(read?.currentLine ?? "-", privacy: .public) value=\(read?.value != nil) caret=\(read?.caret != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
         )
@@ -241,8 +267,18 @@ final class SuggestionCoordinator {
         }
 
         let reading = reading(of: snapshot)
+        // A new field or an emptied line is a fresh start: nothing drawn, no key held, nothing remembered of the last line.
+        if reading.surface != session.surface {
+            interceptor.arm([])
+            panel.hide()
+        }
+        if reading.surface != session.surface || snapshot.currentLine.isEmpty {
+            lastGenerated = nil
+            lastEmpty = nil
+        }
         // A password field is refused here, before its value has been passed to anything at all.
         if !snapshot.isSecure { await remember(snapshot, as: reading, because: reason, at: started) }
+        guard turns.isCurrent(number) else { return }
         lastReading = reading
         lastSnapshot = snapshot
 
@@ -271,12 +307,13 @@ final class SuggestionCoordinator {
         case .query(let query):
             let candidates = await candidates(for: query)
             let ready = await generator?.isReady ?? false
+            guard turns.isCurrent(number) else { return }
             Self.log.debug(
                 "QUERY typed=\(query.typed, privacy: .public) corpus=\(candidates.count) generatorReady=\(ready)"
             )
             // With nothing remembered for this line, the model invents the suggestion instead.
-            if candidates.isEmpty, let generator, await generator.isReady {
-                await generate(with: generator, for: query, in: snapshot, since: started)
+            if candidates.isEmpty, let generator, ready {
+                await generate(number, with: generator, for: query, in: snapshot, since: started)
                 return
             }
             switch session.resolve(
@@ -285,16 +322,27 @@ final class SuggestionCoordinator {
             case .settled(let update):
                 draw(update, in: snapshot)
             case .verify(let request):
-                await verify(request, in: snapshot, since: started)
+                await verify(number, request, in: snapshot, since: started)
             case nil:
                 return
             }
         }
     }
 
+    /// Draws an answer that took a while against the field as it is now, so a scrolled or moved caret is followed and a changed line is not written over.
+    private func drawFresh(
+        _ update: SuggestionUpdate, for snapshot: FocusedFieldSnapshot, turn number: Int
+    ) async {
+        guard let fresh = await FocusedFieldReader.read(), turns.isCurrent(number),
+            reading(of: fresh) == reading(of: snapshot), fresh.currentLine == snapshot.currentLine
+        else { return }
+        lastSnapshot = fresh
+        draw(update, in: fresh)
+    }
+
     /// Asks the model for a suggestion the corpus never held, from the field read live, and draws it.
     private func generate(
-        with generator: any CandidateGenerating, for query: SuggestionQuery,
+        _ number: Int, with generator: any CandidateGenerating, for query: SuggestionQuery,
         in snapshot: FocusedFieldSnapshot, since started: Date
     ) async {
         let completions: [String]
@@ -320,8 +368,8 @@ final class SuggestionCoordinator {
             generating = pass
             completions = await pass.value
             generating = nil
-            // A pass the next keystroke cancelled answers a line that is gone, so nothing of it is drawn or kept.
-            guard !pass.isCancelled else { return }
+            // A pass the next keystroke cancelled, or a turn left behind, answers a line that is gone: nothing is drawn or kept.
+            guard !pass.isCancelled, turns.isCurrent(number) else { return }
             if completions.isEmpty {
                 // An empty answer is remembered against this exact line only, so the next keystroke asks afresh.
                 lastEmpty = (query.surface, query.typed)
@@ -336,9 +384,9 @@ final class SuggestionCoordinator {
             let update = session.resolveGenerated(
                 completions, for: query, elapsedMilliseconds: since(started))
         else { return }
-        draw(update, in: snapshot)
+        await drawFresh(update, for: snapshot, turn: number)
         // With the one line on screen, the others are fetched behind it, so Down has a list and the person never waited for it.
-        guard completions.count == 1, let leader = completions.first else { return }
+        guard completions.count == 1, let leader = completions.first, turns.isCurrent(number) else { return }
         let more = Task { [generator, store] in
             let situation = await Self.situation(of: snapshot, for: query, store: store)
             return await generator.alternatives(for: query.typed, in: situation, excluding: leader)
@@ -346,14 +394,14 @@ final class SuggestionCoordinator {
         generating = more
         let others = await more.value
         generating = nil
-        guard !more.isCancelled, !others.isEmpty,
+        guard !more.isCancelled, turns.isCurrent(number), !others.isEmpty,
             let expanded = session.expandGenerated(others, for: query)
         else { return }
         lastGenerated = (query.surface, query.typed, [leader] + others)
         Self.log.debug(
             "ALTERNATIVES typed=\(query.typed, privacy: .public) got=\(others.count) elapsed=\(self.since(started))ms"
         )
-        draw(expanded, in: snapshot)
+        await drawFresh(expanded, for: snapshot, turn: number)
     }
 
     /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.
@@ -378,10 +426,11 @@ final class SuggestionCoordinator {
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
     private func verify(
-        _ request: VerificationRequest, in snapshot: FocusedFieldSnapshot, since started: Date
+        _ number: Int, _ request: VerificationRequest, in snapshot: FocusedFieldSnapshot, since started: Date
     ) async {
         let allowed = await verifier.verified(
             request.candidates, in: request.surface, typed: request.typed, now: Date())
+        guard turns.isCurrent(number) else { return }
         Self.log.debug(
             "VERIFY typed=\(request.typed, privacy: .public) in=\(request.candidates.count) out=\(allowed.count) elapsed=\(self.since(started))ms first=\(allowed.first?.text ?? "-", privacy: .public)"
         )
@@ -389,6 +438,7 @@ final class SuggestionCoordinator {
             let update = session.resolve(
                 allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
         else { return }
+        // The gates answer within a moment, so the field read at the turn's start still stands.
         draw(update, in: snapshot)
     }
 
@@ -397,13 +447,12 @@ final class SuggestionCoordinator {
         Int(Date().timeIntervalSince(started) * 1000)
     }
 
-    /// What the corpus remembers and what this machine holds, which never waits on a read.
+    /// What the corpus remembers, or failing that what this machine holds; the machine never outranks the person's own history.
     private func candidates(for query: SuggestionQuery) async -> [Candidate] {
         let remembered =
             (try? await store.candidates(for: query.surface, matching: query.typed)) ?? []
-        let here = await environment.candidates(
-            for: query.surface, matching: query.typed, now: Date())
-        return remembered + here
+        guard remembered.isEmpty else { return remembered }
+        return await environment.candidates(for: query.surface, matching: query.typed, now: Date())
     }
 
     /// Tells capture what happened, and asks the user once about an application it has not met.
@@ -417,7 +466,8 @@ final class SuggestionCoordinator {
         let event = reason.event(holding: snapshot.currentLine, at: moment)
         guard let outcome = try? await capture.handle(event, in: reading) else { return }
         guard case .refused(let refusal) = outcome, refusal.asksTheUser else { return }
-        await askAboutLearning(from: snapshot)
+        // The question runs a nested event loop, which no turn may sit inside, so it is asked beside the loop.
+        Task { await askAboutLearning(from: snapshot) }
     }
 
     // MARK: Drawing
@@ -469,7 +519,7 @@ final class SuggestionCoordinator {
             stop()
         case .swallowed(let stroke):
             let typed = session.typed
-            let surface = session.surface
+            let reading = lastReading
             let action = session.route(stroke)
             Self.log.debug(
                 "SWALLOWED key=\(String(describing: stroke.key), privacy: .public) modifiers=\(stroke.modifiers.rawValue) decision=\(Self.name(of: action), privacy: .public)"
@@ -478,11 +528,13 @@ final class SuggestionCoordinator {
             case .accept(let text):
                 panel.hide()
                 interceptor.arm([])
+                generating?.cancel()
                 // Held across the insert so the keys it posts are ignored on both the tap and the monitor.
                 isInserting = true
-                await take(text, after: typed, in: surface)
+                await take(text, after: typed, in: reading)
                 isInserting = false
-                wake(.keystroke)
+                // The field is re-read a moment later, since an application applies the insertion after the keys land.
+                wake(.tick, afterMilliseconds: 80)
             case .redraw(let update):
                 draw(update, in: lastSnapshot)
             case .nothing:
@@ -504,8 +556,8 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// Puts the tail into the field and counts the acceptance, which the corpus discounts.
-    private func take(_ text: String, after typed: String, in surface: Surface?) async {
+    /// Puts the tail into the field and hands the taken line to capture, which weighs it and refuses what it must.
+    private func take(_ text: String, after typed: String, in reading: FieldReading?) async {
         do {
             // What the gates left is a whole line, so taking it may replace characters as well as add.
             let method = try await acceptor.accept(.certain(text), after: typed)
@@ -516,9 +568,8 @@ final class SuggestionCoordinator {
             Self.log.error("a completion landed nowhere: \(error.userMessage, privacy: .public)")
             return
         }
-        guard let surface else { return }
-        try? await store.recordAccepted(text, in: surface)
-        try? await store.record(text, in: surface, selfSourced: true, at: Date())
+        guard let reading else { return }
+        _ = try? await capture.accepted(text, in: reading, at: Date())
     }
 
     // MARK: Consent
