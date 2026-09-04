@@ -126,6 +126,17 @@ struct SuggestionPresentationTests {
         #expect(SuggestionPresentation.dimmedShare > 0 && SuggestionPresentation.dimmedShare < 1)
     }
 
+    @Test("A field that names its face is drawn in it; one that names nothing gets the monospaced default")
+    func theFaceFollowsTheField() {
+        let named = SuggestionPresentation(.certain("Sydney"), fieldPointSize: 12, fontFamily: "Helvetica")
+        #expect(named.fontFamily == "Helvetica")
+        #expect(!named.prefersMonospaced)
+        let faceOnly = SuggestionPresentation(.certain("Sydney"), fontFamily: "Georgia")
+        #expect(!faceOnly.prefersMonospaced)
+        #expect(SuggestionPresentation(.certain("Sydney")).prefersMonospaced)
+        #expect(SuggestionPresentation(.certain("Sydney")).fontFamily == nil)
+    }
+
     @Test("The hint names the key that actually accepts: → in a terminal, ⌥⇥ in an editor, never a lie")
     func theHintFollowsTheAcceptKey() {
         let terminal = SuggestionPresentation(.certain("ls -l"), typed: "ls ", acceptKey: .rightArrow)

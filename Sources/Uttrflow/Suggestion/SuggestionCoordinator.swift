@@ -198,6 +198,8 @@ final class SuggestionCoordinator {
         // The clock starts after the field read, so the cross-process read is not charged against the budget.
         let started = Date()
         guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
+            Self.log.debug(
+                "OFF app=\(snapshot.bundleIdentifier, privacy: .public) not enabled in Suggestions")
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
@@ -218,6 +220,12 @@ final class SuggestionCoordinator {
 
         switch turn.step {
         case .settled(let update):
+            if update.suggestion == .silent {
+                let reason = Quieting.reason(context(of: snapshot, at: started))
+                Self.log.debug(
+                    "QUIET typed=\(snapshot.currentLine, privacy: .public) reason=\(String(describing: reason), privacy: .public) rejections=\(self.session.rejectionsHere) silencedHere=\(self.session.isSilencedHere) enabled=\(self.session.isEnabled)"
+                )
+            }
             draw(update, in: snapshot)
         case .query(let query):
             let candidates = await candidates(for: query)
@@ -339,7 +347,8 @@ final class SuggestionCoordinator {
             update.suggestion, typed: session.typed, placement: .inlineGhost, caret: caret,
             window: snapshot.window, fieldPointSize: snapshot.pointSize,
             selection: session.selection,
-            acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier))
+            acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
+            fontFamily: snapshot.fontFamily)
     }
 
     // MARK: Accepting

@@ -23,6 +23,8 @@ private struct SuggestionRequest {
     var selection: SuggestionSelection = .untouched
     /// The key that accepts in this field, so the hint drawn after the ghost is the key that works.
     var acceptKey: AcceptKey = .tab
+    /// The field's own font family, so the ghost is set in the face the line is.
+    var fontFamily: String?
 }
 
 /// Owns the panel the suggestion is drawn in.
@@ -60,11 +62,13 @@ final class SuggestionPanelController {
         window: CGRect? = nil,
         fieldPointSize: CGFloat? = nil,
         selection: SuggestionSelection = .untouched,
-        acceptKey: AcceptKey = .tab
+        acceptKey: AcceptKey = .tab,
+        fontFamily: String? = nil
     ) {
         request = SuggestionRequest(
             suggestion: suggestion, typed: typed, placement: placement, caret: caret,
-            window: window, fieldPointSize: fieldPointSize, selection: selection, acceptKey: acceptKey)
+            window: window, fieldPointSize: fieldPointSize, selection: selection, acceptKey: acceptKey,
+            fontFamily: fontFamily)
         render()
     }
 
@@ -81,7 +85,7 @@ final class SuggestionPanelController {
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
-            acceptKey: request.acceptKey)
+            acceptKey: request.acceptKey, fontFamily: request.fontFamily)
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })

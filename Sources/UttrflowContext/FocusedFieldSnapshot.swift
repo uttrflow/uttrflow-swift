@@ -30,6 +30,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let window: CGRect?
     /// The field's own type size, so the surface reads as part of the line it sits on.
     public let pointSize: CGFloat?
+    /// The field's own font family, so the ghost is set in the face the line is.
+    public let fontFamily: String?
     /// Whether the field hides what is typed into it.
     public let isSecure: Bool
     /// Whether an input method is mid-composition, which owns both the screen and the Tab key.
@@ -51,6 +53,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         caret: CGRect? = nil,
         window: CGRect? = nil,
         pointSize: CGFloat? = nil,
+        fontFamily: String? = nil,
         isSecure: Bool = false,
         isComposing: Bool = false,
         readMicroseconds: Int = 0
@@ -68,6 +71,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.caret = caret
         self.window = window
         self.pointSize = pointSize
+        self.fontFamily = fontFamily
         self.isSecure = isSecure
         self.isComposing = isComposing
         self.readMicroseconds = readMicroseconds

@@ -90,6 +90,7 @@ public enum FocusedFieldReader {
         let value = declaredSecure ? nil : string(field, kAXValueAttribute)
         let secure = declaredSecure || (value.map(SecureField.looksMasked) ?? false)
         let range: CFRange? = axValue(field, kAXSelectedTextRangeAttribute, .cfRange)
+        let style = range.flatMap { typeStyle(field, at: $0) }
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
 
         return FocusedFieldSnapshot(
@@ -105,7 +106,8 @@ public enum FocusedFieldReader {
             selection: range.map { NSRange(location: $0.location, length: $0.length) },
             caret: range.flatMap { caret(field, at: $0) }.map { flip($0, below: flipped) },
             window: windowFrame(of: field).map { flip($0, below: flipped) },
-            pointSize: range.flatMap { pointSize(field, at: $0) },
+            pointSize: style?.size,
+            fontFamily: style?.family,
             isSecure: secure,
             isComposing: Composition.isComposing(
                 markedText: markedText(field), inputSource: CompositionProbe.inputSourceKind()),
@@ -174,8 +176,14 @@ public enum FocusedFieldReader {
         return rect
     }
 
-    /// The type size at the caret, so the ghost is set in the field's own font.
-    private static func pointSize(_ field: AXUIElement, at range: CFRange) -> CGFloat? {
+    /// What a field says about its own type, either half of which it may leave out.
+    struct TypeStyle: Sendable, Equatable {
+        let size: CGFloat?
+        let family: String?
+    }
+
+    /// The font at the caret, so the ghost is set in the field's own face and size.
+    private static func typeStyle(_ field: AXUIElement, at range: CFRange) -> TypeStyle? {
         let widened =
             range.length > 0 ? range : CFRange(location: max(range.location - 1, 0), length: 1)
         guard
@@ -184,18 +192,40 @@ public enum FocusedFieldReader {
             CFGetTypeID(answer) == CFAttributedStringGetTypeID()
         else { return nil }
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        return pointSize(inAttributed: unsafeDowncast(answer, to: CFAttributedString.self))
+        return typeStyle(inAttributed: unsafeDowncast(answer, to: CFAttributedString.self))
     }
 
-    /// The font size in an attributed string, read through Core Text so no AppKit object is built off-main.
+    /// The font size in an attributed string, from whichever form the application answered in.
     static func pointSize(inAttributed attributed: CFAttributedString) -> CGFloat? {
-        guard CFAttributedStringGetLength(attributed) > 0,
-            let font = CFAttributedStringGetAttribute(attributed, 0, kCTFontAttributeName, nil),
-            CFGetTypeID(font) == CTFontGetTypeID()
-        else { return nil }
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        return CTFontGetSize(unsafeDowncast(font, to: CTFont.self))
+        typeStyle(inAttributed: attributed)?.size
     }
+
+    /// The font in an attributed string: a Core Text font where AppKit put one, else the `AXFont` dictionary most applications answer with.
+    static func typeStyle(inAttributed attributed: CFAttributedString) -> TypeStyle? {
+        guard CFAttributedStringGetLength(attributed) > 0 else { return nil }
+        if let font = CFAttributedStringGetAttribute(attributed, 0, kCTFontAttributeName, nil),
+            CFGetTypeID(font) == CTFontGetTypeID()
+        {
+            // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+            let font = unsafeDowncast(font, to: CTFont.self)
+            return TypeStyle(size: CTFontGetSize(font), family: CTFontCopyFamilyName(font) as String)
+        }
+        guard
+            let described = CFAttributedStringGetAttribute(attributed, 0, Self.axFontKey as CFString, nil),
+            CFGetTypeID(described) == CFDictionaryGetTypeID()
+        else { return nil }
+        // Checked by type ID above; a Core Foundation dictionary bridges to Foundation without AppKit.
+        let font = unsafeDowncast(described, to: CFDictionary.self) as NSDictionary
+        let size = (font[Self.axFontSizeKey] as? NSNumber).map { CGFloat($0.doubleValue) }
+        let family = font[Self.axFontFamilyKey] as? String
+        guard size != nil || family != nil else { return nil }
+        return TypeStyle(size: size, family: family)
+    }
+
+    /// The attribute Accessibility describes a run's font under, which is a dictionary rather than a font object.
+    private static let axFontKey = "AXFont"
+    private static let axFontSizeKey = "AXFontSize"
+    private static let axFontFamilyKey = "AXFontFamily"
 
     /// One `AXValue` attribute, unwrapped into the Core Graphics type it stands for.
     private static func axValue<T>(

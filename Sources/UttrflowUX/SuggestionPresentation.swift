@@ -94,6 +94,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let opacity: Double
     /// The key that takes the suggestion in this field, which the hint after the ghost must name truthfully.
     public let acceptKey: AcceptKey
+    /// The field's own font family, so the ghost is set in the face the line is, or nothing when it will not say.
+    public let fontFamily: String?
 
     public init(
         _ suggestion: Suggestion,
@@ -101,9 +103,11 @@ public struct SuggestionPresentation: Sendable, Equatable {
         selection: SuggestionSelection = .untouched,
         fieldPointSize: CGFloat? = nil,
         appearance: SuggestionAppearance = .standard,
-        acceptKey: AcceptKey = .tab
+        acceptKey: AcceptKey = .tab,
+        fontFamily: String? = nil
     ) {
         self.acceptKey = acceptKey
+        self.fontFamily = fontFamily
         let offered = Self.rows(of: suggestion, after: typed, selected: selection.index)
         style =
             switch suggestion {
@@ -115,8 +119,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
         // A list is only ever opened by the user; until Down is pressed the choice is one ghost line.
         isExpanded = offered.count > 1 && selection.hasMoved
         pointSize = Self.pointSize(fieldPointSize)
-        // With no reported size, the field's own font is unknown too, so a monospaced default reads best at a caret.
-        prefersMonospaced = fieldPointSize == nil
+        // A field that reports neither size nor face is most often a terminal, where a monospaced default lines up.
+        prefersMonospaced = fieldPointSize == nil && fontFamily == nil
         animates = !appearance.reducesMotion
         // Faint grey is the intent; a contrast setting keeps the text but drops the transparency.
         opacity = appearance.demandsOpaqueGhost ? Self.opaqueGhostOpacity : Self.ghostOpacity

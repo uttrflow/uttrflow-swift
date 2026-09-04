@@ -74,14 +74,14 @@ struct SuggestionView: View {
             Text(verbatim: SuggestionPresentation.listPrefix)
             Text(verbatim: row.candidate)
         }
-        .font(.system(size: presentation.pointSize, design: fontDesign))
+        .font(font(at: presentation.pointSize))
         .foregroundStyle(.primary.opacity(rowOpacity(row)))
     }
 
     /// The keys that work the open list, in the dimmed style so they never compete with the candidates.
     private var footer: some View {
         Text(verbatim: presentation.footer)
-            .font(.system(size: presentation.pointSize * 0.82, design: fontDesign))
+            .font(font(at: presentation.pointSize * 0.82))
             .foregroundStyle(.primary.opacity(presentation.opacity * SuggestionPresentation.dimmedShare))
             .accessibilityHidden(true)
     }
@@ -101,7 +101,13 @@ struct SuggestionView: View {
             text = consumed + text
         }
         return Text(text)
-            .font(.system(size: presentation.pointSize, design: fontDesign))
+            .font(font(at: presentation.pointSize))
+    }
+
+    /// The field's own face where it names one, else the system face, monospaced where even the size is unknown.
+    private func font(at size: CGFloat) -> Font {
+        if let family = presentation.fontFamily { return .custom(family, size: size) }
+        return .system(size: size, design: fontDesign)
     }
 
     /// Monospaced where the field would not say what its own font is, so a terminal ghost still lines up.
