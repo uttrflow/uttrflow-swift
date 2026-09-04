@@ -607,7 +607,10 @@ final class SuggestionCoordinator {
                 "ACCEPT text=\(text, privacy: .public) typed=\(typed, privacy: .public) via=\(method?.rawValue ?? "nothing", privacy: .public)"
             )
         } catch {
-            Self.log.error("a completion landed nowhere: \(error.userMessage, privacy: .public)")
+            // The case names which route refused and why; the user-facing message belongs to dictation, whose route has a clipboard.
+            Self.log.error(
+                "a completion landed nowhere: \(String(describing: error), privacy: .public) typed=\(typed, privacy: .public)"
+            )
             return
         }
         guard let reading else { return }

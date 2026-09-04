@@ -289,6 +289,22 @@ struct SuggestionRejectionTests {
         #expect(session.turn(in: field, at: PredictionContext(typed: "git x")).rejected == nil)
     }
 
+    @Test(
+        "The same line drawn again from the corpus keeps the list the model put behind it, so Down still opens."
+    )
+    func aRedrawOfTheSameLineKeepsItsList() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git commit -m"], for: asked, elapsedMilliseconds: 0)
+        _ = session.expandGenerated(["git checkout main"], for: asked)
+        let again = try draw(&session, typing: "git c")
+        #expect(again?.suggestion == .choice(leader: "git commit -m", others: ["git checkout main"]))
+        #expect(again?.armed.contains(.downArrow) == true)
+        // A different line is a different answer, and takes the list with it.
+        let other = try draw(&session, typing: "git c", candidates: lone("git clone"))
+        #expect(other?.suggestion == .certain("git clone"))
+    }
+
     @Test("Alternatives that add nothing, or arrive after the user has typed on, change nothing.")
     func emptyOrStaleAlternativesAreDropped() throws {
         var session = SuggestionSession()

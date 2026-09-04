@@ -151,6 +151,7 @@ private struct Script {
     /// The store answers, the gates judge what is drawable, and the session draws what they left.
     private mutating func answer(_ query: SuggestionQuery) {
         let budget = SuggestionSession.turnBudgetInMilliseconds
+        let before = session.suggestion
         let elapsed = random.chance(0.05) ? budget + 1 : Int.random(in: 0...budget, using: &random)
         let candidates = stored(for: query.typed)
         switch session.resolve(candidates, for: query, now: now, elapsedMilliseconds: elapsed) {
@@ -170,10 +171,15 @@ private struct Script {
                 Issue.record("a live verification must be answered")
                 return
             }
-            settled(update, generated: false)
-            let drawn = [update.suggestion.accepting].compactMap { $0 } + listed(in: update.suggestion)
+            // The same line drawn again keeps the list that stood behind it, and with it whether the model drew that list.
+            let others = listed(in: update.suggestion)
+            let kept =
+                before.accepting == update.suggestion.accepting && !others.isEmpty
+                && others.allSatisfy { listed(in: before).contains($0) }
+            settled(update, generated: kept ? shownGenerated : false)
+            let drawn = [update.suggestion.accepting].compactMap { $0 } + others
             let texts = verified.map(\.text)
-            #expect(drawn.allSatisfy { texts.contains($0) })
+            #expect(drawn.allSatisfy { texts.contains($0) || (kept && listed(in: before).contains($0)) })
         }
     }
 

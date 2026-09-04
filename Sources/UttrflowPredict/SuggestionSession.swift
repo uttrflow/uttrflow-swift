@@ -337,6 +337,16 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Records what is now on screen and reports it with the keys it claims and, when nothing is offered, why.
     private mutating func settle(_ shown: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
+        // The same line drawn again keeps the list behind it, so a tick that re-reads the corpus never disarms Down.
+        if case .certain(let leader) = shown, case .choice(let current, let others) = suggestion,
+            current == leader
+        {
+            let still = Array(Self.drawable([leader] + others, past: typed).dropFirst())
+            if !still.isEmpty {
+                suggestion = .choice(leader: leader, others: still)
+                return armed(showing: suggestion, silence: nil)
+            }
+        }
         shownIsGenerated = false
         let next = isQuiet ? shown.certainOnly : shown
         // A list quiet mode dropped is its own reason, since nothing upstream withheld it.

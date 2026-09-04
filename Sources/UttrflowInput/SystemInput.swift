@@ -233,12 +233,19 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
     func replaceSelection(
         precededBy characters: Int, with text: String
     ) throws(TextInsertionError) {
-        if characters > 0 { try selectBackwards(characters) }
-        try replaceSelection(with: text)
+        guard characters > 0 else { return try replaceSelection(with: text) }
+        let caret = try selectBackwards(characters)
+        do {
+            try replaceSelection(with: text)
+        } catch {
+            // A field that took the selection but refused the text is left as it was found, so the next route sees the caret, not a selection.
+            _ = try? select(caret)
+            throw error
+        }
     }
 
-    /// Moves the selection's start back over `characters`, which a field that hides its range refuses.
-    private func selectBackwards(_ characters: Int) throws(TextInsertionError) {
+    /// Moves the selection's start back over `characters` and answers with the selection as it was.
+    private func selectBackwards(_ characters: Int) throws(TextInsertionError) -> CFRange {
         guard let whole = value(), let selection = selectedRange() else {
             throw .insertionRejected(description: "the field will not report its selection")
         }
@@ -248,10 +255,16 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
         else {
             throw .insertionRejected(description: "the field has too little text before the caret")
         }
+        try select(
+            CFRange(
+                location: widened.lowerBound,
+                length: selection.length + (selection.location - widened.lowerBound)))
+        return selection
+    }
 
-        var range = CFRange(
-            location: widened.lowerBound,
-            length: selection.length + (selection.location - widened.lowerBound))
+    /// Sets the selection, which a field that hides its range refuses.
+    private func select(_ range: CFRange) throws(TextInsertionError) {
+        var range = range
         guard let value = AXValueCreate(.cfRange, &range) else {
             throw .insertionRejected(description: "could not describe the selection")
         }
