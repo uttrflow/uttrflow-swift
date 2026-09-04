@@ -31,18 +31,20 @@ struct SuggestionPresentationTests {
         #expect(SuggestionPresentation.dotDiameter == 7)
     }
 
-    @Test("A certain suggestion is grey text with a Tab marker and no mark")
+    @Test("A certain suggestion is one line of grey text with a Tab glyph and no list")
     func certainIsGhostText() {
         let presentation = SuggestionPresentation(.certain("hello@example.com"))
         #expect(presentation.style == .ghost)
         #expect(presentation.rows.count == 1)
         #expect(presentation.rows[0].ghost == "hello@example.com")
         #expect(presentation.rows[0].isSelected)
-        #expect(!presentation.rows[0].showsMark)
+        #expect(presentation.inline == presentation.rows[0])
+        #expect(!presentation.isExpanded)
+        #expect(presentation.list.isEmpty)
         #expect(SuggestionPresentation.ghostOpacity == 0.45)
     }
 
-    @Test("A choice lists the leader first and the alternatives under it")
+    @Test("A choice holds the leader first and the alternatives after it")
     func choiceListsTheLeaderFirst() {
         let presentation = SuggestionPresentation(
             .choice(leader: "Sydney", others: ["Sydenham", "Sydney Road"]))
@@ -50,11 +52,90 @@ struct SuggestionPresentationTests {
         #expect(presentation.rows.map(\.isSelected) == [true, false, false])
     }
 
-    @Test("Only the selected row of a choice carries the mark")
-    func onlyTheLeaderCarriesTheMark() {
+    // MARK: - Collapsed until the selection moves
+
+    @Test("A choice is drawn as one ghost line, the leader's, until Down is pressed")
+    func aChoiceIsCollapsedByDefault() throws {
         let presentation = SuggestionPresentation(
-            .choice(leader: "Sydney", others: ["Sydenham"]))
-        #expect(presentation.rows.map(\.showsMark) == [true, false])
+            .choice(leader: "Sydney", others: ["Sydenham", "Sydney Road"]), typed: "Syd")
+        #expect(!presentation.isExpanded)
+        #expect(presentation.list.isEmpty)
+        let inline = try #require(presentation.inline)
+        #expect(inline.candidate == "Sydney")
+        #expect(inline.ghost == "ney")
+    }
+
+    @Test("Pressing Down opens the list under the line, with every candidate in it")
+    func downOpensTheList() throws {
+        let presentation = SuggestionPresentation(
+            .choice(leader: "Sydney", others: ["Sydenham", "Sydney Road"]), typed: "Syd",
+            selection: SuggestionSelection(index: 1, hasMoved: true))
+        #expect(presentation.isExpanded)
+        #expect(presentation.list.map(\.candidate) == ["Sydney", "Sydenham", "Sydney Road"])
+        #expect(presentation.list.map(\.isSelected) == [false, true, false])
+        let inline = try #require(presentation.inline)
+        #expect(inline.candidate == "Sydenham")
+        #expect(inline.ghost == "enham")
+    }
+
+    @Test("The inline ghost follows the highlight, so what is drawn on the line is what Tab takes")
+    func theInlineGhostFollowsTheHighlight() {
+        let suggestion = Suggestion.choice(leader: "Sydney", others: ["Sydenham", "Sydney Road"])
+        for index in 0..<3 {
+            let selection = SuggestionSelection(index: index, hasMoved: true)
+            let presentation = SuggestionPresentation(suggestion, typed: "Syd", selection: selection)
+            let taken = KeyRouting.decision(for: KeyStroke(.tab), showing: suggestion, selection: selection)
+            #expect(taken == .accept(presentation.inline?.candidate ?? ""))
+        }
+    }
+
+    @Test("A list walked all the way round to the leader stays open")
+    func wrappingBackToTheLeaderKeepsTheListOpen() {
+        let presentation = SuggestionPresentation(
+            .choice(leader: "Sydney", others: ["Sydenham"]),
+            selection: SuggestionSelection(index: 0, hasMoved: true))
+        #expect(presentation.isExpanded)
+        #expect(presentation.inline?.candidate == "Sydney")
+    }
+
+    @Test("A lone candidate never opens a list, whatever the selection says")
+    func aLoneCandidateNeverExpands() {
+        let moved = SuggestionSelection(index: 1, hasMoved: true)
+        #expect(!SuggestionPresentation(.certain("Sydney"), selection: moved).isExpanded)
+        #expect(
+            !SuggestionPresentation(.choice(leader: "Sydney", others: ["", " "]), selection: moved)
+                .isExpanded)
+        #expect(SuggestionPresentation(.certain("Sydney"), selection: moved).inline?.isSelected == true)
+    }
+
+    @Test("A highlight past the end of the list lands on its last row rather than nowhere")
+    func theHighlightIsClamped() {
+        let presentation = SuggestionPresentation(
+            .choice(leader: "Sydney", others: ["Sydenham"]),
+            selection: SuggestionSelection(index: 7, hasMoved: true))
+        #expect(presentation.rows.map(\.isSelected) == [false, true])
+        #expect(presentation.inline?.candidate == "Sydenham")
+    }
+
+    @Test("The list's fixed text is what the design shows: a branch per row and the three keys under it")
+    func theListTextIsTheDesigns() {
+        let presentation = SuggestionPresentation(.certain("Sydney"))
+        #expect(SuggestionPresentation.listPrefix == "↳")
+        #expect(presentation.acceptGlyph == "⇥")
+        #expect(presentation.footer == "⇥ take   ↓ next   ⎋ dismiss")
+        #expect(SuggestionPresentation.dimmedShare > 0 && SuggestionPresentation.dimmedShare < 1)
+    }
+
+    @Test("The hint names the key that actually accepts: → in a terminal, ⌥⇥ in an editor, never a lie")
+    func theHintFollowsTheAcceptKey() {
+        let terminal = SuggestionPresentation(.certain("ls -l"), typed: "ls ", acceptKey: .rightArrow)
+        #expect(terminal.acceptGlyph == "→")
+        #expect(terminal.footer == "→ take   ↓ next   ⎋ dismiss")
+        #expect(terminal.accessibilityLabel == "Suggestion: ls -l. Right Arrow to accept.")
+        let editor = SuggestionPresentation(.certain("Sydney"), acceptKey: .optionTab)
+        #expect(editor.acceptGlyph == "⌥⇥")
+        #expect(editor.accessibilityLabel == "Suggestion: Sydney. Option-Tab to accept.")
+        #expect(SuggestionPresentation(.certain("Sydney")).acceptKey == .tab)
     }
 
     // MARK: - Nothing worth drawing
@@ -69,7 +150,7 @@ struct SuggestionPresentationTests {
     func emptyAlternativesAreDropped() {
         let presentation = SuggestionPresentation(.choice(leader: "Sydney", others: ["", "  "]))
         #expect(presentation.rows.map(\.ghost) == ["Sydney"])
-        #expect(!presentation.rows[0].showsMark)
+        #expect(presentation.rows[0].isSelected)
     }
 
     @Test("A choice whose leader is empty falls back to its first real alternative")
@@ -293,6 +374,16 @@ struct SuggestionPresentationTests {
                 .choice(leader: "Sydney", others: ["Sydenham"]), typed: "Syd"
             ).accessibilityLabel
                 == "Suggestion: Sydney. Tab to accept. Alternatives: Sydenham.")
+    }
+
+    @Test("Once the highlight has moved, VoiceOver names the row Tab now takes")
+    func labelFollowsTheHighlight() {
+        #expect(
+            SuggestionPresentation(
+                .choice(leader: "Sydney", others: ["Sydenham", "Soho"]),
+                selection: SuggestionSelection(index: 2, hasMoved: true)
+            ).accessibilityLabel
+                == "Suggestion: Soho. Tab to accept. Alternatives: Sydney, Sydenham.")
     }
 
     // MARK: - Equality

@@ -19,8 +19,10 @@ private struct SuggestionRequest {
     var caret: CGRect?
     var window: CGRect?
     var fieldPointSize: CGFloat?
-    /// Which row the arrow keys have moved the highlight to, counting the leader as zero.
-    var selection: Int = 0
+    /// Where the arrow keys have put the highlight, and whether they have moved it at all.
+    var selection: SuggestionSelection = .untouched
+    /// The key that accepts in this field, so the hint drawn after the ghost is the key that works.
+    var acceptKey: AcceptKey = .tab
 }
 
 /// Owns the panel the suggestion is drawn in.
@@ -57,11 +59,12 @@ final class SuggestionPanelController {
         caret: CGRect? = nil,
         window: CGRect? = nil,
         fieldPointSize: CGFloat? = nil,
-        selection: Int = 0
+        selection: SuggestionSelection = .untouched,
+        acceptKey: AcceptKey = .tab
     ) {
         request = SuggestionRequest(
             suggestion: suggestion, typed: typed, placement: placement, caret: caret,
-            window: window, fieldPointSize: fieldPointSize, selection: selection)
+            window: window, fieldPointSize: fieldPointSize, selection: selection, acceptKey: acceptKey)
         render()
     }
 
@@ -77,7 +80,8 @@ final class SuggestionPanelController {
     private func render() {
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
-            fieldPointSize: request.fieldPointSize, appearance: Self.appearance())
+            fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
+            acceptKey: request.acceptKey)
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })

@@ -31,7 +31,7 @@ struct SuggestionView: View {
         case .dot:
             dot
         case .ghost:
-            lines
+            ghost
         }
     }
 
@@ -44,36 +44,63 @@ struct SuggestionView: View {
                 height: SuggestionPresentation.dotDiameter)
     }
 
-    /// The leader on the caret's own line, then any alternatives as grey lines directly below it.
-    private var lines: some View {
-        VStack(alignment: .leading, spacing: presentation.pointSize * 0.25) {
-            ForEach(Array(presentation.rows.enumerated()), id: \.offset) { _, row in
-                line(row)
-            }
+    /// The continuation on the caret's own line, and the list of every candidate under it only once it is opened.
+    private var ghost: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let inline = presentation.inline { inlineLine(inline) }
+            if presentation.isExpanded { list }
         }
     }
 
-    private func line(_ row: SuggestionPresentation.Row) -> some View {
-        HStack(spacing: presentation.pointSize * 0.35) {
-            if row.showsMark { UttrflowMarkView(height: presentation.pointSize * 0.8) }
-            offer(row)
-            if row.isSelected { tabGlyph }
+    /// What the accept key will add, finishing the user's line, and nothing else: the grey itself is the hint.
+    private func inlineLine(_ row: SuggestionPresentation.Row) -> some View {
+        offer(row)
+            .foregroundStyle(.primary.opacity(presentation.opacity))
+    }
+
+    /// Every candidate as a whole line, the one Tab takes at ghost strength and the rest dimmer, then the keys.
+    private var list: some View {
+        VStack(alignment: .leading, spacing: presentation.pointSize * 0.2) {
+            ForEach(Array(presentation.list.enumerated()), id: \.offset) { _, row in
+                listRow(row)
+            }
+            footer
         }
-        // The leader is drawn at the ghost's own strength; an unselected alternative is dimmer still.
+        .padding(.top, presentation.pointSize * 0.35)
+    }
+
+    private func listRow(_ row: SuggestionPresentation.Row) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: presentation.pointSize * 0.4) {
+            Text(verbatim: SuggestionPresentation.listPrefix)
+            Text(verbatim: row.candidate)
+        }
+        .font(.system(size: presentation.pointSize, design: fontDesign))
         .foregroundStyle(.primary.opacity(rowOpacity(row)))
     }
 
-    /// Full ghost strength for the row Tab would take, and half that for the ones it would not.
-    private func rowOpacity(_ row: SuggestionPresentation.Row) -> Double {
-        row.isSelected ? presentation.opacity : presentation.opacity * 0.55
+    /// The keys that work the open list, in the dimmed style so they never compete with the candidates.
+    private var footer: some View {
+        Text(verbatim: presentation.footer)
+            .font(.system(size: presentation.pointSize * 0.82, design: fontDesign))
+            .foregroundStyle(.primary.opacity(presentation.opacity * SuggestionPresentation.dimmedShare))
+            .accessibilityHidden(true)
     }
 
-    /// The typed characters Tab consumes, struck through, and then the ones it puts in.
+    /// Full ghost strength for the row Tab would take, and a dimmed share for the ones it would not.
+    private func rowOpacity(_ row: SuggestionPresentation.Row) -> Double {
+        row.isSelected ? presentation.opacity : presentation.opacity * SuggestionPresentation.dimmedShare
+    }
+
+    /// The ghost continuation, preceded by the typed characters struck through only when Tab would consume any.
     private func offer(_ row: SuggestionPresentation.Row) -> some View {
-        var consumed = AttributedString(row.consumed)
-        // The strike is the whole signal, so it takes the colour of the style around it.
-        consumed.strikethroughStyle = .single
-        return Text(consumed + AttributedString(row.ghost))
+        var text = AttributedString(row.ghost)
+        if row.isReplacement {
+            var consumed = AttributedString(row.consumed)
+            // The strike is the whole signal, so it takes the colour of the style around it.
+            consumed.strikethroughStyle = .single
+            text = consumed + text
+        }
+        return Text(text)
             .font(.system(size: presentation.pointSize, design: fontDesign))
     }
 
@@ -82,10 +109,4 @@ struct SuggestionView: View {
         presentation.prefersMonospaced ? .monospaced : .default
     }
 
-    /// A plain tab glyph, so the key that takes the suggestion is hinted without drawing a box.
-    private var tabGlyph: some View {
-        Text(verbatim: "⇥")
-            .font(.system(size: presentation.pointSize * 0.82))
-            .accessibilityHidden(true)
-    }
 }

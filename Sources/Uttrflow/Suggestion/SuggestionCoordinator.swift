@@ -50,6 +50,8 @@ final class SuggestionCoordinator {
     private let verifier: Verifier
     /// The model that invents a suggestion when the corpus has none, absent until the app hands one over.
     private let generator: (any CandidateGenerating)?
+    /// The model's last answer, so a tick re-asking about an unchanged line costs no second pass on the GPU.
+    private var lastGenerated: (surface: Surface, typed: String, completions: [String])?
 
     private var session = SuggestionSession()
     private var monitors: [Any] = []
@@ -184,9 +186,12 @@ final class SuggestionCoordinator {
 
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path.
     private func turn(because reason: SuggestionReason) async {
-        guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier != ownBundleIdentifier,
-            let snapshot = await FocusedFieldReader.read()
-        else {
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        let read = front == ownBundleIdentifier ? nil : await FocusedFieldReader.read()
+        Self.log.debug(
+            "TURN front=\(front, privacy: .public) read=\(read != nil) line=\(read?.currentLine ?? "-", privacy: .public) value=\(read?.value != nil) caret=\(read?.caret != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
+        )
+        guard front != ownBundleIdentifier, let snapshot = read else {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
@@ -216,6 +221,10 @@ final class SuggestionCoordinator {
             draw(update, in: snapshot)
         case .query(let query):
             let candidates = await candidates(for: query)
+            let ready = await generator?.isReady ?? false
+            Self.log.debug(
+                "QUERY typed=\(query.typed, privacy: .public) corpus=\(candidates.count) generatorReady=\(ready)"
+            )
             // With nothing remembered for this line, the model invents the suggestion instead.
             if candidates.isEmpty, let generator, await generator.isReady {
                 await generate(with: generator, for: query, in: snapshot, since: started)
@@ -243,7 +252,17 @@ final class SuggestionCoordinator {
             application: snapshot.applicationName,
             field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
             document: snapshot.document)
-        let completions = await generator.completions(for: query.typed, in: situation)
+        let completions: [String]
+        if let lastGenerated, lastGenerated.surface == query.surface, lastGenerated.typed == query.typed {
+            completions = lastGenerated.completions
+        } else {
+            completions = await generator.completions(for: query.typed, in: situation)
+            // An empty answer is not kept, so a cancelled or failed pass is asked again next time.
+            if !completions.isEmpty { lastGenerated = (query.surface, query.typed, completions) }
+        }
+        Self.log.debug(
+            "GENERATE app=\(situation.application, privacy: .public) typed=\(query.typed, privacy: .public) got=\(completions.count) elapsed=\(self.since(started))ms first=\(completions.first ?? "-", privacy: .public)"
+        )
         guard
             let update = session.resolveGenerated(
                 completions, for: query, elapsedMilliseconds: since(started))
@@ -257,6 +276,9 @@ final class SuggestionCoordinator {
     ) async {
         let allowed = await verifier.verified(
             request.candidates, in: request.surface, typed: request.typed, now: Date())
+        Self.log.debug(
+            "VERIFY typed=\(request.typed, privacy: .public) in=\(request.candidates.count) out=\(allowed.count) elapsed=\(self.since(started))ms first=\(allowed.first?.text ?? "-", privacy: .public)"
+        )
         guard
             let update = session.resolve(
                 allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
@@ -316,7 +338,8 @@ final class SuggestionCoordinator {
         panel.show(
             update.suggestion, typed: session.typed, placement: .inlineGhost, caret: caret,
             window: snapshot.window, fieldPointSize: snapshot.pointSize,
-            selection: session.selection.index)
+            selection: session.selection,
+            acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier))
     }
 
     // MARK: Accepting
@@ -340,7 +363,11 @@ final class SuggestionCoordinator {
         case .swallowed(let stroke):
             let typed = session.typed
             let surface = session.surface
-            switch session.route(stroke) {
+            let action = session.route(stroke)
+            Self.log.debug(
+                "SWALLOWED key=\(String(describing: stroke.key), privacy: .public) modifiers=\(stroke.modifiers.rawValue) decision=\(Self.name(of: action), privacy: .public)"
+            )
+            switch action {
             case .accept(let text):
                 panel.hide()
                 interceptor.arm([])
@@ -361,11 +388,23 @@ final class SuggestionCoordinator {
         }
     }
 
+    /// The one word the log carries for a routed keystroke.
+    private static func name(of action: SuggestionAction) -> String {
+        switch action {
+        case .accept: "accept"
+        case .redraw: "redraw"
+        case .nothing: "nothing"
+        }
+    }
+
     /// Puts the tail into the field and counts the acceptance, which the corpus discounts.
     private func take(_ text: String, after typed: String, in surface: Surface?) async {
         do {
             // What the gates left is a whole line, so taking it may replace characters as well as add.
-            try await acceptor.accept(.certain(text), after: typed)
+            let method = try await acceptor.accept(.certain(text), after: typed)
+            Self.log.debug(
+                "ACCEPT text=\(text, privacy: .public) typed=\(typed, privacy: .public) via=\(method?.rawValue ?? "nothing", privacy: .public)"
+            )
         } catch {
             Self.log.error("a completion landed nowhere: \(error.userMessage, privacy: .public)")
             return

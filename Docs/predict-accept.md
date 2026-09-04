@@ -152,6 +152,18 @@ because the panel is anchored at the caret and shifting it left far enough to ov
 would mean measuring the field's own font from outside the application. It is an echo of
 what goes, not a mark on it.
 
+**The ghost line carries no key glyph.** Grey text after the caret is already understood
+as a completion; a symbol beside it is clutter. Where a key is named — the `take` entry of
+the list's footer and the VoiceOver label — it is built from the field's `AcceptKey`, so a
+terminal reads `→` and an editor `⌥⇥`. A `⇥` once drawn in a terminal sent the user to
+press the shell's own completion key and conclude accepting was broken.
+
+**A choice is one line until Down is pressed.** A `.choice` draws only the leader's
+continuation on the caret's line, exactly like a `.certain`. The first ↓ opens the list
+under the line — every candidate as `↳ text`, the highlighted one at ghost strength and
+the rest dimmer, then `take · next · dismiss` — and the list stays open while the highlight
+walks round, collapsing again only when the suggestion changes.
+
 ## Not settled here
 
 - **Whether the strike should overlay the user's own characters rather than echo them.**
