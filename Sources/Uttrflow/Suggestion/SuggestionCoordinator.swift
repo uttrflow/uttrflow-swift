@@ -336,7 +336,9 @@ final class SuggestionCoordinator {
             field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
             document: snapshot.document,
             preceding: snapshot.preceding(maxLength: Self.precedingContextLength),
-            windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent)
+            windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
+            isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole
+                || snapshot.value?.contains(where: \.isNewline) == true)
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.

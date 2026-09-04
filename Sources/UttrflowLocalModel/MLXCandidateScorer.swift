@@ -53,10 +53,14 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
             typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
         else { return [] }
         do {
+            // The register decides how much of a pass this line is worth: a command a little, a paragraph more.
+            let register = Register.infer(from: situation, typed: typed)
             let session = ChatSession(
                 container, instructions: Self.instructions,
-                generateParameters: GenerateParameters(maxTokens: maximumTokens, temperature: 0))
-            let answer = try await session.respond(to: Self.prompt(typed: typed, in: situation))
+                generateParameters: GenerateParameters(
+                    maxTokens: min(maximumTokens, register.maxTokens), temperature: 0))
+            let message = PromptBuilder.message(typed: typed, in: situation, register: register)
+            let answer = try await session.respond(to: message)
             return Self.parse(answer, typed: typed)
         } catch {
             return []
@@ -77,31 +81,10 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         Example — application DBeaver, text "SELECT * FROM u" → SELECT * FROM users
         """
 
-    /// One message: where the caret is, what is around it, how this person writes here, and the line to finish.
-    static func prompt(typed: String, in situation: GenerationSituation) -> String {
-        var located = "application \(situation.application)"
-        if let title = situation.windowTitle { located += ", window \"\(title)\"" }
-        if let field = situation.field { located += ", field \(field)" }
-        if let document = situation.document { located += ", document \(document)" }
-        var parts = ["In \(located)."]
-        if let surroundings = situation.surroundings {
-            parts.append("On screen around the field:\n\(surroundings)")
-        }
-        if !situation.recentLines.isEmpty {
-            parts.append(
-                "Lines this person wrote here before:\n" + situation.recentLines.joined(separator: "\n"))
-        }
-        if let preceding = situation.preceding {
-            parts.append("The text before the line reads:\n\(preceding)")
-        }
-        parts.append("Continue this line:\n\(typed)")
-        return parts.joined(separator: "\n\n")
-    }
-
     /// The prompt's own headings, which a line quoting the prompt back carries and a real completion never does.
     static let promptMarkers = [
         "continue this text", "continue this line", "on screen around the field",
-        "lines this person wrote here", "the text before the line reads",
+        "lines this person wrote here", "the text before the line reads", "hints:",
     ]
 
     /// A continuation longer than this is a paragraph, not the rest of a line.

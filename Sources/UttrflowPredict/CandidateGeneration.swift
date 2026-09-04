@@ -14,10 +14,13 @@ public struct GenerationSituation: Sendable, Equatable {
     public let surroundings: String?
     /// The lines this person most recently entered in this field, newest first, which is how they write here.
     public let recentLines: [String]
+    /// Whether the field holds many lines, which is where paragraphs are written rather than commands or searches.
+    public let isMultiline: Bool
 
     public init(
         application: String, field: String? = nil, document: String? = nil, preceding: String? = nil,
-        windowTitle: String? = nil, surroundings: String? = nil, recentLines: [String] = []
+        windowTitle: String? = nil, surroundings: String? = nil, recentLines: [String] = [],
+        isMultiline: Bool = false
     ) {
         self.application = application
         self.field = field
@@ -26,6 +29,7 @@ public struct GenerationSituation: Sendable, Equatable {
         self.windowTitle = windowTitle
         self.surroundings = surroundings
         self.recentLines = recentLines
+        self.isMultiline = isMultiline
     }
 }
 
