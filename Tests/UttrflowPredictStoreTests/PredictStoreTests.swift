@@ -337,6 +337,53 @@ struct RetentionTests {
         #expect(try await store.entryCount() <= PredictStore.entriesPerSurface)
         #expect(try await store.candidates(for: terminal, matching: "kept").count == 1)
     }
+
+    @Test("A superseded entry goes before any live one, however much it once had behind it.")
+    func evictsSupersededFirst() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        for _ in 0..<50 { try await store.record("git comit", in: terminal, at: moment) }
+        try await store.supersede("git comit", with: "git commit", in: terminal)
+        // Each filler ends in a word so none is a fragment of another, which would supersede it too.
+        for index in 0..<(PredictStore.entriesPerSurface + 1) {
+            try await store.record("filler \(index) end", in: terminal, at: moment)
+        }
+        let superseded = try Database(path: corpus.path).rows(
+            "SELECT COUNT(*) FROM entry WHERE superseded_by IS NOT NULL", { _ in }
+        ) { $0.integer(0) }
+        #expect(superseded == [0])
+        #expect(try await store.entryCount() == PredictStore.entriesPerSurface)
+    }
+}
+
+@Suite("Writing all of a record or none of it")
+struct TransactionTests {
+    @Test("A step that fails takes the steps before it back with it.")
+    func failureRollsBack() throws {
+        let corpus = Corpus()
+        let database = try Database(path: corpus.path)
+        try Schema.migrate(database)
+        #expect(throws: PredictStoreError.self) {
+            try database.transaction { () throws(PredictStoreError) in
+                try database.run("INSERT INTO surface (bundle_id, role) VALUES ('com.example.app', 'AXTextArea')") {
+                    _ in
+                }
+                try database.execute("SELECT FROM WHERE")
+            }
+        }
+        #expect(try database.rows("SELECT COUNT(*) FROM surface", { _ in }) { $0.integer(0) } == [0])
+        #expect(try database.rows("SELECT 1", { _ in }) { $0.integer(0) } == [1])
+    }
+
+    @Test("A record that goes through is there for another connection to read.")
+    func successCommits() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git push", in: terminal, after: "git commit", at: moment)
+        let other = try Database(path: corpus.path)
+        #expect(try other.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) } == [1])
+        #expect(try other.rows("SELECT COUNT(*) FROM succession", { _ in }) { $0.integer(0) } == [1])
+    }
 }
 
 @Suite("Surviving a broken file")
@@ -350,13 +397,35 @@ struct RecoveryTests {
         #expect(try await store.entryCount() == 1)
     }
 
-    @Test("A database written by a newer build is not written to by this one.")
+    @Test("A database written by a newer build is refused and left exactly as it was, not replaced.")
     func refusesTheFuture() throws {
         let corpus = Corpus()
         let database = try Database(path: corpus.path)
         try Schema.migrate(database)
         try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(99)) }
-        #expect(throws: PredictStoreError.corrupt) { try Schema.migrate(database) }
+        try database.run("INSERT INTO surface (bundle_id, role) VALUES ('com.example.app', 'AXTextArea')") {
+            _ in
+        }
+        #expect(throws: PredictStoreError.newerThanThisBuild(version: 99)) {
+            try PredictStore(path: corpus.path)
+        }
+        let version = try database.rows("SELECT version FROM schema_version", { _ in }) { $0.integer(0) }
+        #expect(version == [99])
+        #expect(try database.rows("SELECT COUNT(*) FROM surface", { _ in }) { $0.integer(0) } == [1])
+    }
+
+    @Test("A file from the build before gains the recency index and the current version on opening.")
+    func migratesFromVersionTwo() throws {
+        let corpus = Corpus()
+        let database = try Database(path: corpus.path)
+        try Schema.migrate(database)
+        try database.execute("DROP INDEX entry_recent")
+        try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(2)) }
+        try Schema.migrate(database)
+        let indexes = try database.rows("PRAGMA index_list(entry)", { _ in }) { $0.text(1) }
+        #expect(indexes.contains("entry_recent"))
+        let version = try database.rows("SELECT version FROM schema_version", { _ in }) { $0.integer(0) }
+        #expect(version == [Schema.version])
     }
 
     @Test("A path that cannot be opened at all is reported rather than pretended about.")
@@ -412,6 +481,16 @@ struct QueryPlanTests {
         let plan = try database.plan(of: PredictStore.prefixQuery).joined(separator: " | ")
         #expect(plan.contains("USING INDEX entry_prefix"), "the plan was: \(plan)")
         #expect(plan.contains("text_lower>?"), "the plan was: \(plan)")
+        #expect(!plan.contains("SCAN entry"), "the plan was: \(plan)")
+    }
+
+    @Test("The recency read has an index of its own, so it does not walk the field's rows by hand.")
+    func recentReadUsesItsIndex() throws {
+        let corpus = Corpus()
+        try seed(corpus.path, surfaces: 4, each: 500)
+        let database = try Database(path: corpus.path)
+        let plan = try database.plan(of: PredictStore.recentQuery(surfaces: 2)).joined(separator: " | ")
+        #expect(plan.contains("USING INDEX entry_recent"), "the plan was: \(plan)")
         #expect(!plan.contains("SCAN entry"), "the plan was: \(plan)")
     }
 

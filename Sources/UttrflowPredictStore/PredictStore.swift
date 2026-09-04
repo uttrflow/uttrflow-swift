@@ -16,7 +16,7 @@ public actor PredictStore: PredictionStore {
     private let path: String
     private var database: Database
 
-    /// Opens the corpus, replacing a file that is not a database this app can read.
+    /// Opens the corpus, replacing a file that is not a database at all and refusing one from a newer build.
     public init(path: String) throws(PredictStoreError) {
         self.path = path
         self.database = try Self.opened(at: path)
@@ -68,18 +68,23 @@ public actor PredictStore: PredictionStore {
     public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
         let ids = try surfaceIdentifiers(of: surface)
         guard !ids.isEmpty, limit > 0 else { return [] }
-        let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
         return try database.rows(
-            """
-            SELECT text, MAX(last_used) AS used FROM entry
-            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
-            GROUP BY text ORDER BY used DESC LIMIT ?
-            """,
+            Self.recentQuery(surfaces: ids.count),
             { statement in
                 for (offset, id) in ids.enumerated() { statement.bind(Int32(offset + 1), id) }
                 statement.bind(Int32(ids.count + 1), Int64(limit))
             }
         ) { $0.text(0) }
+    }
+
+    /// The recency read over this many surfaces of one field, which `entry_recent` exists to serve.
+    static func recentQuery(surfaces: Int) -> String {
+        let placeholders = Array(repeating: "?", count: surfaces).joined(separator: ", ")
+        return """
+            SELECT text, MAX(last_used) AS used FROM entry
+            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
+            GROUP BY text ORDER BY used DESC LIMIT ?
+            """
     }
 
     /// Every surface that is the same field in the same application, whatever document it was in.
@@ -210,12 +215,21 @@ public actor PredictStore: PredictionStore {
 
     // MARK: - Writing
 
-    /// Records a value the user finished entering, and what it followed.
+    /// Records a value the user finished entering, and what it followed, as one transaction.
     public func record(
         _ text: String, in surface: Surface, after previous: String? = nil,
         selfSourced: Bool = false, at moment: Date
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
+        try database.transaction { () throws(PredictStoreError) in
+            try commit(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
+        }
+    }
+
+    /// The steps of a record, which stand or fall together.
+    private func commit(
+        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+    ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: true) else { return }
         // A half-typed fragment is not stored when a longer line the user already entered begins with it.
         if try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text) { return }
@@ -368,7 +382,7 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// Keeps a surface within its cap, dropping the entries with the least behind them.
+    /// Keeps a surface within its cap, dropping superseded entries first and then those with the least behind them.
     private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
         let held = try database.rows(
             "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
@@ -378,7 +392,7 @@ public actor PredictStore: PredictionStore {
             """
             DELETE FROM entry WHERE id IN (
               SELECT id FROM entry WHERE surface_id = ?
-              ORDER BY count ASC, last_used ASC LIMIT ?
+              ORDER BY (superseded_by IS NOT NULL) DESC, count ASC, last_used ASC LIMIT ?
             )
             """,
             {

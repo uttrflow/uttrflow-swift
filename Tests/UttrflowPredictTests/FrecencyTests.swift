@@ -90,6 +90,26 @@ struct FrecencyTests {
         #expect(Frecency.acceptance(Entry(text: "x", count: 3, lastUsed: now)) == 1)
     }
 
+    @Test("Always taken lifts by the whole lift, always refused lowers by the same amount, and never below the floor.")
+    func acceptanceSpansItsRange() {
+        let taken = Frecency.acceptance(Entry(text: "x", count: 3, accepted: 5, lastUsed: now))
+        let refused = Frecency.acceptance(Entry(text: "x", count: 3, rejected: 5, lastUsed: now))
+        let mixed = Frecency.acceptance(Entry(text: "x", count: 3, accepted: 5, rejected: 5, lastUsed: now))
+        #expect(abs(taken - (1 + Frecency.acceptanceLift)) < 1e-9)
+        #expect(abs(refused - (1 - Frecency.acceptanceLift)) < 1e-9)
+        #expect(mixed == 1)
+        #expect(refused >= Frecency.acceptanceFloor)
+        #expect(Frecency.acceptanceFloor > 0)
+    }
+
+    @Test("A line typed past every time it was offered ranks below one with the same use that was never offered.")
+    func heavyRejectionRanksBelowFresh() {
+        let refused = Frecency.score(remembered(count: 4, rejected: 12), now: now)
+        let fresh = Frecency.score(remembered(count: 4), now: now)
+        #expect(refused < fresh)
+        #expect(refused > 0)
+    }
+
     @Test("A fuzzy match is worth less than an exact one on the same evidence.")
     func fuzzyIsWorthLess() {
         let exact = Frecency.score(remembered(editDistance: 0), now: now)

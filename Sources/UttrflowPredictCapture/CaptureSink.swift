@@ -4,7 +4,7 @@ public import UttrflowPredictStore
 public import struct Foundation.Date
 
 /// Where finished values go, named as a protocol so the capture path can be tested without a database.
-public protocol CaptureSink: PredictionStore {
+public protocol CaptureSink: Sendable {
     /// Records a value the user finished entering, and what it followed.
     func record(
         _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool,

@@ -1,7 +1,7 @@
 /// The tables the corpus lives in, and the one place their shape is written down.
 enum Schema {
-    /// What this build expects on disk; a file at any other version is migrated to it.
-    static let version = 2
+    /// What this build expects on disk; an older file is migrated to it and a newer one is refused.
+    static let version = 3
 
     /// Everything a fresh database needs, in the order it must be created.
     static let statements = [
@@ -40,6 +40,8 @@ enum Schema {
         """,
         // The range scan every keystroke runs is over the lowercased text, so matching ignores case but keeps the index.
         "CREATE INDEX IF NOT EXISTS entry_prefix ON entry (surface_id, text_lower)",
+        // The lines most recently entered in a field are read newest first, which this index orders.
+        "CREATE INDEX IF NOT EXISTS entry_recent ON entry (surface_id, last_used)",
         """
         CREATE TABLE IF NOT EXISTS succession (
           surface_id INTEGER NOT NULL REFERENCES surface(id) ON DELETE CASCADE,
@@ -64,8 +66,12 @@ enum Schema {
             return
         }
         // A file from a newer build is not something this one can safely write to.
-        guard current <= version else { throw .corrupt }
+        guard current <= version else { throw .newerThanThisBuild(version: current) }
         if current < 2 { try migrateToLowercasedPrefix(database) }
+        // Version 3 adds only `entry_recent`, which `statements` has already created above.
+        if current < version {
+            try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(version)) }
+        }
     }
 
     /// Adds the lowercased column an existing v1 file lacks, fills it, and moves the index onto it.
@@ -76,7 +82,6 @@ enum Schema {
         try database.execute("UPDATE entry SET text_lower = lower(text)")
         try database.execute("DROP INDEX IF EXISTS entry_prefix")
         try database.execute("CREATE INDEX entry_prefix ON entry (surface_id, text_lower)")
-        try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(version)) }
     }
 
     /// Whether a table already has a column, so a migration does not add one twice.

@@ -217,9 +217,9 @@ let package = Package(
             swiftSettings: sharedSwiftSettings
         ),
 
-        // Noticing what the user finished entering, and measuring what would have been
-        // suggested without drawing any of it. Depends on UttrflowClipboard for the one
-        // thing it must not reimplement: the rules that recognise a credential.
+        // Noticing what the user finished entering and recording it, through the refusals
+        // that keep secrets and other people's text out. Depends on UttrflowClipboard for the
+        // one thing it must not reimplement: the rules that recognise a credential.
         .target(
             name: "UttrflowPredictCapture",
             dependencies: [

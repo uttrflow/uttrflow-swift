@@ -12,34 +12,37 @@ public enum CaptureOutcome: Sendable, Equatable {
     case refused(CaptureRefusal)
 }
 
-/// Watches one field at a time, writes what the user finishes, and measures what would have been drawn.
+/// Watches one field at a time and writes what the user finishes in it.
 public actor CaptureSession {
     private let sink: any CaptureSink
     private let preferencesFile: CapturePreferencesFile
+    private let policy: CommitPolicy
     private var preferences: CapturePreferences
     private var focused: FieldReading?
     private var detector = CommitDetector()
-    private var run = ShadowRun()
     private var previous: [Surface: String] = [:]
-    private var tallies: [String: ShadowTally] = [:]
 
-    public init(sink: any CaptureSink, preferencesFile: CapturePreferencesFile) {
+    public init(
+        sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding
+    ) {
         self.sink = sink
         self.preferencesFile = preferencesFile
+        self.policy = policy
         preferences = preferencesFile.load()
     }
 
     /// Takes one event in one field and answers with what it came to.
     public func handle(_ event: CaptureEvent, in reading: FieldReading) async throws -> CaptureOutcome {
+        // The application leaving is the one still focused here, whatever field the caller last read in it.
+        if case .applicationDeactivated = event, focused != reading {
+            defer { focused = nil }
+            return try await flush(with: event)
+        }
         if focused != reading {
-            try await flush(at: event.moment)
+            _ = try await flush(with: .focusLeft(at: event.moment))
             focused = reading
         }
-        guard let surface = reading.surface else { return .nothing }
-        if case .keystroke(let typed, let moment) = event {
-            await observe(typed, in: surface, at: moment)
-        }
-        guard let commit = detector.receive(event) else { return .nothing }
+        guard let surface = reading.surface, let commit = detector.receive(event) else { return .nothing }
         return try await write(commit, from: reading, in: surface, at: event.moment)
     }
 
@@ -57,9 +60,6 @@ public actor CaptureSession {
         previous[surface] = text
         return .recorded(text)
     }
-
-    /// What shadow mode has counted, per application, which is the whole point of this phase.
-    public func measurements() -> [String: ShadowTally] { tallies }
 
     /// What the user has decided about capture so far.
     public func decisions() -> CapturePreferences { preferences }
@@ -91,31 +91,19 @@ public actor CaptureSession {
         return 0
     }
 
-    /// Asks the engine what it would draw at this keystroke, counts the answer, and draws nothing.
-    private func observe(_ typed: String, in surface: Surface, at moment: Date) async {
-        guard !typed.isEmpty else { return }
-        let candidates = (try? await sink.candidates(for: surface, matching: typed)) ?? []
-        let context = PredictionContext(typed: typed, isSecure: false)
-        run.observe(PredictionEngine.suggestion(from: candidates, in: context, now: moment))
-    }
-
-    /// Commits whatever the field the focus is leaving still holds, so a half-finished value is not lost.
-    private func flush(at moment: Date) async throws {
-        defer {
-            detector.reset()
-            run.discard()
-        }
-        guard let leaving = focused, let surface = leaving.surface,
-            let commit = detector.receive(.focusLeft(at: moment))
-        else { return }
-        _ = try await write(commit, from: leaving, in: surface, at: moment)
+    /// Ends the focused field with this event, so a half-finished value is not lost.
+    private func flush(with ending: CaptureEvent) async throws -> CaptureOutcome {
+        defer { detector.reset() }
+        guard let leaving = focused, let surface = leaving.surface, let commit = detector.receive(ending)
+        else { return .nothing }
+        return try await write(commit, from: leaving, in: surface, at: ending.moment)
     }
 
     /// Puts a finished value through every refusal and then into the corpus.
     private func write(
         _ commit: Commit, from reading: FieldReading, in surface: Surface, at moment: Date
     ) async throws -> CaptureOutcome {
-        fold(run.resolve(against: commit.text), into: reading.bundleIdentifier)
+        guard policy.admits(commit.reason, in: reading) else { return .nothing }
         if let refusal = CaptureGate.refusal(
             toRecord: commit.text, from: reading, given: preferences)
         {
@@ -128,10 +116,5 @@ public actor CaptureSession {
             commit.text, in: surface, after: previous[surface], selfSourced: false, at: moment)
         previous[surface] = commit.text
         return .recorded(commit.text)
-    }
-
-    /// Adds one field's measurements to the application they belong to.
-    private func fold(_ tally: ShadowTally, into bundleIdentifier: String) {
-        tallies[bundleIdentifier] = (tallies[bundleIdentifier] ?? ShadowTally()) + tally
     }
 }

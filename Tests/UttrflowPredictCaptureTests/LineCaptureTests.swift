@@ -73,6 +73,22 @@ struct LineCaptureTests {
         #expect(quick.map(\.text) == ["The quick brown fox"])
     }
 
+    @Test("A completion the person took is counted in the corpus, not swallowed by the sink's default.")
+    func anAcceptedCompletionIsCounted() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        let outcome = try await session.accepted("The quick brown fox", in: editor, at: moment)
+        #expect(outcome == .recorded("The quick brown fox"))
+        let surface = try #require(editor.surface)
+        let found = try await store.candidates(for: surface, matching: "The q")
+        #expect(found.first?.evidence?.accepted == 1)
+        #expect(found.first?.evidence?.selfSourced == 1)
+    }
+
     @Test("Two documents in one folder share what either of them taught.")
     func oneFolderIsOneCorpus() throws {
         let other = FieldReading(

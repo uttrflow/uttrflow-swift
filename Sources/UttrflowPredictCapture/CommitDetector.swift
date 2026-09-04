@@ -31,11 +31,11 @@ public enum CommitReason: String, Sendable, Equatable, CaseIterable {
     case wentIdle
 }
 
-/// One value the user finished entering, and the shorter one it continues.
+/// One value the user finished entering, and the idle draft of it that came before.
 public struct Commit: Sendable, Equatable {
     /// The text as it stood when it was finished.
     public let text: String
-    /// A value committed earlier in this same run that this one extends, which it replaces.
+    /// What an idle committed earlier in this field's life, which this value replaces whatever it has become.
     public let supersedes: String?
     public let reason: CommitReason
 
@@ -53,6 +53,7 @@ public struct CommitDetector: Sendable, Equatable {
 
     private var pending = ""
     private var lastKeystroke: Date?
+    /// What an idle commit remembered, kept until the field's life ends so the finished line can retire it.
     private var committed: String?
 
     public init() {}
@@ -68,7 +69,6 @@ public struct CommitDetector: Sendable, Equatable {
         case .keystroke(let text, let moment):
             pending = text.trimmingCharacters(in: .whitespacesAndNewlines)
             lastKeystroke = moment
-            if let committed, !pending.hasPrefix(committed) { self.committed = nil }
             return nil
         case .returnPressed:
             return finishing(.returnPressed)
@@ -102,7 +102,8 @@ public struct CommitDetector: Sendable, Equatable {
     /// Emits what is pending, unless it is nothing or is exactly what was emitted last.
     private mutating func commit(_ reason: CommitReason) -> Commit? {
         guard !pending.isEmpty, pending != committed else { return nil }
-        let superseded = committed.flatMap { pending.hasPrefix($0) ? $0 : nil }
+        // An idle draft is retired by whatever the line became, even after it was backspaced away.
+        let superseded = committed
         committed = pending
         return Commit(text: pending, supersedes: superseded, reason: reason)
     }

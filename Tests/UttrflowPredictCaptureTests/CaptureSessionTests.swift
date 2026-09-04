@@ -8,18 +8,6 @@ import UttrflowPredict
 private actor Recorder: CaptureSink {
     private(set) var recorded: [(text: String, surface: Surface, previous: String?)] = []
     private(set) var superseded: [(text: String, replacement: String)] = []
-    private var offered: [String: [Candidate]] = [:]
-
-    /// Answers a typed prefix with candidates, so shadow mode has something to be right or wrong about.
-    func offer(_ candidates: [Candidate], forTyped typed: String) {
-        offered[typed] = candidates
-    }
-
-    func candidates(for surface: Surface, matching typed: String) -> [Candidate] {
-        offered[typed] ?? []
-    }
-
-    func successors(for surface: Surface, after previous: String) -> [Candidate] { [] }
 
     func record(
         _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
@@ -39,21 +27,21 @@ private let terminal = FieldReading(bundleIdentifier: "com.example.terminal", ro
 private let browser = FieldReading(
     bundleIdentifier: "com.example.browser", role: "AXTextField", identifier: "omnibox")
 
-/// A candidate with enough behind it that the engine will speak of it.
-private func remembered(_ text: String, count: Int = 20) -> Candidate {
-    Candidate(
-        text: text, source: .personal,
-        evidence: Entry(text: text, count: count, lastUsed: start))
+/// A policy that finishes a field only this way, so recording through it proves the reason a commit carried.
+private func only(_ reason: CommitReason) -> CommitPolicy {
+    CommitPolicy { ended, _ in ended == reason }
 }
 
 /// A session over a scratch preferences file, with the given applications already opted in.
 private func session(
-    _ scratch: borrowing Scratch, _ recorder: Recorder, allowing: [String] = []
+    _ scratch: borrowing Scratch, _ recorder: Recorder, allowing: [String] = [],
+    policy: CommitPolicy = .everyEnding
 )
     async throws -> CaptureSession
 {
     let session = CaptureSession(
-        sink: recorder, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        sink: recorder, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath),
+        policy: policy)
     for bundleIdentifier in allowing { try await session.record(.allowed, for: bundleIdentifier) }
     return session
 }
@@ -175,34 +163,61 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.isEmpty)
     }
 
-    @Test("Shadow mode counts what would have been drawn and draws none of it.")
-    func shadowModeMeasures() async throws {
-        let scratch = Scratch()
-        let recorder = Recorder()
-        await recorder.offer([remembered("git status")], forTyped: "git s")
-        await recorder.offer([remembered("git push"), remembered("git pull")], forTyped: "git st")
-        await recorder.offer([remembered("git stash")], forTyped: "git sta")
-        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
-        for typed in ["git s", "git st", "git sta", "git status"] {
-            _ = try await session.handle(.keystroke(typed, at: start), in: terminal)
-        }
-        _ = try await session.handle(.returnPressed(at: start), in: terminal)
-        let tally = try #require(await session.measurements()["com.example.terminal"])
-        #expect(tally == ShadowTally(keystrokes: 4, shown: 3, matched: 1, confidentlyWrong: 1))
-    }
-
-    @Test("Measurements are kept per application, so one app's numbers never flatter another's.")
-    func measurementsArePerApplication() async throws {
+    @Test("In a shell only Return finishes the line, so what Tab-cycling left behind is not learned on the way out.")
+    func shellsFinishOnReturnAlone() async throws {
         let scratch = Scratch()
         let recorder = Recorder()
         let session = try await session(
-            scratch, recorder, allowing: ["com.example.terminal", "com.example.browser"])
-        _ = try await session.handle(.keystroke("ls", at: start), in: terminal)
-        _ = try await session.handle(.returnPressed(at: start), in: terminal)
+            scratch, recorder, allowing: ["com.example.terminal"],
+            policy: .returnOnly(in: ["com.example.terminal"]))
+        _ = try await session.handle(.keystroke("lsbom", at: start), in: terminal)
+        #expect(try await session.handle(.focusLeft(at: start), in: terminal) == .nothing)
+        _ = try await session.handle(.keystroke("lsbom", at: start), in: terminal)
+        #expect(try await session.handle(.applicationDeactivated(at: start), in: terminal) == .nothing)
+        _ = try await session.handle(.keystroke("ls -la", at: start), in: terminal)
+        #expect(try await session.handle(.returnPressed(at: start), in: terminal) == .recorded("ls -la"))
+        #expect(await recorder.texts == ["ls -la"])
+    }
+
+    @Test("Outside the named shells, leaving a field still finishes what it held.")
+    func otherApplicationsFinishOnLeaving() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(
+            scratch, recorder, allowing: ["com.example.browser"],
+            policy: .returnOnly(in: ["com.example.terminal"]))
         _ = try await session.handle(.keystroke("example.com", at: start), in: browser)
-        _ = try await session.handle(.returnPressed(at: start), in: browser)
+        #expect(try await session.handle(.focusLeft(at: start), in: browser) == .recorded("example.com"))
+    }
+
+    @Test("Deactivation named against another field still ends the focused one, once, as a deactivation.")
+    func deactivationEndsTheFocusedField() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(
+            scratch, recorder, allowing: ["com.example.terminal", "com.example.browser"],
+            policy: only(.applicationDeactivated))
+        _ = try await session.handle(.keystroke("make verify", at: start), in: terminal)
+        let outcome = try await session.handle(
+            .applicationDeactivated(at: start.addingTimeInterval(1)), in: browser)
+        #expect(outcome == .recorded("make verify"))
+        #expect(await recorder.recorded.map(\.surface) == [terminal.surface])
+        _ = try await session.handle(.keystroke("example.com", at: start.addingTimeInterval(2)), in: browser)
+        #expect(await recorder.texts == ["make verify"])
+    }
+
+    @Test("Deactivation named against the focused field itself commits it once, as a deactivation.")
+    func deactivationInTheFocusedFieldCommitsOnce() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(
+            scratch, recorder, allowing: ["com.example.terminal"], policy: only(.applicationDeactivated))
+        _ = try await session.handle(.keystroke("make verify", at: start), in: terminal)
         #expect(
-            await session.measurements().keys.sorted() == ["com.example.browser", "com.example.terminal"])
+            try await session.handle(.applicationDeactivated(at: start), in: terminal)
+                == .recorded("make verify"))
+        #expect(try await session.handle(.keystroke("ls", at: start), in: terminal) == .nothing)
+        #expect(await recorder.texts == ["make verify"])
     }
 
     @Test("Importing a shell history seeds the terminal, and never happens twice.")

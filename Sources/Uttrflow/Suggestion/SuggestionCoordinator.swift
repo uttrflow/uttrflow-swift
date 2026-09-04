@@ -113,7 +113,11 @@ final class SuggestionCoordinator {
         capture = CaptureSession(
             sink: store,
             preferencesFile: CapturePreferencesFile(
-                path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)))
+                path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
+            // A shell line that was not run was not a command, so a terminal learns only what Return finished.
+            policy: CommitPolicy { reason, reading in
+                !TerminalApplications.contains(reading.bundleIdentifier) || reason == .returnPressed
+            })
         acceptor = SuggestionAcceptor(completion: TextInsertion.completion())
     }
 
