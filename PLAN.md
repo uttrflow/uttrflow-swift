@@ -159,13 +159,13 @@ trust. Each is kept short enough that reading it is a sufficient review:
 
 Recorded as they are decided, so the PRD and the code never quietly disagree.
 
-- **§29 "no audio saved" — no longer a deviation. The PRD was right.** V1 was going to
-  keep recordings on the device for seven days, so a bad dictation could be replayed.
-  It never did: nothing in the product has ever written audio to disk. The claim was
-  discovered during Phase 8 and reversed rather than implemented, because never keeping
-  a recording is a stronger promise than deleting one, and the interface was already
-  saying so. `WAVEncoder` survives for the developer CLI and the evaluation corpus,
-  neither of which is the app. Transcripts *are* kept, and deleted after their window.
+- **§29 "no audio saved" — deviated, deliberately, on 2026-09-04.** V1 was going to
+  keep recordings for seven days so a bad dictation could be replayed; Phase 8 reversed
+  that in favour of never writing audio at all. It is back in a narrower form: every
+  recording is written beside the live buffer and deleted the moment its words land,
+  and kept for a day only when the words were lost — a crash, or a recogniser that
+  never answered — so the dictation can be retried from the Dictation page. Nothing
+  leaves the Mac, and the privacy wording says exactly this. See `Docs/recordings.md`.
 - **§31 "no tiny fallback LLM".** A local open-weight model is in V1, because Apple's
   Foundation Models have no Hindi.
 - **§16 recording panel.** The floating button *is* the recorder rather than a

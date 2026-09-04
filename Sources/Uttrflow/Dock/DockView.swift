@@ -390,6 +390,7 @@ struct DockView: View {
         case .downloadSpeechModel: "Download"
         case .pasteManually: "Paste"
         case .showRecentDictations: "Show Recent"
+        case .retryFromRecording: "Retry"
         }
     }
 }

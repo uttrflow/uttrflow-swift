@@ -9,6 +9,15 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+### Added
+- **A dictation that fails can be retried from its audio.** Every recording is written to
+  this Mac while the key is held, beside the buffer the recogniser reads, and deleted the
+  moment the words land. When the words are lost — the recogniser fails, or the app dies
+  mid-dictation — the recording stays for a day and sits at the top of the Dictation page
+  with a Retry, which runs it through the same stages and copies the result. The floating
+  button's failure state gains a Retry that opens that page. Nothing leaves the Mac; the
+  privacy wording in Settings, onboarding and History now says exactly this.
+
 ## [0.4.0] — 2026-09-01
 
 ### Changed

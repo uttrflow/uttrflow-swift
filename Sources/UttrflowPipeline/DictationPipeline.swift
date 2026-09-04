@@ -1,5 +1,5 @@
 public import UttrflowCore
-private import struct Foundation.UUID
+public import struct Foundation.UUID
 
 /// Speak, and the words appear where you were typing. See `Docs/pipeline.md`.
 public actor DictationPipeline {
@@ -13,6 +13,9 @@ public actor DictationPipeline {
     private let learner: any DictationLearning
     private let vocabulary: any VocabularyLearning
     private let metrics: any MetricsRecording
+    private let recordings: any RecordingKeeper
+    /// Where a retried dictation's words go, since the field they were meant for is gone.
+    private let clipboard: any TextInserting
     private let clock: any Clock<Duration>
     private let profile: UserProfile
 
@@ -34,6 +37,9 @@ public actor DictationPipeline {
     private var insertedInto: String?
     private var insertedIntoIdentifier: String?
 
+    /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
+    private var openRecording: UUID?
+
     public init(
         capture: any AudioCaptureEngine,
         speech: any SpeechEngine,
@@ -45,6 +51,8 @@ public actor DictationPipeline {
         learner: any DictationLearning = NoTextChanges(),
         vocabulary: any VocabularyLearning = NoTextChanges(),
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
+        recordings: any RecordingKeeper = RecordingsNotKept(),
+        clipboard: (any TextInserting)? = nil,
         clock: any Clock<Duration> = ContinuousClock(),
         profile: UserProfile = .default
     ) {
@@ -58,6 +66,8 @@ public actor DictationPipeline {
         self.learner = learner
         self.vocabulary = vocabulary
         self.metrics = metrics
+        self.recordings = recordings
+        self.clipboard = clipboard ?? inserter
         self.clock = clock
         self.profile = profile
     }
@@ -149,13 +159,42 @@ public actor DictationPipeline {
             return
         }
 
-        await process(audio, mine)
+        // Written beside the buffer while the key was held, so it exists before anything can fail.
+        openRecording = await recordings.current()?.id
+        await process(audio, mine, delivery: .insert)
+    }
+
+    /// Runs a kept recording through the same stages, delivering the words to the clipboard.
+    public func retry(_ recording: UUID) async {
+        guard !isBusy else { return }
+        generation += 1
+        let mine = generation
+
+        let audio: AudioSamples
+        do {
+            audio = try await recordings.audio(of: recording)
+        } catch {
+            // A file that cannot be read cannot be retried, so it is not offered again.
+            await recordings.discard(recording)
+            transition(to: .failed(DictationFailure(error)))
+            return
+        }
+        stopwatch = nil
+        spokenFor = audio.duration
+        insertedInto = nil
+        insertedIntoIdentifier = nil
+        openRecording = recording
+        await process(audio, mine, delivery: .copy)
     }
 
     /// Abandons the dictation at any stage: nothing is transcribed and nothing is inserted.
     public func cancel() async {
         cancelledGeneration = generation
         await capture.cancel()
+        if let openRecording {
+            self.openRecording = nil
+            await recordings.discard(openRecording)
+        }
         transition(to: .idle)
     }
 
@@ -173,7 +212,13 @@ public actor DictationPipeline {
 
     // MARK: Stages
 
-    private func process(_ audio: AudioSamples, _ mine: Int) async {
+    /// Where the finished words go.
+    private enum Delivery {
+        case insert
+        case copy
+    }
+
+    private func process(_ audio: AudioSamples, _ mine: Int, delivery: Delivery) async {
         transition(to: .transcribing)
         let transcription: Transcription
         do {
@@ -184,16 +229,15 @@ public actor DictationPipeline {
             }
             // Busy for ever is what refuses every later dictation. See `Docs/stuck-recording.md`.
             guard let recognised else {
-                transition(
-                    to: .failed(
-                        DictationFailure(
-                            SpeechEngineError.transcriptionFailed(
-                                description: "the recogniser did not answer"))))
+                await fail(
+                    DictationFailure(
+                        SpeechEngineError.transcriptionFailed(
+                            description: "the recogniser did not answer")))
                 return
             }
             transcription = recognised
         } catch {
-            transition(to: .failed(DictationFailure(error)))
+            await fail(DictationFailure(error))
             return
         }
 
@@ -201,20 +245,27 @@ public actor DictationPipeline {
 
         // Silence is not a fault, but returning quietly to idle would look like a broken app.
         guard !transcription.isBlank else {
-            transition(to: .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+            await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
 
         transition(to: .tidying)
 
         // Read once and handed to everything that needs it, so two stages see one screen.
-        let appContext =
-            ((try? await withStageTimeout(StageTimeout.quick, clock: clock) { [context] in
-                await context.currentContext()
-            }) ?? nil) ?? AppContext()
-        // Kept from this read: by insertion time the user has often switched away.
-        insertedInto = appContext.applicationName
-        insertedIntoIdentifier = appContext.bundleIdentifier
+        let appContext: AppContext
+        switch delivery {
+        case .insert:
+            appContext =
+                ((try? await withStageTimeout(StageTimeout.quick, clock: clock) { [context] in
+                    await context.currentContext()
+                }) ?? nil) ?? AppContext()
+            // Kept from this read: by insertion time the user has often switched away.
+            insertedInto = appContext.applicationName
+            insertedIntoIdentifier = appContext.bundleIdentifier
+        case .copy:
+            // The screen now is Uttrflow's own window, which says nothing about what was said.
+            appContext = AppContext()
+        }
 
         // The dictionary before the tidier: a correction is argued from the sentence as heard.
         let corrected = await correct(transcription, seeing: appContext)
@@ -225,7 +276,7 @@ public actor DictationPipeline {
 
         // Inserting a blank would delete the user's selection, so it is refused like silence.
         guard !cleaned.text.isBlank else {
-            transition(to: .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+            await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
 
@@ -237,9 +288,10 @@ public actor DictationPipeline {
             corrections: corrected.corrections, snippets: expanded.snippets,
             // The unrewritten sentence, which is the space the corrections' word ranges index.
             spokenWords: transcription.text.split(whereSeparator: \.isWhitespace).count)
-        guard await insert(expanded.text, cleanedBy: cleaned.producedBy, changes: changes) else {
-            return
-        }
+        guard
+            await insert(
+                expanded.text, cleanedBy: cleaned.producedBy, changes: changes, delivery: delivery)
+        else { return }
 
         // Both run after the words are on screen, and neither can fail the dictation. §19.
         await count(changes)
@@ -307,11 +359,12 @@ public actor DictationPipeline {
 
     /// Puts the finished text where the user was typing, answering whether it reached the screen.
     private func insert(
-        _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges
+        _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges, delivery: Delivery
     ) async -> Bool {
+        let inserter = delivery == .copy ? clipboard : self.inserter
         do {
             let inserted = try await metrics.measuring(.insertion, clock: clock) {
-                try await withStageTimeout(StageTimeout.quick, clock: clock) { [inserter] in
+                try await withStageTimeout(StageTimeout.quick, clock: clock) {
                     try await inserter.insert(text)
                 }
             }
@@ -320,19 +373,40 @@ public actor DictationPipeline {
                 throw TextInsertionError.insertionRejected(
                     description: "the application did not respond")
             }
+            // The words landed, so the audio has done its job.
+            if let openRecording {
+                self.openRecording = nil
+                await recordings.discard(openRecording)
+            }
             transition(
                 to: .inserted(
                     DictationOutcome(
                         text: text, method: method, cleanedBy: cleanedBy,
                         insertedInto: insertedInto,
                         insertedIntoIdentifier: insertedIntoIdentifier,
-                        spokenFor: spokenFor, changes: changes)))
+                        spokenFor: spokenFor, changes: changes,
+                        fromRecording: delivery == .copy)))
             return true
         } catch {
             // The words survive the failure: the interface can still offer them.
-            transition(to: .failed(DictationFailure(error, transcript: text)))
+            await fail(DictationFailure(error, transcript: text))
             return false
         }
+    }
+
+    /// Ends the dictation in failure, keeping the audio exactly when the words were lost. See `Docs/recordings.md`.
+    private func fail(_ failure: DictationFailure) async {
+        var failure = failure
+        if let openRecording {
+            self.openRecording = nil
+            let wordsLost = failure.transcript == nil && failure.severity != .informational
+            if !wordsLost {
+                await recordings.discard(openRecording)
+            } else if failure.recovery == nil || failure.recovery == .retry {
+                failure = failure.offering(.retryFromRecording)
+            }
+        }
+        transition(to: .failed(failure))
     }
 
     /// Tells the stores what this dictation used, once the words are safely on screen.

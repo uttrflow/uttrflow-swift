@@ -184,13 +184,13 @@ struct HistoryRetentionTests {
         #expect(page.retentionNotice.link.intent == .go(.settings(.privacy)))
     }
 
-    /// No build keeps audio, so this state does not arise today. It is here because the
-    /// promise is checked rather than asserted: were a build ever to start keeping a
-    /// recording, the notice must drop the claim instead of going on making it.
-    @Test("the notice drops the audio promise rather than making it falsely")
-    func noticeWhenAudioWouldBeKept() {
+    /// The app keeps a recording only until its words land, and the notice says exactly that.
+    @Test("the notice says a recording stays only until its words land")
+    func noticeWhenAudioIsKept() {
         let page = HistoryFixture.page(entries: [], keepsRecordings: true)
-        #expect(page.retentionNotice.sentence == "Kept on this Mac for 7 days, then deleted.")
+        #expect(
+            page.retentionNotice.sentence
+                == "Kept on this Mac for 7 days, then deleted. A recording stays only until its words land.")
     }
 
     /// Somebody checking what the app holds about them should not have to dictate

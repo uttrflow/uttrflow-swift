@@ -9,11 +9,18 @@ public import UttrflowCore
 public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private let source: any MicrophoneSource
     private let accumulator: SampleAccumulator
+    /// Where each recording is also written as it happens, when the app keeps them.
+    private let recordings: RecordingStore?
+    private var writer: RecordingWriter?
     private var currentState: AudioCaptureState = .idle
 
-    public init(source: any MicrophoneSource, accumulator: SampleAccumulator = SampleAccumulator()) {
+    public init(
+        source: any MicrophoneSource, accumulator: SampleAccumulator = SampleAccumulator(),
+        recordings: RecordingStore? = nil
+    ) {
         self.source = source
         self.accumulator = accumulator
+        self.recordings = recordings
     }
 
     public var state: AudioCaptureState { currentState }
@@ -40,7 +47,18 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         accumulator.reset()
 
         let accumulator = self.accumulator
-        try source.start { samples in accumulator.append(samples) }
+        // Opened before the tap, so the file holds every block the buffer does.
+        let writer = await recordings?.begin()
+        self.writer = writer
+        do {
+            try source.start { samples in
+                accumulator.append(samples)
+                writer?.append(samples)
+            }
+        } catch {
+            await abandonWriter()
+            throw error
+        }
         currentState = .recording
     }
 
@@ -48,6 +66,10 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         guard currentState == .recording else { throw .notRecording }
         source.stop()
         currentState = .idle
+        if let writer, let recordings {
+            _ = await recordings.finish(writer)
+        }
+        writer = nil
         return .canonical(accumulator.take())
     }
 
@@ -56,5 +78,12 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         source.stop()
         accumulator.reset()
         currentState = .idle
+        await abandonWriter()
+    }
+
+    private func abandonWriter() async {
+        guard let writer else { return }
+        await recordings?.abandon(writer)
+        self.writer = nil
     }
 }

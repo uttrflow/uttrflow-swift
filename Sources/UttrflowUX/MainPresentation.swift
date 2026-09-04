@@ -30,6 +30,11 @@ public enum MainIntent: Sendable, Equatable {
     case flagDictation(UUID)
     case forgetDictation(UUID)
 
+    /// Run a kept recording through transcription again.
+    case retryRecording(UUID)
+    /// Delete a kept recording without ever hearing it.
+    case forgetRecording(UUID)
+
     /// Put a changed word back to what was heard.
     case undoCorrection(UUID)
 
@@ -164,6 +169,7 @@ public enum MainPresenter {
         case .downloadSpeechModel: "Download"
         case .pasteManually: "Paste"
         case .showRecentDictations: "Show Recent"
+        case .retryFromRecording: "Retry"
         }
     }
 
