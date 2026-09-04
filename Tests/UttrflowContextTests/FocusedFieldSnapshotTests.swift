@@ -92,6 +92,15 @@ struct FocusedFieldSnapshotTests {
         #expect(!snapshot(value: document, selection: NSRange(location: 5, length: 0)).caretAtLineEnd)
     }
 
+    @Test("Only whitespace ahead still counts as the line's end, as a terminal pads the line with spaces.")
+    func whitespaceAheadIsStillTheEnd() {
+        // A terminal's value: the input, then spaces to the window width, then the next grid row.
+        let padded = "ls" + String(repeating: " ", count: 40) + "\n" + String(repeating: " ", count: 42)
+        #expect(snapshot(value: padded, selection: NSRange(location: 2, length: 0)).caretAtLineEnd)
+        // Real text ahead, not padding, is still the caret sitting inside the line.
+        #expect(!snapshot(value: "ls  -la", selection: NSRange(location: 2, length: 0)).caretAtLineEnd)
+    }
+
     @Test("What a completion continues is the caret's own line, not the whole document.")
     func theLineIsWhatIsTyped() {
         let document = "Deploy the notes\nThe quick brown fox\nThe qui"
