@@ -33,7 +33,7 @@ public struct AcceptKeys: Sendable, Equatable {
     public func key(forBundleIdentifier bundleIdentifier: String) -> AcceptKey {
         let identifier = bundleIdentifier.lowercased()
         if let chosen = overrides[identifier] { return chosen }
-        if Self.terminals.contains(where: identifier.hasPrefix) { return .rightArrow }
+        if TerminalApplications.contains(identifier) { return .rightArrow }
         if Self.editors.contains(where: identifier.hasPrefix) { return .optionTab }
         return .tab
     }
@@ -44,19 +44,6 @@ public struct AcceptKeys: Sendable, Equatable {
     }
 
     /// Matched on a lowercased prefix, so one entry covers a vendor's whole family.
-    private static let terminals = [
-        "com.apple.terminal",
-        "com.googlecode.iterm2",
-        "com.mitchellh.ghostty",
-        "net.kovidgoyal.kitty",
-        "io.alacritty",
-        "com.github.wez.wezterm",
-        "dev.warp.warp",
-        "co.zeit.hyper",
-        "org.tabby",
-    ]
-
-    /// The same, for editors, where Tab is indentation before it is anything else.
     private static let editors = [
         "com.apple.dt.xcode",
         "com.microsoft.vscode",
@@ -68,4 +55,26 @@ public struct AcceptKeys: Sendable, Equatable {
         "org.vim.macvim",
         "com.panic.nova",
     ]
+}
+
+/// The applications whose text areas hold commands rather than prose, which Accessibility cannot tell by role alone.
+public enum TerminalApplications {
+    /// Lowercased bundle-identifier prefixes, so one entry covers a vendor's whole family.
+    public static let bundleIdentifierPrefixes = [
+        "com.apple.terminal",
+        "com.googlecode.iterm2",
+        "com.mitchellh.ghostty",
+        "net.kovidgoyal.kitty",
+        "io.alacritty",
+        "com.github.wez.wezterm",
+        "dev.warp.warp",
+        "co.zeit.hyper",
+        "org.tabby",
+    ]
+
+    /// Whether this application is a terminal, matched on a lowercased prefix since macOS is inconsistent about case.
+    public static func contains(_ bundleIdentifier: String) -> Bool {
+        let identifier = bundleIdentifier.lowercased()
+        return bundleIdentifierPrefixes.contains(where: identifier.hasPrefix)
+    }
 }

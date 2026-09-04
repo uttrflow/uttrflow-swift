@@ -21,6 +21,24 @@ struct AcceptKeyTests {
     }
 
     @Test(
+        "Every entry in the one terminal table is a terminal to both readers, so the key and the prompt strip agree.",
+        arguments: TerminalApplications.bundleIdentifierPrefixes)
+    func theTableAnswersBothReaders(bundleIdentifier: String) {
+        #expect(TerminalApplications.contains(bundleIdentifier))
+        #expect(AcceptKeys.standard.key(forBundleIdentifier: bundleIdentifier) == .rightArrow)
+    }
+
+    @Test(
+        "The table is read whatever the identifier's case, and covers the terminals the context reader once lacked."
+    )
+    func theTableIgnoresCase() {
+        #expect(TerminalApplications.contains("COM.APPLE.TERMINAL"))
+        #expect(TerminalApplications.contains("co.zeit.hyper"))
+        #expect(TerminalApplications.contains("dev.warp.Warp-Stable"))
+        #expect(!TerminalApplications.contains("com.apple.Notes"))
+    }
+
+    @Test(
         "An editor gets Option-Tab, because Tab there is indentation before it is anything else.",
         arguments: [
             "com.apple.dt.Xcode", "com.microsoft.VSCode", "com.visualstudio.code.oss",

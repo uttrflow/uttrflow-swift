@@ -7,7 +7,7 @@ struct ShellPromptTests {
     @Test("A default zsh prompt is taken off, hostname and all.")
     func zshDefaultPrompt() {
         #expect(
-            ShellPrompt.input(in: "naveenbhatt@Naveens-MacBook-Pro-2 experiments % git status")
+            ShellPrompt.input(in: "user@host experiments % git status")
                 == "git status")
     }
 
@@ -15,7 +15,7 @@ struct ShellPromptTests {
     func virtualenvPrefix() {
         #expect(
             ShellPrompt.input(
-                in: "(experiments) naveenbhatt@Naveens-MacBook-Pro-2 experiments % sudo") == "sudo")
+                in: "(experiments) user@host experiments % sudo") == "sudo")
     }
 
     @Test("A bash prompt ends at the dollar that follows the path.")
@@ -69,8 +69,8 @@ struct ShellPromptTests {
 
     @Test("A prompt with nothing typed after it yields nothing, so nothing is captured.")
     func anEmptyPromptYieldsNothing() {
-        #expect(ShellPrompt.input(in: "naveenbhatt@Naveens-MacBook-Pro-2 experiments % ").isEmpty)
-        #expect(ShellPrompt.input(in: "naveenbhatt@Naveens-MacBook-Pro-2 experiments %").isEmpty)
+        #expect(ShellPrompt.input(in: "user@host experiments % ").isEmpty)
+        #expect(ShellPrompt.input(in: "user@host experiments %").isEmpty)
         #expect(ShellPrompt.input(in: "user@host:~/dir$").isEmpty)
         #expect(ShellPrompt.input(in: ">>>").isEmpty)
     }
@@ -80,7 +80,7 @@ struct ShellPromptTests {
         #expect(ShellPrompt.input(in: #"echo "50% done""#) == #"echo "50% done""#)
         #expect(ShellPrompt.input(in: "echo 50% done") == "echo 50% done")
         #expect(
-            ShellPrompt.input(in: #"naveenbhatt@host experiments % echo "50% done""#)
+            ShellPrompt.input(in: #"user@host experiments % echo "50% done""#)
                 == #"echo "50% done""#)
     }
 

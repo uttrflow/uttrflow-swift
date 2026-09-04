@@ -5,15 +5,19 @@ import Testing
 @testable import UttrflowInput
 @testable import UttrflowPredict
 
-/// Focus that answers whatever the test needs it to.
+/// Focus that answers whatever the test needs it to, reading `value` with its caret at the end when one is given.
 private struct StubFocus: AccessibilityFocus {
     var field: (any FocusedTextField)?
     var selfFrontmost = false
     var preceding: String?
+    var value: String?
     func focusedTextField() -> (any FocusedTextField)? { field }
     func hasFocusedElement() -> Bool { field != nil }
     func isSelfFrontmost() -> Bool { selfFrontmost }
-    func precedingText(_ count: Int) -> String? { preceding }
+    func precedingText(_ count: Int) -> String? {
+        guard let value else { return preceding }
+        return BackwardSelection.text(in: value, endingAt: value.utf16.count, covering: count)
+    }
 }
 
 /// A field that keeps what was written into it, and how far back each write reached.
@@ -153,6 +157,19 @@ struct TypedTextInsertionEngineTests {
 
         #expect(typist.deletions == [4])
         #expect(typist.text == ["it commit"])
+    }
+
+    @Test(
+        "A replacement ending in an emoji passes the guard, since the field is read in characters, not UTF-16 units."
+    )
+    func acceptsAReplacementEndingInAnEmoji() async throws {
+        let typist = RecordingTypist()
+        let engine = TypedTextInsertionEngine(focus: StubFocus(value: "ab🙂"), typist: typist)
+
+        try await engine.write("🚀 launch", replacing: "b🙂")
+
+        #expect(typist.deletions == [2], "one Delete per character, and the emoji is one character")
+        #expect(typist.text == ["🚀 launch"])
     }
 }
 
@@ -384,5 +401,21 @@ struct BackwardSelectionTests {
         #expect(BackwardSelection.range(in: "git", endingAt: -1, covering: 1) == nil)
         #expect(BackwardSelection.range(in: "git", endingAt: 3, covering: -1) == nil)
         #expect(BackwardSelection.range(in: "a🚀", endingAt: 2, covering: 1) == nil)
+    }
+
+    @Test("The text before the caret comes back in whole characters, so an emoji is never a lone surrogate.")
+    func textIsReadInCharacters() {
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 1) == "🙂")
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 2) == "b🙂")
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 0) == "")
+        #expect(BackwardSelection.text(in: "git comi", endingAt: 8, covering: 4) == "comi")
+    }
+
+    @Test("The text is refused for the same carets the range is, so the two readings cannot disagree.")
+    func textRefusesWhatTheRangeRefuses() {
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 3, covering: 1) == nil)
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 4) == nil)
+        #expect(BackwardSelection.text(in: "git", endingAt: 9, covering: 1) == nil)
+        #expect(BackwardSelection.text(in: "git", endingAt: 3, covering: -1) == nil)
     }
 }

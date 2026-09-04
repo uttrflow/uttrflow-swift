@@ -7,7 +7,7 @@ extension MacDeviceIdentity {
     /// Settings — "Naveen's MacBook Pro" — which is exactly the string that makes a device
     /// list recognisable, and the reason the field is free text on the server. It is
     /// occasionally `nil` before the network stack is up early in launch, so the hostname
-    /// stands in; a device called `Naveens-MacBook-Pro.local` is still recognisable, and a
+    /// stands in; a device called `Somebodys-MacBook-Pro.local` is still recognisable, and a
     /// sign-in that failed because a name was momentarily unavailable would not be.
     public static func system() -> MacDeviceIdentity {
         MacDeviceIdentity(

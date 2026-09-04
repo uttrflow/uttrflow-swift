@@ -209,8 +209,8 @@ struct FocusedFieldSnapshotTests {
 
     @Test("A terminal's line is what was typed at the prompt, not the prompt the shell drew.")
     func aTerminalLineDropsThePrompt() {
-        let prompt = "(experiments) naveenbhatt@Naveens-MacBook-Pro-2 experiments % sud"
-        for bundleIdentifier in TerminalApplications.bundleIdentifiers {
+        let prompt = "(experiments) user@host experiments % sud"
+        for bundleIdentifier in TerminalApplications.bundleIdentifierPrefixes {
             #expect(
                 snapshot(bundleIdentifier: bundleIdentifier, value: prompt, selection: nil)
                     .currentLine == "sud")
@@ -229,13 +229,13 @@ struct FocusedFieldSnapshotTests {
     @Test("A terminal line holding only a prompt is empty, so nothing is captured from it.")
     func anEmptyPromptCapturesNothing() {
         #expect(
-            snapshot(value: "naveenbhatt@Naveens-MacBook-Pro-2 experiments % ", selection: nil)
+            snapshot(value: "user@host experiments % ", selection: nil)
                 .currentLine.isEmpty)
     }
 
     @Test("A terminal publishes the prose role and is still not prose, so it answers at once.")
     func terminalsAreNeverProse() {
-        for bundleIdentifier in TerminalApplications.bundleIdentifiers {
+        for bundleIdentifier in TerminalApplications.bundleIdentifierPrefixes {
             #expect(
                 !snapshot(bundleIdentifier: bundleIdentifier, role: FocusedFieldSnapshot.proseRole)
                     .isProse)

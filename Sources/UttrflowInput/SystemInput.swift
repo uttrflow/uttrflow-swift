@@ -190,10 +190,7 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         guard AXValueGetValue(unsafeDowncast(rangeRef, to: AXValue.self), .cfRange, &range) else {
             return nil
         }
-        let units = Array(value.utf16)
-        let caret = range.location
-        guard caret >= count, caret <= units.count else { return nil }
-        return String(utf16CodeUnits: Array(units[(caret - count)..<caret]), count: count)
+        return BackwardSelection.text(in: value, endingAt: range.location, covering: count)
     }
 
     public func focusedTextField() -> (any FocusedTextField)? {
