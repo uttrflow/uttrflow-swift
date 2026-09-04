@@ -84,7 +84,9 @@ let package = Package(
         // boundary; the recogniser-specific files behind it are kept trivially small.
         .target(
             name: "UttrflowSpeech",
-            dependencies: ["UttrflowDictionary", "UttrflowCore", .product(name: "WhisperKit", package: "WhisperKit")],
+            dependencies: [
+                "UttrflowDictionary", "UttrflowCore", .product(name: "WhisperKit", package: "WhisperKit"),
+            ],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -279,9 +281,9 @@ let package = Package(
             dependencies: [
                 "UttrflowAI", "UttrflowAudio", "UttrflowContext", "UttrflowCore", "UttrflowInput",
                 "UttrflowAccount", "UttrflowClipboard", "UttrflowDictionary",
-                "UttrflowHistory", "UttrflowPermissions", "UttrflowPipeline", "UttrflowPredict",
-                "UttrflowPredictCapture", "UttrflowPredictStore", "UttrflowSettings",
-                "UttrflowSpeech", "UttrflowUX",
+                "UttrflowHistory", "UttrflowLocalModel", "UttrflowPermissions", "UttrflowPipeline",
+                "UttrflowPredict", "UttrflowPredictCapture", "UttrflowPredictStore",
+                "UttrflowSettings", "UttrflowSpeech", "UttrflowUX",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             // The mark, for the panel and the menu bar slot. The bare monogram rather

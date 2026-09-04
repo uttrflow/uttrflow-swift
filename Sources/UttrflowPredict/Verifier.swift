@@ -5,22 +5,26 @@ public actor Verifier {
     private let index: EnvironmentIndex
     private let scoring: (any CandidateScoring)?
     private let supersession: (any SupersessionRecording)?
+    /// How long the model has to judge one keystroke's candidates, held so a test need not wait it out.
+    private let budgetInMilliseconds: Int
     private var cache = VerdictCache()
 
     public init(
         index: EnvironmentIndex, scoring: (any CandidateScoring)? = nil,
-        supersession: (any SupersessionRecording)? = nil
+        supersession: (any SupersessionRecording)? = nil,
+        budgetInMilliseconds: Int = Verification.budgetInMilliseconds
     ) {
         self.index = index
         self.scoring = scoring
         self.supersession = supersession
+        self.budgetInMilliseconds = budgetInMilliseconds
     }
 
     /// Every candidate the gates allow, in the form they allow it, the wrong ones dropped.
     public func verified(
         _ candidates: [Candidate], in surface: Surface, typed: String, now: Date
     ) async -> [Candidate] {
-        let deadline = Self.deadline()
+        let deadline = deadline()
         var kept: [Candidate] = []
         var seen: Set<String> = []
         for candidate in candidates {
@@ -38,7 +42,7 @@ public actor Verifier {
     public func verdict(
         for candidate: Candidate, in surface: Surface, typed: String, now: Date
     ) async -> Verdict {
-        await verdict(for: candidate, in: surface, typed: typed, now: now, before: Self.deadline())
+        await verdict(for: candidate, in: surface, typed: typed, now: now, before: deadline())
     }
 
     /// The same verdict, against a budget one keystroke's whole set of candidates has to share.
@@ -158,8 +162,8 @@ public actor Verifier {
     }
 
     /// When this keystroke's whole set of candidates has to have been judged by.
-    private static func deadline() -> ContinuousClock.Instant {
-        .now + .milliseconds(Verification.budgetInMilliseconds)
+    private func deadline() -> ContinuousClock.Instant {
+        .now + .milliseconds(budgetInMilliseconds)
     }
 
     /// What a verdict is remembered against, which is this field and what has been typed into it.

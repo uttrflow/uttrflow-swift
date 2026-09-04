@@ -45,7 +45,12 @@ public actor MLXCandidateScorer: CandidateScoring {
     ) -> Double? {
         let prefix = loaded.tokenizer.encode(text: context)
         let whole = loaded.tokenizer.encode(text: context + candidate)
-        let start = max(prefix.count, 1)
+        // Score from where the two token streams actually diverge, since the join may retokenise.
+        var shared = 0
+        while shared < prefix.count, shared < whole.count, prefix[shared] == whole[shared] {
+            shared += 1
+        }
+        let start = max(shared, 1)
         guard whole.count > start else { return nil }
 
         let tokens = MLXArray(whole.map(Int32.init)).expandedDimensions(axis: 0)

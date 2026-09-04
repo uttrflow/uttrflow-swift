@@ -11,6 +11,7 @@ import UttrflowHistory
 import UttrflowInput
 import UttrflowPermissions
 import UttrflowPipeline
+import UttrflowPredict
 import UttrflowPredictStore
 import UttrflowSettings
 import UttrflowSpeech
@@ -68,12 +69,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
     private var completions: SuggestionCoordinator?
 
+    /// The local model that validates each suggestion, handed in by the entry point so tests link no MLX.
+    private let scoring: (any CandidateScoring)?
+
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
-        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin()
+        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
+        scoring: (any CandidateScoring)? = nil
     ) {
         self.container = container
         self.loginItem = loginItem
+        self.scoring = scoring
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
         dictionary = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: container))
@@ -274,7 +280,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard settings.suggestions.isEnabled, completions == nil else { return }
         do {
             let coordinator = try SuggestionCoordinator(
-                container: container, preferences: settings.suggestions)
+                container: container, preferences: settings.suggestions, scoring: scoring)
             // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
             coordinator.onTurnedOffEverywhere = { [weak self] in
                 self?.apply(.toggle(.suggestionsEnabled, isOn: false))

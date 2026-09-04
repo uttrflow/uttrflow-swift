@@ -57,7 +57,9 @@ func warmed(
         }
         await index.settle()
     }
-    return Verifier(index: index, scoring: scoring, supersession: supersession)
+    // A tight budget, so a scorer that sleeps a second is over it without the test waiting one out.
+    return Verifier(
+        index: index, scoring: scoring, supersession: supersession, budgetInMilliseconds: 200)
 }
 
 /// What the gates decide about one candidate on a machine that has already answered.

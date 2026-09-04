@@ -46,8 +46,8 @@ public enum Plausibility: Sendable, Equatable {
 
 /// Correctness in ordered gates, because frequency says what the user does rather than what is right.
 public enum Verification {
-    /// How long a verdict has before a candidate stands on the machine's word alone.
-    public static let budgetInMilliseconds = 20
+    /// How long a verdict waits for the model before a candidate stands on the machine's word alone.
+    public static let budgetInMilliseconds = 7_000
 
     /// How unlikely, per token, a candidate may be before the model's objection counts.
     public static let plausibilityFloor = -4.0

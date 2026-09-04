@@ -92,8 +92,8 @@ public struct SuggestionSession: Sendable, Equatable {
     /// Beyond this many characters a field is a document, and its whole value is not a prefix worth matching.
     public static let maximumTypedLength = 256
 
-    /// How long a turn may take before its answer is stale enough to be worth nothing.
-    public static let turnBudgetInMilliseconds = 40
+    /// How long a turn may take, wide enough now to let the model answer; a superseded turn is dropped by its generation.
+    public static let turnBudgetInMilliseconds = 8_000
 
     /// How many of the ranked candidates the gates judge, which is every one that could be drawn.
     public static let verifiedDepth = PredictionEngine.maximumChoices

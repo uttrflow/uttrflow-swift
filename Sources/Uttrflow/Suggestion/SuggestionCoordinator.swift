@@ -68,8 +68,11 @@ final class SuggestionCoordinator {
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
     var onTurnedOffEverywhere: (() -> Void)?
 
-    /// Opens the corpus beside the clipboard's file, or reports why it could not.
-    init(container: URL, preferences: SuggestionPreferences) throws(PredictStoreError) {
+    /// Opens the corpus, or reports why it could not; the scorer, when given, is the model that validates.
+    init(
+        container: URL, preferences: SuggestionPreferences,
+        scoring: (any CandidateScoring)? = nil
+    ) throws(PredictStoreError) {
         self.preferences = preferences
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
@@ -77,8 +80,8 @@ final class SuggestionCoordinator {
         // One index behind both, so asking the machine for a completion also warms what attests it.
         let index = EnvironmentIndex(reader: SystemEnvironmentReader())
         environment = EnvironmentSource(index: index)
-        // No scorer is wired, so the statistical tiers answer alone. See `Docs/predict.md`.
-        verifier = Verifier(index: index, supersession: store)
+        // The model, when the app hands one over, is what turns a habit into a validated suggestion.
+        verifier = Verifier(index: index, scoring: scoring, supersession: store)
         capture = CaptureSession(
             sink: store,
             preferencesFile: CapturePreferencesFile(
