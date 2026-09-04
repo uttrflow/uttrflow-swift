@@ -138,6 +138,39 @@ struct SurroundingsTests {
         #expect(read.text == "hello")
     }
 
+    @Test(
+        "A chat whose messages carry their text as descriptions under a labelled group is still read, marks and all."
+    )
+    func labelledGroupsAndDescribedMessagesAreRead() {
+        // WhatsApp's shape: empty-valued static texts whose text is the description, dates in nested headings.
+        let messages = Node(
+            id: 60, text: "\u{200E}Messages in chat with Sam",
+            children: [
+                Node(id: 61, role: "AXStaticText", text: "\u{200E}message, are you coming tonight?"),
+                Node(id: 62, role: "AXHeading", children: [Node(id: 63, role: "AXHeading", text: "Today")]),
+                Node(id: 64, role: "AXStaticText", text: "\u{200E}message, phone off hone wala hai"),
+            ])
+        let window = Node(
+            id: 0, role: "AXWindow",
+            children: [
+                Node(id: 40, children: [messages, compose, Node(id: 41, role: "AXButton", text: "Send")])
+            ])
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: window), windowTitle: "\u{200E}Chat")
+        #expect(
+            read.text
+                == "Messages in chat with Sam\nmessage, are you coming tonight?\nToday\nmessage, phone off hone wala hai"
+        )
+        #expect(read.windowTitle == "\u{200E}Chat")
+    }
+
+    @Test("Control and direction marks are dropped from what is read, and blank text stays nothing.")
+    func marksAreCleaned() {
+        #expect(Surroundings.cleaned("\u{200E}Whats\u{0E}App\u{200F}") == "WhatsApp")
+        #expect(Surroundings.trimmed("\u{200E} \u{200F}") == nil)
+        #expect(Surroundings.trimmed(" \u{200E}hello ") == "hello")
+    }
+
     @Test("An element with no parent at all has no surroundings.")
     func anOrphanHasNoSurroundings() {
         let read = Surroundings.collect(around: compose, in: FakeTree(root: compose), windowTitle: "t")

@@ -57,9 +57,12 @@ public enum FocusedFieldReader {
         guard let app = NSWorkspace.shared.frontmostApplication,
             let bundleIdentifier = app.bundleIdentifier
         else { return nil }
+        // Some applications pad their name with control and direction marks, which would reach the model verbatim.
+        let name = Surroundings.cleaned(app.localizedName ?? bundleIdentifier)
+            .trimmingCharacters(in: .whitespaces)
         return FrontmostApp(
             processIdentifier: app.processIdentifier, bundleIdentifier: bundleIdentifier,
-            name: app.localizedName ?? bundleIdentifier)
+            name: name.isEmpty ? bundleIdentifier : name)
     }
 
     /// One reading, off the main thread, or `nil` when nothing usable is focused.
@@ -71,11 +74,21 @@ public enum FocusedFieldReader {
         }
     }
 
-    /// What is on screen around the focused field, off the main thread, or `nil` when nothing usable is focused.
-    public static func surroundings() async -> Surroundings? {
+    /// Its own thread for the wider walk, so an application slow to describe its window never holds up a field read.
+    private static let surroundingsQueue = DispatchQueue(
+        label: "com.uttrflow.surroundings", qos: .utility)
+
+    /// How long one Accessibility call into another application may wait, since a stalled one would otherwise wait seconds.
+    static let elementTimeoutInSeconds: Float = 0.05
+
+    /// What is on screen around the focused field, or `nil` when nothing usable is focused or the wait ran out.
+    public static func surroundings(withinMilliseconds allowance: Int = 200) async -> Surroundings? {
         guard let app = await frontmostApp() else { return nil }
-        return await withCheckedContinuation { continuation in
-            queue.async { continuation.resume(returning: surroundings(app: app)) }
+        // A read that does not answer in time is left to finish on its queue; the turn goes on without it.
+        return await Deadline.first(withinMilliseconds: allowance) {
+            await withCheckedContinuation { continuation in
+                surroundingsQueue.async { continuation.resume(returning: surroundings(app: app)) }
+            }
         }
     }
 
@@ -203,7 +216,11 @@ public enum FocusedFieldReader {
     struct AXNode: Equatable {
         let element: AXUIElement
 
-        init(_ element: AXUIElement) { self.element = element }
+        init(_ element: AXUIElement) {
+            self.element = element
+            // Every question to this element gives up quickly, so a window that stops answering costs a moment, not the loop.
+            _ = AXUIElementSetMessagingTimeout(element, elementTimeoutInSeconds)
+        }
 
         static func == (lhs: AXNode, rhs: AXNode) -> Bool { CFEqual(lhs.element, rhs.element) }
     }
@@ -212,8 +229,14 @@ public enum FocusedFieldReader {
     struct AXElementTree: ElementTree {
         func role(of node: AXNode) -> String? { string(node.element, kAXRoleAttribute) }
 
+        /// What the element says: its value, else its title, else its description, which is where a chat keeps its messages.
         func text(of node: AXNode) -> String? {
-            string(node.element, kAXValueAttribute) ?? string(node.element, kAXTitleAttribute)
+            for attribute in [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute] {
+                if let text = string(node.element, attribute), text.contains(where: { !$0.isWhitespace }) {
+                    return text
+                }
+            }
+            return nil
         }
 
         func children(of node: AXNode) -> [AXNode] {

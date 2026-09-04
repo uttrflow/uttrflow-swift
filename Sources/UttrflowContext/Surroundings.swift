@@ -43,9 +43,10 @@ public struct Surroundings: Sendable, Equatable {
         "AXStaticText", "AXTextArea", "AXTextField", "AXHeading", "AXLink", "AXCell", "AXComboBox",
     ]
 
-    /// The roles never worth descending into, which hold controls rather than what is being talked about.
+    /// The roles never worth descending into, which are controls and their labels rather than what is being talked about.
     static let skippedRoles: Set<String> = [
         "AXMenuBar", "AXMenu", "AXMenuItem", "AXScrollBar", "AXToolbar", "AXPopUpButton", "AXSlider",
+        "AXButton", "AXCheckBox", "AXRadioButton", "AXMenuButton",
     ]
 
     /// Collects the text around the focused element, nearest first, within the budget and the caps.
@@ -88,22 +89,31 @@ public struct Surroundings: Sendable, Equatable {
                 guard tree.isVisible(next) else { continue }
                 let role = tree.role(of: next) ?? ""
                 guard !skippedRoles.contains(role) else { continue }
-                if textRoles.contains(role) {
-                    // A text element's own children repeat its text, so its value is taken and they are not.
-                    if let text = Surroundings.trimmed(tree.text(of: next)) { runs.append(text) }
-                    continue
-                }
+                let text = Surroundings.trimmed(tree.text(of: next))
+                // A container's label names what it holds, as "Messages in chat with …" does, so it is read before its children.
+                if let text { runs.append(text) }
+                // A text element that says its text is a leaf, since its children only repeat it; one that says nothing is walked.
+                if textRoles.contains(role), text != nil { continue }
                 stack.append(contentsOf: tree.children(of: next).reversed())
             }
         }
     }
 
-    /// The text without surrounding whitespace and cut to the per-element cap, or nothing when nothing is left.
+    /// The text without surrounding whitespace, control and direction marks, cut to the per-element cap, or nothing.
     static func trimmed(_ text: String?) -> String? {
-        guard var text = text?[...] else { return nil }
-        while let first = text.first, first.isWhitespace { text.removeFirst() }
-        while let last = text.last, last.isWhitespace { text.removeLast() }
-        guard !text.isEmpty else { return nil }
-        return String(text.suffix(maximumCharactersPerElement))
+        guard let text else { return nil }
+        var clean = Substring(cleaned(text))
+        while let first = clean.first, first.isWhitespace { clean.removeFirst() }
+        while let last = clean.last, last.isWhitespace { clean.removeLast() }
+        guard !clean.isEmpty else { return nil }
+        return String(clean.suffix(maximumCharactersPerElement))
+    }
+
+    /// The text without the control and direction marks accessibility labels are padded with, which a model would only read as noise.
+    public static func cleaned(_ text: String) -> String {
+        String(
+            text.unicodeScalars.filter {
+                !($0.properties.generalCategory == .control || $0.properties.generalCategory == .format)
+            })
     }
 }
