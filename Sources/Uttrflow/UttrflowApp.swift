@@ -13,10 +13,10 @@ import UttrflowPipeline
 enum UttrflowApp {
     static func main() {
         let application = NSApplication.shared
-        // The model that validates each suggestion, loaded in the background so no keystroke waits on it.
-        let scorer = MLXCandidateScorer(model: .gemma3Small)
-        Task.detached { try? await scorer.prepare() }
-        let delegate = AppDelegate(scoring: scorer)
+        // One model both validates a remembered suggestion and invents one where there is none.
+        let model = MLXCandidateScorer(model: .gemma3Small)
+        Task.detached { try? await model.prepare() }
+        let delegate = AppDelegate(scoring: model, generating: model)
         application.delegate = delegate
         // Regular rather than accessory: Uttrflow has a Dock icon and its window opens at
         // launch, because a product whose whole interface is reachable only through a

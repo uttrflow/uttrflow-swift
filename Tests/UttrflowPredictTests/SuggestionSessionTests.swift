@@ -324,3 +324,60 @@ struct QuietSuggestionTests {
         #expect(Suggestion.minimised.certainOnly == .minimised)
     }
 }
+
+@Suite("Generating a suggestion the corpus never held")
+struct GeneratedSuggestionTests {
+    private func asked(
+        _ session: inout SuggestionSession, typing typed: String
+    ) throws
+        -> SuggestionQuery
+    {
+        try query(session.turn(in: field, at: PredictionContext(typed: typed)))
+    }
+
+    @Test("A lone continuation the model invents is drawn as a certain suggestion.")
+    func loneGenerated() throws {
+        var session = SuggestionSession()
+        let asked = try asked(&session, typing: "git c")
+        let update = session.resolveGenerated(["git checkout"], for: asked, elapsedMilliseconds: 0)
+        #expect(update?.suggestion == .certain("git checkout"))
+    }
+
+    @Test("Several continuations become a choice, kept in the order the model ranked them.")
+    func rankedChoice() throws {
+        var session = SuggestionSession()
+        let asked = try asked(&session, typing: "git c")
+        let update = session.resolveGenerated(
+            ["git checkout", "git commit", "git cherry-pick"], for: asked, elapsedMilliseconds: 0)
+        #expect(
+            update?.suggestion
+                == .choice(leader: "git checkout", others: ["git commit", "git cherry-pick"]))
+    }
+
+    @Test("A continuation that does not extend what is typed is not a ghost, so it is dropped.")
+    func mustExtendTyped() throws {
+        var session = SuggestionSession()
+        let asked = try asked(&session, typing: "git c")
+        let update = session.resolveGenerated(
+            ["svn commit", "git commit"], for: asked, elapsedMilliseconds: 0)
+        #expect(update?.suggestion == .certain("git commit"))
+    }
+
+    @Test("When nothing the model returns can be shown, nothing is.")
+    func nothingUsable() throws {
+        var session = SuggestionSession()
+        let asked = try asked(&session, typing: "git c")
+        let update = session.resolveGenerated(["svn commit"], for: asked, elapsedMilliseconds: 0)
+        #expect(update?.suggestion == .silent)
+    }
+
+    @Test("A generation reached past the turn's budget is not drawn.")
+    func pastBudget() throws {
+        var session = SuggestionSession()
+        let asked = try asked(&session, typing: "git c")
+        let update = session.resolveGenerated(
+            ["git checkout"], for: asked,
+            elapsedMilliseconds: SuggestionSession.turnBudgetInMilliseconds + 1)
+        #expect(update?.suggestion == .silent)
+    }
+}

@@ -48,6 +48,8 @@ final class SuggestionCoordinator {
     private let environment: EnvironmentSource
     /// The gates that decide whether a candidate is right, which is not what the ranking measures.
     private let verifier: Verifier
+    /// The model that invents a suggestion when the corpus has none, absent until the app hands one over.
+    private let generator: (any CandidateGenerating)?
 
     private var session = SuggestionSession()
     private var monitors: [Any] = []
@@ -71,9 +73,10 @@ final class SuggestionCoordinator {
     /// Opens the corpus, or reports why it could not; the scorer, when given, is the model that validates.
     init(
         container: URL, preferences: SuggestionPreferences,
-        scoring: (any CandidateScoring)? = nil
+        scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil
     ) throws(PredictStoreError) {
         self.preferences = preferences
+        self.generator = generating
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
         self.store = store
@@ -213,6 +216,11 @@ final class SuggestionCoordinator {
             draw(update, in: snapshot)
         case .query(let query):
             let candidates = await candidates(for: query)
+            // With nothing remembered for this line, the model invents the suggestion instead.
+            if candidates.isEmpty, let generator, await generator.isReady {
+                await generate(with: generator, for: query, in: snapshot, since: started)
+                return
+            }
             switch session.resolve(
                 candidates, for: query, now: Date(), elapsedMilliseconds: since(started))
             {
@@ -224,6 +232,20 @@ final class SuggestionCoordinator {
                 return
             }
         }
+    }
+
+    /// Asks the model for a suggestion the corpus never held, and draws the order it returns.
+    private func generate(
+        with generator: any CandidateGenerating, for query: SuggestionQuery,
+        in snapshot: FocusedFieldSnapshot, since started: Date
+    ) async {
+        let completions = await generator.completions(
+            for: query.typed, in: query.surface, isProse: snapshot.isProse)
+        guard
+            let update = session.resolveGenerated(
+                completions, for: query, elapsedMilliseconds: since(started))
+        else { return }
+        draw(update, in: snapshot)
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.

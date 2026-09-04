@@ -188,6 +188,20 @@ public struct SuggestionSession: Sendable, Equatable {
         return settle(PredictionEngine.suggestion(from: verified, in: pending, now: now))
     }
 
+    /// Draws the model's invented continuations in its own order, since a generated line has no history to weigh.
+    public mutating func resolveGenerated(
+        _ completions: [String], for query: SuggestionQuery, elapsedMilliseconds: Int
+    ) -> SuggestionUpdate? {
+        guard query.generation == generation, query.surface == surface, let pending else { return nil }
+        guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else { return settle(.silent) }
+        let usable = completions.filter {
+            $0 != pending.typed && $0.lowercased().hasPrefix(pending.typed.lowercased())
+        }
+        guard let leader = usable.first else { return settle(.silent) }
+        let others = Array(usable.dropFirst().prefix(Self.verifiedDepth - 1))
+        return settle(others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others))
+    }
+
     /// Takes one keystroke the tap swallowed and answers with what it means.
     public mutating func route(_ stroke: KeyStroke) -> SuggestionAction {
         switch KeyRouting.decision(

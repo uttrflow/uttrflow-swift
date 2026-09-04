@@ -71,15 +71,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// The local model that validates each suggestion, handed in by the entry point so tests link no MLX.
     private let scoring: (any CandidateScoring)?
+    /// The local model that invents a suggestion where the corpus has none, handed in the same way.
+    private let generating: (any CandidateGenerating)?
 
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
         container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
-        scoring: (any CandidateScoring)? = nil
+        scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil
     ) {
         self.container = container
         self.loginItem = loginItem
         self.scoring = scoring
+        self.generating = generating
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
         dictionary = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: container))
@@ -280,7 +283,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard settings.suggestions.isEnabled, completions == nil else { return }
         do {
             let coordinator = try SuggestionCoordinator(
-                container: container, preferences: settings.suggestions, scoring: scoring)
+                container: container, preferences: settings.suggestions, scoring: scoring,
+                generating: generating)
             // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
             coordinator.onTurnedOffEverywhere = { [weak self] in
                 self?.apply(.toggle(.suggestionsEnabled, isOn: false))

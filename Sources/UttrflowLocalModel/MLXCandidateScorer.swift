@@ -10,13 +10,15 @@ import MLXLMCommon
 import MLXNN
 import Tokenizers
 
-/// Scores how likely a candidate is where it stands, in one forward pass. See `Docs/predict.md`.
-public actor MLXCandidateScorer: CandidateScoring {
+/// Judges and invents suggestions with one loaded model: scores a candidate, or generates one from nothing.
+public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     private let model: LocalModel
+    private let maximumTokens: Int
     private var container: ModelContainer?
 
-    public init(model: LocalModel) {
+    public init(model: LocalModel, maximumTokens: Int = 128) {
         self.model = model
+        self.maximumTokens = maximumTokens
     }
 
     /// Downloads and loads the weights, which a caller pays for deliberately rather than in a keystroke.
@@ -31,6 +33,42 @@ public actor MLXCandidateScorer: CandidateScoring {
     }
 
     public var isReady: Bool { container != nil }
+
+    public func completions(for typed: String, in surface: Surface, isProse: Bool) async -> [String] {
+        guard let container, !typed.isEmpty, !Task.isCancelled else { return [] }
+        do {
+            let session = ChatSession(
+                container, instructions: Self.instructions(isProse: isProse),
+                generateParameters: GenerateParameters(maxTokens: maximumTokens, temperature: 0))
+            return Self.parse(try await session.respond(to: typed), typed: typed)
+        } catch {
+            return []
+        }
+    }
+
+    /// Tells the model what it is completing, so a shell command is not finished like a sentence.
+    private static func instructions(isProse: Bool) -> String {
+        let subject = isProse ? "a line of text" : "a shell command"
+        return """
+            You complete what a user is typing in \(subject). Reply with up to four of the most likely \
+            complete versions, most likely first, one per line. Each line must begin with the exact text \
+            given. Output only the completions, with no numbering and no explanation.
+            """
+    }
+
+    /// The model's lines, kept only where they extend what was typed, in order and without repeats.
+    private static func parse(_ response: String, typed: String) -> [String] {
+        var seen: Set<String> = []
+        var results: [String] = []
+        for line in response.split(whereSeparator: \.isNewline) {
+            let text = line.trimmingCharacters(in: .whitespaces)
+            guard !text.isEmpty, text != typed,
+                text.lowercased().hasPrefix(typed.lowercased()), seen.insert(text).inserted
+            else { continue }
+            results.append(text)
+        }
+        return results
+    }
 
     public func logLikelihood(of candidate: String, following context: String) async -> Double? {
         guard let container, !Task.isCancelled else { return nil }
