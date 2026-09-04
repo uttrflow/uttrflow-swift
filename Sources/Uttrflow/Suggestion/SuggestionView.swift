@@ -82,14 +82,10 @@ struct SuggestionView: View {
         presentation.prefersMonospaced ? .monospaced : .default
     }
 
-    /// A hairline marker, so the key that takes the suggestion is never a thing to guess.
+    /// A plain tab glyph, so the key that takes the suggestion is hinted without drawing a box.
     private var tabGlyph: some View {
         Text(verbatim: "⇥")
-            .font(.system(size: presentation.pointSize * 0.72))
-            .padding(.horizontal, 3)
-            .overlay {
-                RoundedRectangle(cornerRadius: 3).strokeBorder(lineWidth: 0.5)
-            }
+            .font(.system(size: presentation.pointSize * 0.82))
             .accessibilityHidden(true)
     }
 }
