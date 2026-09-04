@@ -116,9 +116,30 @@ offline audit still holds).
 | Phase | Deliverable | Files | Test |
 |---|---|---|---|
 | G1 Read — **done** | `Surroundings.collect` walks outward from the field, ring by ring (the thread beside a compose box before the sidebar), 60 ms and 400 elements, 400 chars per element, 1 200 in all, nearest last; read only once a pass is certain, after the debounce, never on a reused answer. `PredictStore.recent(in:limit:)` newest first, distinct, across the field's documents, wrong lines left out. Both in `GenerationSituation` and the prompt; the log records lengths only. | `UttrflowContext/Surroundings.swift`, Reader+System (`AXElementTree`), PredictStore, CandidateGeneration, MLXCandidateScorer.prompt, Coordinator.situation | `SurroundingsTests` (fake tree: order, skips, caps, budget, allowance), `RecentLinesTests`, `PromptTests` |
-| G2 Register | `Register` hints, `PromptBuilder` with budget and adaptive `maxTokens`, new instruction text | UttrflowPredict/Register.swift, UttrflowLocalModel/PromptBuilder.swift, MLXCandidateScorer | pure unit tests for every hint and the trimming order; fixture hit-rate before/after |
-| G3 Warm | Instruction KV-cache prefilled at load and reused | MLXCandidateScorer | bakeoff p50 per fixture before/after |
-| G4 Prove | Fixture set, `bakeoff complete --fixture`, live matrix (Terminal, DBeaver, Notes, Messages, WhatsApp, Chrome, Mail, Slack) | bakeoff, Tests/Fixtures | hit rate ≥ 0.6 on commands, ≥ 0.4 on replies; p95 within budget |
+| G2 Register — **done** | `Register.infer` reads five facts off the moment (single/multi-line, typical length of this person's lines here or of the screen's turns, conversation on screen, symbol share — shell lines sit near 0.14, prose under 0.06, so the line is 0.10 — and sentence case), turns them into hints the prompt carries and a token budget `clamp(typical/2, 24, 96)`; `PromptBuilder` caps the message near 2 400 characters, trimming the screen first, then the oldest own lines, the line never. | `UttrflowPredict/Register.swift`, `UttrflowLocalModel/PromptBuilder.swift`, MLXCandidateScorer | `RegisterTests`, `PromptTests` |
+| G3 Warm — **done** | Two changes, each measured. **One line first**: the pass asks for the single most likely completion and ends at its newline; the alternatives are fetched in a second pass once that line is on screen, which a keystroke cancels, so ↓ still opens a list. **Warm instructions**: at load the instruction prefix — the exact token run two different prompts share, template included — is prefilled into a KV-cache; each pass checks the real prompt opens with it and feeds only the remainder against a copy. | MLXCandidateScorer, SuggestionSession.expandGenerated, Coordinator.generate | fixtures before/after, table below |
+| G4 Prove — **done** | 29 fixtures across terminal, SQL, address bar, four kinds of chat, mail, notes, code and search, each with surroundings, the person's lines, preceding text, the typed prefix, acceptable continuations, a length band and text that must not be echoed; `bakeoff complete --fixtures [--only chat/]` prints per-fixture hit, register conformance and latency, then per-category rates and p50/p95. The live matrix is the user's own testing, read off `CONTEXT`/`GENERATE`/`ACCEPT` in the log. | `uttrflow-bakeoff/Fixtures.swift`, `Complete.swift` | the table below |
+
+## What G2–G4 measured (Gemma 3 4B QAT 4-bit, 29 fixtures, Apple silicon)
+
+| Build | Hit | In register | p50 | p95 | What changed |
+|---|---|---|---|---|---|
+| G2 baseline, Debug bakeoff | 27/29 | 28/29 | 944 ms | 1 340 ms | register hints, budgeted prompt, four lines per pass |
+| + one line first | 27/29 | 28/29 | 895 ms | 1 054 ms | pass ends at the first newline |
+| + warm instructions | 27/29 | 28/29 | 835 ms | 965 ms | instruction prefix read once; every first line identical |
+| same code, **Release** bakeoff | 27/29 | 28/29 | **677 ms** | **819 ms** | the app is a Release build (`bundle.sh`), so this is what the person sees |
+
+The two misses are stable across every build: `sql/update` (`UPDATE users SET ` → nothing usable) and
+`url/git` (`git` in an address bar → `git commit -m`, a plausible reading of an ambiguous prefix). Every
+chat, mail, note and terminal fixture hits, and no fixture echoes its context.
+
+**What the numbers say about where the time goes.** Cutting generation to one line saved ~50 ms at p50 and
+~290 ms at p95; caching the ~220-token instruction prefix saved ~60 ms; the Release build saved ~160 ms.
+So neither decode nor the fixed prefix is the bulk of a pass — the remaining ~600 ms is prefilling the
+moment's own context (screen, own lines, preceding text: up to ~400 tokens) plus per-pass overhead. The
+next lever, not yet taken, is the prompt budget: 2 400 → ~1 400 characters would roughly halve that
+prefill and is measured the same way. Targets (command ≤ 400 ms, reply ≤ 600 ms) are not yet met; the
+p95 of 819 ms is within the "1–2 s is acceptable for now" the operator set for this stage.
 
 ## Not doing, and why
 
