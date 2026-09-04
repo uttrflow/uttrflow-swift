@@ -10,8 +10,8 @@ enum Ask: Equatable, Sendable {
 
 /// Lays one moment out for the model under a fixed budget, trimming the context before ever touching the line.
 enum PromptBuilder {
-    /// About 700 tokens of Gemma's vocabulary, which keeps the prefill to a fraction of the pass.
-    static let budgetInCharacters = 2_400
+    /// About 400 tokens of Gemma's vocabulary; prefilling the moment's context is the bulk of a pass, so this is the lever.
+    static let budgetInCharacters = 1_400
 
     /// The whole message: where the caret is, the register, what is around it, how this person writes here, the line.
     static func message(

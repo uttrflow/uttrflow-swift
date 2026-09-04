@@ -127,19 +127,23 @@ offline audit still holds).
 | G2 baseline, Debug bakeoff | 27/29 | 28/29 | 944 ms | 1 340 ms | register hints, budgeted prompt, four lines per pass |
 | + one line first | 27/29 | 28/29 | 895 ms | 1 054 ms | pass ends at the first newline |
 | + warm instructions | 27/29 | 28/29 | 835 ms | 965 ms | instruction prefix read once; every first line identical |
-| same code, **Release** bakeoff | 27/29 | 28/29 | **677 ms** | **819 ms** | the app is a Release build (`bundle.sh`), so this is what the person sees |
+| same code, **Release** bakeoff | 27/29 | 28/29 | 677 ms | 819 ms | the app is a Release build (`bundle.sh`), so this is what the person sees |
+| + prompt budget 2 400 → 1 400 chars, Release | 27/29 | 28/29 | **666 ms** | **787 ms** | every first line identical; the fixtures' contexts rarely reached the old cap, a live chat thread does |
 
 The two misses are stable across every build: `sql/update` (`UPDATE users SET ` → nothing usable) and
 `url/git` (`git` in an address bar → `git commit -m`, a plausible reading of an ambiguous prefix). Every
 chat, mail, note and terminal fixture hits, and no fixture echoes its context.
 
 **What the numbers say about where the time goes.** Cutting generation to one line saved ~50 ms at p50 and
-~290 ms at p95; caching the ~220-token instruction prefix saved ~60 ms; the Release build saved ~160 ms.
-So neither decode nor the fixed prefix is the bulk of a pass — the remaining ~600 ms is prefilling the
-moment's own context (screen, own lines, preceding text: up to ~400 tokens) plus per-pass overhead. The
-next lever, not yet taken, is the prompt budget: 2 400 → ~1 400 characters would roughly halve that
-prefill and is measured the same way. Targets (command ≤ 400 ms, reply ≤ 600 ms) are not yet met; the
-p95 of 819 ms is within the "1–2 s is acceptable for now" the operator set for this stage.
+~290 ms at p95; caching the ~220-token instruction prefix saved ~60 ms; the Release build saved ~160 ms;
+halving the prompt budget saved ~10 ms at p50 and ~30 ms at p95 on fixtures whose context was small to
+begin with. What is left is a floor near 500 ms that even a near-empty prompt pays (`search/inv`, 507 ms):
+a short prefill and eight to twelve decode steps of a 4B model at a few dozen tokens a second. Neither
+context nor instructions move that floor. The lever that does is **speculative decoding** — the 1B Gemma
+drafting tokens the 4B verifies in one pass, which `ChatSession`/`generate` already support through
+`SpeculativeDecodingConfig` — and after it a smaller verifier. Targets (command ≤ 400 ms, reply ≤ 600 ms)
+are not yet met; the p95 of 787 ms is within the "1–2 s is acceptable for now" the operator set for this
+stage.
 
 ## Not doing, and why
 
