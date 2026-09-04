@@ -1,17 +1,11 @@
-import MLX
-import MLXLMCommon
-
 /// Holds the first tokens of a pass to the word the person is in the middle of, so a line cut inside a token is continued rather than started over. See `Docs/predict-context.md`, G5.
-struct TokenHealing: LogitProcessor {
+struct TokenHealing {
     /// Every token as the bytes it writes, read once per model, so a step can be masked by comparing bytes; a byte-fallback piece is its one byte, which is how an emoji or a mark is spelt.
     struct Vocabulary: Sendable {
         /// The UTF-8 bytes each token writes, by id, with the word-start mark read as the space it stands for.
         let bytes: [[UInt8]]
         /// The tokens that end a line or the turn, which a word just finished must not be followed by at once.
         let ending: Set<Int>
-
-        /// More ids than any vocabulary has, so a tokenizer that answers every id still ends the read.
-        static let mostTokens = 1_000_000
 
         init(texts: [String], ending: Set<Int>) {
             self.init(bytes: texts.map { Array($0.utf8) }, ending: ending)
@@ -20,21 +14,6 @@ struct TokenHealing: LogitProcessor {
         init(bytes: [[UInt8]], ending: Set<Int>) {
             self.bytes = bytes
             self.ending = ending
-        }
-
-        /// Reads the whole vocabulary off the tokenizer, stopping at the first id it does not know; the turn ends on the tokenizer's end token, the configuration's, or any piece named as one.
-        init(tokenizer: any MLXLMCommon.Tokenizer, endOfTurn: Set<String>, endingIds: Set<Int>) {
-            var bytes: [[UInt8]] = []
-            var ending = endingIds
-            for id in 0..<Self.mostTokens {
-                guard let piece = tokenizer.convertIdToToken(id) else { break }
-                let written = Self.bytes(of: piece)
-                if written.contains(0x0A) || id == tokenizer.eosTokenId || endOfTurn.contains(piece) {
-                    ending.insert(id)
-                }
-                bytes.append(written)
-            }
-            self.init(bytes: bytes, ending: ending)
         }
 
         /// What a piece writes: the word-start mark as a space, and a byte-fallback piece such as `<0x0A>` as the one byte it names.
@@ -81,13 +60,6 @@ struct TokenHealing: LogitProcessor {
         self.mayEnd = mayEnd
     }
 
-    mutating func prompt(_ prompt: MLXArray) {}
-
-    func process(logits: MLXArray) -> MLXArray {
-        guard let mask = mask(width: logits.dim(-1)) else { return logits }
-        return logits + MLXArray(mask)
-    }
-
     /// What a step adds to the logits: nothing for an allowed token, minus infinity for the rest; nothing at all once the model is free or when no token could keep to the word.
     func mask(width: Int) -> [Float]? {
         guard !isFree else { return nil }
@@ -98,12 +70,6 @@ struct TokenHealing: LogitProcessor {
         var mask = [Float](repeating: -.infinity, count: width)
         for (id, isAllowed) in allowed.enumerated() where isAllowed && id < width { mask[id] = 0 }
         return mask
-    }
-
-    mutating func didSample(token: MLXArray) {
-        guard !isFree else { return }
-        let id = token.asArray(Int32.self).first.map(Int.init) ?? -1
-        took(vocabulary.bytes.indices.contains(id) ? vocabulary.bytes[id] : [])
     }
 
     /// Advances what is owed by one token's text, kept apart from the model so a test can drive it.
