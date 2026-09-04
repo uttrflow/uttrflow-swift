@@ -649,9 +649,14 @@ fi
 #    bakes no such path, and this asserts that it stays that way.
 #    As in step 4, `|| true` keeps a clean result — grep matching nothing — from
 #    looking like a failed pipeline to `set -o pipefail`.
+# A third-party C++ dependency (MLX) bakes its own source path via `__FILE__` into an
+# assert string under the SwiftPM checkouts directory. That is a harmless debug literal,
+# not a resource-bundle lookup, and it is outside our control, so paths under `checkouts/`
+# are ignored; our own fallback, which is what this guards, is never under there.
 LEAKED_PATHS="$(
     strings -a "$APP/Contents/MacOS/$EXECUTABLE" \
         | { grep -F "$PACKAGE_ROOT" || true; } \
+        | { grep -vF "/checkouts/" || true; } \
         | LC_ALL=C sort -u \
         | head -5
 )"
