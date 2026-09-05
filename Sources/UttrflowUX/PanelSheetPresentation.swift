@@ -1,20 +1,20 @@
+// The sheet over the panel's list, ready to draw, and the presenter that words each kind.
 import Foundation
 public import UttrflowClipboard
 
-/// One collection offered in the move popover, and how full it is.
-///
-/// The count is there because two collections told apart by nothing is how a clip ends up
-/// in the wrong one; a collection holding forty clips and one holding none are obviously
-/// different things even when their names are similar.
+/// One collection offered in the move popover, with its count so two similar names can be told apart.
 public struct PanelCollectionOption: Sendable, Equatable, Identifiable {
+    /// The collection's name.
     public let name: String
+    /// How many clips it holds.
     public let count: Int
-    /// Where the clip already is, drawn as chosen so that moving it out of a collection
-    /// reads as a change rather than as a fresh choice.
+    /// Where the clip already is, drawn as chosen so moving it out reads as a change.
     public let isCurrent: Bool
 
+    /// The name, which is unique.
     public var id: String { name }
 
+    /// Builds an option.
     public init(name: String, count: Int, isCurrent: Bool) {
         self.name = name
         self.count = count
@@ -22,13 +22,9 @@ public struct PanelCollectionOption: Sendable, Equatable, Identifiable {
     }
 }
 
-/// The sheet on top of the list, ready to draw.
-///
-/// Every word decided here, like the rest of the panel — including whether the primary
-/// button can be pressed. That is the thing a view most often decides for itself and gets
-/// subtly out of step with what Return does, and a button that is enabled when Return does
-/// nothing is a button that looks broken.
+/// The sheet on top of the list, ready to draw, including whether its button can be pressed.
 public struct PanelSheetPresentation: Sendable, Equatable {
+    /// Which sheet this is.
     public enum Kind: Sendable, Equatable {
         case aliasing
         case moving
@@ -38,42 +34,36 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case formatting
     }
 
+    /// Which sheet this is.
     public let kind: Kind
+    /// The heading.
     public let title: String
 
-    /// Whether this sheet has anything to type into.
-    ///
-    /// Decided here rather than in the view, which used to draw the field for every kind
-    /// except the delete confirmation. That was a list of one, and it went out of date the
-    /// moment a second typing-free sheet arrived: the formatting sheet came up with an
-    /// empty box above its diff, focused and inviting, with nothing it could accept. Ask
-    /// what a sheet is instead of naming the exceptions.
+    /// Whether this sheet has anything to type into, asked of the kind rather than a list of exceptions.
     public var takesTyping: Bool {
         switch kind {
         case .aliasing, .moving, .renamingCategory: true
         case .confirmingDelete, .deletingCategory, .formatting: false
         }
     }
-    /// What the field holds, exactly as typed. Never the corrected form: a field that
-    /// rewrites characters as they are typed is a field nobody can type in.
+    /// What the field holds, exactly as typed, never the corrected form.
     public let draft: String
+    /// What the empty field says.
     public let placeholder: String
-    /// F4 — the quiet note. Says what will actually be saved when that differs from what
-    /// is on screen. Not an error; the alias is still accepted.
+    /// The quiet note saying what will actually be saved when that differs from the screen.
     public let note: String?
-    /// F3 — names the clip that already answers to this alias, because "taken" without
-    /// "by what" leaves the user guessing at something they cannot see.
+    /// Names the clip that already answers to this alias, since "taken" without "by what" is a guess.
     public let conflict: String?
     /// G1 — the collections, with counts.
     public let collections: [PanelCollectionOption]
+    /// The words on the primary button.
     public let confirmTitle: String
-    /// D6 — what the formatter wants to change, cut down to the parts that changed.
-    /// Empty for every other sheet.
+    /// What the formatter wants to change, cut to the parts that changed; empty for every other sheet.
     public let diff: [TextDiff.Line]
-    /// F5 — whether Return would do anything. The reason it would not is in ``note`` or
-    /// ``conflict``, on screen rather than hidden in a disabled button's tooltip.
+    /// Whether Return would do anything; the reason it would not is in ``note`` or ``conflict``.
     public let isConfirmEnabled: Bool
 
+    /// Builds the sheet; the diff is empty unless given.
     public init(
         kind: Kind,
         title: String,
@@ -110,8 +100,7 @@ extension PanelPresenter {
             let proposal = PanelAlias.propose(
                 draft, for: id, among: snapshot.clips, locale: snapshot.locale)
             let holder = proposal.takenBy.flatMap(snapshot.clip)
-            // An emptied field removes the alias, and the button says so rather than
-            // reading "Save" over an action that takes something away.
+            // An emptied field removes the alias, and the button says so rather than reading "Save".
             let isRemoval = proposal.corrected.isEmpty && clip?.alias != nil
             return PanelSheetPresentation(
                 kind: .aliasing,
@@ -147,8 +136,7 @@ extension PanelPresenter {
                 title: "Rename “\(name)”",
                 draft: draft,
                 placeholder: name,
-                // G5 — the reassurance, because renaming a collection looks like the kind
-                // of thing that might take the names inside it with it.
+                // The reassurance, since renaming a collection looks like it might rename the clips inside.
                 note: taken ? nil : "The clips keep their own names",
                 conflict: taken ? "“\(renamed)” is already a collection" : nil,
                 collections: [],
@@ -162,9 +150,7 @@ extension PanelPresenter {
                 title: "Delete “\(name)”?",
                 draft: "",
                 placeholder: "",
-                // G6 — never silently orphaned. The count is the whole question: deleting
-                // an empty collection and deleting one holding forty clips are different
-                // acts, and only one of them needs thinking about.
+                // Never silently orphaned: the count is the whole question.
                 note: held == 0
                     ? "It holds nothing."
                     : (keepingClips
@@ -183,8 +169,7 @@ extension PanelPresenter {
                 title: "Format this code?",
                 draft: "",
                 placeholder: "",
-                // D6 — the count leads, because a 420-point panel cannot show a diff of
-                // any size honestly and the number is what a person decides on.
+                // The count leads, because the panel cannot show a diff of any size and the number decides.
                 note: "\(changed) line\(changed == 1 ? "" : "s") would change",
                 conflict: nil,
                 collections: [],
@@ -212,15 +197,13 @@ extension PanelPresenter {
         return "Saved as “\(proposal.corrected)”, so it matches however you type it"
     }
 
-    /// G3 — warns before a second collection is made under a name that already exists,
-    /// rather than after, when there are two chips reading the same word.
-    ///
-    /// Silent when the spelling matches exactly: that is simply choosing the collection.
+    /// Warns before a second collection is made under an existing name; silent when the spelling matches.
     static func existing(_ named: String, in snapshot: PanelSnapshot) -> String? {
         let match = snapshot.existingCategory(named: named)
         return match == named ? nil : match
     }
 
+    /// Every collection with its count, marking the one the clip is in.
     static func collections(
         of snapshot: PanelSnapshot, for id: Clip.ID
     )
@@ -235,8 +218,7 @@ extension PanelPresenter {
         }
     }
 
-    /// F8 — says which thing is about to be lost, because that is the answer to "why is
-    /// this one asking me when the others did not".
+    /// Says which thing is about to be lost, which is why this clip asks when the others do not.
     static func reasonItIsKept(_ clip: Clip) -> String? {
         if let alias = clip.alias { return "It answers to “\(alias)”, which will be gone too." }
         if let category = clip.category { return "It is filed under “\(category)”." }

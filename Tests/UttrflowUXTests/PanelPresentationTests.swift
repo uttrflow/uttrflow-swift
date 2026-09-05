@@ -1,3 +1,4 @@
+// Tests for what the panel draws: rows, masking, the chips, and the words around the list.
 import Foundation
 import UttrflowClipboard
 import Testing
@@ -5,6 +6,7 @@ import Testing
 @testable import UttrflowUX
 
 extension PanelFixture {
+    /// The panel's presentation over these inputs.
     static func page(
         _ clips: [Clip] = clips,
         query: String = "",
@@ -28,10 +30,7 @@ struct PanelRowTests {
             "postgres://user@prod\nsecond line", minutesAgo: 2, alias: "/pgprod",
             category: " Prod ", isPinned: true)
 
-        // Under Pinned, because that is where a pinned clip now is: History stopped
-        // showing them, and a fixture that pinned a clip and then read row zero of
-        // History was reading an empty list — which is a crash, not a failed
-        // expectation, and takes the whole run with it.
+        // Under Pinned, because that is where a pinned clip is; row zero of History would be an empty list.
         let row = PanelFixture.page([clip], scope: .pinned).rows[0]
 
         #expect(row.id == clip.id)
@@ -94,9 +93,7 @@ struct PanelRowTests {
         }
     }
 
-    /// The order is the argument. Insert first because it is what the row is for; the
-    /// three that change a clip after the two that only read it; Delete last, because it
-    /// is the one that repeating does not undo.
+    /// Insert first because it is what the row is for; the writers after the readers; Delete last.
     @Test("a row offers everything that can be done to a clip, in that order")
     func actions() {
         let clip = PanelFixture.clip()
@@ -127,8 +124,7 @@ struct PanelRowTests {
         #expect(!named.actions.map(\.title).contains("Name"))
     }
 
-    /// The row's own Insert and the Return key are one path, not two implementations of
-    /// the same sentence that can drift apart.
+    /// The row's own Insert and the Return key are one path, not two implementations that can drift.
     @Test("a row's Insert is the same keystroke as clicking it")
     func insertIsAKey() {
         let clip = PanelFixture.clip()
@@ -144,6 +140,7 @@ struct PanelRowTests {
 
 @Suite("The quick panel: a secret is masked until it is asked for")
 struct PanelMaskTests {
+    /// A masked clip.
     static let secret = PanelFixture.clip("sk-live-abcdef123456", kind: .secret)
 
     @Test("a secret is masked, and the row says so")
@@ -155,8 +152,7 @@ struct PanelMaskTests {
         #expect(row.summary.allSatisfy { $0 == "•" })
     }
 
-    /// The length of a token is worth something to whoever is looking over the user's
-    /// shoulder, so the mask is the same width whatever it covers.
+    /// The length of a token is worth something over the user's shoulder, so the mask has one width.
     @Test("the mask does not leak how long the secret is")
     func maskWidth() {
         let short = PanelFixture.page([PanelFixture.clip("abc", kind: .secret)]).rows[0]
@@ -174,13 +170,7 @@ struct PanelMaskTests {
         #expect(page.rows[1].isMasked)
     }
 
-    /// C6 — the tooltip is the whole line, and a masked row has none.
-    ///
-    /// Removing the rule does not spill the secret: the summary is already bullets, so a
-    /// tooltip would be bullets. It would still be wrong — a panel appearing under the
-    /// cursor reads as the mask being lifted, and there is nothing there to give back.
-    /// The rule used to live in the view as a condition on `.help`, which no test could
-    /// reach, which is the reason it is here now.
+    /// The tooltip is the whole line, and a masked row has none, since a tooltip reads as the mask lifting.
     @Test("a masked row has no tooltip at all")
     func maskedRowsHaveNoTooltip() {
         let row = PanelFixture.page([Self.secret]).rows[0]
@@ -188,8 +178,7 @@ struct PanelMaskTests {
         #expect(row.tooltip == nil)
     }
 
-    /// And the row is not simply tooltip-less for ever: revealing the same clip gives one,
-    /// and it is the real line rather than a row of bullets.
+    /// Revealing the same clip gives a tooltip, and it is the real line rather than bullets.
     @Test("revealing it gives one, and it is the real line")
     func revealedRowsDo() {
         let page = PanelFixture.page([Self.secret], revealed: [Self.secret.id])
@@ -204,8 +193,7 @@ struct PanelMaskTests {
 
         #expect(masked.actions.map(\.title).contains("Reveal"))
         #expect(!shown.actions.map(\.title).contains("Reveal"))
-        // Reveal is inserted after Insert, before everything that only reads the clip:
-        // it is the thing that has to happen before the user can judge the rest.
+        // Reveal comes after Insert and before everything that only reads the clip.
         #expect(masked.actions.map(\.title).firstIndex(of: "Reveal") == 1)
         #expect(shown.actions.map(\.title) == masked.actions.map(\.title).filter { $0 != "Reveal" })
     }
@@ -222,8 +210,7 @@ struct PanelChipTests {
         #expect(page.filters.filter(\.isActive).map(\.filter) == [.links])
     }
 
-    /// A lone "All" chip is a row of the panel spent telling the user something they can
-    /// already see.
+    /// A lone "All" chip is a row of the panel spent telling the user something they can already see.
     @Test("nothing filed anywhere means no collection chips at all")
     func noCategories() {
         #expect(PanelFixture.page().categories.isEmpty)
@@ -245,12 +232,7 @@ struct PanelChipTests {
         #expect(page.categories.map(\.id) == ["Prod", "Personal"])
     }
 
-    /// There is never an "All" chip beside the collections.
-    ///
-    /// They share a row with the kind filters, which already begins with an "All"
-    /// meaning every kind. A second one meaning every collection reads as a bug — and
-    /// drawing it only while a collection was chosen just moved the confusion to the
-    /// moment somebody was looking at it, which is exactly when it was reported.
+    /// There is never an "All" chip beside the collections; the kind filters' All already begins the row.
     @Test("there is no All chip, chosen or not")
     func neverAnAllChip() {
         let clips = [PanelFixture.clip("one", category: "Prod")]
@@ -263,8 +245,7 @@ struct PanelChipTests {
         #expect(!chosen.categories.contains { $0.category == nil })
     }
 
-    /// So the way out of a collection has to be the collection itself. `chosen` is what
-    /// pressing a chip sends, and for the one already showing it is 1 — everything.
+    /// The way out of a collection is the collection itself: its `chosen` is 1, everything, while showing.
     @Test("pressing the collection you are in takes you back to everything")
     func theActiveChipIsTheWayOut() {
         let clips = [PanelFixture.clip("one", category: "Prod")]
@@ -276,9 +257,7 @@ struct PanelChipTests {
         #expect(chosen.chosen == 1, "pressing it again shows everything")
     }
 
-    /// There is no ⌘10, and printing a shortcut that does nothing is worse than printing
-    /// none at all. What a chip *prints* stops at the ninth; what pressing it *means*
-    /// does not — see the test below, which is the half that was broken.
+    /// There is no ⌘10; what a chip prints stops at the ninth, what pressing it means does not.
     @Test("collections past the ninth are drawn without a number")
     func pastTheNinth() {
         let clips = (1...12).map { PanelFixture.clip("c\($0)", minutesAgo: $0, category: "C\($0)") }
@@ -288,12 +267,7 @@ struct PanelChipTests {
         #expect(shortcuts == [2, 3, 4, 5, 6, 7, 8, 9, nil, nil, nil, nil])
     }
 
-    /// Printing no number is not the same as doing nothing.
-    ///
-    /// The chip's position used to *be* its shortcut, so every collection past the ninth
-    /// sent 0, which the snapshot rejects. They were drawn like the others, said nothing
-    /// about being different, and did nothing at all when clicked — while a comment in
-    /// the view claimed they were "still clickable".
+    /// Printing no number is not the same as doing nothing: every chip past the ninth still sends a jump.
     @Test("but they can still be pressed")
     func pastTheNinthStillWorks() {
         let clips = (1...12).map { PanelFixture.clip("c\($0)", minutesAgo: $0, category: "C\($0)") }
@@ -319,8 +293,7 @@ struct PanelChromeTests {
         #expect(PanelFixture.page().hint == "↑↓ to choose · ⏎ to paste · esc to close")
     }
 
-    /// Promising ↑↓ and ⏎ over an empty list is a small lie, and the panel is most
-    /// people's only lesson in how it works.
+    /// Promising ↑↓ and ⏎ over an empty list is a small lie, and the panel is most people's only lesson.
     @Test("an empty list only promises the key that works")
     func emptyHint() {
         #expect(PanelFixture.page([]).hint == "esc to close")
@@ -339,8 +312,7 @@ struct PanelChromeTests {
         let page = PanelFixture.page(query: "zzz")
 
         #expect(page.emptyState?.title == "No matches")
-        // "you have copied" was true while the clipboard was one list. A search now
-        // spans what Uttrflow made as well.
+        // A search spans what Uttrflow made as well, so the sentence says "your clipboard".
         #expect(page.emptyState?.message == "Nothing on your clipboard mentions “zzz”.")
     }
 
@@ -352,17 +324,7 @@ struct PanelChromeTests {
         #expect(page.emptyState?.title == "No Images in Prod")
     }
 
-    /// The chip row can no longer reach this state — one chip at a time, so a kind and a
-    /// collection cannot both be on. The presenter stays total over it anyway: a
-    /// presentation that answers only the states today's UI can produce is one that
-    /// breaks silently the next time the UI changes, and this is the exact combination
-    /// that broke silently last time.
-    ///
-    /// This test used to set a collection *and* a kind filter and assert that only the
-    /// collection was named — the reported bug, written down as the rule. "Nothing you
-    /// have copied is filed here" was said over a collection with clips in it, because
-    /// the kind was doing the hiding and went unmentioned. An empty state that names one
-    /// of two reasons is worse than a vague one: it is specific and wrong.
+    /// The presenter stays total over a kind and a collection together, though the chips cannot reach it.
     @Test("but when a kind is narrowing too, it says so rather than blaming the collection")
     func emptyCategoryWithAKind() {
         let clips = [PanelFixture.clip("plain words", category: "db")]
@@ -385,9 +347,7 @@ struct PanelChromeTests {
         #expect(page.emptyState?.message == "Nothing you have copied is filed here.")
     }
 
-    /// The title gained "copied" when History stopped meaning everything: it is now the
-    /// tab that holds what came off a ⌘C, beside the one that holds what Uttrflow made,
-    /// so an empty one has a place to name like every other tab does.
+    /// History is the tab holding what came off a ⌘C, so an empty one has a place to name like every tab.
     @Test("an empty tab names what it was looking for")
     func emptyTab() {
         let page = PanelFixture.page(filter: .links)
@@ -401,8 +361,7 @@ struct PanelChromeTests {
         #expect(PanelFixture.page().emptyState == nil)
     }
 
-    /// Read only when a tab is empty, and every tab needs one so that the table cannot be
-    /// left incomplete by whoever adds the next tab.
+    /// Read only when a tab is empty, and every tab needs one so the table cannot be left incomplete.
     @Test("every tab can say what it was looking for", arguments: PanelFilter.allCases)
     func nouns(filter: PanelFilter) {
         #expect(!filter.noun.isEmpty)

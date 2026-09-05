@@ -1,44 +1,37 @@
+// The Corrections page: every change Uttrflow made today, why, and the way to put it back.
 public import Foundation
 public import UttrflowHistory
 public import UttrflowSettings
 
-/// One change Uttrflow made, as the pages talk about it.
-///
-/// The stored change itself rather than a copy of its fields, for the reason
-/// ``HistoryEntry`` gives about the record that holds it: there were two spellings of
-/// this, and — more to the point — two lists of reasons a word might have been changed,
-/// which did not agree. The page's list was written for the artboard before the
-/// correction engine existed, and named things the engine could not establish. One type,
-/// one set of reasons, one answer to why a word was rewritten.
-///
-/// Named again here, and only here, so that every page and every test can say
-/// `Correction` without each one importing the store.
+/// One change Uttrflow made: the stored change itself, named here so no page imports the store.
 public typealias Correction = UttrflowHistory.Correction
 
-/// See ``Correction``. These are the correction engine's own reasons, carried through
-/// the pipeline and kept on the record; ``CorrectionReason/title`` is what a row shows.
+/// The correction engine's own reasons, kept on the record; ``CorrectionReason/title`` is the row's pill.
 public typealias CorrectionReason = UttrflowHistory.CorrectionReason
 
-/// Which changes the page is listing. On the store as well as the page, because both
-/// narrow the same list.
+/// Which changes the page is listing; shared with the store, because both narrow the same list.
 public typealias CorrectionsScope = UttrflowHistory.CorrectionsScope
 
 /// One change, ready to draw.
 public struct CorrectionRow: Sendable, Equatable, Identifiable {
+    /// The change's identity.
     public let id: UUID
+    /// What the recogniser heard.
     public let heard: String
+    /// What Uttrflow wrote instead.
     public let wrote: String
-    /// Struck through, because the word on screen is the one that was heard. Drawing an
-    /// undone change as though it still applied would make this page lie about the
-    /// exact thing it exists to be honest about.
+    /// Struck through, because the word on screen is the one that was heard.
     public let isUndone: Bool
+    /// Why, as a pill.
     public let reason: MainPill
     /// "4:12 PM".
     public let when: String
+    /// Where the dictation went, when known.
     public let application: HistoryApplication?
     /// Absent on a change that has already been put back — there is nothing left to undo.
     public let undo: MainAction?
 
+    /// Builds a row from its parts.
     public init(
         id: UUID,
         heard: String,
@@ -64,15 +57,18 @@ public struct CorrectionRow: Sendable, Equatable, Identifiable {
 public struct CorrectionsSnapshot: Sendable, Equatable {
     /// Newest first.
     public let corrections: [Correction]
-    /// Today's dictations, so the caption can say how many sentences the changes are
-    /// spread across. A page reporting seven changes says nothing until you know
-    /// whether that was over seven sentences or seventy.
+    /// Today's dictations, so the caption can say how many sentences the changes are spread across.
     public let dictations: [HistoryEntry]
+    /// What has been typed into the search field.
     public let query: String
+    /// Which changes are listed.
     public let scope: CorrectionsScope
+    /// The user's settings.
     public let settings: Settings
+    /// The clock the page is drawn against.
     public let now: Date
 
+    /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
         corrections: [Correction] = [],
         dictations: [HistoryEntry] = [],
@@ -92,16 +88,20 @@ public struct CorrectionsSnapshot: Sendable, Equatable {
 
 /// What the corrections page shows.
 public struct CorrectionsPresentation: Sendable, Equatable {
+    /// The title, caption, scope and search field across the top.
     public let chrome: MainPageChrome
     /// Why this page exists at all, stated on the page rather than in a release note.
     public let callout: MainCallout
     /// "Today · 7 changes across 34 dictations".
     public let caption: String
+    /// The changes that match the scope and query.
     public let rows: [CorrectionRow]
     /// Set when — and only when — ``rows`` is empty.
     public let emptyState: MainEmptyState?
+    /// The line under the rows, absent when there are none.
     public let footnote: String?
 
+    /// Builds the page from its parts.
     public init(
         chrome: MainPageChrome,
         callout: MainCallout,
@@ -119,16 +119,12 @@ public struct CorrectionsPresentation: Sendable, Equatable {
     }
 }
 
-/// Turns what Uttrflow changed into the page that admits it.
-///
-/// The most important of the new pages, and the one whose rules are least negotiable. A
-/// product that quietly rewrites your words owes you a list of every rewrite, the reason
-/// for each, and a way to put it back — so nothing here is summarised, sampled or
-/// rounded, and a change with no nameable reason is a change that should never have been
-/// made.
+/// Turns what Uttrflow changed into the page that admits it; nothing is summarised, sampled or rounded.
 public enum CorrectionsPresenter {
+    /// What the empty search field says.
     public static let searchPlaceholder = "Search"
 
+    /// Draws the Corrections page from a snapshot.
     public static func page(
         for snapshot: CorrectionsSnapshot,
         calendar: Calendar = .autoupdatingCurrent,
@@ -152,8 +148,7 @@ public enum CorrectionsPresenter {
             rows: rows,
             emptyState: rows.isEmpty
                 ? emptyState(for: snapshot, madeToday: today.count, calendar: calendar) : nil,
-            // Dropped when the pane is empty: the empty state carries its own closing
-            // line, and two pieces of small print under one sentence is clutter.
+            // Dropped when the pane is empty: the empty state carries its own closing line.
             footnote: rows.isEmpty
                 ? nil
                 : """
@@ -164,8 +159,7 @@ public enum CorrectionsPresenter {
 
     // MARK: - Chrome
 
-    /// The scope pop-up appears only once there is something to narrow. Offering three
-    /// filters over an empty list is three ways to reach the same nothing.
+    /// The scope pop-up appears only once there is something to narrow.
     static func chrome(for snapshot: CorrectionsSnapshot, anyToday: Bool) -> MainPageChrome {
         MainPageChrome(
             title: "Corrections",
@@ -182,10 +176,7 @@ public enum CorrectionsPresenter {
                 ? MainSearchField(placeholder: searchPlaceholder, query: snapshot.query) : nil)
     }
 
-    /// "Today · 7 changes across 34 dictations".
-    ///
-    /// Both halves counted rather than one: the number of changes alone is unreadable
-    /// without knowing how much was said.
+    /// "Today · 7 changes across 34 dictations"; both halves counted, since changes alone are unreadable.
     static func caption(
         for snapshot: CorrectionsSnapshot, changes: Int, calendar: Calendar
     ) -> String {
@@ -196,28 +187,19 @@ public enum CorrectionsPresenter {
             """
     }
 
-    /// How many dictations were made today.
-    ///
-    /// One function because there were two, and they disagreed: the caption filtered by
-    /// day and the empty state's chip counted the whole retained history under the word
-    /// "today". A page can survive saying nothing; it cannot survive saying "99
-    /// dictations today" beside another page saying nothing was dictated today.
+    /// How many dictations were made today, in one place so the caption and the chip cannot disagree.
     static func saidToday(in snapshot: CorrectionsSnapshot, calendar: Calendar) -> Int {
         snapshot.dictations.filter { calendar.isDate($0.when, inSameDayAs: snapshot.now) }.count
     }
 
     // MARK: - Choosing rows
 
-    /// Today only. Everything older belongs to the dictation it happened in, which is on
-    /// History — this page is about the words that were changed while you were watching.
+    /// Today only; everything older belongs to the dictation it happened in, which is on History.
     static func madeToday(_ snapshot: CorrectionsSnapshot, calendar: Calendar) -> [Correction] {
         snapshot.corrections.filter { calendar.isDate($0.when, inSameDayAs: snapshot.now) }
     }
 
-    /// Matches what was heard, what was written and the reason.
-    ///
-    /// The reason is searchable because "what has it been doing to my punctuation" is a
-    /// real question, and the pill is the only place the answer is written down.
+    /// Matches what was heard, what was written and the reason, since the pill is where the reason lives.
     static func matches(
         _ corrections: [Correction], query: String, locale: Locale
     ) -> [Correction] {
@@ -228,6 +210,7 @@ public enum CorrectionsPresenter {
 
     // MARK: - Drawing one
 
+    /// One change as a row, with Undo unless it is already undone.
     static func row(for correction: Correction, locale: Locale) -> CorrectionRow {
         CorrectionRow(
             id: correction.id,
@@ -248,8 +231,7 @@ public enum CorrectionsPresenter {
 
     // MARK: - Nothing to show
 
-    /// Four different nothings. The difference between "it changed nothing" and "your
-    /// filter hid everything" is the difference between reassurance and confusion.
+    /// Four different nothings, since "it changed nothing" and "your filter hid everything" differ.
     static func emptyState(
         for snapshot: CorrectionsSnapshot, madeToday: Int, calendar: Calendar
     ) -> MainEmptyState {
