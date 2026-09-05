@@ -203,6 +203,10 @@ public enum FocusedFieldReader {
         }
         // An empty line has no glyph beside the caret, so its own bounds is all there is.
         if let rect = bounds(field, range), rect.height > 0 { return rect }
+        // A web field answers glyph bounds with a zero-size rectangle, but its selection's text-marker range still has a place on screen.
+        if let rect = markerBounds(field), rect.height > 0 {
+            return CGRect(x: rect.minX, y: rect.minY, width: 0, height: rect.height)
+        }
         // An editor that draws its own text keeps a one-pixel field at the caret for input methods, so that field's frame is the caret.
         if let frame = AXNode(field).answers.frame, FocusedFieldSnapshot.isCaretShaped(frame) {
             return CGRect(x: frame.minX, y: frame.minY, width: 0, height: frame.height)
@@ -390,6 +394,27 @@ public enum FocusedFieldReader {
             return nil
         }
         return unwrapped.pointee
+    }
+
+    /// The screen rectangle of the selection's text-marker range, which web content answers where it answers nothing for a character range.
+    private static func markerBounds(_ field: AXUIElement) -> CGRect? {
+        var marker: AnyObject?
+        guard
+            AXUIElementCopyAttributeValue(field, "AXSelectedTextMarkerRange" as CFString, &marker)
+                == .success,
+            let marker
+        else { return nil }
+        var answer: AnyObject?
+        guard
+            AXUIElementCopyParameterizedAttributeValue(
+                field, "AXBoundsForTextMarkerRange" as CFString, marker, &answer) == .success,
+            let answer, CFGetTypeID(answer) == AXValueGetTypeID()
+        else { return nil }
+        var rect = CGRect.zero
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        guard AXValueGetValue(unsafeDowncast(answer, to: AXValue.self), .cgRect, &rect), !rect.isNull
+        else { return nil }
+        return rect
     }
 
     private static func parameterized(
