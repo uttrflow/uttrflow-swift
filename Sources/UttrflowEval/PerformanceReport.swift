@@ -1,3 +1,4 @@
+// The value types a performance profile reports.
 public import UttrflowCore
 private import Foundation
 

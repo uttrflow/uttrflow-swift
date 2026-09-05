@@ -1,3 +1,4 @@
+// The `pull` command: brings the corpus catalogue and audio onto this Mac.
 import ArgumentParser
 private import Foundation
 private import Synchronization

@@ -1,3 +1,4 @@
+// The speech models the app can install.
 public import UttrflowCore
 
 /// A speech-recognition model the app can install; sizes are the real download, shown before the wait.

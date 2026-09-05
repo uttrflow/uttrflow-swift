@@ -1,3 +1,4 @@
+// Tests the model catalogue and the engine factory.
 import Foundation
 import Testing
 

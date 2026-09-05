@@ -1,3 +1,4 @@
+// A stored accuracy run and the gate that compares later runs against it.
 public import Foundation
 
 /// One sample's errors and reference words, kept as counts so any slice can be recomputed exactly.

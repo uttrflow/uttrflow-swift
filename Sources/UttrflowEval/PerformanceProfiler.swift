@@ -1,3 +1,4 @@
+// Drives one machine through the app's life and records what it costs.
 public import UttrflowCore
 
 /// Drives one machine through the app's life and records what it costs, knowing nothing of the engines.

@@ -1,3 +1,4 @@
+// Reads processor time and hardware counters for this process.
 import Darwin
 import Foundation
 

@@ -1,3 +1,4 @@
+// Tests how key presses and clicks become dictations.
 import Synchronization
 import Testing
 

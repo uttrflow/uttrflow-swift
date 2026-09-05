@@ -1,3 +1,4 @@
+// Tests when recording cues play, in silence.
 import Synchronization
 import Testing
 

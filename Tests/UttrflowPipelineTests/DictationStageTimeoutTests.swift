@@ -1,3 +1,4 @@
+// Tests that a stage which never returns is timed out.
 import Synchronization
 import Testing
 

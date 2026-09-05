@@ -1,3 +1,4 @@
+// The rules both sides go through before a word error rate is counted.
 private import Foundation
 
 /// Whether any Devanagari is present, the only script distinction the product turns on.

@@ -1,3 +1,4 @@
+// The seam behind which audio conversion and hardware are hidden from the pipeline.
 public import UttrflowCore
 
 /// A source of microphone audio already converted to canonical `[Float]`, which needs no hardware in a test.

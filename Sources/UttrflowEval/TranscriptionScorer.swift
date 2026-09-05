@@ -1,3 +1,4 @@
+// Scores one transcript against the passage that was read.
 public import UttrflowCore
 
 /// Scores one transcript by the edits needed to repair it; ``Scorer`` scores rewrites by overlap.

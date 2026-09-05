@@ -1,3 +1,4 @@
+// The `record` command: walks the operator through reading the corpus aloud.
 import ArgumentParser
 private import Foundation
 private import UttrflowAudio

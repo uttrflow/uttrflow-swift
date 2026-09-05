@@ -1,3 +1,4 @@
+// A TextInsertionEngine that records what it is asked to insert.
 public import UttrflowCore
 
 /// A ``TextInsertionEngine`` that records what it is asked to insert.

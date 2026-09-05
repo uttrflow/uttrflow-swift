@@ -1,3 +1,4 @@
+// What one utterance length costs, and whether cost scales with length.
 public import UttrflowCore
 
 /// What one utterance length costs, end to end and stage by stage.

@@ -1,3 +1,4 @@
+// The developer harness's root command.
 import ArgumentParser
 private import Foundation
 

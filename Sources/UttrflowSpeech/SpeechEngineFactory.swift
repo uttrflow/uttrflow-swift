@@ -1,3 +1,4 @@
+// The one switch that names a concrete recogniser.
 public import Foundation
 public import UttrflowCore
 

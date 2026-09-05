@@ -1,3 +1,4 @@
+// The `sign-in` command: signs in against a real backend with the app's own code.
 import ArgumentParser
 import Foundation
 import UttrflowAccount

@@ -1,3 +1,4 @@
+// HTTP requests and responses as values, and the seam that sends them.
 public import Foundation
 
 /// One request as a value, so everything worth getting wrong is decided in code a test can read.

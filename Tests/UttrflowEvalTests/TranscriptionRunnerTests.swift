@@ -1,3 +1,4 @@
+// Tests the transcription runner and its metrics recorder.
 import Foundation
 import UttrflowCore
 import Synchronization

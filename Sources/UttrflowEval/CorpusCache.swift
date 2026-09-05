@@ -1,3 +1,4 @@
+// Keeps corpus audio on this Mac so each sample is fetched once.
 public import Foundation
 
 /// The corpus audio kept on this Mac, one file per slug, with the catalogue's byte count as the check.

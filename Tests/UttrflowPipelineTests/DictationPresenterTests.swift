@@ -1,3 +1,4 @@
+// Tests what the floating button shows for each state.
 import Foundation
 import Testing
 

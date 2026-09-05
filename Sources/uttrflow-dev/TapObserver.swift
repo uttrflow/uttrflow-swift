@@ -1,3 +1,4 @@
+// Watches keystrokes through an event tap without changing them.
 private import CoreGraphics
 private import Foundation
 private import Synchronization

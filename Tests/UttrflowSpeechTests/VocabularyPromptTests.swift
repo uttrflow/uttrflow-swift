@@ -1,3 +1,4 @@
+// Tests how the user's words are packed into Whisper's prompt.
 import Foundation
 import Testing
 import WhisperKit

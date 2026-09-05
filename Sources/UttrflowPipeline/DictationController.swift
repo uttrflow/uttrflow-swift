@@ -1,3 +1,4 @@
+// Turns key presses and clicks into dictations.
 public import UttrflowCore
 
 /// Turns key presses into dictations; generic over the clock so the minimum hold tests instantly.

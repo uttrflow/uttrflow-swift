@@ -1,3 +1,4 @@
+// The `transcribe` command: runs a recording through a recogniser.
 import ArgumentParser
 import Foundation
 import UttrflowAI

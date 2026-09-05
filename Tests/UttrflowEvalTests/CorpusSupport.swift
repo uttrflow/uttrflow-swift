@@ -1,3 +1,4 @@
+// Stub transport, catalogue and uploader shared by the corpus tests.
 import Foundation
 import Synchronization
 

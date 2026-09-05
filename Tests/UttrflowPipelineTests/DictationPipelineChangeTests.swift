@@ -1,3 +1,4 @@
+// Tests the dictionary, snippet and learning seams inside the pipeline.
 import Foundation
 import Synchronization
 import Testing

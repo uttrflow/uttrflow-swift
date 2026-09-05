@@ -1,3 +1,4 @@
+// The macOS system recogniser behind the TranscriptionBackend seam.
 public import Foundation
 public import UttrflowCore
 private import AVFoundation

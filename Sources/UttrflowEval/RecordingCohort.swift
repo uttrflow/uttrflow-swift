@@ -1,3 +1,4 @@
+// Who read a passage and where, and the slug rules the catalogue enforces.
 private import Foundation
 
 /// Who read a passage and in what conditions, the axis on which "did it get worse" is answered.

@@ -1,3 +1,4 @@
+// Slices and recurring findings over a transcription report.
 public import UttrflowCore
 /// One named slice of a run, always carrying the word count it rests on.
 public struct ReportSlice: Sendable, Equatable, Identifiable {

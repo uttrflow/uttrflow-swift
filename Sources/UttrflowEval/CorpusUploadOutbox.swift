@@ -1,3 +1,4 @@
+// Sends recorded passages to the corpus service and keeps receipts for the ones it could not.
 public import Foundation
 
 /// What happened the last time this recording was offered to the corpus service.

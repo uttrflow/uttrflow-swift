@@ -1,3 +1,4 @@
+// Tests the accuracy baseline and its regression gate.
 import Foundation
 import Testing
 

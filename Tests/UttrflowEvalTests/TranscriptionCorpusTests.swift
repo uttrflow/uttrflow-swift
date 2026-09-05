@@ -1,3 +1,4 @@
+// Tests the hand-written transcription corpus for mistakes that would mis-score.
 import Testing
 
 @testable import UttrflowEval

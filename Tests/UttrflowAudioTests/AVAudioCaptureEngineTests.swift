@@ -1,3 +1,4 @@
+// Tests the capture engine's lifecycle rules without a microphone.
 import Testing
 
 @testable import UttrflowAudio

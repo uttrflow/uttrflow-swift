@@ -1,3 +1,4 @@
+// Tests that a failing stage never loses the user's words, and that stages are timed.
 import Foundation
 import Synchronization
 import Testing

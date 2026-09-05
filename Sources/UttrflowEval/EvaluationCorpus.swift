@@ -1,3 +1,4 @@
+// The hand-written clean-up cases every candidate is measured against.
 public import UttrflowCore
 
 /// The hand-written cases every clean-up candidate is measured against.

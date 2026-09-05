@@ -1,3 +1,4 @@
+// Runs the recorded corpus through one recogniser and collects timings.
 public import UttrflowCore
 
 /// Runs the recorded corpus through one recogniser it knows nothing about and measures what happens.

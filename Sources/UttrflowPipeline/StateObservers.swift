@@ -1,3 +1,4 @@
+// Fans the pipeline's state out to every watcher.
 import Foundation
 import UttrflowCore
 private import Synchronization

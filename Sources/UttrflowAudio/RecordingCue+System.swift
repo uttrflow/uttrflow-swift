@@ -1,3 +1,4 @@
+// Plays recording cues through AppKit's system sounds.
 import UttrflowCore
 private import AppKit
 private import Synchronization

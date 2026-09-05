@@ -1,3 +1,4 @@
+// Tests the model store against real directories.
 import Foundation
 import Synchronization
 import Testing

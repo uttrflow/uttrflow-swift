@@ -1,3 +1,4 @@
+// Reproduces shipped dictation bugs by catching the pipeline mid-stage.
 import Synchronization
 import Testing
 

@@ -1,3 +1,4 @@
+// Tests the end-to-end duration summary.
 import UttrflowCore
 import Testing
 

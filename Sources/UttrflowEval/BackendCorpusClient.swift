@@ -1,3 +1,4 @@
+// The corpus service as request-building and answer-reading, with no socket of its own.
 public import Foundation
 
 /// The corpus service as request-building and answer-reading; the injected ``HTTPTransport`` owns the socket.

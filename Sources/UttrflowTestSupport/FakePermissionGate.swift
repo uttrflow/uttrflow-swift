@@ -1,3 +1,4 @@
+// A PermissionGate whose answer a test controls.
 public import UttrflowCore
 
 /// A ``PermissionGate`` whose status can change, including in response to being asked, like the real prompt.

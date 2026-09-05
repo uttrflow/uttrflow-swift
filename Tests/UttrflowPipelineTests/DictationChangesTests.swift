@@ -1,3 +1,4 @@
+// Tests how corrections are spliced, reported and scored.
 import Foundation
 import Testing
 

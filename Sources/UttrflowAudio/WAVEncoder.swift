@@ -1,3 +1,4 @@
+// Encodes canonical samples as a WAV file.
 public import Foundation
 public import UttrflowCore
 

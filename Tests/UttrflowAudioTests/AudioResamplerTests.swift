@@ -1,3 +1,4 @@
+// Tests conversion of every microphone format into canonical samples.
 import AVFoundation
 import Testing
 

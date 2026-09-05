@@ -1,3 +1,4 @@
+// Helpers for writing to the terminal.
 private import Foundation
 
 /// Lines the commands write over themselves on standard error, so a countdown or a meter never scrolls away.

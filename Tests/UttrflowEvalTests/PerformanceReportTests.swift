@@ -1,3 +1,4 @@
+// Tests the performance report's derived figures.
 import UttrflowCore
 import Testing
 

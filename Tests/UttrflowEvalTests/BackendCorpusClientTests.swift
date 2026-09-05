@@ -1,3 +1,4 @@
+// Tests the corpus client against the backend's real response shapes.
 import Foundation
 import Testing
 

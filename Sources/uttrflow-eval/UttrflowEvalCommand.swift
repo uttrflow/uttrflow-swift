@@ -1,3 +1,4 @@
+// The evaluation harness's root command.
 import ArgumentParser
 
 /// The evaluation harness: records a corpus once, then measures transcription against it.

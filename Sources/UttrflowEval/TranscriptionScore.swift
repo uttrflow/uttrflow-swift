@@ -1,3 +1,4 @@
+// One passage's transcription score and the report over all of them.
 public import UttrflowCore
 
 /// Why a passage produced no transcript: heard nothing, engine threw, or the harness could not read the file.

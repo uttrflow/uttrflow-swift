@@ -1,3 +1,5 @@
+// The one way every fake scripts its result, and the log they record calls in.
+
 /// A result a fake produces when called, so every fake scripts success and failure the same way.
 public enum ScriptedOutcome<Success: Sendable, Failure: Error>: Sendable {
     case success(Success)

@@ -1,3 +1,4 @@
+// Tests the performance profiler against a scripted machine.
 import UttrflowCore
 import UttrflowTestSupport
 import Synchronization

@@ -1,3 +1,4 @@
+// The `transcribe` command: measures a recogniser against the recorded corpus.
 import ArgumentParser
 private import Foundation
 private import UttrflowAI

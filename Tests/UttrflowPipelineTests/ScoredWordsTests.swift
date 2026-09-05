@@ -1,3 +1,4 @@
+// Tests how a recogniser's word scores become correction candidates.
 import UttrflowCore
 import Testing
 

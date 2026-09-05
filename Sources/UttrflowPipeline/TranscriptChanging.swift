@@ -1,3 +1,4 @@
+// The seams through which a dictionary, snippets and learning reach the pipeline.
 public import UttrflowCore
 public import struct Foundation.UUID
 

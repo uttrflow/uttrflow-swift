@@ -1,3 +1,4 @@
+// Tests the recorded corpus store and the JSON record store against real directories.
 import Foundation
 import Testing
 

@@ -1,3 +1,5 @@
+// The utterances the performance profile times, and their recordings.
+
 /// One utterance the performance profile times; not an ``EvaluationCase``, since nothing scores it.
 public struct ProfilePassage: Sendable, Equatable, Identifiable {
     /// The three utterance lengths a dictation tool has to be honest about; two points cannot show a bend.

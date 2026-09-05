@@ -1,3 +1,4 @@
+// The `clean` command: runs clean-up on typed text.
 import ArgumentParser
 import Foundation
 import UttrflowAI

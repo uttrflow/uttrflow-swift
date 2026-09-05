@@ -1,3 +1,4 @@
+// A TextTransformationEngine with scriptable availability and output.
 public import UttrflowCore
 
 /// A ``TextTransformationEngine`` with scriptable availability and output, so routing around one is tested.

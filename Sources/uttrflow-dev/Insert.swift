@@ -1,3 +1,4 @@
+// The `insert` command: puts text into the frontmost app.
 import ArgumentParser
 import Foundation
 import UttrflowCore

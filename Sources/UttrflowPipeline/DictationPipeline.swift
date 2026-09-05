@@ -1,3 +1,4 @@
+// The whole product in one actor: from the key going down to the text landing.
 public import UttrflowCore
 public import struct Foundation.UUID
 

@@ -1,3 +1,4 @@
+// Tests the upload outbox and its receipts.
 import Foundation
 import Synchronization
 import Testing

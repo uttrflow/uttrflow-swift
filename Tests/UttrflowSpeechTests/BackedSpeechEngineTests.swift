@@ -1,3 +1,4 @@
+// Tests the product's rules over a fake recogniser.
 import Testing
 
 @testable import UttrflowCore

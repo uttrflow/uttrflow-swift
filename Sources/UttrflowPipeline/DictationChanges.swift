@@ -1,3 +1,4 @@
+// Every change the pipeline makes to what the user said, in a form it can show and undo.
 public import struct Foundation.UUID
 
 /// One word Uttrflow replaced, with everything an undo needs on the value. See Docs/pipeline-changes.md.

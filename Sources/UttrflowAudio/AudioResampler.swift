@@ -1,3 +1,4 @@
+// Converts any microphone format into canonical mono 16 kHz samples.
 public import AVFoundation
 public import UttrflowCore
 private import Synchronization

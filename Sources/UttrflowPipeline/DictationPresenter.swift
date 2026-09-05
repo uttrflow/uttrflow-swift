@@ -1,3 +1,4 @@
+// Turns the pipeline's state into what the floating button draws.
 public import UttrflowCore
 
 /// What the floating button should show.

@@ -1,3 +1,4 @@
+// Reads and polls this process's memory use.
 import Foundation
 
 /// Footprint and resident size together; only the second shows mapped weights. See Docs/eval-profiling.md.

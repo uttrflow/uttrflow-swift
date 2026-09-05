@@ -1,3 +1,4 @@
+// Runs the clean-up corpus through one transformer.
 import Foundation
 
 /// What an engine did with one case.

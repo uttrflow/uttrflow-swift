@@ -1,3 +1,4 @@
+// Tests the pipeline's states and the guards that apply mid-dictation.
 import Synchronization
 import Testing
 

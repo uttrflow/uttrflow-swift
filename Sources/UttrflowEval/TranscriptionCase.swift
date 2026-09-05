@@ -1,3 +1,4 @@
+// One passage read aloud and what a recogniser must come back with.
 public import UttrflowCore
 
 /// One passage the operator reads aloud, and what a recogniser must come back with.

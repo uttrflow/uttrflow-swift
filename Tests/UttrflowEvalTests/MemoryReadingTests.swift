@@ -1,3 +1,4 @@
+// Tests memory readings and the peak poller.
 import Synchronization
 import Testing
 

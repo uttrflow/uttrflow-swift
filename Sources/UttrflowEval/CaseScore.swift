@@ -1,3 +1,5 @@
+// One clean-up case's score and the report built from many.
+
 /// How well one rewrite matched what was wanted.
 public struct CaseScore: Sendable, Equatable {
     public let caseID: String

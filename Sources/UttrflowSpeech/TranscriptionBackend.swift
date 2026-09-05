@@ -1,3 +1,4 @@
+// A recogniser's raw output and the protocol every recogniser conforms to.
 public import UttrflowCore
 
 /// One word as a recogniser heard it, with a per-word probability. See Docs/speech-engines.md.

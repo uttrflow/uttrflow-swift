@@ -1,3 +1,4 @@
+// Tests the corpus audio cache against real directories.
 import Foundation
 import Synchronization
 import Testing

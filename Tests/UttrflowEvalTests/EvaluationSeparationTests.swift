@@ -1,3 +1,4 @@
+// Proves the evaluation harness cannot reach the shipped app.
 import Foundation
 import Testing
 

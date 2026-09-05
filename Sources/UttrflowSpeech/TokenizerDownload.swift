@@ -1,3 +1,4 @@
+// Fetches a model's tokenizer at install time, the module's only network call.
 internal import Foundation
 
 // The one file in UttrflowSpeech allowed to open a connection; Scripts/offline_audit.sh names it.

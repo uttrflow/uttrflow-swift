@@ -1,3 +1,4 @@
+// Tests catalogue samples, stress mapping and slugs.
 import Foundation
 import Testing
 

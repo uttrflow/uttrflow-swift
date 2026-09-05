@@ -1,3 +1,4 @@
+// Where the words put in front of the recogniser come from.
 public import UttrflowCore
 public import UttrflowDictionary
 public import struct Foundation.Date

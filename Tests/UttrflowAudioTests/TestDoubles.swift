@@ -1,3 +1,4 @@
+// A fake microphone source and synthetic audio for the audio tests.
 import AVFoundation
 import Synchronization
 

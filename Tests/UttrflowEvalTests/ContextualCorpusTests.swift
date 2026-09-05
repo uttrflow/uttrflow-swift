@@ -1,3 +1,4 @@
+// Tests that each context case in the corpus is about context.
 import UttrflowCore
 import Testing
 

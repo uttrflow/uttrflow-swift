@@ -1,3 +1,4 @@
+// Owns the lifecycle of a microphone recording, without any audio machinery of its own.
 public import UttrflowCore
 
 /// Records the microphone into a canonical-format buffer, owning only the lifecycle, so its rules test dry.

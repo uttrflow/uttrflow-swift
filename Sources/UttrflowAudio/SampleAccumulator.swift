@@ -1,3 +1,4 @@
+// Collects samples from the capture thread and keeps the level meter's figures.
 private import Synchronization
 
 /// Collects samples from the capture thread in a lock-guarded box, since a real-time thread cannot await.

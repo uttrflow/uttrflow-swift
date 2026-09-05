@@ -1,3 +1,4 @@
+// The catalogue's row types, query and stress vocabulary.
 private import Foundation
 
 /// One catalogue row as the backend serves it; anything the harness derives is marked as derived.

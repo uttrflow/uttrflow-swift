@@ -1,3 +1,4 @@
+// A directory of one JSON file per record, and its errors.
 public import Foundation
 
 /// What can go wrong reading or writing a directory of measurements, read at a terminal, never by a user.

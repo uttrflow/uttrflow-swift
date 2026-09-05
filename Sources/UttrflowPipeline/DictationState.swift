@@ -1,3 +1,4 @@
+// Where a dictation has got to, how it ended, and what went wrong.
 public import UttrflowCore
 
 /// Something that went wrong, carrying the transcript so the user's words stay reachable (§19).

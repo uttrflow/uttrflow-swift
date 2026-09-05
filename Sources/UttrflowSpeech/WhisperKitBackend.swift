@@ -1,3 +1,4 @@
+// The WhisperKit recogniser, and the guard that keeps a prompt from silencing it.
 public import Foundation
 private import CoreML
 public import UttrflowCore

@@ -1,3 +1,4 @@
+// One clean-up case: an utterance, its context and what should come out.
 public import UttrflowCore
 
 /// What the product should do with one utterance; `expected` is a reference, not the only right answer.

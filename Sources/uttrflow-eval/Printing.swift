@@ -1,3 +1,4 @@
+// Helpers for printing reports to the terminal.
 internal import Foundation
 
 /// Lines the commands write over themselves on standard error, so progress never scrolls a report away.

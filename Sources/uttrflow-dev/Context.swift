@@ -1,3 +1,4 @@
+// The `context` command: shows what Uttrflow can see of the frontmost app.
 import ArgumentParser
 import Foundation
 import UttrflowContext

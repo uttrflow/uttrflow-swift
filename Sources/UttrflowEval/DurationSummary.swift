@@ -1,3 +1,4 @@
+// The typical and worst of a set of timings.
 public import UttrflowCore
 
 /// The typical and worst of a set of timings for something that is not a ``PipelineStage``.

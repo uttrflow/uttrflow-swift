@@ -1,3 +1,4 @@
+// The `doctor` command: checks permissions and setup.
 import ArgumentParser
 private import AVFoundation
 private import Foundation

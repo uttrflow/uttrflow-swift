@@ -1,3 +1,4 @@
+// The corpus service's URL, token and the one URLSession that reaches it.
 import ArgumentParser
 internal import Foundation
 internal import UttrflowEval

@@ -1,3 +1,4 @@
+// The corpus service's errors and the two protocols for reading and writing it.
 public import Foundation
 
 /// What can go wrong talking to the corpus service, split by what the operator has to do about it.

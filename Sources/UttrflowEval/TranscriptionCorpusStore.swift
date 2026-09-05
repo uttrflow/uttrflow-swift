@@ -1,3 +1,4 @@
+// The recorded corpus on disk: a recording per passage and what is still to read.
 public import Foundation
 
 /// One passage as read, carrying the whole case so a reworded passage never scores old audio.

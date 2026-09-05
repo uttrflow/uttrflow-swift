@@ -1,3 +1,4 @@
+// Decides when a recording cue is played, in a form testable in silence.
 public import UttrflowCore
 
 private import Synchronization

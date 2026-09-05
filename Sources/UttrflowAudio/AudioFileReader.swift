@@ -1,3 +1,4 @@
+// Reads an audio file into canonical samples, so a file looks like microphone audio.
 public import Foundation
 public import UttrflowCore
 private import AVFoundation

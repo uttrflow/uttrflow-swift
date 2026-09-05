@@ -1,3 +1,4 @@
+// What a complete tokenizer consists of, and whether one is present.
 public import Foundation
 
 /// The vocabulary a recogniser decodes with; the store and the recogniser must agree where it lives.

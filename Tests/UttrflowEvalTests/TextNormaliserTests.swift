@@ -1,3 +1,4 @@
+// Tests each normalisation rule for what it folds away and what it must not.
 import Testing
 
 @testable import UttrflowEval

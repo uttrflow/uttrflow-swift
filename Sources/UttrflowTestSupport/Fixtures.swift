@@ -1,3 +1,4 @@
+// Named fixtures shared by every test target.
 public import UttrflowCore
 
 // Named fixtures, so no test file re-invents a "typical" transcription or context.
