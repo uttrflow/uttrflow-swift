@@ -3,7 +3,7 @@ public struct EngineConfiguration: Sendable, Equatable, Codable {
     /// The speech-to-text implementation.
     public var speech: SpeechEngineKind
 
-    /// Clean-up kinds in preference order; the first able to take a request wins, so the list ends in `rules`.
+    /// Clean-up kinds in preference order; the first able to take a request wins, so the list ends in rules.
     public var transformerPreference: [TransformerKind]
 
     /// A configuration naming every engine explicitly.

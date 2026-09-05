@@ -2,7 +2,7 @@ public import Foundation
 public import struct Foundation.Date
 public import struct Foundation.UUID
 
-/// A phrase the user says and the text put in its place; the trigger is kept as typed, its match form derived.
+/// A phrase the user says and the text put in its place; kept as typed, with the matcher's form derived.
 public struct Snippet: Sendable, Equatable, Identifiable, Codable {
     /// Stable identity across edits.
     public let id: UUID
@@ -14,7 +14,7 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
     public let created: Date
     /// How many dictations this snippet has fired in.
     public var timesUsed: Int
-    /// When it last fired, or `nil` if it never has; shown beside ``created`` so the list says which rows earn it.
+    /// When it last fired, or `nil` if never; shown beside ``created`` so the list says which rows earn it.
     public var lastUsed: Date?
 
     /// A snippet with fresh counters unless told otherwise.

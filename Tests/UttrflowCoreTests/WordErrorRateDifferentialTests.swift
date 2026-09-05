@@ -1,24 +1,13 @@
+// Tests WordErrorRate against an independent Levenshtein on random pairs.
+
 import Testing
 
 @testable import UttrflowCore
 
-/// Checks the word error rate against a second, deliberately naive implementation.
-///
-/// The hand-worked examples elsewhere prove the rate is right on the cases somebody
-/// thought of. This proves it on cases nobody thought of, which is where an alignment
-/// bug actually lives: a wrong tie-break or an off-by-one in the matrix survives every
-/// example that happens to have one obvious alignment, and only shows up on a pair where
-/// two alignments cost nearly the same.
-///
-/// The comparison is on the TOTAL number of edits, not the split between substitutions,
-/// deletions and insertions. Two minimal alignments of equal cost can disagree about
-/// that split — one calls it a substitution, the other a deletion plus an insertion of
-/// the same size — and neither is wrong. The total is what the rate divides.
+/// Checks the total edit count, not the S/D/I split, against a naive Levenshtein on pairs nobody thought of.
 @Suite("Word error rate, against an independent implementation")
 struct WordErrorRateDifferentialTests {
-    /// Textbook Levenshtein over words, written for obviousness rather than speed: a
-    /// full matrix, no banding, no early exit, nothing shared with the implementation
-    /// under test.
+    /// Textbook Levenshtein over words, sharing nothing with the implementation under test.
     private func edits(_ reference: [String], _ hypothesis: [String]) -> Int {
         var previous = Array(0...hypothesis.count)
         var current = [Int](repeating: 0, count: hypothesis.count + 1)
@@ -33,8 +22,7 @@ struct WordErrorRateDifferentialTests {
         return reference.isEmpty ? hypothesis.count : previous[hypothesis.count]
     }
 
-    /// A deterministic generator, so a failure names a pair that can be reproduced
-    /// exactly rather than one that has already evaporated.
+    /// A deterministic generator, so a failure names a pair that can be reproduced exactly.
     private func words(seed: inout UInt64, count: Int, from alphabet: [String]) -> [String] {
         (0..<count).map { _ in
             seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
@@ -44,8 +32,7 @@ struct WordErrorRateDifferentialTests {
 
     @Test("agrees with a textbook edit distance over a thousand random pairs")
     func agreesWithTextbookEditDistance() {
-        // A small alphabet on purpose: repeated words are what create the ambiguous
-        // alignments a larger vocabulary would almost never produce by chance.
+        // A small alphabet on purpose: repeated words are what create ambiguous alignments.
         let alphabet = ["the", "cat", "sat", "on", "mat", "a", "quick"]
         var seed: UInt64 = 20_260_823
 
@@ -73,8 +60,7 @@ struct WordErrorRateDifferentialTests {
         }
     }
 
-    /// The rate itself, not just the alignment: an empty reference has no denominator,
-    /// and everything else divides by the number of words the speaker actually said.
+    /// An empty reference has no denominator; everything else divides by the words the speaker said.
     @Test("the rate is the edit count over the reference length")
     func rateDividesByTheReference() {
         let alphabet = ["one", "two", "three", "four"]

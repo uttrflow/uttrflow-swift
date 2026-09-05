@@ -1,3 +1,5 @@
+// Per-stage time limits, and the race that enforces one without waiting on a stage that hangs.
+
 private import Synchronization
 
 /// How long a dictation waits for one stage before giving up. See `Docs/stuck-recording.md`.
@@ -12,7 +14,7 @@ public enum StageTimeout: Sendable {
     public static let quick = Duration.seconds(15)
 }
 
-/// Runs `work`, answering `nil` when `limit` wins; the work is abandoned, not awaited, since a blocked stage hangs.
+/// Runs `work`, answering `nil` when `limit` wins; the work is abandoned, not awaited, since it may hang.
 public func withStageTimeout<Success: Sendable>(
     _ limit: Duration,
     clock: any Clock<Duration>,

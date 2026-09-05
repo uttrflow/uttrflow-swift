@@ -24,7 +24,7 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// Option + Space, the shortcut the product ships with.
     public static let optionSpace = HotkeyBinding(keyCode: 49, modifiers: [.option])
 
-    /// ⇧⌘V, the clipboard panel's default; shadows "paste without formatting" on purpose (`Docs/core-hotkeys.md`).
+    /// ⇧⌘V, the clipboard panel's default; it shadows "paste without formatting". See `Docs/core-hotkeys.md`.
     public static let shiftCommandV = HotkeyBinding(keyCode: 9, modifiers: [.shift, .command])
 
     /// Hold Fn to dictate; a held binding, watched through flag changes rather than registered as a hot key.
@@ -61,7 +61,7 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     public static let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
 }
 
-/// Why the shortcut cannot be put in place; not a ``PermissionError``, since only one case is about permission.
+/// Why the shortcut cannot be put in place; not a ``PermissionError``, as only one case is about permission.
 public enum HotkeyError: UttrflowFailure {
     /// macOS will not let this process observe keys from other apps.
     case observationNotPermitted

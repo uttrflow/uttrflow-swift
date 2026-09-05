@@ -1,3 +1,5 @@
+// Tests for EngineConfiguration and for which engine kinds a build can select.
+
 import Foundation
 import Testing
 
@@ -68,11 +70,7 @@ struct EngineKindsTests {
         #endif
     }
 
-    /// The local model links MLX, which the app deliberately does not build against, so
-    /// a build that does not contain it must not offer it. It was being offered: it sat
-    /// in the shipping preference and in the diagnostics list, and the router dropped it
-    /// silently at routing time — the configuration said one thing, the product did
-    /// another.
+    /// The local model links MLX, which the app does not build against, so a build without it cannot offer it.
     @Test("excludes the local model from a build that does not link it")
     func localModelIsNotSelectableByDefault() {
         #if UTTRFLOW_LOCAL_MODEL
@@ -82,8 +80,7 @@ struct EngineKindsTests {
         #endif
     }
 
-    /// Whatever a build does or does not contain, the floor has to be there — it is what
-    /// stops the pipeline dead-ending.
+    /// The floor has to be there whatever a build contains; it is what stops the pipeline dead-ending.
     @Test("always keeps the engines every build contains")
     func alwaysSelectableKinds() {
         let selectable = Set(TransformerKind.selectable)
