@@ -1,3 +1,5 @@
+// Tests for noticing copies, with a fake clipboard.
+
 import Foundation
 import Synchronization
 import Testing
@@ -5,9 +7,6 @@ import Testing
 @testable import UttrflowClipboard
 
 /// A clipboard nobody else can reach, with the change count under the test's control.
-///
-/// The whole point of the protocol: every rule in the watcher is decided here, with no
-/// AppKit anywhere near it and no real clipboard to disturb.
 final class FakeClipboard: ClipboardSource, Sendable {
     private struct State {
         var count = 0
@@ -21,8 +20,7 @@ final class FakeClipboard: ClipboardSource, Sendable {
 
     private let state = Mutex(State())
 
-    /// Writes to the clipboard exactly as another application would: the contents change
-    /// and the count goes up by one.
+    /// Writes to the clipboard as another application would: the contents change and the count goes up.
     func write(
         _ text: String?, html: String? = nil,
         picture: (data: Data, width: Int, height: Int)? = nil, from application: String? = nil
@@ -84,8 +82,7 @@ struct PasteboardWatcherTests {
         #expect(clip?.copiedAt == noon)
     }
 
-    /// Whatever was on the clipboard at launch was copied before Uttrflow was watching.
-    /// Claiming it would put yesterday's work at the top of the panel at every login.
+    /// Whatever is on the clipboard at launch was copied before Uttrflow was watching.
     @Test("adopts whatever was already there rather than claiming it")
     func firstTickTakesABaseline() async {
         let clipboard = FakeClipboard()
@@ -108,8 +105,7 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
 
-    /// A tick is one integer read and nothing else, for the many seconds at a time when
-    /// nobody is copying anything. This is what makes five ticks a second affordable.
+    /// A tick is one integer read and nothing else, which makes five ticks a second affordable.
     @Test("reads the contents only once the count has moved")
     func idleTicksAreCheap() async {
         let clipboard = FakeClipboard()
@@ -142,8 +138,7 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
 
-    /// Whitespace is skipped without losing the place: the next real copy is still
-    /// noticed rather than being swallowed by a stale baseline.
+    /// Whitespace is skipped without losing the place, so the next real copy is still noticed.
     @Test("keeps watching after skipping something blank")
     func blankCopyDoesNotBlind() async {
         let clipboard = FakeClipboard()
@@ -157,9 +152,7 @@ struct PasteboardWatcherTests {
 
     // MARK: - Not noticing ourselves
 
-    /// The paste path: Uttrflow puts a clip on the clipboard, presses ⌘V, and
-    /// deliberately does not put back what was there before. That change must not come
-    /// back as a copy.
+    /// Uttrflow's own paste writes the clipboard and must not come back as a copy.
     @Test("ignores the write Uttrflow announced")
     func ignoresAnnouncedWrite() async {
         let clipboard = FakeClipboard()
@@ -173,17 +166,14 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
 
-    /// The reason the announcement is made *before* the write rather than after it: at
-    /// five ticks a second, a tick lands between the two often enough to matter, and
-    /// announcing afterwards would leave that window open.
+    /// The announcement comes before the write, because a tick lands between the two often enough.
     @Test("ignores the announced write even when a tick lands in the middle of it")
     func announcementCoversTheWrite() async {
         let clipboard = FakeClipboard()
         let watcher = watcher(clipboard)
 
         watcher.ignoreNextWrite()
-        // A tick between the announcement and the write sees nothing, and must not
-        // spend the announcement on it.
+        // A tick between the announcement and the write sees nothing and must not spend it.
         #expect(await watcher.newClip(at: noon)?.clip == nil)
         clipboard.write("pasted by Uttrflow")
 
@@ -230,8 +220,7 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip.text == "copied by the user")
     }
 
-    /// An announcement whose write never happened — the paste threw before it reached
-    /// the clipboard — must not sit armed and swallow a copy minutes later.
+    /// An announcement whose write never happened must not sit armed and swallow a later copy.
     @Test("disbelieves an announcement whose write never arrived")
     func staleAnnouncementLapses() async {
         let clipboard = FakeClipboard()
@@ -241,8 +230,7 @@ struct PasteboardWatcherTests {
         // Announced, and then the write throws before it reaches the clipboard.
         watcher.ignoreNextWrite()
 
-        // Minutes later, the user copies something of their own. The announcement is
-        // long past its lifetime and must not swallow it.
+        // Minutes later, long past the announcement's lifetime.
         let later = noon.addingTimeInterval(PasteboardWatcher.announcementLifetime + 60)
         clock.withLock { $0 = later }
         clipboard.write("copied by the user, long afterwards")
@@ -250,9 +238,7 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: later)?.clip.text == "copied by the user, long afterwards")
     }
 
-    /// The other side of that boundary: an announcement made a moment ago is still
-    /// believed, because the tick that sees the write is up to one poll interval behind
-    /// it.
+    /// An announcement made a moment ago is still believed; the tick can be a poll interval behind.
     @Test("still believes an announcement made a moment ago")
     func freshAnnouncementHolds() async {
         let clipboard = FakeClipboard()
@@ -269,9 +255,7 @@ struct PasteboardWatcherTests {
 
     // MARK: - Pasting a clip does not disturb the list
 
-    /// The decision, pinned: pressing Return on the third row pastes it and leaves the
-    /// panel exactly as it was. No duplicate row, and no reordering — the clip the user
-    /// just used does not jump to the top under their hand.
+    /// Pressing Return on the third row pastes it and leaves the panel untouched.
     @Test("pasting a clip neither duplicates it nor moves it")
     func pastingLeavesTheListAlone() async throws {
         let file = TemporaryFile()
@@ -303,9 +287,7 @@ struct PasteboardWatcherTests {
         #expect(await store.clips(keeping: window).map(\.text) == ["three", "two", "one"])
     }
 
-    /// The second line of defence. If a paste ever did slip past the announcement, the
-    /// store's deduplication still refuses to add a second row — the list stays usable
-    /// even when the suppression does not hold.
+    /// The second line of defence: deduplication refuses a second row even if a paste slips past.
     @Test("still refuses a duplicate row if a paste slips past the announcement")
     func deduplicationBacksUpTheAnnouncement() async throws {
         let file = TemporaryFile()
@@ -347,17 +329,13 @@ struct PasteboardWatcherTests {
         await task.value
     }
 
-    /// Two hundred milliseconds, because the gap between ⌘C and ⇧⌘V is a hand movement
-    /// and the panel must never open without the thing that was just copied at the top.
+    /// Two hundred milliseconds, because the gap between ⌘C and ⇧⌘V is a hand movement.
     @Test("polls often enough to keep up with the gesture")
     func interval() {
         #expect(PasteboardWatcher.pollInterval == .milliseconds(200))
     }
 
-    /// Left to itself it reads the real clock, which is what the app gets. Worth one
-    /// test of its own rather than only ever being substituted away: an announcement
-    /// timed against a clock nobody exercised is an announcement that could always be
-    /// stale in production and never in the suite.
+    /// Left to itself it reads the real clock, which is what the app gets.
     @Test("times its own announcements by the wall clock when it is not told otherwise")
     func defaultClock() async {
         let clipboard = FakeClipboard()

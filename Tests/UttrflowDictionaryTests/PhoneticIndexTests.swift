@@ -1,3 +1,5 @@
+// Tests for the phonetic index.
+
 import Foundation
 import Testing
 
@@ -7,8 +9,7 @@ import Testing
 struct PhoneticIndexTests {
     // MARK: Lookup
 
-    /// The whole reason the index is keyed on sound: the recogniser writes down an
-    /// ordinary English word, and the entry has to be reachable from it.
+    /// The reason the index is keyed on sound: an entry has to be reachable from what was heard instead.
     @Test("finds an entry from the word a recogniser heard instead")
     func findsByMishearing() {
         let index = PhoneticIndex(entries: [word("Claude", from: .added)])
@@ -17,16 +18,14 @@ struct PhoneticIndexTests {
         #expect(index.candidates(soundingLike: "kubectl").isEmpty)
     }
 
-    /// A name spelt nothing like it is said is filed under the pronunciation, which is
-    /// the only thing ``DictionaryEntry/soundsLike`` is for.
+    /// A name spelt nothing like it is said is filed under the pronunciation.
     @Test("files a name under how it is said, not how it is written")
     func usesThePronunciation() {
         let index = PhoneticIndex(entries: [word("Siobhan", saying: "Shivawn", from: .added)])
         #expect(index.candidates(soundingLike: "Chevonne").map(\.word) == ["Siobhan"])
     }
 
-    /// A word with two readings is filed under both and found from either — and an entry
-    /// filed twice must still come back once.
+    /// A word with two readings is filed under both, found from either, and comes back once.
     @Test("finds a word with two readings from either of them, once")
     func ambiguousWords() {
         let index = PhoneticIndex(entries: [word("Gemma", from: .added)])
@@ -35,8 +34,7 @@ struct PhoneticIndexTests {
         #expect(index.candidates(soundingLike: "Gemma").count == 1)
     }
 
-    /// An entry whose spelling makes no sound at all cannot be filed, and must not
-    /// become the bucket every other soundless entry falls into.
+    /// An entry whose spelling makes no sound cannot become the bucket every soundless entry falls into.
     @Test("files nothing under a word that makes no sound")
     func soundlessEntries() {
         let index = PhoneticIndex(entries: [word("2024", from: .added), word("Claude")])
@@ -46,8 +44,7 @@ struct PhoneticIndexTests {
 
     // MARK: Retirement
 
-    /// An entry the user keeps undoing has already retired itself. It is still in the
-    /// store, and still shown — but it stops being offered.
+    /// A retired entry is still in the store and still shown, but stops being offered.
     @Test("stops offering an entry that has retired itself")
     func retiredEntriesAreNotOffered() {
         let retired = word("Claude", used: 10, reverted: 9)
@@ -60,8 +57,7 @@ struct PhoneticIndexTests {
 
     // MARK: Bounded buckets
 
-    /// Without a cap, a sound thousands of entries share would turn one hash probe into
-    /// a scan of thousands — and the constant-time claim with it.
+    /// Without a cap, a sound thousands of entries share would turn one probe into a scan.
     @Test("keeps a bounded number of entries for any one sound")
     func bucketsAreCapped() {
         let homophones = (0..<200).map { word("Claude", used: $0) }
@@ -77,8 +73,7 @@ struct PhoneticIndexTests {
         #expect(kept.map(\.timesUsed) == [19, 18, 17, 16, 15, 14, 13, 12])
     }
 
-    /// Uses the user undid do not count towards keeping a slot; a word applied fifty
-    /// times and reverted forty-nine is worth less than one applied twice and kept.
+    /// Uses the user undid do not count towards keeping a slot.
     @Test("ranks by the uses that stuck, then by newness, then by spelling, then by identity")
     func rankingIsATotalOrder() {
         let noisy = word("Claude", used: 50, reverted: 49)
@@ -100,8 +95,7 @@ struct PhoneticIndexTests {
 
     // MARK: An utterance
 
-    /// Runs of words, not just words, because the entries this dictionary is full of are
-    /// written closed and spoken open.
+    /// Runs of words, not just words, because entries are written closed and spoken open.
     @Test("finds a closed-up entry from the words it was spoken as")
     func findsCamelCasedEntriesFromSpeech() {
         let index = PhoneticIndex(entries: [
@@ -124,8 +118,7 @@ struct PhoneticIndexTests {
         #expect(index.candidates(for: Utterance(heard: "clawed", confidence: 0.1), limit: 0).isEmpty)
     }
 
-    /// The budget is spent on the words the recogniser was least sure of. Here only one
-    /// candidate fits, and it must be the one for the word it guessed at.
+    /// The budget is spent on the words the recogniser was least sure of.
     @Test("spends a small budget on the least certain word")
     func budgetGoesToTheLeastCertainWord() {
         let index = PhoneticIndex(entries: [
@@ -139,8 +132,7 @@ struct PhoneticIndexTests {
         #expect(Set(index.candidates(for: heard, limit: 2).map(\.word)) == ["Claude", "Uttrflow"])
     }
 
-    /// The same words must always produce the same shortlist, or the guarantee could not
-    /// be asserted at all.
+    /// The same words must always produce the same shortlist, or the guarantee cannot be asserted.
     @Test("answers the same utterance the same way every time")
     func answersAreStable() {
         let index = PhoneticIndex(entries: (0..<40).map { word("Claude\($0 % 3)", used: $0) })

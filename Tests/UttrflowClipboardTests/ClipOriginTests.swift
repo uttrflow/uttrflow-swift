@@ -1,13 +1,11 @@
+// Tests for the two lists a clip can belong to.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// The two lists, on the disk side.
-///
-/// The panel draws them as two tabs; everything below here has to agree that they are two
-/// lists, or the tabs are a filter over one stream and the crowding-out they exist to stop
-/// simply happens somewhere the user cannot see — in what the file keeps.
+/// The two lists on the disk side; if the file keeps one stream, the tabs are only a filter over it.
 @Suite("What the user copied, and what Uttrflow made")
 struct ClipOriginTests {
     private func clip(
@@ -20,9 +18,7 @@ struct ClipOriginTests {
 
     // MARK: - A clipboard written before the two lists existed
 
-    /// The field did not exist, so every clip on somebody's disk has to be placed by the
-    /// only evidence left. Getting this wrong in the safe-looking direction — everything
-    /// is a ⌘C — would put a whole dictation history into the tab built to keep it out.
+    /// An old clip has to be placed by the only evidence left, and "everything is a ⌘C" is the wrong default.
     @Test("an old clip with no origin is placed by what its provenance says")
     func migratesFromTheProvenanceString() throws {
         let json = """
@@ -43,9 +39,7 @@ struct ClipOriginTests {
 
     @Test("and a clip written since carries its own answer, whatever the provenance says")
     func decodesWhatWasWritten() throws {
-        // The awkward case the enum exists for: an application actually called
-        // "Dictation" is in front when the user presses ⌘C, and the string is no longer
-        // what decides.
+        // The awkward case: an application called "Dictation" is in front when the user presses ⌘C.
         let awkward = Clip(
             text: "typed in the app called Dictation", kind: .text, copiedAt: noon,
             source: ClipOrigin.dictationSource, origin: .copied)
@@ -58,8 +52,7 @@ struct ClipOriginTests {
 
     // MARK: - Two lists, not one
 
-    /// Merging them would move a row from one tab to the other under the user's hand, and
-    /// would add to a count that is supposed to mean "you reach for this often".
+    /// Merging them would move a row between tabs under the user's hand.
     @Test("the same words dictated and copied are two clips")
     func sameTextInBothListsStaysTwoClips() async throws {
         let file = TemporaryFile()
@@ -89,9 +82,7 @@ struct ClipOriginTests {
 
     // MARK: - Neither list can evict the other
 
-    /// The disk-side half of what the tabs promise. A shared cap would let a morning of
-    /// dictating drop yesterday's ⌘C out of the file, and a clip dropped from the file is
-    /// worse than one pushed down a list: it is gone.
+    /// A shared cap would let a morning of dictating drop yesterday's ⌘C out of the file.
     @Test("a flood of dictations cannot push a copy out of the file")
     func theCapIsPerList() async throws {
         let file = TemporaryFile()
@@ -126,15 +117,11 @@ struct ClipOriginTests {
         #expect(clips.filter { $0.origin == .uttrflow }.map(\.text) == ["said 3", "said 2"])
     }
 
-    /// The half of the split that actually bit. The count cap kept each list's *rows*
-    /// apart while the byte budget still pooled them, and the eviction order is "cheapest
-    /// to lose" — so a dictation, worth tens of bytes, was dropped over and over, freeing
-    /// almost nothing, before the loop reached the first screenshot.
+    /// The count cap kept rows apart while the byte budget pooled them and evicted the cheapest first.
     @Test("copied screenshots cannot empty the list of dictations")
     func picturesInOneListCannotEvictTheOther() async throws {
         let file = TemporaryFile()
-        // A megabyte, with the real proportions: pictures are ~100 KB and words are tens
-        // of bytes.
+        // A megabyte, with real proportions: pictures ~100 KB, words tens of bytes.
         let store = ClipboardStore(
             file: file.url, budget: .standard.limiting(bytes: 1_000_000, disk: 1_000_000))
 
@@ -183,9 +170,7 @@ struct ClipOriginTests {
 
     // MARK: - Editing a clip never moves it
 
-    /// A clip that changed tabs when it was tidied would vanish from under the user's
-    /// hand, which is worse than the row jumping that ``ClipboardStore/setText`` already
-    /// goes out of its way to avoid.
+    /// A clip that changed tabs when tidied would vanish from under the user's hand.
     @Test("tidying a clip leaves it in the list it arrived in")
     func editsKeepTheOrigin() async throws {
         let file = TemporaryFile()

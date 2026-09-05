@@ -1,16 +1,11 @@
+// Tests for the clipboard's memory budget.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// The bounds on what the clipboard may cost this Mac.
-///
-/// Worth stating what these are and are not. The measured clipboard of a real user was
-/// fifty-five clips and ten kilobytes of text inside an app whose physical footprint was
-/// 172 MB — so none of this was ever going to reclaim memory that is currently in use. It
-/// is a guarantee rather than a saving: whatever else the app spends, the clipboard's
-/// share is bounded, stated in one place, and cannot quietly become the reason a Mac
-/// slows down.
+/// The bounds on what the clipboard may cost; a guarantee rather than a saving. See Docs/clipboard-budget.md.
 @Suite("What the clipboard may cost")
 struct ClipboardBudgetTests {
     private func clip(
@@ -25,15 +20,13 @@ struct ClipboardBudgetTests {
 
     // MARK: - The shape of the budget itself
 
-    /// The one arithmetic mistake this type exists to make impossible: raising a tier for
-    /// a build without lowering another, and discovering it on somebody's machine.
+    /// The one arithmetic mistake this type makes impossible: raising a tier without lowering another.
     @Test("the tiers fit inside the ceiling")
     func tiersFitTheCeiling() {
         #expect(ClipboardBudget.standard.claimed <= ClipboardBudget.standard.ceiling)
     }
 
-    /// The numbers are meant to be edited per build. What must not be edited away is that
-    /// they are all present and all reachable.
+    /// The numbers may be edited per build; what must not be edited away is that they are all present.
     @Test("every pool that has a policy has every number that policy needs")
     func everyTierIsComplete() {
         for pool in ClipClass.allCases {
@@ -55,8 +48,7 @@ struct ClipboardBudgetTests {
                 of: Clip(
                     text: "", kind: .image, copiedAt: noon,
                     image: ClipImage(file: "a.png", width: 1, height: 1, bytes: 9))) == .images)
-        // And kept beats all three, including the picture — or the pictures' seven-day
-        // window would delete the very screenshot the pin was for.
+        // Kept beats all three, or the pictures' window would delete the pinned screenshot.
         #expect(ClipClass(of: clip("words", pinned: true)) == .kept)
         #expect(ClipClass(of: clip("said", origin: .uttrflow, alias: "/x")) == .kept)
         #expect(
@@ -69,9 +61,7 @@ struct ClipboardBudgetTests {
 
     // MARK: - Nothing saved is ever taken
 
-    /// The promise the fourth pool exists to make. Every other rule here is about the
-    /// things the user did not say they wanted; saying so is what makes a clip exempt from
-    /// all of them at once.
+    /// The promise the fourth pool exists to make: saying so exempts a clip from every rule at once.
     @Test("a saved clip survives the window, the count, the memory quota and the disk")
     func savedClipsSurviveEverything() async throws {
         let file = TemporaryFile()
@@ -98,8 +88,7 @@ struct ClipboardBudgetTests {
 
     // MARK: - The size cap
 
-    /// The bound that actually stops growth. Every rule but this one assumes many small
-    /// things and evicts *many*; one copied log file is one thing.
+    /// The bound that stops growth: one copied log file is one thing.
     @Test("a clip too large to hold is refused, and costs nothing")
     func oversizedClipsAreRefused() async throws {
         let file = TemporaryFile()
@@ -164,8 +153,7 @@ struct ClipboardBudgetTests {
     func picturesHaveTheirOwnWindow() async throws {
         let file = TemporaryFile()
         let store = ClipboardStore(file: file.url, budget: .standard.limiting(days: nil))
-        // Ten days back: inside a thirty-day setting for words, outside the seven the
-        // pictures tier sets for itself.
+        // Ten days back: inside a thirty-day setting for words, outside the pictures' seven.
         let old = noon.addingTimeInterval(-86_400 * 10)
         try await store.record(
             Clip(

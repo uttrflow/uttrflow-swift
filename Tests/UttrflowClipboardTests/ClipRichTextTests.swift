@@ -1,11 +1,11 @@
+// Tests for clips that carry formatting.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// E — a formatted clip has two representations, and every path has to say which one it
-/// is using. These pin the one rule that makes the rest safe: the plain form is stored,
-/// not derived.
+/// A formatted clip has two representations; the plain form is stored, not derived.
 @Suite("E · a clip that carries formatting")
 struct ClipRichTextTests {
     static let now = Date(timeIntervalSince1970: 1_750_000_800)
@@ -19,10 +19,7 @@ struct ClipRichTextTests {
         #expect(note.isFormatted)
     }
 
-    /// The rule the whole feature rests on. `text` is captured, never converted from the
-    /// rich form — so a clip is pasteable into a terminal without anything having to run
-    /// first, and the conversion that can fail never stands between the user and their
-    /// words.
+    /// `text` is captured, never converted, so a clip pastes into a terminal without anything running first.
     @Test("the plain form is stored, not derived from the rich one")
     func plainIsStored() {
         let note = Clip(
@@ -34,9 +31,7 @@ struct ClipRichTextTests {
         #expect(note.summary == "Release checklist")
     }
 
-    /// A clip written before the field existed still loads. There are clipboards on disk
-    /// with no `richText` in them, and a decoder that refused would empty somebody's
-    /// history on the first launch after an update.
+    /// A clip written before the field existed still loads, or an update would empty somebody's history.
     @Test("a clip that predates formatting decodes as plain")
     func oldClipsDecode() throws {
         let old = """
@@ -63,8 +58,7 @@ struct ClipRichTextTests {
     }
 }
 
-/// The watcher takes both flavours in one tick, or the two would describe different
-/// moments of the clipboard.
+/// The watcher takes both flavours in one tick, or the two describe different moments.
 @Suite("E · capturing both forms at once")
 struct PasteboardRichCaptureTests {
     @Test("a copy with formatting keeps both, and one without keeps only the plain form")
