@@ -127,7 +127,7 @@ struct KnownFormatterTests {
     func languagesResolve() {
         for formatter in KnownFormatter.allCases {
             for language in formatter.languages {
-                #expect(KnownFormatter.forLanguage(language) != nil, "\(language)")
+                #expect(KnownFormatter(for: language) != nil, "\(language)")
             }
         }
     }
@@ -137,9 +137,9 @@ struct KnownFormatterTests {
     /// to paste into production.
     @Test("a language with no trusted formatter has none, rather than a guess")
     func noGuessing() {
-        #expect(KnownFormatter.forLanguage(.shell) == nil)
-        #expect(KnownFormatter.forLanguage(.sql) == nil)
-        #expect(KnownFormatter.forLanguage(.java) == nil)
+        #expect(KnownFormatter(for: .shell) == nil)
+        #expect(KnownFormatter(for: .sql) == nil)
+        #expect(KnownFormatter(for: .java) == nil)
     }
 
     /// The code being formatted is the user's and may contain anything at all. On a

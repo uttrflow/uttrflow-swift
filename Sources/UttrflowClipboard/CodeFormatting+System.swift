@@ -32,11 +32,11 @@ public struct SystemCodeFormatter: CodeFormatting {
     public init() {}
 
     public func isAvailable(for language: CodeLanguage) async -> Bool {
-        KnownFormatter.forLanguage(language).flatMap { executable(for: $0) } != nil
+        KnownFormatter(for: language).flatMap { executable(for: $0) } != nil
     }
 
     public func format(_ text: String, as language: CodeLanguage) async -> String? {
-        guard let formatter = KnownFormatter.forLanguage(language),
+        guard let formatter = KnownFormatter(for: language),
             let tool = executable(for: formatter)
         else { return nil }
 

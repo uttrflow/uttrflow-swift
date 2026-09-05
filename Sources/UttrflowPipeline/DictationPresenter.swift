@@ -70,7 +70,7 @@ public enum DictationPresenter {
                 showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
                 accessibilityLabel: "Working on what you said.")
 
-        case .inserted(let outcome) where outcome.method == .clipboard && outcome.fromRecording:
+        case .inserted(let outcome) where outcome.method == .clipboard && outcome.isFromRecording:
             DockPresentation(
                 symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",
                 secondaryLine: preview(of: outcome.text),

@@ -89,7 +89,7 @@ struct DictationPipelineRecordingTests {
         let state = await dictate(makePipeline(recordings: recordings))
 
         #expect(state.outcome != nil)
-        #expect(state.outcome?.fromRecording == false)
+        #expect(state.outcome?.isFromRecording == false)
         #expect(await recordings.discarded == [recording.id])
     }
 
@@ -202,7 +202,7 @@ struct DictationPipelineRecordingTests {
         let outcome = try #require(await pipeline.currentState.outcome)
         #expect(outcome.text == said)
         #expect(outcome.method == .clipboard)
-        #expect(outcome.fromRecording)
+        #expect(outcome.isFromRecording)
         #expect(outcome.spokenFor == audio.duration)
         #expect(outcome.insertedInto == nil)
         #expect(clipboard.received == [said])

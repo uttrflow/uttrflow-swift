@@ -10,7 +10,7 @@ public import struct Foundation.UUID
 /// more useful, and all of which would make it a profile of the person's hardware.
 public struct DeviceRegistration: Sendable, Equatable, Codable {
     /// This installation's own random identifier, generated once and kept locally.
-    public let installId: String
+    public let installID: String
 
     /// Which kind of machine. The wire spelling the backend's enum uses.
     public let platform: String
@@ -21,11 +21,17 @@ public struct DeviceRegistration: Sendable, Equatable, Codable {
     /// The build talking, so a support question does not begin by asking.
     public let appVersion: String?
 
-    public init(installId: String, platform: String, name: String, appVersion: String?) {
-        self.installId = installId
+    public init(installID: String, platform: String, name: String, appVersion: String?) {
+        self.installID = installID
         self.platform = platform
         self.name = name
         self.appVersion = appVersion
+    }
+
+    /// The wire spelling the backend reads.
+    enum CodingKeys: String, CodingKey {
+        case installID = "installId"
+        case platform, name, appVersion
     }
 }
 
@@ -70,7 +76,7 @@ public struct MacDeviceIdentity: DeviceIdentifying {
 
     public func registration() -> DeviceRegistration {
         DeviceRegistration(
-            installId: installIdentifier(), platform: Self.platform, name: name(),
+            installID: installIdentifier(), platform: Self.platform, name: name(),
             appVersion: appVersion)
     }
 

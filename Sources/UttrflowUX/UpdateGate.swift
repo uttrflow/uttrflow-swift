@@ -87,7 +87,7 @@ public struct UpdateGate: Sendable, Equatable {
 
     /// How long the app has been quiet, for a status line that says why nothing has
     /// happened yet. `nil` when it is not quiet at all.
-    public func quietFor(at now: Date) -> TimeInterval? {
+    public func quietDuration(at now: Date) -> TimeInterval? {
         quietSince.map { now.timeIntervalSince($0) }
     }
 }
