@@ -52,7 +52,7 @@ public struct LaunchAtLogin: Sendable {
     }
 
     public var isEnabled: Bool {
-        readStatus() == .enabled
+        status == .enabled
     }
 
     /// Asks macOS to start the app at login, and answers with what it will really do.

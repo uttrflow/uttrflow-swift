@@ -51,10 +51,9 @@ extension SettingsCapabilities {
     /// release apart — which is the difference that matters when somebody says an update
     /// did not take.
     private static var versionDescription: String? {
-        let info = Bundle.main.infoDictionary
-        guard let short = info?["CFBundleShortVersionString"] as? String else { return nil }
-        guard let build = info?["CFBundleVersion"] as? String, build != short else { return short }
-        return "\(short) (\(build))"
+        let version = AppVersion.ofThisBuild
+        guard version.isKnown else { return nil }
+        return version.build == version.short ? version.short : version.full
     }
 
     /// Which engines could transcribe right now.

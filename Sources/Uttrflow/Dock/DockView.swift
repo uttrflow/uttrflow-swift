@@ -210,17 +210,7 @@ struct DockView: View {
     /// need 286 points. The sentence survives in the accessibility label, which is read
     /// by exactly the people who cannot see the meter.
     private func listening() -> some View {
-        let weightLeads = model.anchor == .bottomLeft
-        return HStack(spacing: 9) {
-            if weightLeads { weight() }
-            LevelMeterView(model: model, towardsLeading: weightLeads)
-            if !weightLeads { weight() }
-        }
-        .padding(.leading, weightLeads ? 5 : 12)
-        .padding(.trailing, weightLeads ? 12 : 5)
-        .frame(height: DockMetrics.compactHeight)
-        .glass(cornerRadius: DockMetrics.compactHeight / 2)
-        .padding(DockMetrics.gripHitPadding)
+        compact { LevelMeterView(model: model, towardsLeading: $0) }
     }
 
     /// Working: the row the voice left behind, combing itself level and folding to a tick.
@@ -229,10 +219,17 @@ struct DockView: View {
     /// crossing a track on an infinite loop, which is the animation of a wait with no
     /// end — and this one is about a second and always ends.
     private func working() -> some View {
+        compact { SettleView(bars: model.bars.levels, towardsLeading: $0) }
+    }
+
+    /// The pill listening and working share: the mark on the anchored edge, `centre` beside it.
+    private func compact(
+        @ViewBuilder _ centre: (_ towardsLeading: Bool) -> some View
+    ) -> some View {
         let weightLeads = model.anchor == .bottomLeft
         return HStack(spacing: 9) {
             if weightLeads { weight() }
-            SettleView(bars: model.bars.levels, towardsLeading: weightLeads)
+            centre(weightLeads)
             if !weightLeads { weight() }
         }
         .padding(.leading, weightLeads ? 5 : 12)
@@ -711,41 +708,39 @@ extension View {
 extension Color {
     /// Fills that carry text. Capped at 29% lightness so white 13-point text clears
     /// 4.5:1 against it — the mark's own teal is lighter than that and never carries text.
-    static let dockAccent = Color(.sRGB, red: 0x12 / 255, green: 0x80 / 255, blue: 0x77 / 255)
+    static let dockAccent = Color(rgb: 0x12_8077)
     /// Controls and graphics with no text on them.
-    static let dockAccentLight = Color(
-        .sRGB, red: 0x39 / 255, green: 0xD0 / 255, blue: 0xC4 / 255)
-    static let dockAccentTint = Color(
-        .sRGB, red: 0x9E / 255, green: 0xDC / 255, blue: 0xD7 / 255)
-    static let dockAccentWash = Color(
-        .sRGB, red: 0xEF / 255, green: 0xF8 / 255, blue: 0xF7 / 255)
+    static let dockAccentLight = Color(rgb: 0x39_D0C4)
+    static let dockAccentTint = Color(rgb: 0x9E_DCD7)
+    static let dockAccentWash = Color(rgb: 0xEF_F8F7)
     /// Recording, and destructive. The floating button no longer lights it — the meter
     /// says it is listening better than a red dot beside a meter did — but the main
     /// window's critical tone and its destructive buttons are the same red, and this is
     /// still where the whole app's accent ramp is written down.
-    static let dockRecording = Color(
-        .sRGB, red: 0xFF / 255, green: 0x38 / 255, blue: 0x3C / 255)
+    static let dockRecording = Color(rgb: 0xFF_383C)
     /// The live one: what is selected, what is running, the weight the meter hangs off.
     ///
     /// Named "secondary" from when the brand was purple and this was the foil to it, but
     /// every one of its uses is a state rather than a counterpoint — so it is the mark's
     /// own teal, lightened until it holds on a dark desktop, and not a second hue. The
     /// identity has one accent, and this is it.
-    static let dockSecondary = Color(
-        .sRGB, red: 0x29 / 255, green: 0xC0 / 255, blue: 0xB4 / 255)
+    static let dockSecondary = Color(rgb: 0x29_C0B4)
     /// The mark drawn *inside* the weight, which is a teal disc — so it is the ink, not
     /// the accent. Fixed rather than `.primary`: the disc is the same teal in both
     /// appearances, so ink that followed the appearance would vanish in one of them.
-    static let dockWeightInk = Color(.sRGB, red: 0x04 / 255, green: 0x10 / 255, blue: 0x0F / 255)
-    static let dockSuccess = Color(.sRGB, red: 0x34 / 255, green: 0xC7 / 255, blue: 0x59 / 255)
-    static let dockWarning = Color(.sRGB, red: 0xFF / 255, green: 0x8D / 255, blue: 0x28 / 255)
+    static let dockWeightInk = Color(rgb: 0x04_100F)
+    static let dockSuccess = Color(rgb: 0x34_C759)
+    static let dockWarning = Color(rgb: 0xFF_8D28)
 
     /// The bars sit on frosted glass, which takes its lightness from the desktop
     /// behind it. The bright teal vanishes against a light one, so it deepens there.
-    static let dockWaveform = Color(
-        nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-                ? NSColor(srgbRed: 0x00 / 255, green: 0xC3 / 255, blue: 0xD0 / 255, alpha: 1)
-                : NSColor(srgbRed: 0x06 / 255, green: 0x7A / 255, blue: 0x87 / 255, alpha: 1)
-        })
+    static let dockWaveform = Color(nsColor: .orbit(dark: 0x00_C3D0, light: 0x06_7A87))
+}
+
+extension LinearGradient {
+    /// The accent as a filled control, deepened at the top so the fill reads as lit from above.
+    static var accentFill: LinearGradient {
+        LinearGradient(
+            colors: [Color(rgb: 0x17_968C), .dockAccent], startPoint: .top, endPoint: .bottom)
+    }
 }

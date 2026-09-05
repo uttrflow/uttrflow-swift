@@ -188,16 +188,6 @@ final class DockPanelController {
         model.shortcut = shortcut
     }
 
-    /// Where a dragged button lands. The point is in screen coordinates.
-    func snapToAnchor(nearest point: CGPoint) {
-        setAnchor(DockPlacement.nearestAnchor(to: point, in: visibleFrame))
-    }
-
-    /// Exposed so a probe or a test can read back what was actually configured.
-    var window: NSPanel { panel }
-
-    var currentAnchor: DockAnchor { anchor }
-
     // MARK: - Geometry
 
     /// The view measures itself and reports what it wants; the panel follows. Sizing

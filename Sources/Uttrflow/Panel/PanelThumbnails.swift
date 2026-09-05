@@ -88,9 +88,10 @@ final class PanelThumbnails {
             return remembered
         }
         let found = source.load(file, Self.maxPixel)
+        let bytes = Self.bytes(of: found)
         known[file] = found
-        cost[file] = Self.bytes(of: found)
-        held += cost[file] ?? 0
+        cost[file] = bytes
+        held += bytes
         touch(file)
         forgetTheLeastRecent()
         return found

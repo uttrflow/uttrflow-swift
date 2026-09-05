@@ -54,15 +54,7 @@ struct InsightsPageView: View {
                     HStack(spacing: 8) {
                         MainApplicationChip(application: place.application, showsName: true)
                             .frame(width: 92, alignment: .leading)
-                        GeometryReader { proxy in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.primary.opacity(0.1))
-                                Capsule()
-                                    .fill(Color.dockAccentLight)
-                                    .frame(width: proxy.size.width * place.share)
-                            }
-                        }
-                        .frame(height: 6)
+                        MainBar(fraction: place.share)
                         Text(place.words)
                             .font(.system(size: MainMetrics.footnoteSize))
                             .monospacedDigit()

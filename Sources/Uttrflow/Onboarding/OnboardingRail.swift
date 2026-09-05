@@ -110,7 +110,7 @@ struct OnboardingRail: View {
                         .font(.system(size: 9, weight: .bold))
                         // The rail's own deep end, so the tick reads as cut out of the
                         // ground rather than printed in a fourth colour.
-                        .foregroundStyle(Color(nsColor: NSColor(rgb: 0x06_3A35))))
+                        .foregroundStyle(Color(rgb: 0x06_3A35)))
         } else if index == position {
             Circle()
                 .strokeBorder(.white, lineWidth: 2)
@@ -145,9 +145,9 @@ struct RailGround: View {
     var body: some View {
         LinearGradient(
             colors: [
-                Color(nsColor: NSColor(rgb: 0x0E_4F49)),
-                Color(nsColor: NSColor(rgb: 0x09_3B37)),
-                Color(nsColor: NSColor(rgb: 0x06_2725)),
+                Color(rgb: 0x0E_4F49),
+                Color(rgb: 0x09_3B37),
+                Color(rgb: 0x06_2725),
             ],
             startPoint: .top, endPoint: .bottom
         )

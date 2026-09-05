@@ -266,12 +266,6 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
 
     var isVisible: Bool { panel.isVisible }
 
-    /// Exposed so a probe or a test can read back what was actually configured.
-    var window: NSPanel { panel }
-
-    /// The application that had the caret when the panel opened.
-    var applicationBehind: NSRunningApplication? { caretOwner }
-
     // MARK: - Drawing
 
     private func draw() {

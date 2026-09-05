@@ -240,13 +240,13 @@ struct AccountChip: View {
 extension Color {
     /// The stage's ground, and the well the microphone sits in. Fixed values rather than
     /// system ones: this panel is dark in both appearances by design.
-    static let stageGround = Color(.sRGB, red: 0x0B / 255, green: 0x0C / 255, blue: 0x10 / 255)
-    static let stagePanel = Color(.sRGB, red: 0x0E / 255, green: 0x10 / 255, blue: 0x16 / 255)
-    static let stageWell = Color(.sRGB, red: 0x12 / 255, green: 0x14 / 255, blue: 0x1C / 255)
+    static let stageGround = Color(rgb: 0x0B_0C10)
+    static let stagePanel = Color(rgb: 0x0E_1016)
+    static let stageWell = Color(rgb: 0x12_141C)
     /// The brand teal taken down until white sits legibly on it, for the one place a
     /// small patch of it carries text: the monogram. `dockSecondary` at `#29C0B4` is
     /// lovely on a control and hopeless behind two white letters.
-    static let stageTealDeep = Color(.sRGB, red: 0x0A / 255, green: 0x5F / 255, blue: 0x73 / 255)
+    static let stageTealDeep = Color(rgb: 0x0A_5F73)
 }
 
 /// One figure in the row under the stage.
@@ -309,10 +309,7 @@ struct ClipboardRail: View {
                         .font(.system(size: 9.5, weight: .medium))
                         .padding(.horizontal, 5)
                         .frame(minWidth: 17, minHeight: 17)
-                        .background(.primary.opacity(0.06), in: .rect(cornerRadius: 4))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
+                        .cardSurface(.primary.opacity(0.06), cornerRadius: 4)
                 }
             }
             VStack(spacing: 0) {
@@ -321,10 +318,7 @@ struct ClipboardRail: View {
                     if index < demonstration.rows.count - 1 { MainDivider() }
                 }
             }
-            .background(Color.mainCard, in: .rect(cornerRadius: MainMetrics.cardRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: MainMetrics.cardRadius)
-                    .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
+            .cardSurface()
             Text(demonstration.footnote)
                 .font(.system(size: MainMetrics.footnoteSize))
                 .foregroundStyle(Color.mainDim)

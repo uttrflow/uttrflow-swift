@@ -87,6 +87,15 @@ extension NSColor {
     }
 }
 
+extension Color {
+    /// `0x0B0C10` as a fixed sRGB colour, the same in both appearances.
+    init(rgb: UInt32) {
+        self.init(
+            .sRGB, red: Double((rgb >> 16) & 0xFF) / 255, green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255)
+    }
+}
+
 extension NSAppearance {
     /// Whether this appearance is one of the dark ones, including the accessibility
     /// variants — which `name == .darkAqua` alone would answer wrongly.

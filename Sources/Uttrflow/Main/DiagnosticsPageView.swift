@@ -21,13 +21,7 @@ struct DiagnosticsPageView: View {
                 MainSectionLabel(text: "Time from letting go of the key to text on screen")
                 headline(latency)
                 VStack(spacing: 0) {
-                    ForEach(Array(latency.stages.enumerated()), id: \.element.id) {
-                        index, stage in
-                        if index > 0 {
-                            MainDivider()
-                        }
-                        stageRow(stage)
-                    }
+                    MainDividedRows(rows: latency.stages) { stageRow($0) }
                     // Below the stages that were timed, and in the page's grey
                     // "not known" style rather than with a number: a stage nothing
                     // has run is a fact about the journey, not a fast one.
@@ -155,12 +149,7 @@ struct DiagnosticsPageView: View {
             VStack(alignment: .leading, spacing: 7) {
                 MainSectionLabel(text: title)
                 VStack(spacing: 0) {
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                        if index > 0 {
-                            MainDivider()
-                        }
-                        factRow(row)
-                    }
+                    MainDividedRows(rows: rows) { factRow($0) }
                 }
             }
         }
