@@ -20,6 +20,15 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **The tidier knows where the words are going.** The context read now takes the text
+  either side of the caret from the focused field, and the app is classified as a
+  document, spreadsheet, SQL editor, code editor, messaging app, email client or plain
+  text from one table of bundle identifiers and window titles. Two decisions follow
+  from that: dictation into the middle of a sentence starts lower-case ("…because " +
+  "the build failed"), and a message of one or two sentences in Slack, WhatsApp,
+  Telegram, Discord, Messages or Teams ends without a full stop, as does a spreadsheet
+  cell or a line in a code editor. Apps that do not report their field, Electron ones
+  among them, keep today's capital. `Docs/cleanup.md` has the rules.
 - **A dictation that fails can be retried from its audio.** Every recording is written to
   this Mac while the key is held, beside the buffer the recogniser reads, and deleted the
   moment the words land. When the words are lost — the recogniser fails, or the app dies

@@ -64,8 +64,8 @@ them. When the signal is missing or could be read two ways, the words stay.
 | Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ❌. Wispr Flow builds numbered lists from sequence words. Only when there are at least two items and each is a clause of its own |
 | Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ❌; the pieces cut while recording are joined with a space. A pause long enough to cut at is also a candidate for a paragraph |
 | Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ context rule; spelling only, never SQL from prose |
-| Trailing full stop dropped in chat apps | the destination is a messaging app and the text is one or two sentences | "on my way" stays "on my way" in WhatsApp | ❌; Wispr Flow does this per app category. A product decision, not a default |
-| Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ❌; Wispr Flow does. Needs the field's text before the caret, which the context engine can read |
+| Trailing full stop dropped in chat apps | the destination is a messaging app and the text is one or two sentences | "on my way" stays "on my way" in WhatsApp | ✅ `Formatter` for `.messaging`, `.offForShortMessages(2)`; a question or exclamation mark is always kept. Decided by the app's bundle identifier, so Electron apps count |
+| Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ✅ `InsertionPoint.sentenceState` from the field's text before the caret; "I", its contractions and acronyms keep their capital. Electron apps (Slack, Discord, VS Code) do not report their field, so there the state is `unknown` and the first word stays capital |
 
 ## Tier 3 — never
 
@@ -95,15 +95,39 @@ Two cases defeat every engine, Apple's included, and both are Tier 2: the spoken
 self-correction (`self-correction`: "at four no sorry at five") and the spoken version
 number (`version-number`: "sixteen point two"). Nothing in Tier 2's ❌ column has a corpus
 case yet — spoken punctuation, layout words, sequence lists, paragraph breaks,
-restatement corrections, mid-sentence casing, chat trailing periods — so the first step
-for each is a case, not a prompt line. `Docs/bakeoff.md` explains why: a prompt line
+restatement corrections — so the first step for each is a case, not a prompt line. `Docs/bakeoff.md` explains why: a prompt line
 that is not measured is a guess, and two of the last three guesses made the output
 worse.
+
+## Where the words are going
+
+Two of the Tier 2 cleanings depend on the place rather than the speech, and the design
+in `Docs/cleanup-design.md` gives that place a name. `Situation` is what the screen said
+when the key went down, read once per dictation within the context engine's 100 ms
+budget: the app, an `InsertionPoint` — up to 300 characters before the caret and 100
+after, from the focused field's value and selected range — and a `Destination`
+(`document`, `spreadsheet`, `sqlEditor`, `codeEditor`, `messaging`, `email`, `plain`).
+The destination is read off one table, `DestinationRules.standard`, by bundle
+identifier prefix or window title; no code branches on a bundle identifier anywhere
+else. `Formatter.registry` holds one value per destination and, so far, two decisions:
+how the first word is cased and whether the last sentence gets a full stop. Both
+transformers apply those two policies last, and the corpus cases that name a
+destination (`message-two-sentences-no-stop`, `mid-sentence-continues-lower-case`,
+`spreadsheet-cell-no-stop`, `document-sentence-with-stop`) are scored on the literal
+beginning and ending of the output, because the word scorer folds case and punctuation
+away.
+
+A field the app will not describe — every Electron app, in the probe — gives an
+`unknown` insertion point, which is treated as the start of a sentence: today's
+behaviour. The destination still comes through, because the bundle identifier costs no
+permission at all.
 
 ## How this maps onto the code
 
 - `TextTidy` and `RuleBasedTransformer` are the floor: Tier 1 only, deterministic, and
   what the user gets when the model declines or fails.
+- `SituationResolver` turns the context read into a `Situation`; `FirstWordRule` and
+  `TerminalStopRule` apply the `Formatter` policies in both transformers.
 - `CleanupPrompt` asks the model for Tier 1 and the parts of Tier 2 marked ✅, with the
   Tier 3 list as prohibitions. Additions go in as one rule and one worked example each,
   measured against the corpus before and after (`make bakeoff ARGS="--baselines-only"`),

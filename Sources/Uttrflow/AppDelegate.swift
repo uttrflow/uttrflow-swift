@@ -940,7 +940,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: Windows
 
     /// Opens whichever surface was asked for, so nothing else knows which class owns a window.
-    private func show(_ destination: Destination) {
+    private func show(_ destination: UttrflowUX.Destination) {
         switch destination {
         case .onboarding:
             // Not `presentOnboardingIfNeeded()`, which returns silently once the flow is finished.

@@ -58,9 +58,18 @@ extension MacContextEngine {
         // Read separately, so an app that names its window but hides its selection —
         // Chrome, in the probe — still yields the half it was willing to give.
         let title = element(app, kAXFocusedWindowAttribute).flatMap { string($0, kAXTitleAttribute) }
-        let selected = element(app, kAXFocusedUIElementAttribute)
-            .flatMap { string($0, kAXSelectedTextAttribute) }
-        return FocusedWindow(title: title, selectedText: selected)
+        let field = element(app, kAXFocusedUIElementAttribute)
+        let selected = field.flatMap { string($0, kAXSelectedTextAttribute) }
+        let caret = field.flatMap { field in
+            // A negative length, which an app may report for no selection, would trap as a range.
+            let selection = SurfaceProbe.selectedRange(field).map { range in
+                range.location..<(range.location + max(range.length, 0))
+            }
+            return CaretText.around(string(field, kAXValueAttribute), selection: selection)
+        }
+        return FocusedWindow(
+            title: title, selectedText: selected,
+            precedingText: caret?.preceding, followingText: caret?.following)
     }
 
     private static func element(_ owner: AXUIElement, _ attribute: String) -> AXUIElement? {
