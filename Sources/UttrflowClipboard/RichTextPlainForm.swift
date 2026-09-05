@@ -136,6 +136,12 @@ private struct HTMLTokenizer {
 
     private func tagShape(at start: Int) -> (name: String, isClosing: Bool)? {
         var i = start + 1
+        let shape = readTagName(from: &i)
+        return shape.name.isEmpty ? nil : shape
+    }
+
+    /// The optional `/` and the name after a `<`, lowercased, advancing `i` past both.
+    private func readTagName(from i: inout Int) -> (name: String, isClosing: Bool) {
         let isClosing = scalars[i] == "/"
         if isClosing { i += 1 }
         var name = String.UnicodeScalarView()
@@ -143,7 +149,7 @@ private struct HTMLTokenizer {
             name.append(scalars[i])
             i += 1
         }
-        return name.isEmpty ? nil : (String(name).lowercased(), isClosing)
+        return (String(name).lowercased(), isClosing)
     }
 
     // MARK: Text
@@ -192,13 +198,7 @@ private struct HTMLTokenizer {
         }
 
         var i = index + 1
-        let isClosing = scalars[i] == "/"
-        if isClosing { i += 1 }
-        var name = String.UnicodeScalarView()
-        while i < count, isNameScalar(scalars[i]) {
-            name.append(scalars[i])
-            i += 1
-        }
+        let (name, isClosing) = readTagName(from: &i)
 
         var attributes: [String: String] = [:]
         var closed = false
@@ -224,7 +224,7 @@ private struct HTMLTokenizer {
             return nil
         }
         index = i
-        return HTMLTag(name: String(name).lowercased(), isClosing: isClosing, attributes: attributes)
+        return HTMLTag(name: name, isClosing: isClosing, attributes: attributes)
     }
 
     /// One `name`, `name=value` or `name="value"` pair, advancing `i` past it.
@@ -272,54 +272,43 @@ private struct HTMLTokenizer {
 
     private mutating func skip(past terminator: String) {
         let target = Array(terminator.unicodeScalars)
-        var i = index + 1
-        while i + target.count <= count {
-            if matches(target, at: i) {
-                index = i + target.count
-                return
-            }
-            i += 1
-        }
-        index = count
+        index = position(of: target, from: index + 1).map { $0 + target.count } ?? count
     }
 
     /// Runs to the end tag of a raw-text element, or to the end of the input if the
     /// document never closes it — in which case there was nothing after it to lose.
     private mutating func skipToEndTag(of name: String) {
         let target = Array("</\(name)".unicodeScalars)
-        var i = index
+        index = position(of: target, from: index, ignoringCase: true) ?? count
+    }
+
+    /// Where `target` next begins at or after `start`, or `nil` when it never does.
+    private func position(of target: [Unicode.Scalar], from start: Int, ignoringCase: Bool = false) -> Int? {
+        var i = start
         while i + target.count <= count {
-            if matchesIgnoringCase(target, at: i) {
-                index = i
-                return
-            }
+            if matches(target, at: i, ignoringCase: ignoringCase) { return i }
             i += 1
         }
-        index = count
+        return nil
     }
 
     private func matches(_ literal: String, at i: Int) -> Bool {
         matches(Array(literal.unicodeScalars), at: i)
     }
 
-    private func matches(_ target: [Unicode.Scalar], at i: Int) -> Bool {
+    private func matches(_ target: [Unicode.Scalar], at i: Int, ignoringCase: Bool = false) -> Bool {
         guard i + target.count <= count else { return false }
-        for offset in 0..<target.count where scalars[i + offset] != target[offset] {
-            return false
-        }
-        return true
-    }
-
-    private func matchesIgnoringCase(_ target: [Unicode.Scalar], at i: Int) -> Bool {
-        guard i + target.count <= count else { return false }
-        for offset in 0..<target.count where !sameLetter(scalars[i + offset], target[offset]) {
-            return false
+        for offset in 0..<target.count {
+            let found = scalars[i + offset]
+            let wanted = target[offset]
+            if found == wanted { continue }
+            guard ignoringCase, sameLetter(found, wanted) else { return false }
         }
         return true
     }
 
     private func sameLetter(_ a: Unicode.Scalar, _ b: Unicode.Scalar) -> Bool {
-        a == b || (a.properties.isAlphabetic && String(a).lowercased() == String(b).lowercased())
+        a.properties.isAlphabetic && String(a).lowercased() == String(b).lowercased()
     }
 
     private func isSpace(_ scalar: Unicode.Scalar) -> Bool { scalar.properties.isWhitespace }
@@ -653,11 +642,11 @@ private struct PlainTextRenderer {
         case "input":
             if !tag.isClosing { applyCheckbox(tag) }
         case "pre":
-            verbatimDepth = tag.isClosing ? max(0, verbatimDepth - 1) : verbatimDepth + 1
+            stepVerbatim(tag)
             trimNewlineAfterPre = !tag.isClosing
             out.requestBreak(1)
         case "code", "kbd", "samp", "tt":
-            verbatimDepth = tag.isClosing ? max(0, verbatimDepth - 1) : verbatimDepth + 1
+            stepVerbatim(tag)
         case "td", "th":
             // Tables are out of scope, but cells running into each other would mash two
             // words into one. A space is the least this can do and still be honest.
@@ -679,6 +668,11 @@ private struct PlainTextRenderer {
                 out.requestBreak(1)
             }
         }
+    }
+
+    /// Enters or leaves a stretch whose whitespace is kept exactly as written.
+    private mutating func stepVerbatim(_ tag: HTMLTag) {
+        verbatimDepth = tag.isClosing ? max(0, verbatimDepth - 1) : verbatimDepth + 1
     }
 
     private func isHeading(_ name: String) -> Bool {
@@ -847,10 +841,7 @@ private struct CollapsedRun {
 
 extension String {
     fileprivate func trimmedEdges() -> String {
-        var scalars = unicodeScalars[...]
-        while let first = scalars.first, first.properties.isWhitespace { scalars.removeFirst() }
-        while let last = scalars.last, last.properties.isWhitespace { scalars.removeLast() }
-        return String(String.UnicodeScalarView(scalars))
+        String(trimmedTrailing().unicodeScalars.drop(while: \.properties.isWhitespace))
     }
 
     fileprivate func trimmingTrailingSpace() -> String {
@@ -862,7 +853,7 @@ extension String {
     fileprivate func trimmedTrailing() -> String {
         var scalars = unicodeScalars[...]
         while let last = scalars.last, last.properties.isWhitespace { scalars.removeLast() }
-        return String(String.UnicodeScalarView(scalars))
+        return String(scalars)
     }
 
     /// The scheme of an absolute url, or nothing for a relative one.

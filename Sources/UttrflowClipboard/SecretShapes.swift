@@ -173,8 +173,7 @@ public enum SecretShapes {
     /// one is long enough to be mistaken for a key. Anything that opens like a path is
     /// left to the general rules, which will call it text.
     private static func isPathLike(_ token: String) -> Bool {
-        token.hasPrefix("/") || token.hasPrefix("~/") || token.hasPrefix("./")
-            || token.hasPrefix("../") || token.contains("://")
+        PathShape.starts.contains(where: token.hasPrefix) || token.contains("://")
     }
 
     /// Shannon entropy of the token's own characters, in bits per character.
