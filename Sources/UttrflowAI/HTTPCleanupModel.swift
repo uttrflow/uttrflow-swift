@@ -1,5 +1,5 @@
-// A hosted cleanup model and its JSON bodies, compiled in only under UTTRFLOW_CLOUD.
 #if UTTRFLOW_CLOUD
+    // A hosted cleanup model and its JSON bodies, compiled in only under UTTRFLOW_CLOUD.
 
     public import Foundation
     public import UttrflowCore
