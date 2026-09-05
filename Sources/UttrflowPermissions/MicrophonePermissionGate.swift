@@ -27,10 +27,9 @@ public struct MicrophonePermissionGate: PermissionGate {
     }
 
     public func request() async -> PermissionStatus {
-        // macOS prompts once and never again. Asking a user who has already decided
-        // returns their decision immediately, so re-reading is the honest answer
-        // rather than pretending a prompt appeared.
-        guard readStatus() == .notDetermined else { return readStatus() }
+        // macOS prompts once only, so a user who has decided gets that decision back, not a prompt.
+        let current = readStatus()
+        guard current == .notDetermined else { return current }
         return await requestAccess() ? .granted : .denied
     }
 
