@@ -193,6 +193,13 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
         String(text.lowercased().map { $0.isWhitespace ? " " : $0 })
     }
 
+    /// The typed text with an answer that left out its echo joined on, or nothing when no boundary says how: a space on either side, or punctuation opening the answer, joins as written; letters against letters could be the rest of a word or a new one run together, and no reading is better than a wrong line.
+    static func joined(_ typed: String, with answer: String) -> String? {
+        guard let last = typed.last, let first = answer.first else { return nil }
+        guard last.isWhitespace || first.isWhitespace || first.isPunctuation else { return nil }
+        return typed + answer
+    }
+
     /// The text up to the last word cut by the budget, or nothing when the cut fell inside its only word.
     static func wholeWords(of text: String) -> String {
         guard let cut = text.lastIndex(where: \.isWhitespace) else { return "" }

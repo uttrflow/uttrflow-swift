@@ -136,4 +136,17 @@ struct CompletionParsingTests {
         #expect(MLXCandidateScorer.trimmed("git add", typed: "git ad", echoing: []) == "git add")
         #expect(MLXCandidateScorer.trimmed("yes!", typed: "yes", echoing: []) == "yes!")
     }
+
+    @Test(
+        "An answer without its echo joins the line only where a boundary says how, never letters against letters."
+    )
+    func anEchoLessAnswerJoinsOnlyAtABoundary() {
+        #expect(MLXCandidateScorer.joined("busy nahi ", with: "hoon bolo") == "busy nahi hoon bolo")
+        #expect(MLXCandidateScorer.joined("busy nahi", with: " hoon bolo") == "busy nahi hoon bolo")
+        #expect(MLXCandidateScorer.joined("see you at 8", with: ", then") == "see you at 8, then")
+        #expect(MLXCandidateScorer.joined("busy nahi", with: "hoon bolo") == nil)
+        #expect(MLXCandidateScorer.joined("git c", with: "ommit -m") == nil)
+        #expect(MLXCandidateScorer.joined("", with: "hoon") == nil)
+        #expect(MLXCandidateScorer.joined("busy", with: "") == nil)
+    }
 }

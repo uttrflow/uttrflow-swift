@@ -39,9 +39,11 @@ public actor AppleCandidateGenerator: PassShowing {
         var completions = MLXCandidateScorer.parse(answer, typed: typed).compactMap {
             MLXCandidateScorer.trimmed($0, typed: typed, echoing: context)
         }
-        // An answer that did not repeat the line is read as its continuation, the most generous reading a text-only model can be given.
-        if completions.isEmpty, !answer.lowercased().hasPrefix(typed.lowercased().prefix(2)) {
-            completions = MLXCandidateScorer.parse(typed + answer, typed: typed).compactMap {
+        // An answer that did not repeat the line is read as its continuation where a word boundary says how the two join, the most generous reading a text-only model can be given.
+        if completions.isEmpty, !answer.lowercased().hasPrefix(typed.lowercased().prefix(2)),
+            let joined = MLXCandidateScorer.joined(typed, with: answer)
+        {
+            completions = MLXCandidateScorer.parse(joined, typed: typed).compactMap {
                 MLXCandidateScorer.trimmed($0, typed: typed, echoing: context)
             }
         }
