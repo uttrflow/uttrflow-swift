@@ -45,17 +45,15 @@ public struct UserDefaultsProfileCache: ProfileCache {
     }
 
     public func load() -> Profile? {
-        guard let data = storage.data(forKey: key),
-            let profile = try? JSONDecoder().decode(Profile.self, from: data),
-            isBelievable(profile)
-        else { return nil }
+        guard let profile = storage.decoded(Profile.self, forKey: key), isBelievable(profile) else {
+            return nil
+        }
         return profile
     }
 
     public func save(_ profile: Profile) throws(AccountError) {
         guard isBelievable(profile) else { throw .sessionMalformed }
-        // Encoding strings, enumerations and dates cannot fail, so there is nothing to report.
-        storage.set(try? JSONEncoder().encode(profile), forKey: key)
+        storage.set(encoding: profile, forKey: key)
     }
 
     /// The signature is real and the document names its account. Not the plan — see `Docs/entitlements.md`.
@@ -65,6 +63,19 @@ public struct UserDefaultsProfileCache: ProfileCache {
 
     public func clear() {
         storage.set(nil, forKey: key)
+    }
+}
+
+extension SessionStorage {
+    /// The JSON document under `key` as a `Value`, or `nil` when there is none or it does not decode.
+    func decoded<Value: Decodable>(_ type: Value.Type, forKey key: String) -> Value? {
+        guard let data = data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    /// Stores `value` as one JSON document; strings, enumerations and dates cannot fail to encode.
+    func set(encoding value: some Encodable, forKey key: String) {
+        set(try? JSONEncoder().encode(value), forKey: key)
     }
 }
 

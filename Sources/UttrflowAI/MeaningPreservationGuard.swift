@@ -32,8 +32,8 @@ public struct MeaningPreservationGuard: Sendable {
     public init() {}
 
     public func verdict(original: String, rewritten: String) -> GuardVerdict {
-        let originalWords = Self.words(original)
-        let rewrittenWords = Self.words(rewritten)
+        let originalWords = TextTidy.words(original)
+        let rewrittenWords = TextTidy.words(rewritten)
 
         if !originalWords.isEmpty, rewrittenWords.isEmpty {
             return .rejected(reason: "the rewrite is empty")
@@ -58,10 +58,6 @@ public struct MeaningPreservationGuard: Sendable {
 
     // MARK: Checks
 
-    private static func words(_ text: String) -> [String] {
-        text.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
-    }
-
     /// A number in the rewrite that was not in what was said.
     ///
     /// Spelled-out numbers are normalised first, because turning "twenty" into "20" is
@@ -72,11 +68,7 @@ public struct MeaningPreservationGuard: Sendable {
     }
 
     private static func numbers(in text: String) -> Set<String> {
-        Set(
-            text.split(whereSeparator: { !$0.isNumber })
-                .map(String.init)
-                .filter { !$0.isEmpty }
-        )
+        Set(text.split(whereSeparator: { !$0.isNumber }).map(String.init))
     }
 
     /// Digits the speaker uttered as words. Covers what people dictate in practice —
@@ -124,6 +116,6 @@ public struct MeaningPreservationGuard: Sendable {
     ]
 
     private static func spelledNumbers(in text: String) -> Set<String> {
-        Set(words(text).compactMap { numberWords[$0] })
+        Set(TextTidy.words(text).compactMap { numberWords[$0] })
     }
 }

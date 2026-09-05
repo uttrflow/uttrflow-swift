@@ -37,7 +37,6 @@ struct WordErrorRateTests {
         #expect(rate.substitutions == 0)
         #expect(rate.insertions == 0)
         #expect(rate.referenceWordCount == 5)
-        #expect(rate.hypothesisWordCount == 4)
         #expect(rate.rate == 1.0 / 5.0)
         #expect(rate.alignment.contains(.deletion("brown")))
     }

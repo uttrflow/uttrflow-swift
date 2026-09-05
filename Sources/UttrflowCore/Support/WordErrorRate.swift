@@ -78,8 +78,6 @@ public struct WordErrorRate: Sendable, Equatable, Codable {
     /// The denominator: every word that was read aloud.
     public var referenceWordCount: Int { hits + substitutions + deletions }
 
-    public var hypothesisWordCount: Int { hits + substitutions + insertions }
-
     /// `nil` when nothing was read, because a rate with no denominator is not a rate.
     ///
     /// Reported as absent rather than as zero: an empty reference means the harness has

@@ -19,6 +19,13 @@ struct TextTidyTests {
         #expect(TextTidy.collapseWhitespace(input) == expected)
     }
 
+    @Test("text is read as lower-cased runs of letters and digits")
+    func words() {
+        #expect(TextTidy.words("PaymentSheet.swift") == ["paymentsheet", "swift"])
+        #expect(TextTidy.words("set-user-prefs!") == ["set", "user", "prefs"])
+        #expect(TextTidy.words("—:—").isEmpty)
+    }
+
     /// A recogniser's line breaks are an artefact of how it chunked the audio, so the
     /// transcript path is right to flatten them. A language model's are not: dictated
     /// code comes back as several lines and must stay that way.

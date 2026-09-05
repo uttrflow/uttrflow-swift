@@ -56,8 +56,9 @@ struct CorrectionEvidence: Sendable {
     /// those two sets are exact complements, a mis-heard word can never turn up as its own
     /// corroboration — the bug that would make this signal quietly circular.
     init(utterance: Utterance, seeing context: AppContext, certainAt threshold: Double) {
+        // Split by letters and digits, not by sound: `PaymentSheet.swift` must match the entry, not "payment sheet".
         onScreen = Haystack(
-            Self.tokens(
+            TextTidy.words(
                 [context.applicationName, context.documentName, context.selectedText]
                     .compactMap { $0 }
                     .joined(separator: " ")
@@ -65,7 +66,7 @@ struct CorrectionEvidence: Sendable {
         saidClearly = Haystack(
             utterance.words
                 .filter { $0.confidence >= threshold }
-                .flatMap { Self.tokens($0.text) })
+                .flatMap { TextTidy.words($0.text) })
     }
 
     /// The strongest reason to prefer `candidate` over `heard`, or `nil` when the evidence
@@ -80,8 +81,8 @@ struct CorrectionEvidence: Sendable {
     /// dozens of times inside a dictation, and re-splitting the same two short strings
     /// eight times over was most of what it cost.
     func decisiveReason(preferring candidate: String, over heard: String) -> CorrectionReason? {
-        let candidateWords = Self.tokens(candidate)
-        let heardWords = Self.tokens(heard)
+        let candidateWords = TextTidy.words(candidate)
+        let heardWords = TextTidy.words(heard)
         let forCandidate = reasons(supporting: candidateWords, ratherThan: heardWords)
         let forHeard = reasons(supporting: heardWords, ratherThan: candidateWords)
         let gained = forCandidate.filter { !forHeard.contains($0) }
@@ -112,17 +113,6 @@ struct CorrectionEvidence: Sendable {
 
     // MARK: Reading the text
 
-    /// Lower-cased runs of letters and digits.
-    ///
-    /// Splitting this way is what lets the on-screen signal tell the two readings apart: a
-    /// window titled `PaymentSheet.swift` offers the single token `paymentsheet`, which the
-    /// entry matches and the spoken "payment sheet" does not. Matching by *sound* here — as
-    /// the phonetic index rightly does elsewhere — would score both readings identically
-    /// and the signal would discriminate nothing at all.
-    static func tokens(_ text: String) -> [String] {
-        text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
-    }
-
     /// Whether the text is words rather than the letters a recogniser spells out when it
     /// has given up on a sound.
     ///
@@ -134,7 +124,7 @@ struct CorrectionEvidence: Sendable {
     /// The overload below is the same rule against text already split, which is how the
     /// hot path has it; this one is here so a caller with a sentence in hand can ask.
     static func readsAsWholeWords(_ text: String) -> Bool {
-        readsAsWholeWords(tokens(text))
+        readsAsWholeWords(TextTidy.words(text))
     }
 
     static func readsAsWholeWords(_ words: [String]) -> Bool {

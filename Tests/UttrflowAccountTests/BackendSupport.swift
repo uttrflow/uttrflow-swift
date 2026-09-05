@@ -9,7 +9,7 @@ import UttrflowCore
 /// The whole of ``HTTPAuthenticationService`` is four HTTP calls and the rules it keeps
 /// between them, so a transport that a test can script is the difference between testing
 /// those rules and testing a server.
-final class StubTransport: BackendTransport, @unchecked Sendable {
+final class StubTransport: BackendTransport {
     /// - Parameters:
     ///   - request: What was asked.
     ///   - attempt: How many requests have already been made, so a test can answer the
@@ -126,7 +126,7 @@ extension BackendRequest {
 /// Binding a port is the one part of sign-in a test cannot exercise, and it is deliberately
 /// the only part behind this protocol: everything a test wants to say about the flow — what
 /// went in the URL, what came back, what was refused — is on the other side of it.
-final class StubLoopbackListener: LoopbackListening, @unchecked Sendable {
+final class StubLoopbackListener: LoopbackListening {
     /// What the browser will bring back, or `nil` to never answer.
     private let callback: LoopbackCallback?
     private let bindFailure: AccountError?

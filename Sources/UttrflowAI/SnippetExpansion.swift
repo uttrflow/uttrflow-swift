@@ -50,10 +50,6 @@ public struct SnippetExpansion: Sendable, Equatable {
         SnippetExpansion(original: text, text: text, applied: [])
     }
 
-    /// Whether anything happened. Read by the interface to decide whether there is
-    /// anything to tell the user about at all.
-    public var didExpand: Bool { !applied.isEmpty }
-
     /// The snippets that fired, for the store to count. Duplicated per firing, because
     /// a snippet that expanded twice was used twice.
     public var usedSnippetIDs: [UUID] { applied.map(\.snippetID) }

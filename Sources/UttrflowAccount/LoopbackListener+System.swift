@@ -1,5 +1,6 @@
 public import Foundation
 import Network
+private import Synchronization
 public import UttrflowCore
 
 /// The real loopback listener: one port, one browser redirect, then closed.
@@ -21,11 +22,13 @@ public actor SystemLoopbackListener: LoopbackListening {
     /// request to `/` distinguishable from the callback in a log.
     public static let callbackPath = "/callback"
 
+    /// The refusal for a wait that ended with no browser having arrived.
+    private static let noAnswer = AccountError.providerRefused(description: "that sign-in did not come back")
+
     private var listener: NWListener?
     private var connections: [NWConnection] = []
     private var waiting: CheckedContinuation<LoopbackCallback, any Error>?
     private var received: LoopbackCallback?
-    private var failure: (any Error)?
 
     public init() {}
 
@@ -74,14 +77,13 @@ public actor SystemLoopbackListener: LoopbackListening {
 
     public func awaitCallback() async throws(AccountError) -> LoopbackCallback {
         if let received { return received }
-        if failure != nil { throw .providerRefused(description: "that sign-in did not come back") }
 
         do {
             return try await withCheckedThrowingContinuation { continuation in
                 waiting = continuation
             }
         } catch {
-            throw .providerRefused(description: "that sign-in did not come back")
+            throw Self.noAnswer
         }
     }
 
@@ -179,15 +181,13 @@ public actor SystemLoopbackListener: LoopbackListening {
 /// `NWListener`'s state handler is called for every transition, and both `.ready` and
 /// `.failed` can arrive for one listener. Resuming a continuation twice is a crash, not an
 /// error, so the guard is a class the closures share rather than a captured `var`.
-private final class Resumed: @unchecked Sendable {
-    private let lock = NSLock()
-    private var used = false
+private final class Resumed: Sendable {
+    private let used = Mutex(false)
 
     func claim() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        if used { return false }
-        used = true
-        return true
+        used.withLock { used in
+            defer { used = true }
+            return !used
+        }
     }
 }

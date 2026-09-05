@@ -449,25 +449,15 @@ struct HTTPAuthenticationServiceTests {
 
 // MARK: - The device grant, for a Mac with nowhere to be redirected to
 
-/// How long the client was asked to wait between polls.
-///
-/// A class rather than a `Mutex`, because a mutex is noncopyable and this is handed to a
-/// closure and then read back — which is exactly the shape a mutex cannot take.
-private final class Waits: @unchecked Sendable {
-    private let lock = NSLock()
-    private var durations: [Duration] = []
+/// How long the client was asked to wait between polls, shared by reference with the sleep closure.
+private final class Waits: Sendable {
+    private let durations = Mutex<[Duration]>([])
 
     func record(_ duration: Duration) {
-        lock.lock()
-        defer { lock.unlock() }
-        durations.append(duration)
+        durations.withLock { $0.append(duration) }
     }
 
-    var all: [Duration] {
-        lock.lock()
-        defer { lock.unlock() }
-        return durations
-    }
+    var all: [Duration] { durations.withLock { $0 } }
 }
 
 @Suite("Signing in by code")

@@ -6,7 +6,7 @@ import UttrflowCore
 @testable import UttrflowAccount
 
 /// A backend that answers with whatever the test put in it.
-private final class ScriptedService: AuthenticationService, @unchecked Sendable {
+private final class ScriptedService: AuthenticationService {
     private let answer: Result<ProfileRefresh, AccountError>
     private let asked = Mutex<[Profile?]>([])
 

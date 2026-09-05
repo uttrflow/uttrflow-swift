@@ -54,7 +54,6 @@ public final class InMemoryAuthenticationService: AuthenticationService {
     /// nothing it does is slow enough to be worth a suspension.
     private struct Progress: Sendable {
         var pendingState: String?
-        var nextFailure: AccountError?
         /// The profile this service has handed out, so that re-reading it answers the
         /// same thing twice — which is what makes it a source of truth rather than a
         /// generator of plausible values.
@@ -98,16 +97,7 @@ public final class InMemoryAuthenticationService: AuthenticationService {
         Ed25519EntitlementVerifier(publicKey: signingKey.publicKey)
     }
 
-    /// Makes the next call fail, once.
-    ///
-    /// Sign-in failures are the ones nobody sees until a user does, because they need a
-    /// server to misbehave. This is how the interface for all three gets looked at.
-    public func failNextCall(with failure: AccountError) {
-        progress.withLock { $0.nextFailure = failure }
-    }
-
     public func beginSignIn(with provider: SignInProvider) async throws(AccountError) -> SignInChallenge {
-        try consumeScriptedFailure()
         let state = UUID().uuidString
         progress.withLock { $0.pendingState = state }
         return SignInChallenge(
@@ -118,12 +108,7 @@ public final class InMemoryAuthenticationService: AuthenticationService {
     /// challenge it had not issued would be rehearsing a flow the release build does not
     /// have.
     public func completeSignIn(_ challenge: SignInChallenge) async throws(AccountError) -> Profile {
-        try consumeScriptedFailure()
-        let expected = progress.withLock { progress -> String? in
-            defer { progress.pendingState = nil }
-            return progress.pendingState
-        }
-        guard let expected, expected == challenge.state else {
+        guard let expected = progress.take(\.pendingState), expected == challenge.state else {
             throw .providerRefused(description: "that sign-in does not answer this attempt")
         }
         let profile = mint(
@@ -142,7 +127,6 @@ public final class InMemoryAuthenticationService: AuthenticationService {
     public func avatar(at path: String) async -> Data? { nil }
 
     public func currentProfile(ifChangedFrom cached: Profile?) async throws(AccountError) -> ProfileRefresh {
-        try consumeScriptedFailure()
         // Nothing minted here yet, which for a service that forgets everything when the
         // process ends is every launch after the first. That is "no credential on this
         // Mac", not "the server ended your session", and a development build must not
@@ -158,16 +142,6 @@ public final class InMemoryAuthenticationService: AuthenticationService {
 
     public func signOut() async {
         progress.withLock { $0.issued = nil }
-    }
-
-    /// Takes the scripted failure if one is set, leaving nothing behind: a failure asked
-    /// for once must not become a service that never works again.
-    private func consumeScriptedFailure() throws(AccountError) {
-        let failure = progress.withLock { progress -> AccountError? in
-            defer { progress.nextFailure = nil }
-            return progress.nextFailure
-        }
-        if let failure { throw failure }
     }
 
     /// A whole profile, signed where the real one is signed and invented where the real
@@ -206,11 +180,8 @@ public final class InMemoryAuthenticationService: AuthenticationService {
             URLQueryItem(name: "provider", value: provider.rawValue),
             URLQueryItem(name: "state", value: state),
         ]
-        // The bare endpoint stands in if two query items somehow cannot be attached to
-        // it. They always can, and it is still a URL the app can open if they cannot.
-        var authorisation = endpoint
-        if let built = components?.url { authorisation = built }
-        return authorisation
+        // The bare endpoint stands in if two query items somehow cannot be attached to it.
+        return components?.url ?? endpoint
     }
 }
 
