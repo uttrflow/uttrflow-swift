@@ -12,7 +12,7 @@ import Testing
 /// share is bounded, stated in one place, and cannot quietly become the reason a Mac
 /// slows down.
 @Suite("What the clipboard may cost")
-struct ClipboardCostTests {
+struct ClipboardBudgetTests {
     private func clip(
         _ text: String, origin: ClipOrigin = .copied, usedAt: TimeInterval = 0,
         pinned: Bool = false, alias: String? = nil

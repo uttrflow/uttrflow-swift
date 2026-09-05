@@ -102,7 +102,7 @@ struct DiagnosticsPageView: View {
         case .capture: .dockAccentTint
         case .transcription: .dockAccentLight
         case .correction: .dockAccent
-        case .transformation: .dockSecondary
+        case .transformation: .dockActive
         case .expansion: .dockAccentWash
         case .insertion: .dockSuccess
         }

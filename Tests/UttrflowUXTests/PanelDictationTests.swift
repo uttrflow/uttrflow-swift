@@ -8,7 +8,7 @@ import Testing
 /// action re-sent the search it already had, under the label "Dictate a search". These
 /// exist so that whatever it says about itself is true.
 @Suite("I1, I6, I7 · the panel's microphone")
-struct PanelMicrophoneTests {
+struct PanelDictationTests {
     static func mic(_ state: PanelDictation) -> PanelMicrophone {
         var snapshot = PanelFixture.panel()
         snapshot.dictation = state

@@ -89,7 +89,7 @@ public struct DictationOutcome: Sendable, Equatable {
     /// happened at all.
     public let changes: AppliedChanges
     /// Whether this came from a kept recording rather than the microphone, so it was copied, not typed.
-    public let fromRecording: Bool
+    public let isFromRecording: Bool
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
@@ -103,7 +103,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.insertedIntoIdentifier = insertedIntoIdentifier
         self.spokenFor = spokenFor
         self.changes = changes
-        self.fromRecording = fromRecording
+        self.isFromRecording = fromRecording
     }
 }
 

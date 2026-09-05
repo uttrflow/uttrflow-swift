@@ -167,14 +167,14 @@ struct SidebarView: View {
     }
 
     private func tint(_ item: SidebarItem) -> Color {
-        item.isSelected ? Color.dockSecondary : Color.railIcon
+        item.isSelected ? Color.dockActive : Color.railIcon
     }
 
     /// The count, as a dot rather than a number, for the width that has no room for one.
     @ViewBuilder private func dot(_ item: SidebarItem) -> some View {
         if item.badge != nil {
             Circle()
-                .fill(Color.dockSecondary)
+                .fill(Color.dockActive)
                 .frame(width: 6, height: 6)
                 .padding(.top, 5)
                 .padding(.trailing, 6)

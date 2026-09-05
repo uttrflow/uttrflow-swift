@@ -48,7 +48,7 @@ struct OrbitStage: View {
             RadialGradient(
                 colors: [
                     Color.dockAccent.opacity(presentation.status.isReady ? 0.26 : 0.10),
-                    Color.dockSecondary.opacity(presentation.status.isReady ? 0.10 : 0.04),
+                    Color.dockActive.opacity(presentation.status.isReady ? 0.10 : 0.04),
                     .clear,
                 ],
                 center: UnitPoint(x: 0.5, y: 0.30), startRadius: 0, endRadius: 330)
@@ -64,7 +64,7 @@ struct OrbitStage: View {
     private var instrument: some View {
         ZStack {
             ring(.quiet, colour: .white.opacity(presentation.status.isReady ? 0.16 : 0.10))
-            ring(.primary, colour: .dockSecondary.opacity(presentation.status.isReady ? 0.95 : 0.30))
+            ring(.primary, colour: .dockActive.opacity(presentation.status.isReady ? 0.95 : 0.30))
             ring(.secondary, colour: .dockAccent.opacity(presentation.status.isReady ? 0.95 : 0.30))
             microphone
         }
@@ -87,7 +87,7 @@ struct OrbitStage: View {
                 Image(systemName: "mic")
                     .font(.system(size: 30, weight: .light))
                     .foregroundStyle(
-                        presentation.status.isReady ? Color.dockSecondary : .white.opacity(0.35))
+                        presentation.status.isReady ? Color.dockActive : .white.opacity(0.35))
             }
             .frame(width: 112, height: 112)
     }
@@ -244,7 +244,7 @@ extension Color {
     static let stagePanel = Color(rgb: 0x0E_1016)
     static let stageWell = Color(rgb: 0x12_141C)
     /// The brand teal taken down until white sits legibly on it, for the one place a
-    /// small patch of it carries text: the monogram. `dockSecondary` at `#29C0B4` is
+    /// small patch of it carries text: the monogram. `dockActive` at `#29C0B4` is
     /// lovely on a control and hopeless behind two white letters.
     static let stageTealDeep = Color(rgb: 0x0A_5F73)
 }
@@ -314,7 +314,7 @@ struct ClipboardRail: View {
             }
             VStack(spacing: 0) {
                 ForEach(Array(demonstration.rows.enumerated()), id: \.element.id) { index, row in
-                    line(row, isChosen: index == demonstration.chosen)
+                    demonstrationRow(row, isChosen: index == demonstration.chosen)
                     if index < demonstration.rows.count - 1 { MainDivider() }
                 }
             }
@@ -328,11 +328,11 @@ struct ClipboardRail: View {
         .accessibilityLabel(demonstration.title)
     }
 
-    private func line(_ row: HomeDemonstrationRow, isChosen: Bool) -> some View {
+    private func demonstrationRow(_ row: HomeDemonstrationRow, isChosen: Bool) -> some View {
         HStack(spacing: 8) {
             Image(systemName: row.symbolName)
                 .font(.system(size: 11))
-                .foregroundStyle(row.isMasked ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.dockSecondary))
+                .foregroundStyle(row.isMasked ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.dockActive))
                 .frame(width: 14)
             Text(row.text)
                 .font(.system(size: MainMetrics.calloutSize))
@@ -349,7 +349,7 @@ struct ClipboardRail: View {
             } else if isChosen {
                 Text("⏎")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color.dockSecondary)
+                    .foregroundStyle(Color.dockActive)
             }
         }
         .padding(.horizontal, 10)

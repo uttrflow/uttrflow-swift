@@ -18,7 +18,7 @@ struct DeviceIdentityTests {
     func describesItself() {
         let registration = identity(storage: MemoryStorage()).registration()
 
-        #expect(registration.installId == "install-0123456789")
+        #expect(registration.installID == "install-0123456789")
         #expect(registration.platform == "macos")
         #expect(registration.name == "Naveen's MacBook Pro")
         #expect(registration.appVersion == "0.1.0")
@@ -30,8 +30,8 @@ struct DeviceIdentityTests {
     @Test("mints its identifier once and keeps it")
     func identifierIsStable() {
         let storage = MemoryStorage()
-        let first = identity(storage: storage, minting: "first").registration().installId
-        let second = identity(storage: storage, minting: "second").registration().installId
+        let first = identity(storage: storage, minting: "first").registration().installID
+        let second = identity(storage: storage, minting: "second").registration().installID
 
         #expect(first == "first")
         #expect(second == "first", "a second reading minted a new identifier")
@@ -51,7 +51,7 @@ struct DeviceIdentityTests {
     func unreadableIdentifiersAreReplaced() {
         for stored in [Data(), Data([0xFF, 0xFE, 0x00])] {
             let storage = MemoryStorage([MacDeviceIdentity.defaultKey: stored])
-            #expect(identity(storage: storage, minting: "fresh").registration().installId == "fresh")
+            #expect(identity(storage: storage, minting: "fresh").registration().installID == "fresh")
         }
     }
 
@@ -67,7 +67,7 @@ struct DeviceIdentityTests {
     func defaultIdentifiersAreIdentifierShaped() {
         let minted = MacDeviceIdentity(
             storage: MemoryStorage(), name: { "Mac" }, appVersion: nil
-        ).registration().installId
+        ).registration().installID
 
         #expect(minted.count >= 8)
         #expect(minted.range(of: "^[A-Za-z0-9][A-Za-z0-9_.:@=+/-]*$", options: .regularExpression) != nil)

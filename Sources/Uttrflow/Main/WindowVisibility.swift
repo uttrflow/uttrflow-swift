@@ -51,7 +51,7 @@ private final class VisibilityReportingView: NSView {
     var onChange: ((Bool) -> Void)?
     /// The last answer given, so an occlusion change that does not change the answer —
     /// and macOS sends several — does not restart an animation that is already running.
-    private var reported: Bool?
+    private var lastReported: Bool?
 
     /// Subscribed here rather than at construction because a view has no window until it
     /// is placed in one, and the first answer has to be given once there is something to
@@ -91,8 +91,8 @@ private final class VisibilityReportingView: NSView {
     }
 
     private func report(_ isVisible: Bool) {
-        guard reported != isVisible else { return }
-        reported = isVisible
+        guard lastReported != isVisible else { return }
+        lastReported = isVisible
         onChange?(isVisible)
     }
 

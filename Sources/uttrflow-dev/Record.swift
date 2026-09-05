@@ -45,7 +45,7 @@ struct Record: AsyncParsableCommand {
 
         let duration = audio.duration.inSeconds
         print("Captured \(audio.samples.count) samples — \(format(duration))s at \(audio.sampleRate) Hz")
-        print("Loudest sample  \(String(format: "%.3f", engineLevel(audio)))")
+        print("Loudest sample  \(String(format: "%.3f", loudestSample(in: audio)))")
         print("Written to      \(url.path)")
         if duration < seconds * 0.9 {
             print("\nNote: that is shorter than requested — the input may have dropped out.")
@@ -55,7 +55,7 @@ struct Record: AsyncParsableCommand {
         }
     }
 
-    private func engineLevel(_ audio: AudioSamples) -> Float {
+    private func loudestSample(in audio: AudioSamples) -> Float {
         audio.samples.reduce(0) { Swift.max($0, Swift.abs($1)) }
     }
 

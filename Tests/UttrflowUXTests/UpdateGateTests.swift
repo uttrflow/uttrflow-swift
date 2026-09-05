@@ -20,7 +20,7 @@ struct UpdateGateTests {
     func nothingKnownMeansNo() {
         let gate = UpdateGate()
         #expect(!gate.mayInstall(at: start))
-        #expect(gate.quietFor(at: start) == nil)
+        #expect(gate.quietDuration(at: start) == nil)
     }
 
     @Test("not while the app is doing any of the four things")
@@ -84,10 +84,10 @@ struct UpdateGateTests {
     func reportsHowLongItHasBeenQuiet() {
         var gate = UpdateGate()
         gate.note(UpdateActivity(), at: start)
-        #expect(gate.quietFor(at: later(30)) == 30)
+        #expect(gate.quietDuration(at: later(30)) == 30)
 
         gate.note(UpdateActivity(isPanelOpen: true), at: later(31))
-        #expect(gate.quietFor(at: later(32)) == nil)
+        #expect(gate.quietDuration(at: later(32)) == nil)
     }
 
     @Test("an activity is quiet only when every one of the four is false")

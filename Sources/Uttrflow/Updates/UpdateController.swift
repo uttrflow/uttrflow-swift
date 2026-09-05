@@ -173,11 +173,11 @@ final class UpdateController: NSObject {
     /// a new minute and schedule a new one.
     private func scheduleWakeUp(at now: Date) {
         wakeUp?.cancel()
-        guard let quietFor = gate.quietFor(at: now) else {
+        guard let quietDuration = gate.quietDuration(at: now) else {
             wakeUp = nil
             return
         }
-        let remaining = UpdateGate.settleSeconds - quietFor
+        let remaining = UpdateGate.settleSeconds - quietDuration
         guard remaining > 0 else { return }
         wakeUp = Task { [weak self] in
             try? await Task.sleep(for: .seconds(remaining))

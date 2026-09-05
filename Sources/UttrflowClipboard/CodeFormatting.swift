@@ -59,8 +59,11 @@ public enum KnownFormatter: String, Sendable, CaseIterable {
     }
 
     /// The first formatter trusted with this language.
-    public static func forLanguage(_ language: CodeLanguage) -> KnownFormatter? {
-        allCases.first { $0.languages.contains(language) }
+    public init?(for language: CodeLanguage) {
+        guard let trusted = Self.allCases.first(where: { $0.languages.contains(language) }) else {
+            return nil
+        }
+        self = trusted
     }
 
     /// How long a formatter may take before it is given up on.

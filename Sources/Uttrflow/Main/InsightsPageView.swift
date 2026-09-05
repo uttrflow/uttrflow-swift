@@ -139,7 +139,7 @@ struct InsightsBars: View {
     private var dashes: some View {
         // A dashed line, so it reads as a reference rather than as one more bar laid on
         // its side.
-        Line()
+        HorizontalRule()
             .stroke(style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             .foregroundStyle(.black)
     }
@@ -151,7 +151,7 @@ struct InsightsBars: View {
 }
 
 /// A horizontal rule, as a shape, so it can be dashed.
-struct Line: Shape {
+struct HorizontalRule: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.midY))

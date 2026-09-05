@@ -94,7 +94,7 @@ struct HomePageView: View {
     /// Bright teal, plain, deep teal, plain — the rhythm the row is drawn with.
     private static func tint(at index: Int) -> Color? {
         switch index % 4 {
-        case 0: .dockSecondary
+        case 0: .dockActive
         case 2: .dockAccent
         default: nil
         }

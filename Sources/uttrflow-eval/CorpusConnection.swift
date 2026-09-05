@@ -11,7 +11,7 @@ internal import UttrflowEval
 /// coverage floor, so it has to be small enough that reading it is a sufficient review —
 /// which is why every decision worth making, from the URL to the meaning of a 404, is
 /// made in `UttrflowEval` and none of them is made here.
-struct URLSessionTransport: HTTPTransport {
+struct URLSessionHTTPTransport: HTTPTransport {
     private let session: URLSession
 
     /// A configuration of its own rather than `.shared`: the corpus is a thousand
@@ -76,7 +76,7 @@ struct CorpusConnection: ParsableArguments {
             throw CleanExit.message(
                 "Pass --backend with the corpus service's base URL, e.g. --backend http://127.0.0.1:8787")
         }
-        return BackendCorpusClient(baseURL: url, operatorToken: token, transport: URLSessionTransport())
+        return BackendCorpusClient(baseURL: url, operatorToken: token, transport: URLSessionHTTPTransport())
     }
 
     func library() throws -> CorpusLibrary {

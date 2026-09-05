@@ -250,7 +250,7 @@ struct DictationPipelineEarlyWorkTests {
 
         let state = await pipeline.currentState
         #expect(state.outcome?.text == "W1 X W2 X W3 X")
-        #expect(state.outcome?.fromRecording == true)
+        #expect(state.outcome?.isFromRecording == true)
         #expect(await speech.calls == 3)
     }
 
