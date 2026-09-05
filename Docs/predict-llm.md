@@ -46,10 +46,14 @@ Apple Intelligence on.
 |---|---|---|---|---|---|---|
 | Gemma 3 4B (4-bit, MLX), run 4 | 1 009 / 1 090 (93 %) | 98 % | 752 ms | 883 ms | 2 | 0 |
 | Apple on-device, strict | 453 / 1 100 (41 %) | 44 % | 472 ms | 813 ms | 546 | 65 |
-| Apple on-device, most generous reading | 701 / 1 100 (63 %) | — | 468 ms | — | — | 65 |
+| Apple on-device, most generous reading | 579 / 1 100 (53 %) | — | 471 ms | — | 419 | 65 |
 
 The generous reading treats an answer that did not repeat the line as its continuation, which a
-text-only model cannot be held to any other way. Apple's misses, read raw: 137 echo the line and
+text-only model cannot be held to any other way — but only where a word boundary says how the two
+join: a space on either side, or punctuation opening the answer. Letters against letters are not
+joined, since "busy nahi" and "hoon bolo" would read as one word, and an earlier reading that
+glued them counted such lines as hits (63 %). The Apple rows cover 1 100 cases because the ten
+`robust/chat-labels` cases were added the same morning; Gemma's run 4 predates them. Apple's misses, read raw: 137 echo the line and
 stop (`git c` → `git c`), 350 answer something unrelated or drop the echo (`SELECT * FROM u` →
 `LIMIT 10;`), 34 fail to fill the structured answer, and 31 are guardrail refusals on ordinary
 chat text. By category, strict: chat 51 %, terminal 50 %, url 45 %, mail 37 %, notes 26 %,
