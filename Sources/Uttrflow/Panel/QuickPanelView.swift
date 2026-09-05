@@ -375,12 +375,8 @@ struct QuickPanelView: View {
             // the least it can, so a row already on screen never jumps.
             .onChange(of: presentation.selectedRow?.id) { _, _ in
                 guard let selection = selectedKey else { return }
-                if reduceMotion {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
                     proxy.scrollTo(selection, anchor: nil)
-                } else {
-                    withAnimation(.easeOut(duration: 0.12)) {
-                        proxy.scrollTo(selection, anchor: nil)
-                    }
                 }
             }
         }
@@ -474,7 +470,7 @@ struct QuickPanelView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .background(Color.panelKey.opacity(0.10))
-        .overlay(alignment: .top) { Rectangle().fill(Color.panelLine).frame(height: 1) }
+        .overlay(alignment: .top) { hairline }
     }
 
     private func groupHeading(_ title: String) -> some View {
@@ -811,7 +807,7 @@ struct QuickPanelView: View {
             .padding(.horizontal, 12)
             .padding(.top, 9)
             .padding(.bottom, 8)
-            .overlay(alignment: .bottom) { Rectangle().fill(Color.panelLine).frame(height: 1) }
+            .overlay(alignment: .bottom) { hairline }
 
             ForEach(row.actions) { action in
                 menuItem(action)
@@ -867,7 +863,7 @@ struct QuickPanelView: View {
         }
         .buttonStyle(.plain)
         .overlay(alignment: .top) {
-            if isDestructive { Rectangle().fill(Color.panelLine).frame(height: 1) }
+            if isDestructive { hairline }
         }
         .background(
             PointerWatch { isInside in
@@ -890,7 +886,7 @@ struct QuickPanelView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 14)
             .frame(height: 28)
-            .overlay(alignment: .top) { Rectangle().fill(Color.panelLine).frame(height: 1) }
+            .overlay(alignment: .top) { hairline }
     }
 
     /// The bottom bar. Every button in it does something.
@@ -926,7 +922,7 @@ struct QuickPanelView: View {
                 .accessibilityAddTraits(tab.isActive ? [.isButton, .isSelected] : .isButton)
             }
         }
-        .overlay(alignment: .top) { Rectangle().fill(Color.panelLine).frame(height: 1) }
+        .overlay(alignment: .top) { hairline }
     }
 
     /// A tab's glyph, which is a symbol for three of them and the mark itself for
@@ -1153,6 +1149,11 @@ struct QuickPanelView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    /// The rule between the panel's bands.
+    private var hairline: some View {
+        Rectangle().fill(Color.panelLine).frame(height: 1)
+    }
+
     // MARK: - Keys
 
     private func send(_ key: PanelKey) -> KeyPress.Result {
@@ -1178,18 +1179,6 @@ struct QuickPanelView: View {
             return .handled
         }
         return commandDigit(press)
-    }
-
-    /// ⌘Z, which puts back the clip the last delete removed.
-    ///
-    /// An intent rather than a key: the panel holds no deleted clip and cannot answer
-    /// this. Only the app still has it.
-    private func commandZ(_ press: KeyPress) -> KeyPress.Result {
-        guard press.modifiers.contains(.command), press.characters == "z" else {
-            return .ignored
-        }
-        onIntent(.undoDelete)
-        return .handled
     }
 
     /// ⌘1–⌘9, which pick a collection. Anything else is left alone so that it still
@@ -1373,16 +1362,16 @@ extension Color {
     /// The window's own greys, so the panel sits on the same black as the app it belongs
     /// to. Every value here is the one the artboards are drawn on; the two greys below
     /// still carry the contrast ratio they were checked at.
-    static let panelSurface = Color(.sRGB, red: 0x0B / 255, green: 0x0C / 255, blue: 0x10 / 255)
-    static let panelCard = Color(.sRGB, red: 0x0E / 255, green: 0x10 / 255, blue: 0x16 / 255)
-    static let panelCardHigh = Color(.sRGB, red: 0x12 / 255, green: 0x15 / 255, blue: 0x1C / 255)
-    static let panelLine = Color(.sRGB, red: 0x1E / 255, green: 0x21 / 255, blue: 0x2A / 255)
-    static let panelLabel = Color(.sRGB, red: 0xF4 / 255, green: 0xF4 / 255, blue: 0xF6 / 255)
+    static let panelSurface = Color(rgb: 0x0B_0C10)
+    static let panelCard = Color(rgb: 0x0E_1016)
+    static let panelCardHigh = Color(rgb: 0x12_151C)
+    static let panelLine = Color(rgb: 0x1E_212A)
+    static let panelLabel = Color(rgb: 0xF4_F4F6)
     /// 7.4:1 on the panel.
-    static let panelLabelSoft = Color(.sRGB, red: 0x8B / 255, green: 0x90 / 255, blue: 0xA0 / 255)
+    static let panelLabelSoft = Color(rgb: 0x8B_90A0)
     /// The dimmest grey in the design: times, shortcuts, and anything the eye should
     /// reach only when it goes looking.
-    static let panelLabelDim = Color(.sRGB, red: 0x56 / 255, green: 0x5B / 255, blue: 0x68 / 255)
+    static let panelLabelDim = Color(rgb: 0x56_5B68)
     /// Where you are: the focused field, the chosen row, the filter that is on, the tab
     /// you are looking at. The mark's own teal, which the window uses for anything live.
     /// Below the dimmest grey in the design, for two marks that should be found rather
@@ -1391,8 +1380,8 @@ extension Color {
     /// It sits under the contrast the rest of the panel holds to, and that is defensible
     /// only because neither mark is ever the only signal — the words are the row, and both
     /// of these lift to an ordinary grey on the row being looked at.
-    static let panelGhost = Color(.sRGB, red: 0x3A / 255, green: 0x3F / 255, blue: 0x4A / 255)
-    static let panelAccent = Color(.sRGB, red: 0x29 / 255, green: 0xC0 / 255, blue: 0xB4 / 255)
+    static let panelGhost = Color(rgb: 0x3A_3F4A)
+    static let panelAccent = Color(rgb: 0x29_C0B4)
     /// The accent when it is a foreground rather than a fill: an inline action, a pin, an
     /// added word, the mark. 12.2:1 on the panel, where `panelAccent` is mixed to sit
     /// *under* white text and so reads dull as a foreground.
@@ -1401,12 +1390,11 @@ extension Color {
     /// brand was purple; when the brand moved it briefly became warm, which put a
     /// decorative colour a shade away from `dockWarning` and gave the identity a fifth
     /// value it never had.
-    static let panelAccentBright = Color(
-        .sRGB, red: 0x5F / 255, green: 0xE0 / 255, blue: 0xD3 / 255)
+    static let panelAccentBright = Color(rgb: 0x5F_E0D3)
     /// Ink on a teal fill. White measures 2.1:1 there; this is the same deep teal the
     /// window puts under its own accent buttons.
-    static let panelAccentText = Color(.sRGB, red: 0x04 / 255, green: 0x33 / 255, blue: 0x2F / 255)
-    static let panelLink = Color(.sRGB, red: 0x6B / 255, green: 0xB4 / 255, blue: 0xF5 / 255)
-    static let panelCode = Color(.sRGB, red: 0xC4 / 255, green: 0x9B / 255, blue: 0xF5 / 255)
-    static let panelKey = Color(.sRGB, red: 0xF0 / 255, green: 0xBE / 255, blue: 0x63 / 255)
+    static let panelAccentText = Color(rgb: 0x04_332F)
+    static let panelLink = Color(rgb: 0x6B_B4F5)
+    static let panelCode = Color(rgb: 0xC4_9BF5)
+    static let panelKey = Color(rgb: 0xF0_BE63)
 }

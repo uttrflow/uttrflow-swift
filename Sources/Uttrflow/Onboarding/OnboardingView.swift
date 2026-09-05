@@ -347,7 +347,7 @@ private struct Glyph: View {
         case .brand, .success:
             AnyShapeStyle(
                 LinearGradient(
-                    colors: [Color(nsColor: NSColor(rgb: 0x33_D6C7)), .dockAccent],
+                    colors: [Color(rgb: 0x33_D6C7), .dockAccent],
                     startPoint: .topLeading, endPoint: .bottomTrailing))
         case .neutral: AnyShapeStyle(Color.dockAccent.opacity(0.12))
         case .caution: AnyShapeStyle(Color.dockWarning.opacity(0.13))
@@ -643,10 +643,7 @@ private struct OnboardingButtonStyle: ButtonStyle {
         private var background: AnyShapeStyle {
             guard isProminent else { return AnyShapeStyle(.clear) }
             guard isEnabled else { return AnyShapeStyle(Color.dockAccent.opacity(0.20)) }
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [Color(nsColor: NSColor(rgb: 0x17_968C)), .dockAccent],
-                    startPoint: .top, endPoint: .bottom))
+            return AnyShapeStyle(LinearGradient.accentFill)
         }
 
         private var foreground: Color {

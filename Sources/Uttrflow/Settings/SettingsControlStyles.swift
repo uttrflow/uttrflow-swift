@@ -48,12 +48,7 @@ struct SettingsSwitchStyle: ToggleStyle {
     }
 
     private func track(isOn: Bool) -> AnyShapeStyle {
-        isOn
-            ? AnyShapeStyle(
-                LinearGradient(
-                    colors: [Color(nsColor: NSColor(rgb: 0x17_968C)), .dockAccent],
-                    startPoint: .top, endPoint: .bottom))
-            : AnyShapeStyle(Color.settingsControl)
+        isOn ? AnyShapeStyle(LinearGradient.accentFill) : AnyShapeStyle(Color.settingsControl)
     }
 }
 
@@ -83,13 +78,7 @@ struct SettingsSegmented: View {
                         .frame(height: 24)
                         .background(
                             isSelected
-                                ? AnyShapeStyle(
-                                    LinearGradient(
-                                        colors: [
-                                            Color(nsColor: NSColor(rgb: 0x17_968C)), .dockAccent,
-                                        ],
-                                        startPoint: .top, endPoint: .bottom))
-                                : AnyShapeStyle(Color.clear),
+                                ? AnyShapeStyle(LinearGradient.accentFill) : AnyShapeStyle(Color.clear),
                             in: .rect(cornerRadius: 6)
                         )
                         .contentShape(.rect)
