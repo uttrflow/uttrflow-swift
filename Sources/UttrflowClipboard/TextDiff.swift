@@ -1,8 +1,4 @@
-/// What a formatter changed, line by line.
-///
-/// D6 — the diff is shown before the change is kept, and this is the part that can be
-/// tested. A formatter is a program the user did not write running over code they did, so
-/// "here is what it wants to do" is the difference between a tool and a surprise.
+/// What a formatter changed, line by line, shown before the change is kept.
 public enum TextDiff {
     public enum Kind: Sendable, Equatable {
         case same
@@ -20,12 +16,7 @@ public enum TextDiff {
         }
     }
 
-    /// The whole comparison, line by line.
-    ///
-    /// A longest-common-subsequence diff, which is what makes the output read as "these
-    /// three lines changed" rather than "everything after line four changed" — the latter
-    /// being what a naïve positional comparison produces the moment a line is inserted,
-    /// and useless for judging whether to accept.
+    /// A longest-common-subsequence diff, so an inserted line reads as one change, not everything after it.
     public static func lines(from before: String, to after: String) -> [Line] {
         let old = before.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         let new = after.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -69,18 +60,12 @@ public enum TextDiff {
         return result
     }
 
-    /// How many lines the change touches.
-    ///
-    /// The number a user actually decides on. A 420-point panel cannot show a diff of any
-    /// size honestly, so it leads with this and shows what fits.
+    /// How many lines the change touches, which is the number a user decides on.
     public static func changedLines(from before: String, to after: String) -> Int {
         lines(from: before, to: after).count { $0.kind != .same }
     }
 
-    /// Only the parts that changed, with a line of context on each side.
-    ///
-    /// Long runs of untouched code are exactly what makes a diff unreadable in a narrow
-    /// panel, and they are also the part nobody is deciding about.
+    /// Only the changed parts with `context` lines each side; untouched runs make a narrow diff unreadable.
     public static func interesting(
         from before: String, to after: String, context: Int = 1
     )
