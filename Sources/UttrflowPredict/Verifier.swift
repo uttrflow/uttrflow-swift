@@ -58,7 +58,7 @@ public actor Verifier {
         if let remembered = cache.verdict(for: key, now: now) { return remembered }
         guard let token = CompletionToken(candidate.text) else { return .plausible }
 
-        let known = await known(for: token, in: surface, now: now)
+        let known = await known(of: Verification.attestingKinds(for: token), in: surface, now: now)
         guard !Verification.attests(token.token, known) else {
             cache.remember(.attested, for: key, now: now)
             return .attested
@@ -123,13 +123,36 @@ public actor Verifier {
         }
     }
 
-    /// Everything the machine vouches for in this position, empty when it has not answered yet.
+    /// The model's lines whose every new word the machine can stand behind; a line naming what this machine does not have is dropped.
+    public func standing(
+        _ completions: [String], after typed: String, in surface: Surface, now: Date
+    ) async -> [String] {
+        var standing: [String] = []
+        for completion in completions {
+            if await stands(completion, after: typed, in: surface, now: now) { standing.append(completion) }
+        }
+        return standing
+    }
+
+    /// Whether every word the model added is one the machine names, or one no listing could deny.
+    private func stands(
+        _ completion: String, after typed: String, in surface: Surface, now: Date
+    ) async -> Bool {
+        for token in Verification.words(typed, completedBy: completion) {
+            guard let attestation = Verification.attestation(for: token) else { continue }
+            let known = await known(of: attestation.kinds, in: surface, now: now)
+            guard Verification.stands(attestation.word, known: known) else { return false }
+        }
+        return true
+    }
+
+    /// Everything the machine vouches for among these kinds here, empty when it has not answered yet or the field is not a directory.
     private func known(
-        for token: CompletionToken, in surface: Surface, now: Date
+        of kinds: [EnvironmentKind], in surface: Surface, now: Date
     ) async -> Set<String> {
         guard let directory = EnvironmentSource.workingDirectory(of: surface) else { return [] }
         var known: Set<String> = []
-        for kind in Verification.attestingKinds(for: token) {
+        for kind in kinds {
             known.formUnion(await index.values(of: kind, in: directory, now: now))
         }
         return known

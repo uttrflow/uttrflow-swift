@@ -148,6 +148,12 @@ struct CompletionToken: Equatable {
     /// The command this word belongs to, absent when it is the command itself.
     var command: String? { leading.split(separator: " ").first.map(String.init) }
 
+    /// A word anywhere in a line, for the words a completion adds behind the one being typed.
+    init(leading: String, token: String) {
+        self.leading = leading
+        self.token = token
+    }
+
     /// The word a line ends on, absent when it ends on a space and there is nothing to finish.
     init?(_ typed: String) {
         guard let last = typed.split(separator: " ", omittingEmptySubsequences: false).last,

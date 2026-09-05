@@ -293,3 +293,71 @@ struct VerifierCaseTests {
         #expect(verdict == .corrected("cat README.md"))
     }
 }
+
+/// The model's lines a machine that has already answered lets stand.
+private func standing(
+    _ completions: [String], after typed: String, machine: [EnvironmentKind: [String]],
+    in surface: Surface = terminal
+) async -> [String] {
+    let index = EnvironmentIndex(reader: StubEnvironment(machine))
+    if let directory = EnvironmentSource.workingDirectory(of: surface) {
+        for kind in machine.keys { _ = await index.values(of: kind, in: directory, now: moment) }
+        await index.settle()
+    }
+    return await Verifier(index: index).standing(completions, after: typed, in: surface, now: moment)
+}
+
+@Suite("The machine's word on what the model wrote")
+struct GeneratedLineTests {
+    @Test("A file the model invented in a directory the machine has listed is not drawn.")
+    func inventedFilesAreDropped() async {
+        let kept = await standing([".vim"], after: "vim .env", machine: [.file: [".env", "src"]])
+        #expect(kept.isEmpty)
+    }
+
+    @Test("A path whose first name is not here is not drawn, wherever it was read from.")
+    func pathsNotFromHereAreDropped() async {
+        let kept = await standing(
+            ["backend/"], after: "cd projects/x-growth/", machine: [.file: ["src", "package.json"]])
+        #expect(kept.isEmpty)
+    }
+
+    @Test("A path whose first name is here stands, since only its head is resolved yet.")
+    func pathsFromHereStand() async {
+        let kept = await standing(["ces/UttrflowPredict"], after: "cd Sour", machine: [.file: ["Sources"]])
+        #expect(kept == ["cd Sources/UttrflowPredict".dropFirst("cd Sour".count).description])
+    }
+
+    @Test("A program the machine has is drawn and one it has not is dropped, in the model's order.")
+    func programsAreLookedUp() async {
+        let kept = await standing(["t status", "thub"], after: "gi", machine: [.executable: ["git"]])
+        #expect(kept == ["t status"])
+    }
+
+    @Test("A git subcommand the model misspelt is dropped where the machine lists them.")
+    func gitSubcommandsAreLookedUp() async {
+        let kept = await standing(
+            ["kout main", "k"], after: "git chec", machine: [.gitSubcommand: ["checkout"]])
+        #expect(kept == ["kout main"])
+    }
+
+    @Test("An invented name in the middle of a line drops the whole line, not only its last word.")
+    func everyAddedWordIsAsked() async {
+        let kept = await standing(
+            ["backend/ && npm run dev"], after: "cd projects/x-growth/", machine: [.file: ["src"]])
+        #expect(kept.isEmpty)
+    }
+
+    @Test("A machine that has not answered denies nothing, so the model's line stands.")
+    func silenceLetsTheLineStand() async {
+        #expect(await standing([".vim"], after: "vim .env", machine: [:]) == [".vim"])
+    }
+
+    @Test("A field that is not a directory is never asked about, so prose is never denied.")
+    func proseIsNeverAsked() async {
+        let notes = Surface(bundleIdentifier: "com.example.notes", role: "AXTextArea")
+        let kept = await standing(
+            [".vim"], after: "vim .env", machine: [.file: [".env"]], in: notes)
+        #expect(kept == [".vim"])
+    }
+}

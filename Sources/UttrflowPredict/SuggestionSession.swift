@@ -213,14 +213,15 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Draws the model's invented continuations in its own order, since a generated line has no history to weigh.
     public mutating func resolveGenerated(
-        _ completions: [String], for query: SuggestionQuery, elapsedMilliseconds: Int
+        _ completions: [String], for query: SuggestionQuery, elapsedMilliseconds: Int,
+        whenEmpty silence: Quieting.Reason = .nothingOffered
     ) -> SuggestionUpdate? {
         guard query.generation == generation, query.surface == surface, let pending else { return nil }
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }
         let usable = Self.drawable(completions, past: pending.typed)
-        guard let leader = usable.first else { return settle(.silent, silence: .nothingOffered) }
+        guard let leader = usable.first else { return settle(.silent, silence: silence) }
         let others = Array(usable.dropFirst().prefix(Self.verifiedDepth - 1))
         let update = settle(
             others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others), silence: nil)

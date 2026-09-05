@@ -96,6 +96,8 @@ public enum Quieting {
         case minimised
         /// Nothing extends the line: no candidate, none the gates allowed, or nothing usable from the model.
         case nothingOffered
+        /// Every line the model wrote names a program, a path or a branch this machine does not have.
+        case notOnThisMachine
         /// The leader has less evidence than `PredictionEngine.supportFloor`.
         case evidenceTooThin
         /// An irreversible leader does not clearly beat a real rival.

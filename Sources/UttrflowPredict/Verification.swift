@@ -106,6 +106,64 @@ public enum Verification {
         !kinds.contains(.file) && !kinds.contains(.branch)
     }
 
+    /// What the machine could vouch for in a word the model wrote: the word among closed kinds, or a path's first name among the files here.
+    public struct Attestation: Equatable, Sendable {
+        /// The name looked up, which for a path from here is what stands before its first slash.
+        public let word: String
+        /// The kinds whose values may vouch for it.
+        public let kinds: [EnvironmentKind]
+    }
+
+    /// The characters that make a word a quotation, an expansion, an assignment or an address, none of which a listing can deny.
+    private static let freeCharacters: Set<Character> = ["\"", "'", "$", "*", "?", "{", "}", "=", ":", "`"]
+
+    /// What could vouch for a generated word, absent where any word is allowed or where nothing here classifies the argument yet.
+    static func attestation(for token: CompletionToken) -> Attestation? {
+        let word = token.token
+        guard !isFree(word) else { return nil }
+        if let slash = word.firstIndex(of: "/") {
+            let head = String(word[..<slash])
+            // A path from here is checked by its first name; one from root, home, here or a parent is not resolved yet.
+            guard !head.isEmpty, head != ".", head != "..", !head.hasPrefix("~") else { return nil }
+            return Attestation(word: head, kinds: [.file])
+        }
+        let kinds = attestingKinds(for: token)
+        if isClosedVocabulary(kinds) { return Attestation(word: word, kinds: kinds) }
+        // A dotfile names one file here and nothing else; any other argument may be a word the command takes.
+        return word.hasPrefix(".") ? Attestation(word: word, kinds: [.file]) : nil
+    }
+
+    /// Whether a generated word may stand: the machine has not answered, or it names the word.
+    public static func stands(_ word: String, known: Set<String>) -> Bool {
+        known.isEmpty || attests(word, known)
+    }
+
+    /// The words a completion puts on the line, each with what precedes it; a word the typing began and the model finished is the model's.
+    static func words(_ typed: String, completedBy completion: String) -> [CompletionToken] {
+        let line = typed + completion
+        var words: [CompletionToken] = []
+        var start = line.startIndex
+        while start < line.endIndex {
+            guard line[start] != " " else {
+                start = line.index(after: start)
+                continue
+            }
+            let end = line[start...].firstIndex(of: " ") ?? line.endIndex
+            if line.distance(from: line.startIndex, to: end) > typed.count {
+                words.append(
+                    CompletionToken(leading: String(line[..<start]), token: String(line[start..<end])))
+            }
+            start = end
+        }
+        return words
+    }
+
+    /// Whether a word could be anything at all: a flag, a number, here or the parent, or one the shell would rewrite.
+    private static func isFree(_ word: String) -> Bool {
+        word.hasPrefix("-") || word == "." || word == ".." || word.allSatisfy(\.isNumber)
+            || word.contains(where: freeCharacters.contains)
+    }
+
     /// What could vouch for a word, which is decided by where in the line the word sits.
     static func attestingKinds(for token: CompletionToken) -> [EnvironmentKind] {
         guard !token.isFirstWord else { return [.executable, .alias] }

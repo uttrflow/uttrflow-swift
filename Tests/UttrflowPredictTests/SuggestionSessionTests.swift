@@ -262,6 +262,17 @@ struct SuggestionRejectionTests {
         #expect(try draw(&session, typing: "git c")?.suggestion == .certain("git commit -m"))
     }
 
+    @Test(
+        "A silence the machine imposed is named as its own, and every other empty answer as nothing offered.")
+    func generatedSilenceIsNamed() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "vim .env")))
+        let denied = session.resolveGenerated(
+            [], for: asked, elapsedMilliseconds: 0, whenEmpty: .notOnThisMachine)
+        #expect(denied?.silence == .notOnThisMachine)
+        #expect(session.resolveGenerated([], for: asked, elapsedMilliseconds: 0)?.silence == .nothingOffered)
+    }
+
     @Test("Typing past a guess the model invented is not a refusal: the model was wrong, not the field.")
     func aGeneratedGuessIsNotRefused() throws {
         var session = SuggestionSession()

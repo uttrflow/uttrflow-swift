@@ -359,6 +359,8 @@ final class SuggestionCoordinator {
         in snapshot: FocusedFieldSnapshot, since started: Date
     ) async {
         let completions: [String]
+        // Whether the model wrote lines and the machine denied every one, which is a silence with its own name.
+        var invented = false
         let lowered = query.typed.lowercased()
         // What the model already said about this line still holds while the line begins one of its answers.
         let kept =
@@ -391,13 +393,17 @@ final class SuggestionCoordinator {
                     "GENERATE failed typed=\(query.typed, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
                 return
-            case .success(let lines) where lines.isEmpty:
-                // An empty answer is remembered against this exact line only, so the next keystroke asks afresh.
-                lastEmpty = (query.surface, query.typed)
-                completions = lines
             case .success(let lines):
-                lastGenerated = (query.surface, query.typed, lines)
-                completions = lines
+                let standing = await attested(lines, for: query)
+                guard turns.isCurrent(number) else { return }
+                invented = !lines.isEmpty && standing.isEmpty
+                // An empty answer is remembered against this exact line only, so the next keystroke asks afresh.
+                if standing.isEmpty {
+                    lastEmpty = (query.surface, query.typed)
+                } else {
+                    lastGenerated = (query.surface, query.typed, standing)
+                }
+                completions = standing
             }
         }
         Self.log.debug(
@@ -405,8 +411,11 @@ final class SuggestionCoordinator {
         )
         guard
             let update = session.resolveGenerated(
-                completions, for: query, elapsedMilliseconds: since(started))
+                completions, for: query, elapsedMilliseconds: since(started),
+                whenEmpty: invented ? .notOnThisMachine : .nothingOffered)
         else { return }
+        // A silence has nothing to place, so it is settled and logged against the field as it was read.
+        guard update.silence == nil else { return settle(update, in: snapshot, since: started) }
         await drawFresh(update, for: snapshot, turn: number)
         // With the one line on screen, the others are fetched behind it, so Down has a list and the person never waited for it.
         guard completions.count == 1, let leader = completions.first, turns.isCurrent(number) else { return }
@@ -427,12 +436,27 @@ final class SuggestionCoordinator {
             }
             return
         }
-        guard !others.isEmpty, let expanded = session.expandGenerated(others, for: query) else { return }
-        lastGenerated = (query.surface, query.typed, [leader] + others)
+        let standing = await attested(others, for: query)
+        guard turns.isCurrent(number), !standing.isEmpty,
+            let expanded = session.expandGenerated(standing, for: query)
+        else { return }
+        lastGenerated = (query.surface, query.typed, [leader] + standing)
         Self.log.debug(
             "ALTERNATIVES typed=\(query.typed, privacy: .public) got=\(others.count) elapsed=\(self.since(started))ms"
         )
         await drawFresh(expanded, for: snapshot, turn: number)
+    }
+
+    /// The model's lines the machine lets stand, with every line it denied named in the log; a program, path or branch this Mac does not have is never drawn.
+    private func attested(_ lines: [String], for query: SuggestionQuery) async -> [String] {
+        let standing = await verifier.standing(lines, after: query.typed, in: query.surface, now: Date())
+        if standing.count < lines.count {
+            let dropped = lines.filter { !standing.contains($0) }
+            Self.log.debug(
+                "ATTEST typed=\(query.typed, privacy: .public) in=\(lines.count) out=\(standing.count) dropped=\(dropped.joined(separator: " | "), privacy: .public)"
+            )
+        }
+        return standing
     }
 
     /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.

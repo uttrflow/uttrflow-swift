@@ -137,3 +137,85 @@ struct GitAliasesTests {
         #expect(GitAliases.names(in: "").isEmpty)
     }
 }
+
+/// What the machine is asked about the last word of a line the model wrote.
+private func asked(_ line: String) -> Verification.Attestation? {
+    CompletionToken(line).flatMap(Verification.attestation(for:))
+}
+
+/// The words a completion adds to a line, as text, with what precedes each.
+private func added(_ typed: String, _ completion: String) -> [String] {
+    Verification.words(typed, completedBy: completion).map { "\($0.leading)|\($0.token)" }
+}
+
+@Suite("What the machine can deny in a line the model wrote")
+struct GeneratedAttestationTests {
+    @Test("The first word is a program or an alias, and is looked up as one.")
+    func firstWordIsAProgram() {
+        #expect(asked("gti") == Verification.Attestation(word: "gti", kinds: [.executable, .alias]))
+    }
+
+    @Test("The word after git is one of its subcommands or aliases.")
+    func gitTakesASubcommand() {
+        #expect(
+            asked("git chekout")
+                == Verification.Attestation(word: "chekout", kinds: [.gitSubcommand, .gitAlias]))
+    }
+
+    @Test("A path from here is checked by its first name against the files here.")
+    func pathsAreCheckedByTheirFirstName() {
+        #expect(
+            asked("cd projects/x-growth/backend/")
+                == Verification.Attestation(word: "projects", kinds: [.file]))
+        #expect(asked("Scripts/bundle.sh") == Verification.Attestation(word: "Scripts", kinds: [.file]))
+    }
+
+    @Test("A path from root, home, here or a parent is not resolved, so nothing denies it yet.")
+    func pathsFromElsewhereAreFree() {
+        for line in ["cat /etc/hosts", "cd ~/projects", "cd ../backend", "./run.sh", "cd .."] {
+            #expect(asked(line) == nil, "\(line)")
+        }
+    }
+
+    @Test("A dotfile names one file here and nothing else, so the listing is asked.")
+    func dotfilesAreFiles() {
+        #expect(asked("vim .env.vim") == Verification.Attestation(word: ".env.vim", kinds: [.file]))
+    }
+
+    @Test(
+        "A flag, a number, a quotation, an expansion or an address could be anything, so nothing denies it.")
+    func freeWordsAreNeverAsked() {
+        for line in [
+            "git checkout -b", "head -n 20", "git commit -m \"fix", "echo $HOME/x", "rm *.log",
+            "curl https://example.com/a", "FOO=bar", "ssh user@host:path",
+        ] {
+            #expect(asked(line) == nil, "\(line)")
+        }
+    }
+
+    @Test("A plain argument may be a word the command takes, which nothing here classifies yet.")
+    func plainArgumentsAreFree() {
+        #expect(asked("npm run dev") == nil)
+        #expect(asked("git checkout main") == nil)
+    }
+
+    @Test("The words a completion adds are the model's, including the one it finished for the typist.")
+    func addedWordsAreTheModels() {
+        #expect(
+            added("cd projects/x-growth/", "backend/ && npm run dev") == [
+                "cd |projects/x-growth/backend/", "cd projects/x-growth/backend/ |&&",
+                "cd projects/x-growth/backend/ && |npm", "cd projects/x-growth/backend/ && npm |run",
+                "cd projects/x-growth/backend/ && npm run |dev",
+            ])
+        #expect(added("vim .env", ".vim") == ["vim |.env.vim"])
+        #expect(added("git ", "status") == ["git |status"])
+        #expect(added("ls", "").isEmpty)
+    }
+
+    @Test("A word stands while the machine has not answered, or once it names the word in any case.")
+    func standsOnSilenceOrAName() {
+        #expect(Verification.stands(".vim", known: []))
+        #expect(Verification.stands("readme.md", known: ["README.md", ".env"]))
+        #expect(!Verification.stands(".vim", known: [".env", "src"]))
+    }
+}
