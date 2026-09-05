@@ -20,6 +20,16 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **A word the recogniser half-heard is offered the readings it could be, and the model
+  picks the one that fits.** Three sources answer at once, in under two milliseconds for
+  a whole dictation: your own dictionary, the words on screen — the window title, the
+  selection and the text either side of the caret — and ordinary words that sound alike.
+  So "the crash is in payment sheet" comes out as "PaymentSheet" over a window called
+  `PaymentSheet.swift` and stays two words in a chat, and "clear the cash" becomes
+  "clear the cache" over `Cache.swift`. The readings go into the same model call the
+  tidying already makes, never a second one, and the guard refuses a rewrite that wrote
+  a word nobody offered. Nothing fires unless the recogniser actually reported how sure
+  it was, word by word. `Docs/cleanup.md` has the rule.
 - **You can see what the clean-up did, and switch parts of it off.** Diagnostics now lists
   what each clean-up step changed in the last dictation, by word — "Filler words: removed
   3: um, uh, um" — so a word that went missing can be accounted for rather than guessed

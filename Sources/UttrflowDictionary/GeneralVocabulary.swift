@@ -22,7 +22,7 @@
 /// said it, and biasing the recogniser towards a word they actually use costs nothing.
 /// A function word getting in is not harmless, and those are exactly what frequency
 /// lists contain.
-enum GeneralVocabulary {
+public enum GeneralVocabulary {
     /// The fewest letters a word worth learning can have.
     ///
     /// Three. Two-letter tokens are overwhelmingly noise — the "s" left behind by an
@@ -45,6 +45,32 @@ enum GeneralVocabulary {
     static func isWorthLearning(_ word: String) -> Bool {
         word.count >= shortestWorthLearning && word.contains(where: \.isLetter) && !knows(word)
     }
+
+    /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
+    public static let maximumPerSound = 4
+
+    /// The opening letters a reading must share, because a common word that merely rhymes is noise, not a reading.
+    public static let openingLettersShared = 2
+
+    /// Ordinary words this one could have been misheard as: the same likelier sound, the same opening. See `Docs/cleanup.md`.
+    public static func wordsSounding(like text: String) -> [String] {
+        let heard = text.lowercased()
+        let opening = heard.prefix(openingLettersShared)
+        return Array(
+            (byPrimarySound[DoubleMetaphone.code(for: text).primary] ?? [])
+                .filter { $0 != heard && $0.hasPrefix(opening) }
+                .prefix(maximumPerSound))
+    }
+
+    /// Every common word filed under its likelier sound, built once over a list that never grows at runtime.
+    private static let byPrimarySound: [String: [String]] = {
+        var buckets: [String: [String]] = [:]
+        for word in known {
+            let primary = DoubleMetaphone.code(for: word).primary
+            if !primary.isEmpty { buckets[primary, default: []].append(word) }
+        }
+        return buckets.mapValues { $0.sorted() }
+    }()
 
     /// Both lists, merged once, because a lookup does not care which language refused it.
     private static let known: Set<String> = commonEnglish.union(commonHinglish)

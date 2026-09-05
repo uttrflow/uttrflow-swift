@@ -3,10 +3,12 @@ public import UttrflowCore
 /// Builds the model's instructions and user prompt from three layers: the contract, the destination's block and the situation. See `Docs/cleanup.md`.
 public struct PromptBuilder: Sendable, Equatable {
     /// Bumped whenever any wording changes, so a measured result can be tied to the prompt that produced it.
-    public static let version = 6
+    public static let version = 7
 
     /// The label the text before a mid-sentence caret sits behind; the contract teaches the model to read it.
     public static let caretLabel = "Text before the caret:"
+    /// The label the half-heard runs and their readings sit behind.
+    public static let doubtfulLabel = "Doubtful words:"
     /// The most characters of preceding text quoted to the model.
     public static let caretLimit = 120
 
@@ -59,17 +61,38 @@ public struct PromptBuilder: Sendable, Equatable {
     // MARK: The user prompt
 
     /// The situation lines above the quoted words, in the same shape as the worked examples.
-    public func userPrompt(for request: TransformationRequest, spoken: String? = nil) -> String {
+    public func userPrompt(
+        for request: TransformationRequest, spoken: String? = nil, doubtful: [DoubtfulSpan] = []
+    ) -> String {
         let spoken = "Spoken: \"\(spoken ?? request.transcription.text)\""
-        return (situationBlock(for: request.situation) + [spoken]).joined(separator: "\n")
+        return (situationBlock(for: request.situation, doubtful: doubtful) + [spoken])
+            .joined(separator: "\n")
     }
 
-    /// The "Typed into:" line and the caret line, each only when there is something to say; Phase D appends its "Doubtful words:" line here.
-    public func situationBlock(for situation: Situation) -> [String] {
+    /// The "Typed into:" line, the caret line and the doubtful-words line, each only when there is something to say.
+    public func situationBlock(for situation: Situation, doubtful: [DoubtfulSpan] = []) -> [String] {
         var lines: [String] = []
         if let place = AppContextDescriber.describe(situation.app) { lines.append(place) }
         if let caret = Self.caretText(situation.insertion) { lines.append("\(Self.caretLabel) \"\(caret)\"") }
+        if let readings = Self.doubtfulText(doubtful) { lines.append("\(Self.doubtfulLabel) \(readings)") }
         return lines
+    }
+
+    /// Each doubtful run, what it was heard at and the readings offered for it, or `nil` when none were.
+    static func doubtfulText(_ spans: [DoubtfulSpan]) -> String? {
+        guard !spans.isEmpty else { return nil }
+        return spans.prefix(DoubtfulWords.maximumSpans)
+            .map {
+                "\"\($0.heard)\" (heard at \(hundredths($0.confidence))) — could be: "
+                    + $0.candidates.joined(separator: ", ")
+            }
+            .joined(separator: "; ")
+    }
+
+    /// A confidence as two decimal places, without a number formatter for one number.
+    static func hundredths(_ value: Double) -> String {
+        let scaled = Int((min(1, max(0, value)) * 100).rounded())
+        return "\(scaled / 100).\(scaled % 100 < 10 ? "0" : "")\(scaled % 100)"
     }
 
     /// The tail of the text before a mid-sentence caret, cut at a word boundary, or `nil` anywhere else.

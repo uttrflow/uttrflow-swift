@@ -288,7 +288,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             capture: microphone,
             speech: speech,
             cleaner: TextTransformers.router(
-                configuration: settings.engines, steps: settings.cleaning),
+                configuration: settings.engines, steps: settings.cleaning,
+                spellings: { [dictionary] in await dictionary.index() }),
             context: context,
             // Announced, like every write this app makes. See `Docs/insertion.md`.
             inserter: TextInsertion.coordinator(pasteboard: announcingPasteboard),

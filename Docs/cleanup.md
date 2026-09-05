@@ -49,8 +49,8 @@ would make. Safe in every register.
 | Numbers that read as numerals | "fifteen" → "15", "sixteen point two" → "16.2", "nine thousand rupees" → "9000 rupees", "fifteen thousand" → "15,000" | ✅ `NumberFormsPass`, under the place's `NumberPolicy`. A spreadsheet, a SQL editor and a code editor take `.always` — every number is a numeral, "one of them" → "1 of them". A document, an email, a message and plain text take `.fromTen`: ten and up always; zero to nine stay words ("one of them") unless inside a number phrase — a decimal, a percentage, a time, a year, or after "port", "version", "page", "chapter", "step", "number" and the like, where digit groups also run together ("port eighty eighty" → "port 8080"). Commas only from 10,000. "a hundred" stays words |
 | Times, percentages, ports | "two thirty pm" → "2:30 pm", "ten am" → "10 am", "five o'clock" → "5 o'clock", "five percent" → "5%", "port eight thousand eighty" → "port 8080", "twenty twenty four" → "2024" | ✅ `NumberFormsPass`; an hour (1–12) followed by minutes (10–59) is a time even without am/pm. Dates, money and units are still ❌ and have no corpus case |
 | Acronyms and known casing | "api", "json", "https", "ecs" → "API", "JSON", "HTTPS", "ECS" | ✅ prompt (`acronyms` case); the dictionary can pin others |
-| Spellings the screen shows | a name in the window title decides "Aarav" over "arav" | ✅ context rule; spelling only, never anything else |
-| Personal dictionary spellings | the user's own names and terms | ✅ correction engine, before the tidier |
+| Spellings the screen shows | a name in the window title decides "Aarav" over "arav" | ✅ context rule; spelling only, never anything else. A word the recogniser was unsure of is also offered the screen's spelling by name — see the doubtful-words row below |
+| Personal dictionary spellings | the user's own names and terms | ✅ correction engine, before the tidier; the same lookup also offers the spelling to the model as a reading of a doubtful word |
 
 ## Tier 2 — when the speech makes it unambiguous
 
@@ -68,7 +68,8 @@ them. When the signal is missing or could be read two ways, the words stay.
 | Layout words | "new line", "new paragraph"/"blank line", "bullet point"/"next point" | a newline, a blank line, a list item | ✅ `LayoutWordsPass`, with the same mention guard as spoken punctuation and only between two words — a trailing "new line" stays words. A model's answer is read the same way: a line opening with `-`, `•` or `*` and a space is a list item, so each item takes a capital and no stop. "number one … number two" is still ❌ |
 | Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ✅ `PieceJoiner`, over the pieces a long dictation is cut into (`Docs/early-transcription.md`), since only their seams show the sequence. The items run from the piece that opens with "first" or "one" — "number one", "point two", "item three", "step four" too — to the last piece, each carrying the next number of the same kind, ordinals and cardinals never mixed. Two items at least, and each of them a clause: two words or more after the sequence word, not opening on a determiner. The sequence word goes, the item takes a capital, a `- ` and no stop. Everything short of that stays prose — a lone "first", a run that stops before the last piece ("first… second… and then the other thing"), a run that does not start at one, an item that only names a thing ("first, the milk"). Where the formatter has no `.lists` — messaging, spreadsheet, code, SQL — the words stay prose whatever they count |
 | Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ✅ `PieceJoiner`. A piece boundary is a pause the speaker made, so when the next piece opens on a topic — an ordinal ("second thing", "third"), or "also", "next", "okay so", "another thing", "one more thing", "moving on", "finally", "anyway", "additionally", "furthermore", "lastly" — and the formatter's layout has `.paragraphs`, the join is a blank line instead of a space. Otherwise a space. Never inside a list, never where a restatement swallowed the opening, and never in a cell, whose `.singleLine` keeps the whole dictation on one line |
-| Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ context rule; spelling only, never SQL from prose |
+| Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ `ScreenCandidates` offers the identifier by name when the recogniser was unsure of the run, so the model is choosing between two spellings rather than being asked to notice one; spelling only, never SQL from prose |
+| Doubtful words — the reading the place decides | the recogniser scored the run below `WordCorrectionEngine.certaintyThreshold` (0.5) **and** a source offered another reading | "the crash is in payment sheet" → "PaymentSheet" in Xcode, "payment sheet" in Slack; "clear the cash" → "clear the cache" over `Cache.swift` | ✅ three `CandidateSource`s, asked at once, under 2 ms for a whole dictation: the personal dictionary by sound (the correction engine's own lookup), the screen — the window title, the selection and the text either side of the caret, matched by Double Metaphone or by the same letters with the spaces closed up — and ordinary words that sound alike **and open alike** over `GeneralVocabulary`. At most five spans per piece and three readings per span go into the prompt's "Doubtful words:" line; the model picks the one that fits the sentence and the place, or keeps the word as heard, and `MeaningPreservationGuard` refuses a rewrite that wrote anything else. Fires only where the recogniser reported real per-word scores (`Draft.confidencesAreReal`) |
 | Grammar slips, in places whose formatter repairs them | the destination's `GrammarPolicy` is `.repair` (document, email, plain) and the slip is one speech leaves behind: agreement, a participle, an article or preposition, a tense that drifts | "there is three of them" → "There are three of them"; "we have went" → "we have gone"; "a apple" → "an apple" | ✅ prompt block per destination, bounded: a fix changes only the form of a word the speaker said, or adds or removes an article or a preposition — never which content words are present or their order. Dialect and informality are not slips and stay ("gonna", "ain't", "me and him", "didn't do nothing" — a double negative is dialect). `MeaningPreservationGuard` enforces the bound on the draft's kept words, and the rules never repair, so the floor leaves every slip alone (`rulesLeaveGrammarAlone`) |
 | Trailing full stop dropped in chat apps | the destination is a messaging app and the text is one or two sentences | "on my way" stays "on my way" in WhatsApp | ✅ `TerminalStopPass` under `DestinationFormatter` for `.messaging`, `.offForShortMessages(2)`; a question or exclamation mark is always kept. Decided by the app's bundle identifier, so Electron apps count |
 | Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ✅ `FirstWordPass` from `InsertionPoint.sentenceState`, read off the field's text before the caret; "I", its contractions and acronyms keep their capital. A model that repeats the text before the caret at the head of its answer has that echo taken back by `CaretEchoPass` — the whole preceding text of two or more words, or the tail the prompt quoted, case and punctuation aside; never a partial match. Electron apps (Slack, Discord, VS Code) do not report their field, so there the state is `unknown` and the first word stays capital |
@@ -105,8 +106,13 @@ The two cases that defeated every engine, Apple's included — the spoken self-c
 the passes do them before any model is asked. Spoken punctuation, layout words, times,
 percentages and ports each have a corpus case and a pass, and the four cases that name
 a destination pass through the same passes under that destination's formatter
-(`RulesCorpusTests` names every case the rules must pass). Sequence lists and paragraph
-breaks still have no case, so the first step for each is a case, not a prompt line. `Docs/bakeoff.md` explains why: a prompt line that is not
+(`RulesCorpusTests` names every case the rules must pass). The three cases where the
+screen has to decide a spelling — `editor-identifier-casing`,
+`code-editor-identifier-from-screen`, `sql-editor-identifier-from-screen` — are the
+model's alone and are now handed the identifier by name rather than being left to
+notice it, along with the two `doubtful-word-…` cases and their pair. Sequence lists and
+paragraph breaks still have no case, so the first step for each is a case, not a prompt
+line. `Docs/bakeoff.md` explains why: a prompt line that is not
 measured is a guess, and two of the last three guesses made the output worse.
 
 ## Where the words are going
@@ -181,11 +187,13 @@ one model call per piece — is `Docs/cleanup-design.md`. Below is where things 
   the contract's examples — a message example teaches "no trailing stop", a code example
   teaches line breaks, a cell example teaches one line, a document example a list, an
   email example paragraphs; plain text and the SQL editor add none. The **situation
-  block** is built per request by `PromptBuilder.userPrompt(for:spoken:)`: the "Typed
-  into:" line, the last 120 characters before a mid-sentence caret, then the spoken
-  words; `situationBlock(for:)` is where Phase D adds the doubtful-words line. No
-  destination's instructions exceed the size of the single prompt they replaced by more
-  than a tenth (a test holds the number; the tenth paid for the shared examples).
+  block** is built per request by `PromptBuilder.userPrompt(for:spoken:doubtful:)`: the
+  "Typed into:" line, the last 120 characters before a mid-sentence caret, the
+  "Doubtful words:" line, then the spoken words. No destination's instructions exceed
+  the size of the single prompt they replaced by more than a tenth (a test holds the
+  number; the tenth paid for the shared examples), and the contract sentence teaching
+  the model what to do with a doubtful-words line was paid for by trimming contract
+  prose rather than by raising it.
   Additions go in as one rule and one worked example each, measured against the corpus
   before and after (`make bakeoff ARGS="--baselines-only"`, which now reports pass rates
   by destination), and no block's examples may overlap a corpus case (two tests enforce
@@ -194,9 +202,13 @@ one model call per piece — is `Docs/cleanup-design.md`. Below is where things 
   to — `DictationPipeline` reads the screen before it warms, and warms for plain text when
   the screen says nothing — because the model keeps one pre-warmed session keyed by the
   instructions it was given.
+- `DoubtfulWords` asks the three `CandidateSource`s at once for the runs the recogniser
+  half-heard, and `GenerativeTextTransformer` puts their readings in the same model call
+  the cleaning already makes — never a second call and never a second model.
 - `MeaningPreservationGuard` polices Tier 3 after the fact, judging the model against
   the words the passes kept, so a pass's removal is never counted as the model dropping
-  words.
+  words, and against the readings it was offered: a doubtful run must come back as it
+  was heard or as one of them.
 - `CorrectionEngine` and the dictionary handle spellings before the tidier sees the text.
 - The pieces cut while recording (`Docs/early-transcription.md`) are each tidied alone,
   which is why paragraph breaks and list layout have to be decided when the pieces are

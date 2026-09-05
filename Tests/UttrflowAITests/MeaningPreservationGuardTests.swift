@@ -334,6 +334,53 @@ struct GrammarGuardTests {
             sut.verdict(original: "we should buy the tickets", rewritten: "We should purchase the tickets.")
                 .isAccepted)
     }
+
+    // MARK: The readings the model was offered
+
+    private func draft(_ text: String) -> Draft {
+        Draft(words: text.split(separator: " ").map { Draft.Word(String($0)) }, confidencesAreReal: true)
+    }
+
+    @Test("accepts a doubtful word written as one of the readings it was offered")
+    func acceptsAnOfferedReading() {
+        let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple", "apples"])]
+        #expect(
+            sut.verdict(draft: draft("i ate an apple"), rewritten: "I ate an Apple.", offering: offered)
+                .isAccepted)
+    }
+
+    @Test("refuses a doubtful word written as a reading nobody offered")
+    func refusesAnInvention() {
+        let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple", "apples"])]
+        let verdict = sut.verdict(
+            draft: draft("i ate an apple"), rewritten: "I ate an orange.", offering: offered)
+        #expect(verdict == .rejected(reason: "the rewrite read 'apple' as a word it was not offered"))
+    }
+
+    @Test("accepts a doubtful word left exactly as it was heard")
+    func acceptsTheHeardWord() {
+        let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple"])]
+        #expect(
+            sut.verdict(draft: draft("i ate an apple"), rewritten: "I ate an apple.", offering: offered)
+                .isAccepted)
+    }
+
+    @Test("accepts a spoken run written closed up as the identifier it was offered")
+    func acceptsAnIdentifier() {
+        let offered = [
+            DoubtfulSpan(heard: "payment sheet", confidence: 0.3, candidates: ["PaymentSheet"])
+        ]
+        #expect(
+            sut.verdict(
+                draft: draft("the crash is in payment sheet"),
+                rewritten: "The crash is in PaymentSheet.", offering: offered
+            ).isAccepted)
+    }
+
+    @Test("judges nothing about readings when none were offered")
+    func judgesNothingWithoutReadings() {
+        #expect(MeaningPreservationGuard.candidateVerdict([], rewritten: "anything at all").isAccepted)
+    }
 }
 
 @Suite("IrregularVerbForms")
