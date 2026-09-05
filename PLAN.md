@@ -26,7 +26,7 @@ clipboard is the product people open, and dictation is a shortcut inside it.
 | 8 | Evaluation harness and metrics | 🟡 **Built — awaiting the reading session** |
 | 9 | Hardening and packaging | ✅ **Done** |
 | 10 | Clipboard manager — the panel, and the pivot | ✅ **Done**, except where noted |
-| 11 | Cleaning, tier 2 — self-corrections, spoken punctuation, lists, paragraphs | 🔲 **Planned** — `Docs/cleanup.md` |
+| 11 | Cleaning, tier 2 — Situation, passes, prompt layers, grammar, doubtful words, join layout | 🟡 **A and B in progress** — `Docs/cleanup-design.md` |
 
 ## V2 — after the first release
 
@@ -1146,23 +1146,29 @@ else depends on.
 
 ## Phase 11 — Cleaning, tier 2 🔲
 
-`Docs/cleanup.md` is the catalogue; this is the order of work for the rows it marks ❌.
-The rule for every step: **a corpus case first, a prompt line or a rule second, the
-bake-off before and after.** Two of the last three prompt changes made the output
-worse, and the operator's definition of dictation — transcribe accurately, never
-rewrite — is what each case's reference must show.
+`Docs/cleanup.md` is the catalogue of what may be done to the words; `Docs/cleanup-design.md`
+is the design it is built against: four types — `Situation` (where the words are going),
+`Formatter` (what that place wants), `CleaningPass` (one deterministic cleaning) and
+`Draft` (the words with a record of what was done to them) — one language-model call per
+piece as the last formatter, and a guard that holds the model to the record. No cleaning
+is hard-coded: a new app is a row, a new decision is a policy value, a new cleaning is a
+pass with a corpus case. The rule for every step: **a corpus case first, a pass or a
+prompt line second, the bake-off before and after.**
 
-| # | Step | Where | Done when |
-|---|---|---|---|
-| 1 | Corpus cases for every missing cleaning: self-correction by trigger phrase and by restatement, spoken punctuation, spoken layout words, a spoken list, a two-topic dictation needing a paragraph break, a version number. Drawn from real dictations where possible; references approved by the operator | `EvaluationCorpus` | `make bakeoff ARGS="--baselines-only"` records today's failures as the baseline |
-| 2 | Self-correction by trigger phrase — "no", "no sorry", "I mean", "scratch that", "actually" when it reads as a correction — then by restatement | `CleanupPrompt` (one rule, one example each); a `TextTidy` rule if the model alone cannot; `MeaningPreservationGuard` must not read the dropped half as lost words | the `self-correction` case passes and nothing else regresses |
-| 3 | Spoken punctuation and layout words — "comma", "full stop", "question mark", "new line", "new paragraph" — only when used as punctuation, never when mentioned | `TextTidy`, deterministic, before the model | cases pass; "put a comma there" is untouched |
-| 4 | Lists from spoken sequence words and paragraph breaks between topics, decided where the pieces of a long dictation are joined, not inside one piece | `DictationPipeline` join step; `Docs/early-transcription.md` | layout only, never a bullet the speaker did not say |
-| 5 | Numbers, times, money and units in written form, version numbers first | `CleanupPrompt`, then rules for what the model still misses | the `version-number` case passes |
-| 6 | Where the text lands: lower-case start when inserting mid-sentence; the chat-app trailing full stop (product decision first) | context engine reads the field's text before the caret; `TextTidy` | measured on the real apps, not the corpus alone |
+| Phase | Builds | Done when |
+|---|---|---|
+| **A — Situation** | `InsertionPoint` from the field's text and selection; `Destination` and its rule table; the formatter registry with the first-word and terminal-stop policies live; a destination on corpus cases | mid-sentence dictation starts lower-case where the field reports; a two-sentence message has no trailing stop; the bake-off is flat elsewhere |
+| **B — Passes** | `Draft`; `CleaningPass` and the ten passes (fillers, stammers, repeated phrase, self-correction, spoken punctuation, layout words, number forms, spacing, first word, terminal stop); the guard reads provenance | every Tier 1 case and the self-correction, spoken punctuation, layout and number cases pass **with the model off** |
+| **C — Prompt layers** | `PromptBuilder`: the contract, one block per destination with examples as data, the situation block; the monolithic prompt deleted; bake-off per destination | no destination scores below today's prompt; message, code and sheet cases pass |
+| **C½ — Grammar slips** | a `grammar` policy on the formatter (`repair` / `asSpoken`); a fix may change a spoken word's form or an article or preposition, never which content words are present or their order; the guard enforces that; a grammar corpus category with slips and with dialect that must stay | slip cases pass in documents and email; dialect stays; no content word is ever lost |
+| **D — Doubtful words** | `CandidateSource` (dictionary, screen vocabulary, phonetic neighbours); candidates listed in the same model call; the guard accepts only offered candidates; mishearing cases in a titled window | mishearing cases pass; no regression; under 10 ms added per piece |
+| **E — Join-level layout** | `PieceJoiner`: lists from sequence words, paragraphs at piece boundaries, restatement corrections across pieces | list, paragraph and restatement cases pass on multi-piece dictations |
+| **F — Control** | Diagnostics show what each pass removed; a pass can be switched off; a destination can be overridden per app | the operator can read, in the app, why a word went missing |
 
-Each step is one pull request, green through the gate, with its bake-off table in the
-pull request body. A step that costs a corpus case does not land.
+A and B are independent and started together in parallel worktrees on 2026-09-05. C needs
+A; C½ needs C and B's guard; D needs B and C; E needs B; F reports on all of them. Each
+phase is one or more pull requests, green through the gate, with its bake-off table in
+the body. A step that costs a corpus case does not land.
 
 ## Tab-to-complete 🟡
 
