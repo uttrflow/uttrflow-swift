@@ -32,18 +32,20 @@ enum Timestamp {
     static func decode<Key: CodingKey>(
         from container: KeyedDecodingContainer<Key>, forKey key: Key
     ) throws -> Date {
-        let text = try container.decode(String.self, forKey: key)
-        guard let parsed = date(from: text) else {
-            throw DecodingError.dataCorruptedError(
-                forKey: key, in: container, debugDescription: "not an ISO-8601 timestamp: \(text)")
-        }
-        return parsed
+        try parse(try container.decode(String.self, forKey: key), forKey: key, in: container)
     }
 
     static func decodeIfPresent<Key: CodingKey>(
         from container: KeyedDecodingContainer<Key>, forKey key: Key
     ) throws -> Date? {
         guard let text = try container.decodeIfPresent(String.self, forKey: key) else { return nil }
+        return try parse(text, forKey: key, in: container)
+    }
+
+    /// The date `text` names, or the decoding error that says which key held the bad one.
+    private static func parse<Key: CodingKey>(
+        _ text: String, forKey key: Key, in container: KeyedDecodingContainer<Key>
+    ) throws -> Date {
         guard let parsed = date(from: text) else {
             throw DecodingError.dataCorruptedError(
                 forKey: key, in: container, debugDescription: "not an ISO-8601 timestamp: \(text)")

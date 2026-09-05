@@ -151,11 +151,8 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         public init(stage: TelemetryStage, failureCount: Int, latencyP50Ms: Int?, latencyP90Ms: Int?) {
             self.stage = stage
             self.failureCount = TelemetryLimit.count.clamping(failureCount)
-            let median = latencyP50Ms.map(TelemetryLimit.durationMs.clamping)
-            self.latencyP50Ms = median
-            // The table refuses a p90 below its p50, and a refused report is data lost for
-            // everyone rather than a wrong number for one stage.
-            self.latencyP90Ms = latencyP90Ms.map { max(TelemetryLimit.durationMs.clamping($0), median ?? 0) }
+            self.latencyP50Ms = TelemetryLimit.latency(latencyP50Ms)
+            self.latencyP90Ms = TelemetryLimit.latency(latencyP90Ms, notBelow: self.latencyP50Ms)
         }
     }
 
@@ -242,14 +239,10 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         self.processingTotalMs = TelemetryLimit.durationMs.clamping(processingTotalMs)
         self.charactersInserted = TelemetryLimit.count.clamping(charactersInserted)
 
-        // Percentiles that go backwards fail the table's `check` and cost the whole report.
-        let median = latencyP50Ms.map(TelemetryLimit.durationMs.clamping)
-        let ninetieth = latencyP90Ms.map { max(TelemetryLimit.durationMs.clamping($0), median ?? 0) }
-        self.latencyP50Ms = median
-        self.latencyP90Ms = ninetieth
-        self.latencyP99Ms = latencyP99Ms.map {
-            max(TelemetryLimit.durationMs.clamping($0), ninetieth ?? median ?? 0)
-        }
+        self.latencyP50Ms = TelemetryLimit.latency(latencyP50Ms)
+        self.latencyP90Ms = TelemetryLimit.latency(latencyP90Ms, notBelow: self.latencyP50Ms)
+        self.latencyP99Ms = TelemetryLimit.latency(
+            latencyP99Ms, notBelow: self.latencyP90Ms ?? self.latencyP50Ms)
 
         // A dictionary in, a sorted array out: duplicate keys are impossible rather than
         // merged, and the encoded bytes are the same every time for the same numbers.
@@ -331,6 +324,11 @@ enum TelemetryLimit {
     static let durationMs = 0...604_800_000
     /// The server's `versionPart`.
     static let versionPart = 0...999
+
+    /// A latency percentile the table accepts: clamped, and never below the percentile under it.
+    static func latency(_ milliseconds: Int?, notBelow floor: Int? = nil) -> Int? {
+        milliseconds.map { Swift.max(durationMs.clamping($0), floor ?? 0) }
+    }
 }
 
 extension ClosedRange where Bound == Int {
