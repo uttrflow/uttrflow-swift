@@ -1,16 +1,6 @@
-/// One utterance the performance profile puts through the pipeline.
-///
-/// Deliberately not an ``EvaluationCase``: those exist to be scored, carry a reference
-/// transcript, and are all one sentence long. These exist to be *timed*, and the only
-/// property that matters is how long they take to say. Sharing the type would have meant
-/// a `expected` field nothing reads and a corpus nobody could lengthen without breaking
-/// the quality numbers.
+/// One utterance the performance profile times; not an ``EvaluationCase``, since nothing scores it.
 public struct ProfilePassage: Sendable, Equatable, Identifiable {
-    /// The three utterance lengths a dictation tool has to be honest about.
-    ///
-    /// Three rather than two, because two points cannot show a bend: linear and
-    /// super-linear cost look identical until there is a third length to compare the
-    /// gaps between.
+    /// The three utterance lengths a dictation tool has to be honest about; two points cannot show a bend.
     public enum Length: String, Sendable, Equatable, CaseIterable, Codable {
         /// A sentence — the overwhelming majority of real dictations.
         case short
@@ -19,10 +9,7 @@ public struct ProfilePassage: Sendable, Equatable, Identifiable {
         /// A minute of speech, near the edge of what anyone dictates in one breath.
         case long
 
-        /// Roughly how many seconds of speech this length stands for.
-        ///
-        /// A target, not a measurement: what a synthesiser actually produces is timed
-        /// from the audio file and reported instead of this.
+        /// Roughly how many seconds of speech this length stands for; reports use the recording's length.
         public var targetSeconds: Double {
             switch self {
             case .short: 3
@@ -33,8 +20,7 @@ public struct ProfilePassage: Sendable, Equatable, Identifiable {
     }
 
     public let length: Length
-    /// What is spoken. Read aloud by a synthesiser rather than a person, so that
-    /// re-running the profile on another Mac compares two machines and not two takes.
+    /// What is spoken, by a synthesiser, so a rerun on another Mac compares machines and not takes.
     public let text: String
 
     public var id: String { length.rawValue }
@@ -45,12 +31,7 @@ public struct ProfilePassage: Sendable, Equatable, Identifiable {
     }
 }
 
-/// One passage of each length, with the audio it produced.
-///
-/// Kept apart from ``ProfilePassage`` because the duration is a property of the
-/// recording, not of the words: the same passage read by a different voice is a
-/// different number of seconds, and every cost-per-second figure in the report divides
-/// by the one that was actually spoken.
+/// One passage of each length with its audio; the duration belongs to the recording, not the words.
 public struct ProfileRecording: Sendable, Equatable {
     public let passage: ProfilePassage
     public let audioSeconds: Double
@@ -61,11 +42,7 @@ public struct ProfileRecording: Sendable, Equatable {
     }
 }
 
-/// The passages the performance profile speaks.
-///
-/// They are ordinary work dictation — fillers, a restart, a port number, a version
-/// string, an Indian name — because a profile run on clean read-aloud prose measures a
-/// recogniser doing an easier job than the product's.
+/// The passages the profile speaks: ordinary work dictation, so the recogniser does the product's job.
 public enum ProfileCorpus {
     public static let short = ProfilePassage(
         length: .short,

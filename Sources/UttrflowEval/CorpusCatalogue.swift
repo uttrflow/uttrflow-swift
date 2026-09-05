@@ -1,10 +1,6 @@
 public import Foundation
 
-/// What can go wrong talking to the corpus service.
-///
-/// Split by what the operator has to do about it, not by where in the stack it happened.
-/// A run against a thousand samples will hit several of these in one sitting, and the
-/// only useful question at that point is which ones are worth trying again.
+/// What can go wrong talking to the corpus service, split by what the operator has to do about it.
 public enum CorpusError: Error, Sendable, Equatable, CustomStringConvertible {
     /// The backend or the bucket could not be reached at all.
     case unreachable(String)
@@ -12,11 +8,7 @@ public enum CorpusError: Error, Sendable, Equatable, CustomStringConvertible {
     case notAuthorised
     /// No sample by that name.
     case unknownSample(String)
-    /// The endpoint this client needs does not exist on the backend it is talking to.
-    ///
-    /// Its own case because it is the one failure a retry cannot fix and the operator
-    /// can: the corpus service is behind the client, and the message says which route
-    /// is missing rather than leaving somebody to read a 404 out of a log.
+    /// The named route does not exist on this backend; a retry cannot fix it and the operator can.
     case endpointMissing(String)
     /// The backend answered, and said no.
     case refused(status: Int, detail: String)
@@ -46,11 +38,7 @@ public enum CorpusError: Error, Sendable, Equatable, CustomStringConvertible {
         }
     }
 
-    /// Whether trying again could plausibly work.
-    ///
-    /// The distinction the upload outbox is built on: a take held back by a flaky
-    /// connection should be retried on the next sitting, and a take the backend has
-    /// refused outright should stop asking and start telling somebody.
+    /// Whether trying again could plausibly work, which is what the upload outbox sorts by.
     public var isTransient: Bool {
         switch self {
         case .unreachable, .truncated: true
@@ -63,11 +51,7 @@ public enum CorpusError: Error, Sendable, Equatable, CustomStringConvertible {
     }
 }
 
-/// Reading the corpus catalogue.
-///
-/// Every method a test can satisfy with a dictionary. The corpus is a thousand
-/// recordings in a private bucket, so a suite that needed the real one would be a suite
-/// that only runs for whoever holds the credentials.
+/// Reads the corpus catalogue; every method is one a test can satisfy with a dictionary.
 public protocol CorpusCatalogue: Sendable {
     /// One page. Callers who want the corpus want ``allSamples(matching:)``.
     func samples(matching query: CorpusQuery) async throws(CorpusError) -> CorpusPage
@@ -78,12 +62,7 @@ public protocol CorpusCatalogue: Sendable {
 }
 
 extension CorpusCatalogue {
-    /// Every sample matching the query, paged.
-    ///
-    /// Written once, here, rather than at each call site. The backend caps a page at 500
-    /// and defaults to 100, so a caller who forgets to page against a thousand samples
-    /// gets a tenth of the corpus and a number that looks entirely plausible — which is
-    /// the worst failure a measurement tool has.
+    /// Every sample matching the query, paged here so no caller can get a tenth of the corpus.
     public func allSamples(
         matching query: CorpusQuery = CorpusQuery()
     ) async throws(CorpusError)
@@ -97,24 +76,16 @@ extension CorpusCatalogue {
         while true {
             let batch = try await samples(matching: page)
             collected.append(contentsOf: batch.samples)
-            // Stops on an empty page as well as on a full count, so a backend that
-            // miscounts cannot spin this loop for ever.
+            // Stops on an empty page as well as on a full count, so a miscounting backend cannot spin this.
             guard batch.samples.count > 0, collected.count < batch.total else { return collected }
             page.offset = (page.offset ?? 0) + batch.samples.count
         }
     }
 }
 
-/// Putting a recording into the corpus.
-///
-/// Separate from ``CorpusCatalogue`` because the two have different audiences: every
-/// harness run reads, and only a recording session writes. A read-only fake is then the
-/// ordinary case in tests rather than a stub with three methods that trap.
+/// Puts a recording into the corpus; separate from ``CorpusCatalogue`` because only recording sessions write.
 public protocol CorpusUploading: Sendable {
-    /// Registers the sample and returns where to put the bytes.
-    ///
-    /// Idempotent by slug — the backend upserts — so a retry after a failed transfer
-    /// re-registers rather than duplicating.
+    /// Registers the sample and returns where to put the bytes; idempotent by slug since the backend upserts.
     func register(_ sample: CorpusSample) async throws(CorpusError) -> CorpusUpload
     /// Puts the audio at the signed URL the registration returned.
     func upload(_ audio: Data, to upload: CorpusUpload) async throws(CorpusError)

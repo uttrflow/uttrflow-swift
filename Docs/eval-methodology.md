@@ -129,3 +129,68 @@ code relies on, so the one-line comments in the source can stay short.
   slug, so the worst case is one repeated transfer.
 - Catalogue rows are a faithful mirror of the database. Several tools read that database, and a
   client that renamed or dropped fields would be the reason two of them disagree.
+
+## Normalisation
+
+Normalisation *is* the word error rate: the same transcript scores 4% or 19% depending on what
+is folded away first, so every rule is named and the report prints the list next to the score.
+What is deliberately not done matters as much as what is:
+
+- **Fillers stay.** The corpus has passages written with false starts, read as written.
+  Stripping "um" would hide the failure those passages exist to measure; clean-up removes them
+  and is measured separately.
+- **Spelling variants stay.** "Colour" and "color" count as a substitution. Folding them needs a
+  dictionary that grows into an accuracy fudge factor.
+- **Hindi number words stay words.** Only the Devanagari spellings map to digits, because "do"
+  and "teen" are also English words. "एक" and "दो" are left out even so: one is the everyday word
+  for "a", the other for "give". Nothing above ninety-nine is mapped; the corpus keeps large
+  numbers as digits the operator reads aloud.
+- "3 point 11" joins to "3.11" only when both neighbours are entirely digits.
+- ICU transliteration is a last resort. It romanises akshara by akshara, so "करना" becomes
+  "karana" where a person writes "karna", and every score computed through it is an upper bound.
+
+## The recorded corpus
+
+- Six passages in each of the product's three ways of speaking, with five stressors spread across
+  them so no language is measured only on its easy cases. Each passage has to survive being
+  spoken: no bracketed asides, no punctuation nobody voices, short enough for one breath-group.
+- The Hindi passages carry no English loanwords, because a recogniser writing Hindi leaves
+  borrowed words in Latin script and a mixed passage is a Hinglish passage whatever its label.
+  The Devanagari form of each Hinglish passage keeps its borrowed words in Latin script for the
+  same reason; writing "मीटिंग" for "meeting" would score a correct transcript as a substitution.
+- Reading time is estimated at 120 words a minute (dictation is slower than silent reading, and a
+  passage rattled through is not the speech the product copes with) plus half a minute a passage.
+- A recording carries the whole `TranscriptionCase`, not only its id, so a reworded passage never
+  silently scores old audio against new words; `drifted(from:)` names the recordings whose text
+  has changed, as a prompt to re-record rather than an error.
+- Three files per passage share one id: `<id>.json` for the harness, `<id>.wav`, and `<id>.txt`
+  for whoever opens the folder in six months. Audio is written before the record, so a crash
+  between the two leaves a passage that reads as not yet recorded rather than a record pointing
+  at nothing.
+- Cohorts are the third reporting axis and only matter once the corpus is large. A speaker is a
+  label, never a name. Slugs are `cohort-passage`, so the bucket sorts by sitting; unattributed
+  recordings keep the bare passage id rather than an `unattributed-` prefix that would become
+  part of the key. Slug sanitising never truncates to the domain's 64 characters: two long names
+  agreeing in their first 64 would upsert over each other in the bucket.
+
+## The audio cache
+
+- A thousand recordings is a few gigabytes; a sample is fetched once and read from disk after.
+- The cache is one file per slug with the catalogue's byte count as the only validity check,
+  because the failure it has to survive is a download cut off half way. A size mismatch counts
+  as absent and is fetched again; a short read never reaches disk.
+- It lives beside the recorded corpus rather than in the system caches directory, so a tool that
+  cleans caches cannot make a week of results irreproducible.
+- `fetchAll` does not stop on one failure: a domestic connection loses a few, they are named at
+  the end, and the next run picks them up because everything already here is skipped.
+
+## The leak check
+
+- One dictation's footprint says nothing (a model allocates scratch space, an allocator holds
+  pages back), but a figure that climbs at every repetition and never comes down ends with a
+  swapping Mac after an afternoon's work. Readings are taken after the same point in each cycle,
+  never including the first dictation of the process, which pays for buffers the rest reuse.
+- The allowance is 32 MB over the default ten dictations: a little over 3 MB each, which for a
+  hundred dictations in a working day is roughly a third of a gigabyte. Anything looser would
+  call that noise. Growth that wobbles is "suspect" and needs a longer run; two readings are
+  "undetermined", which is not a pass.

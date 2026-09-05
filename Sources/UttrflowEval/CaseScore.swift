@@ -7,16 +7,11 @@ public struct CaseScore: Sendable, Equatable {
     public let keptEverythingRequired: Bool
     /// Words that should have survived and did not.
     public let lost: [String]
-    /// Words the rewrite invented that the case forbade. Worse than losing one: the
-    /// user is shown something they never said.
+    /// Words the rewrite invented that the case forbids; worse than losing one.
     public let invented: [String]
     /// Whether the rewrite matched the reference exactly, ignoring case and spacing.
     public let isExact: Bool
-    /// The engine said it could not handle this case at all.
-    ///
-    /// Kept apart from failure on purpose: an engine that correctly declines a
-    /// language it does not know has behaved well, and scoring that as a wrong answer
-    /// would make a principled refusal look like a mistake.
+    /// Whether the engine declined the case; kept apart from failure so a refusal is not a mistake.
     public let declined: Bool
 
     public init(
@@ -32,8 +27,7 @@ public struct CaseScore: Sendable, Equatable {
         self.invented = invented
     }
 
-    /// A case passes only if it kept everything required *and* stayed close to the
-    /// reference. Similarity alone would pass a rewrite that dropped someone's name.
+    /// Passes only when everything required survives and the rewrite stays close to the reference.
     public var passed: Bool {
         !declined && keptEverythingRequired && invented.isEmpty && similarity >= 0.8
     }
@@ -63,8 +57,7 @@ public struct EvaluationReport: Sendable, Equatable {
     /// How many cases the engine declined, most often for a language it does not know.
     public var declinedCount: Int { scores.count(where: \.declined) }
 
-    /// Measured over what the engine attempted, so a refusal neither helps nor hurts
-    /// its score — the declined count carries that story separately.
+    /// Pass rate over what the engine attempted, so a refusal neither helps nor hurts.
     public var passRate: Double {
         let attempted = attempted
         guard !attempted.isEmpty else { return 0 }
@@ -77,8 +70,7 @@ public struct EvaluationReport: Sendable, Equatable {
         return attempted.map(\.similarity).reduce(0, +) / Double(attempted.count)
     }
 
-    /// Cases that lost a word which had to survive. The most serious failure a
-    /// dictation tool can have, so it is reported separately from the score.
+    /// Cases that lost a word which had to survive, the most serious failure a dictation tool has.
     public var casesLosingRequiredWords: [CaseScore] {
         attempted.filter { !$0.keptEverythingRequired }
     }

@@ -1,11 +1,6 @@
 private import Foundation
 
-/// The writing system a piece of text is in.
-///
-/// Only the distinction this product turns on: Uttrflow's Hindi output is romanised
-/// Hinglish, so what matters is whether Devanagari is present at all, not how much of
-/// it there is. A single Devanagari word in an otherwise Latin sentence is still an
-/// answer the user did not ask for.
+/// Whether any Devanagari is present, the only script distinction the product turns on.
 public enum Script: String, Sendable, Equatable, CaseIterable, Codable {
     case latin
     case devanagari
@@ -17,19 +12,13 @@ public enum Script: String, Sendable, Equatable, CaseIterable, Codable {
     }
 }
 
-/// One thing done to both sides before they are compared.
-///
-/// Every rule is named and explained because normalisation *is* the word error rate:
-/// the same transcript scores 4% or 19% depending on what is folded away first. A rate
-/// reported without its rules is a number nobody can act on, so the report prints this
-/// list next to the score.
+/// One thing done to both sides before comparing; printed beside every rate because it decides the rate.
 public enum NormalisationRule: String, Sendable, Equatable, CaseIterable, Codable {
     /// Lowercases everything.
     case caseFolding
     /// Removes apostrophes rather than treating them as separators.
     case apostropheFolding
-    /// Splits on anything that is neither a letter nor a digit, except a full stop or
-    /// underscore sitting between two of them.
+    /// Splits on anything that is neither letter nor digit, except a full stop or underscore joining two.
     case punctuationAsSeparators
     /// Rewrites Devanagari digits as Western ones.
     case devanagariDigits
@@ -66,19 +55,7 @@ public enum NormalisationRule: String, Sendable, Equatable, CaseIterable, Codabl
     }
 }
 
-/// Turns a piece of text into the words a word error rate is counted over.
-///
-/// What is deliberately *not* done matters as much as what is:
-///
-/// - **Fillers stay.** The corpus has passages written with false starts in them, read
-///   as written. Stripping "um" would hide the exact failure those passages exist to
-///   measure, and clean-up — a later stage, measured separately — is what removes them.
-/// - **Spelling variants stay.** "Colour" and "color" count as a substitution. Folding
-///   them would need a dictionary that quietly grows into an accuracy fudge factor;
-///   counting them keeps the number honest and the fix in the corpus, not the scorer.
-/// - **Hindi number words stay words.** Only the Devanagari spellings map to digits,
-///   because "do" and "teen" are also English words and a scorer that rewrites them
-///   would corrupt the English passages to tidy the Hindi ones.
+/// Turns text into the words a word error rate is counted over. See Docs/eval-methodology.md.
 public struct TextNormaliser: Sendable, Equatable {
     public let rules: [NormalisationRule]
 
@@ -124,10 +101,6 @@ public struct TextNormaliser: Sendable, Equatable {
     }
 
     /// Splits into words, keeping a full stop or underscore that joins two alphanumerics.
-    ///
-    /// Hand-rolled rather than a regular expression because the decision is per
-    /// character and needs both neighbours; a pattern that expressed the same rule would
-    /// be harder to read than the loop and no shorter.
     private func split(_ text: String) -> [String] {
         guard rules.contains(.punctuationAsSeparators) else {
             return text.split(whereSeparator: \.isWhitespace).map(String.init)
@@ -179,10 +152,7 @@ public struct TextNormaliser: Sendable, Equatable {
         return folded
     }
 
-    /// Joins "3 point 11" into "3.11".
-    ///
-    /// Only when both neighbours are entirely digits, so "at that point 5 people left"
-    /// is left alone.
+    /// Joins "3 point 11" into "3.11", only when both neighbours are entirely digits.
     private func joinSpokenDecimals(_ tokens: [String]) -> [String] {
         var joined: [String] = []
         var index = 0
@@ -202,12 +172,7 @@ public struct TextNormaliser: Sendable, Equatable {
     }
 }
 
-/// The number words the normaliser knows.
-///
-/// English up to ninety-nine, plus the Devanagari spellings. Nothing above that: a
-/// recogniser writes "1500" or "fifteen hundred" and the two do not reconcile without a
-/// parser, so the corpus keeps its large numbers as digits the operator reads aloud, and
-/// what happens to them is measured rather than normalised away.
+/// The number words the normaliser knows: English to ninety-nine plus the Devanagari spellings.
 enum NumberWords {
     static let units: [String: Int] = [
         "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
@@ -219,11 +184,7 @@ enum NumberWords {
         "eighty": 80, "ninety": 90,
     ]
 
-    /// Everything that maps on its own, without a following word.
-    ///
-    /// The Devanagari entries stop short of "एक" and "दो": one is the everyday word for
-    /// "a", the other for "give", and rewriting either as a digit would garble ordinary
-    /// sentences to normalise a number that is rarely written as a word anyway.
+    /// Everything that maps on its own; "एक" and "दो" are left out because they are also "a" and "give".
     static let digits: [String: Int] =
         units.merging(tens) { first, _ in first }
         .merging([
@@ -237,12 +198,7 @@ enum NumberWords {
 }
 
 extension String {
-    /// The passage rewritten in Latin letters, for a transcript that came back in a
-    /// script the corpus holds no reference for.
-    ///
-    /// ICU transliterates akshara by akshara, so "करना" becomes "karana" where a person
-    /// writes "karna". That inflates the word error rate, which is why this is a last
-    /// resort and why every score computed through it is reported as an upper bound.
+    /// The text in Latin letters via ICU, a last resort that inflates the rate; see Docs/eval-methodology.md.
     var transliteratedToLatin: String {
         let latin = applyingTransform(.toLatin, reverse: false) ?? self
         return latin.applyingTransform(.stripDiacritics, reverse: false) ?? latin

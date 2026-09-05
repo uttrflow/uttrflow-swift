@@ -1,22 +1,14 @@
 public import UttrflowCore
 
-/// Drives one machine through the app's life and records what it cost.
-///
-/// Knows nothing about WhisperKit, CoreML or the clean-up router — exactly as
-/// ``EvaluationRunner`` and ``TranscriptionRunner`` know nothing about what they drive.
-/// That is what keeps the order of the phases, the moments memory is read at, and the
-/// leak check itself testable without a 646 MB model on disk, and it is why the
-/// executable that wires this up is only argument handling and printing.
+/// Drives one machine through the app's life and records what it costs, knowing nothing of the engines.
 public struct PerformanceProfiler: Sendable {
     /// How hard to push, and where the profile draws its lines.
     public struct Configuration: Sendable, Equatable {
-        /// How many times each length is timed. Small, because the figure wanted is the
-        /// median of a handful of realistic dictations, not a benchmark average.
+        /// How many times each length is timed; small, since the figure wanted is a median of real runs.
         public var repetitions: Int
         /// How many consecutive dictations the leak check watches.
         public var leakRepetitions: Int
-        /// Which length the leak check repeats. A paragraph, because that is what a
-        /// person actually dictates over and over.
+        /// Which length the leak check repeats: a paragraph, which is what a person dictates over and over.
         public var leakLength: ProfilePassage.Length
         public var leakAllowanceBytes: Int64
         /// How often memory is read while a dictation is in flight.
@@ -37,8 +29,7 @@ public struct PerformanceProfiler: Sendable {
         }
     }
 
-    /// What the profiler is doing, so an unattended run says something while a minute of
-    /// speech is being decoded.
+    /// What the profiler is doing, so an unattended run says something while a minute of speech decodes.
     public enum Phase: Sendable, Equatable {
         case loadingModel
         case warmingUp
@@ -54,28 +45,7 @@ public struct PerformanceProfiler: Sendable {
         self.configuration = configuration
     }
 
-    /// Runs the whole profile.
-    ///
-    /// - Parameters:
-    ///   - recordings: One per length, shortest first.
-    ///   - disk: What a finished install occupies. Measured by the caller, which is the
-    ///     only part of this that has to know where models live.
-    ///   - machine: Which Mac this is.
-    ///   - read: Where a memory reading comes from. Injectable so a test can drive the
-    ///     timeline and the leak check with numbers it chose.
-    ///   - readCPU: Where a processor reading comes from, injectable for the same reason.
-    ///     Defaults to a reader that returns `nil`, so that a caller which has not asked
-    ///     for processor figures gets a report that says they were not measured rather
-    ///     than one full of zeroes.
-    ///   - clock: What the timings are taken against.
-    ///   - onPhase: Progress, for a run that takes minutes.
-    ///   - loadSpeechModel: Loads a *fresh* recogniser and says whether it worked.
-    ///     Called twice — see ``ModelLoadProfile`` — so it must not hand back an
-    ///     already-loaded one, or the warm figure measures nothing.
-    ///   - dictate: Puts one recording through the pipeline and returns what each stage
-    ///     cost. Non-throwing on purpose: a dictation that failed still took time, and
-    ///     an error escaping here would abandon a profile over one bad run.
-    /// - Returns: The numbers, and the leak verdict.
+    /// Runs the whole profile; `loadSpeechModel` runs twice and must load fresh, `dictate` never throws.
     public func run(
         recordings: [ProfileRecording],
         disk: DiskFootprint,
@@ -136,8 +106,7 @@ public struct PerformanceProfiler: Sendable {
             samples.count >= 2
             ? samples[1].reading.footprintBytes - samples[0].reading.footprintBytes : nil
 
-        // A profile of a recogniser that did not load would be a page of zeroes reported
-        // as if they meant something.
+        // A profile of a recogniser that did not load would be a page of zeroes posing as a result.
         let leakRecording = recordings.first { $0.passage.length == configuration.leakLength }
         guard loaded, let leakRecording else {
             return PerformanceReport(
@@ -151,9 +120,7 @@ public struct PerformanceProfiler: Sendable {
             )
         }
 
-        // Thrown away deliberately. The first dictation of a process pays for buffers
-        // every later one reuses, and counting it would make warm-up look like a leak
-        // and the typical latency look like the worst case.
+        // Thrown away: the first dictation pays for buffers every later one reuses.
         onPhase?(.warmingUp)
         _ = await timed(leakRecording)
         sample("after one dictation")
@@ -188,17 +155,14 @@ public struct PerformanceProfiler: Sendable {
                     endToEnd: endToEnd,
                     stages: StageLatency.summarise(stages),
                     unmeasuredStages: StageLatency.unmeasuredStages(in: stages),
-                    // Only the runs whose processor cost was actually read. Counting the
-                    // others would divide a partial sum by a full count.
+                    // Only runs whose processor cost was read, so a partial sum is not split by a full count.
                     cpu: CPUCost.total(of: costs),
                     runs: costs.count
                 ))
         }
         sample("after the length sweep")
 
-        // Last, on purpose: a second recogniser held alongside the first would double the
-        // footprint every row above reports. What it costs in seconds is the only thing
-        // wanted from it.
+        // Last, so a second recogniser never sits beside the first while the rows above are measured.
         onPhase?(.measuringWarmLoad)
         let warmStart = clock.now
         let warmLoaded = await loadSpeechModel()
