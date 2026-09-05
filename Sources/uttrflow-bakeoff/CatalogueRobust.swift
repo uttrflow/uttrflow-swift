@@ -3,7 +3,28 @@ import UttrflowPredict
 extension FixtureCatalogue {
     /// Lines that strain the parser and the prompt: marks, emoji, odd spacing, long lines, finished lines, tiny prefixes.
     static let robust: [Scenario] =
-        [marks, emoji, spacingCommand, spacingProse, unicode, long] + complete + short
+        [marks, emoji, spacingCommand, spacingProse, unicode, long, labelledChat] + complete + short
+
+    /// A chat as its accessibility labels read before the collector cleans them: every message carries a glued stamp and its direction, which a reply must never repeat.
+    private static let labelledChat = Scenario(
+        category: "robust", name: "chat-labels",
+        situation: GenerationSituation(
+            application: "Chat", field: "Type a message", windowTitle: "Priya",
+            surroundings: """
+                Messages in chat with Priya
+                message, Meeting mei ho?, 3Septemberat6:38\u{202F}PM, Received from Priya
+                message, Khana le kar aajau?, 3Septemberat6:39\u{202F}PM, Received from Priya
+                Your message, Haan, 3Septemberat6:41\u{202F}PM, Sent to Priya, Delivered
+                message, Ok, 3Septemberat6:55\u{202F}PM, Received from Priya
+                message, Baby busy ho?, 4Septemberat6:41\u{202F}PM, Received from Priya
+                """,
+            recentLines: ["Haan", "Khaan leke aao", "abhi call karta hoon"], isMultiline: true),
+        cuts: [.afterWord(1), .afterWord(2)], determinacy: .any, band: 1...50,
+        forbidden: ["Received from", "Sent to", "Delivered", " PM", "Septemberat", "message,"],
+        lines: [
+            "phone pe nahi hoon", "haan bolo kya hua", "abhi busy hoon baad mein call karta hoon",
+            "nahi free hoon bolo", "thoda late ho jayega",
+        ])
 
     private static let marks = Scenario(
         category: "robust", name: "marks",
