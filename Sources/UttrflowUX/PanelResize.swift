@@ -9,38 +9,12 @@ public enum PanelEdge: Sendable, Equatable, CaseIterable {
     case left, right, top, bottom
     case topLeft, topRight, bottomLeft, bottomRight
 
-    /// Whether dragging this edge moves the window's origin as well as its size.
-    ///
-    /// AppKit's origin is the bottom-left, so growing rightwards or upwards leaves it
-    /// alone and growing left or down has to move it — which is the whole reason this
-    /// arithmetic is written down somewhere a test can reach rather than inline in a
-    /// mouse handler.
-    var movesOrigin: (x: Bool, y: Bool) {
-        switch self {
-        case .left: (true, false)
-        case .right: (false, false)
-        case .top: (false, false)
-        case .bottom: (false, true)
-        case .topLeft: (true, false)
-        case .topRight: (false, false)
-        case .bottomLeft: (true, true)
-        case .bottomRight: (false, true)
-        }
-    }
+    /// Whether dragging this edge moves the origin: AppKit's is bottom-left, so growing left or down does.
+    var movesOrigin: (x: Bool, y: Bool) { (sign.width < 0, sign.height < 0) }
 
-    var changesWidth: Bool {
-        switch self {
-        case .top, .bottom: false
-        default: true
-        }
-    }
+    var changesWidth: Bool { sign.width != 0 }
 
-    var changesHeight: Bool {
-        switch self {
-        case .left, .right: false
-        default: true
-        }
-    }
+    var changesHeight: Bool { sign.height != 0 }
 
     /// Which way the width grows when the pointer moves in +x, and the height in +y.
     var sign: (width: CGFloat, height: CGFloat) {
@@ -152,7 +126,7 @@ public enum PanelResize {
         in size: CGSize, grip: CGFloat = grip, isFlipped: Bool = false
     ) -> [(rect: CGRect, edge: PanelEdge)] {
         let (width, height) = (size.width, size.height)
-        let upright: [(CGRect, PanelEdge)] = [
+        let upright: [(rect: CGRect, edge: PanelEdge)] = [
             (CGRect(x: 0, y: grip, width: grip, height: height - 2 * grip), .left),
             (CGRect(x: width - grip, y: grip, width: grip, height: height - 2 * grip), .right),
             (CGRect(x: grip, y: 0, width: width - 2 * grip, height: grip), .bottom),
@@ -162,12 +136,13 @@ public enum PanelResize {
             (CGRect(x: 0, y: height - grip, width: grip, height: grip), .topLeft),
             (CGRect(x: width - grip, y: height - grip, width: grip, height: grip), .topRight),
         ]
-        guard isFlipped else { return upright.map { (rect: $0.0, edge: $0.1) } }
-        return upright.map {
+        guard isFlipped else { return upright }
+        return upright.map { band in
             (
                 rect: CGRect(
-                    x: $0.0.minX, y: height - $0.0.maxY, width: $0.0.width, height: $0.0.height),
-                edge: $0.1
+                    x: band.rect.minX, y: height - band.rect.maxY,
+                    width: band.rect.width, height: band.rect.height),
+                edge: band.edge
             )
         }
     }
