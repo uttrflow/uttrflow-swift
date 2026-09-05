@@ -63,8 +63,6 @@ final class FakeClipboard: ClipboardSource, Sendable {
 
 @Suite("Noticing that something was copied")
 struct PasteboardWatcherTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-
     private func watcher(_ clipboard: FakeClipboard, now: Date? = nil) -> PasteboardWatcher {
         let instant = now ?? noon
         return PasteboardWatcher(source: clipboard, now: { instant })
@@ -278,7 +276,7 @@ struct PasteboardWatcherTests {
     func pastingLeavesTheListAlone() async throws {
         let file = TemporaryFile()
         let store = ClipboardStore(file: file.url)
-        let week = ClipRetention(days: 7, now: noon)
+        let window = week()
         let clipboard = FakeClipboard()
         let clock = Mutex(noon)
         let watcher = PasteboardWatcher(source: clipboard, now: { clock.withLock { $0 } })
@@ -287,7 +285,7 @@ struct PasteboardWatcherTests {
         func tick() async throws {
             clock.withLock { $0 += 0.2 }
             if let clip = await watcher.newClip(at: clock.withLock { $0 })?.clip {
-                try await store.record(clip, keeping: week)
+                try await store.record(clip, keeping: window)
             }
         }
 
@@ -295,14 +293,14 @@ struct PasteboardWatcherTests {
             clipboard.write(text)
             try await tick()
         }
-        #expect(await store.clips(keeping: week).map(\.text) == ["three", "two", "one"])
+        #expect(await store.clips(keeping: window).map(\.text) == ["three", "two", "one"])
 
         // The user picks the third row. Uttrflow announces, writes and presses ⌘V.
         watcher.ignoreNextWrite()
         clipboard.write("one")
         try await tick()
 
-        #expect(await store.clips(keeping: week).map(\.text) == ["three", "two", "one"])
+        #expect(await store.clips(keeping: window).map(\.text) == ["three", "two", "one"])
     }
 
     /// The second line of defence. If a paste ever did slip past the announcement, the
@@ -312,18 +310,18 @@ struct PasteboardWatcherTests {
     func deduplicationBacksUpTheAnnouncement() async throws {
         let file = TemporaryFile()
         let store = ClipboardStore(file: file.url)
-        let week = ClipRetention(days: 7, now: noon)
+        let window = week()
         let clipboard = FakeClipboard()
         let watcher = watcher(clipboard)
 
         clipboard.write("one")
         let first = try #require(await watcher.newClip(at: noon)?.clip)
-        try await store.record(first, keeping: week)
+        try await store.record(first, keeping: window)
 
         // No announcement this time: the write comes back as a copy.
         clipboard.write("one")
         let again = try #require(await watcher.newClip(at: noon)?.clip)
-        let clips = try await store.record(again, keeping: week)
+        let clips = try await store.record(again, keeping: window)
 
         #expect(clips.map(\.text) == ["one"])
     }
@@ -334,7 +332,7 @@ struct PasteboardWatcherTests {
     func theLoop() async throws {
         let clipboard = FakeClipboard()
         let watcher = PasteboardWatcher(
-            source: clipboard, interval: .milliseconds(1), now: { self.noon })
+            source: clipboard, interval: .milliseconds(1), now: { noon })
         let (clips, continuation) = AsyncStream.makeStream(of: NoticedClip.self)
 
         let task = Task { await watcher.run { continuation.yield($0) } }

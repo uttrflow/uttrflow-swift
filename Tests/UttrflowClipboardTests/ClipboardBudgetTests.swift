@@ -13,9 +13,6 @@ import Testing
 /// slows down.
 @Suite("What the clipboard may cost")
 struct ClipboardCostTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-    private func week() -> ClipRetention { ClipRetention(days: 7, now: noon) }
-
     private func clip(
         _ text: String, origin: ClipOrigin = .copied, usedAt: TimeInterval = 0,
         pinned: Bool = false, alias: String? = nil

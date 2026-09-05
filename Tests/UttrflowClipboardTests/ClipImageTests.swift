@@ -7,30 +7,13 @@ import Testing
 /// pointing at bytes that were never written is a broken row for ever.
 @Suite("K4 · pictures")
 struct ClipImageTests {
-    /// A store over its own temporary folder, removed with the test.
-    struct Folder: ~Copyable {
-        let url: URL
-        let store: ClipboardStore
-        let retention = ClipRetention(days: 7, now: Date())
-
-        init() throws {
-            url = URL.temporaryDirectory.appending(
-                path: "uttrflow-img-\(UUID().uuidString)", directoryHint: .isDirectory)
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-            store = ClipboardStore(
-                file: url.appending(path: "clipboard.json", directoryHint: .notDirectory))
-        }
-
-        deinit { try? FileManager.default.removeItem(at: url) }
-    }
-
     /// Not a real PNG — nothing here decodes it, and a fixture that needed decoding would
     /// be testing the platform rather than this.
     static let bytes = Data(repeating: 0x89, count: 4_096)
 
     @Test("a picture is written before the clip that refers to it")
     func writtenFirst() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let noticed = NoticedClip(
             clip: Clip(text: "", kind: .image, copiedAt: Date()),
             picture: (Self.bytes, 1024, 768))
@@ -49,7 +32,7 @@ struct ClipImageTests {
     /// copies out of the history must not keep pictures out with them.
     @Test("a picture is kept even though it has no text")
     func emptyTextIsFine() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let noticed = NoticedClip(
             clip: Clip(text: "", kind: .image, copiedAt: Date()),
             picture: (Self.bytes, 10, 10))
@@ -62,7 +45,7 @@ struct ClipImageTests {
     /// And the rule still holds for everything else.
     @Test("a blank copy with no picture is still refused")
     func blankStillRefused() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
 
         _ = try await folder.store.record(
             Clip(text: "   \n ", kind: .text, copiedAt: Date()), keeping: folder.retention)
@@ -74,7 +57,7 @@ struct ClipImageTests {
     /// user also owns. `nil` is the row's cue to say so rather than draw a blank.
     @Test("a picture whose file has gone reads as nothing, and does not crash")
     func vanishedFile() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let noticed = NoticedClip(
             clip: Clip(text: "", kind: .image, copiedAt: Date()),
             picture: (Self.bytes, 10, 10))
@@ -93,7 +76,7 @@ struct ClipImageTests {
     /// A picture left behind by a clip that aged out would sit on disk for ever.
     @Test("pictures no clip refers to are swept up")
     func orphansAreForgotten() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let noticed = NoticedClip(
             clip: Clip(text: "", kind: .image, copiedAt: Date()),
             picture: (Self.bytes, 10, 10))
@@ -101,7 +84,7 @@ struct ClipImageTests {
         let image = try #require(
             await folder.store.clips(keeping: folder.retention).first?.image)
 
-        _ = try await folder.store.deleteEverything(keeping: ClipRetention(days: 7, now: Date()))
+        _ = try await folder.store.deleteEverything(keeping: folder.retention)
         await folder.store.forgetOrphanedImages()
 
         #expect(await folder.store.imageData(for: image) == nil)
@@ -114,7 +97,7 @@ struct ClipImageTests {
     /// went, without helping.
     @Test("deleting a picture clip takes its file with it, unaided")
     func deletingSweepsWithoutBeingAsked() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let noticed = NoticedClip(
             clip: Clip(text: "", kind: .image, copiedAt: Date()),
             picture: (Self.bytes, 10, 10))
@@ -132,7 +115,7 @@ struct ClipImageTests {
     /// of two is the case where an over-eager sweep would destroy the other.
     @Test("but not the picture of a clip that is still there")
     func keepsTheOneStillReferred() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         // Two *different* pictures. They used to be allowed to be identical, because
         // identical bytes were two clips; now the same bytes are one clip copied twice,
         // and this test is about two clips sharing a folder rather than a file.
@@ -157,7 +140,7 @@ struct ClipImageTests {
     /// reconciles the folder once, the first time it reads.
     @Test("a picture orphaned before this launch is cleared on the first read")
     func reconcilesAtStartup() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         _ = try await folder.store.record(
             Clip(text: "something", kind: .text, copiedAt: Date()), keeping: folder.retention)
         let stray = ClipImage(file: "stray.png", width: 1, height: 1, bytes: 4)
@@ -180,7 +163,7 @@ struct ClipImageTests {
     /// has no pictures — sweeping on one would delete every picture they own.
     @Test("but an unreadable clipboard sweeps nothing at all")
     func aBadReadDestroysNothing() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         _ = try await folder.store.record(
             NoticedClip(
                 clip: Clip(text: "", kind: .image, copiedAt: Date()),
@@ -201,7 +184,7 @@ struct ClipImageTests {
     /// The file name is relative, so moving the folder keeps the pictures with the clips.
     @Test("the file is named relative to the clipboard, never absolutely")
     func relativeName() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let id = UUID()
 
         let image = try await folder.store.keep(Self.bytes, forClip: id, width: 1, height: 1)

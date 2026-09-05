@@ -10,10 +10,6 @@ import Testing
 /// simply happens somewhere the user cannot see — in what the file keeps.
 @Suite("What the user copied, and what Uttrflow made")
 struct ClipOriginTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-
-    private func week() -> ClipRetention { ClipRetention(days: 7, now: noon) }
-
     private func clip(
         _ text: String, origin: ClipOrigin = .copied, at offset: TimeInterval = 0
     ) -> Clip {
