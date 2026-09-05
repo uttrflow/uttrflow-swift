@@ -35,7 +35,7 @@ struct ProtocolDefaultTests {
 
     @Test("cleaners and transformers with nothing to prepare can still be warmed")
     func warmingIsHarmless() async {
-        await BareCleaner().warm()
-        await BareTransformer().warm()
+        await BareCleaner().warm(for: nil)
+        await BareTransformer().warm(for: .unknown)
     }
 }

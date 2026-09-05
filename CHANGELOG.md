@@ -41,6 +41,26 @@ Each released version is a git tag and a build at
   language model is handed the result, so it cannot rewrite around a filler it no longer
   sees, and its answer is judged against the words the rules kept. `Docs/cleanup.md` has
   the rules; ten corpus cases were added to measure them.
+- **The tidier's model is told about the place, not just the words.** Its instructions
+  are now three layers: a contract that is the same everywhere (the goal, what may be
+  removed, what may never be changed, and that a window title is only ever a spelling),
+  a short block of style rules and worked examples for the kind of place the words are
+  going — a chat message ends without a full stop but a question keeps its mark, a
+  spreadsheet cell is one line with numerals, a code editor keeps line breaks and takes
+  identifiers from the screen, a SQL editor keeps prose as prose, an email is sentences
+  and paragraphs — and, when the caret sits mid-sentence, the text just before it, so the
+  dictation continues the sentence rather than starting a new one. Every place is shown
+  the same nine worked examples — the bake-off showed that taking them away made the
+  model passive — and its own only where its layout or final stop differs, so the
+  instructions for any place are at most a tenth longer than the single prompt they
+  replace. The model is warmed for the place the moment the key goes down, and the
+  bake-off now scores each place on its own. Fifteen corpus cases were added so every
+  place has at least three. Where the model repeats the text before the caret at the
+  head of its answer, that echo is taken back; a list it writes with dashes is laid out
+  with a capital on each item and no stop; in a document, an email, a message or plain
+  text every paragraph and the last sentence end with a full stop whatever line breaks
+  the text holds, while code and SQL keep theirs and a cell is one line; and a number the
+  model writes without its thousands separator is no longer refused as invented.
 - **A dictation that fails can be retried from its audio.** Every recording is written to
   this Mac while the key is held, beside the buffer the recogniser reads, and deleted the
   moment the words land. When the words are lost — the recogniser fails, or the app dies

@@ -28,11 +28,63 @@ struct TerminalStopPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
-    @Test("adds nothing when the text holds a line break")
+    @Test("adds nothing when the text holds a line break and the layout keeps newlines")
     func leavesLayout() {
+        let code = TerminalStopPass(policy: .always, layout: .preserveNewlines)
         let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
-        #expect(sut.apply(draft).text == "line one\nline two")
-        #expect(short.apply(draft).text == "line one\nline two")
+        #expect(code.apply(draft).text == "line one\nline two")
+        #expect(code.apply(Draft(text: "ship it")).text == "ship it.")
+    }
+
+    @Test("ends the last sentence under a paragraph layout whatever line breaks the text holds")
+    func paragraphsEndTheLast() {
+        let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
+        #expect(sut.apply(draft).text == "line one\nline two.")
+        let long = Draft(keepingLineBreaks: "One. Two.\n\nThree here")
+        #expect(short.apply(long).text == "One. Two.\n\nThree here.")
+    }
+
+    @Test(
+        "ends each paragraph of three or more words with a full stop, and leaves one that has a mark",
+        arguments: [
+            (
+                "thanks for your note\n\nI've attached the revised quote",
+                "thanks for your note.\n\nI've attached the revised quote."
+            ),
+            ("Thanks\n\nThe second issue", "Thanks\n\nThe second issue."),
+            ("Ready?\n\nSee you at five", "Ready?\n\nSee you at five."),
+            ("one two\nthree four\n\nfive six seven", "one two\nthree four.\n\nfive six seven."),
+        ])
+    func paragraphStops(text: String, expected: String) {
+        #expect(sut.apply(Draft(keepingLineBreaks: text)).text == expected)
+    }
+
+    @Test("gives a list item no stop, at the end or before a blank line")
+    func listItems() {
+        let list = Draft(keepingLineBreaks: "what's left to pack\n- the tent\n- the first aid kit")
+        #expect(sut.apply(list).text == "what's left to pack\n- the tent\n- the first aid kit")
+        let after = Draft(keepingLineBreaks: "- the tent and the stove\n\nthat is all we need")
+        #expect(sut.apply(after).text == "- the tent and the stove\n\nthat is all we need.")
+        let items = Draft(keepingLineBreaks: "- the tent and the stove\n- the first aid kit here")
+        #expect(sut.apply(items).text == "- the tent and the stove\n- the first aid kit here")
+    }
+
+    @Test("collapses every line break to a space under a single-line layout")
+    func singleLine() {
+        let cell = TerminalStopPass(policy: .never, layout: .singleLine)
+        #expect(cell.apply(Draft(keepingLineBreaks: "line one\nline two.")).text == "line one line two")
+        #expect(cell.apply(Draft(keepingLineBreaks: "a\n\n- b\n- c")).text == "a b c")
+        let stopped = TerminalStopPass(policy: .always, layout: .singleLine)
+        #expect(stopped.apply(Draft(keepingLineBreaks: "line one\nline two")).text == "line one line two.")
+    }
+
+    @Test("adds no paragraph stop when the policy is never, and lays out paragraphs by default")
+    func neverAndDefault() {
+        let paragraphs = TerminalStopPass(policy: .never, layout: .paragraphs)
+        #expect(
+            paragraphs.apply(Draft(keepingLineBreaks: "one two three\n\nfour five six.")).text
+                == "one two three\n\nfour five six")
+        #expect(TerminalStopPass().layout == .paragraphs)
     }
 
     @Test("never adds a stop, and takes back one that was put there")
@@ -87,6 +139,11 @@ struct TerminalStopPassTests {
     func provenance() {
         let draft = sut.apply(Draft(text: "hello there"))
         #expect(draft.words[1].state == .replaced(by: TerminalStopPass.id, from: "there"))
+        let flattened = TerminalStopPass(policy: .never, layout: .singleLine)
+            .apply(Draft(keepingLineBreaks: "one\ntwo"))
+        #expect(flattened.words[1].state == .removed(by: TerminalStopPass.id))
+        let paragraphs = sut.apply(Draft(keepingLineBreaks: "one two three\n\nfour"))
+        #expect(paragraphs.words[2].state == .replaced(by: TerminalStopPass.id, from: "three"))
         #expect(short.apply(Draft(text: "on my way")).words[2].state == .kept)
         #expect(
             never.apply(Draft(text: "on my way.")).words[2].state

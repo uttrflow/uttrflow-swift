@@ -270,7 +270,7 @@ struct AppContextDescriberTests {
 }
 
 @Suite("The prompt carries the context")
-struct CleanupPromptContextTests {
+struct PromptBuilderContextTests {
     private func request(_ text: String, context: AppContext = .unknown) -> TransformationRequest {
         TransformationRequest(transcription: Transcription(text: text), context: context)
     }
@@ -279,7 +279,7 @@ struct CleanupPromptContextTests {
     @Test("is unchanged when there is no context")
     func noContext() {
         #expect(
-            CleanupPrompt.current.userPrompt(for: request("hello there")) == "Spoken: \"hello there\"")
+            PromptBuilder.standard.userPrompt(for: request("hello there")) == "Spoken: \"hello there\"")
     }
 
     /// Measured: the same line placed *after* the dictation changed nothing at all, in
@@ -288,31 +288,36 @@ struct CleanupPromptContextTests {
     func withContext() {
         let context = AppContext(applicationName: "Slack", documentName: "direct message with Nikhil Rastogi")
         #expect(
-            CleanupPrompt.current.userPrompt(for: request("thanks nikhel", context: context))
+            PromptBuilder.standard.userPrompt(for: request("thanks nikhel", context: context))
                 == """
                 Typed into: a chat app (Slack), direct message with Nikhil Rastogi
                 Spoken: "thanks nikhel"
                 """)
     }
 
-    @Test("teaches the model the label the describer actually writes")
+    @Test("teaches the model the labels the describer and the builder actually write, in every place")
     func labelsAgree() {
-        #expect(CleanupPrompt.current.instructions.contains("\"\(AppContextDescriber.label)\" line"))
-        #expect(CleanupPrompt.current.instructions.contains(AppContextDescriber.selectionLabel))
+        for destination in Destination.allCases {
+            let instructions = PromptBuilder.standard.instructions(for: destination)
+            #expect(instructions.contains("\"\(AppContextDescriber.label)\" line"))
+            #expect(instructions.contains("\"\(AppContextDescriber.selectionLabel)\""))
+            #expect(instructions.contains("\"\(PromptBuilder.caretLabel)\" line"))
+        }
     }
 
-    /// The restraint is the point of the third example, and losing it is how DESC gets
-    /// invented, so it is pinned.
-    @Test("shows the model a context that does not change the words")
+    /// The restraint is the point of the SQL example, and losing it is how DESC gets invented, so each is pinned to its block.
+    @Test("shows every place a context that changes only a spelling, and one that changes nothing")
     func keepsTheRestraintExample() {
-        let examples = CleanupPrompt.current.workedExamples
-        #expect(examples.contains("Thanks Aarav, I'll send it over tonight."))
-        #expect(examples.contains("I still need to call warmUpAll before the reload."))
-        #expect(examples.contains("Write a helper that clears the cache when the app wakes up."))
+        for destination in Destination.allCases {
+            let examples = PromptBuilder.standard.workedExamples(for: destination)
+            #expect(examples.contains("Thanks Aarav, I'll send it over tonight."))
+            #expect(examples.contains("I still need to call warmUpAll before the reload."))
+            #expect(examples.contains("Write a helper that clears the cache when the app wakes up."))
+        }
     }
 
-    @Test("is version 3")
+    @Test("is version 5")
     func version() {
-        #expect(CleanupPrompt.version == 3)
+        #expect(PromptBuilder.version == 5)
     }
 }

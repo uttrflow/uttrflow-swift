@@ -63,7 +63,7 @@ struct Bakeoff: AsyncParsableCommand {
 
         let contextNote = ignoreContext ? ", context withheld" : ""
         print(
-            "Bake-off — \(EvaluationCorpus.all.count) cases, prompt v\(CleanupPrompt.version)"
+            "Bake-off — \(EvaluationCorpus.all.count) cases, prompt v\(PromptBuilder.version)"
                 + "\(contextNote)\n")
 
         if models == nil {
@@ -94,11 +94,11 @@ struct Bakeoff: AsyncParsableCommand {
                 Array(EvaluationCorpus.cases(in: .everyday).prefix(2))
                 + EvaluationCorpus.cases(in: .multilingual)
             for testCase in sampled {
+                let request = request(for: testCase)
                 let raw =
                     (try? await cleanup.rewrite(
-                        CleanupPrompt.current.userPrompt(
-                            for: request(for: testCase)),
-                        instructions: CleanupPrompt.current.instructions,
+                        PromptBuilder.standard.userPrompt(for: request),
+                        instructions: PromptBuilder.standard.instructions(for: request.situation.destination),
                         kind: .localModel
                     )) ?? "<failed>"
                 print("  spoken   \(testCase.spoken)")
@@ -245,26 +245,20 @@ struct Bakeoff: AsyncParsableCommand {
 
         // Built from the enum rather than a fixed list, so a new category cannot be
         // added to the corpus and then quietly go unreported.
-        let categories = EvaluationCase.Category.allCases
-        let categoryHeader =
-            "candidate".padded(to: 17) + "params".padded(to: 8)
-            + categories.map { $0.rawValue.padded(to: 15) }.joined()
-        print("\nBy category — pass rate over cases the engine attempted\n")
-        print(categoryHeader)
-        print(String(repeating: "─", count: categoryHeader.count + 4))
-        for measurement in measurements.sorted(by: {
+        let byMultilingual = measurements.sorted(by: {
             ($0.report.passRate(in: .multilingual) ?? -1, $0.report.passRate)
                 > ($1.report.passRate(in: .multilingual) ?? -1, $1.report.passRate)
-        }) {
-            let report = measurement.report
-            func rate(_ category: EvaluationCase.Category) -> String {
-                report.passRate(in: category).map(percent) ?? "declined"
-            }
-            print(
-                measurement.description.name.padded(to: 17)
-                    + measurement.description.parameters.padded(to: 8)
-                    + categories.map { rate($0).padded(to: 15) }.joined()
-            )
+        })
+        printBreakdown(
+            "By category", columns: EvaluationCase.Category.allCases.map(\.rawValue), of: byMultilingual
+        ) { report, category in
+            report.passRate(in: EvaluationCase.Category(rawValue: category) ?? .everyday)
+        }
+        // Per destination, because a block that helps one place can cost another and the total would hide it.
+        printBreakdown(
+            "By destination", columns: Destination.allCases.map(\.rawValue), of: byMultilingual
+        ) { report, destination in
+            report.passRate(for: Destination(rawValue: destination) ?? .plain)
         }
 
         if verbose {
@@ -281,6 +275,26 @@ struct Bakeoff: AsyncParsableCommand {
                     print("  \(score.caseID.padded(to: 26)) \(percent(score.similarity))\(lost)")
                 }
             }
+        }
+    }
+
+    /// One pass-rate table, a column per slice; "declined" where the engine attempted nothing in it.
+    private func printBreakdown(
+        _ title: String, columns: [String], of measurements: [Measurement],
+        rate: (StoredReport, String) -> Double?
+    ) {
+        let header =
+            "candidate".padded(to: 17) + "params".padded(to: 8) + columns.map { $0.padded(to: 15) }.joined()
+        print("\n\(title) — pass rate over cases the engine attempted\n")
+        print(header)
+        print(String(repeating: "─", count: header.count + 4))
+        for measurement in measurements {
+            print(
+                measurement.description.name.padded(to: 17)
+                    + measurement.description.parameters.padded(to: 8)
+                    + columns.map { (rate(measurement.report, $0).map(percent) ?? "declined").padded(to: 15) }
+                    .joined()
+            )
         }
     }
 
@@ -369,6 +383,8 @@ struct StoredReport: Codable, Sendable {
     struct CaseResult: Codable, Sendable {
         let caseID: String
         let category: String
+        /// Absent from results stored before the corpus named destinations.
+        let destination: String?
         let similarity: Double
         let lost: [String]
         let passed: Bool
@@ -381,7 +397,17 @@ struct StoredReport: Codable, Sendable {
     /// is excellent at English and mangles Hindi has not solved the problem a local
     /// model exists to solve.
     func passRate(in category: EvaluationCase.Category) -> Double? {
-        let attempted = cases.filter { $0.category == category.rawValue && !$0.declined }
+        passRate(over: cases.filter { $0.category == category.rawValue })
+    }
+
+    /// Pass rate over the cases dictated into one kind of place, over the cases this engine attempted.
+    func passRate(for destination: Destination) -> Double? {
+        passRate(
+            over: cases.filter { ($0.destination ?? Destination.plain.rawValue) == destination.rawValue })
+    }
+
+    private func passRate(over slice: [CaseResult]) -> Double? {
+        let attempted = slice.filter { !$0.declined }
         guard !attempted.isEmpty else { return nil }
         return Double(attempted.count(where: \.passed)) / Double(attempted.count)
     }
@@ -393,11 +419,11 @@ struct StoredReport: Codable, Sendable {
         slowestSeconds = Self.seconds(report.slowestDuration)
         declinedCount = report.declinedCount
         lostWordCount = report.casesLosingRequiredWords.count
-        let categories = Dictionary(
-            uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0.category.rawValue) })
+        let corpus = Dictionary(uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0) })
         cases = report.scores.map {
             CaseResult(
-                caseID: $0.caseID, category: categories[$0.caseID] ?? "unknown",
+                caseID: $0.caseID, category: corpus[$0.caseID]?.category.rawValue ?? "unknown",
+                destination: corpus[$0.caseID]?.destination.rawValue,
                 similarity: $0.similarity, lost: $0.lost, passed: $0.passed, declined: $0.declined)
         }
     }

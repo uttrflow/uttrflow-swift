@@ -25,7 +25,9 @@ a different feature with a different name.
 
 `MeaningPreservationGuard` is the mechanical form of this rule: a rewrite that drops most
 of the words, doubles them, opens with a preamble or invents a number is refused and the
-raw transcript is used instead. §9 of the requirements, §19 for the fallback.
+raw transcript is used instead. A number is read with its thousands separators removed,
+so "12,000" and "12000" (and "1,50,000" and "150000") are the same number and a model
+that drops or adds the comma is not refused. §9 of the requirements, §19 for the fallback.
 
 ## Tier 1 — always, because nothing is lost
 
@@ -38,7 +40,7 @@ would make. Safe in every register.
 | Stammers — the same short word twice | "the the deployment" → "the deployment" | ✅ `StammersPass` (≤4 letters; a long repeat is emphasis) |
 | Repeated phrase — a false start restarted verbatim | "so I was I was thinking" → "so I was thinking" | ✅ `RepeatedPhrasePass`: a 2–4-word run repeated right after itself, case-insensitive, never across a punctuation mark; the first copy goes |
 | Sentence capitalisation and the pronoun "I" | "i think i'll go" → "I think I'll go" | ✅ `FirstWordPass` (also "i'll", "i'm"; a new sentence after `. ! ?`, a paragraph or a bullet, not after a plain line break) and the prompt |
-| Terminal punctuation on the last sentence | "ship it" → "Ship it." | ✅ `TerminalStopPass` and the prompt, as the destination's formatter says, and never when the text holds a newline (dictated code) |
+| Terminal punctuation on the last sentence | "ship it" → "Ship it." | ✅ `TerminalStopPass` and the prompt, as the destination's formatter says. Under a `paragraphs` layout (document, email, plain, messaging) the last sentence ends whatever line breaks the text holds, and every paragraph of three or more words before a blank line ends with a full stop; a list item never gets one; under `preserveNewlines` (code, SQL) a text holding a newline gets none; under `singleLine` (a cell) every line break becomes a space |
 | Whitespace and spacing around punctuation | no space before `, . ? ! : ;`; one after | ✅ `Draft.text` joins words with one space; `SpacingPass` fixes a stray mark onto the word before it and collapses doubled marks |
 | Apostrophes in contractions | "dont", "Ill" → "don't", "I'll" | ✅ prompt (as "obvious mis-hearings"); worth a rule |
 | Numbers that read as numerals | "fifteen" → "15", "sixteen point two" → "16.2", "nine thousand rupees" → "9000 rupees", "fifteen thousand" → "15,000" | ✅ `NumberFormsPass`. Ten and up always; zero to nine stay words ("one of them") unless inside a number phrase — a decimal, a percentage, a time, a year, or after "port", "version", "page", "chapter", "step", "number" and the like, where digit groups also run together ("port eighty eighty" → "port 8080"). Commas only from 10,000. "a hundred" stays words |
@@ -60,12 +62,12 @@ them. When the signal is missing or could be read two ways, the words stay.
 | Sentence boundaries from pauses and shape | pause plus a new clause that stands alone | "the build passed everything looks good ship it" → "The build passed. Everything looks good. Ship it." | ✅ prompt; rules only cap the first word |
 | Commas from pauses and conjunctions | a short pause before "but", "so", "and then", a vocative | "thanks marcy i'll pick up…" → "Thanks Marcy, I'll pick up…" | ✅ prompt |
 | Spoken punctuation names | "comma", "full stop"/"period", "question mark", "exclamation mark"/"point", "colon", "semicolon", "open quote … close quote", "hyphen", "dash" | "add milk comma eggs comma and bread" → "add milk, eggs, and bread" | ✅ `SpokenPunctuationPass`. The mark goes on the word before it (a quote opens on the word after; a hyphen joins both sides). Left as a word when it is first, when the word before it is a determiner or a verb of placing ("a", "the", "this", "my", "put", "add", "insert", "with", "no"…), or when "of" follows ("a long period of time"). "full stop" and "period" are used only where the text closes — as the last word, or before "new line"/"new paragraph"/"bullet point" or "close quote" — so "the trial period ended last week" keeps its word and "ship it period" ends with a stop; a mid-sentence "period" stays a word and the model places the stop from the pause. "hyphen" and "dash" are the mirror: used only where the text does not close, since both need a word to follow |
-| Layout words | "new line", "new paragraph"/"blank line", "bullet point"/"next point" | a newline, a blank line, a list item | ✅ `LayoutWordsPass`, with the same mention guard as spoken punctuation and only between two words — a trailing "new line" stays words. "number one … number two" is still ❌ |
+| Layout words | "new line", "new paragraph"/"blank line", "bullet point"/"next point" | a newline, a blank line, a list item | ✅ `LayoutWordsPass`, with the same mention guard as spoken punctuation and only between two words — a trailing "new line" stays words. A model's answer is read the same way: a line opening with `-`, `•` or `*` and a space is a list item, so each item takes a capital and no stop. "number one … number two" is still ❌ |
 | Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ❌. Wispr Flow builds numbered lists from sequence words. Only when there are at least two items and each is a clause of its own |
 | Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ❌; the pieces cut while recording are joined with a space. A pause long enough to cut at is also a candidate for a paragraph |
 | Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ context rule; spelling only, never SQL from prose |
 | Trailing full stop dropped in chat apps | the destination is a messaging app and the text is one or two sentences | "on my way" stays "on my way" in WhatsApp | ✅ `TerminalStopPass` under `DestinationFormatter` for `.messaging`, `.offForShortMessages(2)`; a question or exclamation mark is always kept. Decided by the app's bundle identifier, so Electron apps count |
-| Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ✅ `FirstWordPass` from `InsertionPoint.sentenceState`, read off the field's text before the caret; "I", its contractions and acronyms keep their capital. Electron apps (Slack, Discord, VS Code) do not report their field, so there the state is `unknown` and the first word stays capital |
+| Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ✅ `FirstWordPass` from `InsertionPoint.sentenceState`, read off the field's text before the caret; "I", its contractions and acronyms keep their capital. A model that repeats the text before the caret at the head of its answer has that echo taken back by `CaretEchoPass` — the whole preceding text of two or more words, or the tail the prompt quoted, case and punctuation aside; never a partial match. Electron apps (Slack, Discord, VS Code) do not report their field, so there the state is `unknown` and the first word stays capital |
 
 ## Tier 3 — never
 
@@ -112,8 +114,10 @@ after, from the focused field's value and selected range — and a `Destination`
 (`document`, `spreadsheet`, `sqlEditor`, `codeEditor`, `messaging`, `email`, `plain`).
 The destination is read off one table, `DestinationRules.standard`, by bundle
 identifier prefix or window title; no code branches on a bundle identifier anywhere
-else. `DestinationFormatter.registry` holds one value per destination and, so far, two decisions:
-how the first word is cased and whether the last sentence gets a full stop. A first
+else. `DestinationFormatter.registry` holds one value per destination and, so far, three decisions:
+how the first word is cased, whether the last sentence gets a full stop, and the layout
+(`paragraphs` and `lists` for a document or an email, `paragraphs` alone for a message
+or plain text, `preserveNewlines` for code and SQL, `singleLine` for a cell). A first
 word lowered mid-sentence keeps its capital when it is "I", an acronym, or looks like a
 name: the same word is capitalised off a sentence start elsewhere in the output, or in
 the window title, the selection or the text around the caret — a text capitalised
@@ -146,14 +150,43 @@ one model call per piece — is `Docs/cleanup-design.md`. Below is where things 
 - `SituationResolver` turns the context read into a `Situation`; `FirstWordPass` and
   `TerminalStopPass` carry the `DestinationFormatter` policies, and are the only place
   either decision is made — last in the rules pipeline, and again after the model as
-  `CleaningPipeline.afterModel(for:situation:heard:)`.
+  `CleaningPipeline.afterModel(for:situation:heard:)`, where `CaretEchoPass` first takes
+  back a repeated "Text before the caret".
 - The generative transformer runs the same passes first, without the casing and the
   final full stop, and hands the model the draft's text — so the fillers and the
   discarded half of a correction are gone before the model can rewrite around them.
-- `CleanupPrompt` asks the model for Tier 1 and the parts of Tier 2 marked ✅, with the
-  Tier 3 list as prohibitions. Additions go in as one rule and one worked example each,
-  measured against the corpus before and after (`make bakeoff ARGS="--baselines-only"`),
-  and the examples must not overlap corpus cases (two tests enforce this).
+- `PromptBuilder` gives the model its instructions in three layers, each a separate
+  piece of data. The **contract** (`PromptContract`, one string and nine worked examples)
+  is the same everywhere: the goal, Tier 1 and the parts of Tier 2 marked ✅, the two
+  restraints the model still needs spelled out ("never invent or change a name, number,
+  date or amount", "when unsure, keep the original wording"), how to read the "Typed
+  into:" line (spelling only) and the "Text before the caret:" line (continue the
+  sentence, repeat nothing, close nothing), then the examples the bake-off showed were
+  load-bearing: a question, a plain sentence, an injection typed as dictation, the two
+  Hindi ones, a name off a chat title, an identifier off nearby text, a SQL-editor
+  sentence that stays prose, and a continued sentence after a caret. The Tier 3
+  never-list was tried as a contract sentence and made Apple's model passive — it
+  stopped capitalising, punctuating and spelling from the screen — so the prohibitions
+  live in the guard and the examples, not the wording. The **formatter block**
+  (`PromptBlocks`, one `PromptBlock` per `PromptBlockID`, named by
+  `DestinationFormatter.promptBlock`) is that place's two to four style rules and at
+  most two worked examples of its own, only where its layout or final stop differs from
+  the contract's examples — a message example teaches "no trailing stop", a code example
+  teaches line breaks, a cell example teaches one line, a document example a list, an
+  email example paragraphs; plain text and the SQL editor add none. The **situation
+  block** is built per request by `PromptBuilder.userPrompt(for:spoken:)`: the "Typed
+  into:" line, the last 120 characters before a mid-sentence caret, then the spoken
+  words; `situationBlock(for:)` is where Phase D adds the doubtful-words line. No
+  destination's instructions exceed the size of the single prompt they replaced by more
+  than a tenth (a test holds the number; the tenth paid for the shared examples).
+  Additions go in as one rule and one worked example each, measured against the corpus
+  before and after (`make bakeoff ARGS="--baselines-only"`, which now reports pass rates
+  by destination), and no block's examples may overlap a corpus case (two tests enforce
+  this over every block).
+- `GenerativeTextTransformer` warms the model for the destination the dictation is going
+  to — `DictationPipeline` reads the screen before it warms, and warms for plain text when
+  the screen says nothing — because the model keeps one pre-warmed session keyed by the
+  instructions it was given.
 - `MeaningPreservationGuard` polices Tier 3 after the fact, judging the model against
   the words the passes kept, so a pass's removal is never counted as the model dropping
   words.

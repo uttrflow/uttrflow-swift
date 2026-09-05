@@ -241,13 +241,14 @@ public actor DictationPipeline {
         let cleaned: TransformationResult
     }
 
-    /// Starts the tidier warming and the recogniser working on the recording as it grows.
+    /// Reads the screen, warms the tidier for where the words are going, then works on the recording as it grows.
     private func beginWorkingAhead(_ mine: Int) {
         earlyPieces = []
         earlyCut = 0
         earlyContext = nil
         earlyWork = Task { [cleaner] in
-            await cleaner.warm()
+            let seeing = await self.earlyContextRead()
+            await cleaner.warm(for: SituationResolver.resolve(from: seeing))
             await self.workAhead(mine)
         }
     }
@@ -345,10 +346,9 @@ public actor DictationPipeline {
             guard !wasCancelled(mine) else { return }
             guard let heard else { continue }
 
-            if appContext == nil {
-                transition(to: .tidying)
-                appContext = await contextFor(delivery)
-            }
+            // The first piece ends transcribing, whether or not the screen was read while recording.
+            if state == .transcribing { transition(to: .tidying) }
+            if appContext == nil { appContext = await contextFor(delivery) }
             let seeing = appContext ?? AppContext()
             pieces.append(await finish(heard, seeing: seeing, recording: tally))
             guard !wasCancelled(mine) else { return }

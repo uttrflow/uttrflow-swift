@@ -36,9 +36,17 @@ public struct Draft: Sendable, Equatable {
             return true
         }
 
-        /// Whether the word is a line or paragraph break rather than something said.
-        public var isLayoutMark: Bool { text.hasPrefix("\n") }
+        /// Whether the word is a line break, a paragraph break or a bullet rather than something said.
+        public var isLayoutMark: Bool { text.hasPrefix("\n") || text == Draft.bullet }
+
+        /// Whether the word is the bullet that opens a list item.
+        public var isListMark: Bool { text.hasSuffix(Draft.bullet) }
     }
+
+    /// The dash and space a list item begins with, after the line break that starts it.
+    public static let bullet = "- "
+    /// The tokens a line may open with to be read as a list item.
+    private static let bulletTokens: Set<Substring> = ["-", "•", "*"]
 
     public var words: [Word]
     /// Whether the words carry the recogniser's confidences rather than a stand-in of 1 for every word.
@@ -54,15 +62,19 @@ public struct Draft: Sendable, Equatable {
         self.init(words: Self.split(text, confidence: 1))
     }
 
-    /// Splits text on spaces and tabs, keeping each run of line breaks between words as one layout mark.
+    /// Splits text on spaces and tabs, keeping each run of line breaks as one layout mark and a bulleted line as a list item.
     public init(keepingLineBreaks text: String) {
         var words: [Word] = []
         var previousLine: Int?
         let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         for (number, line) in lines.enumerated() {
-            let lineWords = line.split(whereSeparator: \.isWhitespace)
+            var lineWords = line.split(whereSeparator: \.isWhitespace)
             guard !lineWords.isEmpty else { continue }
-            if let previousLine { words.append(Word(String(repeating: "\n", count: number - previousLine))) }
+            let isItem = lineWords.count > 1 && Self.bulletTokens.contains(lineWords[0])
+            if isItem { lineWords.removeFirst() }
+            let breaks = previousLine.map { String(repeating: "\n", count: number - $0) } ?? ""
+            let mark = breaks + (isItem ? Self.bullet : "")
+            if !mark.isEmpty { words.append(Word(mark)) }
             words += lineWords.map { Word(String($0)) }
             previousLine = number
         }

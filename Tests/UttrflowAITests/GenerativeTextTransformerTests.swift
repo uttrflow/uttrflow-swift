@@ -40,7 +40,7 @@ struct GenerativeTextTransformerTests {
 
         _ = try await sut.transform(request("hello there"))
 
-        #expect(model.calls.first?.instructions == CleanupPrompt.current.instructions)
+        #expect(model.calls.first?.instructions == PromptBuilder.standard.instructions(for: .plain))
         #expect(model.calls.first?.text == "Spoken: \"hello there\"")
         #expect(model.calls.first?.kind == .foundationModels)
     }
@@ -82,7 +82,7 @@ struct GenerativeTextTransformerTests {
         #expect(model.calls.first?.text == "Spoken: \"let's meet at five\"")
     }
 
-    @Test("finishes the capital and the full stop the model forgot, and keeps the line breaks it meant")
+    @Test("finishes the capitals and the full stop the model forgot, and lays out the list it meant")
     func finishesWhatTheModelForgot() async throws {
         let model = FakeCleanupModel { _ in "hello there" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
@@ -91,7 +91,7 @@ struct GenerativeTextTransformerTests {
         let listing = GenerativeTextTransformer(
             kind: .foundationModels, model: FakeCleanupModel { _ in "we need:\n- milk\n\n- eggs" })
         #expect(
-            try await listing.transform(request("we need milk and eggs")).text == "We need:\n- milk\n\n- eggs"
+            try await listing.transform(request("we need milk and eggs")).text == "We need:\n- Milk\n\n- Eggs"
         )
     }
 

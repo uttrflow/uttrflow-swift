@@ -16,7 +16,17 @@ struct RulesCorpusTests {
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",
         "dictated-question", "dictated-instruction", "injection", "asks-for-help", "sounds-like-a-prompt",
         "message-two-sentences-no-stop", "mid-sentence-continues-lower-case", "spreadsheet-cell-no-stop",
-        "document-sentence-with-stop",
+        "document-sentence-with-stop", "document-list-only-when-spoken", "document-sentence-not-a-list",
+        "spreadsheet-number-in-cell", "spreadsheet-percentage-in-cell", "sql-editor-prose-stays-prose",
+        "sql-editor-numerals", "code-editor-line-break-preserved", "code-editor-numeral-no-stop",
+        "message-short-no-stop", "email-greeting-kept", "email-continues-mid-sentence",
+        "email-two-paragraphs",
+    ]
+
+    /// Destination cases only the model can pass: a spelling off the screen, or a question mark from a sentence's shape.
+    static let modelOnly: Set<String> = [
+        "sql-editor-identifier-from-screen", "code-editor-identifier-from-screen",
+        "message-question-keeps-its-mark",
     ]
 
     /// The request the bake-off hands an engine, with the case's own destination and caret.
@@ -38,9 +48,19 @@ struct RulesCorpusTests {
 
     @Test("passes every case that names its destination, under that destination's formatter and its caret")
     func passesDestinationCases() {
-        let named = EvaluationCorpus.all.filter { $0.destination != .plain }.map(\.id)
-        #expect(named.count == 4)
-        #expect(Set(named).isSubset(of: Self.rulesMustPass))
+        let named = Set(EvaluationCorpus.all.filter { $0.destination != .plain }.map(\.id))
+        #expect(named.count == 19)
+        #expect(named.subtracting(Self.modelOnly).isSubset(of: Self.rulesMustPass))
+        #expect(Self.modelOnly.isSubset(of: named))
+        #expect(Self.modelOnly.isDisjoint(with: Self.rulesMustPass))
+    }
+
+    @Test("gives every destination at least three cases, so the bake-off can score its block")
+    func everyDestinationIsMeasured() {
+        for destination in Destination.allCases where destination != .plain {
+            let count = EvaluationCorpus.all.count { $0.destination == destination }
+            #expect(count >= 3, "\(destination) has \(count) cases")
+        }
     }
 
     @Test("names only cases that exist")
@@ -57,7 +77,7 @@ struct RulesCorpusTests {
             ("self-correction", "Let's meet at five on tuesday."),
             ("version-number", "We're on postgres 16.2 right now."),
             ("spoken-comma", "We still need milk, eggs, and bread from the shop."),
-            ("new-paragraph", "Thanks for the update\n\nThe second issue is the login timeout"),
+            ("new-paragraph", "Thanks for the update.\n\nThe second issue is the login timeout."),
             ("time-of-day", "The dentist moved my appointment to 2:30 pm tomorrow."),
             ("port-number", "The gateway listens on port 8080 in staging."),
             ("percentage", "Conversion dropped by 5% after the redesign."),
@@ -69,6 +89,20 @@ struct RulesCorpusTests {
             ("mid-sentence-continues-lower-case", "the deployment script timed out."),
             ("spreadsheet-cell-no-stop", "total revenue for the quarter"),
             ("document-sentence-with-stop", "The quarterly report is attached for your review."),
+            (
+                "document-list-only-when-spoken",
+                "What's left to pack\n- The tent\n- The stove\n- The first aid kit"
+            ),
+            ("spreadsheet-number-in-cell", "marketing spend for march is 12,000"),
+            ("spreadsheet-percentage-in-cell", "churn rate is 4.5%"),
+            ("code-editor-line-break-preserved", "Retry the request\nlog the failure"),
+            ("code-editor-numeral-no-stop", "Bump the retry count to 20"),
+            ("message-short-no-stop", "Leaving now see you at the cafe"),
+            ("email-continues-mid-sentence", "the quote you sent last week."),
+            (
+                "email-two-paragraphs",
+                "Thanks for your note.\n\nI've attached the revised quote for the second floor."
+            ),
         ])
     func exactText(id: String, expected: String) async throws {
         let testCase = try #require(EvaluationCorpus.all.first { $0.id == id })

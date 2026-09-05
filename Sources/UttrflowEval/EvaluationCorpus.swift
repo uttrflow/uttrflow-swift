@@ -523,5 +523,237 @@ public enum EvaluationCorpus {
             mustBeginWith: "The",
             mustEndWith: "."
         ),
+
+        // Three or more per destination, so the bake-off can score each place's prompt block on its own.
+        .init(
+            id: "document-list-only-when-spoken", category: .contextual,
+            spoken:
+                "what's left to pack bullet point the tent bullet point the stove bullet point the first aid kit",
+            expected: "What's left to pack\n- The tent\n- The stove\n- The first aid kit",
+            mustKeep: ["tent", "stove", "first aid kit"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: "com.apple.iWork.Pages",
+                documentName: "Camping.pages"
+            ),
+            mustNotAdd: ["bullet", "point"],
+            destination: .document,
+            mustBeginWith: "What's left to pack\n- The tent",
+            mustEndWith: "first aid kit"
+        ),
+        .init(
+            id: "document-sentence-not-a-list", category: .contextual,
+            spoken: "bring a torch a map and the spare batteries",
+            expected: "Bring a torch, a map and the spare batteries.",
+            mustKeep: ["torch", "map", "batteries"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Kit list.docx"
+            ),
+            mustNotAdd: ["-"],
+            destination: .document,
+            mustBeginWith: "Bring",
+            mustEndWith: "batteries."
+        ),
+        .init(
+            id: "spreadsheet-number-in-cell", category: .contextual,
+            spoken: "um marketing spend for march is twelve thousand",
+            expected: "marketing spend for March is 12,000",
+            mustKeep: ["12,000"],
+            context: AppContext(
+                applicationName: "Numbers",
+                bundleIdentifier: "com.apple.iWork.Numbers",
+                documentName: "Budget.numbers"
+            ),
+            mustNotAdd: ["."],
+            destination: .spreadsheet,
+            mustBeginWith: "marketing",
+            mustEndWith: "12,000"
+        ),
+        .init(
+            id: "spreadsheet-percentage-in-cell", category: .contextual,
+            spoken: "uh churn rate is four point five percent",
+            expected: "churn rate is 4.5%",
+            mustKeep: ["4.5"],
+            context: AppContext(
+                applicationName: "Microsoft Excel",
+                bundleIdentifier: "com.microsoft.Excel",
+                documentName: "Retention.xlsx"
+            ),
+            mustNotAdd: ["percent"],
+            destination: .spreadsheet,
+            mustBeginWith: "churn",
+            mustEndWith: "4.5%"
+        ),
+        .init(
+            id: "sql-editor-prose-stays-prose", category: .contextual,
+            spoken: "the nightly backup finished before the migration started",
+            expected: "The nightly backup finished before the migration started.",
+            mustKeep: ["backup", "migration"],
+            context: AppContext(
+                applicationName: "TablePlus",
+                bundleIdentifier: "com.tinyapp.TablePlus",
+                documentName: "backups.sql — ops"
+            ),
+            mustNotAdd: ["SELECT", "FROM", "WHERE"],
+            destination: .sqlEditor,
+            mustBeginWith: "The",
+            mustEndWith: "started."
+        ),
+        // Only the model can take a spelling off the screen; the rules are not asked to pass this one.
+        .init(
+            id: "sql-editor-identifier-from-screen", category: .contextual,
+            spoken: "the order totals view is stale after midnight",
+            expected: "The orderTotals view is stale after midnight.",
+            mustKeep: ["orderTotals", "midnight"],
+            context: AppContext(
+                applicationName: "Postico",
+                bundleIdentifier: "at.eggerapps.Postico",
+                documentName: "revenue.sql",
+                selectedText: "orderTotals"
+            ),
+            mustNotAdd: ["order totals", "SELECT", "FROM"],
+            destination: .sqlEditor,
+            mustBeginWith: "The",
+            mustEndWith: "midnight."
+        ),
+        .init(
+            id: "sql-editor-numerals", category: .contextual,
+            spoken: "retention is ninety days for audit rows",
+            expected: "Retention is 90 days for audit rows.",
+            mustKeep: ["90", "audit"],
+            context: AppContext(
+                applicationName: "TablePlus",
+                bundleIdentifier: "com.tinyapp.TablePlus",
+                documentName: "audit.sql — ops"
+            ),
+            mustNotAdd: ["ninety"],
+            destination: .sqlEditor,
+            mustBeginWith: "Retention",
+            mustEndWith: "rows."
+        ),
+        .init(
+            id: "code-editor-line-break-preserved", category: .contextual,
+            spoken: "retry the request new line log the failure",
+            expected: "Retry the request\nlog the failure",
+            mustKeep: ["request", "failure"],
+            context: AppContext(
+                applicationName: "Xcode",
+                bundleIdentifier: "com.apple.dt.Xcode",
+                documentName: "Retrier.swift — Uttrflow"
+            ),
+            mustNotAdd: ["new line", "."],
+            destination: .codeEditor,
+            mustBeginWith: "Retry the request\n",
+            mustEndWith: "log the failure"
+        ),
+        // Only the model can take a spelling off the screen; the rules are not asked to pass this one.
+        .init(
+            id: "code-editor-identifier-from-screen", category: .contextual,
+            spoken: "call fetch invoices before the sheet appears",
+            expected: "Call fetchInvoices before the sheet appears",
+            mustKeep: ["fetchInvoices", "sheet"],
+            context: AppContext(
+                applicationName: "Visual Studio Code",
+                bundleIdentifier: "com.microsoft.VSCode",
+                documentName: "InvoiceList.swift — uttrflow",
+                selectedText: "fetchInvoices()"
+            ),
+            mustNotAdd: ["fetch invoices", "."],
+            destination: .codeEditor,
+            mustBeginWith: "Call",
+            mustEndWith: "appears"
+        ),
+        .init(
+            id: "code-editor-numeral-no-stop", category: .contextual,
+            spoken: "bump the retry count to twenty",
+            expected: "Bump the retry count to 20",
+            mustKeep: ["20"],
+            context: AppContext(
+                applicationName: "Zed",
+                bundleIdentifier: "dev.zed.Zed",
+                documentName: "Retrier.swift"
+            ),
+            mustNotAdd: ["twenty", "."],
+            destination: .codeEditor,
+            mustBeginWith: "Bump",
+            mustEndWith: "20"
+        ),
+        // A question mark from the shape of a sentence needs the model; the rules are not asked to pass this one.
+        .init(
+            id: "message-question-keeps-its-mark", category: .contextual,
+            spoken: "hey are we still on for lunch",
+            expected: "Hey, are we still on for lunch?",
+            mustKeep: ["lunch"],
+            context: AppContext(
+                applicationName: "WhatsApp",
+                bundleIdentifier: "net.whatsapp.WhatsApp",
+                documentName: "Priya"
+            ),
+            destination: .messaging,
+            mustBeginWith: "Hey",
+            mustEndWith: "?"
+        ),
+        .init(
+            id: "message-short-no-stop", category: .contextual,
+            spoken: "um leaving now see you at the cafe",
+            expected: "Leaving now, see you at the cafe",
+            mustKeep: ["cafe"],
+            context: AppContext(
+                applicationName: "Messages",
+                bundleIdentifier: "com.apple.MobileSMS",
+                documentName: "Dev"
+            ),
+            mustNotAdd: ["."],
+            destination: .messaging,
+            mustBeginWith: "Leaving",
+            mustEndWith: "cafe"
+        ),
+        // Full stops either side of a paragraph break need the model; the rules are not asked to pass this one.
+        .init(
+            id: "email-two-paragraphs", category: .contextual,
+            spoken: "thanks for your note new paragraph I've attached the revised quote for the second floor",
+            expected: "Thanks for your note.\n\nI've attached the revised quote for the second floor.",
+            mustKeep: ["revised quote", "second floor"],
+            context: AppContext(
+                applicationName: "Mail",
+                bundleIdentifier: "com.apple.mail",
+                documentName: "Re: Second floor quote"
+            ),
+            mustNotAdd: ["paragraph"],
+            destination: .email,
+            mustBeginWith: "Thanks for your note",
+            mustEndWith: "floor."
+        ),
+        .init(
+            id: "email-greeting-kept", category: .contextual,
+            spoken: "hi meera um just confirming the venue for the offsite is booked",
+            expected: "Hi Meera, just confirming the venue for the offsite is booked.",
+            mustKeep: ["Meera", "offsite"],
+            context: AppContext(
+                applicationName: "Microsoft Outlook",
+                bundleIdentifier: "com.microsoft.Outlook",
+                documentName: "Offsite — Message"
+            ),
+            destination: .email,
+            mustBeginWith: "Hi",
+            mustEndWith: "booked."
+        ),
+        .init(
+            id: "email-continues-mid-sentence", category: .contextual,
+            spoken: "the quote you sent last week",
+            expected: "the quote you sent last week.",
+            mustKeep: ["quote"],
+            context: AppContext(
+                applicationName: "Mail",
+                bundleIdentifier: "com.apple.mail",
+                documentName: "Re: Quote",
+                precedingText: "Following up on "
+            ),
+            destination: .email,
+            mustBeginWith: "the quote",
+            mustEndWith: "week."
+        ),
     ]
 }

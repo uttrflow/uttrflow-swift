@@ -10,7 +10,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     public let kind: TransformerKind
 
     private let model: any CleanupModel
-    private let prompt: CleanupPrompt
+    private let prompts: PromptBuilder
     private let meaningGuard: MeaningPreservationGuard
     private let pipeline: CleaningPipeline
 
@@ -18,13 +18,13 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     public init(
         kind: TransformerKind,
         model: any CleanupModel,
-        prompt: CleanupPrompt = .current,
+        prompts: PromptBuilder = .standard,
         meaningGuard: MeaningPreservationGuard = MeaningPreservationGuard(),
         pipeline: CleaningPipeline = .beforeModel
     ) {
         self.kind = kind
         self.model = model
-        self.prompt = prompt
+        self.prompts = prompts
         self.meaningGuard = meaningGuard
         self.pipeline = pipeline
     }
@@ -33,9 +33,9 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         await model.availability(for: request.effectiveLanguage)
     }
 
-    /// Hands the model the instructions every request carries, ahead of the request.
-    public func warm() async {
-        await model.warm(instructions: prompt.instructions)
+    /// Hands the model the instructions for where the words are going, plain text's when that is not known.
+    public func warm(for situation: Situation?) async {
+        await model.warm(instructions: prompts.instructions(for: situation?.destination ?? .plain))
     }
 
     public func transform(
@@ -45,7 +45,8 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let draft = pipeline.run(Draft(transcription: request.transcription))
         let spoken = draft.text
         let rewritten = try await model.rewrite(
-            prompt.userPrompt(for: request, spoken: spoken), instructions: prompt.instructions, kind: kind
+            prompts.userPrompt(for: request, spoken: spoken),
+            instructions: prompts.instructions(for: request.situation.destination), kind: kind
         )
 
         // Models echo the shape of the worked examples, so the answer is unwrapped before it is judged.

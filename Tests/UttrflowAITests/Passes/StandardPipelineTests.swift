@@ -42,13 +42,48 @@ struct StandardPipelineTests {
         #expect(first?.onScreen == ["Forecast", "Q3", "because "])
         #expect(first?.heard == nil)
         #expect(stop?.policy == .never)
+        #expect(stop?.layout == .singleLine)
+        #expect(pipeline.passes.contains { $0 is CaretEchoPass } == false)
+    }
+
+    @Test("hands the caret's text to the echo pass after the model")
+    func echoPassKnowsTheCaret() {
+        let app = AppContext(documentName: "Notes", precedingText: "because ")
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .document)
+        let echo = CleaningPipeline.afterModel(for: .standard(for: .document), situation: situation)
+            .passes.compactMap { $0 as? CaretEchoPass }.first
+        #expect(echo?.state == .midSentence)
+        #expect(echo?.precedingText == "because ")
+    }
+
+    @Test("lays out a model's list answer with a capital on each item and no stop")
+    func listAnswer() {
+        let pages = AppContext(documentName: "Camping.pages")
+        let situation = Situation(app: pages, insertion: pages.insertionPoint, destination: .document)
+        let finishing = CleaningPipeline.afterModel(for: .standard(for: .document), situation: situation)
+        let answer = Draft(
+            keepingLineBreaks: "what's left to pack\n- the tent\n- the stove\n- the first aid kit")
+        #expect(
+            finishing.run(answer).text == "What's left to pack\n- The tent\n- The stove\n- The first aid kit")
+    }
+
+    @Test("ends both paragraphs of a model's email answer")
+    func emailAnswer() {
+        let mail = AppContext(documentName: "Re: Second floor quote")
+        let situation = Situation(app: mail, insertion: mail.insertionPoint, destination: .email)
+        let finishing = CleaningPipeline.afterModel(for: .standard(for: .email), situation: situation)
+        let answer = Draft(
+            keepingLineBreaks: "thanks for your note\n\nI've attached the revised quote for the second floor")
+        #expect(
+            finishing.run(answer).text
+                == "Thanks for your note.\n\nI've attached the revised quote for the second floor.")
     }
 
     @Test("finishes a model's answer with the same two passes, copying the case the words were heard in")
     func afterModel() {
         let cell = CleaningPipeline.afterModel(
             for: .standard(for: .spreadsheet), situation: .unknown, heard: "uh total revenue")
-        #expect(cell.ids == ["firstWord", "terminalStop"])
+        #expect(cell.ids == ["caretEcho", "firstWord", "terminalStop"])
         #expect(cell.run(Draft(text: "Total revenue.")).text == "total revenue")
 
         let app = AppContext(documentName: "Chat with John", precedingText: "because ")
@@ -68,8 +103,8 @@ struct StandardPipelineTests {
             ("let's meet at four no sorry at five on tuesday", "Let's meet at five on tuesday."),
             ("we still need milk comma eggs comma and bread", "We still need milk, eggs, and bread."),
             ("we're on postgres sixteen point two right now", "We're on postgres 16.2 right now."),
-            ("first line new line second line", "First line\nsecond line"),
-            ("thanks new paragraph the second issue", "Thanks\n\nThe second issue"),
+            ("first line new line second line", "First line\nsecond line."),
+            ("thanks new paragraph the second issue", "Thanks\n\nThe second issue."),
             ("is it ready question mark", "Is it ready?"),
             ("i think i'll take the earlier train", "I think I'll take the earlier train."),
             ("the dentist moved it to two thirty pm", "The dentist moved it to 2:30 pm."),

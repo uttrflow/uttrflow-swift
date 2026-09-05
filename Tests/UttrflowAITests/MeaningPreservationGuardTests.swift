@@ -91,6 +91,28 @@ struct MeaningPreservationGuardTests {
         accepted("I'll be 20 minutes late", "I'll be 20 minutes late.")
     }
 
+    @Test(
+        "reads a number the same with or without its thousands separators, in either direction",
+        arguments: [
+            ("marketing spend for march is 12,000", "Marketing spend for March is 12000"),
+            ("marketing spend for march is 12000", "Marketing spend for March is 12,000"),
+            ("the budget is 1,50,000 rupees", "The budget is 150000 rupees."),
+            ("the budget is 150000 rupees", "The budget is 1,50,000 rupees."),
+        ]
+    )
+    func acceptsSeparators(original: String, rewritten: String) {
+        accepted(original, rewritten)
+    }
+
+    @Test("still refuses a different number behind a separator, and keeps a list of digits apart")
+    func separatorsHideNothing() {
+        rejected("the spend is 12,000", "The spend is 12,500.")
+        rejected("items 1,2 and 3", "Items 12 and 3.")
+        #expect(
+            MeaningPreservationGuard.withoutThousandsSeparators("1,50,000, 12,000, 1,2, 1,2345")
+                == "150000, 12000, 1,2, 1,2345")
+    }
+
     @Test("names the number it objected to, so a failure can be understood")
     func namesTheInventedNumber() {
         let verdict = sut.verdict(original: "meet me tomorrow", rewritten: "Meet me at 3 tomorrow.")

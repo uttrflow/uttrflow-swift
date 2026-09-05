@@ -80,10 +80,24 @@ public struct MeaningPreservationGuard: Sendable {
 
     private static func numbers(in text: String) -> Set<String> {
         Set(
-            text.split(whereSeparator: { !$0.isNumber })
+            withoutThousandsSeparators(text).split(whereSeparator: { !$0.isNumber })
                 .map(String.init)
                 .filter { !$0.isEmpty }
         )
+    }
+
+    /// Drops a comma that groups digits, so "12,000" and "1,50,000" read as the numbers they are.
+    static func withoutThousandsSeparators(_ text: String) -> String {
+        let characters = Array(text)
+        var result = ""
+        for (index, character) in characters.enumerated() {
+            if character == ",", index > 0, characters[index - 1].isNumber {
+                let run = characters[(index + 1)...].prefix(while: \.isNumber).count
+                if run == 2 || run == 3 { continue }
+            }
+            result.append(character)
+        }
+        return result
     }
 
     /// Digits the speaker uttered as words. Covers what people dictate in practice —

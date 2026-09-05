@@ -37,9 +37,9 @@ private actor NumberingSpeechEngine: SpeechEngine {
     var calls: Int { sampleCounts.count }
 }
 
-/// A tidier that shouts, so its work on each piece can be seen, and remembers being warmed.
+/// A tidier that shouts, so its work on each piece can be seen, and remembers where it was warmed for.
 private final class ShoutingCleaner: TranscriptCleaning, Sendable {
-    private let state = Mutex((warmed: 0, seen: [String]()))
+    private let state = Mutex((warmed: [Destination?](), seen: [String]()))
     private let failOn: String?
 
     init(failOn: String? = nil) {
@@ -53,11 +53,11 @@ private final class ShoutingCleaner: TranscriptCleaning, Sendable {
         return TransformationResult(text: text.uppercased(), producedBy: .foundationModels)
     }
 
-    func warm() async {
-        state.withLock { $0.warmed += 1 }
+    func warm(for situation: Situation?) async {
+        state.withLock { $0.warmed.append(situation?.destination) }
     }
 
-    var warmed: Int { state.withLock(\.warmed) }
+    var warmed: [Destination?] { state.withLock(\.warmed) }
     var seen: [String] { state.withLock(\.seen) }
 }
 
@@ -170,7 +170,35 @@ struct DictationPipelineEarlyWorkTests {
         #expect(
             counts.reduce(0, +) == Take.threePieces.samples.count,
             "every sample goes to the recogniser once")
-        #expect(cleaner.warmed == 1)
+        #expect(cleaner.warmed == [.messaging], "warmed once, for the Slack window the fixture shows")
+    }
+
+    /// The screen is read before the tidier is warmed, so the warm-up is for the right place.
+    @Test(
+        "the tidier is warmed for where the screen says the words are going, and for plain text when it says nothing"
+    )
+    func warmsForTheDestination() async {
+        for (context, destination) in [
+            (
+                AppContext.fixture(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
+                Destination.codeEditor
+            ),
+            (AppContext(), .plain),
+        ] {
+            let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+            await capture.setCaptured(Take.threePieces)
+            let speech = NumberingSpeechEngine()
+            let cleaner = ShoutingCleaner()
+            let engine = FakeContextEngine(context: context)
+            let pipeline = makePipeline(capture: capture, speech: speech, cleaner: cleaner, context: engine)
+
+            await pipeline.startRecording()
+            await waitForCalls(1, on: speech)
+            await pipeline.finishRecording()
+
+            #expect(cleaner.warmed == [destination])
+            #expect(await engine.calls.count == 1, "one read serves the warm-up and every piece")
+        }
     }
 
     @Test("the screen read while recording names where the words went")

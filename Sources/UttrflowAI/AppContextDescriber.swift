@@ -3,7 +3,7 @@ public import UttrflowCore
 /// Turns what the user is looking at into the one line of prompt text that describes
 /// it — or into nothing at all, when there is nothing worth saying.
 ///
-/// Pure and separate from ``CleanupPrompt`` because the wording here was settled by
+/// Pure and separate from ``PromptBuilder`` because the wording here was settled by
 /// measurement against Apple's on-device model, and every choice below is a measured
 /// one rather than a plausible one:
 ///

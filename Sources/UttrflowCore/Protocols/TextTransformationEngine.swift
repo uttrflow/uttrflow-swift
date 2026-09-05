@@ -14,11 +14,11 @@ public protocol TextTransformationEngine: Sendable {
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult
 
-    /// Gets ready for a request that is about to come, so the first one is not the slow one.
-    func warm() async
+    /// Gets ready for a request going to `situation`, or to nowhere known, so the first one is not the slow one.
+    func warm(for situation: Situation?) async
 }
 
 extension TextTransformationEngine {
     /// Nothing to prepare, which is what a rule-based engine has.
-    public func warm() async {}
+    public func warm(for situation: Situation?) async {}
 }

@@ -20,7 +20,7 @@ struct DraftTests {
             ("line one\nline two", ["line", "one", "\n", "line", "two"], "line one\nline two"),
             ("one\n\ntwo", ["one", "\n\n", "two"], "one\n\ntwo"),
             (
-                "we need:\n- milk\n- eggs", ["we", "need:", "\n", "-", "milk", "\n", "-", "eggs"],
+                "we need:\n- milk\n- eggs", ["we", "need:", "\n- ", "milk", "\n- ", "eggs"],
                 "we need:\n- milk\n- eggs"
             ),
             ("\n  hello \t there\n\n", ["hello", "there"], "hello there"),
@@ -31,6 +31,40 @@ struct DraftTests {
         let draft = Draft(keepingLineBreaks: text)
         #expect(draft.words.map(\.text) == words)
         #expect(draft.text == rendered)
+    }
+
+    @Test(
+        "reads a line opening with a dash, a bullet or an asterisk as a list item, the first line included",
+        arguments: [
+            (
+                "- the tent\n- the stove", ["- ", "the", "tent", "\n- ", "the", "stove"],
+                "- the tent\n- the stove"
+            ),
+            (
+                "packing\n\n• tent\n* stove", ["packing", "\n\n- ", "tent", "\n- ", "stove"],
+                "packing\n\n- tent\n- stove"
+            ),
+            (
+                "a - b\n-5 degrees\n-", ["a", "-", "b", "\n", "-5", "degrees", "\n", "-"],
+                "a - b\n-5 degrees\n-"
+            ),
+        ]
+    )
+    func readsBullets(text: String, words: [String], rendered: String) {
+        let draft = Draft(keepingLineBreaks: text)
+        #expect(draft.words.map(\.text) == words)
+        #expect(draft.text == rendered)
+        for word in draft.words where word.text.hasSuffix("- ") {
+            #expect(word.isLayoutMark && word.isListMark)
+        }
+    }
+
+    @Test("tells a list mark from the other layout marks")
+    func listMarks() {
+        #expect(Draft.Word("\n- ").isListMark && Draft.Word("\n- ").isLayoutMark)
+        #expect(Draft.Word("- ").isListMark && Draft.Word("- ").isLayoutMark)
+        #expect(!Draft.Word("\n\n").isListMark && Draft.Word("\n\n").isLayoutMark)
+        #expect(!Draft.Word("-").isListMark && !Draft.Word("-").isLayoutMark)
     }
 
     @Test("joins the words with single spaces")
