@@ -1,14 +1,15 @@
+// Tests for where the panel opens: the default corner, a remembered spot, and screens that changed.
 import Foundation
 import Testing
 
 @testable import UttrflowUX
 
-/// Where the panel opens. Almost all of this is about the cases a display gives you for
-/// free — a screen that shrank, one that went away, one smaller than the panel.
+/// Where the panel opens, mostly the cases a display gives for free: shrunk, unplugged, too small.
 @Suite("Where the quick panel opens")
 struct PanelPlacementTests {
     /// A 1440×900 display with the menu bar taken off the top.
     static let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
+    /// The design's panel size.
     static let size = CGSize(width: 420, height: 560)
 
     @Test("with nothing remembered, it opens in the top-right corner")
@@ -19,10 +20,7 @@ struct PanelPlacementTests {
         #expect(origin.y == 875 - 560 - PanelPlacement.margin)
     }
 
-    /// AppKit's `y` grows upwards, so the top of the screen is the larger number and an
-    /// origin is a panel's *bottom* edge. Getting either backwards puts the panel along
-    /// the bottom of the display, which reads as correct in a diff. So this asks about
-    /// the edges of the panel rather than about its origin.
+    /// AppKit's `y` grows upwards and an origin is a panel's bottom edge, so this asks about the edges.
     @Test("the panel's top and right edges are the ones near the screen's")
     func theTopIsUp() {
         let origin = PanelPlacement.defaultOrigin(size: Self.size, in: Self.screen)
@@ -34,8 +32,7 @@ struct PanelPlacementTests {
         #expect(panel.minX > Self.screen.midX, "in the right-hand half")
     }
 
-    /// A screen whose origin is not zero: a second display to the right of the first, or
-    /// a first one with a Dock on the left. The corner is that screen's corner.
+    /// A screen whose origin is not zero: a second display, or a Dock on the left.
     @Test("the corner belongs to the screen it is opening on")
     func honoursTheScreensOwnOrigin() {
         let second = CGRect(x: 1440, y: 200, width: 1000, height: 600)
@@ -62,9 +59,7 @@ struct PanelPlacementTests {
         #expect(origin == PanelPlacement.defaultOrigin(size: Self.size, in: Self.screen))
     }
 
-    /// The display it was left on has been unplugged. Restoring the saved position
-    /// literally would put the panel where nothing can be seen or reached — and there is
-    /// no way back from that, because moving it needs it to be visible first.
+    /// A saved position on an unplugged display would put the panel where it cannot be seen or moved.
     @Test("a position on a display that has gone is pulled back on screen")
     func pulledBack() {
         let onASecondDisplay = CGPoint(x: 2200, y: 1400)
@@ -86,9 +81,7 @@ struct PanelPlacementTests {
         #expect(origin == CGPoint(x: 0, y: 0))
     }
 
-    /// A panel taller than the screen has no position that fits. The arithmetic for
-    /// "inside" inverts here, and an unguarded `min`/`max` pair answers with the *lower*
-    /// bound of an empty range — off the top of the screen rather than on it.
+    /// A panel taller than the screen has no position that fits, and a naive `min`/`max` goes off the top.
     @Test("a panel bigger than the screen still opens somewhere reachable")
     func biggerThanTheScreen() {
         let small = CGRect(x: 0, y: 0, width: 300, height: 300)
@@ -100,8 +93,7 @@ struct PanelPlacementTests {
         #expect(origin.y >= small.minY)
     }
 
-    /// Clamping has to be idempotent, because the panel is placed on every open and a
-    /// position that drifted by a margin each time would walk across the screen.
+    /// Clamping is idempotent, or a position drifting by a margin each open would walk across the screen.
     @Test("clamping a position that is already fine changes nothing")
     func idempotent() {
         let once = PanelPlacement.defaultOrigin(size: Self.size, in: Self.screen)

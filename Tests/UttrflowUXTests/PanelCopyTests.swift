@@ -1,16 +1,11 @@
+// Tests that nothing the panel says claims the clipboard leaves this Mac.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// The panel shipped, briefly, saying "Clipboard history is synced across devices" under
-/// a tick. Nothing syncs: the clipboard is one JSON file in Application Support, and this
-/// is a product whose whole argument is that what you copy stays where you copied it.
-///
-/// The sentence was hardcoded in the SwiftUI view rather than decided in the presentation,
-/// which is why no test saw it. These read every word the panel can say, from the one
-/// place that decides them.
+/// Every word the panel can say, read from the one place that decides it, so no syncing claim can hide.
 @Suite("What the panel claims about itself")
 struct PanelCopyTests {
     /// Every user-facing string a panel can produce, across the states that change them.
@@ -46,9 +41,7 @@ struct PanelCopyTests {
         return strings
     }
 
-    /// Any of these in a sentence about the clipboard describes a product that does not
-    /// exist. Over-promising in the user's favour is not a defence — it is what let the
-    /// old wording stand.
+    /// Any of these describes a product that does not exist; over-promising is not a defence.
     static let claimsOfElsewhere = [
         "synced", "syncs", "syncing", "sync ",
         "across devices", "other devices", "all your devices",

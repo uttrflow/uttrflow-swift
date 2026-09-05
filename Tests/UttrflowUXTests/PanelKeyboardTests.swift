@@ -1,3 +1,4 @@
+// Tests for the panel's keys: the product loop, where the arrows stop, the selection, ⌘-numbers, reveal.
 import Foundation
 import UttrflowClipboard
 import Testing
@@ -6,8 +7,7 @@ import Testing
 
 @Suite("The quick panel: open, down, down, Return")
 struct PanelProductLoopTests {
-    /// The whole product, written as the gesture rather than as prose about it. If this
-    /// test ever needs a paragraph to explain what it is doing, the model is wrong.
+    /// The whole product written as the gesture; if this needs a paragraph to explain, the model is wrong.
     @Test("↓ ↓ Return inserts the third clip")
     func theWholeProduct() {
         let panel = PanelFixture.panel()
@@ -20,10 +20,7 @@ struct PanelProductLoopTests {
         #expect(PanelFixture.panel().applying(.return).outcome == .insert(PanelFixture.clips[0]))
     }
 
-    /// A row shows one line; the clip behind it can be a hundred. The outcome therefore
-    /// has to carry the clip, not what the row draws — anything that inserts the drawn
-    /// summary truncates the user's paste to its first line, silently, and only for the
-    /// multi-line clips where losing the rest matters most.
+    /// The outcome carries the clip, not the row's line, or a multi-line paste is silently cut to line one.
     @Test("Return carries every line of the clip, not the one line the row draws")
     func insertsTheWholeClipNotItsSummary() {
         let many = PanelFixture.clip("first line\nsecond line\nthird line", minutesAgo: 1)
@@ -54,8 +51,7 @@ struct PanelProductLoopTests {
         #expect(response.outcome == .insert(clips[4]), "the third of the three that matched")
     }
 
-    /// The promise the alias exists for: type the name, press Return, get that clip —
-    /// without looking at the list, and whatever else it happens to match.
+    /// The promise the alias exists for: type the name, press Return, get that clip, without looking.
     @Test("type an alias and press Return, and it is that clip")
     func aliasThenReturn() {
         let clips = [
@@ -98,8 +94,7 @@ struct PanelProductLoopTests {
         #expect(response.state.query == "prod", "and takes nothing back from the app")
     }
 
-    /// A panel that has closed cannot be typed into, so a run of keys stops where it
-    /// stopped for the user.
+    /// A panel that has closed cannot be typed into, so a run of keys stops where it stopped for the user.
     @Test("keys after the panel closes are not applied")
     func afterClosing() {
         let response = PanelFixture.panel().applying([.return, .down, .down])
@@ -118,10 +113,7 @@ struct PanelProductLoopTests {
 
 @Suite("The quick panel: where the arrows stop")
 struct PanelArrowTests {
-    /// Stopping rather than wrapping is the decision this suite exists to hold. Holding ↓
-    /// a beat too long must not teleport the highlight to the top of the list, because
-    /// the next Return would then paste the newest clip into somebody's document with
-    /// nothing on screen having warned that the aim had moved.
+    /// Stopping rather than wrapping: holding ↓ too long must not silently move the aim to the top.
     @Test("↓ past the bottom stays on the bottom")
     func stopsAtTheBottom() {
         let response = PanelFixture.panel().applying([.down, .down, .down, .down, .down, .return])
@@ -152,8 +144,7 @@ struct PanelArrowTests {
         #expect(response.state == panel)
     }
 
-    /// A search matching nothing must not close the panel: the user would lose what they
-    /// typed along with it, having pressed the key that normally means "yes".
+    /// A search matching nothing must not close the panel, or the user loses what they typed.
     @Test("Return on a search that matches nothing keeps the panel open")
     func returnOnNoMatches() {
         #expect(PanelFixture.panel().applying([.search("zzz"), .return]).outcome == .open)
@@ -171,9 +162,7 @@ struct PanelSelectionTests {
         #expect(panel.applying(.return).outcome == .insert(PanelFixture.clips[2]))
     }
 
-    /// The selection is held by identity precisely for this: something copied while the
-    /// panel is open pushes every row down, and the highlight must stay on the clip the
-    /// user was aiming at rather than on whatever has taken its row number.
+    /// The selection is held by identity, so a clip copied while the panel is open does not move it.
     @Test("a clip copied while the panel is open does not move the selection")
     func newClipArrives() {
         var panel = PanelFixture.panel().applying([.down, .down]).state
@@ -219,6 +208,7 @@ struct PanelSelectionTests {
 
 @Suite("The quick panel: jumping to a collection")
 struct PanelCategoryKeyTests {
+    /// One loose clip and two filed ones.
     static let clips = [
         PanelFixture.clip("a note", minutesAgo: 1),
         PanelFixture.clip("prod dsn", minutesAgo: 2, category: "Prod"),
@@ -234,8 +224,7 @@ struct PanelCategoryKeyTests {
         #expect(panel.applying([.category(number: 3), .return]).outcome == .insert(Self.clips[2]))
     }
 
-    /// The way back needs a key of its own, or the mouse is the only way out of a
-    /// collection.
+    /// The way back needs a key of its own, or the mouse is the only way out of a collection.
     @Test("⌘1 shows everything again")
     func backToAll() {
         let panel = PanelFixture.panel(Self.clips).applying(.category(number: 2)).state
@@ -251,10 +240,7 @@ struct PanelCategoryKeyTests {
         #expect(panel.applying(.category(number: 0)).state == panel)
     }
 
-    /// There is no ⌘10 — but that is about the *keyboard*, not about which collections
-    /// exist. This guard used to stop at the shortcut limit too, so a tenth collection
-    /// could not be reached by any means, mouse included, while being drawn exactly like
-    /// the nine above it. Only a number with no collection behind it is refused now.
+    /// There is no ⌘10, but that is about the keyboard; only a number with no collection is refused.
     @Test("a collection past the ninth can still be jumped to, but a missing one cannot")
     func pastTheNinth() {
         let clips = (1...12).map { PanelFixture.clip("c\($0)", minutesAgo: $0, category: "C\($0)") }
@@ -289,8 +275,7 @@ struct PanelRevealTests {
         #expect(panel.revealed == [secret.id])
     }
 
-    /// Arrowing over a secret must not unmask it: the panel is opened in meetings, and a
-    /// mask that lifts as the highlight passes protects nobody.
+    /// Arrowing over a secret must not unmask it; the panel is opened in meetings.
     @Test("arrowing onto a secret does not reveal it")
     func arrowingDoesNotReveal() {
         let secret = PanelFixture.clip("sk-live-1234", kind: .secret, minutesAgo: 1)

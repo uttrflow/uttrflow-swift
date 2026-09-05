@@ -1,44 +1,23 @@
+// Every panel action driven end to end against a real clipboard store in a temporary folder.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// Every action the panel offers, driven end to end against a real store on disk.
-///
-/// The unit tests each hold one decision still and check it. This does the opposite: it
-/// plays whole sequences the way a person would — copy something, name it, file it, search
-/// for it by the name, rename the collection, delete the clip, put it back — and asserts
-/// what is actually on disk afterwards.
-///
-/// It exists because the bugs found in this work were nearly all *seams*. The model was
-/// right and the click did not reach it; the write was right and the failure was swallowed;
-/// the row was right and the panel closed before it could act. A test that only ever asks
-/// one function one question cannot see any of those.
-///
-/// A real `ClipboardStore` over a temporary directory, never the user's own file.
+/// Whole sequences played as a person would against a real store, since the bugs live in the seams.
 @Suite("End to end, against a store on disk")
 struct PanelEndToEndTests {
-    /// The store, its folder, and a bound panel — torn down with the test.
-    ///
-    /// An ordinary value with no `deinit`, and both halves of that matter.
-    ///
-    /// This was a `~Copyable` struct whose `deinit` deleted the folder, and every method
-    /// on it is `await`ed — so its lifetime ended at the last syntactic use rather than at
-    /// the end of the test, and the deallocation landed *during* an in-flight call on the
-    /// store. The symptom was a segmentation fault deep in `Sequence.first(where:)` and
-    /// `seed(_:)`, over memory freed underneath them.
-    ///
-    /// It passed only for as long as the layout happened to be lucky: adding one unused
-    /// property to `ClipboardStore` — nothing else, no behaviour at all — was enough to
-    /// crash it, which is how this was found. Making it a class was not enough either;
-    /// the deallocation simply moved. Nothing here now owns a lifetime that anything else
-    /// depends on, and the folder is removed by the test that made it.
+    /// The store, its folder, and a bound panel; no `deinit`, see Docs/ux-test-harness.md.
     struct Harness {
+        /// The store under test.
         let store: ClipboardStore
+        /// Its temporary folder.
         let folder: URL
+        /// A week's retention from now.
         let retention = ClipRetention(days: 7, now: Date())
 
+        /// Makes the folder and the store.
         init() throws {
             folder = URL.temporaryDirectory.appending(
                 path: "uttrflow-e2e-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -47,8 +26,7 @@ struct PanelEndToEndTests {
                 file: folder.appending(path: "clipboard.json", directoryHint: .notDirectory))
         }
 
-        /// Called by each test through `defer`, where the point in time is written down
-        /// rather than inferred from a lifetime.
+        /// Called by each test through `defer`, so the point in time is written down rather than inferred.
         func cleanUp() { try? FileManager.default.removeItem(at: folder) }
 
         /// A panel over whatever the store currently holds, as the app builds one.
@@ -58,8 +36,7 @@ struct PanelEndToEndTests {
                 locale: PanelFixture.locale)
         }
 
-        /// Carries out a change exactly as `AppDelegate` does, so the test exercises the
-        /// same mapping the app uses rather than a second one written for the test.
+        /// Carries out a change exactly as `AppDelegate` does, so the test exercises the app's own mapping.
         func carryOut(_ change: PanelChange) async throws {
             switch change {
             case .setAlias(let id, let alias):
@@ -101,6 +78,7 @@ struct PanelEndToEndTests {
             return response.outcome
         }
 
+        /// Records these texts as clips.
         func seed(_ texts: [String]) async throws {
             for text in texts {
                 _ = try await store.record(
@@ -109,6 +87,7 @@ struct PanelEndToEndTests {
             }
         }
 
+        /// The clip with this text, if any.
         func clip(_ text: String) async -> Clip? {
             await store.clips(keeping: retention).first { $0.text == text }
         }
@@ -130,8 +109,7 @@ struct PanelEndToEndTests {
         #expect(chosen.text == "first", "newest first, so two downs is the oldest of three")
     }
 
-    /// Name it, then find it by the name — the promise the alias exists for, across a
-    /// write and a re-read rather than within one snapshot.
+    /// Name it, then find it by the name, across a write and a re-read rather than within one snapshot.
     @Test("a name survives the write and is findable afterwards")
     func nameThenFind() async throws {
         let harness = try Harness()
@@ -171,8 +149,7 @@ struct PanelEndToEndTests {
         #expect(after.alias == "note", "a collection is a shelf, not part of the clip")
     }
 
-    /// F7 and F9 across a real write: gone from disk, and back again with everything the
-    /// user had chosen about it.
+    /// Delete and undo across a real write: gone from disk, and back with everything chosen about it.
     @Test("delete removes it from disk, and undo restores it whole")
     func deleteThenUndo() async throws {
         let harness = try Harness()
@@ -251,8 +228,7 @@ struct PanelEndToEndTests {
         #expect(await harness.clip("pgprod") != nil)
     }
 
-    /// D4 across a write: the indentation changes, the content does not, and everything
-    /// the user chose about the clip survives.
+    /// Re-indenting across a write: the indentation changes, the content and identity do not.
     @Test("re-indenting rewrites only the whitespace, and keeps the clip's identity")
     func reindentKeepsEverything() async throws {
         let harness = try Harness()
@@ -276,8 +252,7 @@ struct PanelEndToEndTests {
         #expect(clips.count == 1, "one clip, not a second copy of it")
     }
 
-    /// Every write goes through the store, so a sequence of them has to leave one
-    /// coherent file rather than the last one winning.
+    /// Every write goes through the store, so a sequence has to leave one coherent file.
     @Test("a long sequence of actions leaves the store consistent")
     func aLongSequence() async throws {
         let harness = try Harness()

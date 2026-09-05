@@ -1,3 +1,4 @@
+// Tests for drawing a shortcut on keycaps and for recording a new one.
 import UttrflowCore
 import Testing
 
@@ -70,22 +71,11 @@ struct SettingsShortcutRecorderTests {
         }
         #expect(recorder.binding == .optionSpace)
         #expect(recorder.rejection == rejection.reason)
-        // Still listening: the user is one keystroke from a shortcut that works, rather
-        // than having to reopen the field to try again.
+        // Still listening: the user is one keystroke from a shortcut that works.
         #expect(recorder.isRecording)
     }
 
-    /// The complaint this answers was "I am not able to register the custom keys".
-    ///
-    /// Nothing was broken about recording: a modifier pressed on its own sends only
-    /// `.flagsChanged`, the field listened for `.keyDown` alone, and so the most natural
-    /// thing to try on a dictation app — bind ⌘, or Fn, the way other dictation apps do —
-    /// produced no shortcut, no refusal and no message. The field said "Press the new
-    /// shortcut" for as long as you cared to look at it.
-    ///
-    /// Such a binding really is undeliverable: the window server accepts a modifier held
-    /// alone and then never fires it. So it stays refused. What changed is that the
-    /// refusal now reaches the person, and says which key would work instead.
+    /// A modifier held on its own is deliverable and accepted; Fn alone is the natural dictation trigger.
     @Test("takes Fn held on its own, which is a shortcut rather than a modifier")
     func functionHoldIsAccepted() {
         var recorder = SettingsShortcutRecorder(binding: .optionSpace)
@@ -102,18 +92,7 @@ struct SettingsShortcutRecorderTests {
         #expect(SettingsShortcut.compact(.functionHold) == "fn")
     }
 
-    /// This asserted the opposite until the rule changed, and the reversal is the point.
-    ///
-    /// A modifier pressed on its own used to be refused with "Try a letter, a number or
-    /// Space" — a sentence that described the wrong problem, because the person had not
-    /// pressed anything strange. The reasoning behind the refusal was that ⌘ is pressed
-    /// dozens of times a minute, so a dictation starting on it would be unusable. True —
-    /// and it was applied to every modifier-only binding, sweeping up ⌃⌥ and ⌘⌥, which
-    /// nobody presses by accident and which other dictation apps offer.
-    ///
-    /// Whether ⌘ alone is a wise choice is the owner of the Mac's to make. Whether it can
-    /// be *delivered* is this code's question, and the answer is yes: held modifiers are
-    /// watched through flag changes, not registered with the window server.
+    /// Whether ⌘ alone is wise is the owner's choice; whether it can be delivered is this code's, and it can.
     @Test("accepts a modifier pressed on its own, and any combination of them")
     func heldModifiersAreAccepted() {
         for (keyCode, modifiers) in [
@@ -142,8 +121,7 @@ struct SettingsShortcutRecorderTests {
     func recoversFromARefusal() {
         var recorder = SettingsShortcutRecorder(binding: .optionSpace)
         recorder.beginRecording()
-        // 0x80 is past the virtual key range: the one thing still refused outright, now
-        // that any modifier combination can be held.
+        // 0x80 is past the virtual key range: the one thing still refused outright.
         _ = recorder.record(keyCode: 0x80, modifiers: [.option])
         #expect(recorder.rejection != nil)
 

@@ -406,7 +406,7 @@ struct HomeHintTests {
 
 @Suite("What the list under the figures is called")
 struct HomeRecentTitleTests {
-    /// The design draws "Today", and on the day it was drawn every row was from today.
+    /// The design draws "Today" over a list whose every row is from today.
     @Test("says Today when every row is")
     func allFromToday() {
         let page = HistoryFixture.home(entries: [

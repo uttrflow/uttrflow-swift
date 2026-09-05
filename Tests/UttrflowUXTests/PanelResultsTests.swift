@@ -1,3 +1,4 @@
+// Tests for which clips the panel lists: filtering, searching, ordering, and search scope.
 import Foundation
 import UttrflowClipboard
 import Testing
@@ -6,6 +7,7 @@ import Testing
 
 @Suite("The quick panel: which clips are listed")
 struct PanelFilteringTests {
+    /// One clip of every kind.
     static let everything: [Clip] = [
         PanelFixture.clip("a plain note", kind: .text, minutesAgo: 1),
         PanelFixture.clip("https://example.com", kind: .link, minutesAgo: 2),
@@ -37,9 +39,7 @@ struct PanelFilteringTests {
         #expect(rows.map(\.clip.kind) == kinds)
     }
 
-    /// A kind no tab admits could only ever be found by searching for it, which the user
-    /// would experience as the app having lost it. Exhaustive so that adding a kind
-    /// fails here rather than quietly hiding clips.
+    /// A kind no tab admits could only be found by searching, which reads as the app losing it.
     @Test("every kind of clip belongs to exactly one tab besides All")
     func everyKindHasATab() {
         for kind in ClipKind.allCases {
@@ -62,8 +62,7 @@ struct PanelFilteringTests {
         #expect(rows.map(\.clip.text) == ["one", "three"], "however it was spaced when filed")
     }
 
-    /// A collection filed under nothing but spaces is no collection at all, so it cannot
-    /// hide the rest of the list behind a chip with nothing written on it.
+    /// A collection filed under spaces is no collection, so it cannot hide the list behind a blank chip.
     @Test("a blank collection name shows everything")
     func blankCategory() {
         let panel = PanelFixture.panel(category: "   ")
@@ -88,18 +87,19 @@ struct PanelFilteringTests {
 
 @Suite("The quick panel: searching")
 struct PanelSearchTests {
+    /// A clip with an alias, one with plain text, one filed away.
     static let clips: [Clip] = [
         PanelFixture.clip("postgres://user@prod", minutesAgo: 1, alias: "/pgprod"),
         PanelFixture.clip("a note about the database", minutesAgo: 2),
         PanelFixture.clip("an address", minutesAgo: 3, category: "Personal"),
     ]
 
+    /// The results for a query over these clips.
     static func rows(_ query: String) -> [PanelResult] {
         PanelFixture.panel(clips, query: query).results.rows
     }
 
-    /// The three mean different things to whoever is reading the list, so the row says
-    /// which it was rather than leaving the user to open it and find out.
+    /// The three mean different things to the reader, so the row says which, rather than making them look.
     @Test("a hit says whether it was the alias, the collection or the contents")
     func matchFields() {
         #expect(Self.rows("pgpr").map(\.match) == [.alias])
@@ -108,10 +108,7 @@ struct PanelSearchTests {
         #expect(Self.rows("zzz").isEmpty)
     }
 
-    /// Two rows rather than three, and that is the arrivals rule rather than the search:
-    /// with nothing typed this is History, and the third clip is filed under Personal, so
-    /// it is in the Collections tab instead. What the test is about is unchanged — a row
-    /// that is here because nothing was typed reports no match.
+    /// Two rows rather than three, because with nothing typed this is History and the third is filed.
     @Test("nothing typed means no match to report")
     func nothingTyped() {
         let rows = Self.rows("   ")
@@ -166,8 +163,7 @@ struct PanelSearchTests {
         #expect(PanelFixture.panel(Self.clips, query: "database").results.rows.map(\.isExactAlias) == [false])
     }
 
-    /// Searched like anything else, and still masked when it is drawn: what is learnt is
-    /// that a clip matches, never what it says.
+    /// Searched like anything else and still masked when drawn: what is learnt is that a clip matches.
     @Test("a secret is searchable by its contents")
     func secretsAreSearchable() {
         let secret = PanelFixture.clip("sk-live-1234", kind: .secret)
@@ -178,10 +174,7 @@ struct PanelSearchTests {
 
 @Suite("The quick panel: the order of the list")
 struct PanelOrderTests {
-    /// Shown here in a search, which is one of the two places the rule still has anything
-    /// to do. History stopped listing pinned clips — a pin moves a clip to the Pinned tab
-    /// rather than copying it — so pinned and unpinned now meet only where a search looks
-    /// across everything, and inside a collection that holds some of each.
+    /// Pinned and unpinned meet only in a search or inside a collection, since a pin moves a clip.
     @Test("pinned clips sort above the rest")
     func pinned() {
         let clips = [
@@ -195,9 +188,7 @@ struct PanelOrderTests {
                 == ["older thing but pinned", "newest thing", "oldest thing"])
     }
 
-    /// The other place the two still meet: a collection holding some pinned clips and
-    /// some not. The kind filter narrows it further, and the pin still sorts inside
-    /// whatever is left rather than against the whole clipboard.
+    /// Inside a collection with a kind filter, the pin still sorts within whatever is left.
     @Test("pinning sorts within the tab that is showing, not across the whole clipboard")
     func pinnedWithinAView() {
         let clips = [
@@ -212,9 +203,7 @@ struct PanelOrderTests {
         #expect(snapshot.results.rows.map(\.clip.text) == ["https://two", "https://one"])
     }
 
-    /// Two clips of equal rank keep the order they were copied in, whatever the sort
-    /// does internally: a list that reshuffled between two draws of the same panel would
-    /// make counting rows a gamble.
+    /// Clips of equal rank keep copy order, or counting rows between two draws would be a gamble.
     @Test("clips of equal rank keep the order the store gave them")
     func stable() {
         let clips = (1...20).map { PanelFixture.clip("clip \($0)", minutesAgo: $0) }
@@ -240,12 +229,10 @@ struct PanelOrderTests {
     }
 }
 
-/// A tab narrows browsing, never searching. The case that decides it: somebody who
-/// half-remembers filing something does not remember which tab they filed it in — that
-/// is what they opened the search field to find out — and a scoped search answers with
-/// an empty list indistinguishable from "you never copied it".
+/// A tab narrows browsing, never searching: a scoped search's empty list reads as "never copied".
 @Suite("The quick panel: a search is not confined to the open tab")
 struct PanelSearchScopeTests {
+    /// Two collections, with "postgres" in both.
     static let clips = [
         PanelFixture.clip("work note", minutesAgo: 1, category: "Work"),
         PanelFixture.clip("postgres connection", minutesAgo: 2, category: "Servers"),
@@ -272,12 +259,7 @@ struct PanelSearchScopeTests {
         #expect(cleared.results.rows.map(\.clip.text) == ["work note", "postgres notes"])
     }
 
-    /// Otherwise the screen claims a narrowing that is not happening, and the rows from
-    /// other tabs read as a bug rather than as the answer.
-    ///
-    /// "Drawn as unnarrowed" rather than "All is active": since the chips share a row
-    /// with the kind filters, All is only drawn when there is a collection to come back
-    /// from, so while searching there is no chip on at all — which says the same thing.
+    /// No chip is drawn on while searching, which says the same thing as an All chip would.
     @Test("while searching, no collection is drawn as the one being shown")
     func theChipTellsTheTruth() {
         let searching = PanelFixture.panel(Self.clips, query: "postgres", category: "Work")

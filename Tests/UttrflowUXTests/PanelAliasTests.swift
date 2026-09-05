@@ -1,14 +1,14 @@
+// Tests for alias correction, conflicts, and the round trip from saving a name to finding it.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// F4 — an alias is typed under pressure, into somebody else's application, and must
-/// never fail to match. Every correction here exists because some spelling of the same
-/// name would otherwise find nothing.
+/// An alias is typed under pressure into somebody else's application and must never fail to match.
 @Suite("Correcting an alias as it is typed")
 struct PanelAliasCorrectionTests {
+    /// The fixed region.
     static let locale = PanelFixture.locale
 
     @Test(
@@ -19,16 +19,14 @@ struct PanelAliasCorrectionTests {
         #expect(PanelAlias.handle(typed, locale: Self.locale) == "pgprod")
     }
 
-    /// The reduction that was missing. An alias saved as "pg prod" could not be found by
-    /// typing "pgprod", and months later nobody remembers which spelling they used.
+    /// An alias saved as "pg prod" must be found by typing "pgprod"; nobody remembers which spelling.
     @Test("whitespace anywhere is removed, not just at the ends")
     func whitespaceGoes() {
         #expect(PanelAlias.handle("pg prod db", locale: Self.locale) == "pgproddb")
         #expect(PanelAlias.handle("\tpg\nprod ", locale: Self.locale) == "pgprod")
     }
 
-    /// The interface prints the slash, so typing it is following instructions rather than
-    /// making a mistake, and being told it was corrected would be noise.
+    /// The interface prints the slash, so typing it follows instructions and is not a correction.
     @Test("dropping the convention's slash is not reported as a correction")
     func theSlashIsNotACorrection() {
         let proposal = PanelAlias.propose(
@@ -58,13 +56,15 @@ struct PanelAliasCorrectionTests {
     }
 }
 
-/// F3 — the conflict has to name which clip holds the alias, because "taken" without
-/// "by what" leaves the user guessing at a name they cannot see.
+/// The conflict has to name which clip holds the alias, since "taken" without "by what" is a guess.
 @Suite("An alias somebody else already has")
 struct PanelAliasConflictTests {
+    /// The fixed region.
     static let locale = PanelFixture.locale
 
+    /// A clip that holds "pgprod".
     static let existing = PanelFixture.clip("postgres://prod", minutesAgo: 1, alias: "pgprod")
+    /// A clip with no alias.
     static let other = PanelFixture.clip("something else", minutesAgo: 2)
 
     @Test("names the clip that holds it")
@@ -77,8 +77,7 @@ struct PanelAliasConflictTests {
         #expect(!proposal.isUsable)
     }
 
-    /// The conflict is on the handle, not the spelling — otherwise two clips could hold
-    /// "pg prod" and "pgprod" and both would answer to the same typing.
+    /// The conflict is on the handle, not the spelling, or two clips could answer to the same typing.
     @Test("a differently spelt version of a taken alias still conflicts")
     func conflictIsOnTheHandle() {
         let proposal = PanelAlias.propose(
@@ -98,11 +97,10 @@ struct PanelAliasConflictTests {
     }
 }
 
-/// The guarantee the split into two functions could break. Creation reduces one way and
-/// matching the other, and the day they part is the day an alias saves cleanly and then
-/// finds nothing.
+/// Creation and matching must reduce the same way, or an alias saves cleanly and then finds nothing.
 @Suite("Creating an alias and finding it are the same rule")
 struct PanelAliasRoundTripTests {
+    /// The fixed region.
     static let locale = PanelFixture.locale
 
     @Test(

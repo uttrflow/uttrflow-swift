@@ -1,3 +1,4 @@
+// Tests for the Corrections page: rows, scope, search, and the four empty states.
 import Foundation
 import UttrflowSettings
 import Testing
@@ -5,6 +6,7 @@ import Testing
 @testable import UttrflowUX
 
 extension HistoryFixture {
+    /// One change, seen on screen and in Slack by default.
     static func correction(
         in dictation: UUID = UUID(),
         heard: String = "utter flow",
@@ -21,6 +23,7 @@ extension HistoryFixture {
             applicationName: application, isUndone: isUndone)
     }
 
+    /// The Corrections page over these inputs.
     static func corrections(
         _ corrections: [Correction] = [],
         dictations: [HistoryEntry] = [],
@@ -37,8 +40,7 @@ extension HistoryFixture {
 
 @Suite("Corrections: what was changed, and why")
 struct CorrectionsPageTests {
-    /// The page the whole product is accountable through, so the sentence that says so
-    /// is on the page and not in a release note.
+    /// The page the product is accountable through, so the sentence saying so is on the page.
     @Test("the page says why it exists")
     func callout() {
         let page = HistoryFixture.corrections()
@@ -78,8 +80,7 @@ struct CorrectionsPageTests {
         #expect(!row.isUndone)
     }
 
-    /// Drawing an undone change as though it still applied would make this page lie
-    /// about the exact thing it exists to be honest about.
+    /// Drawing an undone change as still applied would make this page lie about its own subject.
     @Test("a change already put back is struck through and offers no second undo")
     func alreadyUndone() {
         let row = HistoryFixture.corrections([HistoryFixture.correction(isUndone: true)]).rows[0]
@@ -87,9 +88,7 @@ struct CorrectionsPageTests {
         #expect(row.undo == nil)
     }
 
-    /// The reasons are the correction engine's own, not a second list written for the
-    /// artboard: the page can only be honest about why a word changed if the words it
-    /// shows come from whatever decided to change it.
+    /// The reasons are the engine's own, not a second list, so the page can be honest about why.
     @Test("the reason on a row is the one the engine gave")
     func everyReasonIsNamed() {
         for reason in CorrectionReason.allCases {
@@ -117,8 +116,7 @@ struct CorrectionsPageTests {
         #expect(page.rows.map(\.wrote) == ["Today"])
     }
 
-    /// The artboard says "undo it three times"; the rule in ``DictionaryEntry`` is a
-    /// ratio, not a count, and the footnote follows the code rather than the drawing.
+    /// The rule in ``DictionaryEntry`` is a ratio, not a count, and the footnote follows the code.
     @Test("the footnote describes the retirement rule the dictionary actually applies")
     func footnote() {
         let page = HistoryFixture.corrections([HistoryFixture.correction()])
@@ -204,10 +202,7 @@ struct CorrectionsEmptyTests {
         #expect(empty?.chips.first?.caption == "dictations today")
     }
 
-    /// The chip says "today". It counted the whole retained history, so a user with three
-    /// months of dictations was told they had made ninety-nine today while the Dictation
-    /// page beside it said they had made none. Two pages disagreeing about the same fact
-    /// is worse than either being silent.
+    /// The chip counts today only, so it cannot say "99 today" beside a Dictation page saying none.
     @Test("the chip counts today and not everything ever kept")
     func countsOnlyToday() {
         let empty = HistoryFixture.corrections(
@@ -221,8 +216,7 @@ struct CorrectionsEmptyTests {
         #expect(empty?.chips.first?.caption == "dictation today")
     }
 
-    /// The caption and the chip are two sentences about one number, and they used to be
-    /// computed two different ways.
+    /// The caption and the chip are two sentences about one number, computed one way.
     @Test("the caption and the chip agree about how many were said today")
     func captionAndChipAgree() {
         let page = HistoryFixture.corrections(
@@ -231,8 +225,7 @@ struct CorrectionsEmptyTests {
         #expect(page.emptyState?.chips.first?.value == "1")
     }
 
-    /// The difference between "it changed nothing" and "your filter hid everything" is
-    /// the difference between reassurance and confusion.
+    /// "It changed nothing" and "your filter hid everything" are reassurance and confusion.
     @Test("a scope that hid everything says so rather than claiming nothing changed")
     func scopeHidEverything() {
         let empty = HistoryFixture.corrections(
@@ -251,8 +244,7 @@ struct CorrectionsEmptyTests {
         #expect(empty?.message.contains("“invoice”") == true)
     }
 
-    /// Two pieces of small print under one sentence is clutter; the empty state carries
-    /// its own closing line.
+    /// Two pieces of small print under one sentence is clutter; the empty state has its own closing line.
     @Test("an empty pane drops the list's footnote")
     func noFootnote() {
         #expect(HistoryFixture.corrections().footnote == nil)
