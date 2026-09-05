@@ -440,7 +440,9 @@ final class SuggestionCoordinator {
         of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore
     ) async -> GenerationSituation {
         let around = await FocusedFieldReader.surroundings()
-        let recent = (try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? []
+        // The line being written is not a line written before, however long the pause that had it remembered.
+        let recent = ((try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? [])
+            .filter { !query.typed.hasPrefix($0) }
         // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
         Self.log.debug(
             "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(snapshot.preceding(maxLength: Self.precedingContextLength)?.count ?? 0)"

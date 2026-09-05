@@ -100,8 +100,7 @@ struct PromptPropertyTests {
         case .one:
             #expect(
                 prompt.hasSuffix(
-                    "Continue this \(moment.register.kind) with the single most likely completion, on one line:\n"
-                        + moment.typed))
+                    PromptBuilder.instruction(for: moment.register) + ":\n" + moment.typed))
         case .others(let leader):
             #expect(prompt.contains("each different from \"\(leader)\", one per line:\n" + moment.typed))
             #expect(prompt.hasSuffix("one per line:\n" + moment.typed))

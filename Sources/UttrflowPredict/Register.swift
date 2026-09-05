@@ -81,20 +81,28 @@ public struct Register: Sendable, Equatable {
         return line[line.index(after: dot)].isLetter
     }
 
-    /// How many tokens a pass may spend: enough for a line the length of this person's lines, never less than a short one.
+    /// A reply is always given room for a whole message, however terse this person has been, since a reply cut to a word is no reply.
+    public static let replyTokens = 48
+
+    /// Below this many characters a person's typical line says they write tersely, not how long a reply should be, so it is not quoted to the model.
+    public static let terseLength = 24
+
+    /// How many tokens a pass may spend: enough for a line the length of this person's lines, never less than a short one, and never less than a whole reply.
     public var maxTokens: Int {
         // Half the typical character count is about twice the tokens the line needs, which leaves room for alternatives.
-        guard let typicalLength else {
-            if symbolShare > Self.symbolicShare { return 32 }
-            return isConversational ? 48 : 64
+        let budget: Int
+        if let typicalLength {
+            budget = min(max(typicalLength / 2, Self.tokenRange.lowerBound), Self.tokenRange.upperBound)
+        } else {
+            budget = symbolShare > Self.symbolicShare ? 32 : (isConversational ? Self.replyTokens : 64)
         }
-        return min(max(typicalLength / 2, Self.tokenRange.lowerBound), Self.tokenRange.upperBound)
+        return isConversational ? max(budget, Self.replyTokens) : budget
     }
 
     /// The facts as short phrases the model reads, so it matches the register instead of guessing it.
     public var hints: [String] {
         var hints = [isMultiline ? "a multi-line field" : "a single-line field"]
-        if let typicalLength {
+        if let typicalLength, !(isConversational && typicalLength < Self.terseLength) {
             hints.append("lines here run about \(typicalLength) characters")
         }
         if isConversational {

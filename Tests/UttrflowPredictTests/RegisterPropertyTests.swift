@@ -80,10 +80,12 @@ struct RegisterPropertyTests {
     func theBudgetStaysInRange(moment: RegisterCase) {
         let register = Register.infer(from: moment.situation, typed: moment.typed)
         #expect(Register.tokenRange.contains(register.maxTokens))
+        // A reply is always given a whole message's room, whatever this person's typical line.
+        let floor = register.isConversational ? Register.replyTokens : 0
         if let typical = register.typicalLength {
-            #expect(register.maxTokens == min(max(typical / 2, 24), 96))
+            #expect(register.maxTokens == max(min(max(typical / 2, 24), 96), floor))
         } else if register.symbolShare > Register.symbolicShare {
-            #expect(register.maxTokens == 32)
+            #expect(register.maxTokens == max(32, floor))
         } else {
             #expect(register.maxTokens == (register.isConversational ? 48 : 64))
         }
@@ -163,7 +165,12 @@ struct RegisterPropertyTests {
         #expect(!(symbolic && (formal || casual)))
         #expect(symbolic == (register.symbolShare > Register.symbolicShare))
         #expect(hints.first == (register.isMultiline ? "a multi-line field" : "a single-line field"))
-        #expect(hints.contains { $0.hasPrefix("lines here run about") } == (register.typicalLength != nil))
+        // A terse person's length is quoted everywhere but in a reply, where it would ask for a word.
+        let quoted =
+            register.typicalLength.map {
+                !(register.isConversational && $0 < Register.terseLength)
+            } ?? false
+        #expect(hints.contains { $0.hasPrefix("lines here run about") } == quoted)
         #expect(
             hints.contains("a conversation is on screen and the line answers its last message")
                 == register.isConversational)

@@ -162,6 +162,9 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     /// A run of the screen this long, repeated word for word past the typed text, is copying rather than completing.
     static let echoLength = 16
 
+    /// The fewest characters a continuation that opens a new word must have to be a word at all.
+    static let shortestNewWord = 3
+
     /// The line cut where its continuation starts repeating a run of the context, its timestamp parts dropped, or nothing when that leaves no continuation.
     static func trimmed(_ line: String, typed: String, echoing context: [String]) -> String? {
         let continuation = Array(line.dropFirst(typed.count))
@@ -179,11 +182,16 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         // A stamp the model wrote after its line is as little the answer as one it copied.
         let own = String(continuation[..<cut])
         var kept = Substring(Timestamps.without(own))
-        guard cut < continuation.count || kept.count < own.count else { return line }
+        let changed = cut < continuation.count || kept.count < own.count
         // The separator the copy or the stamp hung off is not part of the answer either.
-        while let last = kept.last, last.isWhitespace || last == "," || last == ";" { kept.removeLast() }
-        guard kept.contains(where: { !$0.isWhitespace }) else { return nil }
-        return typed + String(kept)
+        while changed, let last = kept.last, last.isWhitespace || last == "," || last == ";" {
+            kept.removeLast()
+        }
+        let visible = kept.filter { !$0.isWhitespace }.count
+        guard visible > 0 else { return nil }
+        // A new word of one or two characters is a model made to go on when it meant to stop, not a word.
+        if kept.first?.isWhitespace == true, visible < Self.shortestNewWord { return nil }
+        return changed ? typed + String(kept) : line
     }
 
     /// Text as it compares for copying: lowercased, every kind of space the same space, marks gone.

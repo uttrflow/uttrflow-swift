@@ -125,4 +125,15 @@ struct CompletionParsingTests {
             MLXCandidateScorer.trimmed("phone busy ho?", typed: "phone", echoing: [screen])
                 == "phone busy ho?")
     }
+
+    @Test(
+        "A new word of one or two characters is nothing, while a character that finishes the typed word stays."
+    )
+    func aStubOfANewWordIsNothing() {
+        #expect(MLXCandidateScorer.trimmed("busy nahi h", typed: "busy nahi", echoing: []) == nil)
+        #expect(
+            MLXCandidateScorer.trimmed("busy nahi hoon", typed: "busy nahi", echoing: []) == "busy nahi hoon")
+        #expect(MLXCandidateScorer.trimmed("git add", typed: "git ad", echoing: []) == "git add")
+        #expect(MLXCandidateScorer.trimmed("yes!", typed: "yes", echoing: []) == "yes!")
+    }
 }

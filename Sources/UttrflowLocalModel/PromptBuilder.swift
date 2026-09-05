@@ -69,7 +69,7 @@ enum PromptBuilder {
         let closing =
             switch ask {
             case .one:
-                "Continue this \(register.kind) with the single most likely completion, on one line:\n\(typed)"
+                "\(Self.instruction(for: register)):\n\(typed)"
             case .others(let leader):
                 "Give up to three other ways to finish this \(register.kind), each different from \"\(leader)\", "
                     + "one per line:\n\(typed)"
@@ -95,6 +95,12 @@ enum PromptBuilder {
         }
         parts.append(closing)
         return parts.joined(separator: "\n\n")
+    }
+
+    /// The instruction at the line for one completion: it names the register's kind, and asks a reply to be finished whole rather than by a word.
+    static func instruction(for register: Register) -> String {
+        let ask = "Continue this \(register.kind) with the single most likely completion, on one line"
+        return register.isConversational ? ask + ", finishing the whole message" : ask
     }
 
     /// What a part takes from the budget: its text and its heading, or nothing once it has trimmed to nothing.

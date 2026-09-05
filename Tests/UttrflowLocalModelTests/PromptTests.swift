@@ -25,18 +25,20 @@ struct PromptTests {
         #expect(
             prompt.hasPrefix(
                 "In application Chat, window \"Priya\", field Message.\nHints: a multi-line field;"))
-        #expect(prompt.contains("lines here run about 9 characters;"))
+        // A terse person's length is not quoted for a reply, so the model is not told to stop at a word.
+        #expect(!prompt.contains("lines here run about"))
         #expect(prompt.contains("On screen around the field:\nPriya: are you coming tonight?"))
         #expect(prompt.contains("Lines this person wrote here before:\non my way\nrunning late, sorry"))
         #expect(prompt.contains("The text before the line reads:\nearlier paragraph"))
-        #expect(prompt.hasSuffix("on one line:\nyes, "))
+        #expect(prompt.hasSuffix("on one line, finishing the whole message:\nyes, "))
     }
 
     @Test("With nothing around the field, the prompt is the situation, the hints and the line.")
     func bareSituationStaysShort() {
         let prompt = message("git c", GenerationSituation(application: "Terminal"))
         #expect(prompt.hasPrefix("In application Terminal.\nHints: "))
-        let closing = "Continue this reply with the single most likely completion, on one line:\ngit c"
+        let closing =
+            "Continue this reply with the single most likely completion, on one line, finishing the whole message:\ngit c"
         #expect(prompt.hasSuffix("\n\n" + closing))
         #expect(!prompt.contains("On screen"))
         #expect(!prompt.contains("wrote here"))
@@ -65,7 +67,7 @@ struct PromptTests {
         let typed = String(repeating: "t", count: 300)
         let prompt = message(typed, situation)
         #expect(prompt.count <= PromptBuilder.budgetInCharacters + 200)
-        #expect(prompt.hasSuffix("on one line:\n\(typed)"))
+        #expect(prompt.hasSuffix("finishing the whole message:\n\(typed)"))
         #expect(prompt.contains("near the field"))
         #expect(prompt.contains("line number 0 of"))
         #expect(!prompt.contains("line number 39 of"))
@@ -78,13 +80,16 @@ struct PromptTests {
         let situation = GenerationSituation(application: "Terminal")
         let one = PromptBuilder.message(typed: "git c", in: situation, register: casual)
         #expect(
-            one.hasSuffix("Continue this reply with the single most likely completion, on one line:\ngit c"))
+            one.hasSuffix(
+                "Continue this reply with the single most likely completion, on one line, finishing the whole message:\ngit c"
+            ))
         // The instruction at the line names the register's kind, so a shell asks for a command and an address bar for an address.
         let shell = Register(
             isMultiline: false, typicalLength: 19, isConversational: false, symbolShare: 0.14,
             usesSentenceCase: nil)
         let command = PromptBuilder.message(typed: "git c", in: situation, register: shell)
         #expect(command.contains("Continue this command, query or line of code with"))
+        #expect(command.contains("on one line:\ngit c") && !command.contains("whole message"))
         let others = PromptBuilder.message(
             typed: "git c", in: situation, register: casual, asking: .others(excluding: "git commit -m"))
         #expect(others.contains("up to three other ways to finish this reply"))

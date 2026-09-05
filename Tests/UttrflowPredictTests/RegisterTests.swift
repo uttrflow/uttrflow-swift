@@ -45,7 +45,9 @@ struct RegisterTests {
         #expect(register.typicalLength == 9)
         #expect(register.usesSentenceCase == false)
         #expect(register.symbolShare < Register.symbolicShare)
-        #expect(register.maxTokens == Register.tokenRange.lowerBound)
+        // A terse person still gets a whole reply's budget, and their terseness is not quoted as the length to write.
+        #expect(register.maxTokens == Register.replyTokens)
+        #expect(!register.hints.contains { $0.hasPrefix("lines here run about") })
         #expect(register.hints.contains("a conversation is on screen and the line answers its last message"))
         #expect(register.hints.contains("this person writes casually, without sentence punctuation"))
     }
