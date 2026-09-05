@@ -118,7 +118,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         }
         return Pass(
             text: run.text, stopReason: run.stop.map { String(describing: $0) } ?? "none",
-            completions: Self.completions(from: run, typed: typed, asking: .one))
+            completions: Self.completions(from: run, typed: typed, asking: .one, in: situation))
     }
 
     public func alternatives(
@@ -136,7 +136,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         guard let run = try await run(typed: typed, in: situation, asking: ask, tokenShare: tokenShare) else {
             return []
         }
-        return Self.completions(from: run, typed: typed, asking: ask)
+        return Self.completions(from: run, typed: typed, asking: ask, in: situation)
     }
 
     /// The model's words, how the pass ended, and the opening of its turn that was written for it.
@@ -146,11 +146,49 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         let written: String
     }
 
-    /// What the parser makes of a pass; one line the budget cut is kept to its last whole word, which is still the line's own start.
-    private static func completions(from run: Run, typed: String, asking ask: Ask) -> [String] {
+    /// What the parser makes of a pass, each line cut where it starts copying the screen; one line the budget cut is kept to its last whole word, which is still the line's own start.
+    private static func completions(
+        from run: Run, typed: String, asking ask: Ask, in situation: GenerationSituation
+    ) -> [String] {
         let text = ask == .one && run.stop == .length ? wholeWords(of: run.text) : run.text
+        // The screen and the text before the line are context, never words to copy; the person's own lines may be repeated.
+        let context = [situation.surroundings, situation.preceding].compactMap { $0 }
         // What was written for the model is the line's own start, so the answer is read as the whole line it would have echoed.
-        return parse(run.written + text, typed: typed)
+        return parse(run.written + text, typed: typed).compactMap {
+            trimmed($0, typed: typed, echoing: context)
+        }
+    }
+
+    /// A run of the screen this long, repeated word for word past the typed text, is copying rather than completing.
+    static let echoLength = 16
+
+    /// The line cut where its continuation starts repeating a run of the context, its timestamp parts dropped, or nothing when that leaves no continuation.
+    static func trimmed(_ line: String, typed: String, echoing context: [String]) -> String? {
+        let continuation = Array(line.dropFirst(typed.count))
+        var cut = continuation.count
+        if continuation.count >= echoLength {
+            let folded = context.map { fold($0) }
+            for start in 0...(continuation.count - echoLength) {
+                let window = fold(String(continuation[start..<(start + echoLength)]))
+                if folded.contains(where: { $0.contains(window) }) {
+                    cut = start
+                    break
+                }
+            }
+        }
+        // A stamp the model wrote after its line is as little the answer as one it copied.
+        let own = String(continuation[..<cut])
+        var kept = Substring(Timestamps.without(own))
+        guard cut < continuation.count || kept.count < own.count else { return line }
+        // The separator the copy or the stamp hung off is not part of the answer either.
+        while let last = kept.last, last.isWhitespace || last == "," || last == ";" { kept.removeLast() }
+        guard kept.contains(where: { !$0.isWhitespace }) else { return nil }
+        return typed + String(kept)
+    }
+
+    /// Text as it compares for copying: lowercased, every kind of space the same space, marks gone.
+    private static func fold(_ text: String) -> String {
+        String(text.lowercased().map { $0.isWhitespace ? " " : $0 })
     }
 
     /// The text up to the last word cut by the budget, or nothing when the cut fell inside its only word.

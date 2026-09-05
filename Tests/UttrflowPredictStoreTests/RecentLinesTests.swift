@@ -56,12 +56,16 @@ struct RecentLinesTests {
         #expect(try await store.recent(in: search, limit: 6).isEmpty)
     }
 
-    @Test("The same field in another document is still this person writing here, so its lines count too.")
+    @Test(
+        "The same field in another document is still this person writing here, so its lines count too, after the lines written in this very document."
+    )
     func everyDocumentOfTheFieldCounts() async throws {
         let corpus = Corpus()
         let store = try PredictStore(path: corpus.path)
         try await store.record("see you there", in: chat, at: moment)
         try await store.record("can we move it to 8?", in: otherRoom, at: moment.addingTimeInterval(60))
-        #expect(try await store.recent(in: chat, limit: 6) == ["can we move it to 8?", "see you there"])
+        // A greeting to one person is not how this person opens every conversation, so this room's lines lead.
+        #expect(try await store.recent(in: chat, limit: 6) == ["see you there", "can we move it to 8?"])
+        #expect(try await store.recent(in: otherRoom, limit: 6) == ["can we move it to 8?", "see you there"])
     }
 }

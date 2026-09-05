@@ -103,4 +103,26 @@ struct CompletionParsingTests {
         #expect("s".trimmingCharacters(in: .whitespaces).count < MLXCandidateScorer.minimumTypedLength)
         #expect("ls".trimmingCharacters(in: .whitespaces).count >= MLXCandidateScorer.minimumTypedLength)
     }
+
+    @Test(
+        "A line is cut where it starts copying the screen word for word, and dropped when nothing of its own is left."
+    )
+    func copiesOfTheScreenAreCut() {
+        let screen = "message, Baby busy ho?, 3Septemberat6:41\u{202F}PM, Received from Priya"
+        #expect(
+            MLXCandidateScorer.trimmed(
+                "phone pe nahi, 4Septemberat6:42 PM, Received from Priya", typed: "phone", echoing: [screen])
+                == "phone pe nahi")
+        #expect(
+            MLXCandidateScorer.trimmed("phone, Received from Priya", typed: "phone", echoing: [screen]) == nil
+        )
+        #expect(
+            MLXCandidateScorer.trimmed("phone pe nahi yaar", typed: "phone", echoing: [screen])
+                == "phone pe nahi yaar")
+        #expect(MLXCandidateScorer.trimmed("phone pe nahi", typed: "phone", echoing: []) == "phone pe nahi")
+        // A short repeat is a phrase in common, not a copy.
+        #expect(
+            MLXCandidateScorer.trimmed("phone busy ho?", typed: "phone", echoing: [screen])
+                == "phone busy ho?")
+    }
 }

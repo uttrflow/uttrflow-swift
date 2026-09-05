@@ -1,4 +1,5 @@
 public import CoreGraphics
+import UttrflowPredict
 
 /// One element tree as the collector walks it, so a test can hand it a tree of plain values instead of another app.
 public protocol ElementTree {
@@ -162,10 +163,10 @@ public struct Surroundings: Sendable, Equatable {
         }
     }
 
-    /// The text without surrounding whitespace, control and direction marks, cut to the per-element cap, or nothing.
+    /// The text without surrounding whitespace, control and direction marks or timestamp parts, cut to the per-element cap, or nothing.
     static func trimmed(_ text: String?) -> String? {
         guard let text else { return nil }
-        var clean = Substring(cleaned(text))
+        var clean = Substring(Timestamps.without(cleaned(text)))
         while let first = clean.first, first.isWhitespace { clean.removeFirst() }
         while let last = clean.last, last.isWhitespace { clean.removeLast() }
         guard !clean.isEmpty else { return nil }

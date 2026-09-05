@@ -64,26 +64,29 @@ public actor PredictStore: PredictionStore {
         return merged(fuzzy)
     }
 
-    /// The lines this person most recently entered in this field, newest first and each once, which is how they write here.
+    /// The lines this person most recently entered in this field, each once: those written in this very document first, since a name or a greeting belongs to one conversation, then the rest of the field newest first.
     public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
         let ids = try surfaceIdentifiers(of: surface)
         guard !ids.isEmpty, limit > 0 else { return [] }
+        let here = try identifier(of: surface, creating: false) ?? -1
         return try database.rows(
             Self.recentQuery(surfaces: ids.count),
             { statement in
                 for (offset, id) in ids.enumerated() { statement.bind(Int32(offset + 1), id) }
-                statement.bind(Int32(ids.count + 1), Int64(limit))
+                statement.bind(Int32(ids.count + 1), here)
+                statement.bind(Int32(ids.count + 2), Int64(limit))
             }
         ) { $0.text(0) }
     }
 
-    /// The recency read over this many surfaces of one field, which `entry_recent` exists to serve.
+    /// The recency read over this many surfaces of one field, which `entry_recent` exists to serve; the surface bound after them is the document being written in, whose lines lead.
     static func recentQuery(surfaces: Int) -> String {
-        let placeholders = Array(repeating: "?", count: surfaces).joined(separator: ", ")
+        // Every placeholder is numbered, since one numbered among anonymous ones shifts the rest.
+        let placeholders = (1...surfaces).map { "?\($0)" }.joined(separator: ", ")
         return """
-            SELECT text, MAX(last_used) AS used FROM entry
+            SELECT text, MAX(last_used) AS used, MAX(surface_id = ?\(surfaces + 1)) AS here FROM entry
             WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
-            GROUP BY text ORDER BY used DESC LIMIT ?
+            GROUP BY text ORDER BY here DESC, used DESC LIMIT ?\(surfaces + 2)
             """
     }
 

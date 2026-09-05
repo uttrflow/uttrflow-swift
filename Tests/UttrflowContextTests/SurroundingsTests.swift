@@ -267,6 +267,16 @@ struct SurroundingsTests {
         #expect(read.windowTitle == "\u{200E}Chat")
     }
 
+    @Test(
+        "A message's timestamp parts are dropped from what is read, and a label that was only a time is nothing."
+    )
+    func timestampsAreDropped() {
+        #expect(
+            Surroundings.trimmed("\u{200E}Photo, 3Septemberat5:00 PM, \u{200E}Received from Priya")
+                == "Photo, Received from Priya")
+        #expect(Surroundings.trimmed("12:46 PM") == nil)
+    }
+
     @Test("Control and direction marks are dropped from what is read, and blank text stays nothing.")
     func marksAreCleaned() {
         #expect(Surroundings.cleaned("\u{200E}Whats\u{0E}App\u{200F}") == "WhatsApp")

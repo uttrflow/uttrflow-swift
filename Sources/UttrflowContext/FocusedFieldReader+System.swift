@@ -95,6 +95,11 @@ public enum FocusedFieldReader {
         }
     }
 
+    /// The same read for a named application, front or not, which is how a probe shows what the model would be shown.
+    public static func surroundings(of app: FrontmostApp) -> Surroundings? {
+        surroundings(app: app)
+    }
+
     /// The same read, synchronously, which only the queue above calls with an identity read on main.
     static func surroundings(app: FrontmostApp) -> Surroundings? {
         // A field with no window, or a window focused as a whole, has nothing around it worth a walk.
