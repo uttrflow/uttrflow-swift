@@ -10,7 +10,7 @@ code relies on, so the one-line comments in the source can stay short.
   numbers looked fine" is not evidence: a change to the model, the prompt, the normalisation or
   the dictionary moves some samples up and some down, and only a diff against a point somebody
   was prepared to defend tells a fix from a trade.
-- The baseline is written only with `--write-baseline`. Writing it at the end of every run would
+- The baseline is written only with `--save-baseline`. Writing it at the end of every run would
   make the gate compare a change with itself, so it could never fail.
 - The samples that moved are printed capped, as evidence for the verdict, not as the verdict.
   At a thousand samples dozens move every run.
@@ -20,7 +20,7 @@ code relies on, so the one-line comments in the source can stay short.
 
 ## What is scored and what is only timed
 
-- The recogniser's output is scored. Clean-up (`--with-cleanup`) is timed but never scored:
+- The recogniser's output is scored. Clean-up (`--shipping`) is timed but never scored:
   its job is to change the words (strip false starts, punctuate, romanise), so a word error
   rate against a verbatim reference would charge it for working. How well it rewrites is
   `uttrflow-bakeoff`'s measurement, over a corpus built for it.
@@ -49,7 +49,7 @@ code relies on, so the one-line comments in the source can stay short.
 - The local corpus is the passages somebody read on this Mac; the catalogue is the backend's
   bucket (around a thousand samples). Both are a `(passages, audio directory)` pair to the
   runner, which is what lets them be compared at all.
-- `transcribe --from-corpus` refuses to download missing audio. A measurement run that also
+- `transcribe --from-catalogue` refuses to download missing audio. A measurement run that also
   fetches gigabytes reports a latency that includes somebody's broadband, and an interrupted
   one leaves a half-measured corpus behind. `pull` is the command that fetches.
 - A catalogue sample carries no recording date, so its `recordedAt` is the moment of the run.
