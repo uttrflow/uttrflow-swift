@@ -1,19 +1,18 @@
+// The Style page: the tidying and language cards, and the worked example under them.
 public import UttrflowSettings
 
-/// The same sentence, tidied both ways.
-///
-/// The one honest way to explain a setting whose effect is a matter of taste: rather
-/// than describing what "Standard" does, show it. Fixed copy rather than the user's own
-/// last dictation, because the example has to contain filler words and a grammar slip
-/// for the difference to be visible at all, and their last sentence probably did not.
+/// The same sentence tidied both ways; fixed copy, since the example needs filler and a slip to show.
 public struct StyleExample: Sendable, Equatable {
+    /// The heading over the example.
     public let heading: String
+    /// The label on the spoken line.
     public let spokenLabel: String
+    /// The sentence as spoken.
     public let spoken: String
-    /// One line per level, in ``SettingsTidyingLevel/allCases`` order, so the row the
-    /// user is currently on can be marked.
+    /// One line per level, in ``SettingsTidyingLevel/allCases`` order, so the current row can be marked.
     public let outcomes: [StyleOutcome]
 
+    /// Builds the example.
     public init(
         heading: String, spokenLabel: String, spoken: String, outcomes: [StyleOutcome]
     ) {
@@ -26,12 +25,17 @@ public struct StyleExample: Sendable, Equatable {
 
 /// What one level of tidying makes of the example sentence.
 public struct StyleOutcome: Sendable, Equatable, Identifiable {
+    /// The level.
     public let level: SettingsTidyingLevel
+    /// The sentence at that level.
     public let text: String
+    /// Whether this is the level in force.
     public let isCurrent: Bool
 
+    /// The level's stored name.
     public var id: String { level.rawValue }
 
+    /// Builds an outcome.
     public init(level: SettingsTidyingLevel, text: String, isCurrent: Bool) {
         self.level = level
         self.text = text
@@ -41,11 +45,12 @@ public struct StyleOutcome: Sendable, Equatable, Identifiable {
 
 /// Everything the style page is drawn from.
 public struct StylePageSnapshot: Sendable, Equatable {
+    /// The user's settings.
     public let settings: Settings
-    /// What this Mac can actually run, so a level it cannot reach says why rather than
-    /// moving and doing nothing.
+    /// What this Mac can run, so a level it cannot reach says why rather than moving and doing nothing.
     public let capabilities: SettingsCapabilities
 
+    /// Builds a snapshot.
     public init(settings: Settings, capabilities: SettingsCapabilities) {
         self.settings = settings
         self.capabilities = capabilities
@@ -54,17 +59,16 @@ public struct StylePageSnapshot: Sendable, Equatable {
 
 /// What the style page shows.
 public struct StylePagePresentation: Sendable, Equatable {
+    /// The title and caption across the top.
     public let chrome: MainPageChrome
-    /// ``SettingsGroup`` verbatim, not a copy of its shape.
-    ///
-    /// The settings window already has a tested vocabulary for a card of rows with
-    /// controls on them, and a change reported from here goes through the same
-    /// ``SettingsEditor`` as one reported from there. Two screens offering one choice
-    /// must not be two chances to apply it differently.
+    /// ``SettingsGroup`` verbatim, so a change reported here goes through the same ``SettingsEditor``.
     public let groups: [StylePageGroup]
+    /// The worked example.
     public let example: StyleExample
+    /// The note about languages.
     public let callout: MainCallout
 
+    /// Builds the page from its parts.
     public init(
         chrome: MainPageChrome, groups: [StylePageGroup], example: StyleExample,
         callout: MainCallout
@@ -78,33 +82,24 @@ public struct StylePagePresentation: Sendable, Equatable {
 
 /// A card on the style page, and where the example sits relative to it.
 public struct StylePageGroup: Sendable, Equatable, Identifiable {
+    /// The card.
     public let group: SettingsGroup
-    /// Whether the worked example is drawn under this card. Only the tidying card has
-    /// one, and putting the decision here keeps the view from knowing which card that is.
+    /// Whether the worked example is drawn under this card; only the tidying card has one.
     public let isFollowedByExample: Bool
 
+    /// The card's identifier.
     public var id: String { group.id }
 
+    /// Builds a group.
     public init(group: SettingsGroup, isFollowedByExample: Bool) {
         self.group = group
         self.isFollowedByExample = isFollowedByExample
     }
 }
 
-/// Turns the two choices that change how Uttrflow writes into a page of their own.
-///
-/// Tidying and languages are already settings, and they are here as well because they
-/// are the two the user revisits: everything else in the settings window is set once.
-/// Nothing is duplicated to achieve that — both cards are the ones ``SettingsPresenter``
-/// builds, reported through ``SettingsChange`` and applied by ``SettingsEditor``.
-///
-/// **On Light/Standard versus Off/Light/Standard.** The `Settings-Dictation` artboard
-/// offers three levels and this page offers two. Two is right, and it is right in code
-/// as well as here: ``SettingsTidyingLevel`` has no "off" because the transformer
-/// preference order always ends in a floor that can handle anything, so something always
-/// runs. An "Off" the pipeline cannot be in would be a switch that changes nothing —
-/// the one kind of control this product refuses to draw.
+/// Tidying and languages as ``SettingsPresenter`` builds them; no Off, since a floor engine always runs.
 public enum StylePagePresenter {
+    /// Draws the Style page from a snapshot.
     public static func page(for snapshot: StylePageSnapshot) -> StylePagePresentation {
         let level = SettingsTidyingLevel(preference: snapshot.settings.engines.transformerPreference)
         return StylePagePresentation(
@@ -127,6 +122,7 @@ public enum StylePagePresenter {
 
     // MARK: - Tidying
 
+    /// The tidying card, with the level this Mac cannot reach explained.
     static func tidying(
         _ level: SettingsTidyingLevel, _ snapshot: StylePageSnapshot
     ) -> SettingsGroup {
@@ -148,6 +144,7 @@ public enum StylePagePresenter {
             ])
     }
 
+    /// The worked example with the current level marked.
     static func example(current: SettingsTidyingLevel) -> StyleExample {
         StyleExample(
             heading: "The same sentence, both ways",
@@ -158,8 +155,7 @@ public enum StylePagePresenter {
             })
     }
 
-    /// The example sentence at each level. A `switch`, so a third level could not be
-    /// added without somebody writing down what it makes of this sentence.
+    /// The example at each level; a `switch`, so a third level cannot be added without writing its line.
     static func tidied(at level: SettingsTidyingLevel) -> String {
         switch level {
         case .light: "Um, so I think we should, uh, ship it on Friday."
@@ -169,10 +165,7 @@ public enum StylePagePresenter {
 
     // MARK: - Languages
 
-    /// The languages card, built exactly as the settings window builds it.
-    ///
-    /// Including the rule that the last ticked language cannot come off, which is said
-    /// on the row before it is tried rather than refused afterwards.
+    /// The languages card as the settings window builds it, saying on the row that the last one cannot go.
     static func languages(_ snapshot: StylePageSnapshot) -> SettingsGroup {
         let spoken = snapshot.settings.profile.preferredLanguages
         return SettingsGroup(

@@ -1,3 +1,4 @@
+// What the panel draws: intents, tabs, actions, rows, chips, and the presenter that builds them.
 public import Foundation
 public import UttrflowClipboard
 

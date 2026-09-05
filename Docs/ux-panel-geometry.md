@@ -60,3 +60,23 @@ stay on.
 Drags are measured from where the drag started, not from the last frame, so a gesture
 that hits the minimum and comes back out returns to where the pointer is rather than
 trailing it by however much was clamped away.
+
+## Placement
+
+`PanelPlacement.margin` is 12 points: small on purpose, so the panel reads as attached to
+the corner rather than floating near it. The menu bar and Dock are already excluded from
+the visible frame it measures against.
+
+The default position is the top-right corner, not the centre. The panel opens over
+whatever the user was typing into, and the middle of the screen is the likeliest place
+for that to be the very thing they were reading. The top-right is out of the way of
+running text in almost every window, and it is the corner macOS itself uses for things
+that arrive uninvited.
+
+A remembered position is clamped rather than trusted. Displays are unplugged and
+resolutions change, and a panel restored onto a screen that no longer extends that far
+would open somewhere the user cannot see or reach, with no way back, because moving it
+needs it to be visible first. When the panel is larger than the screen, `clamped` pins it
+to the bottom-left rather than centring on the overflow: the alternative is a negative
+range, and the corner at least keeps the search field and the first rows reachable.
+Clamping is idempotent, because the panel is placed on every open.
