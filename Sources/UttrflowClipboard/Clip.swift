@@ -145,30 +145,29 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     /// Everything else keeps the generated behaviour.
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        id = try values.decode(UUID.self, forKey: .id)
-        text = try values.decode(String.self, forKey: .text)
-        kind = try values.decode(ClipKind.self, forKey: .kind)
-        language = try values.decodeIfPresent(CodeLanguage.self, forKey: .language)
-        richText = try values.decodeIfPresent(String.self, forKey: .richText)
-        image = try values.decodeIfPresent(ClipImage.self, forKey: .image)
-        copiedAt = try values.decode(Date.self, forKey: .copiedAt)
-        // A clipboard written before this existed has no record of use, and arrival is
-        // the best available answer — it is what the old ordering fell back to anyway, so
-        // nothing shuffles under a user who upgrades.
-        lastUsedAt = try values.decodeIfPresent(Date.self, forKey: .lastUsedAt) ?? copiedAt
-        source = try values.decodeIfPresent(String.self, forKey: .source)
+        let source = try values.decodeIfPresent(String.self, forKey: .source)
         // A clipboard written before the two lists existed has no origin on any of its
         // clips, and every one of them would default to ⌘C — which would put somebody's
         // whole dictation history into the tab that exists to keep it out. The provenance
         // string is the only evidence left, so it is read once, here, and never again.
-        origin =
+        let origin =
             try values.decodeIfPresent(ClipOrigin.self, forKey: .origin)
             ?? (source == ClipOrigin.dictationSource ? .uttrflow : .copied)
-        alias = try values.decodeIfPresent(String.self, forKey: .alias)
-        category = try values.decodeIfPresent(String.self, forKey: .category)
-        isPinned = try values.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
-        // A clip on disk was copied at least once, whatever the file says.
-        timesCopied = max(try values.decodeIfPresent(Int.self, forKey: .timesCopied) ?? 1, 1)
+        try self.init(
+            id: values.decode(UUID.self, forKey: .id),
+            text: values.decode(String.self, forKey: .text),
+            kind: values.decode(ClipKind.self, forKey: .kind),
+            copiedAt: values.decode(Date.self, forKey: .copiedAt),
+            source: source,
+            origin: origin,
+            lastUsedAt: values.decodeIfPresent(Date.self, forKey: .lastUsedAt),
+            language: values.decodeIfPresent(CodeLanguage.self, forKey: .language),
+            richText: values.decodeIfPresent(String.self, forKey: .richText),
+            image: values.decodeIfPresent(ClipImage.self, forKey: .image),
+            alias: values.decodeIfPresent(String.self, forKey: .alias),
+            category: values.decodeIfPresent(String.self, forKey: .category),
+            isPinned: values.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false,
+            timesCopied: values.decodeIfPresent(Int.self, forKey: .timesCopied) ?? 1)
     }
 
     /// The same clip, reached for at a given moment.
