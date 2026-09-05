@@ -3,6 +3,8 @@
 Live tracking document. Updated as each phase closes.
 
 **Target:** a macOS clipboard manager with dictation built in, entirely on-device.
+Dictation means an accurate transcript, cleaned and laid out, never a rewrite —
+`Docs/cleanup.md` is the catalogue of what "cleaned" may mean.
 
 It began as the voice-input half alone — turning natural speech into the text the
 user meant — and phases 0 to 9 below are that work. Phase 10 is the pivot: the
