@@ -1,14 +1,12 @@
+// Tests for the clock on the floating button.
+
 import Foundation
 import UttrflowPipeline
 import Testing
 
 @testable import Uttrflow
 
-/// The clock on the floating button is drawn from a moment the window stamps, because
-/// when a recording started is a fact about this run of the app rather than about the
-/// pipeline's state. Which means the stamping is a decision, and these are the two ways
-/// it goes wrong: a clock that restarts under somebody's finger, and one that keeps
-/// running after they let go.
+/// The window stamps when a recording started; the two failures are a restarting clock and a lingering one.
 @MainActor
 @Suite("The clock on the floating button")
 struct DockClockTests {
@@ -38,9 +36,7 @@ struct DockClockTests {
         #expect(dock.recordingStartedAt == start)
     }
 
-    /// The presentation is handed over again on every redraw, and a run of identical
-    /// recording presentations is exactly what arrives while somebody holds the key. A
-    /// clock restarted by each of them would sit at nought however long they talked.
+    /// Identical recording presentations arrive while the key is held and must not restart the clock.
     @Test("does not restart while the recording continues")
     func survivesRepeatedPresentations() {
         let dock = model()
@@ -52,8 +48,7 @@ struct DockClockTests {
         #expect(dock.recordingStartedAt == start)
     }
 
-    /// And the opposite failure: a clock still counting on a button that has finished is
-    /// a button claiming the microphone is open when it is not.
+    /// A clock still counting on a finished button claims the microphone is open.
     @Test("stops the moment the recording does")
     func clearedWhenItEnds() {
         let dock = model()

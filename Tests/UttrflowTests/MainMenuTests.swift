@@ -1,13 +1,11 @@
+// Tests for the menu bar.
+
 import AppKit
 import Testing
 
 @testable import Uttrflow
 
-/// The menu bar Uttrflow gained when it stopped being an accessory app.
-///
-/// Worth testing rather than eyeballing, because its most important job is invisible:
-/// macOS routes ⌘C, ⌘V, ⌘A and ⌘Z through the Edit menu, so an app without one has text
-/// fields that silently refuse the shortcuts everybody uses. Nothing on screen says why.
+/// The menu bar, tested because its most important job is invisible: macOS routes ⌘C and ⌘V through Edit.
 @MainActor
 @Suite("The menu bar at the top of the screen")
 struct MainMenuTests {
@@ -23,9 +21,7 @@ struct MainMenuTests {
                 == ["Uttrflow", "Edit", "View", "Window", "Help"])
     }
 
-    /// The sidebar toggle is the only item in View, and the only way to the sidebar's
-    /// names without a mouse. Its shortcut is the system's own for the job, so a wrong
-    /// one here would be a shortcut people already have in their fingers doing nothing.
+    /// The sidebar toggle is the only item in View, on the system's own shortcut.
     @Test("puts the sidebar toggle in View, on the system's own shortcut")
     func sidebarToggle() {
         let items = MainMenu.view.items.filter { !$0.isSeparatorItem }
@@ -37,8 +33,7 @@ struct MainMenuTests {
         #expect(toggle?.keyEquivalentModifierMask == [.control, .command])
     }
 
-    /// The one menu that is not decoration. Every item is a keystroke people use without
-    /// looking, and a field whose ⌘V does nothing reads as a broken app.
+    /// Every item in Edit is a keystroke people use without looking.
     @Test("Edit carries the shortcuts macOS routes through it")
     func editShortcuts() {
         let expected = ["z": "Undo", "x": "Cut", "c": "Copy", "v": "Paste", "a": "Select All"]
@@ -66,8 +61,7 @@ struct MainMenuTests {
         #expect(quit.action == #selector(NSApplication.terminate(_:)))
     }
 
-    /// The same shortcut the menu-bar item offers, so somebody who has closed the window
-    /// has two ways back to it and neither is a secret.
+    /// The same shortcut the menu-bar item offers, so there are two ways back to the window.
     @Test("Window offers the main window on the shortcut the menu bar uses")
     func reopening() throws {
         let item = try #require(MainMenu.window.items.first { $0.title == "Uttrflow" })
@@ -83,8 +77,7 @@ struct MainMenuTests {
         #expect(item.keyEquivalentModifierMask == [.command])
     }
 
-    /// The app's own name reaches every menu that mentions it, so a rename cannot leave
-    /// half the menu bar talking about something else.
+    /// The app's name reaches every menu that mentions it.
     @Test("the name is used wherever it is written")
     func naming() {
         let renamed = MainMenu.application(named: "Wossname")
