@@ -18,23 +18,9 @@ public struct DockPresentation: Sendable, Equatable {
     public let accessibilityLabel: String
 }
 
-/// Turns the pipeline's state into what the floating button draws.
-///
-/// Pure, and deliberately separate from any view: having one place decide what a state
-/// looks like means the button and VoiceOver can never disagree about what is
-/// happening. The menu bar is drawn from `MenuBarPresenter` in `UttrflowUX`, which sees
-/// more than a dictation's state — the speech model, the recent dictations, and a
-/// failure that has already been through `FailurePresenter`.
-///
-/// It is also where §16 lives — the user must never learn which engine ran. No string
-/// produced here names a model, an engine or a file, and a test enforces that.
+/// Turns the pipeline's state into what the floating button draws; never names an engine (§16).
 public enum DictationPresenter {
-    /// How long the microphone has been open, as the button writes it: "0:04", "1:23".
-    ///
-    /// Minutes and seconds, never hours: a dictation is a sentence, and a clock reading
-    /// "0:00:04" belongs to a stopwatch. Anything past an hour keeps counting in minutes
-    /// rather than rolling over, because a button that says "0:04" after sixty-four
-    /// minutes of a stuck recording would be hiding the very thing worth noticing.
+    /// The microphone time as "0:04" or "1:23"; minutes keep counting past an hour, never rolling over.
     public static func elapsed(_ duration: Duration) -> String {
         let seconds = max(Int(duration.components.seconds), 0)
         return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
@@ -52,9 +38,7 @@ public enum DictationPresenter {
 
         case .recording:
             DockPresentation(
-                // What to do rather than what is happening: the waveform and the
-                // recording light already say it is listening, and the one thing
-                // somebody holding a key down needs told is how to stop.
+                // Says what to do, not what is happening: the waveform already says it is listening.
                 symbolName: "mic.fill", primaryLine: "Let go to finish",
                 secondaryLine: RemainingTime.phrase(for: advice),
                 showsWaveform: true, showsProgress: false, isRecording: true, action: nil,
@@ -62,8 +46,7 @@ public enum DictationPresenter {
                     .map { "Listening. Let go to finish. \($0)." }
                     ?? "Listening. Let go to finish.")
 
-        // Transcribing and tidying are one wait to the person waiting. Naming them
-        // separately would describe the machinery rather than the moment.
+        // Transcribing and tidying are one wait to the person waiting.
         case .transcribing, .tidying:
             DockPresentation(
                 symbolName: "sparkles", primaryLine: "Tidying up…", secondaryLine: nil,
@@ -78,9 +61,7 @@ public enum DictationPresenter {
                 accessibilityLabel: "Copied to the clipboard. Press Command V to paste it. \(outcome.text)")
 
         case .inserted(let outcome) where outcome.method == .clipboard:
-            // Nothing was typed. Saying "Inserted" here is the difference between a
-            // user pressing ⌘V and a user believing the app is broken because their
-            // words never appeared — which is exactly what it looked like.
+            // Nothing was typed, and saying "Inserted" here is what tells the user to press ⌘V.
             DockPresentation(
                 symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",
                 secondaryLine: preview(of: outcome.text),
@@ -99,10 +80,7 @@ public enum DictationPresenter {
 
         case .failed(let failure):
             DockPresentation(
-                // A warning triangle over "Didn't catch that" tells the user something
-                // went wrong, when nothing did — they were not heard, which is worth
-                // saying and is not an alarm. The design draws this severity softly for
-                // that reason, so the badge has to follow it.
+                // "Didn't catch that" is not an alarm, so the badge follows the softer severity.
                 symbolName: failure.severity == .informational
                     ? "waveform.slash" : "exclamationmark.triangle",
                 primaryLine: failure.message,
@@ -113,9 +91,7 @@ public enum DictationPresenter {
         }
     }
 
-    /// A glance at the text, not the whole of it.
-    ///
-    /// The floating button sits over the user's work; a long dictation would cover it.
+    /// A glance at the text, since the floating button sits over the user's work.
     static func preview(of text: String, limit: Int = 60) -> String {
         let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard collapsed.count > limit else { return collapsed }

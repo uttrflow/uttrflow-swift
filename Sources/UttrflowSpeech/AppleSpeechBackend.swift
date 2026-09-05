@@ -3,17 +3,9 @@ public import UttrflowCore
 private import AVFoundation
 private import Speech
 
-/// The system recogniser that ships with macOS.
-///
-/// Exists so that switching speech engine is a change to ``EngineConfiguration`` and
-/// nothing else — an abstraction with one implementation is a guess. It needs no
-/// download and is faster than Whisper, but it recognises 30 locales and Hindi is not
-/// among them, so it cannot be the default for this product.
-///
-/// Excluded from the coverage gate: it can only be exercised by real speech.
+/// The macOS system recogniser: no download, faster than Whisper, no Hindi; excluded from coverage.
 public actor AppleSpeechBackend: TranscriptionBackend {
-    /// Fed to the analyser in chunks rather than one buffer, matching how a live
-    /// microphone would deliver audio.
+    /// Fed to the analyser in chunks rather than one buffer, matching how a live microphone delivers.
     private static let chunkFrames = 4096
 
     private let locale: Locale
@@ -28,20 +20,7 @@ public actor AppleSpeechBackend: TranscriptionBackend {
             .contains { LanguageCode($0.identifier(.bcp47)) == language }
     }
 
-    /// Prepares the system recogniser, downloading its locale asset if it is absent.
-    ///
-    /// KNOWN HAZARD, deliberately left as it is. That download is a network call on the
-    /// dictation path — the same shape as the tokenizer fetch that made WhisperKit
-    /// unusable offline — and Settings compounds it by declaring this engine "always
-    /// ready, needs no download", which is only true once the asset happens to be there.
-    ///
-    /// It is not simply removed because, unlike the tokenizer case, the failure it
-    /// produces is honest and recoverable: ``SpeechEngineError/modelDownloadFailed``
-    /// says to check the connection, and doing so genuinely fixes it. Refusing to
-    /// download here without first giving Settings a way to install the asset — and a
-    /// readiness check that consults it — would replace a slow first dictation with a
-    /// dead end. Both of those live outside this module, so the whole change belongs in
-    /// one piece rather than half of it here.
+    /// Prepares the recogniser, downloading its locale asset if absent. See Docs/speech-engines.md.
     public func load() async throws(SpeechEngineError) {
         let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
         switch await AssetInventory.status(forModules: [transcriber]) {

@@ -3,12 +3,7 @@ private import CoreML
 public import UttrflowCore
 import WhisperKit
 
-/// The real WhisperKit recogniser.
-///
-/// Deliberately thin: it loads a model and returns raw text. Every rule about that
-/// text — cleaning it, mapping it, refusing audio too short to mean anything — lives
-/// in the tested layer above. Excluded from the coverage gate because exercising it
-/// means downloading a model and decoding real speech, which `uttrflow-dev` does.
+/// The real WhisperKit recogniser, kept thin; excluded from coverage. See Docs/speech-engines.md.
 public actor WhisperKitBackend: TranscriptionBackend {
     private let model: SpeechModel
     private let modelFolder: URL
@@ -21,10 +16,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
 
     public func load() async throws(SpeechEngineError) {
         guard kit == nil else { return }
-        // The tokenizer is checked as carefully as the weights because WhisperKit treats
-        // a missing one as a reason to visit Hugging Face rather than a reason to fail.
-        // Calling it "not installed" here is the difference between an offer to finish
-        // the download and a retry that will fail identically for ever.
+        // A missing tokenizer is "not installed", or WhisperKit visits Hugging Face instead of failing.
         guard FileManager.default.fileExists(atPath: modelFolder.path),
             TokenizerAssets.arePresent(in: modelFolder)
         else {
@@ -32,19 +24,13 @@ public actor WhisperKitBackend: TranscriptionBackend {
         }
 
         do {
-            // `download: false` keeps this honest: the store owns installing, so a
-            // missing model surfaces as a clear error rather than a silent stall on
-            // a slow connection.
+            // `download: false`, so a missing model is a clear error rather than a silent stall.
             kit = LoadedKit(
                 try await WhisperKit(
                     WhisperKitConfig(
                         model: model.variant,
                         modelFolder: modelFolder.path,
-                        // Points the tokenizer search at the model's own directory.
-                        // Left unset, WhisperKit searches the shared Hugging Face cache
-                        // under ~/Documents first and downloads into it when it finds
-                        // nothing — a network round trip on the dictation path, and
-                        // state outside anything this app installs or removes.
+                        // Tokenizer search stays in the model's directory, never the Hugging Face cache.
                         tokenizerFolder: modelFolder,
                         verbose: false,
                         logLevel: .error,
@@ -76,12 +62,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
                     samples, languageHint: languageHint, biasedTowards: vocabulary))
             guard !vocabulary.isEmpty, biased.text.isEmpty else { return biased }
 
-            // The net under everything above. A conditioning prompt changes how the
-            // decoder is driven, and ``PromptPrefillGuard`` exists because one way of
-            // driving it returns nothing at all; a WhisperKit release or a model variant
-            // that finds another such way must cost the user a slower dictation, never a
-            // silent one. Silence transcribes to nothing too, so this can decode twice
-            // for no gain — which is the right price for never losing a dictation.
+            // The net: a prompt that decodes to nothing costs a second decode, never the words.
             return Self.rawTranscript(
                 from: try await kit.transcribe(
                     samples, languageHint: languageHint, biasedTowards: []))
@@ -118,8 +99,7 @@ extension FileSystemSpeechModelStore {
         FileSystemSpeechModelStore(root: root) { model, component, destination, onProgress in
             switch component {
             case .weights:
-                // The hub nests its output under the download base; the store's contract
-                // is that a model's files sit directly in its own directory.
+                // The hub nests its output under the download base; the store wants the files at the top.
                 let downloaded = try await WhisperKit.download(
                     variant: model.variant,
                     downloadBase: destination,
@@ -127,21 +107,14 @@ extension FileSystemSpeechModelStore {
                 )
                 try FileSystemSpeechModelStore.hoist(contentsOf: downloaded, into: destination)
             case .tokenizer:
-                // Reports no progress on purpose. It is well under a percent of the
-                // download, and a second scale running from zero after the first had
-                // reached one would send the bar backwards.
+                // Reports no progress: a second scale after the weights would run the bar backwards.
                 try await downloadTokenizer(for: model, into: destination)
             }
         }
     }
 }
 
-/// Owns the loaded recogniser.
-///
-/// `WhisperKit` is a class with async methods and no `Sendable` conformance. This box
-/// is its only owner, and the actor above serialises every call into it, so the
-/// guarantee the type lacks is supplied here — in one place, with a reason — rather
-/// than at each call site.
+/// Owns the loaded recogniser; `WhisperKit` is not `Sendable`, and the actor above serialises every call.
 private final class LoadedKit: @unchecked Sendable {
     private let kit: WhisperKit
 
@@ -152,18 +125,14 @@ private final class LoadedKit: @unchecked Sendable {
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws -> [TranscriptionResult] {
-        // WhisperKit's tokenizer is `nil` until its model has loaded, and the model has
-        // loaded or this box would not exist. Passing the optional straight through
-        // rather than asserting keeps the one unlucky ordering — a caller reaching a
-        // half-loaded kit — a plain unbiased dictation instead of a crash.
+        // Passed through optional, so a half-loaded kit gives an unbiased dictation, not a crash.
         let tokenizer = kit.tokenizer
         let options = VocabularyPrompt.decodingOptions(
             languageHint: languageHint,
             vocabulary: vocabulary,
             tokenizer: tokenizer.map { WhisperPromptTokenizer(tokenizer: $0) }
         )
-        // Reassigned on every call, including to nothing, so a prompt's guard can never
-        // outlive the prompt it was measured for.
+        // Reassigned on every call, including to nothing, so a guard never outlives its prompt.
         kit.textDecoder.logitsFilters = Self.guards(for: options, tokenizer: tokenizer)
         return try await kit.transcribe(audioArray: samples, decodeOptions: options)
     }
@@ -184,25 +153,7 @@ private final class LoadedKit: @unchecked Sendable {
     }
 }
 
-/// Holds the end token shut while the decoder is still being fed a conditioning prompt.
-///
-/// Without this, biasing does not merely work poorly — it returns nothing. WhisperKit
-/// ends a window as soon as its sampler predicts the end token, and it applies that test
-/// on every iteration of the decode loop, including the ones that are force-feeding the
-/// prompt and discarding whatever the sampler said. Asked to transcribe five seconds of
-/// clear speech, the recogniser returned an empty string for every prompt tried: three
-/// words, one word, a comma-separated glossary, a sentence of prose, at nine tokens and
-/// at fifty-two. With this filter in place the same audio and the same prompts decode in
-/// full.
-///
-/// The `tokens.count == sampleBegin` shape is WhisperKit's own — `SuppressBlankFilter`
-/// is built exactly this way — and it works because the token array does not grow while
-/// the prompt is being forced. It is installed through `logitsFilters`, which WhisperKit
-/// documents as an extension point, rather than by reaching into the decoder.
-///
-/// Delete it when WhisperKit stops ending a window during its own prefill. Until then
-/// ``WhisperKitBackend`` also re-runs a blank biased transcription without the
-/// vocabulary, because a guard that stops fitting must cost latency and not the words.
+/// Holds the end token shut while the decoder is fed a conditioning prompt. See Docs/speech-engines.md.
 private final class PromptPrefillGuard: LogitsFiltering {
     private let forcedPrefillLength: Int
     private let endTokenIndex: [[NSNumber]]
@@ -219,12 +170,7 @@ private final class PromptPrefillGuard: LogitsFiltering {
     }
 }
 
-/// WhisperKit's own tokeniser, seen through the seam ``VocabularyPrompt`` is written
-/// against.
-///
-/// Lives here rather than beside that seam because this is the file that is allowed to
-/// know what a real recogniser looks like, and the only one whose contents cannot be
-/// exercised without a downloaded model.
+/// WhisperKit's own tokeniser behind the ``PromptTokenizer`` seam, in the one file that knows WhisperKit.
 private struct WhisperPromptTokenizer: PromptTokenizer {
     let tokenizer: any WhisperTokenizer
 

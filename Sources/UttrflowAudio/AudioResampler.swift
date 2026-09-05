@@ -2,10 +2,7 @@ public import AVFoundation
 public import UttrflowCore
 private import Synchronization
 
-/// Converts microphone buffers of any format into canonical mono 16 kHz samples.
-///
-/// Microphones hand back whatever they like — 44.1 or 48 kHz, one channel or several,
-/// interleaved or not. Normalising once, here, is why nothing downstream has to care.
+/// Converts microphone buffers of any format into canonical mono 16 kHz samples. See Docs/audio-capture.md.
 public final class AudioResampler: Sendable {
     /// The format every consumer in the product expects.
     public static let canonicalFormat: AVAudioFormat? = AVAudioFormat(
@@ -15,25 +12,18 @@ public final class AudioResampler: Sendable {
         interleaved: false
     )
 
-    // AVAudioConverter is stateful and not thread-safe. It is only ever touched from
-    // the capture thread, but the lock makes that safe rather than merely true today.
+    // AVAudioConverter is stateful and not thread-safe; the lock makes that safe rather than lucky.
     private let converter: Mutex<AVAudioConverter>
     private let inputFormat: AVAudioFormat
     private let outputFormat: AVAudioFormat
 
-    /// Creates a resampler for one input format.
-    ///
-    /// - Returns: `nil` when the system cannot convert between the two formats, which
-    ///   the caller should surface as ``AudioCaptureError/unsupportedInputFormat``.
+    /// Creates a resampler for one input format, or `nil` when the system cannot convert it.
     public init?(inputFormat: AVAudioFormat) {
         guard let outputFormat = Self.canonicalFormat,
             let converter = AVAudioConverter(from: inputFormat, to: outputFormat)
         else { return nil }
 
-        // Above stereo, the converter has no spatial mapping to mix down with and
-        // silently produces silence — a dead microphone on a multi-input audio
-        // interface. Taking the first channel is predictable and audible; mono and
-        // stereo keep the default, which averages properly.
+        // Above stereo the converter mixes down to silence, so the first channel is taken instead.
         if inputFormat.channelCount > 2 {
             converter.channelMap = [0]
         }
@@ -43,13 +33,7 @@ public final class AudioResampler: Sendable {
         self.converter = Mutex(converter)
     }
 
-    /// The most input frames handed to the converter at once.
-    ///
-    /// `AVAudioConverter` consumes roughly 4000 frames per supply and then reports
-    /// `inputRanDry` rather than asking again, so a single large buffer is silently
-    /// truncated — measured at 51% of the expected output when upsampling 8 kHz.
-    /// Feeding it in slices recovers 99.8%. Calling convert repeatedly does not help;
-    /// only re-supplying does.
+    /// The most input frames fed to the converter at once; more is truncated. See Docs/audio-capture.md.
     private static let maxFramesPerConversion: AVAudioFrameCount = 2048
 
     /// Converts one buffer. Returns an empty array for an empty input.
@@ -99,11 +83,7 @@ public final class AudioResampler: Sendable {
         return Array(UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
     }
 
-    /// Copies `frames` starting at `offset` into a new buffer of the same format.
-    ///
-    /// Works off the raw buffer list rather than `floatChannelData`, so it is correct
-    /// for interleaved and deinterleaved layouts alike: in both, a buffer's byte size
-    /// divided by its frame count is the bytes it holds per frame.
+    /// Copies `frames` from `offset` into a new buffer, off the raw buffer list so any layout is right.
     private static func slice(
         _ buffer: AVAudioPCMBuffer, from offset: AVAudioFrameCount, frames: AVAudioFrameCount
     ) -> AVAudioPCMBuffer? {
@@ -128,12 +108,7 @@ public final class AudioResampler: Sendable {
     }
 }
 
-/// Feeds one buffer to `AVAudioConverter`, exactly once.
-///
-/// The converter's input block is declared `@Sendable`, but it is called synchronously
-/// on the converting thread before `convert` returns — it never escapes. Stating that
-/// here keeps the unchecked conformance in one documented place instead of spreading
-/// it across the call site.
+/// Feeds one buffer to `AVAudioConverter` once; the input block never escapes despite being `@Sendable`.
 private final class ConversionInput: @unchecked Sendable {
     private let buffer: AVAudioPCMBuffer
     private var consumed = false
