@@ -3,8 +3,7 @@ import Testing
 
 @testable import UttrflowEval
 
-/// Builds scores directly rather than running an engine: what is being tested is how a
-/// thousand results are made readable, and that is arithmetic over scores.
+/// Builds scores directly, since what is tested is arithmetic over a thousand results.
 func score(
     _ id: String,
     language: TranscriptionCase.Language = .english,
@@ -31,9 +30,7 @@ struct ReportBreakdownTests {
         TranscriptionReport(label: "test", scores: scores)
     }
 
-    /// Never pooled into one number, and every row carries what it rests on — because at
-    /// a thousand samples the eye-catching rate is nearly always the row with forty words
-    /// behind it.
+    /// At a thousand samples the eye-catching rate is nearly always the row with forty words behind it.
     @Test("reports by language, and says how much each row rests on")
     func byLanguage() {
         let subject = report([
@@ -50,8 +47,7 @@ struct ReportBreakdownTests {
         #expect(subject.byLanguage[0].id == "english")
     }
 
-    /// The rows overlap on purpose: the question worth answering is "how are we on proper
-    /// nouns", not "how are we on samples whose first label happens to be proper nouns".
+    /// The question worth answering is "how are we on proper nouns", so the rows overlap.
     @Test("a sample stressing two things is counted under both")
     func byStress() {
         let subject = report([
@@ -62,15 +58,13 @@ struct ReportBreakdownTests {
         #expect(subject.byStress.map(\.label) == ["accent", "punctuation"])
         #expect(subject.byStress[0].passages == 1)
         #expect(subject.byStress[1].passages == 2)
-        // Four words in the punctuation row, two in the accent row: they overlap, so they
-        // do not sum to the corpus's four.
+        // Four words in the punctuation row, two in the accent row: they overlap and do not sum to four.
         #expect(subject.byStress[1].referenceWordCount == 4)
         #expect(subject.wordErrorRate(stressing: "accent")?.rate == 0.5)
         #expect(subject.wordErrorRate(stressing: "nothing-like-this") == nil)
     }
 
-    /// A regression in one speaker's cohort hiding behind an improvement in another's is
-    /// exactly what a pooled figure does.
+    /// A pooled figure hides one speaker's regression behind another's improvement.
     @Test("reports by cohort, with the unattributed recordings as their own row")
     func byCohort() {
         let subject = report([
@@ -150,8 +144,7 @@ struct ReportBreakdownTests {
         #expect(Finding.Signature.misheard("a", heard: "b").description == "\"a\" heard as \"b\"")
     }
 
-    /// A report that prints everything is one nobody reads to the end; one that silently
-    /// truncates is one nobody can trust.
+    /// A report that prints everything is unread; one that silently truncates is untrusted.
     @Test("shows the worst findings and counts what it left out")
     func capsFindings() {
         let scores = (1...30).map { index in
@@ -167,9 +160,7 @@ struct ReportBreakdownTests {
         #expect(everything.hidden == 0)
     }
 
-    /// `--summarise` reads what previous runs banked. A decoder that refused an older
-    /// file would turn every stored result into something that has to be measured again
-    /// before it can be read.
+    /// `--summarise` reads banked results, so a decoder refusing an older file would force a re-measure.
     @Test("a result banked before these fields existed still summarises")
     func decodesAnOlderResult() throws {
         let older = """

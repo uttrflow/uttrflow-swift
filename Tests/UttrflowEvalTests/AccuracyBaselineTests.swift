@@ -11,8 +11,7 @@ struct AccuracyBaselineTests {
         TranscriptionReport(label: label, scores: scores)
     }
 
-    /// Twenty reference words a sample, so a corpus of a handful of samples clears the
-    /// word-count floor and the verdicts under test are about accuracy rather than size.
+    /// Twenty reference words a sample, so a handful of samples clears the word-count floor.
     private func sample(
         _ id: String,
         errors: Int,
@@ -30,8 +29,7 @@ struct AccuracyBaselineTests {
 
     // MARK: Capturing
 
-    /// Errors and words rather than a rate: a stored rate cannot be re-aggregated, and
-    /// storing both is how the two come to disagree.
+    /// A stored rate cannot be re-aggregated, and storing both is how the two come to disagree.
     @Test("keeps the counts a rate is made of, not the rate")
     func captures() {
         let baseline = AccuracyBaseline.capture(report([sample("a", errors: 5, words: 100)]), at: moment)
@@ -52,8 +50,7 @@ struct AccuracyBaselineTests {
         #expect(baseline.entries[0].rate == nil)
     }
 
-    /// A baseline is meant to be committed and reviewed, so two captures of the same
-    /// corpus have to produce the same bytes.
+    /// A baseline is committed and reviewed, so two captures of one corpus must produce the same bytes.
     @Test("writes a stable, sorted file and reads it back")
     func roundTrips() throws {
         let directory = temporaryDirectory()
@@ -115,8 +112,7 @@ struct AccuracyBaselineTests {
         #expect(comparison.regressed.map(\.label) == ["a"])
     }
 
-    /// The entire point of not pooling. An engine that gets better at English and worse
-    /// at Hinglish has not got better, and a headline figure would say it had.
+    /// An engine that gets better at English and worse at Hinglish has not got better.
     @Test("a slice going backwards is a regression even when the headline improves")
     func aSliceCanFailAlone() {
         let before = report([
@@ -153,8 +149,7 @@ struct AccuracyBaselineTests {
         #expect(comparison.byCohort.first { $0.label == "naveen-quiet" }?.verdict == .unchanged)
     }
 
-    /// A rule that fired on noise would be switched off within a week, which is the real
-    /// failure mode of an accuracy gate.
+    /// A rule that fired on noise would be switched off within a week.
     @Test("a move smaller than the tolerance is not a finding")
     func tolerance() {
         let baseline = AccuracyBaseline.capture(report([sample("a", errors: 5, words: 1_000)]), at: moment)
@@ -167,8 +162,7 @@ struct AccuracyBaselineTests {
                 == .worsened)
     }
 
-    /// A cohort of two short samples will swing ten points on one misheard name. It is
-    /// still shown — silence about a slice is worse than caution about it.
+    /// A cohort of two short samples swings ten points on one misheard name, but silence is worse.
     @Test("a slice too small to judge is reported, not ruled on")
     func underpowered() {
         let before = report([sample("a", errors: 0, cohort: "tiny", words: 10)])
@@ -180,8 +174,7 @@ struct AccuracyBaselineTests {
         #expect(comparison.regressed.map(\.label) == ["a"])
     }
 
-    /// The corpus is meant to grow to a thousand. A gate that refused to judge whenever a
-    /// sample was added would never judge anything.
+    /// A gate that refused to judge whenever a sample was added would never judge anything.
     @Test("compares the samples the two runs share, and says what changed around them")
     func aGrowingCorpus() {
         let before = report([sample("a", errors: 5), sample("gone", errors: 5)])
@@ -202,8 +195,7 @@ struct AccuracyBaselineTests {
         #expect(comparison.reason?.contains("share no samples") == true)
     }
 
-    /// The same transcripts score differently under different rules, so a comparison
-    /// across a normalisation change is not a comparison.
+    /// The same transcripts score differently under different rules.
     @Test("refuses a verdict when the normalisation rules changed")
     func changedNormalisation() {
         let before = report([sample("a", errors: 5)])
@@ -217,8 +209,7 @@ struct AccuracyBaselineTests {
         #expect(comparison.reason?.contains("normalisation") == true)
     }
 
-    /// A run where forty samples stopped producing a transcript has got worse even if
-    /// every surviving rate improved.
+    /// Forty samples going unscorable is a regression even if every surviving rate improved.
     @Test("a sample that stopped being scorable is a regression")
     func newlyUnscorable() {
         let before = report([sample("a", errors: 5), sample("b", errors: 5)])

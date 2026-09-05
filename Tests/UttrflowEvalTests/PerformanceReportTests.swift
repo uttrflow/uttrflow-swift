@@ -5,8 +5,7 @@ import Testing
 
 @Suite("Describing the machine")
 struct MachineDescriptionTests {
-    /// Read off this Mac rather than typed into a document afterwards, which is the only
-    /// way a set of figures cannot be quoted against the wrong hardware.
+    /// Read off this Mac, the only way figures cannot be quoted against the wrong hardware.
     @Test("reads this Mac")
     func readsThisMac() {
         let machine = MachineDescription.current()
@@ -47,8 +46,7 @@ struct PerformanceReportTests {
         )
     }
 
-    /// The first moment is a baseline, not a change, and showing its absolute value in
-    /// the change column would read as a jump from nothing.
+    /// The first moment is a baseline, and its absolute value in the change column would read as a jump.
     @Test("the first moment has no change to report")
     func firstIncrementIsAbsent() {
         #expect(timeline([10, 30, 25]).increments == [nil, 20, -5])
@@ -62,8 +60,7 @@ struct PerformanceReportTests {
         #expect(report(timeline: timeline([])).peakFootprintBytes == nil)
     }
 
-    /// Driven by the pipeline's own list of stages, so a stage added to the product turns
-    /// up in the report the day something times it.
+    /// Driven by the pipeline's own stage list, so a new stage appears the day something times it.
     @Test("only stages something timed are listed")
     func timedStages() {
         let utterance = UtteranceProfile(
@@ -95,8 +92,7 @@ struct PerformanceReportTests {
         #expect(ModelLoadProfile(first: .seconds(4), warm: nil, addedBytes: nil).savedByWarming == nil)
     }
 
-    /// A warm load that somehow took longer is not a negative saving; the honest thing
-    /// to say is that it saved nothing.
+    /// A warm load that took longer saved nothing, not a negative amount.
     @Test("a slower warm load saves nothing rather than a negative amount")
     func warmSavingNeverNegative() {
         let load = ModelLoadProfile(first: .seconds(1), warm: .seconds(4), addedBytes: nil)

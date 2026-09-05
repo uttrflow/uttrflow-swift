@@ -3,11 +3,7 @@ import Testing
 
 @testable import UttrflowPipeline
 
-/// Turning what the recogniser scored into what the correction engine can judge.
-///
-/// The whole feature rests on this being right: correction only touches a word the
-/// recogniser was unsure about, so a wrong score here either shields a bad word or
-/// exposes a good one.
+/// Correction only touches a word the recogniser was unsure of, so a wrong score here breaks the feature.
 @Suite("What the recogniser was sure of")
 struct ScoredWordsTests {
     private func transcription(_ text: String, words: [TranscribedWord]) -> Transcription {
@@ -34,16 +30,14 @@ struct ScoredWordsTests {
         #expect(scored?.last?.confidence == 0.41)
     }
 
-    /// `nil` means nobody measured, and it must never be read as "everything is certain".
-    /// Apple's recogniser reports no per-word figure, so a build using it lands here.
+    /// `nil` means nobody measured, which Apple's recogniser produces, and never "everything is certain".
     @Test("declines to judge when nothing was scored")
     func nothingScored() {
         #expect(transcription("send it to Nikhil", words: []).scoredWords == nil)
         #expect(transcription("", words: []).scoredWords == nil)
     }
 
-    /// A word the recogniser never scored is left alone rather than guessed at. One is
-    /// "no reason to doubt it", which keeps it out of reach of the first condition.
+    /// One is "no reason to doubt it", which keeps an unscored word out of reach of the first condition.
     @Test("leaves an unscored word beyond suspicion rather than guessing")
     func unscoredWord() {
         let scored = transcription(
@@ -55,8 +49,7 @@ struct ScoredWordsTests {
         #expect(scored?.last?.confidence == 1)
     }
 
-    /// The doubtful reading is the one worth acting on. Taking the confident one would
-    /// hide exactly the word correction exists to catch.
+    /// The doubtful reading is the one worth acting on.
     @Test("takes the lowest score when a word is heard more than once")
     func repeatedWord() {
         let scored = transcription(
@@ -72,8 +65,7 @@ struct ScoredWordsTests {
         #expect(scored?.last?.confidence == 0.32)
     }
 
-    /// The tidier has not run yet, but a recogniser punctuates too — and a word wearing
-    /// a comma must still find its own score.
+    /// A recogniser punctuates too, and a word wearing a comma must still find its score.
     @Test("matches a word through the punctuation attached to it")
     func punctuation() {
         let scored = transcription(
@@ -88,8 +80,7 @@ struct ScoredWordsTests {
         #expect(scored?.last?.confidence == 0.38, "the full stop must not hide the score")
     }
 
-    /// Case is the recogniser's guess, not the speaker's, so it cannot decide whether a
-    /// word gets its own score.
+    /// Case is the recogniser's guess, not the speaker's.
     @Test("matches regardless of how the recogniser capitalised it")
     func caseInsensitive() {
         let scored = transcription(
@@ -103,8 +94,7 @@ struct ScoredWordsTests {
         #expect(scored?.map(\.confidence) == [0.44, 0.5])
     }
 
-    /// One entry per spoken word, in order — that is what a correction's range indexes,
-    /// and a mismatch would put the replacement on the wrong word.
+    /// One entry per spoken word in order is what a correction's range indexes.
     @Test("returns one score per spoken word, in order")
     func onePerWord() {
         let text = "one two three four five"

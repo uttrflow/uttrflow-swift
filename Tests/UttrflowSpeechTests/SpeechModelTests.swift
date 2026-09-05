@@ -45,9 +45,7 @@ struct SpeechModelTests {
         #expect(!englishOnly.supports(.hindi))
     }
 
-    /// The install fetches the tokenizer from here, and the recogniser then reads it off
-    /// disk. A model that named the wrong repository would install a vocabulary that
-    /// decodes its output into nonsense, so every entry has to name a real one.
+    /// A model naming the wrong tokenizer repository would decode its output into nonsense.
     @Test("names the repository publishing its tokenizer, for every model")
     func everyModelNamesItsTokenizer() {
         for model in SpeechModel.catalogue {

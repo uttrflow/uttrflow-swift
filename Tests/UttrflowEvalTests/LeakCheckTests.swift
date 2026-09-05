@@ -28,8 +28,7 @@ struct LeakCheckTests {
         #expect(leak.perDictationBytes == 10 * megabyte / 3)
     }
 
-    /// The finding the profile exists for: memory that climbs at every repetition and
-    /// never comes back.
+    /// Memory that climbs at every repetition and never comes back is the finding the profile exists for.
     @Test("climbing at every repetition past the allowance is a leak")
     func monotonicGrowthIsALeak() {
         let leak = check([100, 130, 160, 190])
@@ -38,8 +37,7 @@ struct LeakCheckTests {
         #expect(leak.passed == false)
     }
 
-    /// Growth that wobbles is not the same claim. It might be a long-lived cache
-    /// settling, and only a longer run can tell — so it is named differently.
+    /// Growth that wobbles might be a long-lived cache settling, and only a longer run can tell.
     @Test("growth that fell back on the way is only suspect")
     func wobblingGrowthIsSuspect() {
         let leak = check([100, 200, 150, 190])
@@ -56,8 +54,7 @@ struct LeakCheckTests {
         #expect(leak.verdict == .clean)
     }
 
-    /// A flat run has not fallen back either, but it has not grown, so the allowance
-    /// decides before the trend does.
+    /// A flat run has not fallen back either, but it has not grown, so the allowance decides first.
     @Test("a flat run is clean despite never falling back")
     func flatIsClean() {
         let leak = check([100, 100, 100])

@@ -2,8 +2,7 @@ import Testing
 
 @testable import UttrflowEval
 
-/// Normalisation decides the number, so each rule is tested for what it folds away and
-/// — more importantly — for what it must not.
+/// Normalisation decides the number, so each rule is tested for what it folds away and what it must not.
 @Suite("Normalisation")
 struct TextNormaliserTests {
     private let normaliser = TextNormaliser.standard
@@ -19,8 +18,7 @@ struct TextNormaliserTests {
         #expect(normaliser.words("I\u{2019}ll") == ["ill"])
     }
 
-    /// The rule that stops the scorer manufacturing errors out of the terms the product
-    /// exists to get right.
+    /// The rule that stops the scorer manufacturing errors out of the terms the product exists to get right.
     @Test(
         "keeps a version number or an identifier whole",
         arguments: [
@@ -31,8 +29,7 @@ struct TextNormaliserTests {
         #expect(normaliser.words(text) == expected)
     }
 
-    /// A full stop that ends a sentence is a separator; only one between two
-    /// alphanumerics is part of a word.
+    /// A full stop that ends a sentence is a separator; only one between two alphanumerics is part of a word.
     @Test("still splits on a sentence-ending full stop")
     func sentenceStop() {
         #expect(
@@ -67,8 +64,7 @@ struct TextNormaliserTests {
         #expect(normaliser.words("बीस मिनट") == ["20", "मिनट"])
     }
 
-    /// Two Devanagari words are left alone on purpose — "एक" is also "a" and "दो" is also
-    /// "give", and turning either into a digit would garble ordinary sentences.
+    /// "एक" is also "a" and "दो" is also "give", so turning either into a digit would garble sentences.
     @Test("leaves the ambiguous Devanagari number words as words")
     func ambiguousNumberWords() {
         #expect(normaliser.words("बता दो") == ["बता", "दो"])
@@ -84,8 +80,7 @@ struct TextNormaliserTests {
             ])
     }
 
-    /// The corpus is written with false starts in it, read as written. Removing them
-    /// would hide the failure those passages exist to measure.
+    /// The corpus is written with false starts, and removing them would hide what those passages measure.
     @Test("leaves fillers and repeats alone")
     func keepsDisfluencies() {
         #expect(normaliser.words("um so the the deploy") == ["um", "so", "the", "the", "deploy"])
@@ -123,9 +118,7 @@ struct ScriptTests {
         #expect(Script.of("42 8080") == .latin)
     }
 
-    /// A last resort, and the reason every score computed through it is reported as an
-    /// upper bound: ICU romanises letter by letter, so the words it produces are not the
-    /// ones a Hinglish speaker writes.
+    /// ICU romanises letter by letter, which is why every score through it is an upper bound.
     @Test("romanises Devanagari when there is nothing else to compare with")
     func transliteration() {
         let romanised = "नमस्ते".transliteratedToLatin

@@ -5,15 +5,10 @@ import WhisperKit
 @testable import UttrflowCore
 @testable import UttrflowSpeech
 
-/// A tokeniser a test can pin exactly.
-///
-/// One id per character, so a word's cost in the prompt equals its length and the prompt
-/// can be read back as the sentence it is — which is what makes the assertions below
-/// readable rather than arrays of magic numbers.
+/// A tokeniser with one id per character, so a prompt reads back as the sentence it is.
 private struct SpellingTokenizer: PromptTokenizer {
     let firstSpecialToken = 50_257
-    /// Text this tokeniser cannot spell at all, standing in for what a real vocabulary
-    /// does with a script it does not cover.
+    /// Text this tokeniser cannot spell at all, standing in for a script a real vocabulary lacks.
     var unencodable: Set<String> = []
     /// Ids appended to every piece, for checking that special tokens are kept out.
     var trailingSpecials: [Int] = []
@@ -28,9 +23,7 @@ private struct SpellingTokenizer: PromptTokenizer {
     }
 }
 
-/// The bytes of a `DecodingOptions`, so that "unchanged" can be asserted rather than
-/// approximated. `DecodingOptions` is `Codable` but not `Equatable`, and the fields that
-/// matter here are exactly the ones nobody would think to compare by hand.
+/// The bytes of a `DecodingOptions`, which is not `Equatable`, so "unchanged" can be asserted exactly.
 private func encoded(_ options: DecodingOptions) throws -> Data {
     let encoder = JSONEncoder()
     encoder.outputFormatting = .sortedKeys
@@ -96,8 +89,7 @@ struct VocabularyPromptTests {
         let tokens = VocabularyPrompt.tokens(
             for: ["Uttrflow", "Nikhil", "PaymentSheet"], using: tokenizer)
 
-        // Measured, not chosen: the same three words as a bare run left the recogniser
-        // hearing "KidPit", and inside this sentence it heard "Uttrflow".
+        // Measured, not chosen: as a bare run these words left the recogniser hearing "KidPit".
         #expect(tokenizer.read(tokens) == " The words used here are Uttrflow, Nikhil, PaymentSheet.")
     }
 
@@ -106,8 +98,7 @@ struct VocabularyPromptTests {
         let monster = String(repeating: "z", count: 400)
         let tokens = VocabularyPrompt.tokens(for: ["Uttrflow", monster, "Nikhil"], using: tokenizer)
 
-        // The comma belongs to the word that follows it, so a gap in the middle of the
-        // ranking cannot leave the decoder reading ", ,".
+        // The comma belongs to the word after it, so a gap in the ranking cannot leave ", ,".
         #expect(tokenizer.read(tokens) == " The words used here are Uttrflow, Nikhil.")
     }
 
@@ -115,9 +106,7 @@ struct VocabularyPromptTests {
 
     @Test("the budget is the one WhisperKit actually enforces")
     func budgetMatchesWhisperKit() {
-        // `(Constants.maxTokenContext / 2) - 1`, with `maxTokenContext` being
-        // `Int(448 / 2)`. Spelt out so that a WhisperKit upgrade that moves either
-        // number fails here rather than silently losing half the vocabulary.
+        // Spelt out so a WhisperKit upgrade that moves either number fails here rather than silently.
         #expect(VocabularyPrompt.maximumTokens == (Constants.maxTokenContext / 2) - 1)
         #expect(VocabularyPrompt.maximumTokens == 111)
     }
@@ -128,8 +117,7 @@ struct VocabularyPromptTests {
         let tokens = try #require(VocabularyPrompt.tokens(for: words, using: tokenizer))
 
         #expect(tokens.count <= VocabularyPrompt.maximumTokens)
-        // Full, not merely bounded: a budget that truncated to nothing would also pass
-        // the line above while throwing away every word the user has.
+        // Full, not merely bounded: a budget that truncated to nothing would also pass the line above.
         #expect(tokens.count > VocabularyPrompt.maximumTokens - 30)
     }
 
@@ -138,9 +126,7 @@ struct VocabularyPromptTests {
         let words = (0..<500).map { "supercalifragilistic\($0)" }
         let tokens = try #require(VocabularyPrompt.tokens(for: words, using: tokenizer))
 
-        // WhisperKit keeps the *last* 111 tokens of whatever it is given, so anything
-        // that hands it more than 111 loses the front of a best-first ranking. What
-        // survives here must be the front.
+        // WhisperKit keeps the *last* 111 tokens, so what survives here must be the front of the ranking.
         #expect(tokenizer.read(tokens).hasPrefix(" The words used here are supercalifragilistic0,"))
         #expect(!tokenizer.read(tokens).contains("supercalifragilistic400"))
     }
@@ -194,8 +180,7 @@ struct VocabularyPromptTests {
     @Test("special tokens never reach the decoder as vocabulary")
     func specialTokensAreDropped() throws {
         var tokenizer = SpellingTokenizer()
-        // A real tokeniser can emit these; WhisperKit filters them out of the prompt, so
-        // budgeting for them would mean budgeting for tokens that never arrive.
+        // WhisperKit filters these out of the prompt, so budgeting for them would budget for nothing.
         tokenizer.trailingSpecials = [50_257, 50_361]
 
         let tokens = try #require(VocabularyPrompt.tokens(for: ["Uttrflow"], using: tokenizer))

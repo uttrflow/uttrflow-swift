@@ -55,8 +55,7 @@ struct CorpusUploadOutboxTests {
         #expect(uploader.uploads.first?.audio == Data([1, 2, 3]))
     }
 
-    /// Hinglish has no BCP-47 tag, and the catalogue's `language_tag` domain would refuse
-    /// an invented one. It files under Hindi and is marked by the code-switching stress.
+    /// Hinglish has no BCP-47 tag, so it files under Hindi and the code-switching stress marks it.
     @Test("a Hinglish passage files under hi-IN and keeps its own stresses")
     func languageTags() async throws {
         let directory = temporaryDirectory()
@@ -125,8 +124,7 @@ struct CorpusUploadOutboxTests {
         let receipt = await outbox(recordings, missing).send(recorded("one"))
         #expect(
             receipt.outcome == .rejected("this backend has no POST /v1/corpus/samples — it needs updating"))
-        // Still listed, because a corpus quietly smaller than the operator believes is
-        // worse than a line in every summary.
+        // Still listed: a corpus quietly smaller than the operator believes is worse than a summary line.
         #expect(try outbox(recordings, missing).pending().map(\.id) == ["one"])
     }
 
@@ -169,8 +167,7 @@ struct CorpusUploadOutboxTests {
         #expect(try outbox(recordings, FakeUploader()).pending().isEmpty)
     }
 
-    /// A session that spends twenty minutes timing out against a backend that is plainly
-    /// down is a session the operator learns to skip.
+    /// A session that spends twenty minutes timing out against a dead backend is one the operator skips.
     @Test("stops at the first held-back upload and counts the rest as still to go")
     func stopsWhenTheBackendIsDown() async throws {
         let directory = temporaryDirectory()
@@ -235,8 +232,7 @@ struct CorpusUploadOutboxTests {
         #expect(UploadReceipt.Outcome.uploaded.detail == nil)
     }
 
-    /// The cohort of the sitting stands in for recordings made before cohorts existed, so
-    /// an old corpus can be attributed by uploading it under a name.
+    /// The sitting's cohort stands in for recordings made without one, so an old corpus can be attributed.
     @Test("the sitting's cohort names a recording that has none of its own")
     func fallsBackToTheSittingCohort() async throws {
         let directory = temporaryDirectory()

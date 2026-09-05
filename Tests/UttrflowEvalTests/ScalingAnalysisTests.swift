@@ -57,8 +57,7 @@ struct ScalingAnalysisTests {
         #expect((analysis.steps.last?.marginalCost ?? 0) > (analysis.steps.first?.marginalCost ?? 0))
     }
 
-    /// Fixed per-dictation overhead amortising away, which is what a healthy pipeline
-    /// looks like.
+    /// Fixed per-dictation overhead amortising away is what a healthy pipeline looks like.
     @Test("later seconds costing less is sub-linear")
     func subLinear() {
         let analysis = ScalingAnalysis([
@@ -80,8 +79,7 @@ struct ScalingAnalysisTests {
         #expect(analysis.steps.map(\.to) == [.medium, .long])
     }
 
-    /// A stage can bend while the journey around it looks straight, which is the whole
-    /// reason the verdict is available per stage as well as overall.
+    /// A stage can bend while the journey around it looks straight.
     @Test("one stage is read on its own")
     func perStage() {
         let profiles = [

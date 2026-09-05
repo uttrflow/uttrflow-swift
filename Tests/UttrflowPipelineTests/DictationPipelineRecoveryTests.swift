@@ -8,11 +8,7 @@ import Testing
 
 // MARK: - Doubles
 
-/// A ``TranscriptCleaning`` that can be scripted to tidy or to fail, and that records
-/// every request it was handed.
-///
-/// Named for this file so it can sit alongside the other pipeline test files' own
-/// cleaners in one test target.
+/// A ``TranscriptCleaning`` scripted to tidy or fail, recording every request.
 private final class RecoveryFakeCleaner: TranscriptCleaning, Sendable {
     private struct State: Sendable {
         var outcome: ScriptedOutcome<TransformationResult, TransformationError>
@@ -49,8 +45,7 @@ private final class RecoveryFakeCleaner: TranscriptCleaning, Sendable {
     var requests: [TransformationRequest] { state.withLock { $0.requests } }
 }
 
-/// A ``TextInserting`` that can be scripted to place text or to fail, and that records
-/// exactly what it was asked to insert.
+/// A ``TextInserting`` scripted to place text or fail, recording what it is asked to insert.
 private final class RecoveryFakeInserter: TextInserting, Sendable {
     private struct State: Sendable {
         var outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError>
@@ -84,8 +79,7 @@ private final class RecoveryFakeInserter: TextInserting, Sendable {
     var received: [String] { state.withLock { $0.received } }
 }
 
-/// A ``WordCorrecting`` that costs the dictation time and, by default, proposes nothing
-/// — which is what a dictionary does on almost every dictation.
+/// A ``WordCorrecting`` that costs time and, by default, proposes nothing, as a dictionary mostly does.
 private struct RecoveryFakeCorrector: WordCorrecting {
     var proposals: [DictationCorrection] = []
     var refuses = false
@@ -179,9 +173,7 @@ struct DictationPipelineRecoveryTests {
         return await pipeline.currentState
     }
 
-    /// Tidying is a nicety; the words are the product. If a failed clean-up could sink a
-    /// dictation, the user would speak a paragraph and be handed nothing — the one
-    /// failure mode this pipeline exists to prevent.
+    /// Tidying is a nicety; the words are the product.
     @Test("when tidying fails the pipeline inserts exactly what the user actually said")
     func tidyingFailureInsertsTheRawTranscript() async throws {
         let inserter = RecoveryFakeInserter()
@@ -199,8 +191,7 @@ struct DictationPipelineRecoveryTests {
         #expect(state.failure == nil)
     }
 
-    /// The record of what tidied a transcript feeds evaluation. Crediting an engine that
-    /// threw would quietly flatter it and hide the regression.
+    /// Crediting an engine that threw would flatter it in the evaluation record.
     @Test("a transcript that could not be tidied is attributed to the rules, not the engine that failed")
     func tidyingFailureIsAttributedToTheRules() async throws {
         let pipeline = makePipeline(
@@ -214,9 +205,7 @@ struct DictationPipelineRecoveryTests {
         #expect(outcome.cleanedBy == .rules)
     }
 
-    /// Insertion is the last thing that can go wrong, and the point at which the words
-    /// exist nowhere else. Carrying the transcript out with the failure is what lets the
-    /// interface offer them rather than lose them.
+    /// At insertion the words exist nowhere else, so the failure carries them out.
     @Test("when insertion fails the failure still carries the words so they can be offered")
     func insertionFailureCarriesTheTranscript() async throws {
         let pipeline = makePipeline(
@@ -244,8 +233,7 @@ struct DictationPipelineRecoveryTests {
         #expect(inserter.received == [tidiedWords])
     }
 
-    /// The only honest empty-handed ending: transcription failing means there were never
-    /// any words to keep, so there is nothing to offer and nothing to insert.
+    /// Transcription failing means there were never any words to keep.
     @Test("when transcription fails the dictation ends with no transcript and nothing inserted")
     func transcriptionFailureHasNothingToSalvage() async throws {
         let inserter = RecoveryFakeInserter()
@@ -282,8 +270,7 @@ struct DictationPipelineRecoveryTests {
         #expect(insertionFailure.recovery == .openSystemSettings(.accessibility))
     }
 
-    /// An unforeseen error must still reach the user as a sentence. A leaked type name
-    /// is not something anyone can act on.
+    /// A leaked type name is not something anyone can act on.
     @Test("an error the product does not know falls back to a plain sentence with no type name in it")
     func unknownErrorsGetAPlainSentence() {
         let failure = DictationFailure(OddError(), transcript: spokenWords)
@@ -314,9 +301,7 @@ struct DictationPipelineRecoveryTests {
         _ = await dictate(pipeline)
 
         let measurements = await recorder.measurements
-        // Capture is here because draining and converting the buffer is a cost Uttrflow
-        // imposes. The wait before it — the user holding the key — is not a stage, and
-        // is reported separately as the outcome's `spokenFor`.
+        // Capture is draining and converting the buffer; the hold itself is `spokenFor`, not a stage.
         #expect(
             measurements.map(\.stage) == [
                 .capture, .transcription, .correction, .transformation, .expansion, .insertion,
@@ -329,9 +314,7 @@ struct DictationPipelineRecoveryTests {
             ])
     }
 
-    /// The whole point of measuring these two. A dictionary that matched no word and a
-    /// snippet file no trigger fired in were both still read, and the dictation waited
-    /// for both — so a fast path that hides them reports a journey nobody took.
+    /// A dictionary and a snippet file that changed nothing were still read and waited for.
     @Test("the dictionary and the snippets are timed even when they change nothing")
     func stagesThatChangeNothingAreStillTimed() async {
         let recorder = RecordingMetricsRecorder()
@@ -350,8 +333,7 @@ struct DictationPipelineRecoveryTests {
         #expect(await recorder.measurements(for: .expansion).map(\.duration) == [.milliseconds(3)])
     }
 
-    /// A store that will not answer is the stage failing, not the dictation failing, and
-    /// the reliability figures have to be able to tell those apart.
+    /// A store that will not answer is the stage failing, not the dictation.
     @Test("a dictionary or a snippet store that refuses is recorded as a failed stage")
     func refusingStoresAreRecordedAsFailures() async {
         let recorder = RecordingMetricsRecorder()
@@ -374,10 +356,7 @@ struct DictationPipelineRecoveryTests {
         #expect(expansion.map(\.duration) == [.milliseconds(1)])
     }
 
-    /// Everything above drives a clock the test owns, which proves the wiring but not
-    /// that the wiring survives real time. This one runs the whole pipeline against the
-    /// real clock, with a dictionary that corrects a word and a snippet that fires, and
-    /// insists that all six stages come back with a duration that was actually spent.
+    /// The one test on the real clock, proving all six stages report time actually spent.
     @Test("a real dictation, on the real clock, times all six stages")
     func realDictationTimesEveryStage() async {
         let recorder = RecordingMetricsRecorder()
@@ -407,11 +386,7 @@ struct DictationPipelineRecoveryTests {
             "every stage spent real time and none of it is missing")
     }
 
-    /// The duration the user cares about is how long they talked, and it is the one
-    /// thing about a dictation that cannot be recovered after the fact. It is carried
-    /// out of the pipeline rather than measured as a stage, because a stage is a cost
-    /// Uttrflow imposes: counting the speaker's own pauses as latency would make a
-    /// leisurely sentence look like a slow app.
+    /// How long the speaker talked is not a stage, since a stage is a cost Uttrflow imposes.
     @Test("the finished dictation says how long the speaker actually talked")
     func spokenDurationIsMeasured() async {
         let clock = ManualClock()
@@ -428,9 +403,7 @@ struct DictationPipelineRecoveryTests {
         #expect(outcome.spokenFor == .seconds(11))
     }
 
-    /// A cancelled attempt must not lend its stopwatch to the next dictation — eleven
-    /// seconds of abandoned speech showing up against a two-second one would be wrong
-    /// in the history and wrong in any figure derived from it.
+    /// A cancelled attempt must not lend its stopwatch to the next dictation.
     @Test("an abandoned dictation does not lend its duration to the next one")
     func spokenDurationDoesNotLeakAcrossDictations() async {
         let clock = ManualClock()

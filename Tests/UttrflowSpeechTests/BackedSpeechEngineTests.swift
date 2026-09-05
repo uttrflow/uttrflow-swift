@@ -63,8 +63,7 @@ struct BackedSpeechEngineTests {
         #expect(backend.loadCount == 1)
     }
 
-    /// Recognisers hallucinate confidently on a fraction of a second of noise, so the
-    /// engine refuses rather than passing it on.
+    /// Recognisers hallucinate confidently on a fraction of a second of noise, so the engine refuses it.
     @Test("refuses audio too short to carry a word", arguments: [0.0, 0.05, 0.2, 0.249])
     func refusesTooShortAudio(seconds: Double) async {
         let backend = FakeTranscriptionBackend()
@@ -183,7 +182,7 @@ struct BackedSpeechEngineTests {
     }
 }
 
-/// A vocabulary that is whatever a test says it is, counting how often it was asked.
+/// A vocabulary that is whatever a test says it is, counting how often it is asked.
 private actor FixedVocabulary: VocabularySource {
     private let words: [String]
     private(set) var readings = 0

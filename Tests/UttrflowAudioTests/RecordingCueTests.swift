@@ -4,7 +4,7 @@ import Testing
 @testable import UttrflowAudio
 @testable import UttrflowCore
 
-/// A ``SoundPlayer`` that makes no sound and remembers everything it was asked for.
+/// A ``SoundPlayer`` that makes no sound and remembers everything it is asked for.
 private final class SpyPlayer: SoundPlayer {
     private struct State {
         var requested: [SystemSound] = []

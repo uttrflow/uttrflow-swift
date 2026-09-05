@@ -26,8 +26,7 @@ struct AudioResamplerTests {
 
         let samples = try resampler.resample(buffer)
 
-        // One second in must be about one second out; converters trim a few frames of
-        // filter latency, so this checks the ratio rather than an exact count.
+        // Converters trim a few frames of filter latency, so the ratio is checked, not an exact count.
         let expected = Double(AudioSamples.canonicalSampleRate)
         #expect(
             abs(Double(samples.count) - expected) < expected * 0.02,
@@ -44,8 +43,7 @@ struct AudioResamplerTests {
         #expect(samples.count > 15_000)
     }
 
-    /// Above stereo the converter has no layout to mix down with and yields silence
-    /// unless told which channel to take — a dead microphone on a 4-input interface.
+    /// Above stereo the converter yields silence unless told which channel to take.
     @Test(
         "mixes any microphone down to audible mono",
         arguments: [1, 2, 4, 6] as [AVAudioChannelCount]
@@ -58,8 +56,7 @@ struct AudioResamplerTests {
         let samples = try resampler.resample(buffer)
 
         #expect(!samples.isEmpty)
-        // Every channel held the same value, so the mix must hold it too — a mixdown
-        // that summed instead of averaging would clip here.
+        // Every channel holds the same value, so a mixdown that summed instead of averaging would clip.
         let loudest = samples.map(abs).max() ?? 0
         #expect(loudest <= 1.0)
         #expect(loudest > 0.3)
@@ -133,8 +130,7 @@ struct AudioResamplerMisuseTests {
         let other = try #require(SyntheticAudio.format(sampleRate: 22_050, channels: 2))
         let buffer = try #require(SyntheticAudio.constant(0.5, frames: 1_024, format: other))
 
-        // Assert the specific failure: a test that merely expects "some error" would
-        // pass even if this failed for an unrelated reason.
+        // The specific failure, since "some error" would pass for an unrelated reason.
         let thrown = #expect(throws: AudioCaptureError.self) { try resampler.resample(buffer) }
         guard case .engineFailed = thrown else {
             Issue.record("expected engineFailed, got \(String(describing: thrown))")

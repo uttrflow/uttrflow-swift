@@ -53,10 +53,7 @@ private struct NeverAnsweringCleaner: TranscriptCleaning {
 
 @Suite("Dictation pipeline: a stage that never answers")
 struct DictationStageTimeoutTests {
-    /// Waits for the pipeline to reach `stage`, then expires that stage's deadline.
-    ///
-    /// Advancing until the stage is left, rather than once, because an earlier stage's
-    /// deadline can still be installed when this one begins. See `Docs/stuck-recording.md`.
+    /// Reaches `stage` and advances until it is left, since an earlier deadline may still be installed.
     private func expire(
         _ limit: Duration, at stage: DictationState, of pipeline: DictationPipeline,
         on clock: ManualClock

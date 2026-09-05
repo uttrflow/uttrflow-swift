@@ -45,9 +45,7 @@ struct TranscriptionScorerTests {
         #expect(!score.keptEverythingRequired)
     }
 
-    /// Whisper answers Hindi in Devanagari. Scored against the Devanagari reading of the
-    /// passage, a correct transcript is correct — and against the romanised one it would
-    /// have looked like a total failure.
+    /// Against the romanised reference a correct Devanagari transcript would look like a total failure.
     @Test("scores a Devanagari transcript against the Devanagari reading")
     func devanagariAnswer() {
         let score = TranscriptionScorer.score(hindi.prompt, against: hindi)
@@ -66,9 +64,7 @@ struct TranscriptionScorerTests {
         #expect(score.scoredAgainst == .latin)
     }
 
-    /// An English passage that comes back in Devanagari is a real failure and worth
-    /// measuring, but there is no Devanagari reading of it to measure against — so the
-    /// transcript is romanised and the score is flagged as an upper bound.
+    /// An English passage answered in Devanagari has no Devanagari reference, so the score is an upper bound.
     @Test("transliterates only when there is no reference in the answered script")
     func transliteratedFallback() {
         let score = TranscriptionScorer.score("पोर्ट", against: english)
@@ -78,8 +74,7 @@ struct TranscriptionScorerTests {
         #expect(score.wordErrorRate != nil)
     }
 
-    /// An unreadable recording is the harness's fault. Scoring it would charge the engine
-    /// for a file it was never handed.
+    /// An unreadable recording is the harness's fault, and scoring it would charge the engine.
     @Test("refuses to score a passage whose audio could not be read")
     func unreadableAudioIsNotScored() {
         let score = TranscriptionScorer.score(
@@ -89,8 +84,7 @@ struct TranscriptionScorerTests {
         #expect(score.failure?.detail == "no such file")
     }
 
-    /// An engine that ran and heard nothing has produced a measurable result: every word
-    /// deleted.
+    /// An engine that ran and heard nothing has produced a measurable result: every word deleted.
     @Test("scores a failed engine at a complete loss")
     func engineFailureIsScored() {
         let score = TranscriptionScorer.score(
@@ -109,8 +103,7 @@ struct TranscriptionScorerTests {
         #expect(TranscriptionFailure.engineFailed("boom").isScorable)
     }
 
-    /// A rate without its normalisation is not a number anyone can act on, so the rules
-    /// travel with the score rather than being remembered by whoever ran it.
+    /// A rate without its normalisation is not a number anyone can act on.
     @Test("keeps the rules it measured under on the score")
     func carriesItsRules() {
         let loose = TextNormaliser(rules: [.caseFolding])

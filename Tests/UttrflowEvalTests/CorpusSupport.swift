@@ -3,12 +3,7 @@ import Synchronization
 
 @testable import UttrflowEval
 
-/// A transport that answers from a script and remembers what it was asked.
-///
-/// The reason every corpus test needs neither the backend nor the bucket. What is being
-/// tested here is the client's decisions — which URL, which header, what a 404 means —
-/// and a real connection would test the network instead, slowly and only on machines
-/// that hold the operator token.
+/// A transport that answers from a script and remembers what it is asked, so no test needs the backend.
 final class StubTransport: HTTPTransport, Sendable {
     struct Exchange: Sendable {
         let match: @Sendable (HTTPRequest) -> Bool
@@ -31,8 +26,7 @@ final class StubTransport: HTTPTransport, Sendable {
     }
 
     convenience init(unreachable reason: String) {
-        // A file URL because it is the one form that cannot fail to construct, and this
-        // is a stub whose URL nothing reads.
+        // A file URL, the one form that cannot fail to construct, for a stub whose URL nothing reads.
         self.init([
             Exchange(
                 match: { _ in true },
@@ -67,8 +61,7 @@ final class StubTransport: HTTPTransport, Sendable {
     }
 }
 
-/// A catalogue held in memory, for the parts of the harness that only care that samples
-/// and bytes arrive from somewhere.
+/// A catalogue held in memory, for the parts of the harness that only need samples and bytes to arrive.
 struct FakeCatalogue: CorpusCatalogue, Sendable {
     var samples: [CorpusSample] = []
     var audio: [String: Data] = [:]
@@ -96,7 +89,7 @@ struct FakeCatalogue: CorpusCatalogue, Sendable {
     }
 }
 
-/// An uploader that records what it was given and can be told to fail.
+/// An uploader that records what it is given and can be told to fail.
 final class FakeUploader: CorpusUploading, Sendable {
     private let registerResult: Result<CorpusUpload, CorpusError>?
     private let uploadError: CorpusError?

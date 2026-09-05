@@ -1,21 +1,10 @@
 import Foundation
 import Testing
 
-/// Proves that the evaluation harness cannot reach the shipped app.
-///
-/// This is the structural half of a promise the product makes: the corpus is a thousand
-/// recordings of real people in a private bucket, the operator token opens it, and none
-/// of that may exist inside an app somebody installs. A convention — "nobody would import
-/// that" — lasts until the first person who needs a word error rate in a diagnostics
-/// pane. So it is asserted, here, where it fails in the same second it is broken.
-///
-/// The other half is in `Scripts/bundle.sh`, which reads the built artefact rather than
-/// the sources: this suite proves that no source file asks for the harness, and that
-/// proves that no compiled binary contains it.
+/// Proves no source the app ships imports the harness; `Scripts/bundle.sh` checks the built artefact.
 @Suite("The harness stays out of the app")
 struct EvaluationSeparationTests {
-    /// The package root, found from this file rather than from the working directory,
-    /// which is wherever the test runner happened to be started.
+    /// The package root, found from this file rather than from wherever the test runner started.
     private var packageRoot: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // UttrflowEvalTests
@@ -23,9 +12,7 @@ struct EvaluationSeparationTests {
             .deletingLastPathComponent()  // the package
     }
 
-    /// Everything that can end up inside `Uttrflow.app`: the app target and every module
-    /// it links, directly or otherwise. The two measurement executables and the developer
-    /// CLI are deliberately absent — they are the honest homes for this code.
+    /// Everything that can end up inside `Uttrflow.app`; the executables and the dev CLI stay out by design.
     private let shippedModules = [
         "Uttrflow", "UttrflowAI", "UttrflowAccount", "UttrflowAudio", "UttrflowContext", "UttrflowCore",
         "UttrflowDictionary", "UttrflowHistory", "UttrflowInput", "UttrflowPermissions",
@@ -60,15 +47,12 @@ struct EvaluationSeparationTests {
             """)
     }
 
-    /// Belt and braces, and not redundant: the import check above proves nothing is used,
-    /// and this proves nothing is *linked*. A dependency with no import still ships every
-    /// symbol it defines into the binary.
+    /// A dependency with no import still ships every symbol into the binary, so linking is checked too.
     @Test("the app target does not depend on the harness in Package.swift")
     func theAppTargetDoesNotLinkTheHarness() throws {
         let manifest = try String(
             contentsOf: packageRoot.appending(path: "Package.swift"), encoding: .utf8)
-        // Split on the target markers rather than trying to balance brackets: the markers
-        // are stable, and a rearranged manifest should not break this.
+        // Split on the target markers rather than balancing brackets, so a rearranged manifest still parses.
         let blocks =
             manifest.components(separatedBy: ".executableTarget(")
             + manifest.components(separatedBy: ".target(")
@@ -80,9 +64,7 @@ struct EvaluationSeparationTests {
             "the Uttrflow app target now depends on UttrflowEval, so the harness ships to users")
     }
 
-    /// The corpus lives behind an operator token in a private bucket. Neither the token,
-    /// the bucket, nor the endpoints that hand out signed URLs may be nameable from
-    /// anything a user installs.
+    /// Neither the token, the bucket, nor the signed-URL endpoints may be nameable from what a user installs.
     @Test("no module the app links names the corpus, its bucket or its token")
     func theAppNamesNothingAboutTheCorpus() throws {
         let forbidden = ["/v1/corpus", "UTTRFLOW_OPERATOR_TOKEN", "amazonaws.com", "uttrflow-corpus"]
@@ -98,20 +80,15 @@ struct EvaluationSeparationTests {
         #expect(offenders.isEmpty, "\(offenders.joined(separator: ", "))")
     }
 
-    /// The single `URLSession` this feature needs lives in the executable, not in the
-    /// library, and it has to stay there: `UttrflowEval` is a library product, so anything
-    /// that imported it would inherit whatever networking it contained.
+    /// `UttrflowEval` is a library product, so any networking in it would be inherited by every importer.
     @Test("the harness library opens no connections of its own")
     func theHarnessLibraryHasNoNetworkCallSites() throws {
-        // The same pattern `Scripts/offline_audit.sh` uses on the dictation path, applied
-        // to the one module that could quietly widen it.
+        // The same pattern `Scripts/offline_audit.sh` uses on the dictation path.
         let patterns = ["URLSession", "URLRequest", "NWConnection", "import Network", "https://"]
         var offenders: [String] = []
         for file in try swiftFiles(in: "UttrflowEval") {
             let source = try String(contentsOf: file, encoding: .utf8)
-            // Documentation may name a URL; code may not. Comments are stripped rather
-            // than exempted by file, because an exemption by file is one somebody adds a
-            // function to later.
+            // Documentation may name a URL; code may not, so comments are stripped, not files exempted.
             let code = source.split(separator: "\n")
                 .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
                 .joined(separator: "\n")

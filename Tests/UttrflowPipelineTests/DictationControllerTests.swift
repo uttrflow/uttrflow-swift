@@ -7,11 +7,7 @@ import Testing
 
 // MARK: - Doubles
 
-/// A ``HotkeyMonitoring`` that records how it was started and stopped, can refuse to
-/// start, and lets a test push presses and releases through its stream.
-///
-/// Named for this file so it can sit beside the other pipeline test files' doubles in
-/// one test target.
+/// A ``HotkeyMonitoring`` that records its starts and stops, can refuse, and takes pushed gestures.
 private final class FakeHotkeyMonitor: HotkeyMonitoring {
     private struct State: Sendable {
         var startOutcome: ScriptedOutcome<Void, HotkeyError>
@@ -54,7 +50,7 @@ private final class FakeHotkeyMonitor: HotkeyMonitoring {
     var stops: Int { state.withLock { $0.stops } }
 }
 
-/// A ``RecordingCueing`` that records the sounds it was asked to play, in order.
+/// A ``RecordingCueing`` that records the sounds it is asked to play, in order.
 private final class SpyCue: RecordingCueing {
     enum Play: Sendable, Equatable {
         case start
@@ -83,7 +79,7 @@ private final class ControllerCleaner: TranscriptCleaning {
     }
 }
 
-/// A ``TextInserting`` that records every string it was handed.
+/// A ``TextInserting`` that records every string it is handed.
 private final class ControllerInserter: TextInserting {
     private let log = Mutex<[String]>([])
 
@@ -107,8 +103,7 @@ private let controllerOutcome = DictationOutcome(
     spokenFor: .zero,
     changes: AppliedChanges(spokenWords: 10))
 
-/// A binding that is nobody's default, so a test can tell it apart from one the
-/// controller might have supplied itself.
+/// A binding that is nobody's default, so a test can tell it from one the controller supplies.
 private let controllerBinding = HotkeyBinding(keyCode: 40, modifiers: [.control, .shift])
 
 // MARK: - Harness
@@ -248,8 +243,7 @@ struct DictationControllerTests {
         #expect(await harness.pipeline.currentState == .inserted(controllerOutcome))
     }
 
-    /// An accidental tap must not tell the user their speech was too short for
-    /// something they never meant to do.
+    /// An accidental tap must not tell the user their speech was too short.
     @Test("cancels without a word when the shortcut is only tapped by accident")
     func aHoldShorterThanTheMinimumIsASlip() async {
         let harness = makeHarness()
@@ -352,8 +346,7 @@ struct DictationControllerTests {
         #expect(harness.cue.plays == [.start])
     }
 
-    /// A sound on a failed start would tell the user everything was fine when it was
-    /// not: they would speak into a microphone that never opened.
+    /// A sound on a failed start would say everything is fine over a microphone that never opened.
     @Test("stays silent when the microphone refuses to open")
     func noStartSoundWhenTheMicrophoneRefuses() async {
         let harness = makeHarness(captureStart: .failure(.noInputDevice))
@@ -401,16 +394,7 @@ struct DictationControllerTests {
 /// Rebinding, which is what changing the shortcut in Settings does.
 @Suite("Changing the shortcut while it is running")
 struct DictationControllerRebindTests {
-    /// Until this, `start` had exactly one caller — at launch — so rebinding was never
-    /// exercised at all: changing the shortcut in Settings relabelled every screen and
-    /// left the old key in force until the next launch.
-    ///
-    /// What this does NOT cover: `start` also used to overwrite `forwardingTask` without
-    /// cancelling it, which left two tasks draining one `AsyncStream` and split presses
-    /// between them. That is fixed in `start`, but it cannot be asserted here — driving
-    /// the monitor's stream through this harness is not deterministic, and a test that
-    /// passes about half the time is worse than none. The cancellation is one line, above
-    /// the code it guards, with the reason written beside it.
+    /// Covers rebinding only; the forwarding-task cancellation cannot be driven deterministically here.
     @Test("rebinds the monitor rather than ignoring the new shortcut")
     func rebindReachesTheMonitor() async throws {
         let harness = makeHarness()
@@ -426,11 +410,7 @@ struct DictationControllerRebindTests {
 /// Starting a dictation from something clicked rather than something held.
 @Suite("Dictating from a control")
 struct DictationControllerControlTests {
-    /// Both of these were live. The Quick Panel's microphone button sent `.pressed` and
-    /// `.released` together, which in hold-to-talk measures shorter than the slip
-    /// threshold and cancels the recording it just began — the button could never produce
-    /// a dictation at all. "Try Again" sent `.pressed` alone, which opened the microphone
-    /// with nothing able to close it.
+    /// A click has no release, so it toggles. See Docs/pipeline-gestures.md.
     @Test("a click starts a dictation and a second click finishes it, in hold-to-talk")
     func controlTogglesEvenWhenTheShortcutIsAHold() async {
         let harness = makeHarness(activation: .holdToTalk)

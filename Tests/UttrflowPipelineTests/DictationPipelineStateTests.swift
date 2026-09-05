@@ -7,17 +7,9 @@ import Testing
 
 // MARK: - Doubles
 
-/// A place a stage can be held, and released, from a test.
-///
-/// The pipeline passes through `transcribing` and `tidying` too quickly to be looked at
-/// from outside; holding a stage mid-flight is the only way to observe the guards that
-/// apply while a dictation is under way.
+/// A place a stage can be held and released from a test, so a dictation can be caught mid-flight.
 private actor Gate {
-    /// How many arrivals are held; the rest pass straight through.
-    ///
-    /// Unbounded unless a test says otherwise. A test watching what a *second* caller
-    /// does needs that caller to run to its conclusion rather than park beside the
-    /// first — a test that deadlocks when the code regresses reports nothing at all.
+    /// How many arrivals are held; the rest pass through, so a second caller can run to its conclusion.
     private let capacity: Int
     private var arrivals = 0
     private var isOpen = false
@@ -56,8 +48,7 @@ private actor Gate {
     }
 }
 
-/// A ``TranscriptCleaning`` that records what it was asked to tidy and answers as
-/// scripted, optionally holding at a gate first.
+/// A ``TranscriptCleaning`` that records requests, answers as scripted, and can hold at a gate first.
 private final class FakeCleaner: TranscriptCleaning, Sendable {
     private struct State: Sendable {
         var outcome: ScriptedOutcome<TransformationResult, TransformationError>
@@ -91,7 +82,7 @@ private final class FakeCleaner: TranscriptCleaning, Sendable {
     var requests: [TransformationRequest] { state.withLock { $0.requests } }
 }
 
-/// A ``TextInserting`` that records every string it was handed and answers as scripted.
+/// A ``TextInserting`` that records every string it is handed and answers as scripted.
 private final class FakeInserter: TextInserting, Sendable {
     private struct State: Sendable {
         var outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError>
@@ -118,10 +109,7 @@ private final class FakeInserter: TextInserting, Sendable {
     var received: [String] { state.withLock { $0.received } }
 }
 
-/// A ``SpeechEngine`` that holds at a gate before answering.
-///
-/// ``FakeSpeechEngine`` returns immediately, which leaves no moment at which the
-/// pipeline can be caught in `transcribing`.
+/// A ``SpeechEngine`` that holds at a gate, so the pipeline can be caught in `transcribing`.
 private final class GatedSpeechEngine: SpeechEngine, Sendable {
     let kind: SpeechEngineKind = .whisperKit
     private let gate: Gate
@@ -141,12 +129,7 @@ private final class GatedSpeechEngine: SpeechEngine, Sendable {
     }
 }
 
-/// An ``AudioCaptureEngine`` that can be caught mid-`start`.
-///
-/// ``FakeAudioCaptureEngine`` opens the microphone in one uninterrupted step, which
-/// leaves no moment at which a second press can arrive — and that moment is exactly what
-/// the guard against overlapping starts exists for. This one also tracks whether the
-/// microphone is genuinely live, which is the thing a lost dictation strands.
+/// An ``AudioCaptureEngine`` that can be caught mid-`start`, and knows whether the microphone is live.
 private actor GatedCaptureEngine: AudioCaptureEngine {
     private let gate: Gate
     private var currentState: AudioCaptureState = .idle
@@ -200,10 +183,7 @@ private func makePipeline(
     )
 }
 
-/// The next `count` states, in order.
-///
-/// The stream buffers, so a test can run the whole dictation first and read back every
-/// step it passed through afterwards.
+/// The next `count` states in order; the stream buffers, so they can be read back afterwards.
 private func next(
     _ count: Int, from stream: AsyncStream<DictationState>
 ) async -> [DictationState] {
@@ -345,12 +325,7 @@ struct DictationPipelineStateTests {
             ])
     }
 
-    /// The history page labels a dictation with where it went, and the artboard has
-    /// always shown it. Until now nothing recorded it, so the label had no source.
-    ///
-    /// It is taken from the context read for tidying rather than asked for again at
-    /// insertion time: by the moment the interface wants the label the user has usually
-    /// switched away, and a fresh read would confidently name the wrong application.
+    /// Taken from the tidying context, since a fresh read at insertion time would name the wrong app.
     @Test("the finished dictation says which application it went into")
     func outcomeNamesTheTargetApplication() async {
         let pipeline = makePipeline(context: FakeContextEngine(context: .fixture(applicationName: "Notes")))
@@ -365,9 +340,7 @@ struct DictationPipelineStateTests {
         #expect(outcome.insertedInto == "Notes")
     }
 
-    /// The name is what the row is labelled with; the identifier is what its icon is
-    /// looked up by. The context has known it all along and the pipeline used to drop
-    /// it, which left the interface guessing which of the apps called "Notes" it meant.
+    /// The name labels the row; the identifier is what its icon is looked up by.
     @Test("the finished dictation carries the application's bundle identifier")
     func outcomeCarriesTheBundleIdentifier() async {
         let pipeline = makePipeline(
@@ -458,8 +431,7 @@ struct DictationPipelineStateTests {
         #expect(await pipeline.currentState == .recording)
     }
 
-    /// Saying nothing is not an error and has nothing to insert; showing a failure for it
-    /// would turn a stray key press into something the user has to dismiss.
+    /// Saying nothing is not an error, and a failure for it would be something to dismiss.
     @Test("returns quietly to idle when nothing was said")
     func silenceEndsQuietly() async {
         let cleaner = FakeCleaner()
@@ -474,8 +446,7 @@ struct DictationPipelineStateTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
 
-        // Not `.idle`. Returning quietly is indistinguishable from the app being broken:
-        // the user holds the key, speaks, lets go, and nothing whatever happens.
+        // Not `.idle`: returning quietly is indistinguishable from the app being broken.
         let heardNothing = DictationState.failed(DictationFailure(SpeechEngineError.nothingHeard))
         #expect(await next(4, from: states) == [.idle, .recording, .transcribing, heardNothing])
         #expect(await pipeline.currentState == heardNothing)
@@ -509,9 +480,7 @@ struct DictationPipelineStateTests {
         #expect(!failed.isListening)
     }
 
-    /// The interface used to say Ready over a recogniser that had failed to load, and
-    /// the user found out one wasted dictation later. `prepare` stays non-throwing so
-    /// launch code has nothing to decide, but the failure has to reach the screen.
+    /// `prepare` stays non-throwing so launch code decides nothing, but the failure must reach the screen.
     @Test("shows the failure when the recogniser will not start")
     func prepareFailureReachesTheInterface() async {
         let speech = FakeSpeechEngine(prepareOutcome: .failure(.modelNotInstalled))
@@ -536,8 +505,7 @@ struct DictationPipelineStateTests {
         #expect(await pipeline.currentState == .idle)
     }
 
-    /// Loading the model behind a dictation that is already running must not overwrite
-    /// where that dictation has got to.
+    /// Loading the model behind a running dictation must not overwrite where it has got to.
     @Test("leaves a dictation under way alone when asked to prepare")
     func prepareWhileBusyIsIgnored() async {
         let speech = FakeSpeechEngine(prepareOutcome: .failure(.modelNotInstalled))
@@ -549,10 +517,7 @@ struct DictationPipelineStateTests {
         #expect(await pipeline.currentState == .recording)
     }
 
-    /// The worst thing this product could do. `RuleBasedTransformer` strips fillers and
-    /// nothing else, so "um" tidies to the empty string — and the Accessibility route
-    /// inserts by replacing the selected text, so inserting nothing DELETES whatever the
-    /// user had selected, while the interface reports a dictation that worked.
+    /// "um" tidies to nothing, and inserting nothing over a selection deletes it.
     @Test(
         "inserts nothing when tidying leaves nothing, rather than deleting the selection",
         arguments: ["", "   "])
@@ -582,15 +547,10 @@ struct DictationPipelineStateTests {
             "the user must be told, softly, rather than left wondering")
     }
 
-    /// The menu bar's Start Dictation calls straight into the pipeline, so it can race
-    /// the hotkey. The guard used to be read before the microphone was awaited and the
-    /// state set only after, so both presses got through: the second `start` threw
-    /// `alreadyRecording`, the pipeline settled in `failed` — which is not busy — and
-    /// nothing was left that `finishRecording` would act on, with the microphone live.
+    /// The menu bar's Start Dictation can race the hotkey; only one may open the microphone.
     @Test("opens the microphone once when two presses arrive together")
     func overlappingStartsOpenTheMicrophoneOnce() async {
-        // Holds only the first arrival, so the racing press runs to whatever conclusion
-        // it reaches and the test can look at it instead of waiting for it.
+        // Holds only the first arrival, so the racing press runs to a conclusion the test can look at.
         let gate = Gate(capacity: 1)
         let capture = GatedCaptureEngine(gate: gate)
         let pipeline = makePipeline(capture: capture)

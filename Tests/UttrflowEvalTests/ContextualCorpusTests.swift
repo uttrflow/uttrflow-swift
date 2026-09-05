@@ -3,27 +3,17 @@ import Testing
 
 @testable import UttrflowEval
 
-/// What the context half of the corpus has to be true of before it can measure
-/// anything.
-///
-/// A context case is easy to write badly: give it a window, write down the answer you
-/// hoped for, and never notice that plain dictation would have produced the same
-/// sentence. These tests are the checks that a case is actually about context — that
-/// a window is present, that a pair of windows disagrees, and that the reference is
-/// one the scorer itself accepts.
+/// Checks each context case is about context: a window present, a pair disagreeing, a scorable reference.
 @Suite("Context cases")
 struct ContextualCorpusTests {
     private var contextual: [EvaluationCase] { EvaluationCorpus.cases(in: .contextual) }
 
-    /// Compares on words alone, the way the scorer does, so punctuation or case cannot
-    /// hide two cases sharing a sentence.
+    /// Compares on words alone, as the scorer does, so punctuation or case cannot hide a shared sentence.
     private func normalise(_ text: String) -> String {
         Scorer.tokens(text).joined(separator: " ")
     }
 
-    /// Cases grouped by the words spoken. A pair is whatever more than one window
-    /// heard the same sentence, so nothing has to be tagged by hand and a pair cannot
-    /// quietly lose its other half.
+    /// Cases grouped by the words spoken, so a pair is found rather than tagged and cannot lose its half.
     private var pairs: [[EvaluationCase]] {
         Dictionary(grouping: contextual) { normalise($0.spoken) }
             .values
@@ -38,9 +28,7 @@ struct ContextualCorpusTests {
         }
     }
 
-    /// One case cannot show that context did anything: if the answer looks right, the
-    /// context may have been ignored and plain dictation may have said the same. Only
-    /// a disagreeing pair is evidence.
+    /// Only a disagreeing pair is evidence that context moved the answer.
     @Test("builds enough pairs to prove context is what moved the answer")
     func hasEnoughPairs() {
         #expect(pairs.count >= 3, "found \(pairs.count) pairs of shared sentences")
@@ -67,9 +55,7 @@ struct ContextualCorpusTests {
         }
     }
 
-    /// A reference that trips its own guards would fail every model on a fault in the
-    /// corpus. Both directions matter here: the words that must survive, and the words
-    /// the window must not talk the model into adding.
+    /// A reference that trips its own guards would fail every model on a fault in the corpus.
     @Test("accepts each reference answer as a perfect answer to its own case")
     func referencesAreSelfConsistent() {
         for testCase in contextual {
@@ -80,8 +66,7 @@ struct ContextualCorpusTests {
         }
     }
 
-    /// Shared sentences are the point of a pair and a bug anywhere else: a context
-    /// case that repeats an everyday one is scored twice under two different answers.
+    /// A context case that repeats an everyday one is scored twice under two different answers.
     @Test("shares a sentence only inside a pair, never with the rest of the corpus")
     func sentencesAreNotReusedOutsidePairs() {
         for testCase in contextual {
@@ -102,9 +87,7 @@ struct ContextualCorpusTests {
         }
     }
 
-    /// A guard with nothing in it cannot be looked for, and would quietly assert
-    /// nothing. Punctuation is fine — the scorer searches for it literally — so the
-    /// rule is only that a guard must hold something.
+    /// A guard with nothing in it would assert nothing; punctuation is fine, the scorer matches it literally.
     @Test("keeps guards to things the scorer can actually look for")
     func guardsAreNotEmpty() {
         for testCase in contextual {
@@ -116,9 +99,7 @@ struct ContextualCorpusTests {
         }
     }
 
-    /// The one inference a SQL window invites most: an ordering was asked for, so a
-    /// direction gets chosen, and a row count nobody mentioned gets tacked on. Neither
-    /// was spoken, so neither is allowed.
+    /// Neither a sort direction nor a row count was spoken, so neither is allowed.
     @Test("never lets a sort direction or a row limit be inferred")
     func orderingIsNotEmbellished() {
         let ordered = contextual.filter { $0.expected.uppercased().contains("ORDER BY") }
