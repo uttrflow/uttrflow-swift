@@ -109,7 +109,7 @@ public enum AppContextDescriber {
 /// Recognised from the bundle identifier where possible — it is stable across locales
 /// and renames — and from the application name otherwise, because macOS does not
 /// always hand over both.
-public enum AppKind: String, Sendable, Equatable, CaseIterable {
+enum AppKind: String, Sendable, Equatable, CaseIterable {
     case chat
     case email
     case codeEditor
@@ -121,7 +121,7 @@ public enum AppKind: String, Sendable, Equatable, CaseIterable {
 
     /// How the kind is written into the prompt. An article is included because the
     /// line is read as a noun phrase.
-    public var phrase: String {
+    var phrase: String {
         switch self {
         case .chat: "a chat app"
         case .email: "an email app"
@@ -134,7 +134,7 @@ public enum AppKind: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    public init?(applicationName: String?, bundleIdentifier: String?) {
+    init?(applicationName: String?, bundleIdentifier: String?) {
         if let bundleIdentifier, let kind = Self.byBundleIdentifier(bundleIdentifier) {
             self = kind
             return
@@ -223,9 +223,7 @@ public enum AppKind: String, Sendable, Equatable, CaseIterable {
     ]
 
     private static func byName(_ name: String) -> AppKind? {
-        let words = Set(
-            name.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
-        )
+        let words = Set(TextTidy.words(name))
         return nameWords.first { words.contains($0.0) }?.1
     }
 }

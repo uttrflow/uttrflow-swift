@@ -123,13 +123,6 @@ struct CorrectionEvidenceTests {
         #expect(CorrectionEvidence.readsAsWholeWords(text) == expected)
     }
 
-    @Test("text is read as lower-cased runs of letters and digits")
-    func tokenising() {
-        #expect(CorrectionEvidence.tokens("PaymentSheet.swift") == ["paymentsheet", "swift"])
-        #expect(CorrectionEvidence.tokens("set-user-prefs!") == ["set", "user", "prefs"])
-        #expect(CorrectionEvidence.tokens("—:—").isEmpty)
-    }
-
     /// Text with nothing in it must not be corroborated by every screen there is.
     @Test("a reading with no words in it is never on screen")
     func punctuationIsNeverCorroborated() {

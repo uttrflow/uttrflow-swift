@@ -14,6 +14,11 @@ public enum TextTidy {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
+    /// Lower-cased runs of letters and digits, which is the unit every comparison here counts in.
+    static func words(_ text: String) -> [String] {
+        text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+    }
+
     /// Tidies spacing without destroying line breaks.
     ///
     /// ``collapseWhitespace`` treats a newline as whitespace, which is right for a raw
@@ -75,9 +80,8 @@ public enum TextTidy {
     public static func capitalisePronounI(_ text: String) -> String {
         text.split(separator: " ", omittingEmptySubsequences: false)
             .map { word -> String in
-                let letters = word.filter(\.isLetter)
-                guard letters == "i" else { return String(word) }
-                return String(word).replacingCharacter("i", with: "I")
+                guard word.filter(\.isLetter) == "i" else { return String(word) }
+                return String(word.map { $0 == "i" ? "I" : $0 })
             }
             .joined(separator: " ")
     }
@@ -92,12 +96,5 @@ public enum TextTidy {
         let alreadyFinished: Set<Character> = [".", "!", "?", ";", ":", ")", "}", "]", ",", "\"", "'", "…"]
         guard !alreadyFinished.contains(last), last.isLetter || last.isNumber else { return text }
         return text + "."
-    }
-}
-
-extension String {
-    /// Replaces the single occurrence of a letter, leaving punctuation around it.
-    fileprivate func replacingCharacter(_ target: Character, with replacement: Character) -> String {
-        String(map { $0 == target ? replacement : $0 })
     }
 }
