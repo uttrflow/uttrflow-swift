@@ -44,8 +44,7 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
     }
 
     public func audio(at url: String) async throws(CorpusError) -> Data {
-        guard let signed = URL(string: url) else { throw .malformed("not a URL: \(url)") }
-        return try await send(.init(method: .get, url: signed)).body
+        try await send(.init(method: .get, url: try signedURL(url))).body
     }
 
     // MARK: Writing
@@ -68,9 +67,7 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
     }
 
     public func upload(_ audio: Data, to upload: CorpusUpload) async throws(CorpusError) {
-        guard let signed = URL(string: upload.url) else {
-            throw .malformed("not a URL: \(upload.url)")
-        }
+        let signed = try signedURL(upload.url)
         // No bearer token and no `Content-Length`: the signature is the permission, and
         // the transport sets the length from the body it is given.
         _ = try await send(
@@ -109,6 +106,12 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
             isHeldOut = sample.isHeldOut
             cohort = sample.cohort
         }
+    }
+
+    /// A signed URL as the service wrote it, refused as malformed when it is not one.
+    private func signedURL(_ string: String) throws(CorpusError) -> URL {
+        guard let url = URL(string: string) else { throw .malformed("not a URL: \(string)") }
+        return url
     }
 
     private func authorised() -> [String: String] {

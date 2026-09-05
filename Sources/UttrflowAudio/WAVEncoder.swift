@@ -42,6 +42,11 @@ public enum WAVEncoder {
         return data
     }
 
+    /// How many frames a file of `bytes` holds after its header.
+    static func frames(inFileOf bytes: Int) -> Int {
+        max(0, bytes - headerSize) / bytesPerFrame
+    }
+
     /// The samples as little-endian 16-bit integers, clamped to full scale.
     static func pcm(_ samples: [Float]) -> Data {
         var data = Data(capacity: samples.count * bytesPerFrame)

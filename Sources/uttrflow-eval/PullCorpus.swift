@@ -47,7 +47,7 @@ struct PullCorpus: AsyncParsableCommand {
 
         let held = library.held(of: samples)
         print(
-            "\(samples.count) sample\(samples.count == 1 ? "" : "s") in the catalogue; "
+            "\(counted(samples.count, "sample")) in the catalogue; "
                 + "\(held.cached) already here (\(megabytes(held.bytes)))")
         summarise(samples)
         if listOnly { return }
@@ -62,9 +62,9 @@ struct PullCorpus: AsyncParsableCommand {
             }
             // On standard error and on one line, so a thousand samples do not scroll the
             // catalogue summary off the screen.
-            FileHandle.standardError.write(Data("\rfetching \(count)/\(samples.count)…".utf8))
+            Terminal.show("\rfetching \(count)/\(samples.count)…")
         }
-        FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+        Terminal.clearLine()
 
         guard !failures.isEmpty else {
             print("\nEverything is on this Mac.")
@@ -76,9 +76,7 @@ struct PullCorpus: AsyncParsableCommand {
         let byReason = Dictionary(grouping: failures) { "\($0.error)" }
         for (reason, group) in byReason.sorted(by: { $0.key < $1.key }) {
             print("  \(group.count) × \(reason)")
-            print(
-                "    \(group.prefix(5).map(\.sample.slug).joined(separator: ", "))"
-                    + (group.count > 5 ? ", and \(group.count - 5) more" : ""))
+            print("    " + group.map(\.sample.slug).listed())
         }
         print("\nEverything already here was kept; run pull again to pick up the rest.")
     }

@@ -119,7 +119,7 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         self.caseID = caseID
         self.language = language
         self.stressor = stressor
-        self.stresses = stresses.isEmpty ? [stressor.rawValue] : stresses
+        self.stresses = stressor.labels(from: stresses)
         self.cohortID = cohortID
         self.wordErrorRate = wordErrorRate
         self.answeredIn = answeredIn
@@ -156,6 +156,9 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
     }
 
     public var keptEverythingRequired: Bool { lost.isEmpty }
+
+    /// The cohort to report under, naming the unattributed rather than merging them.
+    var cohortLabel: String { cohortID ?? RecordingCohort.unattributed }
 
     /// The transcript had to be transliterated to be compared at all, so the rate is an
     /// upper bound: ICU romanises letter by letter and charges for spellings no person

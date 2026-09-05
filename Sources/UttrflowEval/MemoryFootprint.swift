@@ -47,15 +47,7 @@ public enum MemoryFootprint {
     /// Both figures from a single `task_info` call, so they describe the same instant.
     public static func reading() -> MemoryReading? {
         var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(
-            MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size
-        )
-        let result = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
-            }
-        }
-        guard result == KERN_SUCCESS else { return nil }
+        guard MachTask.fill(&info, flavor: TASK_VM_INFO) else { return nil }
         return MemoryReading(
             footprintBytes: Int64(info.phys_footprint), residentBytes: Int64(info.resident_size))
     }
@@ -72,6 +64,20 @@ public enum MemoryFootprint {
         _ label: String, read: () -> MemoryReading? = MemoryFootprint.reading
     ) -> MemorySample? {
         read().map { MemorySample(label: label, reading: $0) }
+    }
+}
+
+/// The `task_info` calls this process makes about itself.
+enum MachTask {
+    /// Fills `info` with one flavour of the kernel's view of this task, answering whether it agreed to.
+    static func fill<Info>(_ info: inout Info, flavor: Int32) -> Bool {
+        var count = mach_msg_type_number_t(MemoryLayout<Info>.size / MemoryLayout<natural_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(flavor), $0, &count)
+            }
+        }
+        return result == KERN_SUCCESS
     }
 }
 

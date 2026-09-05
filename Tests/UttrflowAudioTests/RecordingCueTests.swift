@@ -284,23 +284,6 @@ struct SoundPlayingRecordingCueTests {
     }
 }
 
-@Suite("SilentRecordingCue")
-struct SilentRecordingCueTests {
-    @Test("makes no sound, in either direction, in any order")
-    func saysNothing() {
-        let cue = SilentRecordingCue()
-
-        cue.playStart()
-        cue.playStop()
-        cue.playStop()
-        cue.playStart()
-
-        // Nothing to assert but the absence of a player to assert against: the type
-        // holds no machinery, which is the point of preferring it to a disabled cue.
-        #expect(Bool(true))
-    }
-}
-
 @Suite("RecordingCue boundary")
 struct RecordingCueBoundaryTests {
     /// Stands in for ``DictationController``, which is written against Core's protocol.
@@ -315,11 +298,6 @@ struct RecordingCueBoundaryTests {
         drive(SoundPlayingRecordingCue(player: player))
 
         #expect(player.requested == [.tink, .morse])
-    }
-
-    @Test("the silent cue satisfies it too")
-    func silentSatisfiesCoreProtocol() {
-        drive(SilentRecordingCue())
     }
 
     @Test("a player that ignores warming still works")

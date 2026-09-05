@@ -110,13 +110,19 @@ public struct CorpusUploadOutbox: Sendable {
         let attempts = (previous?.attempts ?? 0) + 1
         let slug = CorpusSlug.make(passage: recording.id, cohort: recording.cohort?.id ?? cohort?.id)
 
-        guard CorpusSlug.isValid(slug) else {
-            return write(
-                .init(
+        /// This attempt's receipt, written down as it is handed back.
+        func record(_ outcome: UploadReceipt.Outcome) -> UploadReceipt {
+            write(
+                UploadReceipt(
                     passageID: recording.id, slug: slug, attempts: attempts, lastAttemptAt: now(),
-                    outcome: .rejected(
-                        "'\(slug)' is not a name the catalogue accepts — two to sixty-four "
-                            + "lowercase letters, digits and hyphens")))
+                    outcome: outcome))
+        }
+
+        guard CorpusSlug.isValid(slug) else {
+            return record(
+                .rejected(
+                    "'\(slug)' is not a name the catalogue accepts — two to sixty-four "
+                        + "lowercase letters, digits and hyphens"))
         }
 
         let audio: Data
@@ -125,25 +131,15 @@ public struct CorpusUploadOutbox: Sendable {
         } catch {
             // The recording is missing from the very directory that is supposed to hold
             // it, so no number of retries will find it. Rejected, and named.
-            return write(
-                .init(
-                    passageID: recording.id, slug: slug, attempts: attempts, lastAttemptAt: now(),
-                    outcome: .rejected("could not read \(recording.id).wav: \(error)")))
+            return record(.rejected("could not read \(recording.id).wav: \(error)"))
         }
 
         do {
             let grant = try await uploader.register(sample(for: recording, slug: slug, bytes: audio.count))
             try await uploader.upload(audio, to: grant)
-            return write(
-                .init(
-                    passageID: recording.id, slug: slug, attempts: attempts, lastAttemptAt: now(),
-                    outcome: .uploaded))
+            return record(.uploaded)
         } catch {
-            return write(
-                .init(
-                    passageID: recording.id, slug: slug, attempts: attempts, lastAttemptAt: now(),
-                    outcome: error.isTransient
-                        ? .heldBack("\(error)") : .rejected("\(error)")))
+            return record(error.isTransient ? .heldBack("\(error)") : .rejected("\(error)"))
         }
     }
 

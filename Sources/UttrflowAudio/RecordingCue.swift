@@ -1,14 +1,6 @@
 public import UttrflowCore
 
-private import AppKit
 private import Synchronization
-
-/// The sound that tells the user the microphone is live.
-///
-/// Refines ``RecordingCueing`` instead of restating it: ``DictationController`` is
-/// written against the Core protocol, so every cue built here drops in unchanged, while
-/// this module still owns a name for the boundary it implements.
-public protocol RecordingCue: RecordingCueing {}
 
 /// A sound the operating system already ships, addressed by name.
 ///
@@ -60,7 +52,7 @@ extension SoundPlayer {
 /// of — that a user who turned sounds off hears nothing, and that a stop cue never
 /// arrives without the start cue it answers — are decided against ``SoundPlayer`` and
 /// so are testable in silence.
-public final class SoundPlayingRecordingCue: RecordingCue {
+public final class SoundPlayingRecordingCue: RecordingCueing {
     private let player: any SoundPlayer
     private let startSound: SystemSound
     private let stopSound: SystemSound
@@ -114,15 +106,4 @@ public final class SoundPlayingRecordingCue: RecordingCue {
         guard owed, soundsEnabled() else { return }
         player.play(stopSound)
     }
-}
-
-/// Says nothing, and costs nothing to say it. What the user gets with sounds turned off.
-///
-/// The ``RecordingCue`` counterpart to Core's ``SilentCue``, for callers holding this
-/// module's protocol. Preferred over a ``SoundPlayingRecordingCue`` whose setting reads
-/// `false`: there is then no audio machinery in the process at all.
-public struct SilentRecordingCue: RecordingCue {
-    public init() {}
-    public func playStart() {}
-    public func playStop() {}
 }

@@ -113,9 +113,9 @@ extension TranscriptionReport {
     /// One row per recording cohort, with the unattributed recordings as their own row
     /// rather than folded in with anybody.
     public var byCohort: [ReportSlice] {
-        let labels = Set(scored.map { $0.cohortID ?? RecordingCohort.unattributed }).sorted()
+        let labels = Set(scored.map(\.cohortLabel)).sorted()
         return labels.compactMap { label in
-            slice(label, of: scored.filter { ($0.cohortID ?? RecordingCohort.unattributed) == label })
+            slice(label, of: scored.filter { $0.cohortLabel == label })
         }
     }
 

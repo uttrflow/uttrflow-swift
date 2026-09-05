@@ -113,7 +113,7 @@ struct RecordCorpus: AsyncParsableCommand {
 
         print(
             """
-            \(queue.count) passage\(queue.count == 1 ? "" : "s") to read, about \
+            \(counted(queue.count, "passage")) to read, about \
             \(minutes(estimatedTime(of: queue))).
 
             Read each one at your normal speaking pace — this is measuring dictation, not \
@@ -262,12 +262,12 @@ struct RecordCorpus: AsyncParsableCommand {
             print("Everything recorded has been accepted by the corpus service.")
             return
         }
-        print("\(outstanding.count) recording\(outstanding.count == 1 ? "" : "s") to send…")
+        print("\(counted(outstanding.count, "recording")) to send…")
 
         let summary = try await outbox.flush { receipt in
-            FileHandle.standardError.write(Data((receipt.outcome == .uploaded ? "." : "!").utf8))
+            Terminal.show(receipt.outcome == .uploaded ? "." : "!")
         }
-        FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+        Terminal.clearLine()
 
         print("\(summary.uploaded.count) uploaded.")
         // Grouped by reason: nine hundred recordings behind one unreachable backend is
@@ -287,9 +287,7 @@ struct RecordCorpus: AsyncParsableCommand {
         let byReason = Dictionary(grouping: receipts) { $0.outcome.detail ?? "no reason given" }
         for (reason, group) in byReason.sorted(by: { $0.key < $1.key }) {
             print("  \(group.count) × \(reason)")
-            print(
-                "    " + group.prefix(5).map(\.passageID).joined(separator: ", ")
-                    + (group.count > 5 ? ", and \(group.count - 5) more" : ""))
+            print("    " + group.map(\.passageID).listed())
         }
     }
 
@@ -390,19 +388,5 @@ struct RecordCorpus: AsyncParsableCommand {
         let seconds = Double(duration.components.seconds)
         return seconds < 90
             ? "\(Int(seconds.rounded())) seconds" : "\(Int((seconds / 60).rounded())) minutes"
-    }
-}
-
-extension String {
-    func padded(to width: Int) -> String {
-        count >= width ? self + " " : self + String(repeating: " ", count: width - count)
-    }
-}
-
-extension String {
-    /// Cut to fit a column, with an ellipsis so a truncated line cannot be mistaken for
-    /// a short one.
-    func truncated(to width: Int) -> String {
-        count <= width ? self : String(prefix(width - 1)) + "…"
     }
 }

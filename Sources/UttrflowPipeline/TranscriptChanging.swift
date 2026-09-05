@@ -56,7 +56,7 @@ extension Transcription {
     /// differently from the text it also gave us, and a misalignment here would score
     /// the wrong word.
     public var scoredWords: [ScoredWord]? {
-        let spoken = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        let spoken = text.spokenWords.map(String.init)
         guard !spoken.isEmpty else { return nil }
 
         var scores: [String: Double] = [:]

@@ -47,6 +47,11 @@ public struct TranscriptionCase: Sendable, Equatable, Codable, Identifiable {
         /// them under the floor category would flatter the number the floor exists to
         /// set. What is actually being stressed is in ``TranscriptionCase/stresses``.
         case other
+
+        /// The labels to report under, which are this stressor's own name when none are listed.
+        func labels(from stresses: [String]) -> [String] {
+            stresses.isEmpty ? [rawValue] : stresses
+        }
     }
 
     public let id: String
@@ -93,7 +98,7 @@ public struct TranscriptionCase: Sendable, Equatable, Codable, Identifiable {
         self.mustKeep = mustKeep
         // The hand-written corpus says what it stresses once, in the typed field. Making
         // it repeat itself in a second list is how the two come to disagree.
-        self.stresses = stresses.isEmpty ? [stressor.rawValue] : stresses
+        self.stresses = stressor.labels(from: stresses)
     }
 
     /// Decoded by hand for one reason: a passage recorded before this type grew a field

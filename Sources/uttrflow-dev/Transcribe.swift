@@ -4,7 +4,6 @@ import UttrflowAI
 import UttrflowAudio
 import UttrflowCore
 import UttrflowEval
-import UttrflowPermissions
 import UttrflowSpeech
 
 /// Records or reads audio, then transcribes it.
@@ -154,12 +153,7 @@ struct Transcribe: AsyncParsableCommand {
             return try AudioFileReader.read(contentsOf: URL(fileURLWithPath: file))
         }
 
-        let gate = MicrophonePermissionGate()
-        var status = await gate.status()
-        if status == .notDetermined { status = await gate.request() }
-        guard status == .granted else {
-            throw CleanExit.message(PermissionError.microphoneDenied.userMessage)
-        }
+        try await requireMicrophoneAccess()
 
         let capture = AVAudioCaptureEngine(source: AVAudioEngineMicrophoneSource())
         try await capture.start()

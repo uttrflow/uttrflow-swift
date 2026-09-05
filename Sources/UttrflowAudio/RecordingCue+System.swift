@@ -94,19 +94,3 @@ public final class SystemSoundPlayer: SoundPlayer {
         }
     }
 }
-
-extension SoundPlayingRecordingCue {
-    /// The cue the app ships: real sounds, through the real speakers.
-    public static func system(
-        startSound: SystemSound = .tink,
-        stopSound: SystemSound = .morse,
-        soundsEnabled: @escaping @Sendable () -> Bool = { true }
-    ) -> SoundPlayingRecordingCue {
-        SoundPlayingRecordingCue(
-            player: SystemSoundPlayer(),
-            startSound: startSound,
-            stopSound: stopSound,
-            soundsEnabled: soundsEnabled
-        )
-    }
-}

@@ -191,10 +191,7 @@ public actor DictationPipeline {
     public func cancel() async {
         cancelledGeneration = generation
         await capture.cancel()
-        if let openRecording {
-            self.openRecording = nil
-            await recordings.discard(openRecording)
-        }
+        await discardOpenRecording()
         transition(to: .idle)
     }
 
@@ -287,7 +284,7 @@ public actor DictationPipeline {
         let changes = AppliedChanges(
             corrections: corrected.corrections, snippets: expanded.snippets,
             // The unrewritten sentence, which is the space the corrections' word ranges index.
-            spokenWords: transcription.text.split(whereSeparator: \.isWhitespace).count)
+            spokenWords: transcription.text.spokenWords.count)
         guard
             await insert(
                 expanded.text, cleanedBy: cleaned.producedBy, changes: changes, delivery: delivery)
@@ -325,6 +322,7 @@ public actor DictationPipeline {
     ) async -> TransformationResult {
         let request = TransformationRequest(
             transcription: transcription.saying(text), context: appContext, profile: profile)
+        let untidied = TransformationResult(text: text, producedBy: .rules)
 
         do {
             let tidied = try await metrics.measuring(.transformation, clock: clock) {
@@ -333,9 +331,9 @@ public actor DictationPipeline {
                 }
             }
             // A language model that never answers costs the tidying, never the words.
-            return tidied ?? TransformationResult(text: text, producedBy: .rules)
+            return tidied ?? untidied
         } catch {
-            return TransformationResult(text: text, producedBy: .rules)
+            return untidied
         }
     }
 
@@ -374,10 +372,7 @@ public actor DictationPipeline {
                     description: "the application did not respond")
             }
             // The words landed, so the audio has done its job.
-            if let openRecording {
-                self.openRecording = nil
-                await recordings.discard(openRecording)
-            }
+            await discardOpenRecording()
             transition(
                 to: .inserted(
                     DictationOutcome(
@@ -407,6 +402,13 @@ public actor DictationPipeline {
             }
         }
         transition(to: .failed(failure))
+    }
+
+    /// Deletes the kept audio of the dictation under way, if there is one.
+    private func discardOpenRecording() async {
+        guard let openRecording else { return }
+        self.openRecording = nil
+        await recordings.discard(openRecording)
     }
 
     /// Tells the stores what this dictation used, once the words are safely on screen.

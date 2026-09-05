@@ -27,7 +27,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private var activation: HotkeyActivation
     private var pressedAt: ClockType.Instant?
-    private var eventTask: Task<Void, Never>?
     private var forwardingTask: Task<Void, Never>?
 
     /// Every gesture arrives here, from whatever source, and is handled one at a time.
@@ -102,8 +101,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     public func stop() {
         forwardingTask?.cancel()
         forwardingTask = nil
-        eventTask?.cancel()
-        eventTask = nil
         stopWatchingTheLimit()
         monitor.stop()
     }
@@ -126,13 +123,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             await endHold()
 
         case (.pressToToggle, .pressed):
-            if await pipeline.currentState.isListening {
-                stopWatchingTheLimit()
-                cue.playStop()
-                await pipeline.finishRecording()
-            } else {
-                await beginListening()
-            }
+            await toggleListening()
 
         // Releasing does nothing in toggle mode: the next press is what stops it.
         case (.pressToToggle, .released):
@@ -156,6 +147,11 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// `pressToToggle` already uses, reached without inventing a keypress. What starts a
     /// dictation this way is a control, and a control is still there to stop it.
     public func toggleFromControl() async {
+        await toggleListening()
+    }
+
+    /// Finishes the dictation under way, or begins one.
+    private func toggleListening() async {
         if await pipeline.currentState.isListening {
             stopWatchingTheLimit()
             cue.playStop()
