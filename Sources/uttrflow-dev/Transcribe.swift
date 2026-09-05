@@ -65,7 +65,7 @@ struct Transcribe: AsyncParsableCommand {
         }
 
         let audio = try await obtainAudio()
-        guard !audio.isEmpty else { throw CleanExit.message("Nothing was captured.") }
+        guard !audio.isEmpty else { throw CleanExit.message("No audio captured.") }
 
         let biasWords =
             bias?.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter {

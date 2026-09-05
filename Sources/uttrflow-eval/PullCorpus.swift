@@ -71,7 +71,7 @@ struct PullCorpus: AsyncParsableCommand {
             print("  \(group.count) × \(reason)")
             print("    " + group.map(\.sample.slug).listed())
         }
-        print("\nEverything already here was kept; run pull again to pick up the rest.")
+        print("\nEverything already here is kept; run pull again to pick up the rest.")
     }
 
     /// Prints what the catalogue holds by language and cohort before a byte is downloaded.
