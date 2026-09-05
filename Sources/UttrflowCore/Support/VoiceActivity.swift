@@ -47,7 +47,7 @@ public enum VoiceActivity: Sendable {
     }
 
     /// Root-mean-square loudness of each whole frame, ignoring any partial last one.
-    private static func frameLoudness(of samples: [Float], frameLength: Int) -> [Float] {
+    static func frameLoudness(of samples: [Float], frameLength: Int) -> [Float] {
         var loudness: [Float] = []
         loudness.reserveCapacity(samples.count / frameLength)
         var start = 0
@@ -65,7 +65,7 @@ public enum VoiceActivity: Sendable {
     }
 
     /// The value at `fraction` through an already-sorted list.
-    private static func percentile(_ sorted: [Float], _ fraction: Double) -> Float {
+    static func percentile(_ sorted: [Float], _ fraction: Double) -> Float {
         guard !sorted.isEmpty else { return 0 }
         let index = Int((Double(sorted.count - 1) * fraction).rounded())
         return sorted[Swift.min(Swift.max(index, 0), sorted.count - 1)]

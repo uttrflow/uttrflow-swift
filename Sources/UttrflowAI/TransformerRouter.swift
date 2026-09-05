@@ -41,6 +41,13 @@ public struct TransformerRouter: TranscriptCleaning {
         try await transform(request)
     }
 
+    /// Warms every engine on the route, since which one will answer is not known yet.
+    public func warm() async {
+        for engine in preference.compactMap({ kind in engines.first { $0.kind == kind } }) {
+            await engine.warm()
+        }
+    }
+
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {

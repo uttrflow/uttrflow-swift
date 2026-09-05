@@ -170,3 +170,16 @@ struct MomentaryLevelTests {
         #expect(accumulator.momentaryLevel == 0)
     }
 }
+
+@Suite("SampleAccumulator: snapshot")
+struct SampleAccumulatorSnapshotTests {
+    @Test("copies what has been collected and leaves it in place")
+    func snapshotLeavesBuffer() {
+        let accumulator = SampleAccumulator()
+        accumulator.append([0.1, 0.2])
+
+        #expect(accumulator.snapshot == [0.1, 0.2])
+        #expect(accumulator.count == 2)
+        #expect(accumulator.take() == [0.1, 0.2])
+    }
+}

@@ -29,6 +29,11 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         await model.availability(for: request.effectiveLanguage)
     }
 
+    /// Hands the model the instructions every request carries, ahead of the request.
+    public func warm() async {
+        await model.warm(instructions: prompt.instructions)
+    }
+
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
