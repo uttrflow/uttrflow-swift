@@ -12,51 +12,31 @@ public import typealias Foundation.TimeInterval
 
 private import Synchronization
 
-/// The real backend.
-///
-/// Everything here is one of four HTTP calls — start, claim, refresh, read the profile —
-/// and the interesting parts are the three rules it keeps while making them.
-///
-/// **A missing network is never a refusal.** The transport throws only when the request
-/// did not happen; every answer the server gave, including `401` and `502`, comes back as
-/// a response. That distinction is the offline promise in one line: a Mac that cannot
-/// reach the server keeps its cached profile, and a Mac that has been *told* its session
-/// is over does not.
-///
-/// **The access token is never written down.** It lives an hour and stays in memory; only
-/// the ninety-day refresh token reaches the Keychain. A process that ends has nothing to
-/// leak but the credential it must keep, and that one is behind the system's own lock.
-///
-/// **Nothing is believed without a signature.** A profile is refused unless its
-/// entitlement verifies against the key compiled into this build, and unless the
-/// entitlement names the same account as the document carrying it.
+/// Signs in and stays signed in against the HTTP backend by the rules in `Docs/account-session.md`.
 public final class HTTPAuthenticationService: AuthenticationService {
-    /// This build's registered client identifier. Public, and not a credential: a native
-    /// app cannot keep a secret, which is what PKCE is for.
+    /// This build's registered client identifier; not a credential, PKCE covers what an app cannot hide.
     public static let defaultClientID = "uttrflow-mac"
 
-    /// Renew this long before the access token actually expires, so a request is never
-    /// sent with a token that dies in flight on a slow connection.
+    /// Renews the access token this long before expiry, so no request carries a token that dies in flight.
     private static let renewalMargin: TimeInterval = 60
 
+    /// The in-memory half of the session: the bearer value and when it stops being valid.
     private struct AccessToken: Sendable {
+        /// The bearer token sent as `Authorization`.
         let value: String
+        /// When the server stops accepting `value`.
         let expiresAt: Date
     }
 
-    /// A sign-in waiting to finish, in whichever of the two ways it is going to.
-    ///
-    /// Held here rather than on ``SignInChallenge`` so that no value the interface passes
-    /// around carries a secret. The interface holds the challenge; the secret stays with
-    /// the only object that needs it.
+    /// A sign-in waiting to finish; kept off ``SignInChallenge`` so no public value carries a secret.
     private enum Pending {
-        /// Waiting on a port: the redirect it will come back to, and the verifier that
-        /// will spend the code when it does.
+        /// Waits on a port for the browser to come back, holding the verifier that spends the code.
         case browser(state: String, pkce: PKCEPair, redirectURI: URL, listener: any LoopbackListening)
 
         /// Waiting on a person typing a code somewhere else, and polling until they have.
         case code(state: String, deviceCode: String, interval: Duration, expiresAt: Date)
 
+        /// The state the challenge must echo back for this attempt to be the one it answers.
         var state: String {
             switch self {
             case .browser(let state, _, _, _): state
@@ -65,27 +45,34 @@ public final class HTTPAuthenticationService: AuthenticationService {
         }
     }
 
+    /// The API root every path below is appended to.
     private let baseURL: URL
+    /// The client identifier sent with every OAuth request.
     private let clientID: String
+    /// Performs the HTTP calls; throws only when a request never happened.
     private let transport: any BackendTransport
+    /// Where the refresh token lives between launches.
     private let tokens: any TokenStore
+    /// This Mac's registration, sent so the server can name the device; `nil` sends none.
     private let device: (any DeviceIdentifying)?
+    /// Checks the signature on every entitlement before a profile is believed.
     private let verifier: any EntitlementVerifying
+    /// Makes the loopback listener a browser sign-in comes back to.
     private let makeListener: @Sendable () -> any LoopbackListening
+    /// The randomness behind the PKCE verifier and the state.
     private let randomBytes: @Sendable (Int) -> Data
+    /// The clock, injected so a test can move it.
     private let now: @Sendable () -> Date
-    /// How the device flow waits between polls. Injected so a test does not.
+    /// How the device flow waits between polls; injected so a test does not wait.
     private let sleep: @Sendable (Duration) async throws -> Void
 
-    /// The short-lived half of the session. A `Mutex` rather than an actor because the
-    /// service is asked questions from wherever a window happens to be running and nothing
-    /// it does with this value is slow enough to be worth a suspension.
+    /// The short-lived half of the session; a `Mutex`, not an actor, as nothing done with it is slow.
     private let access = Mutex<AccessToken?>(nil)
 
-    /// The attempt in flight, if there is one. A second sign-in replaces the first, and
-    /// closes its port: two listeners waiting for the same browser is a port left open.
+    /// The attempt in flight; a second sign-in replaces the first and closes its port.
     private let pending = Mutex<Pending?>(nil)
 
+    /// Wires the transport, stores and clocks; every default is the one the shipping app uses.
     public init(
         baseURL: URL,
         transport: any BackendTransport,
@@ -110,11 +97,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         self.sleep = sleep
     }
 
-    /// Randomness from the system, for the PKCE verifier and the state.
-    ///
-    /// `SystemRandomNumberGenerator` is the cryptographically secure one; the arithmetic
-    /// generator a test might reach for is not, and a predictable verifier is a verifier
-    /// somebody else can produce.
+    /// Cryptographically secure randomness for the PKCE verifier and the state.
     public static func systemRandomBytes(_ count: Int) -> Data {
         var generator = SystemRandomNumberGenerator()
         var bytes = Data(count: count)
@@ -126,17 +109,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     // MARK: Signing in
 
-    /// Binds a port, invents a verifier, and returns the page to open.
-    ///
-    /// The listener is bound *before* the browser is opened, deliberately: it is the one
-    /// part that can fail for reasons nothing else in the flow shares, and finding that
-    /// out after sending somebody to a sign-in page would waste their time and leave a tab
-    /// open with nowhere to return to.
-    ///
-    /// A Mac that cannot bind one is not stuck. It signs in by code instead — see
-    /// ``beginDeviceSignIn(with:)`` — which is the same standard flow a television uses,
-    /// and works over SSH, in a container, and on a laptop whose security software refuses
-    /// to let an application listen on anything.
+    /// Binds a port before returning the page to open, and signs in by code instead when no port binds.
     public func beginSignIn(with provider: SignInProvider) async throws(AccountError) -> SignInChallenge {
         // Any attempt still waiting is abandoned here rather than left holding a port.
         await abandonPending()
@@ -156,8 +129,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         var components = URLComponents(url: url("v1/auth/authorize"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "client_id", value: clientID),
-            // `provider.rawValue` spells GitHub as `gitHub`; the backend parses a provider
-            // name in any capitalisation precisely so the app can send its own spelling.
+            // The backend parses a provider name in any capitalisation, so `gitHub` is sent as spelled.
             URLQueryItem(name: "provider", value: provider.rawValue),
             URLQueryItem(name: "redirect_uri", value: redirectURI.absoluteString),
             URLQueryItem(name: "code_challenge", value: pkce.challenge),
@@ -175,12 +147,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         return SignInChallenge(authorisationURL: authorisationURL, state: state, method: .browser)
     }
 
-    /// Signs in by code, for a machine with nowhere for a browser to come back to.
-    ///
-    /// RFC 8628. The backend hands over a short code and an address; the person types the
-    /// one into the other, on this machine or on their phone, and this polls until they
-    /// have. Nothing here needs a port, a URL scheme, or anything the operating system has
-    /// to be asked for.
+    /// Signs in by RFC 8628 device code, for a machine with nowhere for a browser to come back to.
     private func beginDeviceSignIn(
         with provider: SignInProvider
     ) async throws(AccountError) -> SignInChallenge {
@@ -208,12 +175,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
             method: .code(userCode: started.userCode, verificationURL: verificationURL))
     }
 
-    /// Waits for the browser to come back to the port, then spends the code.
-    ///
-    /// Returns when the person has signed in, which may be a minute after the call — they
-    /// have a password manager to find. Cancelling the surrounding task closes the port
-    /// and abandons the attempt; the browser tab stays open, because nothing here can
-    /// close it.
+    /// Waits however long the person takes to sign in; cancelling the task closes the port and abandons it.
     public func completeSignIn(_ challenge: SignInChallenge) async throws(AccountError) -> Profile {
         guard let attempt = pending.take(\.self), attempt.state == challenge.state else {
             throw .providerRefused(description: "that sign-in does not answer this attempt")
@@ -239,9 +201,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
         let callback = try await listener.awaitCallback()
 
-        // The state is compared here as well as by the backend. The browser is a channel
-        // anybody can send something down, and an answer that does not name this attempt
-        // is not ours to spend — whatever the server thought of it.
+        // Checked here as well as by the backend: an answer naming another attempt is not ours to spend.
         guard callback.state == challenge.state else {
             throw .providerRefused(description: "that sign-in does not answer this attempt")
         }
@@ -261,12 +221,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         return try await beginSession(issuedBy: response)
     }
 
-    /// Polls until somebody approves the code, or the window closes.
-    ///
-    /// `authorization_pending` is the ordinary answer rather than a failure — RFC 8628
-    /// spells it as an error because a token endpoint has no other vocabulary. `slow_down`
-    /// means we asked too often and the interval has gone up; obeying it is the difference
-    /// between a well-behaved client and one a server has to defend itself from.
+    /// Polls until the code is approved or expires, waiting longer when the server says `slow_down`.
     private func awaitDeviceApproval(
         _ deviceCode: String, every interval: Duration, until expiresAt: Date
     ) async throws(AccountError) -> Profile {
@@ -276,8 +231,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
             do {
                 try await sleep(wait)
             } catch {
-                // Cancellation. The person walked away from this attempt; the code expires
-                // on its own and nothing here has to tell anybody.
+                // Cancellation: the person walked away, and the code expires on its own.
                 throw .providerRefused(description: "that sign-in was abandoned")
             }
 
@@ -316,6 +270,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     // MARK: Staying signed in
 
+    /// Reads the profile if it changed, renewing a rejected access token once before giving up on it.
     public func currentProfile(ifChangedFrom cached: Profile?) async throws(AccountError) -> ProfileRefresh {
         guard tokens.refreshToken() != nil else { return .noCredential }
 
@@ -327,17 +282,11 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
             if response.status == 304 { return .unchanged }
 
-            // One retry, and only one. An access token that has just been rejected is
-            // usually one minted before a rotation; a second rejection after a fresh token
-            // means the session itself is gone, not the token.
+            // One retry only: a second 401 after a fresh token means the session is gone, not the token.
             if response.status == 401 {
                 switch try await renew() {
                 case .sessionOver: return .signedOut
-                // The credential went away between the first request and this one, which
-                // means another caller met a `401` and cleared it. Reported as nothing
-                // rather than as a sign-out: the caller that saw the refusal is the one
-                // entitled to act on it, and guessing here would delete a cached profile
-                // on the strength of a race.
+                // Another caller met a 401 and cleared the credential; that caller acts on it, not this one.
                 case .noCredential: return .noCredential
                 case .token(let renewed):
                     let retried = try await send(profileRequest(renewed, ifNoneMatch: cached?.validator))
@@ -350,18 +299,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         }
     }
 
-    /// Fetches the picture the profile named.
-    ///
-    /// The same authorised-then-renew-once dance as ``currentProfile(ifChangedFrom:)``,
-    /// and for the same reason: an access token rejected here is usually one minted before
-    /// a rotation. Everything else answers `nil` — a 404 for an account with no picture, a
-    /// 502 when the provider is slow, a body that is not an image. None of those is worth
-    /// a message to somebody who is looking at their own initials and does not know a
-    /// request was made.
-    ///
-    /// The path is taken from the document rather than composed here, but it is still
-    /// checked: it must be a path on this API and not an address of its own, so that a
-    /// document from somewhere unexpected cannot point this at another host.
+    /// Fetches the avatar at a path on this API, or `nil` for any failure; none is worth a message.
     public func avatar(at path: String) async -> Data? {
         guard path.hasPrefix("/"), !path.hasPrefix("//"), URL(string: path)?.host == nil else {
             return nil
@@ -386,11 +324,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         return response.body
     }
 
-    /// Signs out here first, and tells the server afterwards.
-    ///
-    /// The order matters. A person asking to be signed out is signed out whatever the
-    /// network is doing; the request that revokes the token at the other end is worth
-    /// making and not worth waiting on, and the token expires on its own regardless.
+    /// Signs out on this Mac first, whatever the network is doing, then tells the server without waiting.
     public func signOut() async {
         let refreshToken = tokens.refreshToken()
         forgetSession()
@@ -401,14 +335,15 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     // MARK: The session
 
+    /// What asking for an access token produces.
     private enum Authorisation {
+        /// A usable access token.
         case token(String)
 
         /// The server refused the refresh token: revoked, replayed, or expired.
         case sessionOver
 
-        /// This Mac holds no refresh token, so the server was never asked. Not a refusal,
-        /// and not something a caller may treat as one — see ``ProfileRefresh/noCredential``.
+        /// No refresh token is held, so the server was never asked; not a refusal, see ``ProfileRefresh``.
         case noCredential
     }
 
@@ -421,14 +356,14 @@ public final class HTTPAuthenticationService: AuthenticationService {
         return try await renew()
     }
 
+    /// Mints a session from the refresh token; a 401 means this Mac is signed out.
     private func renew() async throws(AccountError) -> Authorisation {
         guard let refreshToken = tokens.refreshToken() else { return .noCredential }
 
         let response = try await send(
             post("v1/auth/refresh", RefreshBody(refreshToken: refreshToken, device: device?.registration())))
 
-        // The refresh token was revoked, replayed, or has expired. All three mean the same
-        // thing to this Mac: it is signed out, and it should stop pretending otherwise.
+        // Revoked, replayed or expired: all three mean this Mac is signed out.
         if response.status == 401 {
             forgetSession()
             return .sessionOver
@@ -440,14 +375,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         return .token(session.accessToken)
     }
 
-    /// Keeps what a session response gave us: the new refresh token to the Keychain, the
-    /// access token to memory. Rotation means the old refresh token is already dead, so
-    /// storing the new one is not optional housekeeping — it is the session.
-    ///
-    /// - Throws: ``AccountError/sessionCouldNotBeKept`` when the Keychain refuses it.
-    ///   Reporting a sign-in that succeeded everywhere except the one place that makes it
-    ///   last is worse than reporting a failure: the account appears, works, and is gone
-    ///   at the next launch with nothing to connect the two.
+    /// Keeps a session: refresh token to the Keychain, access token to memory; a Keychain refusal throws.
     private func adopt(_ session: IssuedSession) throws(AccountError) {
         try tokens.store(session.refreshToken)
         access.withLock {
@@ -474,13 +402,11 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     // MARK: Reading the profile
 
+    /// Reads the profile a fresh session unlocks, refusing the sign-in rather than falling back to a cache.
     private func readProfile(validator: String?) async throws(AccountError) -> Profile {
         switch try await authorised() {
         case .sessionOver, .noCredential:
-            // Reachable only if the session was revoked, or the credential just stored
-            // could not be read back, between claiming it and reading it. Both are a
-            // refusal of the sign-in that is happening right now, where there is somebody
-            // to tell — which is the whole reason this does not fall back to a cache.
+            // The session ended between claim and read; a refusal reaches somebody, a cache would not.
             throw .providerRefused(description: "that session was already over")
         case .token(let token):
             let response = try await send(profileRequest(token, ifNoneMatch: validator))
@@ -489,12 +415,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         }
     }
 
-    /// Decodes a profile and refuses to believe it unless it is signed and self-consistent.
-    ///
-    /// The signature check is the same one a cached copy gets on the way off the disk. It
-    /// happens here as well because a profile that cannot be believed should fail the
-    /// sign-in that produced it, where there is somebody to tell, rather than surface as a
-    /// mysterious sign-out on a later launch.
+    /// Decodes a profile and refuses one that is unsigned or inconsistent, failing the sign-in itself.
     private func believe(_ response: BackendResponse) throws(AccountError) -> Profile {
         guard let profile = decode(Profile.self, from: response.body) else {
             throw .sessionMalformed
@@ -507,6 +428,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     // MARK: Plumbing
 
+    /// `path` appended to the API root.
     private func url(_ path: String) -> URL {
         baseURL.appending(path: path)
     }
@@ -525,10 +447,12 @@ public final class HTTPAuthenticationService: AuthenticationService {
         return BackendRequest(method: .get, url: address, headers: headers)
     }
 
+    /// A conditional read of `v1/me`.
     private func profileRequest(_ token: String, ifNoneMatch validator: String?) -> BackendRequest {
         get(url("v1/me"), token: token, ifNoneMatch: validator)
     }
 
+    /// Performs a request, translating a transport failure into ``AccountError/serverUnreachable``.
     private func send(_ request: BackendRequest) async throws(AccountError) -> BackendResponse {
         do {
             return try await transport.perform(request)
@@ -537,31 +461,28 @@ public final class HTTPAuthenticationService: AuthenticationService {
         }
     }
 
-    /// Turns a refusal into the sentence the server sent, when it sent one.
-    ///
-    /// A `5xx` is deliberately *not* treated as unreachable. The server was reached and it
-    /// failed; calling that "no connection" would tell the user to check their Wi-Fi over
-    /// an outage they cannot do anything about, and would hide the outage from us.
+    /// Turns a refusal into the server's own sentence; a `5xx` is a server that failed, not one out of reach.
     private func refusal(_ response: BackendResponse) -> AccountError {
         let answered = decode(ServerError.self, from: response.body)
         let described = answered?.message ?? answered?.errorDescription
         return .providerRefused(description: described ?? "the server refused that (\(response.status))")
     }
 
+    /// Decodes `data` as `type`, or `nil` when it is not that shape.
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) -> T? {
         try? JSONDecoder().decode(type, from: data)
     }
 
+    /// Encodes a request body.
     private func encode(_ value: some Encodable) -> Data {
-        // A value of strings and optionals cannot fail to encode, and an empty body would
-        // be refused by the server, which is the correct outcome for a bug that cannot
-        // happen.
+        // Strings and optionals cannot fail to encode, and the server refuses an empty body anyway.
         (try? JSONEncoder().encode(value)) ?? Data()
     }
 }
 
 // MARK: - What the backend sends and expects
 
+/// The two tokens a sign-in or refresh answers with.
 private struct IssuedSession: Decodable {
     let accessToken: String
     let accessTokenExpiresAt: String
@@ -587,20 +508,22 @@ private struct TokenBody: Encodable {
     }
 }
 
+/// What the refresh endpoint expects.
 private struct RefreshBody: Encodable {
     let refreshToken: String
     let device: DeviceRegistration?
 }
 
+/// What the sign-out endpoint expects.
 private struct SignOutBody: Encodable {
     let refreshToken: String
 }
 
+/// A refusal's body, in either the service's or OAuth's spelling.
 private struct ServerError: Decodable {
     let error: String?
     let message: String?
-    /// The OAuth spelling. The two names exist because this service answers with
-    /// `message` and the RFC-shaped endpoints answer with `error_description`.
+    /// The OAuth spelling: RFC-shaped endpoints answer with `error_description`, this service with `message`.
     let errorDescription: String?
 
     enum CodingKeys: String, CodingKey {
@@ -610,12 +533,14 @@ private struct ServerError: Decodable {
     }
 }
 
+/// What the device-code endpoint expects.
 private struct DeviceCodeBody: Encodable {
     let clientID: String
 
     enum CodingKeys: String, CodingKey { case clientID = "client_id" }
 }
 
+/// What the device-code endpoint answers with, in RFC 8628's names.
 private struct StartedDeviceSignIn: Decodable {
     let deviceCode: String
     let userCode: String
@@ -634,6 +559,7 @@ private struct StartedDeviceSignIn: Decodable {
     }
 }
 
+/// What the device-token endpoint expects while polling.
 private struct DeviceTokenBody: Encodable {
     let grantType: String
     let clientID: String
