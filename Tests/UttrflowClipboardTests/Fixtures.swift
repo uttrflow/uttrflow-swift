@@ -40,3 +40,19 @@ struct TemporaryFolder: ~Copyable {
     deinit { try? FileManager.default.removeItem(at: url) }
 }
 
+extension ClipboardBudget {
+    /// The same budget with one bound narrowed in every pool, so a test names only the rule it is about.
+    func limiting(
+        items: Int? = nil, bytes: Int? = nil, days: Int? = nil, largestClip: Int? = nil,
+        disk: Int? = nil
+    ) -> ClipboardBudget {
+        func narrowed(_ tier: ClipboardTier) -> ClipboardTier {
+            ClipboardTier(
+                bytes: bytes ?? tier.bytes, items: items ?? tier.items, days: days ?? tier.days)
+        }
+        return ClipboardBudget(
+            ceiling: ceiling, copied: narrowed(copied), dictation: narrowed(dictation),
+            images: narrowed(images), largestClip: largestClip ?? self.largestClip,
+            disk: disk ?? self.disk)
+    }
+}
