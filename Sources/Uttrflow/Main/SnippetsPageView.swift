@@ -1,11 +1,12 @@
+// The Snippets page: the table, its inline editor and the worked example.
+
 import UttrflowUX
 import SwiftUI
 
 /// Triggers you say, and the text you get instead.
 struct SnippetsPageView: View {
     let presentation: SnippetsPresentation
-    /// What is being typed into the inline editor. Held by the window rather than here
-    /// so the fields survive the page being redrawn under them.
+    /// What is being typed into the inline editor, held by the window so it survives a redraw.
     @Binding var draft: SnippetDraft
     var onIntent: (MainIntent) -> Void
 
@@ -27,10 +28,7 @@ struct SnippetsPageView: View {
                     }
             }
         } else {
-            // The editor sits beside the list rather than under it. Underneath, the
-            // fields arrived below the fold on a page of any length, and the row being
-            // edited scrolled out of sight the moment you started typing — which is the
-            // one row you want to keep looking at.
+            // The editor sits beside the list, so the row being edited never scrolls out of sight.
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 0) {
                     MainSectionLabel(text: presentation.caption)
@@ -76,10 +74,7 @@ struct SnippetRowView: View {
             HStack(spacing: 5) {
                 ForEach(row.actions) { MainIconButton(action: $0, onIntent: onIntent) }
             }
-            // Hidden rather than removed, as on Dictation and Dictionary: building these
-            // only while hovered took Edit and Delete out of the accessibility tree
-            // entirely, so a VoiceOver user could not reach either — and it made the row
-            // change width as the pointer crossed it.
+            // Hidden rather than removed, so VoiceOver can reach Edit and Delete and the row keeps its width.
             .opacity(isHovered ? 1 : 0)
             Text(row.timesUsed)
                 .monospacedDigit()
@@ -127,13 +122,11 @@ struct SnippetEditorView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // A panel, because this is one of the things a reader chooses between: it is
-        // being filled in, not read past.
+        // A panel, because this is something being filled in, not read past.
         .cardSurface()
     }
 
-    /// Rebuilt from what is currently in the fields rather than from the presentation,
-    /// which was drawn a keystroke ago.
+    /// Rebuilt from what is in the fields now, not from the presentation drawn a keystroke ago.
     private var save: MainAction {
         MainAction(
             title: editor.save.title,

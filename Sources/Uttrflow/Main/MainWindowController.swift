@@ -1,12 +1,10 @@
+// The main window's model and the controller that owns the window.
+
 import AppKit
 import UttrflowUX
 import SwiftUI
 
-/// Every page of the window, as it currently stands.
-///
-/// One value rather than nine separate updates: the sidebar shows all of them at once,
-/// so a window holding a fresh Dictation beside a stale Diagnostics would be showing the
-/// user two different moments and calling them the same one.
+/// Every page of the window as one value, so the sidebar never shows two different moments at once.
 struct MainContent: Sendable, Equatable {
     var home: HomePresentation
     var sidebar: SidebarPresentation
@@ -27,29 +25,15 @@ struct MainContent: Sendable, Equatable {
 final class MainWindowModel {
     var page: MainTab
     var content: MainContent
-    /// What the user has typed into the current page's search field.
-    ///
-    /// Held here rather than in the view because the filtering itself is a decision, and
-    /// decisions belong in the presenters: the field reports what was typed, the app
-    /// rebuilds the page from it, and the view draws whatever comes back.
+    /// What the user has typed into the current page's search field; filtering is the presenters' decision.
     var searchQuery = ""
-    /// Which of a page's scopes is selected, reported the same way and for the same
-    /// reason. A raw identifier because the app maps it back to the page's own scope
-    /// type — the view never learns what the strings mean.
+    /// Which of a page's scopes is selected, as a raw identifier the app maps back to the page's own type.
     var scope = ""
-    /// What is being typed into the snippet editor.
-    ///
-    /// The one piece of half-finished input the window holds. It lives here rather than
-    /// inside the row so that redrawing the page under an open editor — which happens on
-    /// every refresh — does not take the user's half-typed trigger away.
+    /// What is being typed into the snippet editor, held here so a refresh never takes the draft away.
     var snippetDraft = SnippetDraft()
     /// What is being typed into the word editor, held here for the same reason.
     var wordDraft = DictionaryDraft()
-    /// Whether the sidebar is showing its names.
-    ///
-    /// Chrome rather than a decision, so it is held here and not built by a presenter:
-    /// nothing about the page changes with it, and a presenter that took a width would
-    /// be a presenter that had to be handed one on every rebuild.
+    /// Whether the sidebar is showing its names; chrome, not a decision, so no presenter builds it.
     var isSidebarExpanded: Bool
 
     init(page: MainTab = .home, content: MainContent, isSidebarExpanded: Bool = false) {
@@ -59,24 +43,16 @@ final class MainWindowModel {
     }
 }
 
-/// Owns the main window.
-///
-/// The window is built the first time it is asked for and kept afterwards, so reopening
-/// from the menu bar returns the user to the page they left rather than to a new window
-/// with nothing in it.
+/// Owns the main window, built once and kept so reopening returns to the page the user left.
 @MainActor
 final class MainWindowController {
-    /// Everything the pages can ask for. Carried out by the app, which is the only part
-    /// that knows how to reach System Settings, the pasteboard or another window.
+    /// Everything the pages can ask for, carried out by the app, which owns every window and the pasteboard.
     var onIntent: ((MainIntent) -> Void)?
     /// A search field was typed in. The app re-presents the page.
     var onSearch: ((String) -> Void)?
     /// A scope was picked. Same contract as ``onSearch``.
     var onScope: ((String) -> Void)?
-    /// An inline editor was typed in. Same contract again, and needed for the same
-    /// reason: whether a draft may be saved is a decision, decisions live in the
-    /// presenters, and a presenter that is never told about a keystroke answers about
-    /// the draft as it was when the editor opened.
+    /// An inline editor was typed in; the presenter needs each keystroke to say whether Save is allowed.
     var onDraft: (() -> Void)?
 
     private let model: MainWindowModel
@@ -85,27 +61,19 @@ final class MainWindowController {
 
     /// The page currently on screen, so the app can re-present the right one.
     var page: MainTab { model.page }
-    /// Whether the sidebar is showing its names, so the menu item can say which way
-    /// choosing it will go.
+    /// Whether the sidebar is showing its names, so the menu item can say which way choosing it will go.
     var isSidebarExpanded: Bool { model.isSidebarExpanded }
     /// What is in the snippet editor, so a save intent can be carried out against it.
     var snippetDraft: SnippetDraft { model.snippetDraft }
     /// The same, for the word editor.
     var wordDraft: DictionaryDraft { model.wordDraft }
 
-    /// Where the sidebar's width is remembered between launches.
-    ///
-    /// `UserDefaults` directly rather than the settings store: this is not a setting.
-    /// Nothing in Settings offers it, it is not carried to another Mac with the user's
-    /// account, and it is the same kind of thing as where the quick panel was last
-    /// dragged to — this window's own memory of how it was left.
+    /// Where the sidebar's width is remembered; not a setting, so `UserDefaults` and not the settings store.
     private static let sidebarExpandedKey = "com.uttrflow.window.sidebarExpanded"
 
     init(content: MainContent, defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        // Absent means collapsed, which is also what `bool(forKey:)` answers for a key
-        // never written — so the default needs no special case, and the window opens the
-        // way it opens for somebody who has never touched it.
+        // Absent means collapsed, which is what `bool(forKey:)` answers for a key never written.
         model = MainWindowModel(
             content: content,
             isSidebarExpanded: defaults.bool(forKey: Self.sidebarExpandedKey))
@@ -122,11 +90,7 @@ final class MainWindowController {
         model.content = content
     }
 
-    /// Puts the opening values into the inline snippet editor.
-    ///
-    /// Only the opening values. What the editor holds after that is the window's, and is
-    /// read back through ``snippetDraft`` — the app is told *that* an editor is open and
-    /// asks the window *what is in it*, so there is one copy of the text and not two.
+    /// Puts the opening values into the snippet editor; the app reads what it holds back via `snippetDraft`.
     func editSnippet(_ draft: SnippetDraft?) {
         model.snippetDraft = draft ?? SnippetDraft()
     }
@@ -136,26 +100,17 @@ final class MainWindowController {
         model.wordDraft = draft ?? DictionaryDraft()
     }
 
-    /// Brings the window up on a given page, building it if this is the first time.
-    ///
-    /// The one entry point: the menu bar, a recovery action and onboarding all arrive
-    /// here, so there is no second way for a window to appear on the wrong page.
+    /// Brings the window up on `page`, building it the first time; the one entry point for every caller.
     func show(_ page: MainTab) {
         model.page = page
         let window = window ?? makeWindow()
         self.window = window
-        // Asked for explicitly rather than left to macOS. The app is opened from its own
-        // menu-bar item and from the Dock as often as from the Finder, and in the first
-        // two cases nothing else brings it forward — the window would open behind
-        // whatever the user was dictating into.
+        // Asked for explicitly: opened from the menu bar or the Dock, nothing else brings the app forward.
         NSApplication.shared.activate()
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// Gets out of the way without forgetting where the user was.
-    ///
-    /// What `minimisesWhileDictating` asks for: the point of dictating is to watch the
-    /// words land in the other app, which cannot happen from behind this window.
+    /// Gets out of the way without forgetting where the user was, for `minimisesWhileDictating`.
     func hide() {
         window?.orderOut(nil)
     }
@@ -170,8 +125,7 @@ final class MainWindowController {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.contentMinSize = MainMetrics.minimumWindowSize
-        // Kept rather than released so that closing and reopening returns the user to the
-        // page they left instead of to a fresh window with nothing in it.
+        // Kept rather than released, so reopening returns the user to the page they left.
         window.isReleasedWhenClosed = false
         let hosting = NSHostingView(
             rootView: MainWindowView(
@@ -181,16 +135,7 @@ final class MainWindowController {
                 onScope: { [weak self] in self?.onScope?($0) },
                 onDraft: { [weak self] in self?.onDraft?() },
                 onToggleSidebar: { [weak self] in self?.toggleSidebar() }))
-        // The window is a window, not a poster. `NSHostingView` reports SwiftUI's ideal
-        // size as its `intrinsicContentSize` by default, and AppKit resizes the window to
-        // match — so the window grew and shrank as the user moved between pages. Measured
-        // before this: 1084 points tall on Home, 4458 on Account and 5461 on Insights,
-        // because a long empty state or a tall card wants the room. On Account the effect
-        // read as a bug in the page rather than the window: the content sat at the top of
-        // a window four times the height of the screen and everything below it was blank.
-        //
-        // The pages already scroll. Nothing here needs the hosting view to have an
-        // opinion about how big the window should be.
+        // No intrinsic size from SwiftUI, or the window grows to the tallest page; Docs/app-main-window.md.
         hosting.sizingOptions = []
         window.contentView = hosting
         window.center()

@@ -1,10 +1,9 @@
+// The Dictation page: today's dictations and their figures.
+
 import UttrflowUX
 import SwiftUI
 
-/// Today's dictations, and the three figures the app can vouch for.
-///
-/// Which rows appear, what the badge on one says and whether the rail has two tiles or
-/// three are all ``DictationPresenter``'s decisions. This file has no opinions.
+/// Today's dictations and the figures the app can vouch for; every decision is `DictationPresenter`'s.
 struct DictationPageView: View {
     let presentation: DictationPresentation
     var onIntent: (MainIntent) -> Void
@@ -46,11 +45,7 @@ struct DictationPageView: View {
     }
 }
 
-/// One dictation.
-///
-/// The hover controls are laid out whether or not the pointer is over the row and are
-/// only made invisible, so pointing at a row does not reflow it — the same trick the
-/// artboard's CSS uses, and for the same reason.
+/// One dictation; the hover controls are only made invisible, so pointing at a row does not reflow it.
 struct DictationRowView: View {
     let row: DictationRow
     var onIntent: (MainIntent) -> Void
@@ -138,13 +133,7 @@ struct DictationRowView: View {
             .frame(width: 22, height: 22)
             .accessibilityLabel("More")
         }
-        // Hidden rather than removed: the row must be the same height and the same
-        // shape whether or not the pointer happens to be over it.
-        //
-        // Still hit-testable while invisible, deliberately. `allowsHitTesting(isHovered)`
-        // reads like tidiness and is the difference between a control a VoiceOver user
-        // can activate and one they cannot — and by the time a *pointer* can reach these,
-        // the row is hovered and they are visible, so nothing can be clicked by accident.
+        // Hidden, not removed, and still hit-testable, so a VoiceOver user can activate these.
         .opacity(isHovered ? 1 : 0)
     }
 }

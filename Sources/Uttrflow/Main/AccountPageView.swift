@@ -1,3 +1,5 @@
+// The Account page: identity card and detail rows.
+
 import UttrflowUX
 import SwiftUI
 
@@ -73,17 +75,13 @@ struct AccountIdentityCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// A system symbol rather than a provider's own mark, on purpose. Google, GitHub and
-    /// Apple all publish rules about how their marks may be drawn, and an approximation
-    /// of somebody else's logo is worse than an honest glyph. The real assets go in when
-    /// they are downloaded from each provider's brand page.
+    /// A system symbol rather than a provider's mark, whose drawing rules an approximation would break.
     private var symbolName: String {
         switch identity.providerID {
         case .google: "globe"
         case .gitHub: "chevron.left.forwardslash.chevron.right"
         case .apple: "apple.logo"
-        // Nobody signed this person in: they are working on this Mac, and the Mac is the
-        // only thing there is to draw.
+        // Nobody signed this person in; the Mac is the only thing there is to draw.
         case nil: "laptopcomputer"
         }
     }

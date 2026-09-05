@@ -1,12 +1,11 @@
+// The sizes, tones and small views every main-window page is built from.
+
 import UttrflowUX
 import SwiftUI
 
 /// The measurements the artboards are drawn to.
 enum MainMetrics {
-    /// Wide enough for the list and the figures to breathe.
-    ///
-    /// Was 900×620, which is cramped once the rail carries four figures — and cramped
-    /// beside anything else on a modern display, which is the first thing anyone notices.
+    /// Wide enough for the list and the figures to breathe on a modern display.
     static let windowSize = CGSize(width: 1180, height: 780)
     static let minimumWindowSize = CGSize(width: 760, height: 500)
     /// The height the traffic lights need before anything else may be drawn.
@@ -15,17 +14,11 @@ enum MainMetrics {
     static let contentPadding: CGFloat = 22
     static let cardRadius: CGFloat = 10
     static let rowPadding: CGFloat = 13
-    /// The icon rail down the left of the window: wide enough for a 44pt target with
-    /// room either side, and nothing more, because everything it does not take belongs
-    /// to the page.
+    /// The icon rail down the left: wide enough for a 44pt target with room either side, and no more.
     static let iconRailWidth: CGFloat = 76
-    /// The sidebar with its names showing. The design's own width: eleven rows of
-    /// thirteen-point text, the longest of which is "Diagnostics", plus the badge.
+    /// The sidebar with its names showing, sized to eleven rows of thirteen-point text plus the badge.
     static let sidebarWidth: CGFloat = 204
-    /// The figures rail down the right of a page. A different rail, and a different
-    /// width: this one holds a number, its name and a sentence about it, and at 76
-    /// points "Words per minute" wraps one word to a line and "2.7K" truncates to
-    /// "2...." — which is what it did for a build, because the two shared a name.
+    /// The figures rail down the right of a page, wide enough that "Words per minute" and "2.7K" fit.
     static let railWidth: CGFloat = 186
     static let titleSize: CGFloat = 15
     static let bodySize: CGFloat = 13
@@ -35,8 +28,7 @@ enum MainMetrics {
 }
 
 extension MainTone {
-    /// What a tone is drawn in. One mapping, so a warning on Dictionary and a warning
-    /// on Account cannot end up two different oranges.
+    /// What a tone is drawn in; one mapping, so two pages cannot end up with two different oranges.
     var foreground: Color {
         switch self {
         case .neutral: .secondary
@@ -262,8 +254,7 @@ struct MainChipsRow: View {
     }
 }
 
-/// A button offered by a page. Every one of them is a ``MainIntent``, so the view never
-/// learns what any of them actually do.
+/// A button offered by a page; every one is a `MainIntent`, so the view never learns what it does.
 struct MainActionButton: View {
     let action: MainAction
     var isProminent = false
@@ -310,8 +301,7 @@ struct MainIconButton: View {
     }
 }
 
-/// What a page shows instead of content: a symbol, a sentence, at most one way on, and
-/// whatever figures are still true with nothing to list.
+/// What a page shows instead of content: a symbol, a sentence, at most one way on, and any figures.
 struct MainEmptyStateView: View {
     let state: MainEmptyState
     var onIntent: (MainIntent) -> Void
@@ -377,21 +367,14 @@ struct MainProgressView: View {
     }
 }
 
-/// The coloured tile with the app's initial in it.
-///
-/// The colour is derived from the name so that one app keeps one colour between launches
-/// without a table of brand colours that would go stale the moment an app rebrands.
+/// The app's icon, or a tile coloured from its name so one app keeps one colour between launches.
 struct MainApplicationTile: View {
     let application: HistoryApplication
     var size: CGFloat = 26
 
     var body: some View {
         Group {
-            // The app's own icon where this Mac has one, which is the whole point: a row
-            // that went to Claude should look like it went to Claude, not like the
-            // letter C. The lettered tile stays for everything else — an app that has
-            // since been deleted, or one whose bundle is not named as it presents
-            // itself — because a wrong icon is worse than an honest initial.
+            // The app's own icon where this Mac has one; the lettered tile stays for everything else.
             if let icon = ApplicationIcons.shared.icon(for: application) {
                 Image(nsImage: icon)
                     .resizable()
@@ -420,13 +403,7 @@ struct MainApplicationTile: View {
 /// The app tile and its name, as the rows write it.
 struct MainApplicationChip: View {
     let application: HistoryApplication
-    /// Whether to write the name beside the icon.
-    ///
-    /// Off in the lists, where the icon is recognised faster than the word is read and
-    /// the column of names was the same three words repeated down the page. On where
-    /// the app itself is the subject rather than a stamp on somebody's sentence —
-    /// Insights is a list *of applications*, and an icon with no name there would be a
-    /// quiz.
+    /// Whether to write the name beside the icon: off in lists, on where the app itself is the subject.
     var showsName = false
 
     var body: some View {
@@ -494,8 +471,7 @@ struct MainTableHeader: View {
     }
 }
 
-/// One column of a table. Widths live in the view because a column width is a layout
-/// decision and nothing on this side of ``UttrflowUX`` is anything else.
+/// One column of a table; widths live in the view because a column width is a layout decision.
 struct MainColumn: Identifiable {
     let title: String
     let width: CGFloat?
@@ -524,18 +500,7 @@ struct MainRowsCard<Row: Identifiable, Content: View>: View {
     @ViewBuilder var content: (Row) -> Content
 
     var body: some View {
-        // Lazy, because the history keeps up to a thousand dictations and the window is
-        // rebuilt on every keystroke in a search field. Eagerly, that was a thousand rows
-        // constructed and laid out per character typed. Every use of this card is inside
-        // a `ScrollView`, which is what a `LazyVStack` needs to know how much to build.
-        // Hairlines rather than a card, which is the design's one rule about lists: a
-        // page is a page, not a stack of panels, and a box drawn around a hundred rows
-        // is a box the eye has to keep re-entering. Boxes are kept for the things a
-        // reader chooses between — a callout, an editor, an empty state.
-        // Leading, not centre. A row fills the width because something inside it does;
-        // the table header does not, so under the stack's default alignment it sat
-        // centred — its "Word" over the rows' "Sounds like" — and every column label
-        // named the wrong column.
+        // Lazy, because a search rebuilds a thousand rows per keystroke; leading, so the header lines up.
         LazyVStack(alignment: .leading, spacing: 0) {
             header
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
@@ -550,16 +515,7 @@ struct MainRowsCard<Row: Identifiable, Content: View>: View {
 }
 
 extension View {
-    /// Offers a row's controls to assistive technology, whatever the pointer is doing.
-    ///
-    /// The controls themselves are revealed on hover, and a view at `opacity(0)` is hidden
-    /// from the accessibility tree — so without this, Copy, Insert Again, Flag, Edit and
-    /// Delete simply do not exist for anyone not using a mouse. VoiceOver reaches these
-    /// through the actions rotor, which is Apple's own answer for hover-revealed controls.
-    ///
-    /// Deliberately on the row rather than on each button: a row that announced five
-    /// separate buttons would make moving through a table of thirty dictations five times
-    /// longer, which is the reason the controls are hidden from sight in the first place.
+    /// Offers a row's hover-revealed controls to VoiceOver through the actions rotor, once per row.
     func rowActions(
         _ actions: [MainAction], onIntent: @escaping (MainIntent) -> Void
     )

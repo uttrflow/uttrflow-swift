@@ -1,10 +1,8 @@
+// The mark stroked at a given height.
+
 import SwiftUI
 
-/// The mark at a given height, stroked at its own weight.
-///
-/// Takes its colour from the foreground style, because the mark has no colour of its
-/// own: it is ink on light and chalk on dark, and never the accent — the accent means a
-/// state, and a logo is not a state.
+/// The mark at a given height, stroked at its own weight, in the foreground style; never the accent.
 struct UttrflowMarkView: View {
     var height: CGFloat = 22
 
