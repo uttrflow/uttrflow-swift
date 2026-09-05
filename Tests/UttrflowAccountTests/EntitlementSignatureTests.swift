@@ -1,9 +1,12 @@
+// Tests for Ed25519EntitlementVerifier: the signed payload, tampering, and the release key.
+
 import CryptoKit
 import Foundation
 import Testing
 
 @testable import UttrflowAccount
 
+/// What the verifier believes, what it refuses, and the exact bytes a signature covers.
 @Suite("Trusting a cached entitlement")
 struct EntitlementSignatureTests {
     @Test("believes what the backend signed")
@@ -18,9 +21,7 @@ struct EntitlementSignatureTests {
                 Fixture.entitlement(expiring: 86_400, signedBy: Fixture.impostor)) == false)
     }
 
-    /// Every field the signature covers, one at a time. A verifier that happened to
-    /// ignore the plan would hand out a paid subscription to anyone with a text editor,
-    /// and one that ignored the expiry would make the backstop decorative.
+    /// Every covered field altered one at a time; a verifier ignoring any of them is a forgery oracle.
     @Test("rejects an entitlement whose covered fields were altered after signing")
     func rejectsTampering() {
         let genuine = Fixture.entitlement(expiring: 86_400, plan: .free)
@@ -44,9 +45,7 @@ struct EntitlementSignatureTests {
         }
     }
 
-    /// The two fields deliberately left outside the signature. Somebody who renames
-    /// themselves at their provider must not be signed out for it, and neither field
-    /// decides what anybody may do.
+    /// Display name and email are outside the signature, so a rename at the provider is not a sign-out.
     @Test("keeps believing an entitlement after the user renames themselves")
     func toleratesADisplayNameChange() {
         let genuine = Fixture.entitlement(expiring: 86_400)
@@ -67,9 +66,7 @@ struct EntitlementSignatureTests {
         #expect(Fixture.verifier.isAuthentic(mangled) == false)
     }
 
-    /// A number nobody could have meant, of the kind that appears when somebody edits
-    /// the file by hand. `Int(_: Double)` would trap on it and take the app down on
-    /// launch; the entitlement must simply not be believed.
+    /// A hand-edited expiry that `Int(_: Double)` would trap on must simply not be believed.
     @Test("rejects an unrepresentable expiry instead of trapping on it")
     func survivesAnAbsurdExpiry() {
         for seconds in [TimeInterval.infinity, -.infinity, .nan, 1e300] {
@@ -81,8 +78,7 @@ struct EntitlementSignatureTests {
         }
     }
 
-    /// The payload is a contract with a backend written in another language, so its
-    /// shape is asserted rather than left to whatever the code happens to produce.
+    /// The payload is a contract with a backend in another language, so its shape is asserted exactly.
     @Test("covers exactly the agreed fields, each prefixed by its length")
     func payloadShape() throws {
         let entitlement = Entitlement(
@@ -92,9 +88,7 @@ struct EntitlementSignatureTests {
         #expect(text == "uttrflow-entitlement-v1\n3:u_1\n6:gitHub\n3:pro\n10:1700000000")
     }
 
-    /// The reason for length-prefixing. Two different entitlements must never produce
-    /// the same bytes, however carefully an identifier is chosen to look like the
-    /// field boundary that follows it.
+    /// Length-prefixing means no identifier can be chosen to look like the field boundary after it.
     @Test("cannot be made to read one entitlement as another")
     func fieldsCannotImpersonateTheBoundary() {
         let sneaky = Fixture.entitlement(
@@ -103,8 +97,7 @@ struct EntitlementSignatureTests {
         #expect(sneaky.signedPayload != plain.signedPayload)
     }
 
-    /// Whole seconds, because that is the only form a backend in another language can
-    /// be relied upon to reproduce byte for byte.
+    /// Whole seconds are the only form a backend in another language reproduces byte for byte.
     @Test("rounds a fractional expiry down to whole seconds")
     func expiryIsWholeSeconds() throws {
         let fractional = Entitlement(
@@ -115,13 +108,10 @@ struct EntitlementSignatureTests {
     }
 }
 
+/// The key compiled into a release build, and the degenerate key it must never be.
 @Suite("The public key a release build carries")
 struct ReleaseVerifierTests {
-    /// The key is real now, and what it must do is refuse everything it did not sign.
-    ///
-    /// It once had to be empty, and the test then said so. Both states have the same
-    /// requirement — believe nothing that came from anywhere else — and only that
-    /// requirement is worth asserting, because it is the one that holds either way.
+    /// The release key is real, and refuses everything it did not sign.
     @Test("believes nothing it did not sign")
     func theReleaseKeyRefusesEverythingElse() {
         #expect(Ed25519EntitlementVerifier.releasePublicKeyBytes.count == 32)
@@ -132,19 +122,7 @@ struct ReleaseVerifierTests {
                 Fixture.entitlement(expiring: 1, signedBy: Fixture.impostor)) == false)
     }
 
-    /// The trap the placeholder exists to avoid, asserted so that nobody "fixes" the
-    /// empty constant by filling it with the obvious thing.
-    ///
-    /// Ed25519's all-zero public key decodes to a point of order four, and CryptoKit
-    /// verifies without the cofactor. Against that key an all-zero signature satisfies
-    /// the equation whenever the message's hash happens to land right, which is about
-    /// one entitlement in four — so 32 zero bytes would not fail closed. It would hand
-    /// a subscription to anybody willing to try their account identifier a few times,
-    /// with a signature they could type out from memory.
-    ///
-    /// A batch rather than a single entitlement because one in four is a coin toss and
-    /// this must not be a test that passes on Tuesdays. The identifiers are fixed, so
-    /// the outcome is deterministic — just not predictable by reading it.
+    /// The all-zero key accepts a blank signature one time in four, hence a batch; see Docs/entitlements.md.
     @Test("rejects the degenerate key that would accept a forgery")
     func rejectsTheDegenerateKeyThatWouldAcceptAForgery() {
         let zeroes = Ed25519EntitlementVerifier(publicKeyBytes: Data(repeating: 0, count: 32))
@@ -158,17 +136,15 @@ struct ReleaseVerifierTests {
         #expect(
             forgeries.contains(where: zeroes.isAuthentic),
             """
-            CryptoKit no longer accepts an all-zero signature against the all-zero key. \
-            That is good news, but read the reasoning in releasePublicKeyBytes before \
-            relaxing anything: the placeholder must fail closed.
+            CryptoKit rejects a blank signature against the all-zero key. That is good news, but \
+            read Docs/entitlements.md before relaxing anything: the placeholder must fail closed.
             """)
         #expect(
             Ed25519EntitlementVerifier.releasePublicKeyBytes != Data(repeating: 0, count: 32),
             "the release key must never be the all-zero key: it accepts a blank signature")
     }
 
-    /// Bytes that are the wrong length are not a key either, and must be no more
-    /// believed than none at all.
+    /// Bytes of the wrong length are not a key, and are believed no more than none at all.
     @Test("believes nothing when handed something that is not a key")
     func rejectsMalformedKeyBytes() {
         let nonsense = Ed25519EntitlementVerifier(publicKeyBytes: Data([1, 2, 3]))

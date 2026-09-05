@@ -1,17 +1,14 @@
+// Tests for PKCEPair and the loopback listener's request parsing and reply page.
+
 import Foundation
 import Testing
 
 @testable import UttrflowAccount
 
+/// The verifier and challenge pair, checked against RFC 7636.
 @Suite("Proof Key for Code Exchange")
 struct PKCETests {
-    /// The digest, computed by something other than the code under test.
-    ///
-    /// The challenge covers the *verifier string*, not the bytes it was encoded from —
-    /// a distinction RFC 7636 §4.2 makes and an implementation can easily get wrong, since
-    /// both produce a plausible-looking 43-character value and only one of them is what a
-    /// server will compute. This expectation was worked out with `hashlib`, away from the
-    /// code it checks.
+    /// The challenge covers the verifier string, not its bytes (RFC 7636 §4.2); the digest is from `hashlib`.
     @Test("derives the challenge as the base64url SHA-256 of the verifier")
     func challengeIsTheDigest() {
         let pair = PKCEPair(randomBytes: Data(repeating: 0, count: 32))
@@ -21,9 +18,7 @@ struct PKCETests {
         #expect(pair.challenge == "DwBzhbb51LfusnSGBa_hqYSgo7-j8BTQnip4TOnlzRo")
     }
 
-    /// RFC 7636 §4.1: 43 to 128 characters from the unreserved set. A verifier outside it
-    /// is refused by a correct server, and the failure would arrive at the token endpoint
-    /// rather than here.
+    /// RFC 7636 §4.1: 43 to 128 characters from the unreserved set, or the token endpoint refuses it.
     @Test("produces a verifier the specification permits")
     func verifierIsWellFormed() {
         for size in [32, 48, 64] {
@@ -35,12 +30,10 @@ struct PKCETests {
         }
     }
 
-    /// Padding is not in the unreserved set, so it would have to be percent-encoded in a
-    /// query string — where a server comparing raw strings would then never match.
+    /// Padding is outside the unreserved set; percent-encoded, it never matches a raw comparison.
     @Test("never emits padding or the characters base64url replaces")
     func encodingIsURLSafe() {
-        // 0xFB 0xFF encodes to `+/` in standard base64, which is exactly what must not
-        // appear here.
+        // 0xFB 0xFF encodes to `+/` in standard base64, which is exactly what must not appear here.
         let pair = PKCEPair(randomBytes: Data(repeating: 0xFB, count: 32))
         for encoded in [pair.verifier, pair.challenge] {
             #expect(!encoded.contains("+"))
@@ -58,6 +51,7 @@ struct PKCETests {
     }
 }
 
+/// What ``SystemLoopbackListener`` makes of the request the browser sends, and the page it answers with.
 @Suite("The browser coming back to the loopback port")
 struct LoopbackParsingTests {
     /// The request a browser actually sends, first line and all.
@@ -83,9 +77,7 @@ struct LoopbackParsingTests {
         #expect(callback.state == "c d")
     }
 
-    /// Anything that is not the answer we are waiting for is nothing. A browser will send
-    /// a favicon request to this port within milliseconds of opening the page, and treating
-    /// that as a callback would end the sign-in with no code.
+    /// A browser requests a favicon within milliseconds; treating that as a callback ends the sign-in.
     @Test("ignores everything that is not a callback")
     func ignoresEverythingElse() {
         for request in [
@@ -101,8 +93,7 @@ struct LoopbackParsingTests {
         }
     }
 
-    /// The page is the last thing the person sees of the sign-in, so it must say the right
-    /// thing in both directions and carry nothing that could leak.
+    /// The page is the last thing the person sees, so it says the right thing both ways and leaks nothing.
     @Test("answers the browser with a page carrying no secret")
     func thePageSaysWhatHappened() {
         let signedIn = SystemLoopbackListener.page(signedIn: true)

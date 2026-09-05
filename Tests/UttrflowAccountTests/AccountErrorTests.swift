@@ -1,16 +1,14 @@
+// Tests for AccountError: the catalogue checks UttrflowCore cannot make on a module above it.
+
 import UttrflowCore
 import Testing
 
 @testable import UttrflowAccount
 
-/// What ``FailureCatalogue`` would walk if it could see this module.
-///
-/// It cannot — ``UttrflowCore`` owns the catalogue and nothing may depend upwards on the
-/// module that owns these three — so the same checks are made here instead. When
-/// ``AccountError`` moves down into Core, this list becomes one line in the catalogue
-/// and these tests become redundant with the ones in `UttrflowCoreTests`.
+/// The cases ``FailureCatalogue`` would walk if Core could see this module; checked here instead.
 private let allAccountFailures = AccountError.everyCase
 
+/// Every account failure's message, recovery and severity.
 @Suite("What can go wrong signing in")
 struct AccountErrorTests {
     @Test("chains every case exactly once")
@@ -30,9 +28,7 @@ struct AccountErrorTests {
         }
     }
 
-    /// §16: the user must never learn which engine is running, and must never be shown
-    /// the vocabulary of the thing that failed either. "OAuth", "token" and "signature"
-    /// are as meaningless to somebody trying to dictate as "CoreML" is.
+    /// §16: "OAuth", "token" and "signature" are as meaningless to somebody dictating as "CoreML" is.
     @Test("never leaks implementation vocabulary into a user-facing message")
     func neverNamesAnImplementation() {
         let forbidden = [
@@ -48,8 +44,7 @@ struct AccountErrorTests {
         }
     }
 
-    /// The first sign-in is the one occasion a network is genuinely required, so its
-    /// message says so plainly rather than hedging about connectivity in general.
+    /// The first sign-in is the one occasion a network is genuinely required, so the message says so.
     @Test("says plainly that the first sign-in is the one that needs a connection")
     func firstSignInSaysItNeedsANetwork() {
         let message = AccountError.serverUnreachable.userMessage
@@ -63,14 +58,11 @@ struct AccountErrorTests {
         #expect(AccountError.serverUnreachable.recovery == .retry)
         // Another attempt, or another provider — the user has a real choice.
         #expect(AccountError.providerRefused(description: "x").recovery == .retry)
-        // Nothing offered: no number of attempts by the user changes which key was
-        // compiled into this build.
+        // Nothing offered: no number of attempts by the user changes which key this build carries.
         #expect(AccountError.sessionMalformed.recovery == nil)
     }
 
-    /// Every one of them leaves the Mac with no session at all, and dictation needs
-    /// one. The severities that vary in this product are the ones where the words still
-    /// arrived, and none of these is that.
+    /// Every one leaves the Mac with no session, and dictation needs one.
     @Test("treats every sign-in failure as blocking")
     func severities() {
         for failure in allAccountFailures {
@@ -78,9 +70,7 @@ struct AccountErrorTests {
         }
     }
 
-    /// The case that must never exist. An expired entitlement is the ordinary state of
-    /// a Mac that has been offline for a while, and giving it an error is the first
-    /// step towards giving it a lock.
+    /// An expired entitlement is an offline Mac's ordinary state; erroring on it is a step towards a lock.
     @Test("has no failure for an expired entitlement, because that is not a failure")
     func expiryIsNotAFailure() {
         for failure in allAccountFailures {

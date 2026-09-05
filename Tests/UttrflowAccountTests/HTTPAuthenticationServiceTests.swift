@@ -1,3 +1,5 @@
+// Tests for HTTPAuthenticationService: the browser flow, the session rules and the device-code fallback.
+
 import Foundation
 import Synchronization
 import Testing
@@ -5,21 +7,20 @@ import UttrflowCore
 
 @testable import UttrflowAccount
 
+/// Drives `HTTPAuthenticationService` through a scripted transport and a stub loopback listener.
 @Suite("Talking to the real backend")
 struct HTTPAuthenticationServiceTests {
+    /// The profile every scripted `/me` answers with.
     private let signedIn = Fixture.profile(
         for: Fixture.entitlement(expiring: 86_400), validator: nil)
 
-    /// The randomness these tests pin, so the state and the PKCE pair are known values
-    /// rather than something only the service can see.
+    /// Pinned randomness, so the state and the PKCE pair are known values.
     private static let fixedRandomness: @Sendable (Int) -> Data = { Data(repeating: 7, count: $0) }
 
-    /// The state a pinned sign-in produces: base64url of twenty-four 0x07 bytes.
-    ///
-    /// Written out rather than computed, so a change to how the state is derived shows up
-    /// here as a failing test instead of as two functions agreeing with each other.
+    /// The state a pinned sign-in produces, written out so a change in its derivation fails here.
     private static let pinnedState = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH"
 
+    /// The service under test, with every collaborator stubbed and the clock fixed at noon.
     private func service(
         transport: StubTransport,
         tokens: any TokenStore = InMemoryTokenStore(),
@@ -55,6 +56,7 @@ struct HTTPAuthenticationServiceTests {
         }
     }
 
+    /// The same transport as `signingIn`, named for the re-reading tests.
     private func happyPath(etag: String? = "\"v1\"") -> StubTransport { signingIn(etag: etag) }
 
     // MARK: Starting
@@ -70,9 +72,7 @@ struct HTTPAuthenticationServiceTests {
             URLComponents(url: challenge.authorisationURL, resolvingAgainstBaseURL: false)?.queryItems)
         func value(_ name: String) -> String? { query.first { $0.name == name }?.value }
 
-        // The port is bound before the browser is sent anywhere: a Mac that cannot bind
-        // one cannot finish this flow, and finding out afterwards would leave somebody
-        // with a tab open and nowhere to come back to.
+        // The port is bound before the browser opens, so a Mac that cannot bind one finds out first.
         #expect(listener.wasBound)
         #expect(challenge.authorisationURL.path().hasSuffix("v1/auth/authorize"))
         #expect(value("client_id") == "uttrflow-mac")
@@ -88,9 +88,7 @@ struct HTTPAuthenticationServiceTests {
         #expect(!challenge.authorisationURL.absoluteString.contains(verifier))
     }
 
-    /// A Mac that cannot bind a loopback port is not stuck: it signs in by code instead.
-    /// The whole of that path is exercised in `DeviceGrantTests`; what matters here is that
-    /// failing to bind is not an error the person ever sees.
+    /// Failing to bind falls back to the device code, a path `DeviceGrantTests` covers in full.
     @Test("does not fail when no port can be bound")
     func aPortThatCannotBeBound() async throws {
         let transport = StubTransport { request, _ in
@@ -127,8 +125,7 @@ struct HTTPAuthenticationServiceTests {
         #expect(body["code"] as? String == "the-code")
         #expect(body["redirect_uri"] as? String == StubLoopbackListener.redirectURI.absoluteString)
 
-        // The verifier answers the challenge that went to the browser, which is the whole
-        // of PKCE: the code is worthless to anybody who did not start this sign-in.
+        // The verifier answers the challenge sent to the browser, so the code is worthless to anybody else.
         let pair = PKCEPair(randomBytes: Data(repeating: 7, count: 32))
         #expect(body["code_verifier"] as? String == pair.verifier)
 
@@ -137,8 +134,7 @@ struct HTTPAuthenticationServiceTests {
         #expect(tokens.refreshToken() == "refresh-token-one")
     }
 
-    /// The browser is a channel anybody can send something down, so an answer that does not
-    /// name this attempt is not ours to spend — whatever the server made of it.
+    /// Anybody can send something down the browser channel, so only an answer naming this attempt is spent.
     @Test("refuses a callback that answers a different attempt")
     func aCallbackForSomebodyElsesAttempt() async throws {
         let transport = signingIn()
@@ -158,8 +154,7 @@ struct HTTPAuthenticationServiceTests {
         await #expect(throws: AccountError.self) { try await backend.completeSignIn(orphan) }
     }
 
-    /// A port left open is a socket on somebody's machine accepting connections for as long
-    /// as the app runs.
+    /// A port left open is a socket accepting connections for as long as the app runs.
     @Test("gives the port back when a sign-in ends, however it ends")
     func theListenerIsAlwaysClosed() async throws {
         let refused = answering(state: "will-not-match")
@@ -223,9 +218,7 @@ struct HTTPAuthenticationServiceTests {
         }
     }
 
-    /// The signature is checked where there is somebody to tell. A profile that cannot be
-    /// believed must fail the sign-in that produced it rather than surface later as a
-    /// mysterious sign-out.
+    /// A profile that cannot be believed fails the sign-in that produced it, where somebody is told.
     @Test("refuses a profile this build cannot verify")
     func aForgedProfileFailsTheSignIn() async throws {
         let forged = Fixture.profile(
@@ -242,9 +235,7 @@ struct HTTPAuthenticationServiceTests {
         }
     }
 
-    /// The signature covers the entitlement and nothing around it, so a document pairing a
-    /// genuine free entitlement with a subscription claiming Pro would verify perfectly and
-    /// be wrong on every screen drawn from it.
+    /// The signature covers only the entitlement, so a document naming somebody else around it is refused.
     @Test("refuses a profile whose signed half names somebody else")
     func aMismatchedProfileIsRefused() async throws {
         let mismatched = Profile(
@@ -288,12 +279,7 @@ struct HTTPAuthenticationServiceTests {
         #expect(transport.requests(to: "/me").first?.headers["If-None-Match"] == nil)
     }
 
-    /// The distinction the launch refresh is built on. A Mac with no refresh token has not
-    /// been signed out by anybody — it has nothing to ask with, which is a statement about
-    /// this machine's Keychain and not about the account. Answering ``ProfileRefresh/signedOut``
-    /// here told ``AccountRefresh`` to delete a perfectly good cached profile, and an
-    /// ad-hoc-signed build reaches it on every launch: `SecItemAdd` refuses the data
-    /// protection keychain outright without an access group, so the token is never stored.
+    /// No refresh token is `noCredential`, never `signedOut`; see Docs/account-tests-keychain-adhoc.md.
     @Test("says it has no credential, rather than that the session is over")
     func noCredentialIsNotASignOut() async throws {
         let transport = happyPath()
@@ -303,9 +289,7 @@ struct HTTPAuthenticationServiceTests {
         #expect(transport.requests.isEmpty)
     }
 
-    /// The whole failure, end to end, with nothing scripted between the empty Keychain and
-    /// the cache: a real service, a real ``AccountRefresh``, and a profile that must still
-    /// be there afterwards.
+    /// A real service and a real ``AccountRefresh`` over an empty Keychain; the cached profile survives.
     @Test("a Keychain that lost the token does not cost the user their cached profile")
     func anEmptyKeychainKeepsTheProfile() async throws {
         let cache = Fixture.cacheHolding(profile: signedIn)
@@ -336,8 +320,7 @@ struct HTTPAuthenticationServiceTests {
             })
     }
 
-    /// An access token rejected once is usually one minted just before a rotation. Rejected
-    /// twice, with a token that was fresh, and the session itself is gone.
+    /// One rejection is a token minted before a rotation; a second, with a fresh token, is a dead session.
     @Test("retries a rejected access token exactly once")
     func oneRetryAfterA401() async throws {
         let rejections = Mutex(0)
@@ -372,8 +355,7 @@ struct HTTPAuthenticationServiceTests {
         #expect(transport.requests(to: "/me").count == 2)
     }
 
-    /// Somebody signed this machine out from another one. The credential is dead and
-    /// keeping it would mean asking the server the same rejected question for ever.
+    /// A refresh token the server rejects is dead; keeping it means asking the same question for ever.
     @Test("throws away a refresh token the server has rejected")
     func aRevokedRefreshTokenIsForgotten() async throws {
         let tokens = InMemoryTokenStore(refreshToken: "revoked")
@@ -449,10 +431,12 @@ struct HTTPAuthenticationServiceTests {
 
 // MARK: - The device grant, for a Mac with nowhere to be redirected to
 
-/// How long the client was asked to wait between polls, shared by reference with the sleep closure.
+/// Records how long the client waits between polls; shared by reference with the sleep closure.
 private final class Waits: Sendable {
+    /// Every wait, in order.
     private let durations = Mutex<[Duration]>([])
 
+    /// Appends one wait.
     func record(_ duration: Duration) {
         durations.withLock { $0.append(duration) }
     }
@@ -460,13 +444,14 @@ private final class Waits: Sendable {
     var all: [Duration] { durations.withLock { $0 } }
 }
 
+/// Drives the RFC 8628 device flow with a listener that cannot bind.
 @Suite("Signing in by code")
 struct DeviceGrantTests {
+    /// The profile `/me` answers with once the code is approved.
     private let signedIn = Fixture.profile(
         for: Fixture.entitlement(expiring: 86_400), validator: nil)
 
-    /// Every response the device grant needs, with the poll answering `pending` until the
-    /// test says otherwise.
+    /// Every response the device grant needs; the poll answers `pending` for `pendingPolls` calls.
     private func backend(
         pendingPolls: Int = 0,
         slowDownFirst: Bool = false
@@ -496,6 +481,7 @@ struct DeviceGrantTests {
         }
     }
 
+    /// The service under test, whose listener never binds and whose sleeps are recorded, not waited.
     private func service(
         transport: StubTransport,
         tokens: any TokenStore = InMemoryTokenStore(),
@@ -523,8 +509,7 @@ struct DeviceGrantTests {
             return
         }
         #expect(userCode == "BCDF-GHJK")
-        // The complete address, so the person can follow a link rather than type the code
-        // when the browser is on the same machine.
+        // The complete address, so a person on the same machine follows a link rather than typing the code.
         #expect(verificationURL.absoluteString.contains("user_code=BCDF-GHJK"))
         #expect(challenge.authorisationURL == verificationURL)
         #expect(transport.requests(to: "/device/code").count == 1)
@@ -544,8 +529,7 @@ struct DeviceGrantTests {
         #expect(tokens.refreshToken() == "refresh-token-one")
     }
 
-    /// RFC 8628 §3.5. Obeying `slow_down` is the difference between a well-behaved client
-    /// and one a server has to defend itself from.
+    /// RFC 8628 §3.5: a client that obeys `slow_down` is one a server need not defend itself from.
     @Test("waits longer when told to slow down")
     func obeysSlowDown() async throws {
         let waited = Waits()
