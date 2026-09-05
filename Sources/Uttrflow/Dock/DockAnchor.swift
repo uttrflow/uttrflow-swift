@@ -1,23 +1,14 @@
+// Where the floating button sits on a screen for each anchor.
+
 import CoreGraphics
 import UttrflowCore
 
-/// Turns an anchor into a place on the screen.
-///
-/// Pure geometry, deliberately free of any window: placement is the part that can be
-/// got wrong invisibly — a second display sitting to the left of the main one has
-/// negative coordinates, and an origin computed as though every screen started at zero
-/// puts the button somewhere nobody can see it.
-///
-/// Everything here works in AppKit's coordinate space: y grows upwards, and the
-/// visible frame already excludes the menu bar and the Dock.
+/// Turns an anchor into a place on the screen; pure geometry in AppKit's coordinate space.
 enum DockPlacement {
     /// The gap between the button and the edges it is parked against.
     static let margin: CGFloat = 16
 
-    /// The point on the screen the anchor names, independent of how big the button is.
-    ///
-    /// This is what a drag snaps towards, so it is the anchor's own position rather
-    /// than any corner of the panel.
+    /// The point the anchor names, independent of the button's size; what a drag snaps towards.
     static func anchorPoint(
         for anchor: DockAnchor, in visibleFrame: CGRect, margin: CGFloat = margin
     ) -> CGPoint {
@@ -33,11 +24,7 @@ enum DockPlacement {
         }
     }
 
-    /// The panel's bottom-left corner for an anchor and a size.
-    ///
-    /// The button grows inwards from the edge it is parked on, which falls out of
-    /// recomputing this on every resize: an anchor pinned to the right subtracts the
-    /// new width, so the right-hand edge stays put and the panel extends leftwards.
+    /// The panel's bottom-left corner for an anchor and a size; the button grows inwards from its edge.
     static func origin(
         for anchor: DockAnchor, panelSize: CGSize, in visibleFrame: CGRect,
         margin: CGFloat = margin
@@ -65,11 +52,7 @@ enum DockPlacement {
             size: panelSize)
     }
 
-    /// Pulls a panel that would hang over an edge back inside the visible frame.
-    ///
-    /// The lower bound is applied last on purpose: a panel wider or taller than the
-    /// screen cannot satisfy both bounds, and pinning it to the bottom-left of the
-    /// visible frame at least leaves it reachable.
+    /// Pulls a panel that would hang over an edge back inside the visible frame, lower bound last.
     private static func clamping(
         _ origin: CGPoint, panelSize: CGSize, in visibleFrame: CGRect
     ) -> CGPoint {
