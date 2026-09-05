@@ -32,20 +32,19 @@ public struct SystemCodeFormatter: CodeFormatting {
     public init() {}
 
     public func isAvailable(for language: CodeLanguage) async -> Bool {
-        executable(for: language) != nil
+        KnownFormatter.forLanguage(language).flatMap { executable(for: $0) } != nil
     }
 
     public func format(_ text: String, as language: CodeLanguage) async -> String? {
         guard let formatter = KnownFormatter.forLanguage(language),
-            let tool = executable(for: language)
+            let tool = executable(for: formatter)
         else { return nil }
 
         return await run(tool, arguments: formatter.arguments, input: text)
     }
 
     /// The formatter's own file, or `nil` when it is not installed.
-    private func executable(for language: CodeLanguage) -> URL? {
-        guard let formatter = KnownFormatter.forLanguage(language) else { return nil }
+    private func executable(for formatter: KnownFormatter) -> URL? {
         for directory in Self.directories {
             let candidate = URL(filePath: directory).appending(path: formatter.rawValue)
             if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate }

@@ -7,27 +7,11 @@ import Testing
 /// the running app and looking at what was on disk afterwards.
 @Suite("Copying something twice")
 struct ClipboardDedupeTests {
-    struct Folder: ~Copyable {
-        let url: URL
-        let store: ClipboardStore
-        let retention = ClipRetention(days: 7, now: Date())
-
-        init() throws {
-            url = URL.temporaryDirectory.appending(
-                path: "uttrflow-dedupe-\(UUID().uuidString)", directoryHint: .isDirectory)
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-            store = ClipboardStore(
-                file: url.appending(path: "clipboard.json", directoryHint: .notDirectory))
-        }
-
-        deinit { try? FileManager.default.removeItem(at: url) }
-    }
-
     /// The behaviour that should not change: the same words twice are one clip, moved to
     /// the top, keeping the name the user gave it.
     @Test("the same text twice is one clip, and keeps what the user chose")
     func textStillMerges() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let first = Clip(text: "hello", kind: .text, copiedAt: Date())
         _ = try await folder.store.record(first, keeping: folder.retention)
         _ = try await folder.store.setAlias("greeting", of: first.id, keeping: folder.retention)
@@ -46,7 +30,7 @@ struct ClipboardDedupeTests {
     /// hollowed out.
     @Test("copying the same thing twice does not strip what was worked out about it")
     func mergingKeepsDerivedFields() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         let code = Clip(
             text: "struct A {}", kind: .code, copiedAt: Date(), language: .swift,
             richText: "<code>struct A {}</code>")
@@ -67,7 +51,7 @@ struct ClipboardDedupeTests {
     /// first, its file was orphaned, and the surviving row pointed at neither.
     @Test("two different pictures are two clips, not one")
     func picturesDoNotCollide() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
 
         for byte in [UInt8(0x01), UInt8(0x02)] {
             _ = try await folder.store.record(
@@ -85,7 +69,7 @@ struct ClipboardDedupeTests {
     /// Each clip must point at its own file, or a row draws somebody else's screenshot.
     @Test("each picture clip points at its own file, and both files are there")
     func everyPictureKeepsItsOwnFile() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         for byte in [UInt8(0x01), UInt8(0x02)] {
             _ = try await folder.store.record(
                 NoticedClip(
@@ -106,7 +90,7 @@ struct ClipboardDedupeTests {
     /// to draw a file belonging to something else.
     @Test("a picture's file is named after the clip that owns it")
     func fileMatchesItsClip() async throws {
-        let folder = try Folder()
+        let folder = try TemporaryFolder()
         _ = try await folder.store.record(
             NoticedClip(
                 clip: Clip(text: "", kind: .image, copiedAt: Date()),
@@ -122,13 +106,9 @@ struct ClipboardDedupeTests {
 /// happening once more, not another clip. What that costs, and what it buys, is a counter.
 @Suite("Copying something again")
 struct ClipboardRepeatTests {
-    private func folder() throws -> ClipboardDedupeTests.Folder {
-        try ClipboardDedupeTests.Folder()
-    }
-
     @Test("the count starts at one and rises with each repeat")
     func counts() async throws {
-        let folder = try folder()
+        let folder = try TemporaryFolder()
         for _ in 0..<3 {
             _ = try await folder.store.record(
                 Clip(text: "again", kind: .text, copiedAt: Date()), keeping: folder.retention)
@@ -145,7 +125,7 @@ struct ClipboardRepeatTests {
     /// somebody using the same address every day for a fortnight.
     @Test("the timestamp is the latest copy, not the first")
     func timestampFollowsTheLatest() async throws {
-        let folder = try folder()
+        let folder = try TemporaryFolder()
         // Both inside the retention window, or the clip the assertion is about would have
         // aged out before it could be read back.
         let now = Date()
@@ -163,7 +143,7 @@ struct ClipboardRepeatTests {
     /// two files. It is one clip, one file, and a count of two.
     @Test("the same picture twice is one clip and one file")
     func picturesMergeOnTheirBytes() async throws {
-        let folder = try folder()
+        let folder = try TemporaryFolder()
         let bytes = Data(repeating: 7, count: 4_096)
         for _ in 0..<2 {
             _ = try await folder.store.record(
@@ -186,7 +166,7 @@ struct ClipboardRepeatTests {
     /// clips. Comparing the bytes is what makes both true at once.
     @Test("two different pictures are still two clips")
     func differentPicturesDoNotMerge() async throws {
-        let folder = try folder()
+        let folder = try TemporaryFolder()
         for byte in [UInt8(1), UInt8(2)] {
             _ = try await folder.store.record(
                 NoticedClip(
@@ -228,7 +208,7 @@ struct ClipboardBudgetTests {
                 NoticedClip(
                     clip: Clip(text: "", kind: .image, copiedAt: Date()),
                     picture: (Data(repeating: byte, count: size), 10, 10)),
-                keeping: ClipRetention(days: 7, now: Date()))
+                keeping: week(from: .now))
         }
     }
 
@@ -240,11 +220,11 @@ struct ClipboardBudgetTests {
     /// clock.
     @Test("drops the least recently used first when the budget is exceeded")
     func evictsTheLeastRecentlyUsed() async throws {
-        let folder = try ClipboardDedupeTests.Folder()
+        let folder = try TemporaryFolder()
         let store = ClipboardStore(
             file: folder.url.appending(path: "c.json"),
             budget: .standard.limiting(bytes: 10_000, disk: 10_000))
-        let window = ClipRetention(days: 7, now: Date())
+        let window = week(from: .now)
 
         try await picture(store, byte: 1, size: 4_000)  // arrives first…
         try await picture(store, byte: 2, size: 4_000)
@@ -264,20 +244,20 @@ struct ClipboardBudgetTests {
     /// the app deciding it knows better about the thing they deliberately kept.
     @Test("never drops anything the user kept")
     func pinsAreExempt() async throws {
-        let folder = try ClipboardDedupeTests.Folder()
+        let folder = try TemporaryFolder()
         let store = ClipboardStore(
             file: folder.url.appending(path: "c.json"), budget: .standard.limiting(bytes: 5_000, disk: 5_000))
         let pinned = Clip(text: String(repeating: "p", count: 4_000), kind: .text, copiedAt: Date())
-        _ = try await store.record(pinned, keeping: ClipRetention(days: 7, now: Date()))
-        _ = try await store.setPinned(true, of: pinned.id, keeping: ClipRetention(days: 7, now: Date()))
+        _ = try await store.record(pinned, keeping: week(from: .now))
+        _ = try await store.setPinned(true, of: pinned.id, keeping: week(from: .now))
 
         for index in 0..<3 {
             _ = try await store.record(
                 Clip(text: String(repeating: "\(index)", count: 4_000), kind: .text, copiedAt: Date()),
-                keeping: ClipRetention(days: 7, now: Date()))
+                keeping: week(from: .now))
         }
 
-        let clips = await store.clips(keeping: ClipRetention(days: 7, now: Date()))
+        let clips = await store.clips(keeping: week(from: .now))
 
         #expect(clips.contains { $0.id == pinned.id })
     }
@@ -303,13 +283,13 @@ struct ClipboardBudgetTests {
     /// A budget of nothing is a budget nobody set, not a clipboard that keeps nothing.
     @Test("no budget keeps everything")
     func zeroBudgetIsNoBudget() async throws {
-        let folder = try ClipboardDedupeTests.Folder()
+        let folder = try TemporaryFolder()
         let store = ClipboardStore(
             file: folder.url.appending(path: "c.json"), budget: .standard.limiting(bytes: 0, disk: 0))
 
         try await picture(store, byte: 1, size: 4_000)
         try await picture(store, byte: 2, size: 4_000)
 
-        #expect(await store.clips(keeping: ClipRetention(days: 7, now: Date())).count == 2)
+        #expect(await store.clips(keeping: week(from: .now)).count == 2)
     }
 }

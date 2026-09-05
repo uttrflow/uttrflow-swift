@@ -15,9 +15,6 @@ import Testing
 /// chance to run.
 @Suite("Anything saved is kept somewhere permanent")
 struct SavedClipsTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-    private func week() -> ClipRetention { ClipRetention(days: 7, now: noon) }
-
     private func clip(_ text: String, at offset: TimeInterval = 0) -> Clip {
         Clip(
             text: text, kind: .text, copiedAt: noon.addingTimeInterval(offset), source: "Notes")

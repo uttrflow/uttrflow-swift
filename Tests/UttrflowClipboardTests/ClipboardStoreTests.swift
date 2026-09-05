@@ -3,28 +3,8 @@ import Testing
 
 @testable import UttrflowClipboard
 
-/// A temporary file, gone when the test that made it is.
-struct TemporaryFile: ~Copyable {
-    let url: URL
-
-    init(named name: String = UUID().uuidString) {
-        url = URL.temporaryDirectory
-            .appending(path: "UttrflowClipboardTests/\(UUID().uuidString)/\(name)")
-    }
-
-    deinit {
-        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
-    }
-}
-
 @Suite("Everything the user has copied")
 struct ClipboardStoreTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-
-    private func week(from now: Date? = nil) -> ClipRetention {
-        ClipRetention(days: 7, now: now ?? noon)
-    }
-
     private func clip(
         _ text: String, at offset: TimeInterval = 0, alias: String? = nil,
         category: String? = nil, pinned: Bool = false

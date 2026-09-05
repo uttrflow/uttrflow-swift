@@ -100,9 +100,8 @@ public enum WorkingSet {
             .compactMap { $0 }
             .joined(separator: " ")
         let visible = Utterance(
-            words: onScreen.split { !$0.isLetter }
-                .prefix(maximumWordsOnScreen)
-                .map { SpokenWord(text: String($0), confidence: 1) })
+            words: LearnableWords.words(in: onScreen, atMost: maximumWordsOnScreen)
+                .map { SpokenWord(text: $0, confidence: 1) })
         return visible.sounds(upTo: PhoneticIndex.maximumWordsPerEntry)
     }
 
@@ -114,7 +113,7 @@ public enum WorkingSet {
         // clock has slipped scores as brand new rather than as impossibly valuable.
         let ageInDays = max(0, now.timeIntervalSince(entry.firstSeen)) / 86_400
         let recency = recencyHalfLifeInDays / (recencyHalfLifeInDays + ageInDays)
-        let onScreen = DoubleMetaphone.code(for: entry.soundsLike).keys.contains(where: wanted.contains)
+        let onScreen = DoubleMetaphone.code(for: entry.soundsLike).sounds(likeAnyOf: wanted)
         return frequency + recency + (onScreen ? affinityWeight : 0)
     }
 }

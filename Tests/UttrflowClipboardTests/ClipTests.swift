@@ -5,8 +5,6 @@ import Testing
 
 @Suite("What one clip is")
 struct ClipTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-
     private func clip(
         _ text: String = "hello", alias: String? = nil,
         category: String? = nil, pinned: Bool = false

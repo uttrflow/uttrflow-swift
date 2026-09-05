@@ -76,14 +76,14 @@ enum GeneralVocabulary {
         really here today tomorrow yesterday tonight please thanks thank yes okay sure maybe
         email mail meeting call message note notes update project client deadline draft
         document file folder link photo picture video schedule calendar reminder task list
-        plan review agenda summary hello morning afternoon evening regards best sincerely
-        cheers okay fine done ready sorry welcome again still never always often sometimes
+        plan review agenda summary hello afternoon evening regards best sincerely
+        cheers fine done ready sorry welcome again still never always often sometimes
         before during between under above through around against without within across
-        should must might shall cannot every each both another such same other more less
-        many much little few lots week weekend month quarter year daily weekly monthly
+        should must might shall cannot every each both another such more less
+        many much lots weekend quarter daily weekly monthly
         too why where while whom whose off once ago yet else though since until upon per
         via ever soon later things quite rather almost enough instead however therefore
-        actually basically probably definitely hi hey bye night week day thanks cool nice
+        actually basically probably definitely hi hey bye cool nice
         """)
 
     /// Romanised Hindi, and the Hinglish glue that holds a bilingual sentence together.
@@ -112,7 +112,7 @@ enum GeneralVocabulary {
         chhota bada bura jaldi der pehle baad andar bahar upar niche saath bina liye wala
         wali kuch sab sabhi koi kisi apna apne khud hoon tha thi thay sakta sakte sakti
         chahiye padega jaana jao aana aao rakho rakha batao bataya samajh samjha hai hain
-        mein jab tab jitna utna wahan yahan idhar udhar sirf agar warna kripya thik
+        mein jab tab jitna utna wahan yahan idhar udhar agar warna kripya
         """)
 
     /// One list, written the way a list is easiest to read and to add to.

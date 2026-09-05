@@ -55,15 +55,6 @@ public enum ClipClass: String, Sendable, Equatable, CaseIterable, Codable {
 
     /// Whether anything at all may remove a clip in this pool to make room.
     public var isEvictable: Bool { self != .kept }
-
-    public var title: String {
-        switch self {
-        case .kept: "Saved"
-        case .copied: "Copied"
-        case .dictation: "From Uttrflow"
-        case .images: "Pictures"
-        }
-    }
 }
 
 /// What one pool of clips may cost, and how it is cut back when it costs more.
@@ -183,25 +174,6 @@ public struct ClipboardBudget: Sendable, Equatable {
     /// clamped here: a budget that quietly shrank the numbers it was given would be a
     /// budget nobody could reason about from reading it.
     public var claimed: Int { copied.bytes + dictation.bytes + images.bytes }
-
-    /// The same budget with one bound narrowed across every pool.
-    ///
-    /// For tests, which are about whether a rule fires rather than about the number it
-    /// fires at — a test that had to spell out four tiers to say "cap it at three" would
-    /// be a test whose subject was the budget's shape.
-    public func limiting(
-        items: Int? = nil, bytes: Int? = nil, days: Int? = nil, largestClip: Int? = nil,
-        disk: Int? = nil
-    ) -> ClipboardBudget {
-        func narrowed(_ tier: ClipboardTier) -> ClipboardTier {
-            ClipboardTier(
-                bytes: bytes ?? tier.bytes, items: items ?? tier.items, days: days ?? tier.days)
-        }
-        return ClipboardBudget(
-            ceiling: ceiling, copied: narrowed(copied), dictation: narrowed(dictation),
-            images: narrowed(images), largestClip: largestClip ?? self.largestClip,
-            disk: disk ?? self.disk)
-    }
 
     /// The shape this build ships with.
     ///

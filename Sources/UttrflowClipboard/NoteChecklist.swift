@@ -70,62 +70,59 @@ public enum NoteChecklist {
 
         while let open = html[index...].firstIndex(of: "<") {
             guard let close = html[open...].firstIndex(of: ">") else { break }
-            let tag = String(html[open...close])
             index = html.index(after: close)
-
-            if let flipped = flipping(tag) {
-                found.append(
-                    Mark(
-                        range: open..<html.index(after: close),
-                        isChecked: isTicked(tag), flipped: flipped))
+            if let mark = mark(of: String(html[open...close]), at: open..<index) {
+                found.append(mark)
             }
         }
         return found
     }
 
-    /// The flipped spelling of a tag that is a checkbox, or `nil` when it is not one.
-    private static func flipping(_ tag: String) -> String? {
+    /// The box this tag is, or `nil` when it is not one.
+    private static func mark(of tag: String, at range: Range<String.Index>) -> Mark? {
         let lower = tag.lowercased()
-        guard lower.hasPrefix("<input"),
-            lower.contains("type=\"checkbox\"")
-                || lower.contains("type='checkbox'") || lower.contains("type=checkbox")
-        else {
-            return flippingListItem(tag)
-        }
-        return isTicked(tag)
+        let box = lower.hasPrefix("<input") ? inputBox(tag, lower) : listItemBox(tag, lower)
+        return box.map { Mark(range: range, isChecked: $0.isChecked, flipped: $0.flipped) }
+    }
+
+    /// A real `<input type="checkbox">`, as GitHub writes one.
+    private static func inputBox(_ tag: String, _ lower: String) -> (isChecked: Bool, flipped: String)? {
+        guard
+            lower.contains("type=\"checkbox\"") || lower.contains("type='checkbox'")
+                || lower.contains("type=checkbox")
+        else { return nil }
+        // A bare `checked` is the HTML spelling; `checked="checked"` is the XHTML one.
+        let isChecked = lower.contains(" checked") || lower.contains("checked=")
+        let flipped =
+            isChecked
             ? withoutCheckedAttribute(tag)
             : tag.replacingOccurrences(of: ">", with: " checked>", options: .backwards)
+        return (isChecked, flipped)
     }
 
     /// Apple Notes and TipTap mark the item rather than writing an input.
-    private static func flippingListItem(_ tag: String) -> String? {
-        let lower = tag.lowercased()
+    private static func listItemBox(_ tag: String, _ lower: String) -> (isChecked: Bool, flipped: String)? {
         guard lower.hasPrefix("<li") else { return nil }
+        let classes = tokens(of: "class", in: lower)
+        let isChecked = classes.contains("checked") || lower.contains("data-checked=\"true\"")
 
-        if tokens(of: "class", in: lower).contains("checked") {
-            return replacingToken("checked", with: "unchecked", in: tag)
+        if classes.contains("checked") {
+            return (isChecked, replacingToken("checked", with: "unchecked", in: tag))
         }
-        if tokens(of: "class", in: lower).contains("unchecked") {
-            return replacingToken("unchecked", with: "checked", in: tag)
+        if classes.contains("unchecked") {
+            return (isChecked, replacingToken("unchecked", with: "checked", in: tag))
         }
         if lower.contains("data-checked=\"true\"") {
-            return tag.replacingOccurrences(of: "data-checked=\"true\"", with: "data-checked=\"false\"")
+            return (isChecked, swappingDataChecked(tag, from: "true", to: "false"))
         }
         if lower.contains("data-checked=\"false\"") {
-            return tag.replacingOccurrences(of: "data-checked=\"false\"", with: "data-checked=\"true\"")
+            return (isChecked, swappingDataChecked(tag, from: "false", to: "true"))
         }
         return nil
     }
 
-    /// Whether this marker is ticked.
-    private static func isTicked(_ tag: String) -> Bool {
-        let lower = tag.lowercased()
-        if lower.hasPrefix("<input") {
-            // A bare `checked` is the HTML spelling; `checked="checked"` is the XHTML one.
-            return lower.contains(" checked") || lower.contains("checked=")
-        }
-        if tokens(of: "class", in: lower).contains("checked") { return true }
-        return lower.contains("data-checked=\"true\"")
+    private static func swappingDataChecked(_ tag: String, from old: String, to new: String) -> String {
+        tag.replacingOccurrences(of: "data-checked=\"\(old)\"", with: "data-checked=\"\(new)\"")
     }
 
     /// The values of one attribute, split into whole words.
