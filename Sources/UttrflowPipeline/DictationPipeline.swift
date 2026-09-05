@@ -470,8 +470,10 @@ public actor DictationPipeline {
         _ transcription: Transcription, saying text: String, seeing appContext: AppContext,
         recording metrics: any MetricsRecording
     ) async -> TransformationResult {
+        // Every piece of a dictation is tidied against the one screen read, so all see one situation.
         let request = TransformationRequest(
-            transcription: transcription.saying(text), context: appContext, profile: profile)
+            transcription: transcription.saying(text), context: appContext, profile: profile,
+            situation: SituationResolver.resolve(from: appContext))
         let untidied = TransformationResult(text: text, producedBy: .rules)
 
         do {

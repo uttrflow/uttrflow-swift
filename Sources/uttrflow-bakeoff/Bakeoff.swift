@@ -19,7 +19,7 @@ struct Bakeoff: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "uttrflow-bakeoff",
         abstract: "Score clean-up engines against the evaluation corpus.",
-        subcommands: [Footprint.self, Profile.self]
+        subcommands: [Footprint.self, Profile.self, Complete.self, Score.self]
     )
 
     @Option(name: .shortAndLong, help: "Comma-separated candidates. Defaults to every one.")
@@ -204,13 +204,7 @@ struct Bakeoff: AsyncParsableCommand {
     }
 
     private func request(for testCase: EvaluationCase) -> TransformationRequest {
-        TransformationRequest(
-            transcription: Transcription(
-                text: testCase.spoken,
-                detectedLanguage: DetectedLanguage(code: testCase.language)
-            ),
-            context: ignoreContext ? .unknown : testCase.context
-        )
+        testCase.transformationRequest(withholdingContext: ignoreContext)
     }
 
     // MARK: Reporting

@@ -51,3 +51,13 @@ struct CapturePreferencesFileTests {
         #expect(file.load() == preferences)
     }
 }
+
+@Suite("Where the answers about each application live")
+struct CapturePreferencesLocationTests {
+    @Test("They sit beside the corpus they gate, versioned in the name.")
+    func besideTheCorpus() {
+        let file = CapturePreferencesFile.defaultFile(in: URL(filePath: "/tmp/support"))
+        #expect(
+            file.path(percentEncoded: false) == "/tmp/support/Uttrflow/predict-consent.v1.json")
+    }
+}

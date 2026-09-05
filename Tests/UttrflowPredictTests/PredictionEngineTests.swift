@@ -95,6 +95,24 @@ struct PredictionEngineTests {
         #expect(suggestion([faint]) == .silent)
     }
 
+    @Test("A line entered once is offered from the moment it is learned.")
+    func aSingleFreshExactEntryDraws() {
+        #expect(suggestion([remembered("git commit -m", count: 1)]) == .certain("git commit -m"))
+    }
+
+    @Test("A single near-typed match is offered when it is the only candidate.")
+    func aSingleFuzzyMatchDraws() {
+        let fuzzy = remembered("git commit -m", count: 1, editDistance: 1)
+        #expect(Frecency.score(fuzzy, now: now) >= PredictionEngine.supportFloor)
+        #expect(suggestion([fuzzy]) == .certain("git commit -m"))
+    }
+
+    @Test("A two-edit guess on a single use is too uncertain to draw, so the floor is not zero.")
+    func aDistantSingleFuzzyMatchStaysQuiet() {
+        let distant = remembered("git commit -m", count: 1, editDistance: 2)
+        #expect(suggestion([distant]) == .silent)
+    }
+
     @Test("A list is capped, because past four options it is a search and not a choice.")
     func listIsCapped() {
         let crowd = (0..<9).map { remembered("candidate \($0)", count: 10) }
@@ -133,6 +151,17 @@ struct PredictionEngineTests {
         #expect(result == .choice(leader: "git push", others: ["git pull"]))
     }
 
+    @Test("A single irreversible command alone is never auto-offered, so one Tab cannot run it.")
+    func loneIrreversibleIsSilent() {
+        let alone = suggestion([remembered("git push --force", count: 90, irreversible: true)])
+        #expect(alone == .silent)
+    }
+
+    @Test("A single reversible command alone is still offered when it is strong.")
+    func loneReversibleIsCertain() {
+        #expect(suggestion([remembered("git status", count: 90)]) == .certain("git status"))
+    }
+
     @Test("A leader whose only rivals were barred is shown alone rather than as a choice of one.")
     func lonelyLeaderIsCertain() {
         let result = suggestion([
@@ -152,6 +181,34 @@ struct PredictionEngineTests {
     func refusalBeatsMinimised() {
         let context = PredictionContext(typed: "hunter2", isSecure: true, isMinimised: true)
         #expect(suggestion([remembered(count: 50)], context) == .silent)
+    }
+
+    @Test(
+        "Every silence names its reason, and a drawing names none.",
+        arguments: [
+            ([Candidate](), PredictionContext(typed: "git c"), Quieting.Reason?.some(.nothingOffered)),
+            (
+                [remembered("git commit -m", count: 1, lastUsed: daysAgo(400))],
+                PredictionContext(typed: "git c"), .evidenceTooThin
+            ),
+            (
+                [remembered("git push --force", count: 90, irreversible: true)],
+                PredictionContext(typed: "git p"), .irreversibleNotCertain
+            ),
+            ([remembered(count: 50)], PredictionContext(typed: "git c", isMinimised: true), .minimised),
+            (
+                [remembered(count: 50)],
+                PredictionContext(typed: "hunter2", isSecure: true, isMinimised: true), .secureField
+            ),
+            ([remembered(count: 50)], PredictionContext(typed: "git c"), nil),
+        ])
+    func silenceNamesItsReason(
+        candidates: [Candidate], context: PredictionContext, expected: Quieting.Reason?
+    ) {
+        let decided = PredictionEngine.decision(from: candidates, in: context, now: now)
+        #expect(decided.silence == expected)
+        #expect(decided.suggestion == suggestion(candidates, context))
+        #expect((decided.silence == nil) == (decided.suggestion.accepting != nil))
     }
 
     @Test("What Tab would insert is what is on screen.")

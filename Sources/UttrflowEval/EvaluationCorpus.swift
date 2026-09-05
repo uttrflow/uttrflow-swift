@@ -332,5 +332,66 @@ public enum EvaluationCorpus {
             ),
             mustNotAdd: ["func", "var", "TODO"]
         ),
+
+        // Each names its destination outright, so the formatter is measured and not the classifier.
+        .init(
+            id: "message-two-sentences-no-stop", category: .contextual,
+            spoken: "are you around yet i should be there in ten",
+            expected: "Are you around yet? I should be there in ten",
+            mustKeep: ["ten"],
+            context: AppContext(
+                applicationName: "Slack",
+                bundleIdentifier: "com.tinyspeck.slackmacgap",
+                documentName: "Priya Nair (DM) — Northwind"
+            ),
+            mustNotAdd: ["."],
+            destination: .messaging,
+            mustEndWith: "in ten"
+        ),
+        .init(
+            id: "mid-sentence-continues-lower-case", category: .contextual,
+            spoken: "the deployment script timed out",
+            expected: "the deployment script timed out.",
+            mustKeep: ["deployment"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Incident log",
+                precedingText: "The build was red this morning because "
+            ),
+            destination: .document,
+            mustBeginWith: "the deployment",
+            mustEndWith: "."
+        ),
+        .init(
+            id: "spreadsheet-cell-no-stop", category: .contextual,
+            spoken: "uh total revenue for the quarter",
+            expected: "total revenue for the quarter",
+            mustKeep: ["revenue"],
+            context: AppContext(
+                applicationName: "Numbers",
+                bundleIdentifier: "com.apple.iWork.Numbers",
+                documentName: "Forecast.numbers"
+            ),
+            mustNotAdd: ["."],
+            destination: .spreadsheet,
+            mustBeginWith: "total",
+            mustEndWith: "quarter"
+        ),
+        .init(
+            id: "document-sentence-with-stop", category: .contextual,
+            spoken: "the quarterly report is attached for your review",
+            expected: "The quarterly report is attached for your review.",
+            mustKeep: ["quarterly"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Board pack.docx",
+                precedingText: ""
+            ),
+            destination: .document,
+            mustBeginWith: "The",
+            mustEndWith: "."
+        ),
     ]
 }

@@ -2,6 +2,7 @@
 
 import AppKit
 import UttrflowCore
+import UttrflowLocalModel
 import UttrflowPipeline
 
 /// The app, owning nothing but the objects it wires together.
@@ -9,7 +10,10 @@ import UttrflowPipeline
 enum UttrflowApp {
     static func main() {
         let application = NSApplication.shared
-        let delegate = AppDelegate()
+        // One model both validates a remembered suggestion and invents one where there is none.
+        let model = MLXCandidateScorer(model: .gemma3)
+        Task.detached { try? await model.prepare() }
+        let delegate = AppDelegate(scoring: model, generating: model)
         application.delegate = delegate
         // Regular, not accessory: Uttrflow has a Dock icon and its window opens at launch.
         application.setActivationPolicy(.regular)

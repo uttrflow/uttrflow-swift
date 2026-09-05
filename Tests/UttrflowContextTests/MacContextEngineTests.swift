@@ -104,6 +104,26 @@ struct MacContextEngineTests {
         #expect(context.isEmpty == false)
     }
 
+    @Test("carries the caret text verbatim, so an empty field reads as the start of the text")
+    func reportsTheCaretText() async {
+        let window = FocusedWindow(title: "Notes", precedingText: "", followingText: "  ")
+        let context = await makeEngine(frontmost: slack, window: window).currentContext()
+
+        #expect(context.precedingText == "")
+        #expect(context.followingText == "  ")
+        #expect(context.insertionPoint.sentenceState == .startOfText)
+    }
+
+    @Test("reports no caret text when the field would not say")
+    func reportsNoCaretText() async {
+        let context = await makeEngine(frontmost: slack, window: FocusedWindow(title: "Notes"))
+            .currentContext()
+
+        #expect(context.precedingText == nil)
+        #expect(context.followingText == nil)
+        #expect(context.insertionPoint.sentenceState == .unknown)
+    }
+
     @Test("reads the window of the application it is reporting on")
     func readsTheWindowOfTheSubject() async {
         let asked = Mutex<FrontmostApplication?>(nil)

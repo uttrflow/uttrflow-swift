@@ -1,3 +1,4 @@
+import UttrflowCore
 import CryptoKit
 
 public import struct Foundation.Date
@@ -88,7 +89,7 @@ public actor ClipboardStore {
     ///   test has a reason to pass one.
     /// - Returns: The file the clipboard is read from and written to.
     public static func defaultFile(in directory: URL = .applicationSupportDirectory) -> URL {
-        directory.appending(path: "Uttrflow/clipboard.v1.json", directoryHint: .notDirectory)
+        LocalStore.file("clipboard.v1.json", in: directory)
     }
 
     // MARK: - Reading

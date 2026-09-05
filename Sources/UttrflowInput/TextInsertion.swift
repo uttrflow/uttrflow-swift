@@ -25,4 +25,15 @@ public enum TextInsertion {
             ClipboardTextInsertionEngine(pasteboard: pasteboard),
         ])
     }
+
+    /// The route an accepted suggestion takes, which has no clipboard in it at all. See `Docs/predict-accept.md`.
+    public static func completion(
+        focus: any AccessibilityFocus = AXAccessibilityFocus(),
+        typist: any KeystrokeTyping = CGEventTypist()
+    ) -> CompletionRoute {
+        CompletionRoute(strategies: [
+            AccessibilityTextInsertionEngine(focus: focus),
+            TypedTextInsertionEngine(focus: focus, typist: typist),
+        ])
+    }
 }

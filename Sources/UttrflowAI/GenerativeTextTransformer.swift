@@ -46,7 +46,11 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
 
         // Models echo the worked examples' label around the answer, so it is unwrapped before judging.
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
-        let finished = TextTidy.ensureTerminalPunctuation(TextTidy.collapseSpacing(unwrapped))
+        let formatter = DestinationFormatter.standard(for: request.situation.destination)
+        let cased = FirstWordRule.apply(
+            TextTidy.collapseSpacing(unwrapped), heard: spoken, policy: formatter.firstWord,
+            state: request.situation.insertion.sentenceState, onScreen: request.situation.app.textOnScreen)
+        let finished = TerminalStopRule.apply(cased, policy: formatter.terminalStop)
 
         // A rejection is not a product failure: the router moves on to the next engine.
         if case .rejected(let reason) = meaningGuard.verdict(original: spoken, rewritten: finished) {

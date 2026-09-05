@@ -35,8 +35,8 @@ public struct ProbeReport: Sendable {
         let eligible = percentage(sweep.eligibleShare)
         let decision =
             sweep.inlineIsWorthBuilding
-            ? "Build the ladder in full: the inline ghost reaches enough fields to be the default."
-            : "Ship the window strip as the product; the inline ghost reaches too few fields to lead with."
+            ? "The inline ghost reaches enough fields to be worth it; it is the only surface."
+            : "The inline ghost reaches too few fields to lead with, and there is no other surface to fall back on."
         return """
             \(sweep.readings.count) fields read. \(eligible) can take a suggestion at all, \
             \(inline) can take the inline ghost \
@@ -55,7 +55,6 @@ public struct ProbeReport: Sendable {
     private func name(_ placement: SuggestionPlacement?) -> String {
         switch placement {
         case .inlineGhost: "inline ghost"
-        case .caretChip: "caret chip"
         case .windowStrip: "window strip"
         case nil: "nothing"
         }

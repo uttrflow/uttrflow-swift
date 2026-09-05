@@ -17,11 +17,15 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
+        let formatter = DestinationFormatter.standard(for: request.situation.destination)
         var text = TextTidy.collapseWhitespace(request.transcription.text)
         text = TextTidy.removeFillers(text)
         text = TextTidy.capitalisePronounI(text)
         text = TextTidy.capitaliseSentences(text)
-        text = TextTidy.ensureTerminalPunctuation(text)
+        text = FirstWordRule.apply(
+            text, heard: request.transcription.text, policy: formatter.firstWord,
+            state: request.situation.insertion.sentenceState, onScreen: request.situation.app.textOnScreen)
+        text = TerminalStopRule.apply(text, policy: formatter.terminalStop)
         return TransformationResult(text: text, producedBy: kind)
     }
 }

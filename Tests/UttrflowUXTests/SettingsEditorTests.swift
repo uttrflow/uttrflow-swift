@@ -276,8 +276,10 @@ struct SettingsChangeTests {
         for field in SettingsToggleField.allCases {
             var settings = Settings.default
             // Cleared first: the grip switch is refused while the button is hidden,
-            // which is a dependency and not the thing under examination here.
+            // and the quiet switch while suggestions are off. Both are dependencies
+            // rather than the thing under examination here.
             settings.showsFloatingButton = true
+            settings.suggestions.isEnabled = true
             let off = try applied(.toggle(field, isOn: false), to: settings)
             #expect(!SettingsPresenter.value(of: field, in: off), "\(field) did not go off")
 

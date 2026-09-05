@@ -15,9 +15,21 @@ Each released version is a git tag and a build at
   are still talking, so releasing the key leaves only the last piece to do. A two-minute
   dictation used to wait fourteen seconds; the tidier is also warmed as recording starts.
   A retried recording is processed in the same pieces, which is what stops the tidier
-  losing words past about four minutes. `Docs/early-transcription.md` has the numbers.
+  losing words past about four minutes. A speaker who never pauses for half a minute is
+  cut at their quietest moment rather than mid-word. `Docs/early-transcription.md` has
+  the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **The tidier knows where the words are going.** The context read now takes the text
+  either side of the caret from the focused field, and the app is classified as a
+  document, spreadsheet, SQL editor, code editor, messaging app, email client or plain
+  text from one table of bundle identifiers and window titles. Two decisions follow
+  from that: dictation into the middle of a sentence starts lower-case ("…because " +
+  "the build failed") unless the first word is a name the screen or the rest of the
+  dictation shows capitalised, and a message of one or two sentences in Slack, WhatsApp,
+  Telegram, Discord, Messages or Teams ends without a full stop, as does a spreadsheet
+  cell or a line in a code editor. Apps that do not report their field, Electron ones
+  among them, keep today's capital. `Docs/cleanup.md` has the rules.
 - **A dictation that fails can be retried from its audio.** Every recording is written to
   this Mac while the key is held, beside the buffer the recogniser reads, and deleted the
   moment the words land. When the words are lost — the recogniser fails, or the app dies

@@ -30,6 +30,12 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
     public let context: AppContext
     /// Words that must not appear, such as `DESC` the context suggested but the speaker never said.
     public let mustNotAdd: [String]
+    /// The kind of place the words go, which picks the formatter the engine works under.
+    public let destination: Destination
+    /// Exactly how the output must begin, case and all, for a case about its first word.
+    public let mustBeginWith: String?
+    /// Exactly how the output must end, for a case about its final mark.
+    public let mustEndWith: String?
 
     public init(
         id: String,
@@ -39,7 +45,10 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         expected: String,
         mustKeep: [String] = [],
         context: AppContext = .unknown,
-        mustNotAdd: [String] = []
+        mustNotAdd: [String] = [],
+        destination: Destination = .plain,
+        mustBeginWith: String? = nil,
+        mustEndWith: String? = nil
     ) {
         self.id = id
         self.category = category
@@ -49,5 +58,22 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         self.mustKeep = mustKeep
         self.context = context
         self.mustNotAdd = mustNotAdd
+        self.destination = destination
+        self.mustBeginWith = mustBeginWith
+        self.mustEndWith = mustEndWith
+    }
+
+    /// The situation the case is dictated in: its own destination, never the classifier's guess.
+    public var situation: Situation {
+        Situation(app: context, insertion: context.insertionPoint, destination: destination)
+    }
+
+    /// The request an engine is handed for this case; withholding the screen withholds the situation too.
+    public func transformationRequest(withholdingContext: Bool = false) -> TransformationRequest {
+        TransformationRequest(
+            transcription: Transcription(text: spoken, detectedLanguage: DetectedLanguage(code: language)),
+            context: withholdingContext ? .unknown : context,
+            situation: withholdingContext ? .unknown : situation
+        )
     }
 }

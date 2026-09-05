@@ -34,13 +34,17 @@ extension AppContext {
         applicationName: String? = "Slack",
         bundleIdentifier: String? = "com.tinyspeck.slackmacgap",
         documentName: String? = "#engineering",
-        selectedText: String? = nil
+        selectedText: String? = nil,
+        precedingText: String? = nil,
+        followingText: String? = nil
     ) -> AppContext {
         AppContext(
             applicationName: applicationName,
             bundleIdentifier: bundleIdentifier,
             documentName: documentName,
-            selectedText: selectedText
+            selectedText: selectedText,
+            precedingText: precedingText,
+            followingText: followingText
         )
     }
 }
@@ -49,8 +53,10 @@ extension TransformationRequest {
     public static func fixture(
         transcription: Transcription = .fixture(),
         context: AppContext = .fixture(),
-        profile: UserProfile = .default
+        profile: UserProfile = .default,
+        situation: Situation? = nil
     ) -> TransformationRequest {
-        TransformationRequest(transcription: transcription, context: context, profile: profile)
+        TransformationRequest(
+            transcription: transcription, context: context, profile: profile, situation: situation)
     }
 }

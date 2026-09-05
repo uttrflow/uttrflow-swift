@@ -156,6 +156,8 @@ final class MenuBarController: NSObject {
         item.isEnabled = command.isEnabled
         item.isAlternate = command.isAlternate
         item.toolTip = command.tooltip
+        // A tick, so a switch reads as a switch rather than as a command that runs twice.
+        item.state = command.isChecked ? .on : .off
         item.representedObject = command.intent
         return item
     }

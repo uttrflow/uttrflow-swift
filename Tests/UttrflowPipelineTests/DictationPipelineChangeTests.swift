@@ -545,6 +545,21 @@ struct DictationPipelineContextTests {
         #expect(cleaner.requests.map(\.context) == [.fixture()])
     }
 
+    @Test("Hands the tidier the situation the screen resolves to, caret and all")
+    func resolvesTheSituation() async {
+        let context = FakeContextEngine(context: .fixture())
+        await context.setInsertionPoint(InsertionPoint(precedingText: "because "))
+        let cleaner = FakeCleaner()
+        let pipeline = makePipeline(cleaner: cleaner, context: context)
+
+        await dictate(with: pipeline)
+
+        let situation = cleaner.requests.first?.situation
+        #expect(situation?.destination == .messaging)
+        #expect(situation?.insertion.sentenceState == .midSentence)
+        #expect(situation?.app == cleaner.requests.first?.context)
+    }
+
     @Test("Still names the application the words went into")
     func namesTheApplication() async {
         let pipeline = makePipeline(corrector: FakeCorrector(proposing: [paymentSheet]))

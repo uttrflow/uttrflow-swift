@@ -8,16 +8,20 @@ public struct TransformationRequest: Sendable, Equatable {
     public let context: AppContext
     /// Who is dictating and how they write.
     public let profile: UserProfile
+    /// Where the words are going, resolved from the context unless a caller already knows.
+    public let situation: Situation
 
     /// A request; context and profile default to knowing nothing.
     public init(
         transcription: Transcription,
         context: AppContext = .unknown,
-        profile: UserProfile = .default
+        profile: UserProfile = .default,
+        situation: Situation? = nil
     ) {
         self.transcription = transcription
         self.context = context
         self.profile = profile
+        self.situation = situation ?? SituationResolver.resolve(from: context)
     }
 
     /// The language to route on: what the engine heard, else the user's first preferred language.

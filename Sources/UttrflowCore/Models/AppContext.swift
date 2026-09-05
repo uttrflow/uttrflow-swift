@@ -8,18 +8,26 @@ public struct AppContext: Sendable, Equatable, Codable {
     public let documentName: String?
     /// Text the user had selected, where readable. Never modified by the pipeline.
     public let selectedText: String?
+    /// Up to ``InsertionPoint/precedingLimit`` characters before the caret; `nil` when the field will not say.
+    public let precedingText: String?
+    /// Up to ``InsertionPoint/followingLimit`` characters after the selection; `nil` when the field will not say.
+    public let followingText: String?
 
     /// A context; anything not supplied is unknown.
     public init(
         applicationName: String? = nil,
         bundleIdentifier: String? = nil,
         documentName: String? = nil,
-        selectedText: String? = nil
+        selectedText: String? = nil,
+        precedingText: String? = nil,
+        followingText: String? = nil
     ) {
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
         self.documentName = documentName
         self.selectedText = selectedText
+        self.precedingText = precedingText
+        self.followingText = followingText
     }
 
     /// The context available when macOS tells us nothing.
@@ -31,5 +39,7 @@ public struct AppContext: Sendable, Equatable, Codable {
             && bundleIdentifier == nil
             && documentName == nil
             && selectedText == nil
+            && precedingText == nil
+            && followingText == nil
     }
 }

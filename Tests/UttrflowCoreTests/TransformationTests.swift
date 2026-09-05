@@ -40,6 +40,20 @@ struct TransformationRequestTests {
         let request = TransformationRequest(transcription: .fixture())
         #expect(request.context == .unknown)
         #expect(request.profile == .default)
+        #expect(request.situation == .unknown)
+    }
+
+    @Test("resolves the situation from the context unless a caller already knows it")
+    func situation() {
+        let slack = AppContext.fixture(precedingText: "because ")
+        let resolved = TransformationRequest(transcription: .fixture(), context: slack)
+        #expect(resolved.situation.destination == .messaging)
+        #expect(resolved.situation.insertion.sentenceState == .midSentence)
+
+        let told = Situation(app: slack, insertion: .unknown, destination: .email)
+        let request = TransformationRequest(transcription: .fixture(), context: slack, situation: told)
+        #expect(request.situation == told)
+        #expect(TransformationRequest.fixture(situation: told).situation == told)
     }
 }
 
