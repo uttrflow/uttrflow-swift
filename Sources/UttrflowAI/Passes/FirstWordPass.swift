@@ -39,7 +39,7 @@ public struct FirstWordPass: CleaningPass {
             if isFirst {
                 cased = firstWord(cased, in: text, heard: heardWords)
             } else if startOfSentence {
-                cased = Self.capitalised(cased)
+                cased = WordShape.capitalised(cased)
             }
             draft.replace(at: index, with: cased, by: Self.id)
             startOfSentence = WordShape(cased).endsSentence
@@ -52,14 +52,14 @@ public struct FirstWordPass: CleaningPass {
     private func firstWord(_ word: String, in text: String, heard: [String]) -> String {
         switch policy {
         case .alwaysCapital:
-            return Self.capitalised(word)
+            return WordShape.capitalised(word)
         case .asSpoken:
             return Self.matchingHeardCase(word, heard: heard)
         case .fromInsertionPoint:
             guard state == .midSentence, !Self.keepsCapital(word),
                 !Self.looksLikeName(word, in: [text] + onScreen)
-            else { return Self.capitalised(word) }
-            return Self.lowercased(word)
+            else { return WordShape.capitalised(word) }
+            return WordShape.lowercased(word)
         }
     }
 
@@ -70,20 +70,6 @@ public struct FirstWordPass: CleaningPass {
             return text
         }
         return shape.replacingCore(with: "I" + shape.core.dropFirst())
-    }
-
-    /// Uppercases the first letter; a leading digit counts as the start and stays as it is.
-    static func capitalised(_ text: String) -> String {
-        guard let start = text.firstIndex(where: { $0.isLetter || $0.isNumber }) else { return text }
-        return String(text[..<start]) + text[start].uppercased() + String(text[text.index(after: start)...])
-    }
-
-    /// Lowercases the first letter; a leading digit counts as the start and stays as it is.
-    static func lowercased(_ text: String) -> String {
-        guard let start = text.firstIndex(where: { $0.isLetter || $0.isNumber }), text[start].isLetter else {
-            return text
-        }
-        return String(text[..<start]) + text[start].lowercased() + String(text[text.index(after: start)...])
     }
 
     /// Whether a word keeps its capital mid-sentence: "I" and its contractions, or an acronym.
@@ -101,7 +87,7 @@ public struct FirstWordPass: CleaningPass {
             let spoken = heard.first(where: { $0.filter(\.isLetter).lowercased() == letters }),
             let lead = spoken.first(where: \.isLetter)
         else { return word }
-        return lead.isUppercase ? capitalised(word) : lowercased(word)
+        return lead.isUppercase ? WordShape.capitalised(word) : WordShape.lowercased(word)
     }
 
     /// Whether a text holds the word capitalised off a sentence start; a title-cased text says nothing.
