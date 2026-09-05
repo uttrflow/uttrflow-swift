@@ -4,22 +4,7 @@ private import UttrflowAudio
 private import UttrflowCore
 private import UttrflowEval
 
-/// Walks the operator through reading the corpus aloud, once.
-///
-/// The recordings are the expensive half of Phase 8 and the only half a machine cannot
-/// do: roughly twenty minutes of somebody's afternoon, after which every transcription
-/// measurement for the rest of the project runs unattended off the same audio.
-///
-/// So the session is built to be interrupted. Each take is written to disk the moment it
-/// is accepted, and the next run starts from what is missing — five passages in and
-/// called away is five passages banked, not a session to repeat.
-///
-/// Uploading is layered on top of that and never underneath it. The local write is the
-/// commit: a take reaches the disk before the corpus service is told anything, so a dead
-/// connection, a backend without the endpoint, or a laptop closed mid-sentence costs an
-/// upload and never a recording. What has not gone up is worked out by comparing the
-/// recordings on disk with the receipts beside them, and `--sync` sends the difference,
-/// tomorrow or next week.
+/// Walks the operator through reading the corpus aloud; each take hits disk before any upload.
 struct RecordCorpus: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "record",
@@ -31,8 +16,7 @@ struct RecordCorpus: AsyncParsableCommand {
     @Option(name: .long, help: "Where the recorded corpus lives.")
     var corpusPath = TranscriptionCorpusStore.defaultDirectoryName
 
-    /// Short and slug-safe, because it becomes part of the sample's name in the bucket.
-    /// Validated before a word is spoken — see ``validate()``.
+    /// Short and slug-safe, because it becomes part of the sample's name in the bucket; see ``validate()``.
     @Option(name: .long, help: "Which recording cohort this sitting belongs to, e.g. naveen-quiet.")
     var cohort: String?
 
@@ -69,10 +53,7 @@ struct RecordCorpus: AsyncParsableCommand {
         if let redo, TranscriptionCorpus.passage(redo) == nil {
             throw ValidationError("No passage called '\(redo)'.")
         }
-        // Checked here rather than at upload time, which is the whole reason it is
-        // checked at all: a name the catalogue refuses is discovered at the end of a
-        // sitting, after somebody has read forty passages, and by then the useful moment
-        // to fix it has gone.
+        // Checked before a word is spoken, so a refused name is not discovered after forty passages.
         if let cohort, !CorpusSlug.isValid(cohort) {
             throw ValidationError(
                 "'\(cohort)' is not a name the corpus catalogue accepts. Two to sixty-four "
@@ -168,9 +149,7 @@ struct RecordCorpus: AsyncParsableCommand {
             let recorded = RecordedPassage(
                 passage: passage, recordedAt: Date(), durationSeconds: seconds,
                 sampleRate: audio.sampleRate, cohort: recordingCohort())
-            // Disk first, always. Everything after this line can fail without costing
-            // the take, and that ordering is what makes a sixty-minute sitting over a
-            // domestic connection a reasonable thing to ask of somebody.
+            // Disk first: everything after this line can fail without costing the take.
             try store.save(recorded, audio: WAVEncoder.encode(audio))
             print("  kept as \(passage.id).wav")
 
@@ -191,11 +170,7 @@ struct RecordCorpus: AsyncParsableCommand {
         }
     }
 
-    /// What is worth saying about a take before the operator decides to keep it.
-    ///
-    /// Said here rather than discovered weeks later in a report: a recording made with no
-    /// microphone access is silent, and finding that out after eighteen passages would
-    /// waste the entire session.
+    /// Warns about a take before the operator keeps it, so a silent microphone is caught on passage one.
     private func warnings(peak: Float, seconds: Double, passage: TranscriptionCase) -> [String] {
         var warnings: [String] = []
         if peak < 0.001 {
@@ -206,8 +181,7 @@ struct RecordCorpus: AsyncParsableCommand {
             warnings.append("Very quiet — worth reading it again closer to the microphone.")
         }
         if peak > 0.99 { warnings.append("Clipping. Move back a little and read it again.") }
-        // Two words a second is slow even for dictation, so anything under this means the
-        // recording was stopped before the passage ended.
+        // Under two and a half words a second means the recording stopped before the passage ended.
         let expected = Double(TranscriptionCorpus.wordCount(of: passage)) / 2.5
         if seconds < expected * 0.6 {
             warnings.append("That looks short for this passage — did it get cut off?")
@@ -243,9 +217,7 @@ struct RecordCorpus: AsyncParsableCommand {
 
     private func recordingCohort() -> RecordingCohort? {
         guard let cohort else { return nil }
-        // Defaulted rather than demanded: a cohort with no description is still a cohort
-        // worth telling apart, and refusing to record until somebody has typed a
-        // sentence about their room would be the wrong place to be strict.
+        // A cohort with no description is still a cohort worth telling apart, so it is defaulted.
         return RecordingCohort(
             id: cohort, speaker: speaker ?? cohort, setting: setting ?? "not recorded")
     }
@@ -270,8 +242,7 @@ struct RecordCorpus: AsyncParsableCommand {
         Terminal.clearLine()
 
         print("\(summary.uploaded.count) uploaded.")
-        // Grouped by reason: nine hundred recordings behind one unreachable backend is
-        // one line, not nine hundred.
+        // Grouped by reason: nine hundred recordings behind one unreachable backend is one line.
         report("held back, and will be retried", summary.heldBack)
         report("refused, and need somebody to look", summary.rejected)
         if summary.outstanding > 0 {
@@ -332,8 +303,7 @@ struct RecordCorpus: AsyncParsableCommand {
                     + (unattributed > 0 ? ", \(RecordingCohort.unattributed) \(unattributed)" : ""))
         }
 
-        // Printed here rather than only under --sync so that "how much of this sitting is
-        // actually in the corpus" is answered by the command somebody already runs.
+        // Printed without --sync too, so the usual command says how much of the sitting is uploaded.
         guard
             let receipts = try? CorpusUploadOutbox(
                 recordings: store, uploader: NoUploader()
@@ -346,12 +316,7 @@ struct RecordCorpus: AsyncParsableCommand {
         }
     }
 
-    /// Stands in when the receipts are only being *read*.
-    ///
-    /// ``CorpusUploadOutbox`` needs an uploader to exist, and `--summarise` must work
-    /// with no backend flag and no network — that is the whole point of the receipts
-    /// being on disk. Refusing rather than pretending, so a stray call site cannot
-    /// silently do nothing and report success.
+    /// Refuses to upload, for paths that only read receipts, so a stray call cannot fake success.
     private struct NoUploader: CorpusUploading {
         func register(_ sample: CorpusSample) async throws(CorpusError) -> CorpusUpload {
             throw .unreachable("no corpus service was configured for this command")

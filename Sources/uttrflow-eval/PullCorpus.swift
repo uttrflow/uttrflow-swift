@@ -4,11 +4,6 @@ private import Synchronization
 private import UttrflowEval
 
 /// Brings the corpus catalogue, and as much of its audio as is wanted, onto this Mac.
-///
-/// The corpus outgrew a directory of eighteen WAVs some time ago. It lives in a private
-/// bucket, is listed by the backend, and is fetched through short-lived signed URLs —
-/// none of which the app knows anything about, and none of which needs to happen more
-/// than once per sample per machine.
 struct PullCorpus: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pull",
@@ -52,16 +47,14 @@ struct PullCorpus: AsyncParsableCommand {
         summarise(samples)
         if listOnly { return }
 
-        // A mutex rather than a plain counter: the progress callback is `@Sendable`, and
-        // a captured `var` would be a data race the compiler is right to refuse.
+        // A mutex rather than a captured `var`, because the progress callback is `@Sendable`.
         let done = Mutex(0)
         let failures = await library.fetchAll(samples) { _, _ in
             let count = done.withLock { count in
                 count += 1
                 return count
             }
-            // On standard error and on one line, so a thousand samples do not scroll the
-            // catalogue summary off the screen.
+            // On standard error and on one line, so the catalogue summary is not scrolled away.
             Terminal.show("\rfetching \(count)/\(samples.count)…")
         }
         Terminal.clearLine()
@@ -70,8 +63,7 @@ struct PullCorpus: AsyncParsableCommand {
             print("\nEverything is on this Mac.")
             return
         }
-        // Grouped by reason, because a thousand samples behind one misconfigured backend
-        // is one problem, not a thousand.
+        // Grouped by reason, because a thousand samples behind one misconfigured backend is one problem.
         print("\n\(failures.count) could not be fetched:")
         let byReason = Dictionary(grouping: failures) { "\($0.error)" }
         for (reason, group) in byReason.sorted(by: { $0.key < $1.key }) {
@@ -81,11 +73,7 @@ struct PullCorpus: AsyncParsableCommand {
         print("\nEverything already here was kept; run pull again to pick up the rest.")
     }
 
-    /// What the catalogue holds, before a byte is downloaded.
-    ///
-    /// Printed because a pull is the moment somebody finds out the corpus is not the
-    /// shape they assumed — nine hundred English samples and forty Hindi ones is a
-    /// finding, and it is invisible in a per-sample list.
+    /// Prints what the catalogue holds by language and cohort before a byte is downloaded.
     private func summarise(_ samples: [CorpusSample]) {
         print("\nlanguage".padded(to: 16) + "samples".padded(to: 10) + "speech")
         for (tag, group) in Dictionary(grouping: samples, by: \.language).sorted(by: { $0.key < $1.key }) {

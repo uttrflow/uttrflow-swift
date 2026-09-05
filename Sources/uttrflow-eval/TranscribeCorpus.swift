@@ -6,14 +6,7 @@ private import UttrflowCore
 private import UttrflowEval
 private import UttrflowSpeech
 
-/// Runs the recorded corpus through a recogniser and reports word error rate, latency
-/// and failures. Needs nobody in the room.
-///
-/// Each passage's score is written to disk as it finishes, so a run that dies on the
-/// fifteenth still reports the first fourteen, and `--summarise` prints what has already
-/// been measured without touching a model. That is the shape `uttrflow-bakeoff`
-/// established and there is no reason for the two halves of Phase 8 to behave
-/// differently.
+/// Measures a recogniser against the recorded corpus and gates it. See Docs/eval-methodology.md.
 struct TranscribeCorpus: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "transcribe",
@@ -32,14 +25,11 @@ struct TranscribeCorpus: AsyncParsableCommand {
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
 
-    /// The product detects the language rather than being told it, so that is what is
-    /// measured by default. Whether telling it helps is a question worth an answer, not
-    /// an assumption worth building in.
+    /// Off by default because the product detects the language rather than being told it.
     @Flag(name: .long, help: "Tell the engine each passage's language instead of letting it detect.")
     var hintLanguage = false
 
-    /// Measuring the recogniser alone says how well Uttrflow hears. It does not say what
-    /// the user waits for, which is the recogniser plus the clean-up behind it.
+    /// Times the recogniser plus clean-up, which is what the user waits for.
     @Flag(name: .long, help: "Also run clean-up, so the whole shipping path is timed.")
     var shipping = false
 
@@ -51,9 +41,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     @OptionGroup var connection: CorpusConnection
 
-    /// The local corpus is eighteen passages somebody read here; the catalogue is the
-    /// thousand in the bucket. Both are measured the same way and reported the same way,
-    /// which is the point of keeping the runner ignorant of where audio comes from.
+    /// Measures the backend catalogue with the same runner and report as the local recordings.
     @Flag(name: .long, help: "Measure the corpus catalogue from the backend instead of the local recordings.")
     var fromCatalogue = false
 
@@ -66,9 +54,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
     @Option(name: .long, help: "Compare with a stored baseline at this path.")
     var baseline: String?
 
-    /// Writing a baseline is a deliberate act: it says "this is the number we are
-    /// prepared to defend". Doing it automatically at the end of every run would mean
-    /// the gate always compares a change with itself and can never fail.
+    /// Writes the baseline only on request, so the gate never compares a change with itself.
     @Flag(name: .long, help: "Write this run to --baseline as the new point of comparison.")
     var saveBaseline = false
 
@@ -95,9 +81,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         let results = JSONRecordStore<PassageScore>(directory: URL(fileURLWithPath: resultsDirectory()))
 
         if summarise {
-            // Stored results come back in whatever order the file system offers them, so
-            // they are put back into corpus order here — a report whose rows move between
-            // runs is one nobody can compare with the last one.
+            // Stored results come back in file-system order, so they are put back into corpus order.
             let stored = TranscriptionCorpus.inCorpusOrder(try results.all())
             try compare(reporting: TranscriptionReport(label: label(model), scores: stored))
             return
@@ -135,13 +119,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     // MARK: Where the audio comes from
 
-    /// The recordings to measure, and where each one's audio is.
-    ///
-    /// A pair rather than a protocol, because the only thing that differs between the
-    /// local corpus and the catalogue is which directory the WAV is in. Everything after
-    /// this point — the runner, the scorer, the report — cannot tell them apart, which is
-    /// what lets eighteen local passages and a thousand catalogue samples be compared at
-    /// all.
+    /// The recordings to measure and the directory holding each one's audio.
     private struct Source {
         let recordings: [RecordedPassage]
         let audioURL: @Sendable (String) -> URL
@@ -168,9 +146,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
         let held = library.held(of: samples)
         guard held.cached == samples.count else {
-            // Refused rather than downloaded here. A measurement run that also fetches
-            // three gigabytes reports a latency that includes somebody's broadband, and
-            // an interrupted one leaves a half-measured corpus behind.
+            // Refuses rather than downloads: a fetch inside a measurement run puts broadband in the latency.
             throw CleanExit.message(
                 "\(samples.count - held.cached) of \(samples.count) samples are not on this Mac yet. "
                     + "Run: uttrflow-eval pull --backend …")
@@ -180,11 +156,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             recordings: samples.map(recorded), audioURL: { cache.audioURL(for: $0) })
     }
 
-    /// A catalogue sample as the runner wants it.
-    ///
-    /// `recordedAt` is the moment of this run, not of the recording: the catalogue does
-    /// not say when a sample was captured, and inventing a date would put a fiction in
-    /// the results file. Nothing scores on it.
+    /// A catalogue sample as the runner wants it; `recordedAt` is the run time, the catalogue has none.
     private func recorded(_ sample: CorpusSample) -> RecordedPassage {
         RecordedPassage(
             passage: sample.passage, recordedAt: Date(),
@@ -206,9 +178,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         do {
             audio = try AudioFileReader.read(contentsOf: audioURL(recording.id))
         } catch {
-            // Not timed as capture: reading a file off disk is not what capture costs,
-            // and recording it as though it were would put a number in the capture row
-            // that has nothing to do with the microphone.
+            // Not timed as capture: reading a file off disk is not what the microphone costs.
             return .failed(.audioUnreadable(error.userMessage), stages: await metrics.drain())
         }
 
@@ -216,9 +186,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             languageHint: hintLanguage ? recording.passage.language.code : nil)
         let transcription: Transcription
         do {
-            // The closure's thrown type is spelled out because `measuring` is generic over
-            // it, and without the annotation it widens to `any Error` — which loses the
-            // one thing worth having here, the engine's own explanation of what went wrong.
+            // The thrown type is spelled out so `measuring` keeps the engine's error, not `any Error`.
             transcription = try await metrics.measuring(.transcription, clock: clock) {
                 () async throws(SpeechEngineError) -> Transcription in
                 try await speech.transcribe(audio, options: options)
@@ -228,11 +196,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
 
         if let router {
-            // The result is deliberately not scored. Clean-up's job is to change the words
-            // — strip the false starts, punctuate, romanise — so a word error rate against
-            // a verbatim reference would charge it for working. What it costs is a latency,
-            // and that is what is taken here. How well it rewrites is uttrflow-bakeoff's
-            // measurement, over a corpus built for it.
+            // Timed but not scored: clean-up changes the words on purpose. See Docs/eval-methodology.md.
             _ = try? await metrics.measuring(.transformation, clock: clock) {
                 try await router.clean(TransformationRequest(transcription: transcription))
             }
@@ -250,9 +214,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         let clock = ContinuousClock()
         let start = clock.now
         try await speech.prepare()
-        // Reported on its own rather than as a stage: loading the model is paid once at
-        // launch, and folding it into a per-passage latency would describe a wait no user
-        // ever has.
+        // Reported on its own: model loading is paid once at launch, not per passage.
         print("engine ready in \(seconds(start.duration(to: clock.now)))s")
         return speech
     }
@@ -260,13 +222,6 @@ struct TranscribeCorpus: AsyncParsableCommand {
     // MARK: The regression gate
 
     /// Prints the run, then says whether it is better or worse than the stored baseline.
-    ///
-    /// The gate exists because "the numbers looked fine" is not evidence. A change to the
-    /// model, the prompt, the normalisation or the dictionary moves some samples up and
-    /// some down, and the only way to tell a fix from a trade is to diff against a point
-    /// somebody was prepared to defend. Correction work in particular cannot start until
-    /// this exists: a dictionary entry that mends one name and breaks four others looks
-    /// exactly like one that works.
     private func compare(reporting measured: TranscriptionReport) throws {
         report(measured)
         guard let baseline else { return }
@@ -340,8 +295,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
     }
 
-    /// Individual samples that moved, capped. Evidence for the verdict above rather than
-    /// the verdict itself — at a thousand samples, dozens move every run.
+    /// Prints the individual samples that moved, capped, as evidence for the verdict.
     private func printMoved(_ direction: String, _ changes: [BaselineComparison.Change]) {
         guard !changes.isEmpty else { return }
         print("\n  \(changes.count) sample(s) \(direction), worst first:")
@@ -370,9 +324,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         printPassages(report)
     }
 
-    /// Printed before the numbers, every time, because the rules decide the numbers: the
-    /// same transcripts score differently under a different set, and a rate quoted
-    /// without them cannot be compared with anything.
+    /// Prints the normalisation rules before the numbers, because a rate means nothing without them.
     private func printNormalisation(_ report: TranscriptionReport) {
         print("Normalisation applied to both sides")
         for rule in report.normalisation { print("  · \(rule.explanation)") }
@@ -415,10 +367,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
     }
 
-    /// One breakdown, never pooled into the headline above it.
-    ///
-    /// Every slice carries the words it rests on, because at a thousand samples the
-    /// eye-catching rate is nearly always the row with forty words behind it.
+    /// Prints one breakdown, each slice with the word count it rests on.
     private func printSlices(_ heading: String, _ slices: [ReportSlice], width: Int) {
         guard !slices.isEmpty else { return }
         print(
@@ -431,11 +380,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
     }
 
-    /// The failures that keep happening, as findings rather than as rows.
-    ///
-    /// The difference between a report of eighteen results and one of a thousand. Forty
-    /// samples that all mishear the same name are one thing to fix, and printing them as
-    /// forty lines buries it among ten thousand other lines.
+    /// Prints the failures that keep happening as findings rather than as rows.
     private func printFindings(_ report: TranscriptionReport) {
         let (shown, hiddenOccurrences, hidden) = report.topFindings(findings)
         guard !shown.isEmpty else {
@@ -471,8 +416,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
     }
 
-    /// A stage nothing timed is named with its reason rather than shown as a zero. A zero
-    /// in a latency table reads as "instant", which is the opposite of the truth.
+    /// Names why a stage has no timing, since a zero in a latency table reads as "instant".
     private func whyNotMeasured(_ stage: PipelineStage) -> String {
         switch stage {
         case .capture: "audio is read from disk here; what capture costs is timed in the app"
@@ -495,8 +439,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             guard let count = counts[kind] else { continue }
             print("  \(kind.rawValue.padded(to: 20)) \(count)")
         }
-        // The counts above are the finding; the individual lines are evidence, so only
-        // enough of them to look into is printed.
+        // The counts above are the finding; only enough individual lines to look into are printed.
         let failed = report.scores.filter { $0.failure != nil }
         for score in failed.prefix(passageLimit) {
             print("  \(score.caseID.padded(to: 20)) \(score.failure?.detail ?? "")")
@@ -506,12 +449,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
     }
 
-    /// The per-passage table, worst first and bounded.
-    ///
-    /// Eighteen results can be a list; a thousand cannot, so this is the tail of the
-    /// report rather than the substance of it and it shows the worst offenders. Sorted
-    /// by rate rather than by corpus order for the same reason: nobody scrolls to row
-    /// six hundred, so row six hundred had better not be the interesting one.
+    /// Prints the per-passage table, worst first and bounded.
     private func printPassages(_ report: TranscriptionReport) {
         let worst = report.scores
             .sorted { ($1.wordErrorRate?.rate ?? -1, $0.caseID) < ($0.wordErrorRate?.rate ?? -1, $1.caseID) }
@@ -547,8 +485,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
     }
 
-    /// One edit, written the way a person reads a diff. Matches are left out: a diff that
-    /// prints everything is one nobody scans.
+    /// Renders one edit the way a person reads a diff; matches are left out.
     private func difference(_ operation: WordErrorRate.Operation) -> String? {
         switch operation {
         case .match: nil
@@ -570,8 +507,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         return model
     }
 
-    /// Results are kept per configuration, so a hinted run cannot overwrite a detected
-    /// one and two engines can be compared without measuring either of them twice.
+    /// Keeps results per configuration, so a hinted run cannot overwrite a detected one.
     private func resultsDirectory() -> String {
         let model = (try? resolveModel())?.variant ?? "default"
         return "\(resultsPath)/\(engine)-\(model)\(hintLanguage ? "-hinted" : "")"
