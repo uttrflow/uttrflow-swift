@@ -1,12 +1,11 @@
+// Tests for which row is ringed after a search.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// The ring is the panel's answer to "what will Return paste". Searching is where that
-/// question matters most — the list has just changed under the reader — so it is where
-/// a list with nothing ringed is worst.
+/// The ring answers "what will Return paste", and it matters most just after the list has changed.
 @Suite("What Return means after a search")
 struct PanelResultsSelectionTests {
     @Test("the first match is selected as soon as the list narrows")
@@ -19,8 +18,7 @@ struct PanelResultsSelectionTests {
         #expect(presentation.selectedRow?.summary == "The second thing")
     }
 
-    /// The grouped reading of the list is the same rows in the same order, so the ring
-    /// has to survive the grouping.
+    /// The grouped reading is the same rows in the same order, so the ring survives grouping.
     @Test("the ring survives being grouped under a heading")
     func groupedRowsKeepTheRing() {
         let presentation = PanelPresenter.present(PanelFixture.panel(query: "second"))
@@ -30,9 +28,7 @@ struct PanelResultsSelectionTests {
         #expect(grouped.first?.isSelected == true)
     }
 
-    /// The same thing through the keys the panel actually receives, rather than by
-    /// setting the query on a snapshot: the state machine clears the selection on every
-    /// keystroke, and it is the results that have to put it back.
+    /// Through the keys the panel receives: a keystroke clears the selection and the results put it back.
     @Test("typing into the panel leaves the first match ringed")
     func typingSelectsTheFirstMatch() {
         let panel = PanelFixture.panel()
@@ -43,8 +39,7 @@ struct PanelResultsSelectionTests {
         #expect(presentation.rows.first?.isSelected == true, "and the results put it back")
     }
 
-    /// A selection left over from before the search, naming a clip the search has
-    /// filtered out, falls to the top rather than to nothing.
+    /// A selection naming a clip the search filtered out falls to the top rather than to nothing.
     @Test("a selection the search filtered away falls to the first match")
     func staleSelectionFallsToTheTop() {
         var panel = PanelFixture.panel(query: "second")

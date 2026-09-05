@@ -1,19 +1,23 @@
+// Tests for deleting, naming and filing from the panel, what esc means, and what a change tells the app.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// F7 and F8 disagree on purpose, and the disagreement is the whole design: an ordinary
-/// clip goes at once because the undo makes asking pointless, and a kept one asks because
-/// an alias is muscle memory and the undo window is only seconds long.
+/// An ordinary clip goes at once because undo makes asking pointless; a kept one asks first.
 @Suite("Deleting a clip")
 struct PanelDeleteTests {
+    /// Nothing kept about it.
     static let ordinary = PanelFixture.clip("just some text", minutesAgo: 1)
+    /// Pinned.
     static let pinned = PanelFixture.clip("kept", minutesAgo: 2, isPinned: true)
+    /// Named.
     static let aliased = PanelFixture.clip("named", minutesAgo: 3, alias: "thing")
+    /// Filed.
     static let filed = PanelFixture.clip("filed", minutesAgo: 4, category: "Work")
 
+    /// All four.
     static let every = [ordinary, pinned, aliased, filed]
 
     @Test("an ordinary clip goes immediately, with no dialog")
@@ -46,8 +50,7 @@ struct PanelDeleteTests {
         #expect(response.state.sheet == nil)
     }
 
-    /// The escape hatch has to actually escape. Backing out of a confirmation must leave
-    /// the clip alone *and* leave the panel up.
+    /// Backing out of a confirmation must leave the clip alone and leave the panel up.
     @Test("escaping the confirmation deletes nothing and keeps the panel open")
     func escapingConfirmsNothing() {
         let panel = PanelFixture.panel(Self.every).applying(.delete(Self.pinned.id)).state
@@ -70,7 +73,9 @@ struct PanelDeleteTests {
 /// F1, F2, F3 — naming a clip, and the two ways it can fail to be worth saving.
 @Suite("Naming a clip from the panel")
 struct PanelAliasSheetTests {
+    /// Unnamed.
     static let plain = PanelFixture.clip("postgres://prod", minutesAgo: 1)
+    /// Holds the alias "taken".
     static let named = PanelFixture.clip("something else", minutesAgo: 2, alias: "taken")
 
     @Test("the field opens showing the alias the clip already has")
@@ -93,8 +98,7 @@ struct PanelAliasSheetTests {
         #expect(response.outcome == .change(.setAlias(Self.plain.id, "pgprod")))
     }
 
-    /// F3 — Return on a taken alias leaves the sheet up with the conflict on screen,
-    /// rather than saving nothing and looking broken.
+    /// Return on a taken alias leaves the sheet up with the conflict on screen, rather than looking broken.
     @Test("Return on an alias somebody else holds keeps the sheet open")
     func aTakenAliasDoesNotSave() {
         let response = PanelFixture.panel([Self.plain, Self.named])
@@ -112,8 +116,7 @@ struct PanelAliasSheetTests {
         #expect(response.outcome == .change(.setAlias(Self.named.id, nil)))
     }
 
-    /// Otherwise Return behind a half-typed alias would paste a clip the user was in the
-    /// middle of naming.
+    /// Return behind a half-typed alias must not paste the clip being named.
     @Test("Return belongs to the sheet, not the list, while the sheet is open")
     func returnDoesNotPasteBehindASheet() {
         let response = PanelFixture.panel([Self.plain, Self.named])
@@ -128,6 +131,7 @@ struct PanelAliasSheetTests {
 /// G1, G2, G3 — filing a clip, and the duplicate-name trap.
 @Suite("Filing a clip into a collection")
 struct PanelMoveSheetTests {
+    /// One filed clip and one loose one.
     static let clips = [
         PanelFixture.clip("one", minutesAgo: 1, category: "Work"),
         PanelFixture.clip("two", minutesAgo: 2),
@@ -148,8 +152,7 @@ struct PanelMoveSheetTests {
         #expect(response.outcome == .change(.setCategory(Self.clips[1].id, "Servers")))
     }
 
-    /// G3 — two collections with the same name are two things nobody could tell apart in
-    /// a row of chips.
+    /// Two collections with the same name are two things nobody could tell apart in a row of chips.
     @Test("a name that already exists files it there rather than making a second one")
     func reusesAnExistingName() {
         let response = PanelFixture.panel(Self.clips)
@@ -170,10 +173,10 @@ struct PanelMoveSheetTests {
     }
 }
 
-/// A sheet changes what two keys mean, and getting that wrong throws away either the
-/// user's list or the clip they were naming.
+/// A sheet changes what two keys mean, and getting it wrong throws away the list or the clip.
 @Suite("What esc means depends on what is open")
 struct PanelSheetEscapeTests {
+    /// A plain clip.
     static let clip = PanelFixture.clip("a clip", minutesAgo: 1)
 
     @Test("with no sheet, esc closes the panel")
@@ -181,8 +184,7 @@ struct PanelSheetEscapeTests {
         #expect(PanelFixture.panel([Self.clip]).applying(.escape).outcome == .dismissed)
     }
 
-    /// Closing the whole panel because somebody backed out of naming a clip would throw
-    /// away the list they were working through, with no way back to it.
+    /// Closing the whole panel on backing out of naming would throw away the list with no way back.
     @Test("with a sheet open, esc closes only the sheet")
     func escapeClosesOnlyTheSheet() {
         let panel = PanelFixture.panel([Self.clip]).applying(.alias(Self.clip.id)).state
@@ -209,8 +211,7 @@ struct PanelSheetEscapeTests {
     }
 }
 
-/// The effects the app acts on. A change must never be mistaken for a dismissal, or
-/// filing one clip would shut the panel the user is working through.
+/// A change must never be mistaken for a dismissal, or filing one clip would shut the panel.
 @Suite("What a change tells the app to do")
 struct PanelChangeEffectTests {
     @Test("a change is applied and redrawn, never closed")

@@ -1,3 +1,4 @@
+// Tests for the onboarding pages: rules that hold on every page, each page's wording, keycaps, dots.
 import Testing
 
 @testable import UttrflowAccount
@@ -5,8 +6,7 @@ import Testing
 @testable import UttrflowSettings
 @testable import UttrflowUX
 
-/// Every page the flow can ask for, including the combinations no run reaches, so that
-/// a page cannot be added without also meeting the rules below.
+/// Every page the flow can ask for, unreachable combinations included, so a new page meets the rules.
 private let everyState: [OnboardingState] = [
     OnboardingState(step: .signIn, detail: .signIn(.offering)),
     OnboardingState(step: .signIn, detail: .signIn(.unreachable)),
@@ -36,12 +36,12 @@ private let everyState: [OnboardingState] = [
     OnboardingState(step: .ready, detail: .reading),
 ]
 
-/// Words that would tell the user which engine is doing the work. §16 forbids every one
-/// of them anywhere the user can read.
+/// Words that would tell the user which engine is doing the work; §16 forbids them anywhere readable.
 private let forbiddenWords = [
     "whisper", "whisperkit", "mlx", "qwen", "foundation model", "llm", "coreml",
 ]
 
+/// The page for a state, with the default shortcut unless given one.
 private func page(
     _ state: OnboardingState, hotkey: HotkeyBinding = .optionSpace
 ) -> OnboardingPage {
@@ -101,16 +101,11 @@ struct OnboardingPresenterTests {
         #expect(online.note?.text.contains("Wi-Fi off") == true)
     }
 
-    /// The three pages that report a failure, and only those three.
-    ///
-    /// Written out rather than derived, because the point of the case is that a page is
-    /// deliberately marked as reporting a failure — a rule that computed the answer from
-    /// the state would be the same mistake the emphasis exists to stop.
+    /// The pages that report a failure, written out because being marked one is deliberate, not computed.
     private static let failures: [OnboardingState] = [
         OnboardingState(step: .setup, detail: .installFailed("It stopped.")),
         OnboardingState(step: .ready, detail: .finishing(.needsMicrophone)),
-        // A permission a device policy has taken away is the same kind of page: it
-        // reports something that has gone wrong rather than asking for something.
+        // A permission a device policy took away reports something wrong rather than asking.
         OnboardingState(step: .microphone, detail: .permission(.restricted)),
         OnboardingState(step: .accessibility, detail: .permission(.restricted)),
     ]
@@ -176,9 +171,7 @@ struct OnboardingPresenterTests {
         #expect(refused.note?.tone == .warning)
     }
 
-    /// Neither permission can be passed over any more, so neither page argues before it
-    /// has been disagreed with — and once it has, it says what is blocked rather than
-    /// what skipping would cost, because skipping is no longer on offer.
+    /// Neither permission can be skipped, so a page says what is blocked only once it has been refused.
     @Test("says what is blocked only once the user has met the question")
     func whatIsBlockedIsSaidAfterAsking() {
         for step in [OnboardingStep.microphone, .accessibility] {
@@ -204,8 +197,7 @@ struct OnboardingPresenterTests {
         }
     }
 
-    /// The one exception, and the reason it is one: a device policy is not a choice the
-    /// user made, and a page they cannot satisfy and cannot leave is a trap.
+    /// The one exception: a device policy is not the user's choice, and a page they cannot leave is a trap.
     @Test("lets a policy-blocked Mac through, and only a policy-blocked one")
     func onlyAPolicyLetsSomebodyPast() {
         for step in [OnboardingStep.microphone, .accessibility] {

@@ -1,29 +1,21 @@
+// The History page: kept dictations grouped by day, searched, and cut to the retention promise.
 public import Foundation
 public import UttrflowHistory
 public import UttrflowSettings
 
-/// One kept dictation, as the pages talk about it.
-///
-/// The persisted record itself rather than a copy of its fields. There were two spellings
-/// of the same thing — and, more to the point, two answers to "has this been deleted yet",
-/// which disagreed at the boundary: a record exactly seven days old was gone from the
-/// store and still drawn on the page. One type, one retention rule, one answer.
+/// One kept dictation: the persisted record itself, so there is one retention rule and one answer.
 public typealias HistoryEntry = DictationRecord
 
 /// The app a dictation went into, as a row can draw it.
 public struct HistoryApplication: Sendable, Equatable {
+    /// The app's name.
     public let name: String
-    /// The single letter in the coloured tile, for when the app's own icon cannot be
-    /// found.
+    /// The single letter in the coloured tile, for when the app's own icon cannot be found.
     public let initial: String
-    /// The bundle identifier, when the dictation recorded one.
-    ///
-    /// What the interface looks the app up by. A name is a label — two apps can share
-    /// one and an app can change its own between versions — where an identifier is an
-    /// identity, and the difference is Claude's icon rather than whichever bundle
-    /// happens to be called Claude.
+    /// The bundle identifier when recorded; an identity, where a name is only a label two apps can share.
     public let identifier: String?
 
+    /// Builds the app; the identifier is optional.
     public init(name: String, initial: String, identifier: String? = nil) {
         self.name = name
         self.initial = initial
@@ -33,14 +25,16 @@ public struct HistoryApplication: Sendable, Equatable {
 
 /// One dictation, ready to draw.
 public struct HistoryRow: Sendable, Equatable, Identifiable {
+    /// The dictation's identity.
     public let id: UUID
-    /// Absent when nothing was known about where the text went, which is the honest
-    /// alternative to labelling it "Unknown".
+    /// Absent when nothing was known about where the text went, rather than labelled "Unknown".
     public let application: HistoryApplication?
     /// How long ago, in words: "2 minutes ago".
     public let when: String
+    /// What was said.
     public let text: String
 
+    /// Builds a row from its parts.
     public init(id: UUID, application: HistoryApplication?, when: String, text: String) {
         self.id = id
         self.application = application
@@ -53,24 +47,27 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
 public struct HistoryDay: Sendable, Equatable, Identifiable {
     /// "Today", "Yesterday", or the date.
     public let title: String
+    /// The day's dictations, in the store's order.
     public let rows: [HistoryRow]
 
+    /// The title, which is unique on the page.
     public var id: String { title }
 
+    /// Builds a day.
     public init(title: String, rows: [HistoryRow]) {
         self.title = title
         self.rows = rows
     }
 }
 
-/// The promise the user was shown, restated where the history is.
-///
-/// Present on the page even when there is nothing in the list: a user checking what the
-/// app keeps about them should not have to dictate something first to find out.
+/// The promise the user was shown, restated under the list even when the list is empty.
 public struct HistoryRetentionNotice: Sendable, Equatable {
+    /// The promise, cut to fit under the list.
     public let sentence: String
+    /// The way to the privacy settings.
     public let link: MainAction
 
+    /// Builds the notice.
     public init(sentence: String, link: MainAction) {
         self.sentence = sentence
         self.link = link
@@ -83,13 +80,14 @@ public struct HistorySnapshot: Sendable, Equatable {
     public let entries: [HistoryEntry]
     /// What the user typed into the search field.
     public let query: String
-    /// Retention and nothing else is read from here, so the page cannot drift from the
-    /// promise the privacy screen makes.
+    /// Retention and nothing else is read from here, so the page cannot drift from the privacy screen.
     public let settings: Settings
     /// Whether captured audio is written to disk, read from the app so the notice cannot claim otherwise.
     public let keepsRecordings: Bool
+    /// The clock the page is drawn against.
     public let now: Date
 
+    /// Builds a snapshot; everything but entries and the clock has a default.
     public init(
         entries: [HistoryEntry],
         query: String = "",
@@ -107,14 +105,16 @@ public struct HistorySnapshot: Sendable, Equatable {
 
 /// What the history page shows.
 public struct HistoryPresentation: Sendable, Equatable {
+    /// The dictations, grouped by day.
     public let days: [HistoryDay]
-    /// Set when — and only when — ``days`` is empty. Which of the three reasons it is
-    /// depends on why nothing survived, and the user is told which.
+    /// Set when — and only when — ``days`` is empty, saying which of three reasons nothing survived.
     public let emptyState: MainEmptyState?
+    /// The promise under the list.
     public let retentionNotice: HistoryRetentionNotice
     /// Whether the search field is worth showing. Hidden when there is nothing to search.
     public let showsSearch: Bool
 
+    /// Builds the page from its parts.
     public init(
         days: [HistoryDay],
         emptyState: MainEmptyState?,
@@ -128,17 +128,14 @@ public struct HistoryPresentation: Sendable, Equatable {
     }
 }
 
-/// Turns the stored dictations into the history page.
-///
-/// Retention is applied here rather than trusted to whatever wrote the list: the
-/// promise is that a dictation older than the window is gone, and a page that would
-/// happily draw one is a page that can break the promise on the store's behalf.
+/// Turns the stored dictations into the history page, applying retention rather than trusting the list.
 public enum HistoryPresenter {
+    /// What the empty search field says.
     public static let searchPlaceholder = "Search"
-    /// The sentence under the page's name. Says the two things somebody arriving
-    /// here wants settled: everything is here, and none of it left the Mac.
+    /// The sentence under the page's name: everything is here, and none of it left the Mac.
     public static let caption = "Every dictation, kept on this Mac."
 
+    /// Draws the History page from a snapshot.
     public static func page(
         for snapshot: HistorySnapshot,
         calendar: Calendar = .autoupdatingCurrent,
@@ -160,21 +157,7 @@ public enum HistoryPresenter {
 
     // MARK: - Retention
 
-    /// Drops anything the app has promised to have deleted by now.
-    ///
-    /// Shared with the home page, which shows the newest entry and must not show one the
-    /// user has been told is gone.
-    ///
-    /// A rolling window of whole days rather than a calendar span: "kept for seven days"
-    /// is a promise about elapsed time, and reckoning it against a calendar would make
-    /// the moment of deletion depend on which side of a daylight-saving change the
-    /// dictation fell — and would give the promise a way to fail to be computed at all.
-    /// Applies the promise the user was shown.
-    ///
-    /// Delegates to ``DictationRecord/survives(days:now:)`` rather than repeating the
-    /// arithmetic: the store prunes by that rule, so any second implementation here is a
-    /// chance to draw something the store has already deleted — which is exactly what
-    /// the earlier inclusive comparison did at the boundary.
+    /// Drops what is promised deleted, via ``DictationRecord/survives(days:now:)`` so page and store agree.
     static func retained(_ entries: [HistoryEntry], days: Int, now: Date) -> [HistoryEntry] {
         entries.filter { $0.survives(days: days, now: now) }
     }
@@ -195,11 +178,7 @@ public enum HistoryPresenter {
 
     // MARK: - Searching
 
-    /// Matches the text and the app name, ignoring case and accents.
-    ///
-    /// Dictation produces accented words the user will type unaccented when looking for
-    /// them again, and a search that answers "no matches" to a word plainly on screen
-    /// is worse than no search at all.
+    /// Matches the text and the app name, ignoring case and accents, since users type accented words plain.
     static func matches(_ entries: [HistoryEntry], query: String, locale: Locale) -> [HistoryEntry] {
         SearchQuery.matches(entries, query: query, locale: locale) { [$0.text, $0.applicationName] }
     }
@@ -215,12 +194,7 @@ public enum HistoryPresenter {
 
     // MARK: - Grouping
 
-    /// Groups by day, keeping the order the store handed them over in.
-    ///
-    /// Encounter order rather than a sort by timestamp, for the reason the store itself
-    /// gives: the clock belongs to the caller, and a machine whose clock moved must not
-    /// be able to shuffle the list. Days are merged as they are met, so a clock that did
-    /// move cannot produce two sections both called "Today".
+    /// Groups by day in the store's order, merging days as met, so a moved clock cannot make two "Today"s.
     static func group(
         _ entries: [HistoryEntry], snapshot: HistorySnapshot, calendar: Calendar, locale: Locale
     ) -> [HistoryDay] {
@@ -243,6 +217,7 @@ public enum HistoryPresenter {
         }
     }
 
+    /// "Today", "Yesterday", or the date, for a day's heading.
     static func title(
         for day: Date, snapshot: HistorySnapshot, calendar: Calendar, locale: Locale
     ) -> String {
@@ -250,6 +225,7 @@ public enum HistoryPresenter {
             ?? day.formatted(.dateTime.day().month(.wide).locale(locale))
     }
 
+    /// One dictation as a row.
     static func row(for entry: HistoryEntry, relativeTo now: Date, locale: Locale) -> HistoryRow {
         HistoryRow(
             id: entry.id,
@@ -258,11 +234,7 @@ public enum HistoryPresenter {
             text: entry.text)
     }
 
-    /// "2 minutes ago", measured against the clock the snapshot carries.
-    ///
-    /// `Date.formatted(.relative(…))` measures against the real one instead, which would
-    /// let the row disagree with the retention the rest of the page is reasoned from —
-    /// and would make a test of this depend on the minute it ran in.
+    /// "2 minutes ago" against the snapshot's clock, not the real one, so the row agrees with retention.
     static func when(_ date: Date, relativeTo now: Date, locale: Locale) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = locale
@@ -270,8 +242,7 @@ public enum HistoryPresenter {
         return formatter.localizedString(for: date, relativeTo: now)
     }
 
-    /// A blank or whitespace-only app name is no name at all, and a tile with a space in
-    /// it is worse than no tile.
+    /// A blank app name is no name at all, and a tile with a space in it is worse than no tile.
     static func application(
         named name: String, identifier: String? = nil
     )
@@ -285,11 +256,7 @@ public enum HistoryPresenter {
             identifier: (identity?.isEmpty ?? true) ? nil : identity)
     }
 
-    /// The application a dictation went to, identifier and all.
-    ///
-    /// One place rather than five: every page that lists dictations was calling
-    /// `application(named:)` with the name alone, and each would have had to remember
-    /// to pass the identifier as well.
+    /// The application a dictation went to, identifier and all, in one place for every page.
     static func application(for entry: HistoryEntry) -> HistoryApplication? {
         entry.applicationName.flatMap {
             application(named: $0, identifier: entry.applicationIdentifier)
@@ -310,8 +277,7 @@ public enum HistoryPresenter {
                 title: "Nothing yet",
                 message: "What you dictate shows up here, and never leaves this Mac.")
         }
-        // Something was handed over and none of it survived retention, which means the
-        // promise was kept rather than that the user has never dictated.
+        // Everything handed over fell outside retention: the promise was kept, not "never dictated".
         return MainEmptyState(
             symbolName: "clock.badge.checkmark",
             title: "Nothing left to show",

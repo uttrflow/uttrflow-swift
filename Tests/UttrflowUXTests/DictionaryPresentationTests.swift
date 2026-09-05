@@ -1,3 +1,4 @@
+// Tests for the Dictionary page: rows, search, retirement, the empty page, and the inline editor.
 import Foundation
 import UttrflowCore
 import UttrflowDictionary
@@ -6,6 +7,7 @@ import Testing
 @testable import UttrflowUX
 
 extension HistoryFixture {
+    /// One dictionary entry, added and in good standing by default.
     static func word(
         _ word: String = "Uttrflow",
         pronunciation: String? = "utter-flow",
@@ -20,6 +22,7 @@ extension HistoryFixture {
             timesReverted: reverted)
     }
 
+    /// The Dictionary page over these inputs.
     static func dictionary(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, query: String = ""
     ) -> DictionaryPresentation {
@@ -74,8 +77,7 @@ struct DictionaryPageTests {
         }
     }
 
-    /// Below the retirement threshold on purpose, so a word going wrong can be seen
-    /// while there is still a choice about it.
+    /// Below the retirement threshold, so a word going wrong is seen while there is still a choice.
     @Test("an undo tally worth looking at is marked before the word retires")
     func concerning() {
         #expect(
@@ -95,8 +97,7 @@ struct DictionaryPageTests {
         #expect(row.id == entry.id)
     }
 
-    /// The pronunciation is searchable because it is how the user thinks of the word
-    /// they cannot spell, which is the whole reason it is written down.
+    /// The pronunciation is searchable because it is how the user thinks of a word they cannot spell.
     @Test("searching matches the spelling and how it sounds")
     func searching() {
         let entries = [
@@ -113,8 +114,7 @@ struct DictionaryPageTests {
         #expect(HistoryFixture.dictionary(entries: entries, query: " ").rows.count == 2)
     }
 
-    /// A word the recogniser hears with an accent must still be found when the user
-    /// types it without one.
+    /// A word heard with an accent must still be found when the user types it without one.
     @Test("searching ignores case and accents")
     func searchingIsForgiving() {
         let entries = [HistoryFixture.word("Café", pronunciation: nil)]
@@ -127,8 +127,7 @@ struct DictionaryPageTests {
         #expect(HistoryFixture.dictionary(entries: [HistoryFixture.word()]).chrome.search != nil)
     }
 
-    /// The one thing this page can add is always offered, including from the empty
-    /// page: a dictionary you cannot start is not a dictionary.
+    /// Adding is always offered, including from the empty page: a dictionary you cannot start is none.
     @Test("adding a word is always offered")
     func add() {
         #expect(HistoryFixture.dictionary().chrome.addAction?.intent == .addWord)
@@ -140,8 +139,7 @@ struct DictionaryPageTests {
 
 @Suite("A word that retired itself")
 struct DictionaryRetirementTests {
-    /// Inverted from ``DictionaryEntry/isTrustworthy`` rather than decided again here,
-    /// so the page cannot show a word as retired while the recogniser still uses it.
+    /// Inverted from ``DictionaryEntry/isTrustworthy``, so the page cannot disagree with the recogniser.
     @Test("a word undone more often than it is kept is drawn as retired")
     func retired() {
         let row = HistoryFixture.dictionary(entries: [
@@ -172,8 +170,7 @@ struct DictionaryRetirementTests {
         #expect(!row.actions[0].isDestructive)
     }
 
-    /// Explaining a state nothing is in teaches the user to skip the small print, and
-    /// then they skip it on the day it matters.
+    /// Explaining a state nothing is in teaches the user to skip the small print.
     @Test("retirement is explained only when something has retired")
     func footnote() {
         #expect(
@@ -192,17 +189,7 @@ struct DictionaryRetirementTests {
         #expect(footnote?.contains("Added by you means") == true)
     }
 
-    /// The bug this page once had, asserted against the store rather than described.
-    ///
-    /// Two of the three origins used to be explained here and produced by nothing: the
-    /// footnote told the user Uttrflow would learn their corrections and the terms it saw,
-    /// and no code anywhere could make either kind of entry. A page that explains a
-    /// feature the product does not have is worse than a page that says nothing, because
-    /// the user waits.
-    ///
-    /// So this drives the real store the way a dictation does and insists that every
-    /// origin the page has words for is one a dictation can actually reach. If a path is
-    /// ever deleted, this fails — rather than the page quietly going back to lying.
+    /// Drives the real store like a dictation so every origin the page explains is one it can reach.
     @Test("every origin the page explains is one a dictation can actually produce")
     func everyOriginIsReachable() async throws {
         let file = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -269,8 +256,7 @@ struct DictionaryEditorTests {
         #expect(editor.cancel.intent == .cancelWordEdit)
     }
 
-    /// The empty state is what would otherwise fill the page, and it invites the user to
-    /// do the thing they are already doing.
+    /// The empty state invites the user to do the thing they are already doing, so it goes.
     @Test("an open editor replaces the empty state rather than sitting under it")
     func hidesTheEmptyState() {
         let page = HistoryFixture.dictionary(draft: DictionaryDraft(word: "Claude"))
@@ -305,9 +291,7 @@ struct DictionaryEditorTests {
         #expect(!editor.canSave)
     }
 
-    /// `PersonalDictionaryStore.add` replaces an entry spelling the same word, and a
-    /// replacement arrives with its counters at zero. Refusing here is what stops a
-    /// re-add silently throwing away everything the app had learned about the word.
+    /// A re-add replaces the entry with its counters at zero, so refusing keeps what the app learned.
     @Test("a word already in the dictionary is refused rather than saved over the top")
     func duplicate() throws {
         let editor = try #require(
@@ -319,13 +303,7 @@ struct DictionaryEditorTests {
         #expect(!editor.canSave)
     }
 
-    /// The page must refuse exactly what the store refuses, and no more.
-    /// ``PersonalDictionaryStore/add(_:)`` de-duplicates on case alone, so refusing
-    /// "Renée" because "Renee" is stored told the user their word was already there and
-    /// sent them to look for a row that is not.
-    ///
-    /// Two spellings of one name is also something a dictionary of unusual words has a
-    /// fair claim to hold — they are different words to the person who says them.
+    /// The page refuses exactly what the store refuses: case only, so an accented twin is a new word.
     @Test("a word that differs only by an accent is a different word")
     func accentsAreNotDuplicates() throws {
         let editor = try #require(

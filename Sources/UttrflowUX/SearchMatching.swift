@@ -1,3 +1,4 @@
+// The one search rule every list page uses: trimmed, case- and accent-insensitive, blank keeps all.
 import Foundation
 
 extension StringProtocol {

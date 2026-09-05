@@ -1,3 +1,4 @@
+// The clipboard a test panel is opened over: a fixed clock, three clips, and a panel builder.
 import Foundation
 import UttrflowClipboard
 
@@ -5,12 +6,13 @@ import UttrflowClipboard
 
 /// The clipboard a test panel is opened over.
 enum PanelFixture {
+    /// A fixed region.
     static let locale = Locale(identifier: "en_GB")
 
-    /// Mid-afternoon on 15 June 2025, the same instant the history suite uses, so that a
-    /// row's "2 minutes ago" is the same sentence in both.
+    /// Mid-afternoon on 15 June 2025, the same instant the history suite uses, so "2 minutes ago" agrees.
     static let now = Date(timeIntervalSince1970: 1_750_000_800)
 
+    /// One clip, plain and unkept unless said otherwise.
     static func clip(
         _ text: String = "Hello there",
         kind: ClipKind = .text,
@@ -26,14 +28,14 @@ enum PanelFixture {
             alias: alias, category: category, isPinned: isPinned)
     }
 
-    /// Three clips, newest first, as the store hands them over. Held rather than rebuilt
-    /// so that a test can name the clip it expects and compare identities.
+    /// Three clips newest first, held rather than rebuilt so a test can compare identities.
     static let clips = [
         clip("The first thing", minutesAgo: 1),
         clip("The second thing", minutesAgo: 2),
         clip("The third thing", minutesAgo: 3),
     ]
 
+    /// A panel over these clips at the fixed clock.
     static func panel(
         _ clips: [Clip] = clips,
         query: String = "",

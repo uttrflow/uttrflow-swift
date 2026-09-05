@@ -1,3 +1,4 @@
+// Tests for the sign-in page: the way past it, signing in, offline, giving up, and the code fallback.
 import Foundation
 import Testing
 
@@ -6,8 +7,7 @@ import Testing
 @testable import UttrflowSettings
 @testable import UttrflowUX
 
-/// What the flow says when a callback answers somebody else's attempt. Taken from the
-/// failure itself, so rewording it is not a failing test.
+/// What the flow says when a callback answers somebody else's attempt, taken from the failure itself.
 private let mismatch = AccountError.providerRefused(
     description: "the callback does not answer this sign-in")
 
@@ -17,10 +17,7 @@ struct OnboardingSignInTests {
 
     // MARK: The first thing anybody sees
 
-    /// Welcome is the very first page, so the product says what it is before it asks
-    /// who you are. The page immediately after asks, and the only thing beside the
-    /// providers is the one deliberate way past them — working on this Mac, which is a
-    /// decision the flow records rather than a page it waves through.
+    /// Welcome comes first, then the sign-in page, whose only other control is the way past it.
     @Test("opens on welcome, then asks who you are, offering one way past it")
     func signInComesAfterTheWelcome() async {
         let harness = Harness(signedIn: false)
@@ -54,9 +51,7 @@ struct OnboardingSignInTests {
 
     // MARK: The way past it
 
-    /// The reason this exists: the one page in the product that needs a network must not
-    /// be a wall for somebody whose network will not cooperate. What it records is the
-    /// Mac's own name — nothing is invented and nothing is fetched.
+    /// The one page that needs a network must not be a wall; nothing is invented or fetched.
     @Test("continuing on this Mac records who is here and moves the flow on")
     func continuingOnThisMac() async {
         let harness = Harness(signedIn: false, systemName: "Naveen Bhatt")
@@ -70,8 +65,7 @@ struct OnboardingSignInTests {
         #expect(harness.profiles.load() == nil, "no session was invented to get past it")
     }
 
-    /// A Mac that will not say who owns it is still a Mac somebody can work on. The
-    /// account is recorded with no name rather than with a made-up one.
+    /// A Mac that will not say who owns it is recorded with no name rather than a made-up one.
     @Test("works on a Mac that will not say whose it is")
     func continuingWithNoName() async {
         let harness = Harness(signedIn: false, systemName: nil)
@@ -83,8 +77,7 @@ struct OnboardingSignInTests {
         #expect(harness.local.load()?.name == nil)
     }
 
-    /// Offline is the situation this was built for, so it is the one worth asserting on
-    /// end to end rather than only in the list of buttons.
+    /// Offline is the situation this exists for, so it is asserted end to end.
     @Test("offline, the Mac account is a way out rather than a wall")
     func continuingWhileOffline() async {
         let harness = Harness(signedIn: false, reachable: false)
@@ -96,8 +89,7 @@ struct OnboardingSignInTests {
         #expect(harness.step != .signIn)
     }
 
-    /// The same guard `cancelSignIn` keeps, for the same reason: an instruction that
-    /// could only have come from a page the user has left must not act on their behalf.
+    /// An instruction that could only have come from a page the user has left must not act.
     @Test("cannot be chosen from a page that is not asking who you are")
     func ignoredAwayFromTheSignInPage() async {
         let harness = Harness(microphone: .notDetermined, signedIn: true)
@@ -108,8 +100,7 @@ struct OnboardingSignInTests {
         #expect(harness.local.load() == nil)
     }
 
-    /// A real account supersedes the Mac one. Both present would be two answers to "who
-    /// is here", and every page that draws one would have to pick.
+    /// A real account supersedes the Mac one, or every page drawing one would have to pick.
     @Test("signing in for real forgets the Mac account")
     func signingInReplacesTheMacAccount() async {
         let harness = Harness(signedIn: false)
@@ -160,20 +151,12 @@ struct OnboardingSignInTests {
 
         await harness.returnFromBrowser()
         #expect(harness.profiles.load() != nil)
-        // Onwards, not back: welcome is behind us and signing in is the page we just
-        // answered, so the next page has to be neither.
+        // Onwards, not back: welcome is behind us and sign-in is just answered.
         #expect(harness.step != .signIn)
         #expect(harness.step != .welcome)
     }
 
-    /// Nothing is waiting, so nothing can be answered.
-    ///
-    /// This used to be a real risk: an `uttrflow://` URL carrying a state and a code could
-    /// arrive from anywhere on the machine, at any time, and the flow had to refuse the
-    /// ones it had not asked for. The app no longer has a way in — it holds the sign-in
-    /// open itself — so what is left to check is that an answer nobody asked for changes
-    /// nothing. Whether an answer belongs to *this* attempt is now the service's to
-    /// decide, and is tested there.
+    /// Nothing is waiting, so an answer nobody asked for changes nothing.
     @Test("does nothing at all when no sign-in is in flight")
     func nothingHappensWithoutAnAttempt() async {
         let harness = Harness(signedIn: false)
@@ -236,8 +219,7 @@ struct OnboardingSignInTests {
         #expect(harness.liveProviders.isEmpty)
         #expect(harness.page.note?.tone == .warning)
         #expect(harness.page.note?.text.contains("cannot do") == true)
-        // Trying again is the prominent one; the Mac account is what a person behind a
-        // portal that will never come back reaches for instead.
+        // Trying again is prominent; the Mac account is for a portal that never comes back.
         #expect(harness.buttonTitles == ["Try Again", "Continue on this Mac"])
         #expect(harness.page.hasSomethingToPress)
     }
@@ -248,8 +230,7 @@ struct OnboardingSignInTests {
         await harness.startPastWelcome()
 
         #expect(await harness.choose(.google) == false)
-        // And not even a direct instruction gets past it, because the guard is in the
-        // flow rather than in whatever happens to be drawing.
+        // Not even a direct instruction gets past it, since the guard is in the flow, not the view.
         await harness.flow.perform(.signIn(.google))
         #expect(harness.authentication.startedProviders.isEmpty)
         #expect(harness.detail == .signIn(.unreachable))
@@ -374,9 +355,7 @@ struct OnboardingSignInTests {
 
         gate.open()
         await finishing.value
-        // The answer was already on its way when Cancel was pressed, so it lands. There is
-        // a profile on the disk now, and a page asking them to sign in would be the app
-        // disagreeing with itself.
+        // The answer was already on its way when Cancel was pressed, so it lands and the page moves on.
         await settle(until: { harness.profiles.load() != nil })
         #expect(harness.profiles.load() != nil)
         await settle(until: { harness.step != .signIn })
@@ -416,8 +395,7 @@ struct OnboardingSignInTests {
             microphone: .granted, accessibility: .granted, signedIn: true, reachable: false)
         await harness.flow.start()
 
-        // Welcome's own button, then straight to the end: with everything granted and a
-        // session already on disk, nothing between here and Ready needs a network.
+        // Welcome's own button, then straight to Ready: nothing between them needs a network.
         #expect(await harness.press("Continue"))
         #expect(harness.detail == .finishing(.ready))
         #expect(await harness.press("Start Using Uttrflow"))
@@ -427,12 +405,7 @@ struct OnboardingSignInTests {
 
 // MARK: A Mac with nowhere for the browser to come back to
 
-/// The fallback, from the page's side.
-///
-/// A locked-down laptop, an SSH session, a container: the loopback port cannot be bound,
-/// and the person is given a code to type instead. It is not a lesser path — it is RFC
-/// 8628, the flow a television uses — but it is a *different page*, and getting that wrong
-/// means somebody is told to finish in their browser while the code sits unmentioned.
+/// The code fallback from the page's side: a different page, not a lesser path (RFC 8628).
 extension OnboardingSignInTests {
     @Test("shows the code when this Mac cannot be redirected back to")
     func aCodeIsShownWhenThereIsNoPort() async {
@@ -446,15 +419,13 @@ extension OnboardingSignInTests {
         #expect(await harness.choose(.google))
         #expect(harness.detail == .signIn(.enterCode(.google, code: "BCDF-GHJK")))
         #expect(harness.page.code == "BCDF-GHJK")
-        // The sentence says what to do with it rather than repeating it, and says that
-        // the window to do it in is already open — because it is.
+        // The sentence says what to do with the code, and that the browser is already open.
         #expect(harness.page.subtitle.contains("Type this code"))
         #expect(harness.page.subtitle.contains("browser is open"))
         #expect(harness.page.subtitle.contains("BCDF-GHJK") == false)
         // The browser is still opened — at the page the code is typed into.
         #expect(harness.browser.urls.count == 1)
-        // And the page says why it is asking for a code at all rather than handing the
-        // user back. Without it this reads as a second, stranger product.
+        // The page says why it is asking for a code rather than handing the user back.
         #expect(harness.page.note?.text.contains("hands you straight back") == true)
     }
 
