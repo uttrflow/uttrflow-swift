@@ -241,4 +241,15 @@ struct FocusedFieldSnapshotTests {
                     .isProse)
         }
     }
+
+    @Test(
+        "A one-pixel field one line tall is the caret an editor parked its input field at; a real field or a collapsed one is not."
+    )
+    func aHiddenInputFieldIsTheCaret() {
+        #expect(FocusedFieldSnapshot.isCaretShaped(CGRect(x: 682, y: 239, width: 1, height: 21)))
+        #expect(FocusedFieldSnapshot.isCaretShaped(CGRect(x: 0, y: 0, width: 0, height: 16)))
+        #expect(!FocusedFieldSnapshot.isCaretShaped(CGRect(x: 0, y: 0, width: 400, height: 21)))
+        #expect(!FocusedFieldSnapshot.isCaretShaped(CGRect(x: 0, y: 0, width: 1, height: 1)))
+        #expect(!FocusedFieldSnapshot.isCaretShaped(CGRect(x: 0, y: 0, width: 1, height: 900)))
+    }
 }

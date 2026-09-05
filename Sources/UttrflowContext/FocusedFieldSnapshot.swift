@@ -163,3 +163,16 @@ extension FocusedFieldSnapshot {
         role == Self.proseRole && !TerminalApplications.contains(bundleIdentifier)
     }
 }
+
+extension FocusedFieldSnapshot {
+    /// The widest a field may be and still be the caret itself: editors that draw their own text park a one-pixel input field there.
+    public static let caretFieldWidth: CGFloat = 3
+
+    /// The heights a text caret can have, so a hidden one-pixel field is told from a collapsed or a page-tall one.
+    public static let caretHeights: ClosedRange<CGFloat> = 8...80
+
+    /// Whether a field's frame is the shape of a caret rather than of a field, which is how an editor that renders its own text places its input field.
+    public static func isCaretShaped(_ frame: CGRect) -> Bool {
+        frame.width <= caretFieldWidth && caretHeights.contains(frame.height)
+    }
+}

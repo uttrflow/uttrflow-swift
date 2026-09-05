@@ -203,6 +203,10 @@ public enum FocusedFieldReader {
         }
         // An empty line has no glyph beside the caret, so its own bounds is all there is.
         if let rect = bounds(field, range), rect.height > 0 { return rect }
+        // An editor that draws its own text keeps a one-pixel field at the caret for input methods, so that field's frame is the caret.
+        if let frame = AXNode(field).answers.frame, FocusedFieldSnapshot.isCaretShaped(frame) {
+            return CGRect(x: frame.minX, y: frame.minY, width: 0, height: frame.height)
+        }
         return nil
     }
 

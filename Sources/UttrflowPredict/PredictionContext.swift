@@ -20,12 +20,14 @@ public struct PredictionContext: Sendable, Equatable {
     public let isMinimised: Bool
     /// How many suggestions have been typed past in this field this session.
     public let rejectionsThisSession: Int
+    /// Whether the field gives a place to draw at all, which a field that reports no caret does not.
+    public let canDraw: Bool
 
     public init(
         typed: String, caretAtLineEnd: Bool = true, hasSelection: Bool = false,
         isComposing: Bool = false, isSecure: Bool = false, isProse: Bool = false,
         millisecondsSinceKeystroke: Int = 1_000, isEnabledHere: Bool = true,
-        isMinimised: Bool = false, rejectionsThisSession: Int = 0
+        isMinimised: Bool = false, rejectionsThisSession: Int = 0, canDraw: Bool = true
     ) {
         self.typed = typed
         self.caretAtLineEnd = caretAtLineEnd
@@ -37,6 +39,7 @@ public struct PredictionContext: Sendable, Equatable {
         self.isEnabledHere = isEnabledHere
         self.isMinimised = isMinimised
         self.rejectionsThisSession = rejectionsThisSession
+        self.canDraw = canDraw
     }
 }
 
@@ -57,6 +60,7 @@ public enum Quieting {
     public static func reason(_ context: PredictionContext) -> Reason? {
         if !context.isEnabledHere { return .turnedOffHere }
         if context.isSecure { return .secureField }
+        if !context.canDraw { return .nowhereToDraw }
         if context.hasSelection { return .textSelected }
         if !context.caretAtLineEnd { return .caretInsideText }
         if context.rejectionsThisSession >= rejectionsBeforeSilence { return .rejectedTooOften }
@@ -72,6 +76,8 @@ public enum Quieting {
         case turnedOffHere
         /// The field hides what is typed into it.
         case secureField
+        /// The field reports no caret, so there is no place on its line to draw.
+        case nowhereToDraw
         /// Text is selected, which the next keystroke would replace.
         case textSelected
         /// The caret is not at the end of its line.

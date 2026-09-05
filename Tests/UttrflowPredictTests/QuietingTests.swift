@@ -101,4 +101,16 @@ struct CommonPrefixTests {
     func unicode() {
         #expect(CommonPrefix.of(["🙂 ship it", "🙂 ship out"]) == "🙂 ship ")
     }
+
+    @Test("A field with no place to draw is quiet for that reason, before anything about its text is asked.")
+    func nowhereToDrawIsAReason() {
+        #expect(
+            Quieting.reason(PredictionContext(typed: "select * from o", canDraw: false)) == .nowhereToDraw)
+        #expect(
+            Quieting.reason(PredictionContext(typed: "x", hasSelection: true, canDraw: false))
+                == .nowhereToDraw)
+        #expect(
+            Quieting.reason(PredictionContext(typed: "x", isSecure: true, canDraw: false)) == .secureField)
+        #expect(Quieting.reason(PredictionContext(typed: "x", canDraw: true)) == nil)
+    }
 }

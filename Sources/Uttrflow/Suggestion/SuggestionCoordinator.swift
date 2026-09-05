@@ -655,6 +655,7 @@ final class SuggestionCoordinator {
             typed: snapshot.currentLine, caretAtLineEnd: snapshot.caretAtLineEnd,
             hasSelection: snapshot.hasSelection, isComposing: snapshot.isComposing,
             isSecure: snapshot.isSecure, isProse: snapshot.isProse,
-            millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000))
+            millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000),
+            canDraw: snapshot.placement == .inlineGhost)
     }
 }
