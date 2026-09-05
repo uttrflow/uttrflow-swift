@@ -1,12 +1,9 @@
+// One Settings tab: banner, rejection, groups, rows and callout.
+
 import UttrflowUX
 import SwiftUI
 
-/// One tab's worth of screen: a title, cards of rows, and at most a statement above
-/// them and a note below.
-///
-/// Written once for all four tabs. The differences between them are entirely in the
-/// ``SettingsPane`` handed in, which is what keeps a tab from quietly growing a layout
-/// of its own that the others do not get the benefit of.
+/// One tab's worth of screen, written once for all four tabs; the differences are in the `SettingsPane`.
 struct SettingsPaneView: View {
     let pane: SettingsPane
     let model: SettingsViewModel
@@ -14,16 +11,12 @@ struct SettingsPaneView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // No title here: the window draws it once, above this scroll view, so
-                // that it stays put while the pane under it moves. A title inside the
-                // scroller slides away from the rail row that is still lit.
+                // No title here: the window draws it once above the scroll view, so it stays put.
                 if let banner = pane.banner {
                     SettingsBannerView(banner: banner)
                 }
 
-                // The refusal sits above the cards rather than beside the control that
-                // earned it: a change can be refused from anywhere on the pane, and one
-                // place to look for the reason beats four places it might appear.
+                // The refusal sits above the cards, one place to look whichever control earned it.
                 if let rejection = model.session.rejection {
                     SettingsRejectionView(reason: rejection)
                 }
@@ -49,9 +42,7 @@ struct SettingsPaneView: View {
                 set: { isPresented in if !isPresented { model.dismissRemoval() } })
         ) {
             if let asked, let confirmation = asked.confirmation {
-                // Cancel first and given the Return key. A window that made the
-                // destructive button the default one would delete a year of history
-                // because somebody was still typing when it appeared.
+                // Cancel first and given Return, so a destructive button is never the default.
                 Button(confirmation.cancelTitle, role: .cancel) { model.dismissRemoval() }
                     .keyboardShortcut(.defaultAction)
                 Button(confirmation.confirmTitle, role: .destructive) { model.confirm(asked) }
@@ -61,8 +52,7 @@ struct SettingsPaneView: View {
         }
     }
 
-    /// What is being asked, if anything is. It comes from the session rather than the
-    /// pane: the pane describes the buttons, the session knows which one was pressed.
+    /// What is being asked, if anything; the session knows which button was pressed.
     private var asked: SettingsRemoval? { model.session.pendingRemoval }
 }
 
@@ -98,9 +88,7 @@ struct SettingsRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.label)
                     .font(.system(size: SettingsMetrics.bodySize))
-                // The reason a row is off is shown in place of its explanation, not
-                // beside it: it is the more useful of the two while it applies, and two
-                // grey lines under one label is a row nobody reads.
+                // The reason a row is off replaces its explanation; two grey lines is a row nobody reads.
                 if let secondary = row.unavailability ?? row.explanation {
                     Text(secondary)
                         .font(.system(size: SettingsMetrics.subheadSize))

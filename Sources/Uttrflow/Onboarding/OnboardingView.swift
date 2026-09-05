@@ -1,14 +1,11 @@
+// The onboarding window's pages, sizes, colours and parts.
+
 import AppKit
 import UttrflowAccount
 import UttrflowUX
 import SwiftUI
 
-/// The page the window is showing, in one place the view can watch.
-///
-/// Holds no opinion of its own: every field on it came from ``OnboardingFlow``, and the
-/// only thing it does with a press is hand the intent straight back. It exists because
-/// SwiftUI needs something observable to redraw from, and the flow is deliberately not
-/// that — a state machine that imported Observation could no longer be tested as one.
+/// The page the window is showing, observable for SwiftUI; every field comes from `OnboardingFlow`.
 @MainActor
 @Observable
 final class OnboardingModel {
@@ -25,13 +22,9 @@ final class OnboardingModel {
         }
     }
 
-    /// Whether this window was opened to finish something rather than to begin.
-    ///
-    /// Set before the view appears, because the view is what starts the flow and it must
-    /// not start it twice. See ``OnboardingFlow/resume()``.
+    /// Whether this window was opened to finish something; set before the view appears and starts the flow.
     @ObservationIgnored var skipsWelcome = false
-    /// Whether the window was opened by somebody pressing Sign In, rather than by a
-    /// button about a permission. See ``OnboardingFlow/resume(askingToSignIn:)``.
+    /// Whether the window was opened by Sign In rather than by a permission button.
     @ObservationIgnored var asksToSignIn = false
 
     func start() {
@@ -40,8 +33,7 @@ final class OnboardingModel {
         }
     }
 
-    /// Called when the window comes back to the front, because both permissions are
-    /// granted in System Settings and nothing tells the app when that has happened.
+    /// Re-reads both permissions when the window comes to the front; System Settings never tells the app.
     func refresh() {
         Task { await flow.refresh() }
     }
@@ -52,17 +44,7 @@ final class OnboardingModel {
 
 }
 
-/// The onboarding window's contents: the brand rail, and the page beside it.
-///
-/// Every form it takes is derived from ``OnboardingPage`` and nothing else. There is no
-/// condition here on which permission is being asked for, on whether one was refused,
-/// or on what the user has left to do: all of that was decided somewhere a test can
-/// reach, and asking again here is how two answers start to disagree.
-///
-/// The page is left-aligned and optically centred rather than centred as a block. Centred
-/// text is what a system alert does, and it was what made a first run read as a sequence
-/// of dialogs the app was putting in the user's way; ranged left against a rail, the same
-/// seven pages read as one window with a place in it.
+/// The onboarding window's contents: the brand rail and the page beside it, derived from `OnboardingPage`.
 struct OnboardingView: View {
     let model: OnboardingModel
 
@@ -79,9 +61,7 @@ struct OnboardingView: View {
 
     private var page: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // The two live in one container so that the content can take the height it
-            // needs and the buttons stay where they were: a footer that moved with the
-            // page would make every step feel like a different window.
+            // One container, so the content takes its height and the footer never moves between pages.
             ZStack(alignment: .leading) {
                 content
                     .id(model.page.position)
@@ -105,9 +85,7 @@ struct OnboardingView: View {
     @ViewBuilder private var content: some View {
         let page = model.page
         VStack(alignment: .leading, spacing: 0) {
-            // Everything a screen reader should hear as one sentence, grouped so the
-            // controls below stay individually reachable. Combining the whole page
-            // would swallow the three sign-in buttons into the paragraph above them.
+            // Grouped as one sentence for a screen reader, with the controls below left reachable.
             VStack(alignment: .leading, spacing: 0) {
                 Glyph(symbolName: page.symbolName, emphasis: page.emphasis)
                 Text(page.title)
@@ -141,8 +119,7 @@ struct OnboardingView: View {
                 ProgressTrack(fraction: progress)
                     .padding(.top, 24)
             }
-            // A warning explains why what is under it will not work, so it is read
-            // first. Everything else is an aside and sits after what it is about.
+            // A warning explains why what is under it will not work, so it is read first.
             if let note = page.note, note.tone == .warning {
                 Note(note: note)
                     .padding(.top, 20)
@@ -157,9 +134,7 @@ struct OnboardingView: View {
             }
             if let fineprint = page.fineprint {
                 Text(fineprint)
-                    // The one line on any page a person is agreeing to. It was the
-                    // dimmest text in the window at 2.9:1, which is a way of not saying
-                    // something while appearing to.
+                    // The one line a person is agreeing to, so it is not the dimmest text in the window.
                     .font(.system(size: OnboardingMetrics.fineprintSize))
                     .foregroundStyle(Color.mainMuted)
                     .padding(.top, 18)
@@ -171,10 +146,7 @@ struct OnboardingView: View {
 
     // MARK: - The foot of the window
 
-    /// The answers, ranged right, with the one the page is steering towards last.
-    ///
-    /// No dots beside them any more: the rail says where the user is, and saying it twice
-    /// in one window meant neither was the answer.
+    /// The answers, ranged right, with the one the page steers towards last.
     private var footer: some View {
         HStack(spacing: 10) {
             Spacer(minLength: 0)
@@ -192,14 +164,7 @@ struct OnboardingView: View {
 
 /// The measurements the design is drawn to.
 enum OnboardingMetrics {
-    /// Wider and taller than the 620×470 it was.
-    ///
-    /// 470 was already at its limit: the sign-in page carries a glyph, a three-line
-    /// subtitle, the provider stack, a note and the terms, and laid out at the old sizes
-    /// that comes to more than the window has once the two 34-point spacers are counted.
-    /// One provider is offered today and `SignInProvider` names three — turning on a
-    /// second adds 47 points to a window that clips rather than scrolls, because it is
-    /// fixed size and its hosting view has `sizingOptions = []`.
+    /// Big enough for the sign-in page with three providers; the window clips rather than scrolls.
     static let windowWidth: CGFloat = 760
     static let windowHeight: CGFloat = 520
     static let railWidth: CGFloat = 232
@@ -208,8 +173,7 @@ enum OnboardingMetrics {
     static let railRowInset: CGFloat = 8
     static let railDotSize: CGFloat = 18
     static let margin: CGFloat = 40
-    /// Long enough for a comfortable line and no longer: the body runs to three lines
-    /// rather than two very wide ones.
+    /// Long enough for a comfortable line: the body runs to three lines, not two wide ones.
     static let columnWidth: CGFloat = 400
     static let pageTopInset: CGFloat = 44
     static let footInset: CGFloat = 26
@@ -232,17 +196,11 @@ enum OnboardingMetrics {
 // MARK: - Colours
 
 extension Color {
-    /// The accent as a foreground rather than as a fill.
-    ///
-    /// Two values because this window is the one branded surface that still follows the
-    /// system's appearance: `dockAccentLight` is unreadable on a white page, and
-    /// `dockAccent` is dull on a near-black one. The dark half is the panel's own
-    /// foreground teal; the light half is deepened until it clears 4.5:1 on `#F3F2F7`.
+    /// The accent as a foreground in both appearances; the light half clears 4.5:1 on `#F3F2F7`.
     static let onboardingAccentInk = Color(nsColor: .orbit(dark: 0x5F_E0D3, light: 0x0E_6B64))
     /// The same, for the pages that are reporting a failure.
     static let onboardingCautionInk = Color(nsColor: .orbit(dark: 0xFF_B05C, light: 0x9A_4E00))
-    /// A control that sits on the page: one step lifted from the ground, which is what
-    /// makes a stack of three provider buttons read as buttons rather than as panels.
+    /// A control on the page, one step lifted from the ground, so provider buttons read as buttons.
     static let onboardingControl = Color(nsColor: .orbit(dark: 0x12_151C, light: 0xFF_FFFF))
 }
 
@@ -253,8 +211,7 @@ private struct Glyph: View {
     let symbolName: String?
     let emphasis: OnboardingEmphasis
 
-    /// Whether the arrival animation has run. One-shot: the page it belongs to is the end
-    /// of a first run, and something that pulses for ever is a page still working.
+    /// Whether the arrival animation has run; one-shot, because a page that pulses for ever looks busy.
     @State private var hasLanded = false
 
     private var isCelebrating: Bool { emphasis == .success }
@@ -288,12 +245,7 @@ private struct Glyph: View {
         isCelebrating ? OnboardingMetrics.celebratedGlyphRadius : OnboardingMetrics.glyphRadius
     }
 
-    /// What the last page has that the others do not: light coming off the tile, and
-    /// three rings that arrive with it and then stop.
-    ///
-    /// Rings rather than confetti. This is the end of setting something up, not a prize —
-    /// the page should read as finished and lit, and paper falling out of the sky over a
-    /// window that is about to close is somebody else's idea of a good mood.
+    /// The last page's light and three rings that arrive and then stop.
     @ViewBuilder private var bloom: some View {
         if isCelebrating {
             ZStack {
@@ -321,12 +273,7 @@ private struct Glyph: View {
         }
     }
 
-    /// The mark itself, rather than a symbol standing in for it. Only the pages that are
-    /// about Uttrflow itself wear it, on the accent rather than beside it.
-    ///
-    /// The mark and not the app icon: the icon is the mark already mounted on its own ink
-    /// tile, and this tile is a tile. Two of them nested read as a picture of an icon
-    /// rather than as the product introducing itself.
+    /// The symbol, or the mark itself on the pages about Uttrflow; not the icon, which is already a tile.
     @ViewBuilder private var mark: some View {
         if let symbolName {
             Image(systemName: symbolName)
@@ -378,11 +325,7 @@ private struct Glyph: View {
     }
 }
 
-/// The three ways in, stacked as the design draws them.
-///
-/// Offline they are still here and still legible, only inert. A person who can see the
-/// three buttons they will be able to press understands what is waiting for them; an
-/// empty panel with an apology in it does not say the same thing.
+/// The three ways in, stacked; offline they stay visible but inert.
 private struct ProviderStack: View {
     let providers: [OnboardingProviderButton]
     let choose: (SignInProvider) -> Void
@@ -406,24 +349,7 @@ private struct ProviderStack: View {
     }
 }
 
-/// The provider's own mark, in the provider's own colours.
-///
-/// Apple's ships with the system. Google's does not, and it is somebody else's trademark,
-/// so it is fetched rather than kept here: `Scripts/fetch-provider-marks.sh` takes it from
-/// the artwork Google publishes for exactly this button, and `.gitignore` keeps it out of
-/// the repository. Shipping it inside an app that implements Google Sign-In is what it is
-/// published for; redistributing it in public source is a different act, and not one its
-/// terms clearly allow.
-///
-/// It is never recoloured, rotated or redrawn — those are the terms it comes on, and they
-/// are also why it is a picture rather than a `Path` somebody would later be tempted to
-/// tint. Redrawing it as a vector is the one thing that is definitely not permitted, so
-/// the absence of a `Path` here is deliberate and should stay.
-///
-/// **`image(forResource:)` returning nil is a supported state, not a failure.** A checkout
-/// that has not run the script draws the wording alone, which is what the GitHub button
-/// does in every build: its mark is not fetched either, and a stand-in symbol would be
-/// somebody else's logo by implication.
+/// The provider's mark; Google's is fetched, never redrawn, and may be absent. See Docs/app-onboarding.md.
 private struct ProviderMark: View {
     let provider: SignInProvider
 
@@ -446,12 +372,7 @@ private struct ProviderMark: View {
     }
 }
 
-/// The sign-in code, drawn to be read off a screen and typed into another window.
-///
-/// Monospaced and widely tracked, because the whole job of this view is that somebody
-/// copies eight characters correctly while looking away from the screen and back. It is
-/// selectable so the code can also be copied outright when both windows are on the same
-/// machine, which is the common case when a port could not be bound.
+/// The sign-in code, monospaced and selectable, drawn to be read off one screen and typed into another.
 private struct SignInCode: View {
     let code: String
 
@@ -470,17 +391,12 @@ private struct SignInCode: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(Color.dockAccent.opacity(0.30), lineWidth: 1)
             )
-            // Read one character at a time. "BCDF-GHJK" spoken as a word is unusable, and
-            // this is the one string on any page that has to be transcribed exactly.
+            // Read one character at a time; this is the one string that must be transcribed exactly.
             .accessibilityLabel(code.map(String.init).joined(separator: " "))
     }
 }
 
-/// The keys to hold, drawn as keys.
-///
-/// A keycap and not a grey chip: it has a lit top edge and sits on a shadow, because the
-/// last page is asking the user to press something on the keyboard in front of them and
-/// the picture should look like the thing.
+/// The keys to hold, drawn as keycaps with a lit edge and a shadow.
 private struct Keycaps: View {
     let keys: [String]
 
@@ -504,11 +420,7 @@ private struct Keycaps: View {
     }
 }
 
-/// How far through the download is.
-///
-/// With the figure beside it, which the bar alone never gave: a download of several
-/// hundred megabytes on a slow line looks identical to a stalled one for minutes at a
-/// time, and a percentage that moves is the difference.
+/// How far through the download is, with the figure beside the bar so a slow line looks unlike a stall.
 private struct ProgressTrack: View {
     let fraction: Double
 
@@ -570,9 +482,7 @@ private struct Note: View {
                 .strokeBorder(edge, lineWidth: 1))
     }
 
-    /// A quiet note is tinted with the accent rather than left grey. It is always saying
-    /// the same kind of thing — what Uttrflow does *not* do with what it is given — and
-    /// that is the product's own claim, not an aside.
+    /// A quiet note is tinted with the accent, because it states the product's own claim.
     private var background: Color {
         switch note.tone {
         case .quiet: .dockAccent.opacity(0.09)
@@ -597,19 +507,12 @@ private struct Note: View {
 
 // MARK: - Controls
 
-/// The answers at the foot of a page.
-///
-/// A filled accent for the one the page is steering towards, and an outline for the one
-/// beside it. Both were `.bordered` with a tint before, which is macOS's quietest control
-/// -- the difference between the answer and the way out was a wash of colour behind two
-/// buttons the same shape and weight.
+/// The answers at the foot of a page: a filled accent for the one steered towards, an outline beside it.
 private struct OnboardingButtonStyle: ButtonStyle {
     let isProminent: Bool
 
     func makeBody(configuration: Configuration) -> some View {
-        // A nested view rather than the style's own body: `isEnabled` is an environment
-        // value, and `makeBody` is a function rather than a view, so it cannot read one.
-        // Named `Face` because `Body` is what the protocol calls its associated type.
+        // A nested view, because `isEnabled` is an environment value and `makeBody` is not a view.
         Face(configuration: configuration, isProminent: isProminent)
     }
 
@@ -686,8 +589,7 @@ extension Double {
     /// A fraction a download reported, kept inside the bar it is drawn in.
     fileprivate var clampedToUnitInterval: Double { min(max(self, 0), 1) }
 
-    /// The same fraction as the figure beside the bar. Rounded down, so that a bar which
-    /// has not finished never reads 100%.
+    /// The figure beside the bar, rounded down so an unfinished bar never reads 100%.
     fileprivate var asPercentage: String {
         "\(Int(clampedToUnitInterval * 100))%"
     }

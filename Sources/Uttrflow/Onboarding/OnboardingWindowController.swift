@@ -1,3 +1,5 @@
+// The onboarding window and the real permissions, model store and settings behind it.
+
 import AppKit
 import UttrflowAccount
 import UttrflowCore
@@ -8,41 +10,19 @@ import UttrflowUX
 import Network
 import SwiftUI
 
-/// The onboarding window, and everything real that goes behind it.
-///
-/// The only place first-run onboarding meets the system: the two permission gates, the
-/// model store, the settings, and the URLs that open System Settings. Every decision
-/// those feed is made in ``OnboardingFlow``, which is why nothing here has a branch in
-/// it worth testing.
+/// The onboarding window and everything real behind it; every decision is `OnboardingFlow`'s.
 @MainActor
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
-    /// Called when the user closes the last page, with what they ended up able to do.
-    /// Never called for a window the user simply shut, because that user has not
-    /// finished and will be asked again next time.
+    /// Called when the user finishes the last page, never for a window simply shut.
     var onFinish: ((OnboardingReadiness) -> Void)?
-    /// The window has gone, however it went.
-    ///
-    /// Distinct from ``onFinish``, and both are needed. Finishing means the user walked
-    /// to the end and said they were done; this means only that the window is no longer
-    /// on screen. Somebody who signs in and then shuts the window with the red button has
-    /// changed something the rest of the app shows — they have an account now — and
-    /// without this the Account page would go on offering them Sign In indefinitely,
-    /// because nothing else re-reads the session.
+    /// The window has gone, however it went; the Account page re-reads the session on it.
     var onClose: (() -> Void)?
 
     private let flow: OnboardingFlow
     private let model: OnboardingModel
     private var window: NSWindow?
 
-    /// Everything real that goes behind the window, with a default for each.
-    ///
-    /// `account` is the backend and the store that believes it, as one value so the two
-    /// cannot disagree about which key signs an entitlement. No default, for the same
-    /// reason `personalisation` has none in `SettingsWindowController`:
-    /// ``OnboardingAccountLayer/development()`` mints a fresh signing key per call, so a
-    /// caller that let it default would get a session store rejecting every entitlement
-    /// another one had signed — met by the user as a sign-in that succeeds and leaves
-    /// them signed out.
+    /// `account` has no default because `OnboardingAccountLayer.development()` mints a fresh key per call.
     init(
         settingsStore: any SettingsStore,
         modelStore: any SpeechModelStore = FileSystemSpeechModelStore.whisperKit(),
@@ -61,9 +41,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             profiles: account.profiles,
             local: account.local,
             network: network,
-            // The name macOS knows this Mac's owner by, read here rather than in the
-            // flow, so the flow under test is greeting whoever the test says rather than
-            // whoever happens to be running it.
+            // Read here, not in the flow, so the flow under test greets whoever the test says.
             systemName: { NSFullUserName() },
             openBrowser: { url in
                 Task { @MainActor in NSWorkspace.shared.open(url) }
@@ -84,9 +62,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     /// Whether the user has never been through this.
     var isRequired: Bool { flow.isRequired }
 
-    /// Puts the window on screen and brings the app forward.
-    ///
-    /// A first run is the one moment taking the foreground from another app is right.
+    /// Puts the window on screen and brings the app forward; a first run is the one moment that is right.
     func present(skippingWelcome: Bool = false, askingToSignIn: Bool = false) {
         model.skipsWelcome = skippingWelcome
         model.asksToSignIn = askingToSignIn
@@ -111,8 +87,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         window.isMovableByWindowBackground = true
         window.delegate = self
         let hosting = NSHostingView(rootView: OnboardingView(model: model))
-        // The onboarding pages are deliberately one fixed size, and a page whose text runs
-        // long must not stretch the window under the user mid-flow.
+        // One fixed size, so a long page cannot stretch the window under the user mid-flow.
         hosting.sizingOptions = []
         window.contentView = hosting
         return window
@@ -123,24 +98,17 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         window = nil
     }
 
-    /// Both permissions are granted in another application, and macOS says nothing when
-    /// that happens. Coming back to this window is the closest thing to a signal there
-    /// is, so it is what the flow re-reads on.
+    /// Re-reads the permissions, since macOS says nothing when one is granted in System Settings.
     func windowDidBecomeKey(_ notification: Notification) {
         model.refresh()
     }
 
-    /// Whatever closed it — the red button, ``close()`` at the end of the flow, or the
-    /// app quitting — the rest of the interface may now be describing a stale world.
+    /// However the window closed, the rest of the interface may now be describing a stale world.
     func windowWillClose(_ notification: Notification) {
         onClose?()
     }
 
-    /// Where each permission is turned on by hand.
-    ///
-    /// The mapping lives here rather than in ``UttrflowCore`` for the reason
-    /// ``SystemSettingsPane`` gives: the domain holds the pane as a symbol so that it
-    /// stays free of anything that knows what a URL is.
+    /// Where each permission is turned on by hand; the domain holds the pane as a symbol, not a URL.
     private static func open(_ pane: SystemSettingsPane) {
         let address =
             switch pane {

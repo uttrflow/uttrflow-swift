@@ -1,17 +1,10 @@
+// Whether this Mac is online, from a path monitor.
+
 import Foundation
 import UttrflowUX
 import Network
 
-/// Whether this Mac has a route to the internet, as the sign-in page asks it.
-///
-/// A monitor rather than a reachability test against a host: the question is only ever
-/// "is it worth drawing the buttons live", and answering it by pinging somebody would
-/// mean a network request to decide whether to make a network request.
-///
-/// It starts optimistic. The first path report arrives a moment after the monitor does,
-/// and being briefly wrong in the direction of "try it" costs the user one failed
-/// attempt that lands on the offline page anyway — whereas being briefly wrong the other
-/// way greys out three buttons on a Mac that is perfectly online.
+/// Whether this Mac has a route to the internet, from a path monitor; optimistic until the first report.
 final class SystemNetworkReachability: NetworkReachability, @unchecked Sendable {
     private let monitor = NWPathMonitor()
     private let lock = NSLock()
@@ -28,9 +21,7 @@ final class SystemNetworkReachability: NetworkReachability, @unchecked Sendable 
         monitor.cancel()
     }
 
-    /// `@unchecked Sendable` with a lock rather than an actor, because the sign-in page
-    /// asks this synchronously while deciding what to draw, and a question answered from
-    /// a stored boolean has nothing to suspend for.
+    /// A lock rather than an actor, because the sign-in page asks this synchronously while drawing.
     var isReachable: Bool {
         lock.withLock { latest }
     }

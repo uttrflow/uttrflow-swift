@@ -1,19 +1,10 @@
+// The brand rail beside the onboarding pages, and the rail ground Settings shares.
+
 import AppKit
 import UttrflowUX
 import SwiftUI
 
-/// The brand rail down the left of the onboarding window.
-///
-/// It carries the whole of the flow — the mark, the seven steps, and which one the user
-/// is on — so that the page beside it never has to. That is what replaced the row of
-/// dots at the foot of the window: a dot says how far through you are and nothing else,
-/// while this says what is behind you, what you are doing, and what is still to come.
-///
-/// It is also the one surface in the app that is the accent rather than merely tinted by
-/// it. The identity has a single colour and, before this, a first run showed it on a
-/// 76-point tile and two buttons; here it is the ground the product introduces itself on,
-/// in both appearances — the page beside it flips with the system, the rail does not,
-/// because a brand that changes colour with the desktop is not a brand.
+/// The brand rail down the left of the onboarding window: the mark, the seven steps, and the current one.
 struct OnboardingRail: View {
     let position: Int
 
@@ -46,8 +37,7 @@ struct OnboardingRail: View {
         .frame(width: OnboardingMetrics.railWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background(RailGround())
-        // One label for the whole rail: seven rows read out one at a time is seven
-        // announcements of something the page itself already says.
+        // One label for the whole rail; seven rows read out one at a time repeat the page.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "Step \(position) of \(steps.count): \(steps[position - 1].railTitle)")
@@ -62,11 +52,7 @@ struct OnboardingRail: View {
         .background(alignment: .topLeading) { spine }
     }
 
-    /// The line the indicators are threaded on, lit as far as the user has come.
-    ///
-    /// Drawn behind the rows rather than between them so that the lit row's own
-    /// background covers it, which is what makes the current step read as a stop on the
-    /// line rather than a box sitting beside it.
+    /// The line the indicators are threaded on, lit as far as the user has come, drawn behind the rows.
     private var spine: some View {
         ZStack(alignment: .top) {
             Capsule()
@@ -108,8 +94,7 @@ struct OnboardingRail: View {
                 .overlay(
                     Image(systemName: "checkmark")
                         .font(.system(size: 9, weight: .bold))
-                        // The rail's own deep end, so the tick reads as cut out of the
-                        // ground rather than printed in a fourth colour.
+                        // The rail's own deep end, so the tick reads as cut out of the ground.
                         .foregroundStyle(Color(rgb: 0x06_3A35)))
         } else if index == position {
             Circle()
@@ -135,12 +120,7 @@ struct OnboardingRail: View {
 
 }
 
-/// The rail's ground, shared by first-run and by Settings.
-///
-/// The accent, deepened until white text sits on it at any point of the gradient, with
-/// one soft light behind the mark so the surface has somewhere to come from. It does not
-/// follow the system's appearance the way the page beside it does: a brand that changes
-/// colour with the desktop is not a brand.
+/// The rail's ground, shared with Settings: the accent deepened until white sits on it, in both appearances.
 struct RailGround: View {
     var body: some View {
         LinearGradient(
@@ -160,12 +140,7 @@ struct RailGround: View {
     }
 }
 
-/// The rail's surface: a handful of out-of-focus lights, low down, under film grain.
-///
-/// Chosen from fifteen drawn against this rail. Everything in it is white below 8%, and
-/// all of it sits under the step list rather than behind it — a pattern a reader can
-/// resolve is a pattern competing with the words on top of it. The grain is not
-/// decoration: a gradient this large bands on a real display, and noise is what hides it.
+/// A handful of out-of-focus lights under film grain, all white below 8%; the grain hides gradient banding.
 private struct RailPattern: View {
     /// Each light as a fraction of the rail, so the arrangement survives a taller window.
     private struct Light {
@@ -205,10 +180,7 @@ private struct RailPattern: View {
     }
 }
 
-/// Film grain, drawn once and rasterised.
-///
-/// Deterministic: the same rail draws the same speckle every launch, because a texture
-/// that reshuffles on every redraw is a texture that shimmers when the window resizes.
+/// Film grain, drawn once and rasterised; deterministic, so it does not shimmer when the window resizes.
 private struct Grain: View {
     var body: some View {
         Canvas(rendersAsynchronously: false) { context, size in
@@ -228,8 +200,7 @@ private struct Grain: View {
     }
 }
 
-/// Sixty-four bits of reproducible noise. Small enough to read, which is the whole
-/// argument for having it here rather than seeding something bigger.
+/// Sixty-four bits of reproducible noise, small enough to read.
 private struct SplitMix64 {
     private var state: UInt64
 
