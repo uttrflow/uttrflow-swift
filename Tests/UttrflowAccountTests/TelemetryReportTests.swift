@@ -4,17 +4,10 @@ import Testing
 @testable import UttrflowAccount
 @testable import UttrflowCore
 
-/// The report, against the schema it has to satisfy.
-///
-/// The backend's ingest schema is `.strict()`: a key it does not recognise is a 400, not a
-/// field it quietly ignores. That is the behaviour Uttrflow wants — a rejected request is a
-/// bug report and a silently dropped field is a bug nobody finds — but it means the key
-/// set here and the one in `src/telemetry/report.ts` have to agree exactly, so the key set
-/// is asserted rather than assumed.
+/// Checks the report against the backend's `.strict()` ingest schema, whose key set must match exactly.
 @Suite("The telemetry report matches the backend's schema")
 struct TelemetryReportTests {
-    /// Copied from `telemetryReportSchema` in the backend. If this list and that object
-    /// diverge, every report Uttrflow sends is refused.
+    /// Copied from `telemetryReportSchema` in the backend; a divergence here refuses every report sent.
     private static let schemaKeys: Set<String> = [
         "windowStartedAt", "windowEndedAt", "appVersion", "osVersionMajor",
         "dictationCount", "cancelledCount", "failureCount",
@@ -34,8 +27,7 @@ struct TelemetryReportTests {
         #expect(Set(Telemetry.encodedObject(report).keys) == Self.schemaKeys)
     }
 
-    /// Zod's `.optional()` accepts a missing key and refuses an explicit `null`, so an
-    /// unmeasured percentile has to be absent rather than null.
+    /// Zod's `.optional()` accepts a missing key and refuses an explicit `null`.
     @Test("omits absent optionals rather than encoding null")
     func absentOptionalsAreOmitted() throws {
         let report = try #require(Telemetry.report(osVersionMajor: nil))
@@ -46,8 +38,7 @@ struct TelemetryReportTests {
         #expect(keys.union(Self.schemaKeys) == Self.schemaKeys)
     }
 
-    /// `z.iso.datetime()` wants an ISO-8601 instant. Produced here rather than left to the
-    /// caller's encoder, so a caller with a different date strategy cannot send a number.
+    /// `z.iso.datetime()` wants an ISO-8601 instant, produced here rather than by the caller's encoder.
     @Test("writes the window as ISO-8601 instants whatever the caller's encoder does")
     func windowIsISO8601() throws {
         let report = try #require(Telemetry.report())
@@ -69,16 +60,14 @@ struct TelemetryReportTests {
 
     // MARK: - Refusals
 
-    /// The table has `check (window_ended_at > window_started_at)`. A report that fails it
-    /// is a 500 rather than a 400, so it is refused here instead.
+    /// The table's `check (window_ended_at > window_started_at)` is a 500, not a 400, so it is refused here.
     @Test("refuses a window that did not advance")
     func refusesAnEmptyWindow() {
         #expect(Telemetry.report(windowEndedAt: Telemetry.noon) == nil)
         #expect(Telemetry.report(windowEndedAt: Telemetry.noon.addingTimeInterval(-1)) == nil)
     }
 
-    /// Nothing happened, so there is nothing to say. Sending it would cost the user's
-    /// battery to tell the server that Uttrflow was not used.
+    /// Nothing happened, so sending a report would cost battery to say Uttrflow was not used.
     @Test("refuses a window with no dictations in it")
     func refusesAnIdleWindow() {
         #expect(Telemetry.report(dictationCount: 0) == nil)
@@ -87,9 +76,7 @@ struct TelemetryReportTests {
 
     // MARK: - Ranges
 
-    /// Every one of these is a refusal on the server: `count` and `durationMs` have upper
-    /// bounds in Zod, and `cancelled_count <= dictation_count` is a `check` on the table.
-    /// A rounded number is worth more than a rejected report.
+    /// Zod bounds `count` and `durationMs`, and the table checks `cancelled_count <= dictation_count`.
     @Test("brings out-of-range numbers inside what the server accepts")
     func clampsToTheServersRanges() throws {
         let report = try #require(
@@ -112,9 +99,7 @@ struct TelemetryReportTests {
         #expect(version == TelemetryReport.AppVersion(major: 0, minor: 999, patch: 12))
     }
 
-    /// The table refuses percentiles that go backwards, on the grounds that wrong numbers
-    /// are worse than no numbers. Raised into order rather than dropped, so the report
-    /// still arrives.
+    /// The table refuses percentiles that go backwards; raising them into order keeps the report arriving.
     @Test("raises percentiles that arrive out of order")
     func percentilesAreMonotonic() throws {
         let report = try #require(Telemetry.report(latencyP50Ms: 900, latencyP90Ms: 100, latencyP99Ms: 50))
@@ -142,9 +127,7 @@ struct TelemetryReportTests {
         #expect(report.latencyP99Ms == 700)
     }
 
-    /// A percentile with nothing beneath it has nothing to be raised above, so it stands as
-    /// measured. Only the collector can produce these, and only briefly, but the ordering
-    /// rule has to hold when the floor is missing as well as when it is there.
+    /// A percentile with nothing beneath it has nothing to be raised above, so it stands as measured.
     @Test("leaves a percentile alone when the ones below it were not measured")
     func percentilesWithNoFloorAreLeftAlone() throws {
         let withoutMedian = try #require(Telemetry.report(latencyP90Ms: 5, latencyP99Ms: 9))
@@ -163,8 +146,7 @@ struct TelemetryReportTests {
 
     // MARK: - Collections
 
-    /// Sixty-four language entries is the server's limit, and duplicate rows are summed
-    /// there rather than refused. A dictionary in means neither can happen.
+    /// The server caps languages at sixty-four and sums duplicate rows; a dictionary in prevents both.
     @Test("sorts languages by tag and drops the ones with no dictations")
     func languagesAreSortedAndSparse() throws {
         let report = try #require(
@@ -174,8 +156,7 @@ struct TelemetryReportTests {
         #expect(report.languages.map(\.dictationCount) == [9, 4])
     }
 
-    /// `telemetry_stage_outcomes` is keyed on `(report_id, stage)`. Two rows for one stage
-    /// would be summed by the upsert, which would silently double a failure count.
+    /// `telemetry_stage_outcomes` is keyed on `(report_id, stage)`; the upsert sums a second row for a stage.
     @Test("keeps one outcome per stage, in the journey's order")
     func stagesAreUniqueAndOrdered() throws {
         let report = try #require(
@@ -191,18 +172,14 @@ struct TelemetryReportTests {
 
     // MARK: - Vocabulary
 
-    /// The stages the server has a name for, and the server's names for them. A new
-    /// stage in ``PipelineStage`` makes ``TelemetryStage/init(_:)`` fail to compile,
-    /// which is the moment somebody should decide whether it is reportable.
+    /// A new ``PipelineStage`` case breaks ``TelemetryStage/init(_:)`` until its reportability is decided.
     @Test("names every reportable pipeline stage the way the server's enumeration does")
     func stageNamesMatchTheServer() {
         let mapped = PipelineStage.allCases.compactMap { TelemetryStage($0)?.rawValue }
         #expect(mapped == ["audio-capture", "transcription", "tidying", "insertion"])
     }
 
-    /// The backend's `pipeline_stage` domain is closed and is not this repository's to
-    /// widen, so the two stages it has no name for are measured on the Mac and kept
-    /// there rather than sent under a name that would be rejected.
+    /// The backend's `pipeline_stage` domain is closed, so the two stages it cannot name stay on the Mac.
     @Test("a stage the server cannot name is not reportable")
     func unreportableStages() {
         #expect(TelemetryStage(.correction) == nil)
@@ -217,8 +194,7 @@ struct TelemetryReportTests {
         #expect(TelemetryLanguage(try #require(LanguageCode("xyz"))) == .other)
     }
 
-    /// Every tag has to satisfy the server's `language_tag` domain, or the report is a 400
-    /// the first time somebody dictates in that language.
+    /// Every tag must satisfy the server's `language_tag` domain, or a report is a 400 in that language.
     @Test("every language tag matches the pattern the server enforces")
     func everyTagIsWellFormed() throws {
         let pattern = /^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$/

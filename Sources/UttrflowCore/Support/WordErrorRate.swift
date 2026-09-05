@@ -1,43 +1,19 @@
-/// How far a transcript is from what was actually read.
-///
-/// A genuine edit distance over words, not the word overlap ``Scorer`` uses. The two
-/// measure different things and both are needed: a rewrite may say the same thing in
-/// other words and still be right, so clean-up is scored on similarity; a transcript
-/// that says other words is wrong by definition, so a recogniser is scored on the
-/// number of edits it takes to repair it.
-///
-/// `WER = (substitutions + deletions + insertions) / reference words`, which can exceed
-/// 1 — a recogniser that hallucinates a paragraph over a two-word utterance is more than
-/// 100% wrong, and clamping that to 1 would hide it.
+// Word error rate: an edit distance over words, kept in Core so the app never links the evaluation harness.
 
-// Here rather than in UttrflowEval, which is where it was written and where most of its
-// callers still are.
-//
-// The evaluation harness must never be linked into the shipped app — it knows how to
-// reach a private bucket of real people's recordings, and Scripts/bundle.sh now refuses a
-// build whose binary carries its symbols. But onboarding's microphone check needs to score
-// a read passage, which is the same edit distance. Lifting the algorithm into Core lets
-// both have it without the app importing the harness, and without a second implementation
-// of a measurement two parts of the product must agree on.
-
+/// How far a transcript is from what was read: edits over reference words (`Docs/core-word-error-rate.md`).
 public struct WordErrorRate: Sendable, Equatable, Codable {
-    /// One step of the alignment between reference and transcript.
-    ///
-    /// Kept, rather than only the counts, because a rate says a passage went badly and
-    /// only the alignment says which words — and the fix is nearly always in the corpus
-    /// or the normalisation rather than the recogniser.
+    /// One step of the alignment; kept, not only counted, because the alignment says which words went wrong.
     public enum Operation: Sendable, Equatable, Codable {
+        /// A reference word the transcript reproduced.
         case match(String)
+        /// A reference word the transcript replaced with another.
         case substitution(reference: String, hypothesis: String)
         /// A reference word the transcript never produced.
         case deletion(String)
         /// A transcript word with nothing in the reference behind it.
         case insertion(String)
 
-        /// Which of the four an operation is, without its words.
-        ///
-        /// The counts and the report both need to group by kind, and asking each of them
-        /// to write out its own `case` test is how two of them end up disagreeing.
+        /// Which of the four an operation is, without its words; the grouping the counts and report share.
         public enum Kind: String, Sendable, Equatable, CaseIterable, Codable {
             case match
             case substitution
@@ -45,6 +21,7 @@ public struct WordErrorRate: Sendable, Equatable, Codable {
             case insertion
         }
 
+        /// This operation's kind.
         public var kind: Kind {
             switch self {
             case .match: .match
@@ -55,12 +32,15 @@ public struct WordErrorRate: Sendable, Equatable, Codable {
         }
     }
 
+    /// The edits, in reference order.
     public let alignment: [Operation]
 
+    /// A rate over an alignment already computed.
     public init(alignment: [Operation]) {
         self.alignment = alignment
     }
 
+    /// How many operations are of `kind`.
     public func count(of kind: Operation.Kind) -> Int {
         alignment.count { $0.kind == kind }
     }
@@ -73,34 +53,19 @@ public struct WordErrorRate: Sendable, Equatable, Codable {
 
     public var insertions: Int { count(of: .insertion) }
 
+    /// Every operation that is not a match.
     public var errors: Int { alignment.count { $0.kind != .match } }
 
     /// The denominator: every word that was read aloud.
     public var referenceWordCount: Int { hits + substitutions + deletions }
 
-    /// `nil` when nothing was read, because a rate with no denominator is not a rate.
-    ///
-    /// Reported as absent rather than as zero: an empty reference means the harness has
-    /// nothing to say, and saying "0% error" instead would be a lie in the flattering
-    /// direction.
+    /// Errors over reference words, or `nil` when nothing was read; a zero here would flatter.
     public var rate: Double? {
         guard referenceWordCount > 0 else { return nil }
         return Double(errors) / Double(referenceWordCount)
     }
 
-    /// Aligns two word sequences and counts the edits between them.
-    ///
-    /// Ordinary Levenshtein over words with unit costs, then a backtrace to attribute
-    /// each edit. The backtrace prefers a diagonal step, then a deletion, then an
-    /// insertion. The tie-break cannot change the total — every optimal path has the
-    /// same number of edits — but it does decide how a tie is split between the three
-    /// kinds, and a split that varied run to run would make the report unreadable.
-    ///
-    /// "Send it to Priya" heard as "send to preeya now" is three edits either way: a
-    /// deletion, a substitution and an insertion, or three substitutions. This reports
-    /// the second. The rate is the same; only the breakdown differs, so the breakdown is
-    /// read as "three words wrong here", never as evidence about which kind of mistake
-    /// the recogniser is prone to.
+    /// Levenshtein over words with unit costs, backtraced diagonal first so a tie splits the same way always.
     public static func measure(reference: [String], hypothesis: [String]) -> WordErrorRate {
         let rows = reference.count + 1
         let columns = hypothesis.count + 1
@@ -150,12 +115,7 @@ public struct WordErrorRate: Sendable, Equatable, Codable {
         return WordErrorRate(alignment: alignment.reversed())
     }
 
-    /// One rate over several passages.
-    ///
-    /// Errors and reference words are summed before dividing — the standard corpus WER —
-    /// rather than averaging the per-passage rates. Averaging rates would give a
-    /// six-word passage the same weight as a sixty-word one, so a single stumble over a
-    /// short sentence could swing the headline figure by more than a whole bad passage.
+    /// One corpus rate: errors and reference words summed before dividing; a short passage cannot swing it.
     public static func combined(_ rates: [WordErrorRate]) -> WordErrorRate {
         WordErrorRate(alignment: rates.flatMap(\.alignment))
     }

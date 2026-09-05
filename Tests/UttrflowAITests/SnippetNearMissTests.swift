@@ -4,20 +4,10 @@ import Testing
 
 @testable import UttrflowAI
 
-/// Transcripts that look like they contain a trigger and do not.
-///
-/// This is the suite the matcher is judged by. A snippet that fails to fire costs the
-/// user one repeated phrase; a snippet that fires when it should not rewrites something
-/// they said, in an app they were typing into, without being asked. The two are not
-/// symmetrical, so the passing score here is zero expansions and nothing else.
-///
-/// Every case is a different way of being close. Whole words, sentence boundaries and
-/// glue are three separate rules in ``SnippetExpander``, and each of them is the only
-/// thing standing between one of these transcripts and a wrong expansion.
+/// Transcripts that look like they contain a trigger and do not; the passing score is zero expansions.
 @Suite("Words that look like triggers and are not")
 struct SnippetNearMissTests {
-    /// A deliberately dangerous set: short triggers, and triggers whose words are
-    /// common enough to turn up inside other words and other phrases.
+    /// A deliberately dangerous set: short triggers, and words common enough to appear inside other words.
     private static let snippets: [Snippet] = [
         makeSnippet(trigger: "pr", expansion: "pull request"),
         makeSnippet(trigger: "add", expansion: "Adobe Acrobat"),
@@ -27,6 +17,7 @@ struct SnippetNearMissTests {
         makeSnippet(trigger: "meeting link", expansion: "https://meet.google.com/qzt-hnrv-dka"),
     ]
 
+    /// Each a different way of being close: inside a word, glued, across a sentence end, or quoted.
     static let nearMisses: [String] = [
         // A trigger inside a longer word. Nothing here is a word run of its own.
         "Please approve the change before Friday.",
@@ -36,8 +27,7 @@ struct SnippetNearMissTests {
         "The meeting linkage between the two teams was unclear.",
         "He was signing off as I walked in.",
 
-        // A trigger glued to a neighbour by punctuation, which makes one written word
-        // out of two runs.
+        // A trigger glued to a neighbour by punctuation, which makes one written word of two runs.
         "The PR-review queue is empty.",
         "The add-on costs extra.",
         // Glued on the left rather than the right. Both ends have to be checked.
@@ -49,8 +39,7 @@ struct SnippetNearMissTests {
         "My address's postcode changed last year.",
         "The pr/fr split is not worth arguing about.",
 
-        // A trigger assembled out of two different thoughts. Punctuation tolerance
-        // stops at the end of a sentence.
+        // A trigger assembled from two thoughts; punctuation tolerance stops at a sentence end.
         "Please sign. Off we go.",
         "Everyone please stand; up to you whether you speak.",
         "That is my. Address unknown.",
@@ -71,8 +60,7 @@ struct SnippetNearMissTests {
         #expect(result.text == transcript)
     }
 
-    /// A near-miss set that passes because the matcher never fires at all would prove
-    /// nothing. These are the same snippets, said properly.
+    /// The same snippets said properly, so a matcher that never fires cannot pass by silence.
     @Test(
         "and still expands the real thing",
         arguments: [

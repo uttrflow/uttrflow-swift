@@ -1,15 +1,10 @@
+// The request and response values, and the protocol that carries them to the backend.
 public import struct Foundation.Data
 public import struct Foundation.URL
 
-/// One request to the backend, as a value.
-///
-/// Describing a request rather than making one is what keeps every decision worth getting
-/// wrong — which path, which header, what body — in code a test can read, and leaves the
-/// network layer with nothing to do but put bytes on a wire. It is the same bargain
-/// ``UttrflowEval``'s `HTTPTransport` makes, and a near-twin of it for the same reason
-/// ``SessionStorage`` is a near-twin of `KeyValueStore`: this module cannot import that
-/// one. The honest home for both is ``UttrflowCore``.
+/// One request as a value, so every decision worth getting wrong is in code a test can read.
 public struct BackendRequest: Sendable, Equatable {
+    /// The HTTP method.
     public enum Method: String, Sendable, Equatable {
         case get = "GET"
         case post = "POST"
@@ -17,12 +12,16 @@ public struct BackendRequest: Sendable, Equatable {
         case delete = "DELETE"
     }
 
+    /// The HTTP method.
     public let method: Method
+    /// Where it goes.
     public let url: URL
     /// Written in canonical form here and never assembled from anything a user typed.
     public let headers: [String: String]
+    /// The body, if any.
     public let body: Data?
 
+    /// A request with no headers and no body unless given.
     public init(method: Method, url: URL, headers: [String: String] = [:], body: Data? = nil) {
         self.method = method
         self.url = url
@@ -31,17 +30,23 @@ public struct BackendRequest: Sendable, Equatable {
     }
 }
 
+/// What the server answered, whatever the status.
 public struct BackendResponse: Sendable, Equatable {
+    /// The HTTP status.
     public let status: Int
+    /// The response headers as the server sent them.
     public let headers: [String: String]
+    /// The body, possibly empty.
     public let body: Data
 
+    /// A response with no headers and an empty body unless given.
     public init(status: Int, headers: [String: String] = [:], body: Data = Data()) {
         self.status = status
         self.headers = headers
         self.body = body
     }
 
+    /// Whether the status is 2xx.
     public var isSuccess: Bool { (200..<300).contains(status) }
 
     /// A header, found without caring how the server capitalised it.
@@ -51,26 +56,20 @@ public struct BackendResponse: Sendable, Equatable {
     }
 }
 
-/// The only way this module reaches the network.
-///
-/// A protocol, so that the whole of sign-in — the polling, the rotation, the four ways a
-/// server can say no — is driven from tests with no server anywhere near them. The
-/// conformance that opens a socket is ``URLSessionTransport``, which is small enough that
-/// reading it is a sufficient review.
+/// The only way this module reaches the network; a protocol, so sign-in is tested without a server.
 public protocol BackendTransport: Sendable {
-    /// Non-throwing on the status: a `404` and a `502` are answers with different meanings
-    /// and the caller has something different to say about each. Only a connection that
-    /// could not be made at all throws — which is the one failure that must never be
-    /// mistaken for "the server said no", because the app carries on offline and does not
-    /// carry on when it has been refused.
+    /// Throws only when no connection could be made; every status, `404` and `502` included, is an answer.
     func perform(_ request: BackendRequest) async throws(BackendUnreachable) -> BackendResponse
 }
 
 /// The request did not happen. Anything the server said is a ``BackendResponse``.
 public struct BackendUnreachable: Error, Sendable, Equatable, CustomStringConvertible {
+    /// The address that could not be reached.
     public let url: URL
+    /// What the system said.
     public let reason: String
 
+    /// Names the address and the system's reason.
     public init(url: URL, reason: String) {
         self.url = url
         self.reason = reason

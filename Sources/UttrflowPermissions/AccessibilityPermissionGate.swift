@@ -1,19 +1,16 @@
 public import UttrflowCore
 
-/// Reads and requests the Accessibility permission that lets text reach other apps.
-///
-/// Behaves differently from the microphone in a way the product has to respect: macOS
-/// never shows a modal for this. Asking opens System Settings and the user grants it
-/// there, in their own time, while the app keeps running. So "request" means "point
-/// them at it", and the answer arrives later — by them coming back — not from the call.
+/// Reads and requests the Accessibility permission; macOS shows no modal, so a request opens System Settings.
 public struct AccessibilityPermissionGate: PermissionGate {
+    /// Reads whether this process is trusted.
     private let readStatus: @Sendable () -> PermissionStatus
+    /// Opens the Privacy & Security pane for Accessibility.
     private let openSettings: @Sendable () -> Void
 
+    /// Names this gate as the Accessibility permission.
     public let kind: PermissionKind = .accessibility
 
-    /// Substitutes both system calls. The public `init()` that wires up the real ones
-    /// lives alongside them, in `AccessibilityPermissionGate+System.swift`.
+    /// Substitutes both system calls; the real wiring lives in `AccessibilityPermissionGate+System.swift`.
     init(
         readStatus: @escaping @Sendable () -> PermissionStatus,
         openSettings: @escaping @Sendable () -> Void
@@ -22,15 +19,12 @@ public struct AccessibilityPermissionGate: PermissionGate {
         self.openSettings = openSettings
     }
 
+    /// The permission as it stands right now.
     public func status() async -> PermissionStatus {
         readStatus()
     }
 
-    /// Opens System Settings, then reports what is true right now — which is almost
-    /// always still "not granted".
-    ///
-    /// Returning that honestly matters: a caller must not treat this as a yes/no
-    /// answer and lock the user out. Onboarding waits and re-reads instead.
+    /// Opens System Settings and re-reads, which is almost always still "not granted"; callers re-read later.
     public func request() async -> PermissionStatus {
         let current = readStatus()
         guard current != .granted else { return .granted }

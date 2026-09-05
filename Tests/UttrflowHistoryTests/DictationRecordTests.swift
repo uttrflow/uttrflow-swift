@@ -3,8 +3,10 @@ import Testing
 
 @testable import UttrflowHistory
 
+/// Retention arithmetic and the on-disk shape of one record.
 @Suite("What one kept dictation is")
 struct DictationRecordTests {
+    /// A fixed instant.
     private let noon = Date(timeIntervalSince1970: 1_700_000_000)
 
     @Test("survives inside the window and not outside it")
@@ -45,9 +47,7 @@ struct DictationRecordTests {
         #expect(decoded == record)
     }
 
-    /// The field is new and every file already on disk is missing it. This is a literal
-    /// of what the previous shape actually wrote, rather than a re-encoding of today's
-    /// — a test that encodes before it decodes cannot fail the way an upgrade does.
+    /// A literal of what an older build writes; re-encoding today's shape cannot fail like an upgrade does.
     @Test("a record written before changes were kept still decodes")
     func decodesTheShapeBeforeChanges() throws {
         let stored = """
@@ -60,23 +60,16 @@ struct DictationRecordTests {
         #expect(decoded.map(\.text) == ["Right, the drafting is done."])
         #expect(decoded.first?.applicationName == "Mail")
         #expect(decoded.first?.spokenFor == .seconds(11))
-        // Absent, not empty: nobody was keeping a record when this was written, and
-        // reading it as "nothing was changed" would let the accuracy figure count an
-        // unmeasured dictation as a perfect one.
+        // Absent, not empty: nobody kept a record, and "nothing changed" would count this as perfect.
         #expect(decoded.first?.changes == nil)
         #expect(CorrectionHistory(of: decoded).corrections.isEmpty)
-        // A dictation nobody flagged and one from before flags existed are the same
-        // fact — the user has not complained about it — so there is no third state and
-        // the missing key reads as `false` rather than refusing the whole file.
+        // A missing key reads as `false` rather than refusing the file; there is no third state to keep.
         #expect(decoded.first?.isFlagged == false)
-        // Nor did anything record which app that was, beyond its name. The row still
-        // knows where it went; only the icon lookup has to fall back to the name.
+        // No identifier in the file; the row still says where it went and the icon falls back to the name.
         #expect(decoded.first?.applicationIdentifier == nil)
     }
 
-    /// The name is a label and the identifier is an identity, so the identity has to
-    /// survive being written to disk and read back — otherwise every dictation loses its
-    /// icon the moment the app is restarted.
+    /// The identifier is the identity the icon is found by, so it must survive a round trip.
     @Test("keeps the application's identifier across a round trip")
     func keepsTheApplicationIdentifier() throws {
         let record = DictationRecord(

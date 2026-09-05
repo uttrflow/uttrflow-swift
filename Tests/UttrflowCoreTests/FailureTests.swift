@@ -1,21 +1,15 @@
+// Tests that every catalogued failure explains itself, offers a true recovery and says its cost.
+
 import Testing
 
 @testable import UttrflowCore
 
-/// Every failure the product can raise, from the catalogue the product itself keeps.
-///
-/// Written out here once, as a hand-maintained array in two separate test targets, it
-/// drifted: ``HotkeyError`` reached the interface's list and never reached this one, so
-/// the two hotkey errors went unchecked by the very file that exists to prove every
-/// failure explains itself. ``FailureCatalogue`` is now the single list, and each enum's
-/// share of it is chained through a `switch` the compiler will not let go stale.
+/// Every failure the product can raise, from the one catalogue the product keeps.
 private let allFailures = FailureCatalogue.everyFailure
 
 @Suite("The catalogue of failures")
 struct FailureCatalogueTests {
-    /// What the chain is for. If a case is added to an enum and linked in, it appears
-    /// here without anyone editing a test; if it is added and not linked in, the module
-    /// does not compile. Neither is what happened to ``HotkeyError``, which is the point.
+    /// A case linked into its chain appears here with no test edited; one left out stops the module compiling.
     @Test("lists every case of every failure the product declares")
     func coversEveryCase() {
         #expect(PermissionError.everyCase.count == 3)
@@ -30,8 +24,7 @@ struct FailureCatalogueTests {
         #expect(allFailures.count == 35)
     }
 
-    /// A chain that links backwards would loop forever, and one that repeats a case
-    /// would hide the case it displaced. Both show up as a duplicate.
+    /// A backwards link loops and a repeated case hides the one it displaces; both show as a duplicate.
     @Test("links each case exactly once")
     func chainsWithoutRepeating() {
         for cases in [
@@ -79,8 +72,7 @@ struct FailurePresentationTests {
     func recoveryActions() {
         #expect(PermissionError.microphoneDenied.recovery == .openSystemSettings(.microphone))
         #expect(PermissionError.accessibilityNotTrusted.recovery == .openSystemSettings(.accessibility))
-        // A policy-restricted microphone cannot be fixed by the user, so offering an
-        // action would be a lie.
+        // A policy-restricted microphone cannot be fixed by the user, so an action would be a lie.
         #expect(PermissionError.microphoneRestricted.recovery == nil)
 
         #expect(AudioCaptureError.noInputDevice.recovery == nil)
@@ -103,8 +95,7 @@ struct FailurePresentationTests {
         #expect(HotkeyError.shortcutUnavailable.recovery == .retry)
     }
 
-    /// The one failure whose message and action used to contradict each other: it said
-    /// the text could not be copied and then offered a button that meant "paste it".
+    /// A message saying the text could not be copied must not come with a button meaning "paste it".
     @Test("never sends the user to the clipboard when the clipboard is what failed")
     func clipboardFailureDoesNotOfferAPaste() {
         let failure = TextInsertionError.clipboardUnavailable
@@ -113,9 +104,7 @@ struct FailurePresentationTests {
         #expect(failure.userMessage.contains("Recent"))
     }
 
-    /// §19 read strictly: a failure that costs the user their dictation is a different
-    /// thing to show than one that costs them a second of their time, and only the
-    /// error itself knows which it is.
+    /// Only the error itself knows whether it cost the user their dictation or a second of their time.
     @Test("says what each failure actually costs")
     func severities() {
         #expect(PermissionError.microphoneDenied.severity == .blocking)
@@ -133,8 +122,7 @@ struct FailurePresentationTests {
         #expect(SpeechEngineError.modelDownloadFailed(description: "x").severity == .recoverable)
         #expect(SpeechEngineError.modelLoadFailed(description: "x").severity == .recoverable)
         #expect(SpeechEngineError.transcriptionFailed(description: "x").severity == .recoverable)
-        // Not an error at all: half a second of silence, worded so it does not read
-        // like one and drawn grey rather than orange.
+        // Not an error at all: half a second of silence, worded and drawn so it does not read like one.
         #expect(SpeechEngineError.audioTooShort.severity == .informational)
 
         #expect(TransformationError.noCapableTransformer.severity == .degraded)
@@ -145,10 +133,7 @@ struct FailurePresentationTests {
         #expect(TextInsertionError.insertionRejected(description: "x").severity == .degraded)
     }
 
-    /// The defect that made severity worth declaring at all. Both hotkey errors stop
-    /// dictation dead, and one of them asks for the same Accessibility pane as a
-    /// genuinely degraded failure — so anything reading severity off the recovery
-    /// action called it degraded and let the notice dismiss itself.
+    /// Both hotkey errors stop dictation dead, and one shares its recovery with a merely degraded failure.
     @Test("treats a shortcut that cannot fire as blocking, however it is fixed")
     func hotkeyFailuresAreBlocking() {
         for failure in HotkeyError.everyCase {

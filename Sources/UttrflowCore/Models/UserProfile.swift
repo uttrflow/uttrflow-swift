@@ -1,16 +1,17 @@
-/// Who the user is and how they write.
-///
-/// V1 populates only ``preferredLanguages``; the remaining fields exist so that
-/// personalisation can be switched on later without reshaping the transformer API.
-/// Nothing here is uploaded anywhere.
+/// Who the user is and how they write; only ``preferredLanguages`` is populated, and nothing is uploaded.
 public struct UserProfile: Sendable, Equatable, Codable {
+    /// What the user does for a living, when they say.
     public var profession: String?
+    /// Languages in order of preference; the first is the routing fallback.
     public var preferredLanguages: [LanguageCode]
+    /// Fields whose jargon the transformer may meet.
     public var technicalDomains: [String]
+    /// How the user likes their prose, when they say.
     public var preferredWritingStyle: String?
     /// Terms the user says often that engines routinely mis-transcribe.
     public var vocabulary: [String]
 
+    /// A profile; every field defaults to knowing nothing but English.
     public init(
         profession: String? = nil,
         preferredLanguages: [LanguageCode] = [.english],

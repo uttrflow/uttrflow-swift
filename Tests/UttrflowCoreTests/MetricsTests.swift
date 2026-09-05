@@ -1,3 +1,5 @@
+// Tests for stage measurement and the manual clock.
+
 import Testing
 
 @testable import UttrflowCore

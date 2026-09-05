@@ -2,14 +2,15 @@ import Testing
 
 @testable import UttrflowAI
 
+/// Labels and quotes stripped from a single-line reply.
 @Suite("ResponseUnwrapper")
 struct ResponseUnwrapperTests {
+    /// Unwraps with a default spoken text.
     private func unwrap(_ rewritten: String, spoken: String = "hello there") -> String {
         ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
     }
 
-    /// Exactly what a local model produced the first time it was measured. The words
-    /// were right; only the packaging was wrong, and it scored zero.
+    /// What a local model produces: right words, wrong packaging, and a score of zero without this.
     @Test(
         "removes the label a model echoes from the worked examples",
         arguments: [
@@ -80,10 +81,10 @@ struct ResponseUnwrapperTests {
     }
 }
 
+/// Replies that echo the prompt back before answering.
 @Suite("Unwrapping a replayed exchange")
 struct ReplayedExchangeTests {
-    /// Exactly what a 4B model produced: the prompt echoed back, then its answer.
-    /// Its words were right; only the replay made the score look terrible.
+    /// What a 4B model produces: the prompt echoed back, then its answer.
     @Test("takes the answer from a reply that echoed the whole exchange")
     func takesTheLastLabelledLine() {
         let produced = """

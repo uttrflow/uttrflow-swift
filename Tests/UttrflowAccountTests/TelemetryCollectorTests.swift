@@ -1,3 +1,5 @@
+// Tests for TelemetryCollector: what it counts, what it refuses to count, and the opt-out.
+
 import Foundation
 import Testing
 
@@ -7,6 +9,7 @@ import Testing
 /// What the collector counts, what it refuses to count, and what it costs a dictation.
 @Suite("Collecting telemetry")
 struct TelemetryCollectorTests {
+    /// Records one dictation, with every measurement defaulted to nothing.
     private func dictate(
         _ collector: TelemetryCollector, _ outcome: DictationOutcome = .completed,
         language: TelemetryLanguage = .english, audio: Duration = .zero,
@@ -30,9 +33,7 @@ struct TelemetryCollectorTests {
         #expect(report.failureCount == 1)
     }
 
-    /// The table has `check (cancelled_count <= dictation_count)`. Because a cancellation
-    /// is recorded as a dictation that was cancelled rather than as its own event, there is
-    /// no sequence of calls that can breach it.
+    /// A cancellation is recorded as a cancelled dictation, so `cancelled_count <= dictation_count` holds.
     @Test("a cancellation is always also a dictation, so the server's check cannot fail")
     func cancellationsCannotOutnumberDictations() throws {
         let collector = Telemetry.collector()
@@ -58,8 +59,7 @@ struct TelemetryCollectorTests {
         #expect(report.languages.allSatisfy { $0.dictationCount == 1 })
     }
 
-    /// A cancelled dictation never produced text, so timing it to "when the text appeared"
-    /// would be timing something that did not happen.
+    /// A cancelled dictation produces no text, so there is no "when the text appeared" to time.
     @Test("only completed dictations contribute latency samples")
     func onlyCompletionsAreTimed() throws {
         let collector = Telemetry.collector()
@@ -85,13 +85,7 @@ struct TelemetryCollectorTests {
         #expect(report.latencyP99Ms == 900)
     }
 
-    /// Uttrflow must have one definition of "typical", not two.
-    ///
-    /// ``StageLatency/typical`` is the median the debug panel and the evaluation harness
-    /// already show, and it is documented as the upper of the two middle samples. The
-    /// percentile used for the wire is indexed so that at 0.5 it lands on exactly that
-    /// sample. If somebody changes either, this fails and they have to decide which
-    /// median Uttrflow means — rather than shipping both.
+    /// The wire p50 is indexed to land on ``StageLatency/typical``, so there is one definition of "typical".
     @Test("the p50 sent to the server is the same median the app shows the user")
     func medianAgreesWithStageLatency() throws {
         for count in 1...12 {
@@ -128,9 +122,7 @@ struct TelemetryCollectorTests {
         #expect(report.stages[1].latencyP50Ms == 500)
     }
 
-    /// The pipeline times correction and expansion too, and this collector is handed
-    /// them like everything else. They go no further, because the server has no name
-    /// for them — see ``TelemetryStage/init(_:)``.
+    /// Correction and expansion are timed but go no further, because the server has no name for them.
     @Test("a stage the server cannot name is measured but not reported")
     func unreportableStagesAreDropped() throws {
         let collector = Telemetry.collector()
@@ -142,9 +134,7 @@ struct TelemetryCollectorTests {
         #expect(report.stages.isEmpty)
     }
 
-    /// The pipeline already times every stage through
-    /// ``MetricsRecording/measuring(_:clock:isolation:operation:)``. Conforming means it
-    /// needs no telemetry-specific code to feed this.
+    /// Conforming to ``MetricsRecording`` means the pipeline feeds this with no telemetry-specific code.
     @Test("plugs into the timing the pipeline already does")
     func worksAsAMetricsRecorder() async throws {
         let collector = Telemetry.collector()
@@ -172,13 +162,11 @@ struct TelemetryCollectorTests {
 
         let report = try #require(collector.takeReport(endedAt: Telemetry.anHourLater))
         #expect(report.dictationCount == TelemetryCollector.sampleCapacity + extra)
-        // The oldest samples were overwritten, so the smallest survivor is not the first
-        // millisecond recorded.
+        // The oldest samples are overwritten, so the smallest survivor is not the first millisecond recorded.
         #expect(try #require(report.latencyP50Ms) > 1)
     }
 
-    /// A clock that steps backwards mid-stage would otherwise produce a negative duration,
-    /// which the server refuses — costing the whole report over one bad measurement.
+    /// A clock stepping backwards mid-stage would give a negative duration, which the server refuses.
     @Test("never reports a negative duration")
     func negativeDurationsBecomeZero() throws {
         let collector = Telemetry.collector()
@@ -211,9 +199,7 @@ struct TelemetryCollectorTests {
         #expect(Telemetry.collector().takeReport(endedAt: Telemetry.anHourLater) == nil)
     }
 
-    /// A caller polling on a timer asks for a report far more often than one exists. If
-    /// asking consumed the window regardless, a clock that had not advanced would quietly
-    /// take the dictations with it.
+    /// A timer polls far more often than a report exists; asking must not consume an unadvanced window.
     @Test("keeps the window when it has no report to give")
     func nothingIsLostWhenThereIsNoReport() throws {
         let collector = Telemetry.collector()
@@ -240,12 +226,7 @@ struct TelemetryCollectorTests {
     }
 }
 
-/// The opt-out, tested as the thing the user was promised rather than as a flag.
-///
-/// "Off" has to mean *nothing is collected*. An implementation that gathered everything and
-/// dropped it at the door would pass a test that only checked what was sent, and would
-/// still be a version of Uttrflow that had the user's numbers in memory after they said no.
-/// So these tests look at what the collector is holding, not only at what comes out of it.
+/// "Off" means nothing is collected: these tests inspect what the collector holds, not only what it emits.
 @Suite("Turning telemetry off")
 struct TelemetryOptOutTests {
     @Test("collects nothing at all while switched off")
@@ -262,12 +243,7 @@ struct TelemetryOptOutTests {
         #expect(collector.takeReport(endedAt: Telemetry.anHourLater) == nil)
     }
 
-    /// The test that separates "not collected" from "collected and discarded".
-    ///
-    /// Everything above was recorded while switched off. Switching back on cannot make it
-    /// reappear, because it was never written down — had the collector merely withheld it
-    /// at reporting time, the counters would still be sitting there and this report would
-    /// arrive full of dictations the user had asked Uttrflow not to watch.
+    /// Nothing recorded while off is written down, so switching back on has nothing to resurface.
     @Test("nothing recorded while off can reappear once it is switched back on")
     func nothingIsHeldBack() throws {
         let collector = Telemetry.collector(isEnabled: false)

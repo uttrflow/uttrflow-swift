@@ -1,3 +1,4 @@
+// The profile cache, its storage seam, and the defaults-backed implementations.
 public import UttrflowCore
 public import struct Foundation.Data
 
@@ -19,6 +20,7 @@ public protocol ProfileCache: Sendable {
 
 /// `UserDefaults` reduced to the two calls this store makes, so it is testable without a domain.
 public protocol SessionStorage: Sendable {
+    /// The bytes under `key`, or `nil`.
     func data(forKey key: String) -> Data?
 
     /// Stores `data`, or removes the value when it is `nil`.
@@ -30,10 +32,14 @@ public struct UserDefaultsProfileCache: ProfileCache {
     /// Versioned, so a future shape can arrive beside this one rather than on top of it.
     public static let defaultKey = "com.uttrflow.profile.v1"
 
+    /// The defaults domain.
     private let storage: any SessionStorage
+    /// Checks the entitlement's signature on the way in and the way out.
     private let verifier: any EntitlementVerifying
+    /// The key the document is under.
     private let key: String
 
+    /// Every default is the shipping app's.
     public init(
         storage: any SessionStorage = SystemDefaultsStorage(),
         verifier: any EntitlementVerifying = Ed25519EntitlementVerifier.release,
@@ -44,6 +50,7 @@ public struct UserDefaultsProfileCache: ProfileCache {
         self.key = key
     }
 
+    /// The cached profile, or `nil` when there is none or it cannot be believed.
     public func load() -> Profile? {
         guard let profile = storage.decoded(Profile.self, forKey: key), isBelievable(profile) else {
             return nil
@@ -51,6 +58,7 @@ public struct UserDefaultsProfileCache: ProfileCache {
         return profile
     }
 
+    /// Keeps `profile`, or throws ``AccountError/sessionMalformed`` when it cannot be believed.
     public func save(_ profile: Profile) throws(AccountError) {
         guard isBelievable(profile) else { throw .sessionMalformed }
         storage.set(encoding: profile, forKey: key)
@@ -61,6 +69,7 @@ public struct UserDefaultsProfileCache: ProfileCache {
         verifier.isAuthentic(profile.entitlement) && profile.isInternallyConsistent
     }
 
+    /// Removes the profile document.
     public func clear() {
         storage.set(nil, forKey: key)
     }
@@ -81,6 +90,7 @@ extension SessionStorage {
 
 /// The app's own defaults domain, as an adapter thin enough to hold no logic to get wrong.
 public struct SystemDefaultsStorage: SessionStorage {
+    /// Another defaults domain, or `nil` for the app's own.
     private let suiteName: String?
 
     /// - Parameter suiteName: Another defaults domain, which only a test has reason to pass.
@@ -93,10 +103,12 @@ public struct SystemDefaultsStorage: SessionStorage {
         suiteName.flatMap(UserDefaults.init(suiteName:)) ?? .standard
     }
 
+    /// Reads `key` from the domain.
     public func data(forKey key: String) -> Data? {
         defaults.data(forKey: key)
     }
 
+    /// Writes or removes `key` in the domain.
     public func set(_ data: Data?, forKey key: String) {
         defaults.set(data, forKey: key)
     }

@@ -1,14 +1,13 @@
-/// A failure while cleaning up a transcript.
-///
-/// These should be rare: the preference list always ends in a transformer that can
-/// handle anything, so reaching one of these means the floor itself failed.
+/// A failure while cleaning up a transcript; rare, as the preference list ends in a transformer for anything.
 public enum TransformationError: UttrflowFailure {
     /// Every transformer in the preference list declined the request.
     case noCapableTransformer
+    /// The named transformer ran and failed.
     case transformFailed(kind: TransformerKind, description: String)
     /// The model returned something that failed the meaning-preservation checks.
     case outputRejected(reason: String)
 
+    /// The one sentence: the raw words are ready to paste.
     public var userMessage: String {
         switch self {
         case .noCapableTransformer, .transformFailed, .outputRejected:
@@ -16,9 +15,9 @@ public enum TransformationError: UttrflowFailure {
         }
     }
 
+    /// Paste the raw words, which are on the clipboard.
     public var recovery: RecoveryAction? { .pasteManually }
 
-    /// Clean-up is the only optional stage, so failing it costs polish and never
-    /// output: the raw words are captured, tidied or not.
+    /// Degraded: clean-up is the only optional stage, so failing it costs polish and never output.
     public var severity: FailureSeverity { .degraded }
 }
