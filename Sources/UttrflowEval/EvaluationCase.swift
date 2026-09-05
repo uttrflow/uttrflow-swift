@@ -16,6 +16,8 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         case multilingual
         /// The same words should come out differently depending on what is on screen.
         case contextual
+        /// Grammar slips a formatter may repair, and the dialect that must stay.
+        case grammar
     }
 
     public let id: String

@@ -56,14 +56,16 @@ public enum PromptBlocks {
         id: "document",
         rules: """
             In a document:
-            - full sentences, ending with a full stop, question mark or exclamation mark
-            - keep the line and paragraph breaks given, and add none
-            - a list only where the speaker spoke one; a sentence naming several things stays a sentence
+            - full sentences; keep the breaks given, and a list only where one was spoken
+            - fix a grammar slip: "there is three" → "there are three", "a apple" → "an apple", \
+            a drifting tense
+            - change only the form of a word the speaker said, never the words; dialect stays — \
+            "gonna", "ain't", a double negative
             """,
         examples: [
             WorkedExample(
-                spoken: "things to bring\n- passport\n- charger",
-                cleaned: "Things to bring\n- Passport\n- Charger")
+                spoken: "she have went home",
+                cleaned: "She has gone home.")
         ])
 
     static let spreadsheet = PromptBlock(
@@ -118,8 +120,8 @@ public enum PromptBlocks {
             """,
         examples: [
             WorkedExample(
-                spoken: "running late grab me a seat",
-                cleaned: "Running late, grab me a seat"),
+                spoken: "ain't no rush grab me a seat",
+                cleaned: "Ain't no rush, grab me a seat"),
             WorkedExample(
                 spoken: "did the build go green",
                 cleaned: "Did the build go green?"),
@@ -129,22 +131,24 @@ public enum PromptBlocks {
         id: "email",
         rules: """
             In an email:
-            - full sentences and paragraphs, ending with a full stop, question mark or exclamation mark
-            - keep the greeting and sign-off as spoken, and add none
-            - keep every paragraph break given, and add none
+            - full sentences and paragraphs; keep the greeting, the sign-off and every break as given
+            - fix a grammar slip: "there is three" → "there are three", "have went" → \
+            "have gone", "a apple" → "an apple", a drifting tense
+            - change only the form of a word the speaker said, never the words; dialect stays — \
+            "gonna", "ain't", a double negative
             """,
-        examples: [
-            WorkedExample(
-                spoken: "hello team\n\nthe office is closed on friday for the audit\n\nbest\nrohan",
-                cleaned: "Hello team,\n\nThe office is closed on Friday for the audit.\n\nBest,\nRohan")
-        ])
+        examples: [])
 
     static let plain = PromptBlock(
         id: "plain",
         rules: """
             In plain text:
-            - full sentences; end with a full stop, question mark or exclamation mark
-            - keep every line break in the input, and add none
+            - full sentences; end with a full stop, question or exclamation mark
+            - keep every line break given, and add none
+            - fix a grammar slip: "there is three" → "there are three", "have went" → \
+            "have gone", "a apple" → "an apple", a drifting tense
+            - change only the form of a word the speaker said, never the words; dialect stays — \
+            "gonna", "ain't", a double negative
             """,
         examples: [])
 }

@@ -209,3 +209,141 @@ struct NumberWordTests {
         #expect(sut.verdict(original: "bees minute", rewritten: "20 minute").isAccepted)
     }
 }
+
+@Suite("The grammar checks a draft makes possible")
+struct GrammarGuardTests {
+    private let sut = MeaningPreservationGuard()
+
+    private func verdict(_ kept: String, _ rewritten: String) -> GuardVerdict {
+        sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+    }
+
+    @Test("accepts an agreement repair that changes only the verb's form")
+    func acceptsAgreementRepair() {
+        #expect(
+            verdict("there is three of them waiting outside", "There are three of them waiting outside.")
+                .isAccepted)
+    }
+
+    @Test("accepts a participle repaired through the irregular-forms table")
+    func acceptsIrregularForm() {
+        #expect(
+            verdict(
+                "we have went through the whole report twice", "We have gone through the whole report twice."
+            )
+            .isAccepted)
+    }
+
+    @Test("accepts an article corrected and a plural repaired by its form")
+    func acceptsFormChanges() {
+        #expect(
+            verdict("can you pass me a apple from the bowl", "Can you pass me an apple from the bowl?")
+                .isAccepted)
+        #expect(
+            verdict("we need two more developer on this team", "We need two more developers on this team.")
+                .isAccepted)
+    }
+
+    @Test("accepts dialect going out exactly as spoken")
+    func acceptsDialect() {
+        #expect(
+            verdict(
+                "we didn't do nothing wrong in that release", "We didn't do nothing wrong in that release."
+            )
+            .isAccepted)
+        #expect(verdict("he don't know yet", "He don't know yet").isAccepted)
+        #expect(verdict("we're gonna ship it friday", "We're gonna ship it Friday.").isAccepted)
+    }
+
+    @Test("rejects a rewrite that drops a content word, and names it")
+    func rejectsDroppedContentWord() {
+        #expect(
+            verdict("we need two more developers on this team", "We need two more on this team.")
+                == .rejected(reason: "the rewrite lost or replaced 'developers'"))
+    }
+
+    @Test("rejects a synonym: the word changed, not its form")
+    func rejectsSynonym() {
+        #expect(
+            !verdict("we should buy the tickets tonight", "We should purchase the tickets tonight.")
+                .isAccepted)
+    }
+
+    @Test("rejects a double negative flattened into standard English")
+    func rejectsFlattenedDoubleNegative() {
+        #expect(!verdict("we didn't do nothing wrong", "We didn't do anything wrong.").isAccepted)
+    }
+
+    @Test("rejects a dropped name and a dropped number, which are always content")
+    func rejectsDroppedNameOrNumber() {
+        #expect(!verdict("send it to Marcy today", "Send it today.").isAccepted)
+        #expect(!verdict("the port is 8080", "The port is open.").isAccepted)
+    }
+
+    @Test("rejects a rewrite that reworded too many small words in one sentence")
+    func rejectsFunctionChurn() {
+        #expect(
+            verdict("me and him went to the office", "He and I went towards an office.")
+                == .rejected(reason: "the rewrite changed 7 small words"))
+    }
+
+    @Test("gives every sentence of a longer rewrite its own churn allowance")
+    func churnAllowanceGrowsWithSentences() {
+        #expect(MeaningPreservationGuard.sentenceCount("One went by. Two stayed? Three left!") == 3)
+        #expect(MeaningPreservationGuard.sentenceCount("worth 4.5 on the day") == 1)
+        #expect(MeaningPreservationGuard.sentenceCount("no closing mark") == 1)
+    }
+
+    @Test("reads a spoken number written as digits as the same word, either way round")
+    func acceptsNumeralForm() {
+        #expect(verdict("main bees minute late ho jaunga", "Main 20 minute late ho jaunga.").isAccepted)
+        #expect(verdict("there were about a hundred users", "There were about 100 users.").isAccepted)
+        // The passes write "ten" as "10" before the model sees it, and a model may write it back as a word.
+        #expect(verdict("be there in 10", "Be there in ten").isAccepted)
+    }
+
+    @Test("sees a word the screen spelled into an identifier")
+    func acceptsIdentifierSpelling() {
+        #expect(
+            verdict(
+                "call fetch invoices before the sheet appears", "Call fetchInvoices before the sheet appears"
+            )
+            .isAccepted)
+    }
+
+    @Test("accepts a missing apostrophe restored, which is a form change")
+    func acceptsRestoredApostrophe() {
+        #expect(verdict("she dont want the early slot", "She doesn't want the early slot.").isAccepted)
+    }
+
+    @Test("leaves Devanagari to the base checks, so romanising is not a lost word")
+    func skipsDevanagari() {
+        #expect(verdict("मैं कल office नहीं आऊंगा", "Main kal office nahi aaunga.").isAccepted)
+    }
+
+    @Test("runs only when a draft is available, so the plain path is unchanged")
+    func plainPathIsUnchanged() {
+        #expect(
+            sut.verdict(original: "we should buy the tickets", rewritten: "We should purchase the tickets.")
+                .isAccepted)
+    }
+}
+
+@Suite("IrregularVerbForms")
+struct IrregularVerbFormsTests {
+    @Test("holds every form of a verb in one set and nothing else")
+    func formsShareASet() {
+        #expect(IrregularVerbForms.setIndex["went"] == IrregularVerbForms.setIndex["gone"])
+        #expect(IrregularVerbForms.setIndex["go"] == IrregularVerbForms.setIndex["went"])
+        #expect(IrregularVerbForms.setIndex["bought"] == IrregularVerbForms.setIndex["buy"])
+        #expect(IrregularVerbForms.setIndex["was"] == IrregularVerbForms.setIndex["been"])
+        #expect(IrregularVerbForms.setIndex["went"] != IrregularVerbForms.setIndex["done"])
+        #expect(IrregularVerbForms.setIndex["purchase"] == nil)
+    }
+
+    @Test("gives no form to two verbs, which the index would otherwise trap on")
+    func formsAreUnique() {
+        let forms = IrregularVerbForms.sets.flatMap { $0 }
+        #expect(Set(forms).count == forms.count)
+    }
+}

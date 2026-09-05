@@ -16,6 +16,14 @@ public enum TerminalStopPolicy: Sendable, Equatable {
     case offForShortMessages(sentences: Int)
 }
 
+/// How much grammar a place wants repaired.
+public enum GrammarPolicy: Sendable, Equatable {
+    /// A slip speech left behind is fixed, changing only the form of a word the speaker said.
+    case repair
+    /// The words go out with the grammar they were spoken in.
+    case asSpoken
+}
+
 /// How line breaks in the text are laid out: paragraphs and lists, kept as they are, or none at all.
 public struct LayoutPolicy: OptionSet, Sendable, Equatable {
     public let rawValue: UInt8
@@ -40,17 +48,20 @@ public struct DestinationFormatter: Sendable, Equatable {
     public let firstWord: FirstWordPolicy
     public let terminalStop: TerminalStopPolicy
     public let layout: LayoutPolicy
+    /// Whether grammar slips are repaired here or the words go out as spoken.
+    public let grammar: GrammarPolicy
     /// The style rules and worked examples the model is shown for this place.
     public let promptBlock: PromptBlockID
 
     public init(
         destination: Destination, firstWord: FirstWordPolicy, terminalStop: TerminalStopPolicy,
-        layout: LayoutPolicy, promptBlock: PromptBlockID
+        layout: LayoutPolicy, grammar: GrammarPolicy, promptBlock: PromptBlockID
     ) {
         self.destination = destination
         self.firstWord = firstWord
         self.terminalStop = terminalStop
         self.layout = layout
+        self.grammar = grammar
         self.promptBlock = promptBlock
     }
 
@@ -58,25 +69,26 @@ public struct DestinationFormatter: Sendable, Equatable {
     public static let registry: [Destination: DestinationFormatter] = [
         .document: DestinationFormatter(
             destination: .document, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], promptBlock: "document"),
+            layout: [.paragraphs, .lists], grammar: .repair, promptBlock: "document"),
         .spreadsheet: DestinationFormatter(
             destination: .spreadsheet, firstWord: .asSpoken, terminalStop: .never, layout: .singleLine,
-            promptBlock: "spreadsheet"),
+            grammar: .asSpoken, promptBlock: "spreadsheet"),
         .sqlEditor: DestinationFormatter(
             destination: .sqlEditor, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: .preserveNewlines, promptBlock: "sqlEditor"),
+            layout: .preserveNewlines, grammar: .asSpoken, promptBlock: "sqlEditor"),
         .codeEditor: DestinationFormatter(
             destination: .codeEditor, firstWord: .fromInsertionPoint, terminalStop: .never,
-            layout: .preserveNewlines, promptBlock: "codeEditor"),
+            layout: .preserveNewlines, grammar: .asSpoken, promptBlock: "codeEditor"),
         .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,
-            terminalStop: .offForShortMessages(sentences: 2), layout: .paragraphs, promptBlock: "messaging"),
+            terminalStop: .offForShortMessages(sentences: 2), layout: .paragraphs,
+            grammar: .asSpoken, promptBlock: "messaging"),
         .email: DestinationFormatter(
             destination: .email, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], promptBlock: "email"),
+            layout: [.paragraphs, .lists], grammar: .repair, promptBlock: "email"),
         .plain: DestinationFormatter(
             destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always, layout: .paragraphs,
-            promptBlock: "plain"),
+            grammar: .repair, promptBlock: "plain"),
     ]
 
     /// The formatter for a destination, falling back to plain text's for one the registry lacks.
@@ -84,7 +96,7 @@ public struct DestinationFormatter: Sendable, Equatable {
         registry[destination]
             ?? DestinationFormatter(
                 destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always,
-                layout: .paragraphs,
+                layout: .paragraphs, grammar: .repair,
                 promptBlock: "plain")
     }
 }

@@ -7,7 +7,7 @@ public import UttrflowCore
 /// was being built.
 public enum EvaluationCorpus {
     public static let all: [EvaluationCase] =
-        everyday + technical + notARequest + multilingual + contextual
+        everyday + technical + notARequest + multilingual + contextual + grammar
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         all.filter { $0.category == category }
@@ -754,6 +754,204 @@ public enum EvaluationCorpus {
             destination: .email,
             mustBeginWith: "the quote",
             mustEndWith: "week."
+        ),
+    ]
+
+    // MARK: Grammar slips and dialect
+
+    /// Model cases: the rules never repair a slip, and `RulesCorpusTests` proves the floor leaves each of these alone.
+    static let grammar: [EvaluationCase] = [
+        .init(
+            id: "agreement-there-is", category: .grammar,
+            spoken: "there is three of them waiting outside",
+            expected: "There are three of them waiting outside.",
+            mustKeep: ["three", "waiting"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: "com.apple.iWork.Pages",
+                documentName: "Site visit.pages"
+            ),
+            mustNotAdd: ["is"],
+            destination: .document,
+            mustBeginWith: "There",
+            mustEndWith: "outside."
+        ),
+        .init(
+            id: "agreement-he-dont", category: .grammar,
+            spoken: "he don't know about the meeting yet",
+            expected: "He doesn't know about the meeting yet.",
+            mustKeep: ["meeting"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Handover notes.docx"
+            ),
+            destination: .document,
+            mustBeginWith: "He",
+            mustEndWith: "yet."
+        ),
+        .init(
+            id: "participle-have-went", category: .grammar,
+            spoken: "we have went through the whole report twice",
+            expected: "We have gone through the whole report twice.",
+            mustKeep: ["report", "twice"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Review"
+            ),
+            mustNotAdd: ["went"],
+            destination: .document,
+            mustBeginWith: "We have",
+            mustEndWith: "twice."
+        ),
+        .init(
+            id: "article-a-apple", category: .grammar,
+            spoken: "can you pass me a apple from the bowl",
+            expected: "Can you pass me an apple from the bowl?",
+            mustKeep: ["apple", "bowl"],
+            context: AppContext(
+                applicationName: "TextEdit",
+                bundleIdentifier: "com.apple.TextEdit",
+                documentName: "Untitled"
+            ),
+            destination: .document,
+            mustBeginWith: "Can",
+            mustEndWith: "?"
+        ),
+        .init(
+            id: "tense-drift", category: .grammar,
+            spoken: "yesterday I open the file and it crashes immediately",
+            expected: "Yesterday I opened the file and it crashed immediately.",
+            mustKeep: ["file", "immediately"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: "com.apple.iWork.Pages",
+                documentName: "Incident write-up.pages"
+            ),
+            destination: .document,
+            mustBeginWith: "Yesterday",
+            mustEndWith: "immediately."
+        ),
+        .init(
+            id: "preposition-slip", category: .grammar,
+            spoken: "she is good in maths and physics",
+            expected: "She is good at maths and physics.",
+            mustKeep: ["maths", "physics"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Reference letter.docx"
+            ),
+            destination: .document,
+            mustBeginWith: "She",
+            mustEndWith: "physics."
+        ),
+        .init(
+            id: "plural-slip", category: .grammar,
+            spoken: "we need two more developer on this team",
+            expected: "We need two more developers on this team.",
+            mustKeep: ["developers", "team"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Hiring plan"
+            ),
+            destination: .document,
+            mustBeginWith: "We",
+            mustEndWith: "team."
+        ),
+        // Dialect and deliberate informality are not slips, even where the policy is repair.
+        .init(
+            id: "dialect-gonna", category: .grammar,
+            spoken: "we're gonna ship it friday",
+            expected: "We're gonna ship it Friday.",
+            mustKeep: ["gonna", "Friday"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: "com.apple.iWork.Pages",
+                documentName: "Release notes.pages"
+            ),
+            mustNotAdd: ["going"],
+            destination: .document,
+            mustBeginWith: "We're gonna",
+            mustEndWith: "Friday."
+        ),
+        .init(
+            id: "dialect-aint", category: .grammar,
+            spoken: "that ain't going to work for the client",
+            expected: "That ain't going to work for the client.",
+            mustKeep: ["ain't", "client"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Proposal.docx"
+            ),
+            mustNotAdd: ["isn't"],
+            destination: .document,
+            mustBeginWith: "That ain't",
+            mustEndWith: "client."
+        ),
+        .init(
+            id: "dialect-me-and-him", category: .grammar,
+            spoken: "me and him went through the numbers again",
+            expected: "Me and him went through the numbers again.",
+            mustKeep: ["me and him", "numbers"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Budget"
+            ),
+            destination: .document,
+            mustBeginWith: "Me and him",
+            mustEndWith: "again."
+        ),
+        // The operator's line: a double negative is dialect, never a slip.
+        .init(
+            id: "double-negative-keep", category: .grammar,
+            spoken: "we didn't do nothing wrong in that release",
+            expected: "We didn't do nothing wrong in that release.",
+            mustKeep: ["nothing", "release"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: "com.apple.iWork.Pages",
+                documentName: "Postmortem.pages"
+            ),
+            mustNotAdd: ["anything"],
+            destination: .document,
+            mustBeginWith: "We didn't do nothing",
+            mustEndWith: "release."
+        ),
+        // The same slips where the formatter's grammar policy is asSpoken: no repair, no stop.
+        .init(
+            id: "message-he-dont", category: .grammar,
+            spoken: "he don't know yet",
+            expected: "He don't know yet",
+            mustKeep: ["know"],
+            context: AppContext(
+                applicationName: "WhatsApp",
+                bundleIdentifier: "net.whatsapp.WhatsApp",
+                documentName: "Rohan"
+            ),
+            mustNotAdd: ["doesn't"],
+            destination: .messaging,
+            mustBeginWith: "He don't",
+            mustEndWith: "yet"
+        ),
+        .init(
+            id: "message-there-is", category: .grammar,
+            spoken: "there is three of them",
+            expected: "There is three of them",
+            mustKeep: ["three"],
+            context: AppContext(
+                applicationName: "Slack",
+                bundleIdentifier: "com.tinyspeck.slackmacgap",
+                documentName: "#ops"
+            ),
+            mustNotAdd: ["are"],
+            destination: .messaging,
+            mustBeginWith: "There is",
+            mustEndWith: "them"
         ),
     ]
 }

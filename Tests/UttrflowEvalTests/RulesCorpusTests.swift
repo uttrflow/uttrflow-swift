@@ -48,11 +48,42 @@ struct RulesCorpusTests {
 
     @Test("passes every case that names its destination, under that destination's formatter and its caret")
     func passesDestinationCases() {
-        let named = Set(EvaluationCorpus.all.filter { $0.destination != .plain }.map(\.id))
+        // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
+        let named = Set(
+            EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
         #expect(named.count == 19)
         #expect(named.subtracting(Self.modelOnly).isSubset(of: Self.rulesMustPass))
         #expect(Self.modelOnly.isSubset(of: named))
         #expect(Self.modelOnly.isDisjoint(with: Self.rulesMustPass))
+        #expect(Set(EvaluationCorpus.cases(in: .grammar).map(\.id)).isDisjoint(with: Self.rulesMustPass))
+    }
+
+    /// The floor must never "fix" grammar: a slip goes through the passes untouched but for Tier 1 cleaning.
+    @Test(
+        "leaves every grammar case's words alone, slips and dialect alike",
+        arguments: [
+            ("agreement-there-is", "There is three of them waiting outside."),
+            ("agreement-he-dont", "He don't know about the meeting yet."),
+            ("participle-have-went", "We have went through the whole report twice."),
+            ("article-a-apple", "Can you pass me a apple from the bowl."),
+            ("tense-drift", "Yesterday I open the file and it crashes immediately."),
+            ("preposition-slip", "She is good in maths and physics."),
+            ("plural-slip", "We need two more developer on this team."),
+            ("dialect-gonna", "We're gonna ship it friday."),
+            ("dialect-aint", "That ain't going to work for the client."),
+            ("dialect-me-and-him", "Me and him went through the numbers again."),
+            ("double-negative-keep", "We didn't do nothing wrong in that release."),
+            ("message-he-dont", "He don't know yet"),
+            ("message-there-is", "There is three of them"),
+        ])
+    func rulesLeaveGrammarAlone(id: String, expected: String) async throws {
+        let testCase = try #require(EvaluationCorpus.cases(in: .grammar).first { $0.id == id })
+        #expect(try await RuleBasedTransformer().transform(testCase.transformationRequest()).text == expected)
+    }
+
+    @Test("covers every grammar case in the leave-alone list, so a new slip cannot skip the floor")
+    func grammarCasesAreAllHeld() {
+        #expect(EvaluationCorpus.cases(in: .grammar).count == 13)
     }
 
     @Test("gives every destination at least three cases, so the bake-off can score its block")

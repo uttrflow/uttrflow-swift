@@ -20,6 +20,16 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **Grammar slips are repaired where the place calls for it.** "there is three", "he
+  don't", "we have went", "a apple", a tense that drifts mid-sentence — the model may
+  fix these in a document, an email or plain text, and leaves them alone in a message,
+  a cell, code or SQL. The bound keeps it a cleaning rather than a rewrite: a fix
+  changes only the form of a word the speaker said, or adds or removes an article or a
+  preposition, never which words. Dialect is not a slip — "gonna", "ain't", "me and
+  him" and a double negative go out as spoken. The guard enforces the bound
+  mechanically (every content word of the draft must survive; at most three small
+  words may change per sentence), the deterministic floor never repairs grammar, and a
+  new `grammar` corpus category measures repair against overreach per destination.
 - **The tidier knows where the words are going.** The context read now takes the text
   either side of the caret from the focused field, and the app is classified as a
   document, spreadsheet, SQL editor, code editor, messaging app, email client or plain

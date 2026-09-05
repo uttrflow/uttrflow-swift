@@ -55,22 +55,32 @@ struct PromptBuilderTests {
         }
     }
 
-    /// A block's own examples teach only a layout or a stop the contract's do not show.
-    @Test("shows a destination its own examples only where its layout or stop differs")
+    /// A block's own examples teach a layout, a stop or a repair the contract's do not show.
+    @Test("shows a destination its own examples only where its layout, stop or grammar differs")
     func blockExamplesTeachTheDifference() {
         #expect(builder.block(for: .plain).examples.isEmpty)
         #expect(builder.block(for: .sqlEditor).examples.isEmpty)
-        #expect(builder.workedExamples(for: .messaging).contains("Running late, grab me a seat"))
+        #expect(builder.block(for: .email).examples.isEmpty)
+        #expect(builder.workedExamples(for: .messaging).contains("Ain't no rush, grab me a seat"))
         #expect(builder.workedExamples(for: .messaging).contains("Did the build go green?"))
         #expect(!builder.workedExamples(for: .document).contains("Did the build go green?"))
         #expect(builder.workedExamples(for: .spreadsheet).contains("42 units shipped in week 9"))
-        #expect(builder.workedExamples(for: .document).contains("Things to bring\n- Passport\n- Charger"))
-        #expect(
-            builder.workedExamples(for: .email).contains(
-                "Hello team,\n\nThe office is closed on Friday for the audit.\n\nBest,\nRohan"))
+        #expect(builder.workedExamples(for: .document).contains("She has gone home."))
+        #expect(!builder.workedExamples(for: .messaging).contains("She has gone home."))
         #expect(
             builder.workedExamples(for: .codeEditor).contains(
                 "Handle the timeout first\nthen retry once with backoff"))
+    }
+
+    /// The registry's grammar policy and the block wording must agree about where slips are repaired.
+    @Test("teaches the slip repair exactly where the formatter's grammar policy is repair")
+    func grammarRuleFollowsThePolicy() {
+        for destination in Destination.allCases {
+            let repairs = DestinationFormatter.standard(for: destination).grammar == .repair
+            let rules = builder.block(for: destination).rules
+            #expect(rules.contains("fix a grammar slip") == repairs, "\(destination)")
+            #expect(rules.contains("dialect stays") == repairs, "\(destination)")
+        }
     }
 
     @Test("shows every destination the shared examples: English, Hindi, the screen, and the caret")

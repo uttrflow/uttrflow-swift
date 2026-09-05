@@ -25,7 +25,10 @@ a different feature with a different name.
 
 `MeaningPreservationGuard` is the mechanical form of this rule: a rewrite that drops most
 of the words, doubles them, opens with a preamble or invents a number is refused and the
-raw transcript is used instead. A number is read with its thousands separators removed,
+raw transcript is used instead. Where a draft is available it also holds the grammar
+bound of Tier 2: every content word the passes kept must still be there — the same word,
+a word grown from the same stem, or another form of the same irregular verb — and the
+function words a sentence gains and loses are capped at three. A number is read with its thousands separators removed,
 so "12,000" and "12000" (and "1,50,000" and "150000") are the same number and a model
 that drops or adds the comma is not refused. §9 of the requirements, §19 for the fallback.
 
@@ -66,6 +69,7 @@ them. When the signal is missing or could be read two ways, the words stay.
 | Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ❌. Wispr Flow builds numbered lists from sequence words. Only when there are at least two items and each is a clause of its own |
 | Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ❌; the pieces cut while recording are joined with a space. A pause long enough to cut at is also a candidate for a paragraph |
 | Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ context rule; spelling only, never SQL from prose |
+| Grammar slips, in places whose formatter repairs them | the destination's `GrammarPolicy` is `.repair` (document, email, plain) and the slip is one speech leaves behind: agreement, a participle, an article or preposition, a tense that drifts | "there is three of them" → "There are three of them"; "we have went" → "we have gone"; "a apple" → "an apple" | ✅ prompt block per destination, bounded: a fix changes only the form of a word the speaker said, or adds or removes an article or a preposition — never which content words are present or their order. Dialect and informality are not slips and stay ("gonna", "ain't", "me and him", "didn't do nothing" — a double negative is dialect). `MeaningPreservationGuard` enforces the bound on the draft's kept words, and the rules never repair, so the floor leaves every slip alone (`rulesLeaveGrammarAlone`) |
 | Trailing full stop dropped in chat apps | the destination is a messaging app and the text is one or two sentences | "on my way" stays "on my way" in WhatsApp | ✅ `TerminalStopPass` under `DestinationFormatter` for `.messaging`, `.offForShortMessages(2)`; a question or exclamation mark is always kept. Decided by the app's bundle identifier, so Electron apps count |
 | Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ✅ `FirstWordPass` from `InsertionPoint.sentenceState`, read off the field's text before the caret; "I", its contractions and acronyms keep their capital. A model that repeats the text before the caret at the head of its answer has that echo taken back by `CaretEchoPass` — the whole preceding text of two or more words, or the tail the prompt quoted, case and punctuation aside; never a partial match. Electron apps (Slack, Discord, VS Code) do not report their field, so there the state is `unknown` and the first word stays capital |
 
@@ -89,7 +93,9 @@ Removals and additions that lose or invent meaning, however tempting the polish.
   ("main aaj", never a translation).
 - Inventing or changing a number, date, name, amount or unit.
 - Completing a sentence the speaker abandoned. A trailing fragment stays a fragment.
-- Correcting a fact, a grammatical choice that is clearly deliberate, or dialect.
+- Correcting a fact, dialect, or a grammatical choice that is clearly deliberate. Only
+  the slips in Tier 2's grammar row are repaired, only where the formatter says so, and
+  never by changing which words were said — a double negative is dialect, not a slip.
 
 ## What the corpus says is still wrong
 
@@ -114,8 +120,10 @@ after, from the focused field's value and selected range — and a `Destination`
 (`document`, `spreadsheet`, `sqlEditor`, `codeEditor`, `messaging`, `email`, `plain`).
 The destination is read off one table, `DestinationRules.standard`, by bundle
 identifier prefix or window title; no code branches on a bundle identifier anywhere
-else. `DestinationFormatter.registry` holds one value per destination and, so far, three decisions:
-how the first word is cased, whether the last sentence gets a full stop, and the layout
+else. `DestinationFormatter.registry` holds one value per destination and, so far, four decisions:
+how the first word is cased, whether the last sentence gets a full stop, whether grammar
+slips are repaired (`.repair` for a document, an email and plain text; `.asSpoken`
+everywhere else), and the layout
 (`paragraphs` and `lists` for a document or an email, `paragraphs` alone for a message
 or plain text, `preserveNewlines` for code and SQL, `singleLine` for a cell). A first
 word lowered mid-sentence keeps its capital when it is "I", an acronym, or looks like a
