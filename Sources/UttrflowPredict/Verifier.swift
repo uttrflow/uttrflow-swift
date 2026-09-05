@@ -58,7 +58,7 @@ public actor Verifier {
         if let remembered = cache.verdict(for: key, now: now) { return remembered }
         guard let token = CompletionToken(candidate.text) else { return .plausible }
 
-        let known = await known(of: Verification.attestingKinds(for: token), in: surface, now: now)
+        let known = await known(of: Verification.attestingKinds(for: token), in: surface, now: now) ?? []
         guard !Verification.attests(token.token, known) else {
             cache.remember(.attested, for: key, now: now)
             return .attested
@@ -140,20 +140,25 @@ public actor Verifier {
     ) async -> Bool {
         for token in Verification.words(typed, completedBy: completion) {
             guard let attestation = Verification.attestation(for: token) else { continue }
-            let known = await known(of: attestation.kinds, in: surface, now: now)
-            guard Verification.stands(attestation.word, known: known) else { return false }
+            var vouched = false
+            for lookup in attestation.lookups where !vouched {
+                let known = await known(of: lookup.kinds, in: surface, now: now)
+                vouched = Verification.stands(lookup.word, known: known)
+            }
+            guard vouched else { return false }
         }
         return true
     }
 
-    /// Everything the machine vouches for among these kinds here, empty when it has not answered yet or the field is not a directory.
+    /// Everything the machine vouches for among these kinds here, absent when none has answered yet or the field is not a directory.
     private func known(
         of kinds: [EnvironmentKind], in surface: Surface, now: Date
-    ) async -> Set<String> {
-        guard let directory = EnvironmentSource.workingDirectory(of: surface) else { return [] }
-        var known: Set<String> = []
+    ) async -> Set<String>? {
+        guard let directory = EnvironmentSource.workingDirectory(of: surface) else { return nil }
+        var known: Set<String>?
         for kind in kinds {
-            known.formUnion(await index.values(of: kind, in: directory, now: now))
+            guard let values = await index.values(of: kind, in: directory, now: now) else { continue }
+            known = (known ?? []).union(values)
         }
         return known
     }

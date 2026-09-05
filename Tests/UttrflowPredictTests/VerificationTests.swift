@@ -97,15 +97,26 @@ struct VerificationTests {
     @Test("The word after git is vouched for by git's own subcommands and the user's git aliases.")
     func gitSubcommandsVouchForTheSecondWord() throws {
         let token = try #require(word("git comit"))
-        #expect(Verification.attestingKinds(for: token) == [.gitSubcommand, .gitAlias])
+        #expect(Verification.attestingKinds(for: token) == [.subcommand(of: "git"), .gitAlias])
     }
 
-    @Test("The word after any other command is vouched for by branches and filenames.")
-    func argumentsAreBranchesAndFiles() throws {
-        #expect(Verification.attestingKinds(for: try #require(word("make verif"))) == [.branch, .file])
+    @Test(
+        "An argument is vouched for by what its command takes: a target, a branch, a file; a word read as text by nothing."
+    )
+    func argumentsFollowTheirCommand() throws {
         #expect(
-            Verification.attestingKinds(for: try #require(word("git checkout mai")))
-                == [.branch, .file])
+            Verification.attestingKinds(for: try #require(word("make verif"))) == [.subcommand(of: "make")])
+        #expect(Verification.attestingKinds(for: try #require(word("git checkout mai"))) == [.branch])
+        #expect(Verification.attestingKinds(for: try #require(word("cat READ"))) == [.file])
+        #expect(Verification.attestingKinds(for: try #require(word("echo hel"))).isEmpty)
+    }
+
+    @Test("Programs and their verbs name everything there is; paths and branches never do.")
+    func closedVocabularies() {
+        #expect(Verification.isClosedVocabulary([.executable, .alias]))
+        #expect(Verification.isClosedVocabulary([.subcommand(of: "make")]))
+        #expect(!Verification.isClosedVocabulary([.branch]))
+        #expect(!Verification.isClosedVocabulary([.directories(under: "Sources")]))
     }
 
     @Test("A verdict says whether the machine vouched for it and whether anything may be drawn.")
@@ -138,10 +149,13 @@ struct GitAliasesTests {
     }
 }
 
-/// What the machine is asked about the last word of a line the model wrote.
-private func asked(_ line: String) -> Verification.Attestation? {
-    CompletionToken(line).flatMap(Verification.attestation(for:))
+/// What the machine is asked about the last word of a line the model wrote, as `name → kinds` for each lookup.
+private func asked(_ line: String) -> [String]? {
+    CompletionToken(line).flatMap(Verification.attestation(for:))?.lookups.map { "\($0.word) → \($0.kinds)" }
 }
+
+/// One lookup as `asked` renders it.
+private func lookup(_ word: String, _ kinds: [EnvironmentKind]) -> String { "\(word) → \(kinds)" }
 
 /// The words a completion adds to a line, as text, with what precedes each.
 private func added(_ typed: String, _ completion: String) -> [String] {
@@ -152,34 +166,48 @@ private func added(_ typed: String, _ completion: String) -> [String] {
 struct GeneratedAttestationTests {
     @Test("The first word is a program or an alias, and is looked up as one.")
     func firstWordIsAProgram() {
-        #expect(asked("gti") == Verification.Attestation(word: "gti", kinds: [.executable, .alias]))
+        #expect(asked("gti") == [lookup("gti", [.executable, .alias])])
     }
 
-    @Test("The word after git is one of its subcommands or aliases.")
-    func gitTakesASubcommand() {
+    @Test("The word after git is one of its subcommands or aliases; after make, one of its targets.")
+    func verbsAreLookedUpWithTheirProgram() {
+        #expect(asked("git chekout") == [lookup("chekout", [.subcommand(of: "git"), .gitAlias])])
+        #expect(asked("make venv") == [lookup("venv", [.subcommand(of: "make")])])
+        #expect(asked("npm run dev") == [lookup("dev", [.subcommand(of: "npm run")])])
+        #expect(asked("sudo make instal") == [lookup("instal", [.subcommand(of: "make")])])
+    }
+
+    @Test(
+        "A path is looked up by its last name under the directory before it, as the shell would resolve it.")
+    func pathsAreLookedUpWhereTheyPoint() {
         #expect(
-            asked("git chekout")
-                == Verification.Attestation(word: "chekout", kinds: [.gitSubcommand, .gitAlias]))
+            asked("cd projects/x-growth/backend/") == [
+                lookup("backend", [.directories(under: "projects/x-growth")])
+            ])
+        #expect(asked("Scripts/bundle.sh") == [lookup("bundle.sh", [.entries(under: "Scripts")])])
+        #expect(asked("cat /etc/hosts") == [lookup("hosts", [.entries(under: "/etc")])])
+        #expect(asked("cd ~/projects") == [lookup("projects", [.directories(under: "~")])])
+        #expect(asked("vim ../backend/main.py") == [lookup("main.py", [.entries(under: "../backend")])])
+        #expect(asked("./run.sh") == [lookup("run.sh", [.entries(under: ".")])])
     }
 
-    @Test("A path from here is checked by its first name against the files here.")
-    func pathsAreCheckedByTheirFirstName() {
+    @Test("Here and the parent are not names to look up, and a branch with a slash may be a path git takes.")
+    func pathEdges() {
+        #expect(asked("cd ..") == nil)
+        #expect(asked("cd ../..") == nil)
         #expect(
-            asked("cd projects/x-growth/backend/")
-                == Verification.Attestation(word: "projects", kinds: [.file]))
-        #expect(asked("Scripts/bundle.sh") == Verification.Attestation(word: "Scripts", kinds: [.file]))
+            asked("git checkout feat/login") == [
+                lookup("feat/login", [.branch]), lookup("login", [.entries(under: "feat")]),
+            ])
     }
 
-    @Test("A path from root, home, here or a parent is not resolved, so nothing denies it yet.")
-    func pathsFromElsewhereAreFree() {
-        for line in ["cat /etc/hosts", "cd ~/projects", "cd ../backend", "./run.sh", "cd .."] {
-            #expect(asked(line) == nil, "\(line)")
-        }
-    }
-
-    @Test("A dotfile names one file here and nothing else, so the listing is asked.")
-    func dotfilesAreFiles() {
-        #expect(asked("vim .env.vim") == Verification.Attestation(word: ".env.vim", kinds: [.file]))
+    @Test("A directory command narrows a path to directories; a file command and an unknown one do not.")
+    func directoryCommandsWantDirectories() {
+        #expect(asked("cd Sour") == [lookup("Sour", [.directory])])
+        #expect(asked("ls Sour") == [lookup("Sour", [.file])])
+        #expect(asked("vim .env.vim") == [lookup(".env.vim", [.file])])
+        #expect(asked("myapp .env.vim") == [lookup(".env.vim", [.file])])
+        #expect(asked("myapp Sources/x") == [lookup("x", [.entries(under: "Sources")])])
     }
 
     @Test(
@@ -193,10 +221,26 @@ struct GeneratedAttestationTests {
         }
     }
 
-    @Test("A plain argument may be a word the command takes, which nothing here classifies yet.")
-    func plainArgumentsAreFree() {
-        #expect(asked("npm run dev") == nil)
-        #expect(asked("git checkout main") == nil)
+    @Test("A word a command reads as text is nobody's to deny.")
+    func textArgumentsAreFree() {
+        #expect(asked("echo hello") == nil)
+        #expect(asked("myapp serve") == nil)
+        #expect(asked("git commit fix") == nil)
+        #expect(asked("grep TODO") == nil)
+        #expect(asked("grep TODO Sour") == [lookup("Sour", [.file])])
+    }
+
+    @Test(
+        "What the machine offers to finish a word is what could vouch for it, and for a free word the names here."
+    )
+    func offeringsFollowTheShape() throws {
+        #expect(Verification.offerings(for: try #require(word("cd pro"))).map(\.kinds) == [[.directory]])
+        #expect(Verification.offerings(for: try #require(word("echo hel"))).map(\.kinds) == [[.file]])
+        #expect(Verification.offerings(for: try #require(word("git checkout -"))).isEmpty)
+        let token = try #require(word("cd Sources/Utt"))
+        let path = try #require(Verification.offerings(for: token).first)
+        #expect(path.word == "Utt")
+        #expect(path.prefix == "Sources/")
     }
 
     @Test("The words a completion adds are the model's, including the one it finished for the typist.")
@@ -212,10 +256,124 @@ struct GeneratedAttestationTests {
         #expect(added("ls", "").isEmpty)
     }
 
-    @Test("A word stands while the machine has not answered, or once it names the word in any case.")
+    @Test(
+        "A word stands while the machine has not answered, or once it names the word in any case; an empty answer denies it."
+    )
     func standsOnSilenceOrAName() {
-        #expect(Verification.stands(".vim", known: []))
+        #expect(Verification.stands(".vim", known: nil))
         #expect(Verification.stands("readme.md", known: ["README.md", ".env"]))
         #expect(!Verification.stands(".vim", known: [".env", "src"]))
+        #expect(!Verification.stands("backend", known: []))
+    }
+}
+
+/// The shape of the word a line ends on.
+private func shape(_ line: String) -> LineShape? { CompletionToken(line).map(LineShape.of) }
+
+@Suite("Reading a command line as its shell does")
+struct LineShapeTests {
+    @Test("The first word is the program, however the line is indented or wrapped.")
+    func firstWordIsTheProgram() {
+        #expect(shape("gi") == LineShape(command: nil, kind: .program))
+        #expect(shape("sudo gi") == LineShape(command: nil, kind: .program))
+        #expect(shape("sudo -E gi") == LineShape(command: nil, kind: .program))
+        #expect(shape("ls && gi") == LineShape(command: nil, kind: .program))
+        #expect(shape("cat x | gr") == LineShape(command: nil, kind: .program))
+    }
+
+    @Test("A command's arguments are what the command takes, flags left out of the count.")
+    func argumentsFollowTheCommand() {
+        #expect(shape("cd pro") == LineShape(command: "cd", kind: .directory))
+        #expect(shape("ls -la Sour") == LineShape(command: "ls", kind: .file))
+        #expect(shape("git chec") == LineShape(command: "git", kind: .subcommand(of: "git")))
+        #expect(shape("git checkout -b fe") == LineShape(command: "git", kind: .branch))
+        #expect(shape("git add Sour") == LineShape(command: "git", kind: .file))
+        #expect(shape("git commit -m fix") == LineShape(command: "git", kind: .free))
+        #expect(shape("make ver") == LineShape(command: "make", kind: .subcommand(of: "make")))
+        #expect(shape("make verify ins") == LineShape(command: "make", kind: .subcommand(of: "make")))
+        #expect(shape("npm ru") == LineShape(command: "npm", kind: .subcommand(of: "npm")))
+        #expect(shape("npm run de") == LineShape(command: "npm", kind: .subcommand(of: "npm run")))
+        #expect(shape("npm run dev --") == LineShape(command: "npm", kind: .free))
+        #expect(shape("docker compose u") == LineShape(command: "docker", kind: .free))
+        #expect(shape("grep -r TODO Sour") == LineShape(command: "grep", kind: .file))
+        #expect(shape("grep -r TO") == LineShape(command: "grep", kind: .free))
+        #expect(shape("find . -na") == LineShape(command: "find", kind: .free))
+        #expect(shape("find Sour") == LineShape(command: "find", kind: .directory))
+        #expect(shape("myapp ser") == LineShape(command: "myapp", kind: .free))
+    }
+
+    @Test("A new simple command begins after an operator, and a wrapper hands its arguments on.")
+    func operatorsAndWrappers() {
+        #expect(shape("make verify && cd pro") == LineShape(command: "cd", kind: .directory))
+        #expect(shape("cd x; git chec") == LineShape(command: "git", kind: .subcommand(of: "git")))
+        #expect(shape("time make ver") == LineShape(command: "make", kind: .subcommand(of: "make")))
+    }
+}
+
+@Suite("Reading the verbs a program takes")
+struct ProgramVerbsTests {
+    @Test("A Makefile's targets are its rule heads, without variables, recipes, special targets or patterns.")
+    func makefileTargets() {
+        let makefile = """
+            SWIFT := xcrun swift
+            .PHONY: verify build
+            verify: lint test
+            \t$(SWIFT) test
+            build test:
+            \t@echo building
+            %.o: %.c
+            $(TARGET): build
+            # release: not yet
+            """
+        #expect(MakefileTargets.names(in: makefile) == ["verify", "build", "test"])
+    }
+
+    @Test("A manifest's scripts are the keys of its scripts object, whatever their commands hold.")
+    func packageScripts() {
+        let manifest = """
+            {
+              "name": "app",
+              "scripts": {
+                "dev": "vite",
+                "build": "tsc && vite build",
+                "test:unit": "vitest run --reporter=\\"dot, verbose\\"",
+                "lint": "eslint ."
+              },
+              "dependencies": { "vite": "^5" }
+            }
+            """
+        #expect(PackageScripts.names(in: manifest) == ["build", "dev", "lint", "test:unit"])
+        #expect(PackageScripts.names(in: "{ \"name\": \"app\" }") == [])
+        #expect(PackageScripts.names(in: "scripts: dev") == nil)
+    }
+
+    @Test(
+        "A help page's commands are its indented names, set off from their descriptions or listed with commas."
+    )
+    func helpCommands() {
+        let docker = """
+            Usage:  docker [OPTIONS] COMMAND
+
+            Common Commands:
+              run         Create and run a new container from an image
+              exec        Execute a command in a running container
+              ps          List containers
+
+            Global Options:
+                  --config string      Location of client config files
+              -D, --debug              Enable debug mode
+            """
+        #expect(HelpCommands.names(in: docker) == ["run", "exec", "ps"])
+        let gh =
+            "CORE COMMANDS\n  auth:          Authenticate gh and git with GitHub\n  pr:            Manage pull requests\n"
+        #expect(HelpCommands.names(in: gh) == ["auth", "pr"])
+        let cargo =
+            "Installed Commands:\n    add                  Add dependencies\n    audit\n    b                    alias: build\n"
+        #expect(HelpCommands.names(in: cargo) == ["add", "audit", "b"])
+        let npm = "All commands:\n\n    access, adduser, audit, bugs,\n    completion, config\n"
+        #expect(
+            HelpCommands.names(in: npm) == ["access", "adduser", "audit", "bugs", "completion", "config"])
+        #expect(HelpCommands.names(in: "--cache\ncommands\ninstall\n") == ["commands", "install"])
+        #expect(HelpCommands.names(in: "Usage: swift [options] file\n  Compiles the file given.\n").isEmpty)
     }
 }

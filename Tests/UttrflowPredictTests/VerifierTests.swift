@@ -79,7 +79,7 @@ struct VerifierTests {
     @Test("A git alias the user defined is attested, however unlikely the model finds it.")
     func aliasesOutrankTheModel() async {
         let verdict = await decided(
-            "git cm", typed: "git c", machine: [.gitAlias: ["cm"], .gitSubcommand: ["commit"]],
+            "git cm", typed: "git c", machine: [.gitAlias: ["cm"], .subcommand(of: "git"): ["commit"]],
             scoring: ScriptedScoring(disliked))
         #expect(verdict == .attested)
     }
@@ -92,7 +92,7 @@ struct VerifierTests {
     @Test("A typo is corrected silently to the name the machine knows.")
     func correctsSilently() async {
         let verdict = await decided(
-            "git comit", typed: "git com", machine: [.gitSubcommand: ["commit", "checkout"]])
+            "git comit", typed: "git com", machine: [.subcommand(of: "git"): ["commit", "checkout"]])
         #expect(verdict == .corrected("git commit"))
     }
 
@@ -100,7 +100,7 @@ struct VerifierTests {
     func supersedesWhatItCorrects() async {
         let store = RecordingSupersession()
         _ = await decided(
-            "git comit", typed: "git com", machine: [.gitSubcommand: ["commit"]], supersession: store)
+            "git comit", typed: "git com", machine: [.subcommand(of: "git"): ["commit"]], supersession: store)
         #expect(await store.recorded == ["git comit → git commit"])
     }
 
@@ -112,7 +112,7 @@ struct VerifierTests {
     @Test("A candidate the model dislikes and the machine cannot place is not offered.")
     func rejectsWhatNothingSupports() async {
         let verdict = await decided(
-            "git zqxjw", typed: "git z", machine: [.gitSubcommand: ["commit"]],
+            "git zqxjw", typed: "git z", machine: [.subcommand(of: "git"): ["commit"]],
             scoring: ScriptedScoring(disliked))
         #expect(verdict == .rejected)
     }
@@ -120,7 +120,7 @@ struct VerifierTests {
     @Test("A candidate the model likes stands even where the machine cannot place it.")
     func keepsWhatTheModelLikes() async {
         let verdict = await decided(
-            "git zqxjw", typed: "git z", machine: [.gitSubcommand: ["commit"]],
+            "git zqxjw", typed: "git z", machine: [.subcommand(of: "git"): ["commit"]],
             scoring: ScriptedScoring(liked))
         #expect(verdict == .plausible)
     }
@@ -205,7 +205,7 @@ struct VerifierTests {
     func withoutADirectoryOnlyTheModelSpeaks() async {
         let notes = Surface(bundleIdentifier: "com.example.notes", role: "AXTextArea")
         let verdict = await decided(
-            "comit", machine: [.gitSubcommand: ["commit"]], in: notes)
+            "comit", machine: [.subcommand(of: "git"): ["commit"]], in: notes)
         #expect(verdict == .plausible)
     }
 
@@ -224,7 +224,7 @@ struct VerifiedCandidateTests {
     @Test("What the gates refuse is dropped and what they correct comes back corrected.")
     func keepsWhatItAllows() async {
         let verifier = await warmed(
-            [.gitSubcommand: ["commit", "checkout"]], on: "git comit",
+            [.subcommand(of: "git"): ["commit", "checkout"]], on: "git comit",
             scoring: ScriptedScoring(disliked))
         let offered = await verifier.verified(
             [
@@ -237,7 +237,7 @@ struct VerifiedCandidateTests {
 
     @Test("A correction pays the distance penalty of the edit it made.")
     func aCorrectionCostsAnEdit() async {
-        let verifier = await warmed([.gitSubcommand: ["commit"]], on: "git comit")
+        let verifier = await warmed([.subcommand(of: "git"): ["commit"]], on: "git comit")
         let offered = await verifier.verified(
             [Candidate(text: "git comit", source: .personal)], in: terminal, typed: "git c", now: moment)
         #expect(offered.first?.editDistance == 1)
@@ -259,7 +259,7 @@ struct VerifiedCandidateTests {
 
     @Test("A correction onto a candidate already offered is not offered twice.")
     func correctionsDoNotDuplicate() async {
-        let verifier = await warmed([.gitSubcommand: ["commit"]], on: "git comit")
+        let verifier = await warmed([.subcommand(of: "git"): ["commit"]], on: "git comit")
         let offered = await verifier.verified(
             [
                 Candidate(text: "git comit", source: .personal),
@@ -315,17 +315,37 @@ struct GeneratedLineTests {
         #expect(kept.isEmpty)
     }
 
-    @Test("A path whose first name is not here is not drawn, wherever it was read from.")
+    @Test("A path into a directory that is not there is not drawn, wherever the model read it.")
     func pathsNotFromHereAreDropped() async {
         let kept = await standing(
-            ["backend/"], after: "cd projects/x-growth/", machine: [.file: ["src", "package.json"]])
+            ["backend/"], after: "cd projects/x-growth/",
+            machine: [.directories(under: "projects/x-growth"): []])
         #expect(kept.isEmpty)
     }
 
-    @Test("A path whose first name is here stands, since only its head is resolved yet.")
+    @Test("A path to a directory that is there stands, resolved where it points.")
     func pathsFromHereStand() async {
-        let kept = await standing(["ces/UttrflowPredict"], after: "cd Sour", machine: [.file: ["Sources"]])
-        #expect(kept == ["cd Sources/UttrflowPredict".dropFirst("cd Sour".count).description])
+        let kept = await standing(
+            ["ces/UttrflowPredict", "ces/Nowhere"], after: "cd Sour",
+            machine: [.directories(under: "Sources"): ["UttrflowPredict"]])
+        #expect(kept == ["ces/UttrflowPredict"])
+    }
+
+    @Test("A branch with a slash stands as a branch, and where it is not one as a path git also takes.")
+    func branchesWithSlashesStand() async {
+        let machine: [EnvironmentKind: [String]] = [
+            .branch: ["feat/login"], .entries(under: "docs"): ["guide.md"],
+        ]
+        #expect(await standing(["/login"], after: "git checkout feat", machine: machine) == ["/login"])
+        #expect(await standing(["/guide.md"], after: "git checkout docs", machine: machine) == ["/guide.md"])
+        #expect(await standing(["/nowhere"], after: "git checkout docs", machine: machine).isEmpty)
+    }
+
+    @Test("A make target the model invented is not drawn where the Makefile lists the real ones.")
+    func targetsAreLookedUp() async {
+        let kept = await standing(
+            ["erify", "env"], after: "make v", machine: [.subcommand(of: "make"): ["verify", "lint"]])
+        #expect(kept == ["erify"])
     }
 
     @Test("A program the machine has is drawn and one it has not is dropped, in the model's order.")
@@ -337,14 +357,15 @@ struct GeneratedLineTests {
     @Test("A git subcommand the model misspelt is dropped where the machine lists them.")
     func gitSubcommandsAreLookedUp() async {
         let kept = await standing(
-            ["kout main", "k"], after: "git chec", machine: [.gitSubcommand: ["checkout"]])
+            ["kout main", "k"], after: "git chec", machine: [.subcommand(of: "git"): ["checkout"]])
         #expect(kept == ["kout main"])
     }
 
     @Test("An invented name in the middle of a line drops the whole line, not only its last word.")
     func everyAddedWordIsAsked() async {
         let kept = await standing(
-            ["backend/ && npm run dev"], after: "cd projects/x-growth/", machine: [.file: ["src"]])
+            ["backend/ && npm run dev"], after: "cd projects/x-growth/",
+            machine: [.directories(under: "projects/x-growth"): []])
         #expect(kept.isEmpty)
     }
 

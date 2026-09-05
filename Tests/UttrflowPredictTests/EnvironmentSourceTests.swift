@@ -3,7 +3,7 @@ import Testing
 
 @testable import UttrflowPredict
 
-/// A machine that says what a test tells it to, and counts how often it is asked.
+/// A machine that says what a test tells it to, and counts how often it is asked; a kind it was told nothing about is one it cannot read.
 actor StubEnvironment: EnvironmentReading {
     private let answers: [EnvironmentKind: [String]]
     private let delay: Duration?
@@ -14,10 +14,10 @@ actor StubEnvironment: EnvironmentReading {
         self.delay = delay
     }
 
-    func values(of kind: EnvironmentKind, in directory: String) async -> [String] {
+    func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
         reads += 1
         if let delay { try? await Task.sleep(for: delay) }
-        return answers[kind] ?? []
+        return answers[kind]
     }
 }
 
@@ -72,15 +72,45 @@ struct EnvironmentSourceTests {
         #expect(await offered(answers, typing: "g") == ["grep", "gs"])
     }
 
-    @Test("A later word is completed from the branches and filenames here.")
+    @Test(
+        "An argument is completed from what its command takes: branches after checkout, files after cat, directories after cd."
+    )
     func laterWordIsAnArgument() async {
         let answers: [EnvironmentKind: [String]] = [
-            .executable: ["grep"], .alias: ["gs"], .branch: ["gold"], .file: ["gone.txt"],
+            .executable: ["grep"], .alias: ["gs"], .branch: ["gold"], .file: ["gone.txt", "go"],
+            .directory: ["go"],
+        ]
+        #expect(await offered(answers, typing: "git checkout g") == ["git checkout gold"])
+        #expect(await offered(answers, typing: "cat g") == ["cat go", "cat gone.txt"])
+        #expect(await offered(answers, typing: "cd g") == ["cd go"])
+    }
+
+    @Test("A word a command reads as text is still offered the names here, as a shell offers them.")
+    func freeWordsAreOfferedFiles() async {
+        #expect(await offered([.file: ["hello.txt"]], typing: "echo hel") == ["echo hello.txt"])
+    }
+
+    @Test("A path is completed under the directory it points into, and the candidate carries the path.")
+    func pathsAreCompletedWhereTheyPoint() async {
+        let answers: [EnvironmentKind: [String]] = [
+            .directories(under: "Sources"): ["UttrflowPredict", "Uttrflow"], .directory: ["Sources"],
         ]
         #expect(
-            await offered(answers, typing: "git checkout g") == [
-                "git checkout gold", "git checkout gone.txt",
+            await offered(answers, typing: "cd Sources/Utt") == [
+                "cd Sources/Uttrflow", "cd Sources/UttrflowPredict",
             ])
+    }
+
+    @Test(
+        "A path the shell resolves from the terminal's directory, from home or from root, as the shell would."
+    )
+    func pathsResolveLikeTheShell() {
+        #expect(SystemEnvironmentReader.resolve(".", from: "/repo") == "/repo")
+        #expect(SystemEnvironmentReader.resolve("Sources", from: "/repo") == "/repo/Sources")
+        #expect(SystemEnvironmentReader.resolve("../other", from: "/repo/app") == "/repo/other")
+        #expect(SystemEnvironmentReader.resolve("/etc", from: "/repo") == "/etc")
+        #expect(SystemEnvironmentReader.resolve("~", from: "/repo").hasPrefix("/"))
+        #expect(!SystemEnvironmentReader.resolve("~/x", from: "/repo").contains("~"))
     }
 
     @Test("Indentation before the command does not make it an argument.")
@@ -158,7 +188,7 @@ struct EnvironmentIndexTests {
     @Test("The first keystroke is answered from nothing, since the read has only just started.")
     func firstKeystrokeIsEmpty() async {
         let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]))
-        #expect(await index.values(of: .branch, in: "/repo", now: moment).isEmpty)
+        #expect(await index.values(of: .branch, in: "/repo", now: moment) == nil)
         await index.settle()
         #expect(await index.values(of: .branch, in: "/repo", now: moment) == ["main"])
     }
@@ -168,7 +198,7 @@ struct EnvironmentIndexTests {
         let index = EnvironmentIndex(
             reader: StubEnvironment([.branch: ["main"]], delay: .seconds(2)))
         let started = ContinuousClock.now
-        #expect(await index.values(of: .branch, in: "/repo", now: moment).isEmpty)
+        #expect(await index.values(of: .branch, in: "/repo", now: moment) == nil)
         #expect(ContinuousClock.now - started < .milliseconds(500))
     }
 

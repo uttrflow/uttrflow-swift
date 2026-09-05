@@ -101,41 +101,93 @@ public enum Verification {
         return best
     }
 
-    /// Whether the kinds name everything there is, as programs and git's subcommands do and files and branches never do.
+    /// Whether the kinds name everything there is, as programs and their verbs do and paths and branches never do.
     static func isClosedVocabulary(_ kinds: [EnvironmentKind]) -> Bool {
-        !kinds.contains(.file) && !kinds.contains(.branch)
+        !kinds.contains { kind in
+            switch kind {
+            case .branch, .entries, .directories: true
+            case .executable, .alias, .subcommand, .gitAlias: false
+            }
+        }
     }
 
-    /// What the machine could vouch for in a word the model wrote: the word among closed kinds, or a path's first name among the files here.
-    public struct Attestation: Equatable, Sendable {
-        /// The name looked up, which for a path from here is what stands before its first slash.
+    /// One name to look up among some kinds, and what stands before it in the word when the word is a path.
+    public struct Lookup: Equatable, Sendable {
+        /// The name looked up: the word, or the last name of a path.
         public let word: String
         /// The kinds whose values may vouch for it.
         public let kinds: [EnvironmentKind]
+        /// The path before the name, ending in its slash, which a candidate puts back in front of a value.
+        public let prefix: String
+
+        init(_ word: String, _ kinds: [EnvironmentKind], prefix: String = "") {
+            self.word = word
+            self.kinds = kinds
+            self.prefix = prefix
+        }
+    }
+
+    /// What the machine could vouch for in a word the model wrote; any one lookup vouching lets the word stand.
+    public struct Attestation: Equatable, Sendable {
+        public let lookups: [Lookup]
     }
 
     /// The characters that make a word a quotation, an expansion, an assignment or an address, none of which a listing can deny.
     private static let freeCharacters: Set<Character> = ["\"", "'", "$", "*", "?", "{", "}", "=", ":", "`"]
 
-    /// What could vouch for a generated word, absent where any word is allowed or where nothing here classifies the argument yet.
+    /// What could vouch for a generated word, absent where any word is allowed: a flag, a number, a quotation, or a word the command reads as text.
     static func attestation(for token: CompletionToken) -> Attestation? {
         let word = token.token
         guard !isFree(word) else { return nil }
-        if let slash = word.firstIndex(of: "/") {
-            let head = String(word[..<slash])
-            // A path from here is checked by its first name; one from root, home, here or a parent is not resolved yet.
-            guard !head.isEmpty, head != ".", head != "..", !head.hasPrefix("~") else { return nil }
-            return Attestation(word: head, kinds: [.file])
+        let shape = LineShape.of(token)
+        // A path is looked up where it points, whatever the command; only `cd` and its kin narrow it to directories.
+        if word.contains("/") {
+            guard let path = path(word, directoriesOnly: shape.kind == .directory) else { return nil }
+            return shape.kind == .branch
+                ? Attestation(lookups: [Lookup(word, [.branch]), path]) : Attestation(lookups: [path])
         }
-        let kinds = attestingKinds(for: token)
-        if isClosedVocabulary(kinds) { return Attestation(word: word, kinds: kinds) }
-        // A dotfile names one file here and nothing else; any other argument may be a word the command takes.
-        return word.hasPrefix(".") ? Attestation(word: word, kinds: [.file]) : nil
+        switch shape.kind {
+        case .program: return Attestation(lookups: [Lookup(word, [.executable, .alias])])
+        case .subcommand(let program):
+            return Attestation(lookups: [
+                Lookup(word, [.subcommand(of: program)] + (program == gitCommand ? [.gitAlias] : []))
+            ])
+        case .directory: return Attestation(lookups: [Lookup(word, [.directory])])
+        case .file: return Attestation(lookups: [Lookup(word, [.file])])
+        case .branch: return Attestation(lookups: [Lookup(word, [.branch])])
+        // A dotfile names one file here and nothing else; any other word may be one the command reads as text.
+        case .free: return word.hasPrefix(".") ? Attestation(lookups: [Lookup(word, [.file])]) : nil
+        }
+    }
+
+    /// What the machine may offer to finish a word: what could vouch for it, and for a free word the names here, which a shell offers too.
+    static func offerings(for token: CompletionToken) -> [Lookup] {
+        if let attestation = attestation(for: token) { return attestation.lookups }
+        return isFree(token.token) ? [] : [Lookup(token.token, [.file])]
     }
 
     /// Whether a generated word may stand: the machine has not answered, or it names the word.
-    public static func stands(_ word: String, known: Set<String>) -> Bool {
-        known.isEmpty || attests(word, known)
+    public static func stands(_ word: String, known: Set<String>?) -> Bool {
+        guard let known else { return true }
+        return attests(word, known)
+    }
+
+    /// A path's last name looked up under the directory before it, absent for a word without a slash or one naming here or a parent.
+    private static func path(_ word: String, directoriesOnly: Bool) -> Lookup? {
+        guard word.contains("/") else { return nil }
+        var components = word.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+        // A trailing slash says the name is a directory and completes it.
+        var trailing = false
+        while components.count > 1, components.last == "" {
+            components.removeLast()
+            trailing = true
+        }
+        guard let name = components.popLast(), !name.isEmpty, name != ".", name != ".." else { return nil }
+        let under = components.isEmpty ? "." : (components == [""] ? "/" : components.joined(separator: "/"))
+        let prefix = components.isEmpty ? "" : components.joined(separator: "/") + "/"
+        let kind: EnvironmentKind =
+            directoriesOnly || trailing ? .directories(under: under) : .entries(under: under)
+        return Lookup(name, [kind], prefix: prefix)
     }
 
     /// The words a completion puts on the line, each with what precedes it; a word the typing began and the model finished is the model's.
@@ -164,10 +216,8 @@ public enum Verification {
             || word.contains(where: freeCharacters.contains)
     }
 
-    /// What could vouch for a word, which is decided by where in the line the word sits.
+    /// What could vouch for a word, which the command and the word's place in it decide; nothing for a word the command reads as text.
     static func attestingKinds(for token: CompletionToken) -> [EnvironmentKind] {
-        guard !token.isFirstWord else { return [.executable, .alias] }
-        guard token.precedingWords == 1, token.command == gitCommand else { return [.branch, .file] }
-        return [.gitSubcommand, .gitAlias]
+        attestation(for: token)?.lookups.flatMap(\.kinds) ?? []
     }
 }

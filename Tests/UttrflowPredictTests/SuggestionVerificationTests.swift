@@ -49,7 +49,7 @@ struct SuggestionVerificationTests {
         var session = SuggestionSession()
         let update = try await drawVerified(
             &session, typing: "git comi", candidates: [habit("git comit")],
-            machine: [.gitSubcommand: ["commit", "checkout"]])
+            machine: [.subcommand(of: "git"): ["commit", "checkout"]])
         #expect(update?.suggestion == .certain("git commit"))
     }
 
@@ -58,7 +58,7 @@ struct SuggestionVerificationTests {
         var session = SuggestionSession()
         _ = try await drawVerified(
             &session, typing: "git comi", candidates: [habit("git comit")],
-            machine: [.gitSubcommand: ["commit"]])
+            machine: [.subcommand(of: "git"): ["commit"]])
         #expect(session.route(KeyStroke(.tab)) == .accept("git commit"))
         let edit = try #require(Acceptance.edit(accepting: "git commit", after: "git comi"))
         #expect(edit.replaced == "i")
@@ -70,7 +70,7 @@ struct SuggestionVerificationTests {
         var session = SuggestionSession()
         let update = try await drawVerified(
             &session, typing: "git c", candidates: [habit("git zqxjw"), habit("git commit", count: 30)],
-            machine: [.gitSubcommand: ["commit"]], scoring: ScriptedScoring(disliked))
+            machine: [.subcommand(of: "git"): ["commit"]], scoring: ScriptedScoring(disliked))
         #expect(update?.suggestion == .certain("git commit"))
     }
 
@@ -79,7 +79,7 @@ struct SuggestionVerificationTests {
         var session = SuggestionSession()
         let update = try await drawVerified(
             &session, typing: "git z", candidates: [habit("git zqxjw")],
-            machine: [.gitSubcommand: ["commit"]], scoring: ScriptedScoring(disliked))
+            machine: [.subcommand(of: "git"): ["commit"]], scoring: ScriptedScoring(disliked))
         #expect(update == .quiet(because: .nothingOffered))
     }
 
@@ -89,7 +89,7 @@ struct SuggestionVerificationTests {
         let store = RecordingSupersession()
         _ = try await drawVerified(
             &session, typing: "git z", candidates: [habit("git zqxjw")],
-            machine: [.gitSubcommand: ["commit"]], scoring: ScriptedScoring(disliked),
+            machine: [.subcommand(of: "git"): ["commit"]], scoring: ScriptedScoring(disliked),
             supersession: store)
         #expect(await store.rejected == ["git zqxjw"])
     }
@@ -100,7 +100,7 @@ struct SuggestionVerificationTests {
         let store = RecordingSupersession()
         _ = try await drawVerified(
             &session, typing: "git comi", candidates: [habit("git comit")],
-            machine: [.gitSubcommand: ["commit"]], supersession: store)
+            machine: [.subcommand(of: "git"): ["commit"]], supersession: store)
         #expect(await store.recorded == ["git comit → git commit"])
     }
 
@@ -143,7 +143,7 @@ struct SuggestionVerificationBudgetTests {
         let slow = ScriptedScoring(liked, delay: .seconds(1))
         let update = try await drawVerified(
             &session, typing: "git c", candidates: [habit("git cm"), habit("git czqxjw", count: 30)],
-            machine: [.gitAlias: ["cm"], .gitSubcommand: ["cm"]], scoring: slow)
+            machine: [.gitAlias: ["cm"], .subcommand(of: "git"): ["cm"]], scoring: slow)
         #expect(update?.suggestion == .certain("git cm"))
         #expect(await slow.asked == 1)
     }

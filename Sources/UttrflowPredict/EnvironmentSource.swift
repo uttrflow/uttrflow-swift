@@ -4,28 +4,47 @@ public import struct Foundation.Date
 public enum EnvironmentKind: Sendable, Hashable {
     /// A branch in the repository the terminal is sitting in.
     case branch
-    /// A name in the directory the terminal is sitting in.
-    case file
+    /// A name under a directory, given from the terminal's own: `.` for it, a path from it, from home or from root.
+    case entries(under: String)
+    /// A directory under one, given the same way.
+    case directories(under: String)
     /// A program on `PATH`.
     case executable
     /// A name the user's shell configuration binds to a command.
     case alias
-    /// A subcommand the git on this machine accepts.
-    case gitSubcommand
+    /// A verb a program takes: git's subcommands, make's targets, the scripts a project declares under `npm run`.
+    case subcommand(of: String)
     /// A name the user's git configuration binds to a subcommand.
     case gitAlias
+
+    /// A name in the directory the terminal is sitting in.
+    public static let file = EnvironmentKind.entries(under: ".")
+
+    /// A directory in the directory the terminal is sitting in.
+    public static let directory = EnvironmentKind.directories(under: ".")
+
+    /// How long an answer is believed: a directory changes with every command, a program's verbs with the program.
+    var lifetimeInSeconds: Double {
+        switch self {
+        case .subcommand, .executable, .alias, .gitAlias: EnvironmentIndex.programLifetimeInSeconds
+        case .branch, .entries, .directories: EnvironmentIndex.lifetimeInSeconds
+        }
+    }
 }
 
 /// Reads one kind of fact off this machine, which only the system half can really do.
 public protocol EnvironmentReading: Sendable {
-    /// Every value of one kind for one directory, empty when the read fails or is too slow.
-    func values(of kind: EnvironmentKind, in directory: String) async -> [String]
+    /// Every value of one kind for one directory: empty when there are none, absent when the read failed or was too slow.
+    func values(of kind: EnvironmentKind, in directory: String) async -> [String]?
 }
 
 /// What this machine last said, held briefly so a keystroke never waits on a read.
 public actor EnvironmentIndex {
-    /// How long an answer is believed before the machine is asked again.
+    /// How long an answer about a directory is believed before the machine is asked again.
     public static let lifetimeInSeconds = 5.0
+
+    /// How long an answer about programs and their verbs is believed, since those change when something is installed.
+    public static let programLifetimeInSeconds = 60.0
 
     /// One directory's answer about one kind of thing.
     struct Key: Hashable {
@@ -33,9 +52,9 @@ public actor EnvironmentIndex {
         let directory: String
     }
 
-    /// Values and the moment they stop being believed.
+    /// Values and the moment they stop being believed; a failed read is remembered too, so it is not repeated every keystroke.
     private struct Cached {
-        let values: [String]
+        let values: [String]?
         let expires: Date
     }
 
@@ -47,12 +66,12 @@ public actor EnvironmentIndex {
         self.reader = reader
     }
 
-    /// What is known right now, asking the machine in the background when that is nothing or stale.
-    public func values(of kind: EnvironmentKind, in directory: String, now: Date) -> [String] {
+    /// What is known right now, asking the machine in the background when that is nothing or stale; absent until it has answered.
+    public func values(of kind: EnvironmentKind, in directory: String, now: Date) -> [String]? {
         let key = Key(kind: kind, directory: directory)
         let entry = cached[key]
         if entry.map({ $0.expires <= now }) ?? true { refresh(key, now: now) }
-        return entry?.values ?? []
+        return entry?.values
     }
 
     /// Waits for the reads in flight, which only a test has a reason to do.
@@ -71,9 +90,9 @@ public actor EnvironmentIndex {
         }
     }
 
-    /// Believes an answer until `lifetimeInSeconds` after the keystroke that asked for it.
-    private func record(_ key: Key, values: [String], now: Date) {
-        cached[key] = Cached(values: values, expires: now.addingTimeInterval(Self.lifetimeInSeconds))
+    /// Believes an answer for the kind's lifetime after the keystroke that asked for it.
+    private func record(_ key: Key, values: [String]?, now: Date) {
+        cached[key] = Cached(values: values, expires: now.addingTimeInterval(key.kind.lifetimeInSeconds))
         refreshing[key] = nil
     }
 }
@@ -97,11 +116,13 @@ public struct EnvironmentSource: Sendable {
 
         var offered: [String] = []
         var seen: Set<String> = []
-        for kind in Self.kinds(completingFirstWord: completing.isFirstWord) {
-            let values = await index.values(of: kind, in: directory, now: now)
-            for value in Self.matches(values, completing: completing.token).prefix(Self.maximumPerKind)
-            where seen.insert(value).inserted {
-                offered.append(value)
+        for lookup in Verification.offerings(for: completing) {
+            for kind in lookup.kinds {
+                let values = await index.values(of: kind, in: directory, now: now) ?? []
+                for value in Self.matches(values, completing: lookup.word).prefix(Self.maximumPerKind)
+                where seen.insert(lookup.prefix + value).inserted {
+                    offered.append(lookup.prefix + value)
+                }
             }
         }
         return offered.map {
@@ -115,11 +136,6 @@ public struct EnvironmentSource: Sendable {
     static func workingDirectory(of surface: Surface) -> String? {
         guard let scope = surface.scope, scope.hasPrefix("/") || scope.hasPrefix("~/") else { return nil }
         return scope
-    }
-
-    /// What is worth completing here: a program at the start of a line, its arguments after it.
-    static func kinds(completingFirstWord: Bool) -> [EnvironmentKind] {
-        completingFirstWord ? [.executable, .alias] : [.branch, .file]
     }
 
     /// The values that finish the token, shortest first, since the nearest completion is the likeliest.
