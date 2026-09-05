@@ -72,6 +72,8 @@ moment the person returns, because it shares their keyboard.
 
 | `robust/chat-labels` only — 2026-09-05, after the stamp rule and the echo cut | 10 | 10 | 10 | 790 ms | 825 ms | A chat as its accessibility labels read — glued stamps, "Received from", "Sent to … Delivered" after every message — answered with plain Hinglish replies, none carrying any of it. Full run 5 follows once the operator is away. |
 
+| Apple on-device, same catalogue, 2026-09-05 | 1 100 | 453 (41 %), 701 (63 %) read generously | 480 (44 %) | 472 ms | 813 ms | Apple's Foundation Models given the identical prompt and parser, for the comparison in predict-llm.md: 546 empty answers (137 echo-and-stop, 350 unrelated or echo dropped), 65 errors (34 structured-output decode failures, 31 guardrail refusals on chat text). Faster by 280 ms at the median; no download; not a completion engine, since the framework gives no hold on the tokens. |
+
 ## How to run one cycle
 
 1. `xcodebuild -scheme uttrflow-bakeoff -configuration Release -derivedDataPath .build/xcode … build`

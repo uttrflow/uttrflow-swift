@@ -35,8 +35,15 @@ public actor AppleCandidateGenerator: PassShowing {
         let options = GenerationOptions(temperature: 0, maximumResponseTokens: register.maxTokens * 2)
         let response = try await session.respond(to: message, generating: Continuation.self, options: options)
         let context = MLXCandidateScorer.contextNeverCopied(in: situation)
-        let completions = MLXCandidateScorer.parse(response.content.line, typed: typed).compactMap {
+        let answer = response.content.line
+        var completions = MLXCandidateScorer.parse(answer, typed: typed).compactMap {
             MLXCandidateScorer.trimmed($0, typed: typed, echoing: context)
+        }
+        // An answer that did not repeat the line is read as its continuation, the most generous reading a text-only model can be given.
+        if completions.isEmpty, !answer.lowercased().hasPrefix(typed.lowercased().prefix(2)) {
+            completions = MLXCandidateScorer.parse(typed + answer, typed: typed).compactMap {
+                MLXCandidateScorer.trimmed($0, typed: typed, echoing: context)
+            }
         }
         return GenerationPass(text: response.content.line, stopReason: "structured", completions: completions)
     }

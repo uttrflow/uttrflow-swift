@@ -33,6 +33,38 @@ continue it and no echo is paid for — is also there. A smaller model dedicated
 and battery guards are still to come and do not gate a working system. Dictation keeps its
 own model so its quality is never traded for the speed of a suggestion.
 
+## Apple's on-device model, measured for completion
+
+Apple's Foundation Models framework runs the dictation clean-up (`Docs/bakeoff.md`), so the
+question of using it for tab-to-complete too was measured rather than argued.
+`AppleCandidateGenerator` gives Apple's model the identical instructions, prompt, parser and
+copy-cut the local model gets, and `uttrflow-bakeoff complete --fixtures --model apple` holds
+it to the same 1 090-case catalogue (plus the ten chat-label cases), 2026-09-05, macOS 26,
+Apple Intelligence on.
+
+| Model | Hit | In register | p50 | p95 | Empty | Errors |
+|---|---|---|---|---|---|---|
+| Gemma 3 4B (4-bit, MLX), run 4 | 1 009 / 1 090 (93 %) | 98 % | 752 ms | 883 ms | 2 | 0 |
+| Apple on-device, strict | 453 / 1 100 (41 %) | 44 % | 472 ms | 813 ms | 546 | 65 |
+| Apple on-device, most generous reading | 701 / 1 100 (63 %) | — | 468 ms | — | — | 65 |
+
+The generous reading treats an answer that did not repeat the line as its continuation, which a
+text-only model cannot be held to any other way. Apple's misses, read raw: 137 echo the line and
+stop (`git c` → `git c`), 350 answer something unrelated or drop the echo (`SELECT * FROM u` →
+`LIMIT 10;`), 34 fail to fill the structured answer, and 31 are guardrail refusals on ordinary
+chat text. By category, strict: chat 51 %, terminal 50 %, url 45 %, mail 37 %, notes 26 %,
+sql 24 %, code 20 %.
+
+What the numbers come from is the framework's shape, not the model's size. The framework gives
+back text: there is no way to write the line into the model's turn, hold its first tokens to the
+typed word, stop at a newline, read a token's probability, or keep the instructions warm across
+passes — the five things that took the local model from 78 % to 93 % on this catalogue. It also
+refuses content by policy, is available only with Apple Intelligence switched on, on Apple
+silicon, on macOS 26, and declares fifteen languages. Where it wins is what it does not cost:
+no 3 GB download, no 4 GB of memory, and a pass 280 ms faster at the median — which is why it
+stays the clean-up engine, where a whole sentence is rewritten and none of those controls are
+needed. A completion is a different job, and the local model keeps it.
+
 ## Phases
 
 Phases A to C are done and are described as built in [predict-context.md](predict-context.md);
