@@ -60,6 +60,9 @@ struct DictionaryRowView: View {
 
     @State private var isHovered = false
 
+    /// Dimmed for a retired word.
+    private var descriptionOpacity: Double { row.isRetired ? 0.45 : 1 }
+
     var body: some View {
         HStack(spacing: 10) {
             HStack(spacing: 6) {
@@ -68,7 +71,7 @@ struct DictionaryRowView: View {
                 Spacer(minLength: 0)
             }
             .frame(width: columns[0].width, alignment: .leading)
-            .opacity(row.isRetired ? 0.45 : 1)
+            .opacity(descriptionOpacity)
 
             quiet(row.pronunciation, width: columns[1].width)
             quiet(row.origin, width: columns[2].width)
@@ -77,12 +80,12 @@ struct DictionaryRowView: View {
             Text(row.timesUsed)
                 .monospacedDigit()
                 .frame(width: columns[4].width, alignment: .trailing)
-                .opacity(row.isRetired ? 0.45 : 1)
+                .opacity(descriptionOpacity)
             Text(row.timesUndone)
                 .monospacedDigit()
                 .foregroundStyle(row.undoneIsConcerning ? Color.dockRecording : .secondary)
                 .frame(width: columns[5].width, alignment: .trailing)
-                .opacity(row.isRetired ? 0.45 : 1)
+                .opacity(descriptionOpacity)
 
             HStack(spacing: 5) {
                 Spacer(minLength: 0)
@@ -117,7 +120,7 @@ struct DictionaryRowView: View {
         Text(text)
             .foregroundStyle(.secondary)
             .frame(width: width, alignment: .leading)
-            .opacity(row.isRetired ? 0.45 : 1)
+            .opacity(descriptionOpacity)
     }
 }
 
@@ -133,7 +136,7 @@ struct DictionaryEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 10) {
-                label(editor.wordLabel)
+                MainEditorLabel(text: editor.wordLabel)
                 TextField("", text: word)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
@@ -141,7 +144,7 @@ struct DictionaryEditorView: View {
                 Spacer(minLength: 0)
             }
             HStack(spacing: 10) {
-                label(editor.pronunciationLabel)
+                MainEditorLabel(text: editor.pronunciationLabel)
                 TextField("", text: pronunciation)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
@@ -150,19 +153,9 @@ struct DictionaryEditorView: View {
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
-            HStack(spacing: 8) {
-                // The reason it cannot be saved, beside the button that cannot save it.
-                // A disabled button with no explanation is a bug the user cannot report.
-                if let problem = editor.problem {
-                    Text(problem)
-                        .font(.system(size: MainMetrics.footnoteSize))
-                        .foregroundStyle(Color.dockWarning)
-                }
-                Spacer(minLength: 0)
-                MainActionButton(action: editor.cancel, onIntent: onIntent)
-                MainActionButton(action: save, isProminent: true, onIntent: onIntent)
-                    .disabled(!editor.canSave)
-            }
+            MainEditorFooter(
+                problem: editor.problem, cancel: editor.cancel, save: save,
+                canSave: editor.canSave, onIntent: onIntent)
         }
         .padding(.horizontal, MainMetrics.rowPadding)
         .padding(.vertical, 11)
@@ -189,12 +182,5 @@ struct DictionaryEditorView: View {
         Binding(
             get: { draft.pronunciation },
             set: { draft = DictionaryDraft(word: draft.word, pronunciation: $0) })
-    }
-
-    private func label(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: MainMetrics.footnoteSize))
-            .foregroundStyle(.secondary)
-            .frame(width: 88, alignment: .leading)
     }
 }

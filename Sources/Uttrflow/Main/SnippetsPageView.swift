@@ -107,45 +107,29 @@ struct SnippetEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 8) {
-                label(editor.triggerLabel)
+                MainEditorLabel(text: editor.triggerLabel)
                 Spacer(minLength: 0)
                 MainPillView(pill: editor.badge)
             }
             TextField("", text: trigger)
                 .textFieldStyle(.roundedBorder)
-            label(editor.textLabel)
+            MainEditorLabel(text: editor.textLabel)
                 .padding(.top, 2)
             TextEditor(text: text)
                 .font(.system(size: MainMetrics.calloutSize))
                 .frame(height: 84)
                 .scrollContentBackground(.hidden)
                 .padding(4)
-                .background(Color.mainCard, in: .rect(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
-            HStack(spacing: 8) {
-                // The reason it cannot be saved, beside the button that cannot save it.
-                // A disabled button with no explanation is a bug the user cannot report.
-                if let problem = editor.problem {
-                    Text(problem)
-                        .font(.system(size: MainMetrics.footnoteSize))
-                        .foregroundStyle(Color.dockWarning)
-                }
-                Spacer(minLength: 0)
-                MainActionButton(action: editor.cancel, onIntent: onIntent)
-                MainActionButton(action: save, isProminent: true, onIntent: onIntent)
-                    .disabled(!editor.canSave)
-            }
+                .cardSurface(cornerRadius: 6)
+            MainEditorFooter(
+                problem: editor.problem, cancel: editor.cancel, save: save,
+                canSave: editor.canSave, onIntent: onIntent)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         // A panel, because this is one of the things a reader chooses between: it is
         // being filled in, not read past.
-        .background(Color.mainCard, in: .rect(cornerRadius: MainMetrics.cardRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: MainMetrics.cardRadius)
-                .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
+        .cardSurface()
     }
 
     /// Rebuilt from what is currently in the fields rather than from the presentation,
@@ -167,13 +151,6 @@ struct SnippetEditorView: View {
         Binding(
             get: { draft.text },
             set: { draft = SnippetDraft(editing: draft.editing, trigger: draft.trigger, text: $0) })
-    }
-
-    private func label(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: MainMetrics.footnoteSize))
-            .foregroundStyle(.secondary)
-            .frame(width: 88, alignment: .leading)
     }
 }
 

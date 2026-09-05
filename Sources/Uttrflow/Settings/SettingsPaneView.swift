@@ -80,10 +80,7 @@ struct SettingsGroupView: View {
                     .foregroundStyle(Color.mainDim)
             }
             VStack(spacing: 0) {
-                ForEach(Array(group.rows.enumerated()), id: \.element.id) { index, row in
-                    if index > 0 { MainDivider() }
-                    SettingsRowView(row: row, model: model)
-                }
+                MainDividedRows(rows: group.rows) { SettingsRowView(row: $0, model: model) }
             }
             .overlay(alignment: .top) { MainDivider() }
             .overlay(alignment: .bottom) { MainDivider() }

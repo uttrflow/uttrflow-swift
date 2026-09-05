@@ -232,11 +232,7 @@ struct ClipboardDemonstration: View {
             }
             .padding(17)
         }
-        .background(Color.mainCard, in: .rect(cornerRadius: MainMetrics.cardRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: MainMetrics.cardRadius)
-                .strokeBorder(Color.mainSeparator, lineWidth: 0.5)
-        )
+        .cardSurface()
         // One element, one sentence. A screen reader should hear what this teaches, not
         // narrate an animation frame by frame.
         .accessibilityElement(children: .ignore)
@@ -392,10 +388,7 @@ struct ClipboardDemonstration: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .background(Color.mainBackground, in: .rect(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
+        .cardSurface(Color.mainBackground, cornerRadius: 10)
     }
 
     /// What is in the document: what was already there, then as much of the pasted line as
@@ -429,11 +422,7 @@ struct ClipboardDemonstration: View {
                 if index < demonstration.rows.count - 1 { MainDivider() }
             }
         }
-        .background(.regularMaterial, in: .rect(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.mainSeparator, lineWidth: 0.5)
-        )
+        .cardSurface(.regularMaterial, cornerRadius: 10)
         .shadow(color: .black.opacity(0.20 * phase.panel), radius: 14, y: 5)
         .opacity(phase.panel)
         // Rises as it arrives, the way the real panel does.

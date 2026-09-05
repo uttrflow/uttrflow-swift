@@ -33,15 +33,11 @@ struct AccountPageView: View {
 
     private var details: some View {
         VStack(spacing: 0) {
-            ForEach(Array(presentation.details.enumerated()), id: \.element.id) { index, detail in
-                if index > 0 { MainDivider() }
-                AccountDetailRow(detail: detail, onIntent: onIntent)
+            MainDividedRows(rows: presentation.details) {
+                AccountDetailRow(detail: $0, onIntent: onIntent)
             }
         }
-        .background(Color.mainCard, in: .rect(cornerRadius: MainMetrics.cardRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: MainMetrics.cardRadius)
-                .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
+        .cardSurface()
     }
 }
 

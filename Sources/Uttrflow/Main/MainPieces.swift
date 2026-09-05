@@ -64,9 +64,18 @@ struct MainCard<Content: View>: View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.mainCard, in: .rect(cornerRadius: MainMetrics.cardRadius))
+            .cardSurface()
+    }
+}
+
+extension View {
+    /// The card treatment: `fill` inside a rounded rectangle, ruled with the hairline colour.
+    func cardSurface<Fill: ShapeStyle>(
+        _ fill: Fill = Color.mainCard, cornerRadius: CGFloat = MainMetrics.cardRadius
+    ) -> some View {
+        background(fill, in: .rect(cornerRadius: cornerRadius))
             .overlay(
-                RoundedRectangle(cornerRadius: MainMetrics.cardRadius)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
     }
 }
@@ -135,6 +144,23 @@ struct MainCalloutView: View {
     }
 }
 
+/// A capsule filled to a fraction of its width, on a faint track.
+struct MainBar: View {
+    let fraction: Double
+    var fill: Color = .dockAccentLight
+    var height: CGFloat = 6
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(0.1))
+                Capsule().fill(fill).frame(width: proxy.size.width * fraction)
+            }
+        }
+        .frame(height: height)
+    }
+}
+
 /// One bar in a figure.
 struct MainMeterView: View {
     let meter: MainMeter
@@ -143,15 +169,7 @@ struct MainMeterView: View {
         HStack(spacing: 7) {
             Text(meter.label)
                 .frame(width: 50, alignment: .leading)
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.1))
-                    Capsule()
-                        .fill(meter.isBaseline ? Color.secondary : Color.dockAccentLight)
-                        .frame(width: proxy.size.width * meter.fraction)
-                }
-            }
-            .frame(height: 6)
+            MainBar(fraction: meter.fraction, fill: meter.isBaseline ? .secondary : .dockAccentLight)
         }
         .font(.system(size: MainMetrics.footnoteSize))
         .foregroundStyle(.secondary)
@@ -345,15 +363,7 @@ struct MainProgressView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.1))
-                    Capsule()
-                        .fill(Color.dockAccentLight)
-                        .frame(width: proxy.size.width * progress.fraction)
-                }
-            }
-            .frame(height: 7)
+            MainBar(fraction: progress.fraction, height: 7)
             HStack {
                 Text(progress.leading)
                 Spacer(minLength: 8)
@@ -430,6 +440,41 @@ struct MainApplicationChip: View {
     }
 }
 
+/// The caption beside an inline editor's field.
+struct MainEditorLabel: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: MainMetrics.footnoteSize))
+            .foregroundStyle(.secondary)
+            .frame(width: 88, alignment: .leading)
+    }
+}
+
+/// An inline editor's last line: why it cannot be saved, beside Cancel and the Save that refuses.
+struct MainEditorFooter: View {
+    let problem: String?
+    let cancel: MainAction
+    let save: MainAction
+    let canSave: Bool
+    var onIntent: (MainIntent) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let problem {
+                Text(problem)
+                    .font(.system(size: MainMetrics.footnoteSize))
+                    .foregroundStyle(Color.dockWarning)
+            }
+            Spacer(minLength: 0)
+            MainActionButton(action: cancel, onIntent: onIntent)
+            MainActionButton(action: save, isProminent: true, onIntent: onIntent)
+                .disabled(!canSave)
+        }
+    }
+}
+
 /// The header row of a table.
 struct MainTableHeader: View {
     let columns: [MainColumn]
@@ -457,6 +502,19 @@ struct MainColumn: Identifiable {
     var alignment: Alignment = .leading
 
     var id: String { title }
+}
+
+/// Rows with a hairline between each pair, so a list never opens with one above its first row.
+struct MainDividedRows<Row: Identifiable, Content: View>: View {
+    let rows: [Row]
+    @ViewBuilder var content: (Row) -> Content
+
+    var body: some View {
+        ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+            if index > 0 { MainDivider() }
+            content(row)
+        }
+    }
 }
 
 /// A list drawn as one card with hairlines between the rows.

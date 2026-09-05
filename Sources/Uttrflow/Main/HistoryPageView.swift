@@ -25,12 +25,7 @@ struct HistoryPageView: View {
                     // reads as one list with days marked in it rather than as fourteen
                     // panels stacked up.
                     VStack(spacing: 0) {
-                        ForEach(Array(day.rows.enumerated()), id: \.element.id) { index, row in
-                            if index > 0 {
-                                MainDivider()
-                            }
-                            entry(row)
-                        }
+                        MainDividedRows(rows: day.rows) { entry($0) }
                     }
                 }
             }
