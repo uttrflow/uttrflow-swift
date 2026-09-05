@@ -208,7 +208,7 @@ git fetch origin
 git worktree add .claude/worktrees/<name> -b <name> origin/main   # from main, not from HEAD
 cd .claude/worktrees/<name>                                       # and stay there
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-… work, commit by name, `make verify` — no CI will run for you …
+… work, commit by name, `make verify` before every push …
 # the pre-push hook runs `make verify` for main; CI runs it once more on the PR
 git push -u origin <name> && gh pr create --base main
 cd -                                                              # back to the main checkout
