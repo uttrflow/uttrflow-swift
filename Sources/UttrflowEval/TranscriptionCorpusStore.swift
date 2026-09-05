@@ -72,10 +72,7 @@ public struct TranscriptionCorpusStore: Sendable {
     public func all(
         ordering corpus: [TranscriptionCase] = TranscriptionCorpus.all
     ) throws(EvaluationStoreError) -> [RecordedPassage] {
-        let position = Dictionary(uniqueKeysWithValues: corpus.enumerated().map { ($1.id, $0) })
-        return try store.all().sorted {
-            (position[$0.id] ?? corpus.count, $0.id) < (position[$1.id] ?? corpus.count, $1.id)
-        }
+        TranscriptionCorpus.inCorpusOrder(try store.all(), corpus: corpus)
     }
 
     public func isRecorded(_ id: String) -> Bool { store.contains(id) }

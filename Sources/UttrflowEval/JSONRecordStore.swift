@@ -45,7 +45,7 @@ where Record.ID == String {
 
     public func save(_ record: Record) throws(EvaluationStoreError) {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.outputFormatting = .readable
         let data: Data
         do {
             data = try encoder.encode(record)
@@ -99,4 +99,9 @@ where Record.ID == String {
             throw .couldNotWrite(path: url.lastPathComponent, reason: "\(error)")
         }
     }
+}
+
+extension JSONEncoder.OutputFormatting {
+    /// Pretty, key-sorted and slash-friendly, so two files over the same data are byte-identical.
+    static let readable: Self = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
 }

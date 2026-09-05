@@ -216,24 +216,10 @@ public enum CPUFootprint {
     /// Processor time, live threads included.
     private static func threadTimes() -> (user: Double, system: Double)? {
         var basic = task_basic_info_64_data_t()
-        var basicCount = mach_msg_type_number_t(
-            MemoryLayout<task_basic_info_64_data_t>.size / MemoryLayout<natural_t>.size)
-        let basicResult = withUnsafeMutablePointer(to: &basic) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(basicCount)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_BASIC_INFO_64), $0, &basicCount)
-            }
-        }
-
         var live = task_thread_times_info_data_t()
-        var liveCount = mach_msg_type_number_t(
-            MemoryLayout<task_thread_times_info_data_t>.size / MemoryLayout<natural_t>.size)
-        let liveResult = withUnsafeMutablePointer(to: &live) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(liveCount)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_THREAD_TIMES_INFO), $0, &liveCount)
-            }
-        }
-
-        guard basicResult == KERN_SUCCESS, liveResult == KERN_SUCCESS else { return nil }
+        guard MachTask.fill(&basic, flavor: TASK_BASIC_INFO_64),
+            MachTask.fill(&live, flavor: TASK_THREAD_TIMES_INFO)
+        else { return nil }
         return (
             user: seconds(basic.user_time) + seconds(live.user_time),
             system: seconds(basic.system_time) + seconds(live.system_time)

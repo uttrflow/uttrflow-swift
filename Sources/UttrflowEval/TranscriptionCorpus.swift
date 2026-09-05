@@ -25,6 +25,16 @@ public enum TranscriptionCorpus {
         all.first { $0.id == id }
     }
 
+    /// `records` in corpus order, with anything no longer in the corpus sorted to the end by id.
+    public static func inCorpusOrder<Record: Identifiable>(
+        _ records: [Record], corpus: [TranscriptionCase] = all
+    ) -> [Record] where Record.ID == String {
+        let position = Dictionary(uniqueKeysWithValues: corpus.enumerated().map { ($1.id, $0) })
+        return records.sorted {
+            (position[$0.id] ?? corpus.count, $0.id) < (position[$1.id] ?? corpus.count, $1.id)
+        }
+    }
+
     /// Words in a passage as it will be read, counted the way the scorer counts them.
     public static func wordCount(of passage: TranscriptionCase) -> Int {
         TextNormaliser.standard.words(passage.prompt).count

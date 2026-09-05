@@ -53,6 +53,9 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
         guard referenceWordCount > 0 else { return nil }
         return Double(errors) / Double(referenceWordCount)
     }
+
+    /// The cohort to report under, naming the unattributed rather than merging them.
+    var cohortLabel: String { cohortID ?? RecordingCohort.unattributed }
 }
 
 /// What accuracy was, on a day somebody decided it was good enough to hold on to.
@@ -101,7 +104,7 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
 
     public func write(to url: URL) throws(EvaluationStoreError) {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.outputFormatting = .readable
         encoder.dateEncodingStrategy = .iso8601
         do {
             try FileManager.default.createDirectory(
@@ -256,12 +259,9 @@ extension AccuracyBaseline {
             byStress: Set(sharedBefore.flatMap(\.stresses)).sorted().compactMap { label in
                 slice(label, sharedBefore, sharedAfter, tolerance) { $0.stresses.contains(label) }
             },
-            byCohort: Set(sharedBefore.map { $0.cohortID ?? RecordingCohort.unattributed }).sorted()
-                .compactMap { label in
-                    slice(label, sharedBefore, sharedAfter, tolerance) {
-                        ($0.cohortID ?? RecordingCohort.unattributed) == label
-                    }
-                },
+            byCohort: Set(sharedBefore.map(\.cohortLabel)).sorted().compactMap { label in
+                slice(label, sharedBefore, sharedAfter, tolerance) { $0.cohortLabel == label }
+            },
             regressed: movedSamples(shared, before, after, tolerance, worse: true),
             improved: movedSamples(shared, before, after, tolerance, worse: false),
             added: after.keys.filter { before[$0] == nil }.sorted(),
