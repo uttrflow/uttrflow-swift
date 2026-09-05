@@ -1,3 +1,4 @@
+// Accumulates dictation counters for telemetry without ever making a dictation wait.
 public import UttrflowCore
 public import struct Foundation.Date
 
@@ -5,60 +6,25 @@ public import class Foundation.ProcessInfo
 
 import struct Synchronization.Mutex
 
-/// How a dictation ended.
-///
-/// Three answers rather than a `succeeded` boolean, because the server counts cancelled
-/// and failed separately and they mean opposite things about the product: one is the user
-/// changing their mind, the other is Uttrflow letting them down.
+/// How a dictation ended; cancelled and failed are counted apart because they mean opposite things.
 public enum DictationOutcome: Sendable, Equatable, CaseIterable {
+    /// Text appeared.
     case completed
-    /// The user abandoned it. Never counted as a failure, and never a latency sample —
-    /// there was no text appearing to measure to.
+    /// The user abandoned it; never a failure, and never a latency sample.
     case cancelled
     /// Uttrflow could not finish it.
     case failed
 }
 
-/// The running totals between one report and the next.
-///
-/// Everything the dictation path can say about itself, accumulated as integers. Note what
-/// the methods below will not accept: there is no parameter of any text type on any of
-/// them, so the privacy line is held at the point of collection and not merely at the
-/// point of upload. A caller cannot hand this object a transcript to discard, because
-/// there is no signature that takes one.
-///
-/// ## Why the dictation never waits
-///
-/// Every recording method is **synchronous and non-`async`**. That is the guarantee, and
-/// it is one the compiler enforces rather than one this comment asserts: a function with
-/// no `async` in its signature has no suspension point, so a dictation calling it cannot
-/// be parked behind a network request, a disk write, or another actor's queue. The work
-/// each call does is a handful of integer additions and at most one array element written
-/// in place, under an uncontended `Mutex` — bounded, allocation-free once warm, and
-/// nowhere near the millisecond the user could notice.
-///
-/// Sending is the other half of that promise and lives in ``TelemetryService``, which is
-/// the only `async` thing here and is never called from the dictation path.
+/// Running totals between reports; synchronous and free of text parameters. See Docs/account-telemetry.md.
 public final class TelemetryCollector: MetricsRecording {
-    /// How many latency samples any one series keeps.
-    ///
-    /// A cap rather than an unbounded array, because the window between reports is as long
-    /// as the app has been running and a user who never quits would otherwise grow this
-    /// without limit. Five hundred and twelve samples put a percentile within a fraction of
-    /// a millisecond of the true one, and cost four kilobytes.
+    /// How many latency samples one series keeps; 512 costs four kilobytes. See Docs/account-telemetry.md.
     public static let sampleCapacity = 512
 
+    /// Every counter, behind one lock.
     private let state: Mutex<State>
 
-    /// - Parameters:
-    ///   - isEnabled: Whether to collect anything at all. Deliberately without a default:
-    ///     a build that starts reporting because somebody omitted an argument is exactly
-    ///     the accident this whole module is arranged to prevent, so the decision has to be
-    ///     written down at the call site. Persisting the user's choice between launches is
-    ///     the settings layer's job, not this one's.
-    ///   - appVersion: This build, as three numbers.
-    ///   - osVersionMajor: The macOS major version.
-    ///   - startedAt: When this reporting window opened.
+    /// `isEnabled` has no default, so a build cannot start reporting because an argument was omitted.
     public init(
         isEnabled: Bool,
         appVersion: TelemetryReport.AppVersion,
@@ -79,11 +45,7 @@ public final class TelemetryCollector: MetricsRecording {
     /// Whether anything is being collected.
     public var isEnabled: Bool { state.withLock { $0.isEnabled } }
 
-    /// Turns collection on or off.
-    ///
-    /// Switching off discards everything gathered so far in the same breath. Keeping it
-    /// "just in case they change their mind" would mean the app was holding data the user
-    /// had just asked it not to have.
+    /// Turns collection on or off, discarding everything gathered so far either way.
     public func setEnabled(_ enabled: Bool, at moment: Date) {
         state.withLock { state in
             state.reset(at: moment)
@@ -91,16 +53,7 @@ public final class TelemetryCollector: MetricsRecording {
         }
     }
 
-    /// Records one dictation.
-    ///
-    /// - Parameters:
-    ///   - outcome: How it ended.
-    ///   - language: Which of the languages this app will name it was in.
-    ///   - audio: How long the microphone was open.
-    ///   - processing: How long the user waited between finishing speaking and seeing
-    ///     text. Both summed into the total and kept as a latency sample, so the two
-    ///     numbers the server receives cannot disagree about what was measured.
-    ///   - charactersInserted: How many characters were inserted. Never which.
+    /// Records one dictation; `processing` feeds both the total and the latency sample, so the two agree.
     public func recordDictation(
         _ outcome: DictationOutcome,
         language: TelemetryLanguage,
@@ -122,13 +75,7 @@ public final class TelemetryCollector: MetricsRecording {
         }
     }
 
-    /// Records one stage of one dictation, as ``MetricsRecording/measuring(_:clock:isolation:operation:)``
-    /// already produces it.
-    ///
-    /// Conforming to ``MetricsRecording`` rather than inventing a second way to time things
-    /// means the pipeline needs no telemetry-specific code at all: whatever already
-    /// measures a stage feeds this too. The requirement is `async` and this witness is not,
-    /// which is allowed and is the point — the caller gets no suspension point.
+    /// Records one stage as ``MetricsRecording`` measures it, synchronously, so the caller never suspends.
     public func record(_ measurement: StageMeasurement) {
         mutate { state in
             // A stage the server cannot name is not sent. See ``TelemetryStage/init(_:)``.
@@ -142,18 +89,7 @@ public final class TelemetryCollector: MetricsRecording {
         }
     }
 
-    /// The report for the window that just closed, and a fresh window from here.
-    ///
-    /// Named `take` because it consumes: what it returns is no longer held, so a caller
-    /// that drops it loses it. ``TelemetryService`` puts it straight into the outbox.
-    ///
-    /// It consumes *only* what it returns. A window that produced no report keeps running,
-    /// so a caller that polls on a timer does not quietly throw away the dictations in a
-    /// window the clock happened to make unreportable.
-    ///
-    /// - Parameter moment: When the window closed.
-    /// - Returns: The report, or `nil` when there is nothing to say — collection is off,
-    ///   no dictation happened, or the clock did not advance.
+    /// Takes the closed window's report, or `nil` when there is nothing to say and the window keeps running.
     public func takeReport(endedAt moment: Date) -> TelemetryReport? {
         state.withLock { state in
             guard state.isEnabled, let report = state.report(endedAt: moment) else { return nil }
@@ -162,11 +98,7 @@ public final class TelemetryCollector: MetricsRecording {
         }
     }
 
-    /// The single door every accumulation goes through, and therefore the single place the
-    /// opt-out is enforced.
-    ///
-    /// One guard rather than one per method: a recording method added later cannot forget
-    /// to check, because `state` is private and this is the only way to write to it.
+    /// The one door every accumulation goes through, so the opt-out is enforced in one place.
     private func mutate(_ body: (inout State) -> Void) {
         state.withLock { state in
             guard state.isEnabled else { return }
@@ -178,22 +110,37 @@ public final class TelemetryCollector: MetricsRecording {
 extension TelemetryCollector {
     /// The counters, and nothing that is not a counter.
     private struct State: Sendable {
+        /// Whether anything is collected.
         var isEnabled: Bool
+        /// This build.
         let appVersion: TelemetryReport.AppVersion
+        /// The macOS major version, if known.
         let osVersionMajor: Int?
+        /// When the current window opened.
         var windowStartedAt: Date
 
+        /// Dictations started.
         var dictationCount = 0
+        /// Dictations the user abandoned.
         var cancelledCount = 0
+        /// Dictations Uttrflow could not finish.
         var failureCount = 0
+        /// Milliseconds the microphone was open.
         var audioTotalMs = 0
+        /// Milliseconds the user waited.
         var processingTotalMs = 0
+        /// Characters inserted, counted.
         var charactersInserted = 0
+        /// Dictations per language.
         var languages: [TelemetryLanguage: Int] = [:]
+        /// End-to-end latency samples of completed dictations.
         var latencies = Samples()
+        /// Latency samples per stage that succeeded.
         var stageLatencies: [TelemetryStage: Samples] = [:]
+        /// Failures per stage.
         var stageFailures: [TelemetryStage: Int] = [:]
 
+        /// The window's report, or `nil` when ``TelemetryReport`` refuses it.
         func report(endedAt moment: Date) -> TelemetryReport? {
             TelemetryReport(
                 windowStartedAt: windowStartedAt,
@@ -227,11 +174,7 @@ extension TelemetryCollector {
             }
         }
 
-        /// Empties every counter and opens a new window.
-        ///
-        /// Assigning a whole fresh value rather than zeroing fields one by one, so a
-        /// counter added later cannot be left behind holding the previous window's data —
-        /// or, when the user has just opted out, data they asked the app to forget.
+        /// Assigns a whole fresh value, so a counter added later cannot keep the previous window's data.
         mutating func reset(at moment: Date) {
             self = State(
                 isEnabled: isEnabled, appVersion: appVersion, osVersionMajor: osVersionMajor,
@@ -239,16 +182,14 @@ extension TelemetryCollector {
         }
     }
 
-    /// A fixed-size window of the most recent samples.
-    ///
-    /// Overwrites the oldest when full rather than refusing new ones: the interesting
-    /// latencies are the recent ones, and a buffer that stops accepting samples would
-    /// report yesterday's percentiles for ever. Writing in place keeps the cost of a sample
-    /// constant, which matters because the caller is a dictation.
+    /// A fixed-size ring of the most recent samples, overwritten in place so a sample costs constant time.
     struct Samples: Sendable, Equatable {
+        /// The samples, at most ``sampleCapacity`` of them.
         private var values: [Int] = []
+        /// Where the next sample overwrites once the ring is full.
         private var next = 0
 
+        /// Adds a sample, floored at zero, overwriting the earliest once the ring is full.
         mutating func append(_ milliseconds: Int) {
             let value = max(milliseconds, 0)
             if values.count < TelemetryCollector.sampleCapacity {
@@ -259,16 +200,7 @@ extension TelemetryCollector {
             }
         }
 
-        /// The sample at `fraction` of the way through, or `nil` when nothing was measured.
-        ///
-        /// `nil` rather than zero, and the distinction is the same one ``StageLatency``
-        /// draws: a stage nothing timed is not a stage that was instant, and the server's
-        /// column is nullable precisely so the difference survives.
-        ///
-        /// The index is `count * fraction`, which at `0.5` is `count / 2` — exactly the
-        /// median ``StageLatency/typical`` reports. Uttrflow therefore has one definition of
-        /// its own median rather than two that drift apart, and
-        /// `TelemetryCollectorTests` checks that they still agree.
+        /// The sample at index `count * fraction`, or `nil` for none; 0.5 matches ``StageLatency/typical``.
         func percentile(_ fraction: Double) -> Int? {
             let sorted = values.sorted()
             guard let last = sorted.indices.last else { return nil }
@@ -278,11 +210,7 @@ extension TelemetryCollector {
 }
 
 extension Duration {
-    /// Whole milliseconds, never negative.
-    ///
-    /// The floor at zero is not defensive tidiness: a clock that steps backwards mid-stage
-    /// would otherwise produce a negative duration, and the server's `durationMs` refuses
-    /// one — costing the whole report rather than the one bad measurement.
+    /// Whole milliseconds, floored at zero so a clock stepping backwards cannot cost the whole report.
     var inWholeMilliseconds: Int {
         max(Int((inSeconds * 1000).rounded()), 0)
     }
