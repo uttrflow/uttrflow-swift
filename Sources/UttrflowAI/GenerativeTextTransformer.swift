@@ -13,6 +13,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     private let prompts: PromptBuilder
     private let meaningGuard: MeaningPreservationGuard
     private let pipeline: CleaningPipeline
+    private let doubtful: DoubtfulWords
 
     /// `pipeline` runs before the model and should leave casing and the full stop for afterwards.
     public init(
@@ -20,13 +21,15 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         model: any CleanupModel,
         prompts: PromptBuilder = .standard,
         meaningGuard: MeaningPreservationGuard = MeaningPreservationGuard(),
-        pipeline: CleaningPipeline = .beforeModel
+        pipeline: CleaningPipeline = .beforeModel,
+        doubtful: DoubtfulWords = .standard
     ) {
         self.kind = kind
         self.model = model
         self.prompts = prompts
         self.meaningGuard = meaningGuard
         self.pipeline = pipeline
+        self.doubtful = doubtful
     }
 
     public func availability(for request: TransformationRequest) async -> TransformerAvailability {
@@ -44,8 +47,10 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         // The passes go first, so fillers and self-corrections are gone before the model can rewrite them.
         let draft = pipeline.run(Draft(transcription: request.transcription))
         let spoken = draft.text
+        // The sources answer in milliseconds and run beside each other, so the readings cost the call nothing.
+        let readings = await doubtful.spans(in: draft, for: request.situation)
         let rewritten = try await model.rewrite(
-            prompts.userPrompt(for: request, spoken: spoken),
+            prompts.userPrompt(for: request, spoken: spoken, doubtful: readings),
             instructions: prompts.instructions(for: request.situation.destination), kind: kind
         )
 
@@ -57,7 +62,9 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let finished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped))).text
 
         // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
-        if case .rejected(let reason) = meaningGuard.verdict(draft: draft, rewritten: finished) {
+        if case .rejected(let reason) = meaningGuard.verdict(
+            draft: draft, rewritten: finished, offering: readings)
+        {
             throw .outputRejected(reason: reason)
         }
 

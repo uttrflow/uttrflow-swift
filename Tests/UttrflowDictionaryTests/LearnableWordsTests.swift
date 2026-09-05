@@ -57,6 +57,37 @@ struct GeneralVocabularyTests {
         #expect(!GeneralVocabulary.isWorthLearning("TOMORROW"))
         #expect(GeneralVocabulary.knows("The"))
     }
+
+    @Test("Offers the homophone a recogniser confuses an ordinary word with")
+    func offersAHomophone() {
+        #expect(GeneralVocabulary.wordsSounding(like: "there").contains("their"))
+        #expect(GeneralVocabulary.wordsSounding(like: "their").contains("there"))
+    }
+
+    /// A common word that merely rhymes is a real word and no reading of anything, so the opening must match too.
+    @Test("Offers nothing for a word whose only matches open differently")
+    func refusesARhyme() {
+        #expect(GeneralVocabulary.wordsSounding(like: "cash").isEmpty)
+        #expect(GeneralVocabulary.wordsSounding(like: "reader").isEmpty)
+    }
+
+    @Test("Never offers the word it was asked about, whatever its case")
+    func neverOffersItself() {
+        #expect(!GeneralVocabulary.wordsSounding(like: "There").contains("there"))
+    }
+
+    @Test("Offers nothing for a word no ordinary word sounds like")
+    func offersNothingForAStranger() {
+        #expect(GeneralVocabulary.wordsSounding(like: "asyncpg").isEmpty)
+        #expect(GeneralVocabulary.wordsSounding(like: "").isEmpty)
+    }
+
+    @Test("Offers no more than the cap, so one sound cannot fill a prompt line")
+    func capsWhatItOffers() {
+        for word in ["there", "note", "kar", "hai"] {
+            #expect(GeneralVocabulary.wordsSounding(like: word).count <= GeneralVocabulary.maximumPerSound)
+        }
+    }
 }
 
 @Suite("Terms that were on screen and were said")

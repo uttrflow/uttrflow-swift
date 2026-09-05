@@ -26,7 +26,7 @@ struct RulesCorpusTests {
     /// Destination cases only the model can pass: a spelling off the screen, or a question mark from a sentence's shape.
     static let modelOnly: Set<String> = [
         "sql-editor-identifier-from-screen", "code-editor-identifier-from-screen",
-        "message-question-keeps-its-mark",
+        "message-question-keeps-its-mark", "doubtful-word-from-window",
     ]
 
     /// The request the bake-off hands an engine, with the case's own destination and caret.
@@ -51,7 +51,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 19)
+        #expect(named.count == 20)
         #expect(named.subtracting(Self.modelOnly).isSubset(of: Self.rulesMustPass))
         #expect(Self.modelOnly.isSubset(of: named))
         #expect(Self.modelOnly.isDisjoint(with: Self.rulesMustPass))

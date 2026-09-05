@@ -33,12 +33,29 @@ public struct MeaningPreservationGuard: Sendable {
 
     public init() {}
 
-    /// Judges the rewrite against the kept words, adding the grammar checks only a draft makes possible.
-    public func verdict(draft: Draft, rewritten: String) -> GuardVerdict {
+    /// Judges the rewrite against the kept words and against the readings the model was offered.
+    public func verdict(
+        draft: Draft, rewritten: String, offering doubtful: [DoubtfulSpan] = []
+    ) -> GuardVerdict {
         if case .rejected(let reason) = verdict(original: draft.text, rewritten: rewritten) {
             return .rejected(reason: reason)
         }
-        return Self.grammarVerdict(kept: draft.text, rewritten: rewritten)
+        if case .rejected(let reason) = Self.candidateVerdict(doubtful, rewritten: rewritten) {
+            return .rejected(reason: reason)
+        }
+        return Self.grammarVerdict(kept: draft.text, rewritten: rewritten, allowing: doubtful)
+    }
+
+    /// A doubtful run may be written as it was heard or as a reading that was offered, and as nothing else.
+    static func candidateVerdict(_ doubtful: [DoubtfulSpan], rewritten: String) -> GuardVerdict {
+        let written = DoubtfulSpan.closedUp(rewritten)
+        for span in doubtful
+        where !([span.heard] + span.candidates).contains(where: {
+            written.contains(DoubtfulSpan.closedUp($0))
+        }) {
+            return .rejected(reason: "the rewrite read '\(span.heard)' as a word it was not offered")
+        }
+        return .accepted
     }
 
     public func verdict(original: String, rewritten: String) -> GuardVerdict {
@@ -87,11 +104,19 @@ public struct MeaningPreservationGuard: Sendable {
     }
 
     /// A repair may change a word's form, never which content words survive. See `Docs/cleanup.md`.
-    static func grammarVerdict(kept: String, rewritten: String) -> GuardVerdict {
+    static func grammarVerdict(
+        kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = []
+    ) -> GuardVerdict {
         let keptTokens = grammarTokens(kept)
         let rewrittenTokens = grammarTokens(rewritten)
         let pool = Set(rewrittenTokens.filter(\.isPlain).map(\.matching))
-        for token in keptTokens where token.isPlain && isContent(token) {
+        // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
+        let offered = Set(
+            doubtful
+                .flatMap { $0.heard.split(whereSeparator: \.isWhitespace) }
+                .map { DoubtfulSpan.closedUp(String($0)) })
+        for token in keptTokens
+        where token.isPlain && isContent(token) && !offered.contains(DoubtfulSpan.closedUp(token.text)) {
             if !survives(token.matching, in: pool) {
                 return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
             }

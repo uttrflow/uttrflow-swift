@@ -204,6 +204,55 @@ struct GenerativeTextTransformerTests {
 
         await #expect(throws: TransformationError.self) { try await sut.transform(request("hello")) }
     }
+
+    // MARK: The readings the model is offered
+
+    /// A code editor with `PaymentSheet` in its title, hearing "payment sheet" as a half-guess.
+    private func doubtfulRequest() -> TransformationRequest {
+        let context = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode",
+            documentName: "PaymentSheet.swift")
+        let spoken = "the crash is in payment sheet"
+        let words = spoken.split(separator: " ").map {
+            TranscribedWord(text: String($0), confidence: $0.hasPrefix("payment") || $0 == "sheet" ? 0.3 : 1)
+        }
+        return TransformationRequest(
+            transcription: Transcription(
+                text: spoken, detectedLanguage: DetectedLanguage(code: .english),
+                segments: [TranscriptionSegment(text: spoken, start: .zero, end: .zero, words: words)]),
+            context: context,
+            situation: Situation(app: context, insertion: .unknown, destination: .codeEditor))
+    }
+
+    @Test("shows the model the readings the screen offers for what the recogniser half-heard")
+    func offersTheScreensReading() async throws {
+        let model = FakeCleanupModel { _ in "The crash is in PaymentSheet" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        let result = try await sut.transform(doubtfulRequest())
+
+        #expect(
+            model.calls.first?.text.contains(
+                "Doubtful words: \"payment sheet\" (heard at 0.30) — could be: PaymentSheet") == true)
+        #expect(result.text == "The crash is in PaymentSheet")
+    }
+
+    @Test("refuses a reading the sources never offered")
+    func refusesAnUnofferedReading() async {
+        let model = FakeCleanupModel { _ in "The crash is in CheckoutSheet" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        await #expect(throws: TransformationError.self) { try await sut.transform(doubtfulRequest()) }
+    }
+
+    @Test("says nothing about readings when the recogniser reported no scores")
+    func saysNothingWithoutScores() async throws {
+        let model = FakeCleanupModel { _ in "The crash is in payment sheet" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        _ = try await sut.transform(request("the crash is in payment sheet"))
+        #expect(model.calls.first?.text.contains(PromptBuilder.doubtfulLabel) == false)
+    }
 }
 
 @Suite("RuleBasedTransformer")
@@ -314,4 +363,5 @@ struct RuleBasedTransformerTests {
         let result = try await sut.transform(request("नमस्ते मैं आज आऊंगा"))
         #expect(result.text.contains("नमस्ते"))
     }
+
 }

@@ -118,6 +118,68 @@ struct PromptBuilderTests {
         #expect(empty.instructions(for: .messaging) == "c\n\n\n\nExamples:\n")
     }
 
+    @Test("lists the doubtful runs, what they were heard at, and the readings offered")
+    func doubtfulLine() {
+        let spans = [
+            DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple", "apples"]),
+            DoubtfulSpan(heard: "payment sheet", confidence: 0.2, candidates: ["PaymentSheet"]),
+        ]
+        #expect(
+            PromptBuilder.doubtfulText(spans)
+                == "\"apple\" (heard at 0.31) — could be: Apple, apples; "
+                + "\"payment sheet\" (heard at 0.20) — could be: PaymentSheet")
+    }
+
+    @Test("puts the doubtful line under the place and the caret, and leaves it out when nothing is doubtful")
+    func doubtfulLineInTheBlock() {
+        let situation = Situation(
+            app: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
+            insertion: .unknown, destination: .codeEditor)
+        let span = DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple"])
+        let block = builder.situationBlock(for: situation, doubtful: [span])
+        #expect(block.count == 2)
+        #expect(block.first?.hasPrefix(AppContextDescriber.label) == true)
+        #expect(block.last?.hasPrefix(PromptBuilder.doubtfulLabel) == true)
+        #expect(builder.situationBlock(for: situation).count == 1)
+        #expect(PromptBuilder.doubtfulText([]) == nil)
+    }
+
+    @Test("lists no more runs than the cap, however many were doubted")
+    func doubtfulLineIsCapped() {
+        let spans = (1...8).map {
+            DoubtfulSpan(heard: "word\($0)", confidence: 0.3, candidates: ["Word\($0)"])
+        }
+        let listed = PromptBuilder.doubtfulText(spans) ?? ""
+        #expect(listed.components(separatedBy: "could be").count - 1 == DoubtfulWords.maximumSpans)
+    }
+
+    @Test("writes a confidence as two decimal places")
+    func confidences() {
+        #expect(PromptBuilder.hundredths(0.31) == "0.31")
+        #expect(PromptBuilder.hundredths(0.2) == "0.20")
+        #expect(PromptBuilder.hundredths(0.048) == "0.05")
+        #expect(PromptBuilder.hundredths(1) == "1.00")
+        #expect(PromptBuilder.hundredths(-1) == "0.00")
+    }
+
+    @Test("hands the model the doubtful line inside the user prompt")
+    func userPromptCarriesTheReadings() {
+        let request = TransformationRequest(transcription: Transcription(text: "i ate an apple"))
+        let span = DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple"])
+        let prompt = builder.userPrompt(for: request, doubtful: [span])
+        #expect(
+            prompt == """
+                Doubtful words: "apple" (heard at 0.31) — could be: Apple
+                Spoken: "i ate an apple"
+                """)
+    }
+
+    @Test("teaches the model what a doubtful-words line is for")
+    func contractExplainsTheReadings() {
+        #expect(PromptContract.text.contains("A \"Doubtful words:\" line"))
+        #expect(PromptContract.text.contains("never one not offered"))
+    }
+
     @Test("lists every sentence any destination is shown, each once")
     func allWorkedExamples() {
         let shared = WorkedExample(spoken: "one", cleaned: "One.")

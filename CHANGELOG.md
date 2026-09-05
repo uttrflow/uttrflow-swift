@@ -20,6 +20,16 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **A word the recogniser half-heard is offered the readings it could be, and the model
+  picks the one that fits.** Three sources answer at once, in under two milliseconds for
+  a whole dictation: your own dictionary, the words on screen — the window title, the
+  selection and the text either side of the caret — and ordinary words that sound alike.
+  So "the crash is in payment sheet" comes out as "PaymentSheet" over a window called
+  `PaymentSheet.swift` and stays two words in a chat, and "clear the cash" becomes
+  "clear the cache" over `Cache.swift`. The readings go into the same model call the
+  tidying already makes, never a second one, and the guard refuses a rewrite that wrote
+  a word nobody offered. Nothing fires unless the recogniser actually reported how sure
+  it was, word by word. `Docs/cleanup.md` has the rule.
 - **Grammar slips are repaired where the place calls for it.** "there is three", "he
   don't", "we have went", "a apple", a tense that drifts mid-sentence — the model may
   fix these in a document, an email or plain text, and leaves them alone in a message,

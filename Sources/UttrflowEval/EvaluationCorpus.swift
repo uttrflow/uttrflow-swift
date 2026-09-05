@@ -385,7 +385,8 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.apple.dt.Xcode",
                 documentName: "PaymentSheet.swift — Uttrflow"
             ),
-            mustNotAdd: ["swift", "CardScanner"]
+            mustNotAdd: ["swift", "CardScanner"],
+            doubtful: ["payment sheet"]
         ),
         .init(
             id: "chat-identifier-casing", category: .contextual,
@@ -397,7 +398,8 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.tinyspeck.slackmacgap",
                 documentName: "#ios-bugs"
             ),
-            mustNotAdd: ["PaymentSheet", "CardScanner"]
+            mustNotAdd: ["PaymentSheet", "CardScanner"],
+            doubtful: ["payment sheet"]
         ),
 
         // Selected text is the strongest evidence there is — the user is pointing at
@@ -616,7 +618,8 @@ public enum EvaluationCorpus {
             mustNotAdd: ["order totals", "SELECT", "FROM"],
             destination: .sqlEditor,
             mustBeginWith: "The",
-            mustEndWith: "midnight."
+            mustEndWith: "midnight.",
+            doubtful: ["order totals"]
         ),
         .init(
             id: "sql-editor-numerals", category: .contextual,
@@ -663,7 +666,8 @@ public enum EvaluationCorpus {
             mustNotAdd: ["fetch invoices", "."],
             destination: .codeEditor,
             mustBeginWith: "Call",
-            mustEndWith: "appears"
+            mustEndWith: "appears",
+            doubtful: ["fetch invoices"]
         ),
         .init(
             id: "code-editor-numeral-no-stop", category: .contextual,
@@ -754,6 +758,52 @@ public enum EvaluationCorpus {
             destination: .email,
             mustBeginWith: "the quote",
             mustEndWith: "week."
+        ),
+
+        // Pair five. One half-heard word, and only the window says which of two same-sounding words it was.
+        .init(
+            id: "doubtful-word-from-window", category: .contextual,
+            spoken: "we should clear the cash before the deploy",
+            expected: "We should clear the cache before the deploy",
+            mustKeep: ["cache", "deploy"],
+            context: AppContext(
+                applicationName: "Xcode",
+                bundleIdentifier: "com.apple.dt.Xcode",
+                documentName: "Cache.swift — Uttrflow"
+            ),
+            mustNotAdd: ["swift", "cash"],
+            destination: .codeEditor,
+            mustBeginWith: "We should clear the",
+            mustEndWith: "deploy",
+            doubtful: ["cash"]
+        ),
+        .init(
+            id: "doubtful-word-heard-word-stands", category: .contextual,
+            spoken: "we should clear the cash before the deploy",
+            expected: "We should clear the cash before the deploy.",
+            mustKeep: ["cash"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Petty cash — June"
+            ),
+            mustNotAdd: ["cache", "June"],
+            doubtful: ["cash"]
+        ),
+
+        // A doubtful word nothing on screen sounds like: no reading is offered, and what was heard is typed.
+        .init(
+            id: "doubtful-word-with-nothing-on-screen", category: .contextual,
+            spoken: "the migration ran twice on the reader last night",
+            expected: "The migration ran twice on the reader last night.",
+            mustKeep: ["reader", "migration"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Ops journal"
+            ),
+            mustNotAdd: ["leader", "readme"],
+            doubtful: ["reader"]
         ),
     ]
 
