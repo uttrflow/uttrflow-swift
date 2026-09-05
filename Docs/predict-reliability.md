@@ -64,6 +64,8 @@ moment the person returns, because it shares their keyboard.
 
 | 4 — 2026-09-05, Release, after a closing word may end the line | 1 090 | 1 009 (93 %) | 1 071 (98 %) | 752 ms | 883 ms | 5 fixed, 0 regressed: every complete-line fixture answers nothing again. What remains is 79 wrong answers — 35 in the address bar, the rest the model's own pick where the typed word is also a whole word — and 2 fabricated URLs cut by the budget. From run 1: hit 78 % → 93 %, in register 83 % → 98 %, p95 941 → 883 ms, with the gate running beside this run too. |
 
+| `robust/chat-labels` only — 2026-09-05, after the stamp rule and the echo cut | 10 | 10 | 10 | 790 ms | 825 ms | A chat as its accessibility labels read — glued stamps, "Received from", "Sent to … Delivered" after every message — answered with plain Hinglish replies, none carrying any of it. Full run 5 follows once the operator is away. |
+
 ## How to run one cycle
 
 1. `xcodebuild -scheme uttrflow-bakeoff -configuration Release -derivedDataPath .build/xcode … build`
