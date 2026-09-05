@@ -1,12 +1,9 @@
+// The Home page: stage, figures, today's dictations and the clipboard demonstration.
+
 import UttrflowUX
 import SwiftUI
 
-/// The page the window opens on.
-///
-/// Drawn from ``HomePresentation`` and nothing else, like every other page here. It reads
-/// top to bottom as an answer to three questions in the order somebody asks them: can it
-/// hear me (the stage), how am I doing (the figures), and what did I say (the list). The
-/// clipboard demonstration comes last because it teaches rather than reports.
+/// The page the window opens on: stage, figures, today's dictations, then the clipboard demonstration.
 struct HomePageView: View {
     let presentation: HomePresentation
     var onIntent: (MainIntent) -> Void = { _ in }
@@ -35,12 +32,7 @@ struct HomePageView: View {
         }
     }
 
-    /// Today's dictations, with the clipboard beside them.
-    ///
-    /// Side by side because they are the two halves of the same question — what you said,
-    /// and what you have to hand — and because the list is the thing that grows: giving
-    /// it the width and the clipboard a fixed rail means a long dictation stops wrapping
-    /// at four words.
+    /// Today's dictations with the clipboard beside them; the list takes the width, the rail is fixed.
     private var today: some View {
         HStack(alignment: .top, spacing: 0) {
             recent
@@ -57,15 +49,7 @@ struct HomePageView: View {
         }
     }
 
-    /// The figures, in one line under the stage.
-    ///
-    /// A row rather than a grid of tiles, and centred rather than ranged left, because
-    /// this page has no list beside them competing for the width — and four boxed tiles
-    /// under a dark stage read as a dashboard, which is the one thing a page that says
-    /// hello should not be.
-    ///
-    /// It falls back to the grid when the window is too narrow to hold the row: a figure
-    /// somebody has to scroll sideways to see is a figure they never see.
+    /// The figures in one centred row under the stage, or a grid when the window is too narrow for the row.
     private var figures: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: 0) {
@@ -110,9 +94,7 @@ struct HomePageView: View {
                 }
             }
             .padding(.bottom, 4)
-            // Hairlines rather than a card. The list is the page's own content here, not
-            // a panel dropped onto it, and a card around three rows under a full-width
-            // stage reads as a second window.
+            // Hairlines rather than a card: the list is the page's own content, not a panel dropped onto it.
             ForEach(presentation.recent) { row in
                 MainDivider()
                 HomeRowView(row: row, onIntent: onIntent)
@@ -145,8 +127,7 @@ struct HomeRowView: View {
                 MainApplicationChip(application: application)
                     .padding(.top, 1)
             }
-            // Hidden rather than removed, so the row keeps its shape as the pointer
-            // crosses it — and still hit-testable, so a keyboard can reach it.
+            // Hidden rather than removed, so the row keeps its shape and a keyboard can still reach it.
             MainIconButton(action: row.open, onIntent: onIntent)
                 .opacity(isHovered ? 1 : 0)
                 .padding(.top, -2)
@@ -160,64 +141,27 @@ struct HomeRowView: View {
     }
 }
 
-/// The clipboard, shown doing the whole thing.
-///
-/// A drawn loop rather than a recorded one, and the reasons are worth writing down
-/// because "just ship a GIF" is the obvious answer. A GIF is a few hundred kilobytes in
-/// the bundle that has to be re-recorded every time the panel's design moves, and it is
-/// wrong the moment somebody changes their shortcut — this reads the real one. It is also
-/// fixed at one scale, so it is soft on a Retina display and softer on an external one,
-/// where this is vector at every size. And it inherits the light or dark appearance the
-/// user chose, which a recording cannot.
-///
-/// What it shows is deliberately the *whole* gesture and not the clever half of it. An
-/// earlier version stopped when the panel closed, which demonstrated a mechanism —
-/// press keys, see list — and left out the only part anybody cares about: the words
-/// arriving in what they were already writing. A demonstration that ends before the
-/// payoff teaches somebody that a panel exists, not what it is for.
+/// The clipboard shown doing the whole gesture, drawn rather than recorded. See Docs/app-main-window.md.
 struct ClipboardDemonstration: View {
     let demonstration: HomeDemonstration
 
-    /// Whether anybody can currently see this.
-    ///
-    /// Starts true so the animation is running by the time the first frame is drawn; the
-    /// reporter corrects it as soon as the view has a window.
+    /// Whether anybody can currently see this; starts true so the animation runs from the first frame.
     @State private var isVisible = true
 
-    /// How long the whole story takes. Eight seconds: long enough to read the pasted line
-    /// before it resets, short enough that somebody glancing at the page sees it happen.
+    /// How long the whole story takes: long enough to read the pasted line, short enough to see it happen.
     private static let loop: Double = 8
 
-    /// Wide enough for the pasted line to arrive on one line.
-    ///
-    /// Measured rather than guessed: the finished sentence is 373 points at the footnote
-    /// size, and the document adds ten points of padding either side. A line that wrapped
-    /// would undo the point of showing the paste at all — the eye would read a paragraph
-    /// appearing rather than a phrase dropping into place.
+    /// Wide enough for the pasted line to arrive unwrapped: 373 points of text and ten of padding a side.
     private static let documentWidth: CGFloat = 400
 
     var body: some View {
-        // Paused rather than merely slowed when nothing can see it. The window opens at
-        // login and is meant to be left open, so "not on screen" is the state this card
-        // spends most of its life in — behind another window, minimised, hidden with ⌘H,
-        // on another Space, or simply with a different page chosen in the sidebar.
+        // Paused when nothing can see it, which is where this card spends most of its life.
         TimelineView(.animation(paused: !isVisible)) { timeline in
             let phase = Self.phase(at: timeline.date)
-            // Side by side while there is room for the document to hold its line without
-            // wrapping, stacked when there is not.
-            //
-            // A fixed width would have been simpler and wrong: the pasted line needs
-            // about 373 points at this size, and at the smallest window this product
-            // allows — 760 — reserving 400 for the document leaves the words beside it
-            // 56 points to live in. Stacked, the document gets the full width of the
-            // card, which is wider still, so the line does not wrap at any size.
+            // Side by side while the document holds its line, stacked otherwise. See Docs/app-main-window.md.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 22) {
-                    // An ideal width rather than `maxWidth: .infinity`. `ViewThatFits`
-                    // chooses by asking each candidate how big it would like to be, and a
-                    // greedy column asks for everything — so the side-by-side arrangement
-                    // never "fitted" and the stacked one always won, whatever the size of
-                    // the window.
+                    // An ideal width, because a greedy column never "fits" in `ViewThatFits`.
                     explanation(phase: phase)
                         .frame(idealWidth: 360, maxWidth: 460, alignment: .leading)
                     stage(phase: phase)
@@ -233,8 +177,7 @@ struct ClipboardDemonstration: View {
             .padding(17)
         }
         .cardSurface()
-        // One element, one sentence. A screen reader should hear what this teaches, not
-        // narrate an animation frame by frame.
+        // One element, one sentence: a screen reader hears what this teaches, not frames.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             """
@@ -247,8 +190,7 @@ struct ClipboardDemonstration: View {
         .onWindowVisibilityChange { isVisible = $0 }
     }
 
-    /// The words beside the demonstration. One definition, used by both arrangements, so
-    /// the stacked one cannot drift from the side-by-side one.
+    /// The words beside the demonstration, defined once so both arrangements agree.
     private func explanation(phase: Phase) -> some View {
         VStack(alignment: .leading, spacing: 9) {
             Text(demonstration.title)
@@ -278,12 +220,7 @@ struct ClipboardDemonstration: View {
         let typed: Double
     }
 
-    /// The whole animation as a function of the clock.
-    ///
-    /// Written out as one function rather than a chain of `withAnimation` calls so that
-    /// every frame is derived from the time alone. That is what lets the page redraw
-    /// underneath it — which it does on every keystroke in a search field — without the
-    /// loop stuttering or starting over.
+    /// The whole animation as a function of the clock, so the page can redraw under it without a stutter.
     private static func phase(at date: Date) -> Phase {
         let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: loop)
         func at(
@@ -356,10 +293,6 @@ struct ClipboardDemonstration: View {
     }
 
     /// The document being written in, with the panel over it.
-    ///
-    /// The document is the reason this reads as a complete thing rather than a feature
-    /// tour: the panel is *over* something, and what it hands over goes *into* that
-    /// something.
     private func stage(phase: Phase) -> some View {
         ZStack(alignment: .top) {
             document(phase: phase)
@@ -391,13 +324,11 @@ struct ClipboardDemonstration: View {
         .cardSurface(Color.mainBackground, cornerRadius: 10)
     }
 
-    /// What is in the document: what was already there, then as much of the pasted line as
-    /// has arrived, then the caret.
+    /// What is in the document: what was there, as much of the pasted line as has arrived, then the caret.
     private func typedLine(phase: Phase) -> some View {
         let pasted = demonstration.chosenRow?.text ?? ""
         let shown = String(pasted.prefix(Int((Double(pasted.count) * phase.typed).rounded())))
-        // One `Text` with runs inside it rather than three concatenated, so the pasted
-        // words wrap with the sentence they land in rather than beside it.
+        // One `Text` with runs inside it, so the pasted words wrap with the sentence they land in.
         var line = AttributedString(demonstration.existingText)
         line.foregroundColor = .secondary
         var arriving = AttributedString(shown)
@@ -443,8 +374,7 @@ struct ClipboardDemonstration: View {
                     .font(.system(size: MainMetrics.footnoteSize, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    // The masked row is drawn dimmer as well as bulleted, so it reads as
-                    // withheld rather than as a row of full stops.
+                    // Dimmer as well as bulleted, so a masked row reads as withheld, not as full stops.
                     .foregroundStyle(
                         isSelected ? .white : (row.isMasked ? .secondary : .primary))
                 Text(row.detail)

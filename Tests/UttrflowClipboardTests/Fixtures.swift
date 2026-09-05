@@ -1,3 +1,5 @@
+// Shared fixtures for the clipboard tests.
+
 import Foundation
 import Testing
 

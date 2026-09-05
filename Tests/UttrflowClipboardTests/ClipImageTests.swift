@@ -1,14 +1,14 @@
+// Tests for picture clips and their files.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// K4 — a picture on the clipboard. The tests that matter are about the file: a clip
-/// pointing at bytes that were never written is a broken row for ever.
+/// A picture on the clipboard; a clip pointing at bytes never written is a broken row for ever.
 @Suite("K4 · pictures")
 struct ClipImageTests {
-    /// Not a real PNG — nothing here decodes it, and a fixture that needed decoding would
-    /// be testing the platform rather than this.
+    /// Not a real PNG, because nothing here decodes it.
     static let bytes = Data(repeating: 0x89, count: 4_096)
 
     @Test("a picture is written before the clip that refers to it")
@@ -28,8 +28,7 @@ struct ClipImageTests {
         #expect(await folder.store.imageData(for: image) == Self.bytes)
     }
 
-    /// The emptiness is the point: a picture has no text, and the rule that keeps blank
-    /// copies out of the history must not keep pictures out with them.
+    /// A picture has no text, and the rule that keeps blank copies out must not keep pictures out.
     @Test("a picture is kept even though it has no text")
     func emptyTextIsFine() async throws {
         let folder = try TemporaryFolder()
@@ -53,8 +52,7 @@ struct ClipImageTests {
         #expect(await folder.store.clips(keeping: folder.retention).isEmpty)
     }
 
-    /// B8 — a picture can vanish underneath the app, because the folder is on a disk the
-    /// user also owns. `nil` is the row's cue to say so rather than draw a blank.
+    /// A picture can vanish underneath the app; `nil` is the row's cue to say so.
     @Test("a picture whose file has gone reads as nothing, and does not crash")
     func vanishedFile() async throws {
         let folder = try TemporaryFolder()
@@ -90,11 +88,7 @@ struct ClipImageTests {
         #expect(await folder.store.imageData(for: image) == nil)
     }
 
-    /// The test above sweeps by hand, which is why nobody noticed that nothing else ever
-    /// did: `forgetOrphanedImages()` described itself as running after the retention
-    /// sweep and was called from nowhere in the app at all, so every deleted or aged-out
-    /// picture stayed on disk for ever. This one deletes a clip and asks whether the file
-    /// went, without helping.
+    /// Deleting a clip must take its file with it unaided, without a sweep called by hand.
     @Test("deleting a picture clip takes its file with it, unaided")
     func deletingSweepsWithoutBeingAsked() async throws {
         let folder = try TemporaryFolder()
@@ -111,14 +105,11 @@ struct ClipImageTests {
         #expect(await folder.store.imageData(for: image) == nil)
     }
 
-    /// And the sweep must not take a picture that is still spoken for. Deleting one clip
-    /// of two is the case where an over-eager sweep would destroy the other.
+    /// The sweep must not take a picture that is still spoken for.
     @Test("but not the picture of a clip that is still there")
     func keepsTheOneStillReferred() async throws {
         let folder = try TemporaryFolder()
-        // Two *different* pictures. They used to be allowed to be identical, because
-        // identical bytes were two clips; now the same bytes are one clip copied twice,
-        // and this test is about two clips sharing a folder rather than a file.
+        // Two different pictures, since the same bytes are one clip copied twice.
         for byte in [UInt8(3), UInt8(4)] {
             _ = try await folder.store.record(
                 NoticedClip(
@@ -135,9 +126,7 @@ struct ClipImageTests {
         #expect(await folder.store.imageData(for: surviving) != nil)
     }
 
-    /// The write-time sweep cannot help with what a leaking build already left behind: no
-    /// future write drops a name that is already absent from the list. So the store
-    /// reconciles the folder once, the first time it reads.
+    /// A leak from an earlier build is reconciled once, the first time the store reads.
     @Test("a picture orphaned before this launch is cleared on the first read")
     func reconcilesAtStartup() async throws {
         let folder = try TemporaryFolder()
@@ -158,9 +147,7 @@ struct ClipImageTests {
         #expect(await next.imageData(for: stray) == nil)
     }
 
-    /// And it must never fire on a read that failed. `read()` answers with nothing for a
-    /// file that is missing or unreadable, so an empty list is not evidence that the user
-    /// has no pictures — sweeping on one would delete every picture they own.
+    /// A failed read must never sweep: an empty list is not evidence the user has no pictures.
     @Test("but an unreadable clipboard sweeps nothing at all")
     func aBadReadDestroysNothing() async throws {
         let folder = try TemporaryFolder()

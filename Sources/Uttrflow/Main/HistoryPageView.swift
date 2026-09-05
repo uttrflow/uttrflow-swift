@@ -1,19 +1,15 @@
+// The History page: dictations grouped by day, with the retention sentence.
+
 import UttrflowUX
 import SwiftUI
 
-/// The history page: what was dictated, grouped by day, and what is kept.
-///
-/// The retention sentence is drawn whether or not there is anything in the list, because
-/// ``HistoryPresenter`` always writes one: somebody checking what the app holds about them
-/// should not have to dictate first in order to find out.
+/// The history page: dictations grouped by day, and the retention sentence even when empty.
 struct HistoryPageView: View {
     let presentation: HistoryPresentation
     var onIntent: (MainIntent) -> Void = { _ in }
 
     var body: some View {
-        // Lazy for the reason `MainRowsCard` is: ninety days of dictations is up to a
-        // thousand rows, and this page is rebuilt from scratch on every keystroke in its
-        // own search field. The whole page sits in a `ScrollView`.
+        // Lazy, as `MainRowsCard` is: a thousand rows rebuilt per keystroke, inside a `ScrollView`.
         LazyVStack(alignment: .leading, spacing: 14) {
             if let empty = presentation.emptyState {
                 MainCard { MainEmptyStateView(state: empty, onIntent: onIntent) }
@@ -21,9 +17,7 @@ struct HistoryPageView: View {
             ForEach(presentation.days) { day in
                 VStack(alignment: .leading, spacing: 7) {
                     MainSectionLabel(text: day.title)
-                    // Hairlines rather than a card per day, so a fortnight of dictations
-                    // reads as one list with days marked in it rather than as fourteen
-                    // panels stacked up.
+                    // Hairlines rather than a card per day, so a fortnight reads as one list.
                     VStack(spacing: 0) {
                         MainDividedRows(rows: day.rows) { entry($0) }
                     }

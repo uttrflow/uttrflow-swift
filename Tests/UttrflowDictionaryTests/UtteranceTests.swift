@@ -1,12 +1,12 @@
+// Tests for utterances and their runs of words.
+
 import Testing
 
 @testable import UttrflowDictionary
 
 @Suite("What one utterance offers the dictionary")
 struct UtteranceTests {
-    /// Confidence arrives from a speech engine whose scale is its own business. A
-    /// negative one would sort itself to the front of the queue and quietly take the
-    /// whole candidate budget.
+    /// A negative confidence would sort itself to the front and take the whole candidate budget.
     @Test("takes a confidence it can rely on, whatever it was handed")
     func confidenceIsClamped() {
         #expect(SpokenWord(text: "clawed", confidence: -3).confidence == 0)
@@ -22,8 +22,7 @@ struct UtteranceTests {
         #expect(Utterance(heard: "   ", confidence: 1).words.isEmpty)
     }
 
-    /// Nobody dictates "PaymentSheet" as one word. If the only thing looked up were
-    /// single words, every camel-cased entry in the dictionary would be unreachable.
+    /// Nobody dictates "PaymentSheet" as one word, so single-word lookups miss every camel-cased entry.
     @Test("offers the runs of words a closed-up entry is spoken as")
     func runsOfWords() {
         let utterance = Utterance(heard: "set user prefs", confidence: 0.5)
@@ -31,8 +30,7 @@ struct UtteranceTests {
         #expect(spans == ["set", "user", "prefs", "set user", "user prefs", "set user prefs"])
     }
 
-    /// The count of runs is a function of the utterance alone. This is the arithmetic
-    /// the prompt-size guarantee is built on, so it is asserted rather than assumed.
+    /// The count of runs is a function of the utterance alone, the arithmetic the guarantee is built on.
     @Test("offers a number of runs bounded by the utterance")
     func runCountIsBounded() {
         #expect(Utterance(heard: "one two three four", confidence: 1).spans(upTo: 3).count == 9)
@@ -40,8 +38,7 @@ struct UtteranceTests {
         #expect(Utterance(words: []).spans(upTo: 3).isEmpty)
     }
 
-    /// When the candidate budget runs out it should run out on the words the recogniser
-    /// was already sure about, not the ones it guessed at.
+    /// The budget should run out on the words the recogniser was sure about, not the ones it guessed.
     @Test("puts the least certain words first")
     func leastCertainFirst() {
         let utterance = Utterance(words: [
@@ -52,8 +49,7 @@ struct UtteranceTests {
         #expect(utterance.spans(upTo: 1).map(\.text) == ["clawed", "report", "the"])
     }
 
-    /// A run is only as trusted as its weakest word, which is what makes a run sort
-    /// ahead of the confident words inside it without any rule saying so.
+    /// A run is only as trusted as its weakest word, which sorts it ahead of the confident words inside it.
     @Test("trusts a run no more than its weakest word")
     func runConfidence() {
         let utterance = Utterance(words: [
@@ -65,8 +61,7 @@ struct UtteranceTests {
         #expect(utterance.spans(upTo: 2).first?.text == "payment sheet")
     }
 
-    /// Two runs that are equally uncertain must still come back in the same order every
-    /// time, or the guarantee below could not be asserted at all.
+    /// Equally uncertain runs come back in the same order every time.
     @Test("orders equally uncertain runs the same way every time")
     func orderIsTotal() {
         let utterance = Utterance(heard: "alpha beta", confidence: 0.5)

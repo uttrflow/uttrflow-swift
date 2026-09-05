@@ -1,13 +1,12 @@
+// Tests for the ring under the greeting.
+
 import Foundation
 import SwiftUI
 import Testing
 
 @testable import Uttrflow
 
-/// The ring is drawn, so most of it is not worth a test. Its arrangement is: the bars are
-/// the app's one piece of ornament, and an ornament that shifts between redraws, escapes
-/// its own circle or turns into a solid wheel of colour is a bug nobody would think to
-/// look for in a screenshot.
+/// The ring's arrangement is testable: shifting between redraws, escaping its circle, or a solid wheel.
 @Suite("The ring under the greeting")
 struct OrbitRingTests {
     @Test("puts the bars evenly round the circle, starting at the top")
@@ -22,8 +21,7 @@ struct OrbitRingTests {
         }
     }
 
-    /// A ring built from `Double.random` would be a different ring every time the page
-    /// redrew — which is on every keystroke in the search field.
+    /// A ring built from `Double.random` would be a different ring on every keystroke.
     @Test("draws the same ring every time")
     func deterministic() {
         #expect(OrbitTick.ring(count: 52) == OrbitTick.ring(count: 52))
@@ -36,8 +34,7 @@ struct OrbitRingTests {
         }
     }
 
-    /// One in three lit, and the two accents in equal measure. Denser and it reads as a
-    /// colour wheel; sparser and the accents look like a mistake in the drawing.
+    /// One in three lit and the two accents in equal measure.
     @Test("keeps the lit bars a minority, evenly split between the two accents")
     func litBarsStayAMinority() {
         let ticks = OrbitTick.ring(count: 52)
@@ -50,9 +47,7 @@ struct OrbitRingTests {
         #expect(primary.count + secondary.count + quiet.count == ticks.count)
     }
 
-    /// The bars stand *off* a circle, so the easiest way to draw them wrongly is to
-    /// rotate about the corner instead of the centre — which puts half the ring outside
-    /// the space it was given and clips it away silently.
+    /// Rotating about the corner instead of the centre puts half the ring outside its space.
     @Test("draws inside the space it is given")
     func staysInsideItsFrame() {
         let rect = CGRect(x: 0, y: 0, width: 200, height: 200)
@@ -62,9 +57,7 @@ struct OrbitRingTests {
         #expect(drawn.width > 120, "a ring that fits in a corner is not a ring")
     }
 
-    /// The microphone sits in the hole in the middle, so every bar has to start at the
-    /// ring's inner edge and grow outwards. A bar drawn from the centre out would cover
-    /// the one thing the ring is around.
+    /// Every bar starts at the inner edge, or it would cover the microphone.
     @Test("starts every bar at the inner edge and grows outwards")
     func leavesTheWellClear() {
         let rect = CGRect(x: 0, y: 0, width: 200, height: 200)
@@ -82,8 +75,7 @@ struct OrbitRingTests {
         #expect(bar(at: 0.25).minX >= rect.midX + inner - 0.001)
     }
 
-    /// Asked for nothing, it draws nothing — rather than trapping on the division a
-    /// count of zero would otherwise make.
+    /// Asked for nothing, it draws nothing rather than trapping on a division by zero.
     @Test("survives being asked for an empty ring")
     func empty() {
         #expect(OrbitTick.ring(count: 0).isEmpty)

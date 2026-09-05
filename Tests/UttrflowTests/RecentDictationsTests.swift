@@ -1,3 +1,5 @@
+// Tests for the menu bar's recent dictations.
+
 import Foundation
 import Testing
 
@@ -152,8 +154,7 @@ struct RecentDictationsTests {
         #expect(list.entries.map(\.text) == Array(recentsSpokenLines.prefix(5)))
     }
 
-    /// The store owns the order; the menu must not have an opinion of its own about it,
-    /// or the two surfaces would disagree about which dictation is the newest.
+    /// The store owns the order; the menu must not have an opinion of its own.
     @Test("It shows the store's order rather than imposing one")
     func keepsTheStoresOrder() {
         let newest = recentsDictation("Said last.", secondsLater: 0)

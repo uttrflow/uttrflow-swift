@@ -1,15 +1,15 @@
+// Tests for dock placement.
+
 import CoreGraphics
 import UttrflowCore
 import Testing
 
 @testable import Uttrflow
 
-/// The main display of a Mac with a menu bar and a Dock: a visible frame that starts
-/// above the origin and stops short of the top.
+/// The main display of a Mac with a menu bar and a Dock: a visible frame that starts above the origin.
 private let mainScreen = CGRect(x: 0, y: 84, width: 1512, height: 862)
 
-/// A second display placed to the left of the main one. Its coordinates are negative,
-/// which is the case an origin computed from a width alone gets silently wrong.
+/// A second display to the left of the main one, whose negative coordinates catch origin-from-width bugs.
 private let leftScreen = CGRect(x: -1920, y: -240, width: 1920, height: 1055)
 
 private let pill = CGSize(width: 298, height: 64)
@@ -98,8 +98,7 @@ struct DockAnchorTests {
     func staysInsideANegativeOriginScreen(anchor: DockAnchor) {
         let frame = DockPlacement.frame(for: anchor, panelSize: pill, in: leftScreen)
         #expect(leftScreen.contains(frame))
-        // The failure this guards is a panel placed as though the screen began at
-        // zero, which on this display is nearly two thousand points away.
+        // A panel placed as though the screen began at zero would be two thousand points away.
         #expect(frame.minX < 0)
     }
 

@@ -1,30 +1,17 @@
+// The formatter protocol and the allowlist of formatters that may be run.
+
 public import struct Foundation.TimeInterval
 
-/// A formatter for one language, wherever it comes from.
-///
-/// A protocol rather than a concrete type because the real one runs another program, which
-/// nothing above it should have to know or be able to do in a test.
+/// A formatter for one language; a protocol, because the real one runs another program.
 public protocol CodeFormatting: Sendable {
-    /// Whether a formatter for this language can be found on this machine.
-    ///
-    /// D5 — the action is offered only where the answer is yes. An offer that fails when
-    /// pressed is worse than no offer.
+    /// Whether a formatter for this language can be found on this machine; the action is offered only then.
     func isAvailable(for language: CodeLanguage) async -> Bool
 
-    /// The formatted code, or `nil` when it could not be produced.
-    ///
-    /// D7 — a fragment copied from the middle of a file is invalid on its own, which is
-    /// the *common* case for a clipboard rather than an edge one. `nil` for that, and the
-    /// caller pastes the original untouched and quietly.
+    /// The formatted code, or `nil` for a fragment that is invalid on its own, which is the common case.
     func format(_ text: String, as language: CodeLanguage) async -> String?
 }
 
-/// What may be run, and nothing else.
-///
-/// An allowlist rather than a search, because the alternative is executing whatever
-/// happens to be on `PATH` under a familiar name. The clipboard is the last place to be
-/// relaxed about that: this feature exists to reformat things the user is about to paste
-/// into production, and a poisoned `prettier` would be handed every one of them.
+/// What may be run, and nothing else; an allowlist, because a poisoned `prettier` would see every clip.
 public enum KnownFormatter: String, Sendable, CaseIterable {
     case swiftFormat = "swift-format"
     case prettier
@@ -43,11 +30,7 @@ public enum KnownFormatter: String, Sendable, CaseIterable {
         }
     }
 
-    /// The arguments that make it read from standard input and write to standard output.
-    ///
-    /// Standard input, never an argument. The code being formatted is the user's and may
-    /// contain anything at all; putting it on a command line is how a clip becomes a
-    /// command.
+    /// The arguments that read standard input and write standard output; the clip is never an argument.
     public var arguments: [String] {
         switch self {
         case .swiftFormat: ["format"]
@@ -66,10 +49,6 @@ public enum KnownFormatter: String, Sendable, CaseIterable {
         self = trusted
     }
 
-    /// How long a formatter may take before it is given up on.
-    ///
-    /// Bounded because this runs while the user is waiting on a paste, and because a
-    /// program that has hung must not take the panel with it. Three seconds is long past
-    /// what any of these need for a clip-sized input.
+    /// How long a formatter may take before it is given up on; a hung program must not take the panel.
     public static let timeout: TimeInterval = 3
 }

@@ -1,3 +1,5 @@
+// The Insights page: a fortnight of dictations as bars, figures and places.
+
 import UttrflowUX
 import SwiftUI
 
@@ -79,12 +81,10 @@ struct InsightsBars: View {
     /// The mean, drawn across the bars. Absent when there is nothing to average.
     var average: InsightsAverage?
 
-    /// The tallest a bar may be drawn. The presenter has already reduced each day to a
-    /// fraction of the busiest one, so this is the only number the view supplies.
+    /// The tallest a bar may be drawn; the presenter has already scaled each day to the busiest.
     private let height: CGFloat = 70
 
-    /// The room the day labels take under the bars, so the average line can be placed
-    /// against the bars' own baseline rather than the row's.
+    /// The room the day labels take, so the average line sits against the bars' own baseline.
     private let labelHeight: CGFloat = 16
 
     var body: some View {
@@ -94,8 +94,7 @@ struct InsightsBars: View {
                     Spacer(minLength: 0)
                     RoundedRectangle(cornerRadius: 3)
                         .fill(colour(for: day))
-                        // A silent day still gets a sliver, so the gap in the row is
-                        // visibly a day with nothing in it rather than a missing column.
+                        // A silent day still gets a sliver, so it reads as a day with nothing in it.
                         .frame(height: day.isSilent ? 4 : max(6, height * day.fraction))
                     Text(day.label)
                         .font(.system(size: 9))
@@ -111,10 +110,7 @@ struct InsightsBars: View {
         .overlay(alignment: .bottomLeading) { averageLine }
     }
 
-    /// A dashed rule at the mean, labelled at its right-hand end.
-    ///
-    /// Behind the bars rather than over them would hide it on the busy days, which are
-    /// exactly the days somebody is comparing against it.
+    /// A dashed rule at the mean over the bars, labelled at its right-hand end.
     @ViewBuilder private var averageLine: some View {
         if let average {
             ZStack(alignment: .topTrailing) {
@@ -137,8 +133,7 @@ struct InsightsBars: View {
     }
 
     private var dashes: some View {
-        // A dashed line, so it reads as a reference rather than as one more bar laid on
-        // its side.
+        // Dashed, so it reads as a reference rather than as one more bar on its side.
         HorizontalRule()
             .stroke(style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             .foregroundStyle(.black)

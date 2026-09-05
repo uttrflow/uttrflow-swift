@@ -1,19 +1,8 @@
+// Which language a code clip is written in.
+
 import Foundation
 
-/// Which language a code clip is written in, when that can be told from the clip alone.
-///
-/// Two things hang off this and both are decoration: a chip in the row, and colour in the
-/// preview. Neither is worth being wrong about. A clip labelled `python` that is actually
-/// Ruby is a small lie the user has to notice and discount every time they scan the list,
-/// whereas an unlabelled clip is merely a clip — which is what every clip looked like
-/// yesterday. So the set below is deliberately narrow, and ``detect(_:)`` answers `nil`
-/// far more readily than it answers a case.
-///
-/// The languages that are here are here for one of two reasons: they are common enough in
-/// a clipboard to be worth a chip, or they exist to keep another one honest. Go and Rust
-/// are in the second group — both have a function keyword that a Swift-only detector
-/// would have happily misread as Swift, and the cheapest way to stop that is to let them
-/// compete.
+/// Which language a code clip is written in, when the clip alone says so; `nil` is the usual answer.
 public enum CodeLanguage: String, Sendable, Equatable, CaseIterable, Codable {
     case swift
     case python
@@ -29,9 +18,7 @@ public enum CodeLanguage: String, Sendable, Equatable, CaseIterable, Codable {
     case rust
     case java
 
-    /// The short form for a row chip, where three or four characters is all the width there
-    /// is. Only the three names that are habitually abbreviated get one; everything else is
-    /// already short enough that shortening it further would just be a puzzle.
+    /// The short form for a row chip; only the three habitually abbreviated names get one.
     public var chip: String {
         switch self {
         case .javascript: "js"
@@ -43,29 +30,11 @@ public enum CodeLanguage: String, Sendable, Equatable, CaseIterable, Codable {
 }
 
 extension CodeLanguage {
-    /// What language this text is written in, or nothing.
-    ///
-    /// Pure, synchronous and offline, like every other detector on this path. It runs once
-    /// per clip on the copy path, so it cannot wait for anything — and the panel's whole
-    /// promise is that it opens instantly. A language model would classify this better than
-    /// the rules below do, and that is a fair future path, but not for a function that sits
-    /// between ⌘C and the disk on a machine that may have no network at all.
-    ///
-    /// The order is: the things that name themselves, then the things that have to be
-    /// argued for. A shebang names its interpreter outright, a JSON document either parses
-    /// or does not, and a SQL statement has a shape no other language shares. Everything
-    /// else is scored and has to clear ``bar`` — see the note there for why the bar is
-    /// where it is.
-    ///
-    /// - Parameter text: Exactly what was copied, untrimmed.
-    /// - Returns: The language, or `nil` when the evidence does not settle it. `nil` is not
-    ///   a failure — it is the answer for every clip that is prose, and for every snippet
-    ///   short or generic enough that two languages have an equal claim to it.
+    /// The language of `text`, or `nil` when unsettled. See Docs/clipboard-code-language.md.
     public static func detect(_ text: String) -> CodeLanguage? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Two characters cannot carry two independent signals, so nothing below can ever
-        // reach the bar on them. Returning early is honesty, not just speed.
+        // Two characters cannot carry two independent signals, so nothing below can reach the bar.
         guard trimmed.count > 2 else { return nil }
 
         if trimmed.contains("```") { return nil }
@@ -79,45 +48,18 @@ extension CodeLanguage {
 
     // MARK: - The bar
 
-    /// Points a language needs before it gets a chip.
-    ///
-    /// Signals are worth 2 when they are near-unique to one language and 1 when they are
-    /// merely consistent with it, so three points is either one near-unique marker with
-    /// something corroborating it, or three independent corroborating ones. What three
-    /// rules out is the single token, and the single token is the whole problem: `->` is
-    /// Rust, Python, PHP and C++; `let` is Swift, JavaScript and Rust; `end` is Ruby and
-    /// Lua; `func` is Swift and Go. Any of them alone is a coincidence waiting to be
-    /// printed on a chip.
+    /// Points a language needs for a chip: one near-unique marker plus corroboration, never a single token.
     private static let bar = 3
 
-    /// How far ahead of the runner-up the winner has to be.
-    ///
-    /// This is the part that protects Swift from TypeScript, which is the confusion that
-    /// actually happens: both have `let`, `import`, a function keyword and `:` type
-    /// annotations, so a one-point lead between them is one shared token falling one way
-    /// rather than the other. That is not a reason to print anything. Two points is the
-    /// weight of a near-unique signal, so a winner that clears the margin matched something
-    /// the runner-up has no claim to at all.
+    /// How far ahead of the runner-up the winner must be: the weight of one near-unique signal.
     private static let margin = 2
 
-    /// How much of the clip is read.
-    ///
-    /// About eighty lines of ordinary code, which is more than enough to tell a language —
-    /// the first few lines usually settle it. The cap exists for the minified bundle and
-    /// the megabyte of exported JSON: running ninety regular expressions over half a
-    /// million characters on the copy path would be a stall the user feels in ⌘C, and
-    /// reading further would not change the answer, because a minified file repeats itself.
+    /// How much of the clip is read: about eighty lines, so a minified bundle cannot stall ⌘C.
     private static let windowLength = 4_000
 
     // MARK: - The ones that name themselves
 
-    /// A shebang is not evidence, it is a declaration: the author wrote down which
-    /// interpreter runs this file. Nothing scored below can outrank that, so it is checked
-    /// first and returned immediately.
-    ///
-    /// An interpreter that is not one of ours — `perl`, `awk`, `tclsh` — deliberately falls
-    /// through to scoring rather than being forced into ``shell``. It is a script, but not
-    /// one we have a chip for, and inventing one would be exactly the wrong answer.
+    /// A shebang names its interpreter outright; one without a chip of its own falls through to scoring.
     private static func shebangLanguage(in text: String) -> CodeLanguage? {
         guard text.hasPrefix("#!") else { return nil }
         let line = text.prefix(while: { !$0.isNewline }).lowercased()
@@ -133,71 +75,35 @@ extension CodeLanguage {
 
     private static let shells = ["bash", "zsh", "/sh", " sh", "dash", "ksh", "fish", "ash"]
 
-    /// JSON is the one language in the list with a decidable answer, so it is decided
-    /// rather than guessed: a real parser either accepts the whole document or it does not.
-    ///
-    /// That parse is also the entire JSON-versus-JavaScript-object-literal question.
-    /// `{"retries": 3}` parses; `{ retries: 3 }` does not, because JSON has no unquoted
-    /// keys — so the second one falls through to scoring and is judged as code, which is
-    /// what it is. When a clip is valid JSON *and* a valid JavaScript literal, it is called
-    /// JSON: a quoted-key object copied on its own came out of an API response or a config
-    /// file far more often than out of a source file, and in a source file it would have
-    /// had `const x =` in front of it, which is enough to stop it parsing.
-    ///
-    /// The top-level value has to be an object or an array. Bare `{}` and `[]` are excluded
-    /// by the length check in ``detect(_:)`` for the same reason as every other two-token
-    /// clip: there is nothing there to be sure about.
+    /// Parses rather than guesses; `{ retries: 3 }` fails on its unquoted key and falls through to scoring.
     private static func isJSONDocument(_ text: String) -> Bool {
         guard let first = text.first, first == "{" || first == "[" else { return false }
         return (try? JSONSerialization.jsonObject(with: Data(text.utf8))) != nil
     }
 
-    /// A SQL statement, as opposed to an English sentence that happens to use the words
-    /// `select` and `from`.
-    ///
-    /// SQL gets its own gate because its keywords are ordinary English and its punctuation
-    /// is almost nil, so the scoring below can neither find it reliably nor be trusted when
-    /// it does. "Select an item from the list below" satisfies every clause-shape test you
-    /// can write. Two guards separate the two, and both are properties of the language
-    /// rather than heuristics:
-    ///
-    /// - A statement does not end in a full stop. SQL ends in a semicolon or in nothing;
-    ///   `?` and `!` end questions and exclamations, not queries.
-    /// - SQL has no articles. There is no `the` in a query, no `a`, no `your`. The veto is
-    ///   waived when the statement corroborates itself some other way — a trailing
-    ///   semicolon, a `SELECT *`, a second clause keyword — because a string literal in a
-    ///   `WHERE` can legitimately contain English.
-    ///
-    /// Case is ignored throughout, because half the world writes `SELECT` and the other
-    /// half writes `select`, and a third group alternates within one query.
+    /// A SQL statement rather than an English sentence: no full stop, and no articles unless corroborated.
     private static func isSQLStatement(_ text: String) -> Bool {
         guard let last = text.last, !".!?".contains(last) else { return false }
         guard text.contains(sqlClause) else { return false }
         return text.contains(sqlCorroboration) || !text.contains(englishArticle)
     }
 
-    /// A verb and its object: the shape every SQL statement opens with. The object has to
-    /// look like an identifier, which is what stops `from the` matching on the `the`.
+    /// A verb and an identifier-shaped object, the shape every SQL statement opens with.
     nonisolated(unsafe) private static let sqlClause =
         #/(?i)\bselect\b[^\n]{0,400}?\bfrom\s+[\w."`\[\]]+|\b(?:insert\s+into|update|delete\s+from|create\s+(?:table|index|view)|alter\s+table|drop\s+table|truncate\s+table)\s+[\w."`\[\]]+/#
 
-    /// A second thing that only a query does, which is what buys the statement its way past
-    /// the article veto.
+    /// A second thing only a query does, which buys the statement past the article veto.
     nonisolated(unsafe) private static let sqlCorroboration =
         #/(?i)\bselect\s+\*|;\s*$|\bas\s+\w+\b|\b(?:where|join|group\s+by|order\s+by|limit|having|values|distinct|primary\s+key|foreign\s+key|not\s+null)\b/#
         .anchorsMatchLineEndings()
 
-    /// Determiners and modals. English is full of them and SQL contains none, which makes
-    /// their presence the cheapest available proof that a sentence is a sentence.
+    /// Determiners and modals, which English is full of and SQL contains none of.
     nonisolated(unsafe) private static let englishArticle =
         #/(?i)\b(?:the|a|an|this|these|those|my|your|our|their|please|should|would|could)\b/#
 
     // MARK: - Scoring
 
-    /// The winner, if it both clears the bar and is clear of everyone else.
-    ///
-    /// Two languages tied at the top always produce `nil`, which is the point: a tie means
-    /// the evidence names a family, not a language.
+    /// The winner, if it clears the bar and the margin; a tie names a family, not a language.
     private static func highestScoring(in sample: String) -> CodeLanguage? {
         var best: (language: CodeLanguage, score: Int)?
         var runnerUp = 0
@@ -214,12 +120,7 @@ extension CodeLanguage {
         return best.language
     }
 
-    /// Distinct signals, not occurrences.
-    ///
-    /// A file that says `console.log` forty times has said one thing forty times, and
-    /// counting the repetitions would let a single habit outvote every other kind of
-    /// evidence in the clip. Breadth is what distinguishes a language; volume is just
-    /// length.
+    /// Distinct signals, not occurrences, so one habit repeated forty times cannot outvote the rest.
     private static func score(_ language: CodeLanguage, in sample: String) -> Int {
         let table = Signals.table(for: language)
         let strong = table.strong.count { sample.contains($0) }
@@ -228,14 +129,7 @@ extension CodeLanguage {
     }
 }
 
-/// What each language looks like, in two weights.
-///
-/// `strong` is for markers that one language has and the others essentially do not:
-/// `\(…)` interpolation, `module.exports`, `elsif`, `:=`. `supporting` is for the things
-/// that are consistent with a language without being owned by it — `nil`, `->`, a trailing
-/// semicolon. Every pattern is written in a code-shaped form rather than as a bare word,
-/// for the same reason ``CodeShapes`` does it: the word `class` appears in a paragraph
-/// about timetables, and `class Foo {` does not.
+/// What each language looks like, in two weights: markers it owns and markers merely consistent with it.
 private enum Signals {
     typealias Table = (strong: [Regex<Substring>], supporting: [Regex<Substring>])
 
@@ -266,13 +160,11 @@ private enum Signals {
         #/\bguard\b[^\n]*\belse\s*\{/#,
         // A function signature with an arrow return, which Go writes without one.
         #/\bfunc\s+\w+\s*(?:<[^>\n]*>)?\([^\n]*\)\s*(?:async\s+)?(?:throws\s+)?->\s*\S/#,
-        // Attributes. Every one of these is Swift's spelling of an idea other languages
-        // spell differently or not at all.
+        // Attributes that are Swift's spelling alone.
         #/@(?:MainActor|Sendable|escaping|objc|Published|State|discardableResult|available|Test|Suite)\b/#,
         // Keywords with no counterpart elsewhere.
         #/\b(?:mutating|nonisolated|associatedtype|willSet|didSet|deinit|fileprivate|unowned|typealias|@unchecked)\b/#,
-        // A type declaration opening a line. Rust's `pub struct` and Go's `type … struct`
-        // both fail this because of the words in front of the keyword.
+        // A type declaration opening a line; Rust's `pub struct` and Go's `type … struct` fail on the prefix.
         #/^[ \t]*(?:public\s+|internal\s+|private\s+)?(?:final\s+)?(?:struct|enum|protocol|extension|actor)\s+\w+/#
             .anchorsMatchLineEndings(),
     ]
@@ -291,8 +183,7 @@ private enum Signals {
     // MARK: - Python
 
     nonisolated(unsafe) static let pythonStrong: [Regex<Substring>] = [
-        // def with a colon. Ruby's def has none, and that one character is the whole
-        // Python-versus-Ruby question.
+        // def with a colon; Ruby's def has none.
         #/^[ \t]*(?:async\s+)?def\s+\w+\s*\([^\n]*\)\s*(?:->[^\n:]+)?:[ \t]*$/#
             .anchorsMatchLineEndings(),
         // A block header that ends in a colon rather than a brace.
@@ -339,9 +230,7 @@ private enum Signals {
 
     // MARK: - JavaScript and TypeScript
 
-    /// Shared by both, because both are true of both. Keeping these out of either
-    /// language's strong list is what makes the margin rule work between them: neither can
-    /// win on syntax they have in common.
+    /// Shared by both, so neither JavaScript nor TypeScript can win on syntax they have in common.
     nonisolated(unsafe) static let ecmaScript: [Regex<Substring>] = [
         #/\bconst\s+\w+\s*=/#,
         #/\bfunction\s+\w+\s*\(|=>\s*[({\w]/#,
@@ -365,10 +254,7 @@ private enum Signals {
             #/["']use strict["']|\.prototype\.\w+/#,
         ]
 
-    /// TypeScript's identity is its types and nothing else. That is also why untyped modern
-    /// ECMAScript ends up `nil` rather than `typescript`: with the annotations stripped out
-    /// there is nothing left that is TypeScript and not JavaScript, and of the two labels
-    /// `javascript` is the one that stays true either way.
+    /// TypeScript's identity is its types; untyped modern ECMAScript ends up `javascript`, which stays true.
     nonisolated(unsafe) static let typescriptStrong: [Regex<Substring>] = [
         #/:\s*(?:string|number|boolean|void|any|unknown|never|object|bigint|symbol)\b/#,
         #/\btype\s+\w+(?:<[^>\n]*>)?\s*=/#,
@@ -383,8 +269,7 @@ private enum Signals {
 
     // MARK: - SQL
 
-    /// Scoring for SQL fragments — a `WHERE` clause on its own, a column list — that never
-    /// reach ``CodeLanguage/isSQLStatement(_:)`` because they are not whole statements.
+    /// Scoring for SQL fragments — a `WHERE` clause, a column list — that are not whole statements.
     nonisolated(unsafe) static let sqlStrong: [Regex<Substring>] = [
         #/(?i)\bselect\b[^\n]*\bfrom\b/#,
         #/(?i)\b(?:insert\s+into|update\s+\w+\s+set|delete\s+from|create\s+(?:table|index|view)|alter\s+table|drop\s+table)\b/#,
@@ -403,8 +288,7 @@ private enum Signals {
     nonisolated(unsafe) static let shellStrong: [Regex<Substring>] = [
         // The word-shaped block terminators.
         #/^[ \t]*(?:fi|done|esac)[ \t]*$/#.anchorsMatchLineEndings(),
-        // Variable expansion. Written so that a JavaScript template's `${obj.prop}` — which
-        // has a dot in it — does not match.
+        // Variable expansion, written so a JavaScript template's `${obj.prop}` does not match.
         #/\$(?:\{[\w:%\/*@#-]+\}|[A-Za-z_]\w*|\(|[@?#!*])/#,
         #/^[ \t]*(?:export|local|readonly|declare)\s+\w+=/#.anchorsMatchLineEndings(),
         // A test, in either the bracket form or the operator form.
@@ -424,8 +308,7 @@ private enum Signals {
 
     // MARK: - HTML
 
-    /// Deliberately weighted towards document-level elements rather than any tag at all, so
-    /// that JSX inside a TypeScript component does not outscore the TypeScript around it.
+    /// Weighted towards document-level elements, so JSX inside a TypeScript component does not win.
     nonisolated(unsafe) static let htmlStrong: [Regex<Substring>] = [
         #/(?i)<!DOCTYPE\s+html|<html\b/#,
         #/(?i)<(?:head|body|meta|link|title|script|style)\b/#,
@@ -441,9 +324,7 @@ private enum Signals {
     // MARK: - CSS
 
     nonisolated(unsafe) static let cssStrong: [Regex<Substring>] = [
-        // A selector alone on a line, opening a block. Descendant combinators are left out
-        // on purpose: allowing spaces between the parts would make `export interface Clip {`
-        // a selector.
+        // A selector alone on a line; no descendant combinators, or `export interface Clip {` matches.
         #/^[ \t]*[.#]?[\w-]+(?:[.#:][\w()-]+)*(?:\s*[,>+~]\s*[^\n{]+)?\s*\{[ \t]*$/#
             .anchorsMatchLineEndings(),
         #/@(?:media|import|keyframes|font-face|supports|tailwind|apply|layer)\b/#,
@@ -452,8 +333,7 @@ private enum Signals {
     ]
 
     nonisolated(unsafe) static let cssSupporting: [Regex<Substring>] = [
-        // A property and its value, terminated. Shares its shape with a TypeScript member,
-        // which is why it is only worth a point.
+        // A property and its value, terminated; shares its shape with a TypeScript member, so one point.
         #/^[ \t]*[a-z-]+\s*:\s*[^;{}\n]+;[ \t]*$/#.anchorsMatchLineEndings(),
         #/\d+(?:px|rem|em|vh|vw)\b/#,
         #/var\(--[\w-]+\)|--[\w-]+\s*:/#,
@@ -465,8 +345,7 @@ private enum Signals {
     nonisolated(unsafe) static let goStrong: [Regex<Substring>] = [
         #/^[ \t]*package\s+\w+[ \t]*$/#.anchorsMatchLineEndings(),
         #/:=/#,
-        // A function or method whose return type sits between the brackets and the brace,
-        // with no arrow anywhere — which is how Go differs from Swift and Rust.
+        // A return type between the brackets and the brace with no arrow, unlike Swift and Rust.
         #/\bfunc\s+(?:\([^)\n]*\)\s*)?\w+\s*\([^)\n]*\)\s*(?:\([^)\n]*\)|[\w*.\[\]]+)?\s*\{/#,
         #/\bif\s+err\s*!=\s*nil\b/#,
         #/\btype\s+\w+\s+(?:struct|interface)\s*\{/#,

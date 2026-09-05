@@ -1,3 +1,5 @@
+// Tests for one dictionary entry.
+
 import Foundation
 import Testing
 
@@ -13,8 +15,7 @@ struct DictionaryEntryTests {
             timesUsed: used, timesReverted: reverted)
     }
 
-    /// The index keys on sound, so a name spelt nothing like it is said must offer the
-    /// pronunciation instead of the spelling.
+    /// The index keys on sound, so a name spelt nothing like it is said offers the pronunciation.
     @Test("is indexed by how it sounds, not how it is written")
     func indexedBySound() {
         #expect(DictionaryEntry(word: "Nikhil", origin: .added, firstSeen: noon).soundsLike == "Nikhil")
@@ -23,16 +24,14 @@ struct DictionaryEntryTests {
                 .soundsLike == "Nikeel")
     }
 
-    /// An entry the user keeps undoing is teaching the app to be wrong. Waiting for
-    /// someone to notice and reset is a poor design when the evidence is already counted.
+    /// An entry the user keeps undoing is teaching the app to be wrong, and the evidence is already counted.
     @Test("retires itself once it is undone more often than not")
     func retiresWhenReverted() {
         #expect(entry(used: 10, reverted: 8).isTrustworthy == false)
         #expect(entry(used: 10, reverted: 1).isTrustworthy)
     }
 
-    /// A single bad day must not retire a good word, so the ratio only applies once
-    /// there is enough of it to mean anything.
+    /// A single bad day must not retire a good word.
     @Test("is trusted until there is enough evidence to doubt it")
     func trustedWhileYoung() {
         #expect(entry(used: 1, reverted: 1).isTrustworthy)

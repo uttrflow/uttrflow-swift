@@ -1,39 +1,26 @@
+// Every form the floating button takes, with its parts, sizes and colours.
+
 import AppKit
 import UttrflowCore
 import UttrflowPipeline
 import SwiftUI
 
-/// What the panel is currently showing, in one place the view can watch.
-///
-/// Hover and press live here rather than in `@State` because AppKit is what notices
-/// them: SwiftUI's own hover tracking is scoped to the active application, and this
-/// panel is only ever pointed at while some other app is frontmost.
+/// What the dock is showing; hover and press live here because AppKit, not SwiftUI, notices them.
 @MainActor
 @Observable
 final class DockViewModel {
     var presentation: DockPresentation
     /// How the shortcut reads on a keycap, for example "⌥Space".
     var shortcut: String
-    /// Which edge the button is parked on. The view needs it so the button itself
-    /// stays nearest that edge as the form around it grows.
+    /// Which edge the button is parked on, so the button stays nearest that edge as the form grows.
     var anchor: DockAnchor
     var isHovering = false
     var isPressed = false
-    /// How loud the microphone is right now, in `0...1`, as root mean square.
-    ///
-    /// Written by the controller at 20 Hz while a recording is open and left at zero
-    /// otherwise. It is deliberately not part of ``DockPresentation``: the presentation
-    /// is what the pipeline's state *means*, is pure, and is covered by tests that would
-    /// have to be rewritten to accommodate a number that changes twenty times a second
-    /// and means nothing on its own.
+    /// Microphone loudness in `0...1` as RMS, written at 20 Hz while recording; not part of the presentation.
     var level: Float = 0
     /// The row of capsules, one per arrival, newest first.
     private(set) var bars = DockBars()
-    /// When the newest bar landed, so the row can be drawn *between* arrivals.
-    ///
-    /// Twenty arrivals a second drawn on arrival is twenty sideways jumps a second, and
-    /// it reads as stepping rather than flowing. Holding the moment lets the view place
-    /// the bars at a fractional offset on every display frame instead.
+    /// When the newest bar landed, so the view places bars at a fractional offset between arrivals.
     private(set) var lastArrival = Date()
 
     /// One arrival: the level the microphone reported, and one more capsule.
@@ -42,31 +29,15 @@ final class DockViewModel {
         bars.arrive(DockLevel.scale(rms: level))
         lastArrival = now
     }
-    /// When the current recording started, for the clock on the pill.
-    ///
-    /// Stamped here rather than carried in the presentation because it is a fact about
-    /// this run of the app rather than about the state: the pipeline knows it is
-    /// recording, and the wall clock is the window's business. Kept across redraws so
-    /// the clock does not restart every time the presentation is handed over again.
+    /// When the current recording started, for the clock; kept across redraws so the clock never restarts.
     private(set) var recordingStartedAt: Date?
-    /// Whether the idle button collapses to a grip, from "Shrink it to a grip until I
-    /// point at it".
-    ///
-    /// The switch existed and nothing read it: the button always shrank, whichever way it
-    /// was set. Somebody who wants the button findable without hunting for a sliver at
-    /// the edge of the screen was told they could have that, and could not.
+    /// Whether the idle button collapses to a grip, from the "Shrink it to a grip" setting.
     var shrinksToGrip = true
 
-    /// The only way the presentation changes, so the clock cannot be forgotten.
-    ///
-    /// It starts on the first presentation that is recording and is cleared by the first
-    /// that is not — a run of identical recording presentations, which is what arrives
-    /// while somebody holds the key, leaves it exactly where it was.
+    /// The only way the presentation changes; starts the clock on the first recording presentation.
     func show(_ presentation: DockPresentation, now: Date = Date()) {
         if presentation.isRecording {
-            // Cleared as a recording begins rather than as one ends: the working
-            // animation settles the row the voice actually left behind, so the bars have
-            // to outlive the microphone by exactly one state.
+            // Cleared as a recording begins, not ends, so the working animation settles the last row.
             if recordingStartedAt == nil {
                 bars.clear()
                 lastArrival = now
@@ -90,18 +61,13 @@ final class DockViewModel {
     }
 }
 
-/// The floating button, in whichever form the current state calls for.
-///
-/// Every form is derived from ``DockPresentation`` and nothing else. The view has no
-/// opinion about what the pipeline is doing; if two forms could disagree about that,
-/// the disagreement would have to be settled here rather than in one testable place.
+/// The floating button in whichever form the state calls for; every form derives from the presentation.
 struct DockView: View {
     let model: DockViewModel
     var onPressBegan: () -> Void = {}
     var onPressEnded: () -> Void = {}
     var onRecovery: (RecoveryAction) -> Void = { _ in }
-    /// The size the current form wants. The panel is resized to match, so the resting
-    /// grip claims no more of the screen — or of the pointer — than a grip should.
+    /// The size the current form wants; the panel is resized to match, so a grip claims no more screen.
     var onDesiredSize: (CGSize) -> Void = { _ in }
 
     var body: some View {
@@ -110,9 +76,7 @@ struct DockView: View {
             .scaleEffect(model.isPressed ? 0.96 : 1)
             .animation(.spring(duration: 0.22), value: model.isPressed)
             .contentShape(.rect)
-            // Held at the root rather than on the button itself: the form changes
-            // shape the instant recording starts, and a gesture attached to a view
-            // that has just been replaced would never see the mouse come back up.
+            // At the root: the form is replaced when recording starts and would miss the mouse-up.
             .gesture(pressGesture, including: model.presentation.action == nil ? .all : .subviews)
             .onGeometryChange(for: CGSize.self) {
                 $0.size
@@ -141,14 +105,7 @@ struct DockView: View {
         }
     }
 
-    /// Always there, ignorable: three dots at the edge of the screen.
-    ///
-    /// Drawn straight onto the desktop, with no slab under them. Every other form is
-    /// built on ``glass(cornerRadius:)``, and around a pill that reads as depth — but
-    /// around nine points of dots, its hairline and its shadow at radius 12 read as a
-    /// box somebody forgot to delete. The hit target does not come from the slab: the
-    /// invisible padding below and the `.contentShape(.rect)` at the root are what make
-    /// this pointable, and both are still here.
+    /// Three dots at the edge of the screen, drawn straight onto the desktop with no slab under them.
     private var resting: some View {
         VStack(spacing: DockMetrics.gripDotSpacing) {
             ForEach(0..<DockMetrics.gripDotCount, id: \.self) { _ in
@@ -158,18 +115,13 @@ struct DockView: View {
             }
         }
         .frame(width: DockMetrics.gripWidth, height: DockMetrics.gripHeight)
-        // The one thing the slab was doing that was worth keeping: three points of ink
-        // are invisible on a pale wallpaper without something to lift them off it.
+        // Lifts three points of ink off a pale wallpaper.
         .shadow(color: .black.opacity(0.38), radius: 1.5, y: 0.5)
-        // A nine-point strip is a hard thing to put a pointer on. The padding is
-        // invisible but hoverable, which is the whole job of the resting form.
+        // Invisible but hoverable: a nine-point strip is hard to point at.
         .padding(DockMetrics.gripHitPadding)
     }
 
-    /// Pointed at: a reminder of the key, and the button itself.
-    ///
-    /// The orb keeps the side the grip was on, so growing a hint beside it does not
-    /// shift the thing the pointer is already over out from under the pointer.
+    /// Pointed at: the keycap hint beside the orb, which keeps the grip's side so it stays under the pointer.
     private func hovered() -> some View {
         let orbLeads = model.anchor == .bottomLeft
         return HStack(spacing: 9) {
@@ -201,23 +153,12 @@ struct DockView: View {
         .glass(cornerRadius: DockMetrics.orbSize / 2)
     }
 
-    /// Listening: the mark as a weight on the anchored edge, and the level beside it.
-    ///
-    /// No words and no clock. What somebody holding a key down needs to know is that
-    /// they are being heard, and a meter that is actually driven by their voice says
-    /// that better than a sentence does — while a red light, seventeen bars, a running
-    /// clock and "Let go to finish" all saying it at once is how the old panel came to
-    /// need 286 points. The sentence survives in the accessibility label, which is read
-    /// by exactly the people who cannot see the meter.
+    /// Listening: the mark on the anchored edge and a live meter, with no words and no clock.
     private func listening() -> some View {
         compact { LevelMeterView(model: model, towardsLeading: $0) }
     }
 
-    /// Working: the row the voice left behind, combing itself level and folding to a tick.
-    ///
-    /// Same footprint as listening, deliberately. The old form was a band of light
-    /// crossing a track on an infinite loop, which is the animation of a wait with no
-    /// end — and this one is about a second and always ends.
+    /// Working: the row the voice left behind, combing level and folding to a tick in about a second.
     private func working() -> some View {
         compact { SettleView(bars: model.bars.levels, towardsLeading: $0) }
     }
@@ -258,15 +199,7 @@ struct DockView: View {
 
     // MARK: - Notices
 
-    /// Finished, one way or the other.
-    ///
-    /// Which form is chosen follows the symbol the presenter picked, the same way the
-    /// badge tint already did — so a new state cannot arrive wearing the wrong shape.
-    ///
-    /// Three of the four are a 26-point disc, because a success needs no words: when the
-    /// text has landed in the document, a panel repeating it is narrating something the
-    /// reader is already looking at. Only the fourth has something to *do* about it, and
-    /// that one stays wide on purpose.
+    /// Finished: a 26-point disc for the quiet outcomes, and the wide form for the one that needs an action.
     @ViewBuilder
     private func notice(_ presentation: DockPresentation, primaryLine: String) -> some View {
         switch presentation.symbolName {
@@ -289,14 +222,7 @@ struct DockView: View {
             .padding(DockMetrics.gripHitPadding)
     }
 
-    /// Copied rather than typed: the two characters that are the whole instruction,
-    /// and the reason only if it is asked for.
-    ///
-    /// This is a failure wearing a success's clothes — the words exist but nobody typed
-    /// them — so it is amber rather than green, and it is the one quiet form that can
-    /// still be acted on. Putting the explanation behind the pointer is what lets it be
-    /// small: 64 points at rest, and the full sentence and the fix for anybody who goes
-    /// looking.
+    /// Copied rather than typed: ⌘V at rest, with the reason and the fix under the pointer.
     private func clipboardNotice(_ presentation: DockPresentation) -> some View {
         HStack(spacing: 8) {
             keycap("⌘V")
@@ -321,11 +247,7 @@ struct DockView: View {
         .padding(DockMetrics.gripHitPadding)
     }
 
-    /// The one state with something for the reader to do, and the only wide one left.
-    ///
-    /// Shrinking this too would spend the contrast the other three just bought: after a
-    /// run of 26-point discs, a panel that arrives at 262 points is unmistakably asking
-    /// for something.
+    /// The one state with something for the reader to do, and the only wide form.
     private func blocked(_ presentation: DockPresentation, primaryLine: String) -> some View {
         HStack(spacing: 12) {
             Badge(symbolName: presentation.symbolName, tint: .dockWarning)
@@ -397,8 +319,7 @@ struct DockView: View {
 /// The measurements the design is drawn to.
 enum DockMetrics {
     static let gripWidth: CGFloat = 9
-    /// Three dots, not five. Twelve points shorter than it was, and the sliver at the
-    /// edge of the screen is a third smaller for it.
+    /// Three dots, so the sliver at the edge of the screen stays small.
     static let gripHeight: CGFloat = 34
     static let gripDotSize: CGFloat = 3
     static let gripDotSpacing: CGFloat = 3
@@ -407,19 +328,14 @@ enum DockMetrics {
     static let gripHitPadding: CGFloat = 6
     static let hintHeight: CGFloat = 30
     static let orbSize: CGFloat = 30
-    /// Listening and working, which must be identical: the panel cannot change shape at
-    /// the moment the key is released.
+    /// Listening and working share this, so the panel cannot change shape when the key is released.
     static let compactHeight: CGFloat = 32
     static let weightSize: CGFloat = 22
     static let weightMarkHeight: CGFloat = 10
     /// The quiet outcomes — inserted, and nothing heard.
     static let badgeSize: CGFloat = 26
     static let clipboardHeight: CGFloat = 28
-    /// The one state still allowed to be wide, and the width it is allowed.
-    ///
-    /// Was `pillWidth`, and was applied to *every* form: listening was 286 points wide
-    /// because a 60-character transcript preview and a recovery button need 286 points,
-    /// and paid that on every dictation for a state it never entered.
+    /// The width of the one wide form, and of no other.
     static let noticeMaxWidth: CGFloat = 262
     static let noticeHeight: CGFloat = 40
     static let bodySize: CGFloat = 13
@@ -428,18 +344,10 @@ enum DockMetrics {
 
 // MARK: - Parts
 
-/// The level, as a row of capsules walking across the panel.
-///
-/// Two teals the app already owns and no third: a bar louder than half scale takes the
-/// mark's accent, the rest keep the waveform teal. Redrawn every display frame rather
-/// than on every arrival — see ``DockViewModel/lastArrival`` for why — and clipped, so
-/// the newest bar enters from beyond the edge instead of appearing at it.
+/// The level as a row of capsules, redrawn every display frame and clipped so new bars enter from the edge.
 private struct LevelMeterView: View {
     let model: DockViewModel
-    /// Whether the mark sits on the leading edge. Sound always arrives at the side
-    /// *away* from the mark and flows into it, so on the default right-hand anchor that
-    /// reads left to right, and on a left-hand anchor it mirrors along with the rest of
-    /// the pill rather than becoming a second design.
+    /// Whether the mark is on the leading edge; sound always flows in from the side away from the mark.
     let towardsLeading: Bool
 
     var body: some View {
@@ -459,12 +367,7 @@ private struct LevelMeterView: View {
     }
 }
 
-/// Working: the row the voice left behind, combing itself level and folding to a tick.
-///
-/// It plays once and resolves, which is the whole difference from what it replaces. A
-/// loop says *indefinite* — it is the animation of a download with no progress bar — and
-/// tidying up a sentence takes about a second and always ends. It also stops scrolling:
-/// nothing is arriving any more, and a row still walking would say otherwise.
+/// Working: the row settles level and folds to a tick, once, and stops scrolling.
 private struct SettleView: View {
     let bars: [CGFloat]
     let towardsLeading: Bool
@@ -501,16 +404,7 @@ private struct SettleView: View {
     }
 }
 
-/// The mark and a checkmark, and the road between them.
-///
-/// Both are one round-capped stroke: a short arm, a turn at the bottom, a long arm. The
-/// only differences are how wide the turn is and how far the arms are splayed — so the
-/// `u` becomes a check by *opening*, and confirming an insertion needs no second glyph.
-///
-/// Rotating the mark does not do this, which is worth writing down because it is the
-/// obvious thing to try and it looks nearly right in a description. The mark's two arms
-/// are parallel, and a rotated pair of parallel arms is a hook, not a tick. They have to
-/// come apart.
+/// One stroke that is the mark at 0 and a checkmark at 1; the arms splay open. See Docs/app-dock.md.
 private struct MarkCheck: Shape {
     /// 0 is the mark, 1 is the checkmark.
     var progress: CGFloat
@@ -520,8 +414,7 @@ private struct MarkCheck: Shape {
         set { progress = newValue }
     }
 
-    /// Drawn on the mark's own 100-unit grid, so both ends of the animation are the
-    /// identity's geometry rather than an approximation of it.
+    /// The mark's own 100-unit grid, so both ends of the animation are the identity's geometry.
     private static let box = UttrflowMark.gridBox
 
     func path(in rect: CGRect) -> Path {
@@ -534,15 +427,13 @@ private struct MarkCheck: Shape {
         }
         func lerp(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * t }
 
-        // The turn tightens from the mark's bowl to a checkmark's vertex, and drops as
-        // it does so, because a check sits lower in its box than a u does.
+        // The turn tightens from bowl to vertex and drops, because a check sits lower in its box.
         let radius = lerp(24, 6)
         let centre = CGPoint(x: 50, y: lerp(55, 64))
         let leftFoot = CGPoint(x: centre.x - radius, y: centre.y)
         let rightFoot = CGPoint(x: centre.x + radius, y: centre.y)
 
-        // And the arms swing out from vertical. The short one leans further: a
-        // checkmark's short arm is the steeper of the two.
+        // The arms swing out from vertical; the short one leans further.
         func arm(from foot: CGPoint, length: CGFloat, degrees: CGFloat) -> CGPoint {
             let radians = degrees * .pi / 180
             return CGPoint(
@@ -563,11 +454,7 @@ private struct MarkCheck: Shape {
     }
 }
 
-/// Inserted: the mark opening into a check.
-///
-/// Turning the identity into the confirmation, rather than swapping in a system
-/// `checkmark`, is the difference between the brand doing the confirming and an icon
-/// doing it — and it costs the same 26 points either way.
+/// Inserted: the mark opening into a check, so the brand does the confirming.
 private struct MarkTick: View {
     @State private var isTick = false
 
@@ -589,11 +476,7 @@ private struct MarkTick: View {
     }
 }
 
-/// Nothing heard: a level with a line through it.
-///
-/// No red, no warning triangle and no sentence. Nothing went wrong — the microphone was
-/// open and there was nothing in it — and drawing that costs the same 26 points as
-/// drawing success.
+/// Nothing heard: a level with a line through it, in no red and with no warning triangle.
 private struct StruckLevel: View {
     private static let heights: [CGFloat] = [5, 9, 6, 10, 4]
 
@@ -634,35 +517,19 @@ extension DockMetrics {
     static let meterBarWidth: CGFloat = 2.2
     static let meterBarSpacing: CGFloat = 1.8
     static let meterHeight: CGFloat = 18
-    /// Fixed rather than derived from a bar count: the row scrolls, so how many bars fit
-    /// is a consequence of the width rather than the other way round.
+    /// Fixed rather than derived from a bar count: the row scrolls, so the width decides how many fit.
     static let meterWidth: CGFloat = 56
-    /// The tallest a capsule gets, as a share of the meter's height. Under one, so a
-    /// loud syllable still has air above and below it rather than touching the glass.
+    /// The tallest a capsule gets, as a share of the meter's height; under one so it never touches the glass.
     static let meterAmplitude: CGFloat = 0.9
     /// How often a bar arrives — the rate the panel polls the microphone at.
     static let meterArrivalInterval: TimeInterval = 0.05
-    /// How strongly a bar below the accent threshold is drawn.
-    ///
-    /// The two teals cannot carry the threshold on their own. On a light desktop the
-    /// pair is `#067A87` against `#29C0B4` and separates at 2.24:1, which reads. On a
-    /// dark one the waveform teal lightens to `#00C3D0` and the pair collapses to
-    /// **1.05:1** — and inverts, because the accent is then the fractionally *darker*
-    /// of the two. A threshold nobody can see on the ground most desktops actually use
-    /// is not a threshold.
-    ///
-    /// So the hue keeps its job and weight is added beside it: quiet bars sit back,
-    /// loud ones come forward. It introduces no colour the app does not already own,
-    /// and it works on both grounds because opacity does not depend on either.
+    /// How strongly a quiet bar is drawn; opacity carries the loud threshold. See Docs/app-dock.md.
     static let meterQuietOpacity: CGFloat = 0.62
-    /// Where the row settles to when the microphone closes. Not zero: a row of dots
-    /// still reads as a meter, and a row of nothing reads as a panel that has broken.
+    /// Where the row settles when the microphone closes; not zero, or the meter reads as broken.
     static let settledLevel: CGFloat = 0.18
     static let markTickHeight: CGFloat = 14
 
-    /// Draws the row, in the one place both the live meter and the working animation
-    /// can reach it — so the panel cannot change shape at the moment the key is released
-    /// by the two of them drifting apart.
+    /// Draws the row for both the live meter and the working animation, so the two cannot drift apart.
     static func drawBars(
         _ levels: [CGFloat], in context: GraphicsContext, size: CGSize,
         phase: Double, towardsLeading: Bool
@@ -672,13 +539,11 @@ extension DockMetrics {
         let quiet = GraphicsContext.Shading.color(
             Color.dockWaveform.opacity(meterQuietOpacity))
         for (index, level) in levels.enumerated() {
-            // One step before the panel starts, so the newest bar enters from beyond the
-            // edge and is clipped rather than appearing out of nothing at it.
+            // One step before the panel starts, so the newest bar enters from beyond the edge.
             let offset = (CGFloat(index) + CGFloat(phase) - 1) * step
             let x = towardsLeading ? size.width - offset - meterBarWidth : offset
             guard x < size.width, x > -step else { continue }
-            // A quiet bar is a dot rather than a stub: at this width the cap radius is
-            // the whole bar, so the floor may as well be the shape it is heading for.
+            // A quiet bar is a dot: at this width the cap radius is the whole bar.
             let height = max(meterBarWidth, level * size.height * meterAmplitude)
             let rect = CGRect(
                 x: x, y: (size.height - height) / 2, width: meterBarWidth, height: height)
@@ -706,29 +571,22 @@ extension View {
 // MARK: - Colours
 
 extension Color {
-    /// Fills that carry text. Capped at 29% lightness so white 13-point text clears
-    /// 4.5:1 against it — the mark's own teal is lighter than that and never carries text.
+    /// Fills that carry text, capped at 29% lightness so white 13-point text clears 4.5:1.
     static let dockAccent = Color(rgb: 0x12_8077)
     /// Controls and graphics with no text on them.
     static let dockAccentLight = Color(rgb: 0x39_D0C4)
     static let dockAccentTint = Color(rgb: 0x9E_DCD7)
     static let dockAccentWash = Color(rgb: 0xEF_F8F7)
-    /// Recording, and destructive. The floating button no longer lights it — the meter
-    /// says it is listening better than a red dot beside a meter did — but the main
-    /// window's critical tone and its destructive buttons are the same red, and this is
-    /// still where the whole app's accent ramp is written down.
+    /// Recording and destructive: the main window's critical tone and its destructive buttons.
     static let dockRecording = Color(rgb: 0xFF_383C)
     /// The live accent: what is selected, what is running, the weight the meter hangs off.
     static let dockActive = Color(rgb: 0x29_C0B4)
-    /// The mark drawn *inside* the weight, which is a teal disc — so it is the ink, not
-    /// the accent. Fixed rather than `.primary`: the disc is the same teal in both
-    /// appearances, so ink that followed the appearance would vanish in one of them.
+    /// Ink for the mark inside the weight's disc; fixed, since the disc is the same teal in both appearances.
     static let dockWeightInk = Color(rgb: 0x04_100F)
     static let dockSuccess = Color(rgb: 0x34_C759)
     static let dockWarning = Color(rgb: 0xFF_8D28)
 
-    /// The bars sit on frosted glass, which takes its lightness from the desktop
-    /// behind it. The bright teal vanishes against a light one, so it deepens there.
+    /// The waveform teal, deepened on a light desktop where the bright one vanishes against the glass.
     static let dockWaveform = Color(nsColor: .orbit(dark: 0x00_C3D0, light: 0x06_7A87))
 }
 

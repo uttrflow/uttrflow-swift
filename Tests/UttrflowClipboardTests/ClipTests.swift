@@ -1,3 +1,5 @@
+// Tests for one clip's own rules.
+
 import Foundation
 import Testing
 
@@ -14,8 +16,7 @@ struct ClipTests {
             isPinned: pinned)
     }
 
-    /// Retention hangs on this: history ages out, anything the user deliberately kept
-    /// does not. Losing a clip somebody named would be the worst thing the app could do.
+    /// Retention hangs on this: history ages out, and anything deliberately kept does not.
     @Test("counts as kept once the user has named, filed or pinned it")
     func keptness() {
         #expect(clip().isKept == false)
@@ -24,8 +25,7 @@ struct ClipTests {
         #expect(clip(pinned: true).isKept)
     }
 
-    /// Rows are scanned with the arrow keys, so every row is the same height and a
-    /// multi-line clip must not grow one.
+    /// Rows are scanned with the arrow keys, so a multi-line clip must not grow one.
     @Test("summarises to a single line")
     func summary() {
         #expect(clip("one\ntwo\nthree").summary == "one")
@@ -34,8 +34,7 @@ struct ClipTests {
         #expect(clip("\n\nfirst real line").summary == "first real line")
     }
 
-    /// What goes back out must be exactly what came in — the summary is for display and
-    /// must never become the thing that gets pasted.
+    /// What goes back out must be exactly what came in; the summary is for display only.
     @Test("keeps the original text untouched however it is displayed")
     func textIsNotNormalised() {
         let messy = "  line one  \n\tline two\n"

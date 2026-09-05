@@ -1,42 +1,10 @@
-/// What a rich clip becomes when it is pasted somewhere that has no formatting to
-/// receive it.
-///
-/// A formatted clip carries two representations, and this is the one that goes into a
-/// terminal, a code editor, a commit message or a search field. The whole rule is that
-/// what arrives there must be text a person could have typed. Never `<strong>` and never
-/// `<h1>` — but equally never `**bold**`, because asterisks are not formatting at a shell
-/// prompt, they are noise the user then has to delete by hand. Every decision below falls
-/// out of that one sentence: the target is plain, so the output is plain, and anything
-/// added to stand in for weight would be something the user did not write.
-///
-/// HTML is the input because HTML is what everything upstream produces. A browser copy
-/// puts `public.html` on the pasteboard, `NSAttributedString` round-trips through it, and
-/// the editors people keep notes in emit it.
-///
-/// Parsed here rather than by `NSAttributedString(html:)` for three reasons, each
-/// sufficient alone: that initialiser is main-actor bound, it is slow enough to be felt on
-/// a panel whose entire promise is opening instantly, and it would pull the AppKit text
-/// system into a module that deliberately knows nothing about drawing.
+/// The plain text of a rich clip, for a target with no formatting. See Docs/clipboard-plain-form.md.
 public enum RichTextPlainForm: Sendable {
-    /// The readable plain-text form of a rich clip.
-    ///
-    /// Total: there is no malformed input, only input that yields less. Anything that
-    /// cannot be understood as markup is treated as the text it also looks like, which is
-    /// the only behaviour that keeps the promise that pasting never loses words.
-    ///
-    /// - Parameter html: The rich representation of a clip, exactly as it arrived.
-    /// - Returns: Text with no markup left in it.
+    /// The readable plain-text form of `html`; total, so unparseable input yields text rather than an error.
     public static func plainText(fromHTML html: String) -> String {
         var tokenizer = HTMLTokenizer(html)
 
-        // Input with nothing recognisably HTML in it is handed back with only its entities
-        // decoded — no tags removed, no whitespace reflowed.
-        //
-        // This is the guard that stops the function eating code. `Array<String>` and
-        // `if (a < b)` are both what a browser would call markup, and a browser would be
-        // right; here it would mean a snippet losing a type parameter on the way into an
-        // editor, which is the worst thing this file could do. Well-formed input never
-        // reaches this branch — real HTML says `&lt;` — so nothing is given up.
+        // Input with nothing recognisably HTML in it keeps its tags, so `Array<String>` survives.
         guard tokenizer.looksLikeMarkup() else { return HTMLEntities.decoding(html) }
 
         var renderer = PlainTextRenderer()
@@ -49,9 +17,7 @@ public enum RichTextPlainForm: Sendable {
 
 // MARK: - Tokenising
 
-/// One start or end tag, with only the attributes anybody downstream asks for kept —
-/// which is all of them, because a dictionary of six entries is cheaper than deciding
-/// twice what a tag is.
+/// One start or end tag with all of its attributes.
 private struct HTMLTag {
     var name: String
     var isClosing: Bool
@@ -59,10 +25,7 @@ private struct HTMLTag {
 
     func attribute(_ name: String) -> String? { attributes[name] }
 
-    /// The `class` attribute split into the tokens a stylesheet would see.
-    ///
-    /// Split rather than searched because `unchecked` contains `checked`, and a
-    /// substring test would tick every box in an untouched checklist.
+    /// The `class` attribute split into tokens, because `unchecked` contains `checked`.
     var classes: [String] {
         (attributes["class"] ?? "").split(whereSeparator: \.isWhitespace).map(String.init)
     }
@@ -73,19 +36,12 @@ private enum HTMLToken {
     case tag(HTMLTag)
 }
 
-/// A single forward pass over the source, producing text runs and tags.
-///
-/// Hand-written because the alternative is a text system on the paste path, and because
-/// the interesting behaviour here is entirely about what happens to input that is *not*
-/// well-formed. A browser's parser and this one agree on the rule that matters: `<` only
-/// begins a tag when what follows it could begin a tag name, so `a < b` in prose is prose.
+/// A single forward pass over the source; `<` begins a tag only when a tag name could follow.
 private struct HTMLTokenizer {
     private let scalars: [Unicode.Scalar]
     private let count: Int
     private var index = 0
-    /// Set after a `<script>`, `<style>` or `<title>` start tag, so their contents are
-    /// skipped rather than tokenised. Their text must never reach the pasteboard, and
-    /// their contents are not markup — a `<` inside a script is an operator.
+    /// Set after a `<script>`, `<style>` or `<title>` start tag, so their contents are skipped whole.
     private var rawTextElement: String?
 
     init(_ html: String) {
@@ -112,17 +68,7 @@ private struct HTMLTokenizer {
 
     private static let rawTextElements: Set<String> = ["script", "style", "title"]
 
-    /// Whether anything in the input is recognisably HTML.
-    ///
-    /// Two signals, either one sufficient. A tag naming a real element is the obvious
-    /// one. An *end* tag of any name is the other, and it is what saves the documents the
-    /// first signal misses: Word's `<o:p></o:p>` and every custom element name nobody can
-    /// enumerate. Code does not close tags — `Array<String>` and `template <typename T>`
-    /// have no `</…>` anywhere — so the second signal buys that coverage without giving
-    /// up the protection the guard exists for.
-    ///
-    /// Scanned before tokenising, over the same buffer, so the answer costs one pass and
-    /// no second copy of a large clip.
+    /// Whether anything in the input is HTML: a known element, or any end tag, which code never has.
     mutating func looksLikeMarkup() -> Bool {
         defer { index = 0 }
         var i = 0
@@ -163,11 +109,7 @@ private struct HTMLTokenizer {
         return HTMLEntities.decoding(String(raw))
     }
 
-    /// Whether the `<` at `i` opens markup, or is just a less-than sign somebody copied.
-    ///
-    /// This one predicate is what keeps `if (a < b && c > d)` intact: the space after the
-    /// `<` disqualifies it, so the whole expression is read as the text it is. A `>` is
-    /// never special outside a tag, so the other half needs no rule at all.
+    /// Whether the `<` at `i` opens markup; a space after it means `a < b` is prose.
     private func isMarkupStart(_ i: Int) -> Bool {
         guard scalars[i] == "<", i + 1 < count else { return false }
         let next = scalars[i + 1]
@@ -177,11 +119,7 @@ private struct HTMLTokenizer {
 
     // MARK: Markup
 
-    /// Reads whatever the `<` at `index` opens, always leaving `index` further along.
-    ///
-    /// Returns nothing for the three things that are markup but not tags — comments,
-    /// doctypes, processing instructions — and for a tag that never closes, which is the
-    /// end of the input by definition and so takes no text down with it.
+    /// Reads whatever the `<` at `index` opens; comments, doctypes and unclosed tags yield nothing.
     private mutating func readTag() -> HTMLTag? {
         let next = scalars[index + 1]
         if next == "!" {
@@ -227,11 +165,7 @@ private struct HTMLTokenizer {
         return HTMLTag(name: name, isClosing: isClosing, attributes: attributes)
     }
 
-    /// One `name`, `name=value` or `name="value"` pair, advancing `i` past it.
-    ///
-    /// Quoted values are read to their quote rather than to the next `>`, which is the
-    /// reason attributes are parsed at all: `<a title="a > b">` closes where the quote
-    /// says it closes, not where a naive scan for `>` would put it.
+    /// One attribute pair, reading a quoted value to its quote so `title="a > b"` closes at the quote.
     private func readAttribute(from i: inout Int) -> (String, String)? {
         var name = String.UnicodeScalarView()
         while i < count, !isSpace(scalars[i]), !"=>/".unicodeScalars.contains(scalars[i]) {
@@ -239,8 +173,7 @@ private struct HTMLTokenizer {
             i += 1
         }
         guard !name.isEmpty else {
-            // A stray `=` or quote where a name should be. Step over it so the loop
-            // cannot stall on input nobody meant to write.
+            // A stray `=` or quote where a name should be; step over it so the loop cannot stall.
             i += 1
             return nil
         }
@@ -275,8 +208,7 @@ private struct HTMLTokenizer {
         index = position(of: target, from: index + 1).map { $0 + target.count } ?? count
     }
 
-    /// Runs to the end tag of a raw-text element, or to the end of the input if the
-    /// document never closes it — in which case there was nothing after it to lose.
+    /// Runs to the end tag of a raw-text element, or to the end of the input if it never closes.
     private mutating func skipToEndTag(of name: String) {
         let target = Array("</\(name)".unicodeScalars)
         index = position(of: target, from: index, ignoringCase: true) ?? count
@@ -325,13 +257,7 @@ private struct HTMLTokenizer {
 // MARK: - Elements
 
 private enum HTMLElements {
-    /// Every element HTML defines, including the ones long since obsolete.
-    ///
-    /// Used once, to answer "is this document HTML at all?", and deliberately generous:
-    /// each name left out is a document that would be handed back with its tags showing,
-    /// which is the failure this whole file is written to prevent. Names *not* on the list
-    /// are still stripped when they appear inside a document that is HTML — Word's
-    /// `<o:p>` and every custom element go the same way as `<span>`.
+    /// Every element HTML defines, obsolete ones included; generous, because a miss leaves tags showing.
     static let names: Set<String> = [
         "a", "abbr", "acronym", "address", "applet", "area", "article", "aside", "audio",
         "b", "base", "basefont", "bdi", "bdo", "big", "blockquote", "body", "br", "button",
@@ -352,12 +278,7 @@ private enum HTMLElements {
 // MARK: - Entities
 
 private enum HTMLEntities {
-    /// Decodes every entity in one left-to-right pass, and never looks at what it wrote.
-    ///
-    /// The single pass is the whole correctness argument for the case that catches
-    /// everybody: `&amp;amp;` is the escaped form of the literal text `&amp;`, so it must
-    /// decode to `&amp;` and stop. A decoder that re-scanned its own output would hand
-    /// back `&`, silently unescaping text the author had deliberately escaped.
+    /// Decodes every entity in one pass and never re-reads its output, so `&amp;amp;` yields `&amp;`.
     static func decoding(_ raw: String) -> String {
         guard raw.utf8.contains(UInt8(ascii: "&")) else { return raw }
 
@@ -376,15 +297,11 @@ private enum HTMLEntities {
         return String(out)
     }
 
-    /// The reference beginning at `start`, or nothing if what follows the `&` is not one.
-    ///
-    /// An unrecognised name is left exactly as written rather than dropped: `&foo;` in a
-    /// note is somebody's text, and `AT&T` is a company.
+    /// The reference beginning at `start`, or nothing; an unknown name stays as written, so `AT&T` survives.
     private static func decodeReference(
         _ scalars: [Unicode.Scalar], at start: Int
     ) -> (replacement: String, end: Int)? {
-        // Longest real entity name is a handful of characters; the bound stops a stray
-        // ampersand in prose from scanning the rest of a large clip looking for a `;`.
+        // The bound stops a stray ampersand scanning the rest of a large clip for a `;`.
         let limit = min(scalars.count, start + 12)
         var i = start + 1
         var body = String.UnicodeScalarView()
@@ -407,19 +324,12 @@ private enum HTMLEntities {
             value = UInt32(digits, radix: 10)
         }
         guard let value, let scalar = Unicode.Scalar(value) else { return nil }
-        // A C0 control that is not a tab or a newline has no plain-text form and does
-        // real damage in a terminal, so it decodes to nothing at all.
+        // A C0 control other than tab or newline decodes to nothing; it does real damage in a terminal.
         if value < 0x20, value != 0x09, value != 0x0A { return "" }
         return String(scalar)
     }
 
-    /// The named entities that turn up in copied text, plus the five every document has.
-    ///
-    /// `nbsp` decodes to an ordinary space on purpose. A non-breaking space looks exactly
-    /// like a space, is not one, and breaks shell commands and compilers in ways that take
-    /// a person minutes to see — which is precisely the kind of surprise this whole file
-    /// exists to prevent. The zero-width joiners and the soft hyphen go the same way, to
-    /// nothing, for the same reason.
+    /// The named entities copied text carries; `nbsp` and the invisible joiners decode to plain or nothing.
     private static let named: [String: String] = [
         "amp": "&", "lt": "<", "gt": ">", "quot": "\"", "apos": "'", "nbsp": " ",
         "ensp": " ", "emsp": " ", "thinsp": " ", "shy": "", "zwnj": "", "zwj": "",
@@ -436,20 +346,13 @@ private enum HTMLEntities {
 
 // MARK: - Writing
 
-/// Accumulates the output and owns every rule about whitespace between blocks.
-///
-/// Line breaks are *requested* rather than written, and nothing is emitted until real
-/// content arrives to sit after them. That inversion is what makes "no piling up blank
-/// lines" structural rather than a clean-up pass: `<div><p></p></div><br>` requests four
-/// breaks and produces none, and a document that ends in six closing tags ends in no
-/// trailing newlines at all.
+/// Accumulates output; breaks are requested, not written, so blank lines never pile up.
 private struct Output {
     private var text = ""
     private var pendingBreaks = 0
     private var pendingSpace = false
 
-    /// Asks for `count` newlines before whatever comes next. Requests do not add up —
-    /// the largest wins — so no amount of nesting can widen a gap.
+    /// Asks for `count` newlines before the next content; the largest request wins.
     mutating func requestBreak(_ count: Int) {
         guard !text.isEmpty else { return }
         pendingBreaks = max(pendingBreaks, count)
@@ -468,8 +371,7 @@ private struct Output {
         text += content
     }
 
-    /// A list marker: like any other content, except that nothing may be inserted between
-    /// it and the item's first word.
+    /// A list marker, after which nothing may be inserted before the item's first word.
     mutating func appendMarker(_ marker: String) {
         settlePending()
         text += marker
@@ -480,9 +382,7 @@ private struct Output {
 
     private mutating func settlePending() {
         if pendingBreaks > 0 {
-            // Verbatim content can already have ended in newlines of its own. Counting
-            // them is what stops a `<pre>` block being followed by a blank line nobody
-            // asked for.
+            // Verbatim content can end in its own newlines; counting them stops a blank line after `<pre>`.
             let existing = trailingNewlines
             if pendingBreaks > existing {
                 text += String(repeating: "\n", count: pendingBreaks - existing)
@@ -514,9 +414,7 @@ private struct PlainTextRenderer {
     private var out = Output()
     private var lists: [ListFrame] = []
     private var pendingMarker: String?
-    /// Depth of `<pre>` and `<code>`, whose contents are the one thing here that is not
-    /// reflowed. Code is whitespace, and a snippet that arrives with its indentation
-    /// collapsed is a snippet that has to be retyped.
+    /// Depth of `<pre>` and `<code>`, whose whitespace is kept exactly as written.
     private var verbatimDepth = 0
     private var trimNewlineAfterPre = false
     private var link: LinkCapture?
@@ -542,8 +440,7 @@ private struct PlainTextRenderer {
     mutating func finish() -> String {
         // A document that stops inside an anchor still knows where the anchor pointed.
         closeLink()
-        // Trailing whitespace is never anybody's content: it is the newline a source
-        // document put before `</pre>`, and pasting it moves the caret for no reason.
+        // Trailing whitespace is never content; it is the newline before `</pre>`.
         return out.result.trimmedTrailing()
     }
 
@@ -553,12 +450,7 @@ private struct PlainTextRenderer {
         var text = raw
         if trimNewlineAfterPre {
             trimNewlineAfterPre = false
-            // The newline directly after `<pre>` is a formatting convention of the source
-            // document, not a line of the snippet. HTML has always ignored it.
-            //
-            // Removed a scalar at a time rather than a `Character`: CR LF is one grapheme
-            // in Swift, so `removeFirst()` on the string would take the first letter of
-            // the snippet with it.
+            // Drops the newline after `<pre>` scalar by scalar, since CR LF is one `Character`.
             if text.unicodeScalars.first == "\r" { text.unicodeScalars.removeFirst() }
             if text.unicodeScalars.first == "\n" { text.unicodeScalars.removeFirst() }
         }
@@ -576,8 +468,7 @@ private struct PlainTextRenderer {
 
         let run = CollapsedRun(text)
         guard !run.body.isEmpty else {
-            // Whitespace alone must not bring a list marker out ahead of its own item:
-            // the newline between `<li>` and the checkbox inside it is not content.
+            // Whitespace alone must not bring a list marker out ahead of its own item.
             if pendingMarker == nil, run.hasLeadingSpace || run.hasTrailingSpace {
                 if link == nil { out.requestSpace() } else { appendSpaceToLink() }
             }
@@ -601,9 +492,7 @@ private struct PlainTextRenderer {
         link?.text += " "
     }
 
-    /// Emits the list marker the pending `<li>` earned, at the moment its first real
-    /// content shows up. Deferred rather than written at the `<li>` because whether the
-    /// item is a bullet or a checkbox can be settled by an `<input>` *inside* it.
+    /// Emits the pending `<li>` marker at its first content, since an `<input>` inside may change it.
     private mutating func startContent() {
         guard let marker = pendingMarker else { return }
         pendingMarker = nil
@@ -632,8 +521,7 @@ private struct PlainTextRenderer {
             out.requestBreak(1)
         case "li":
             if tag.isClosing {
-                // An item with nothing in it gets no line. A lone bullet in a paste is
-                // rubbish somebody has to delete.
+                // An item with nothing in it gets no line.
                 pendingMarker = nil
             } else {
                 openItem(tag)
@@ -648,21 +536,14 @@ private struct PlainTextRenderer {
         case "code", "kbd", "samp", "tt":
             stepVerbatim(tag)
         case "td", "th":
-            // Tables are out of scope, but cells running into each other would mash two
-            // words into one. A space is the least this can do and still be honest.
+            // Cells running into each other would mash two words into one; a space is the least this can do.
             if !tag.isClosing { out.requestSpace() }
         case "hr":
             out.requestBreak(2)
-        // Headings, the remaining blocks, and then everything else — `strong`, `em`, `b`,
-        // `i`, `span`, `font`, `mark`, and every tag nobody has heard of — which
-        // contributes its text and nothing else. Inline is the right default for an
-        // unknown tag: it keeps the words and drops the markup, which is the promise.
+        // Everything else contributes its text and nothing else, the right default for an unknown tag.
         default:
             if isHeading(tag.name) {
-                // The one place a blank line is added rather than merely kept. Weight is
-                // gone and no marker replaces it, so separation is the only cue plain text
-                // has for "this names what follows" — and unlike a `#`, it is not a
-                // character the user has to delete.
+                // The one place a blank line is added: separation is plain text's only cue for a heading.
                 out.requestBreak(2)
             } else if Self.blockTags.contains(tag.name) {
                 out.requestBreak(1)
@@ -706,11 +587,7 @@ private struct PlainTextRenderer {
 
     private static func box(_ checked: Bool) -> String { checked ? "[x] " : "[ ] " }
 
-    /// Whether a `<ul>` is a checklist rather than a bullet list.
-    ///
-    /// Apple Notes labels the list itself; several editors label only the items; GitHub
-    /// labels neither and puts a real `<input>` inside. All three are read, because the
-    /// clip comes from whichever one the user happened to be in.
+    /// Whether a `<ul>` is a checklist; Notes labels the list, editors the items, GitHub neither.
     private func isChecklist(_ tag: HTMLTag) -> Bool {
         let markers: Set<String> = ["checklist", "task-list", "tasklist", "contains-task-list"]
         if tag.classes.contains(where: markers.contains) { return true }
@@ -731,8 +608,7 @@ private struct PlainTextRenderer {
         return nil
     }
 
-    /// A real `<input type="checkbox">`, which may arrive after its own `<li>` opened and
-    /// so is allowed to overrule the marker that item was going to get.
+    /// A real `<input type="checkbox">`, which may arrive after its `<li>` and overrules that item's marker.
     private mutating func applyCheckbox(_ tag: HTMLTag) {
         guard tag.attribute("type")?.lowercased() == "checkbox" else { return }
         let checked = tag.attribute("checked") != nil || tag.attribute("aria-checked") == "true"
@@ -748,19 +624,7 @@ private struct PlainTextRenderer {
 
     // MARK: Links
 
-    /// Decides what an anchor looks like once there is nothing to click.
-    ///
-    /// The url is kept, in brackets after the text, because a plain target cannot hide it
-    /// behind a word: dropping it loses the only part of the link that carries any
-    /// information, and a note pasted into a commit message with its references silently
-    /// removed is worse than one that reads a little longer.
-    ///
-    /// Two cases refuse that shape. When the text already *is* the url — the ordinary
-    /// result of pasting a link into a notes app, which then linkifies it — repeating it
-    /// gives `https://x (https://x)`, which is the exact absurdity that makes people stop
-    /// trusting a paste. And when the href is not somewhere anyone can go from here — a
-    /// `#section` anchor, a relative path, a `javascript:` handler — the text stands alone,
-    /// because that address means nothing without the page it was written on.
+    /// Writes a link as `text (url)`, or the text alone when it is the url or the href goes nowhere.
     private mutating func closeLink() {
         guard let captured = link else { return }
         link = nil
@@ -786,12 +650,7 @@ private struct PlainTextRenderer {
         return !["javascript", "data", "vbscript", "about"].contains(scheme)
     }
 
-    /// Whether printing the url after the text would only repeat it.
-    ///
-    /// Compared loosely — case, scheme and a trailing slash are ignored — because the
-    /// question is not whether two urls address the same resource but whether a reader
-    /// would see the same string twice. Being too eager costs a url the reader can still
-    /// read in the text; being too strict produces `https://x (https://x)`.
+    /// Whether printing the url after the text would only repeat it; case, scheme and slash are ignored.
     private func sameDestination(_ text: String, _ href: String) -> Bool {
         func canonical(_ value: String) -> String {
             var result = value.lowercased()
@@ -807,10 +666,7 @@ private struct PlainTextRenderer {
 
 // MARK: - Small string work
 
-/// A text run with its inner whitespace collapsed, and its edges remembered separately.
-///
-/// HTML's own rule: any run of whitespace is one space, and whether there was whitespace
-/// at the edge decides whether `<b>one</b> <b>two</b>` is two words or one.
+/// A text run with its inner whitespace collapsed to one space and its edge whitespace remembered.
 private struct CollapsedRun {
     let body: String
     let hasLeadingSpace: Bool
@@ -833,8 +689,7 @@ private struct CollapsedRun {
         }
         body = String(out)
         hasLeadingSpace = leading
-        // A run that is nothing but whitespace still separates its neighbours: the single
-        // space between `</b>` and `<em>` is the only thing keeping two words apart.
+        // A run of only whitespace still separates its neighbours.
         hasTrailingSpace = pending
     }
 }
@@ -856,10 +711,7 @@ extension String {
         return String(scalars)
     }
 
-    /// The scheme of an absolute url, or nothing for a relative one.
-    ///
-    /// Written by hand rather than with `URL`, which parses relative references happily
-    /// and would call `page.html` a url.
+    /// The scheme of an absolute url; hand-written because `URL` accepts `page.html` as a url.
     fileprivate func urlScheme() -> String? {
         var scheme = String.UnicodeScalarView()
         for scalar in unicodeScalars {

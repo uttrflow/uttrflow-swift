@@ -1,13 +1,9 @@
+// The real icon lookups against LaunchServices, running apps and the app folders.
+
 import AppKit
 
 extension ApplicationIconSource {
-    /// The lookups, against the real Mac.
-    ///
-    /// The identifier first, which `LaunchServices` resolves to the app's real bundle
-    /// wherever it is on the disk. The two name lookups behind it are for dictations
-    /// recorded before identifiers were kept: exact for every app whose bundle is named
-    /// as it presents itself, which is nearly all of them, and falling back to the
-    /// lettered tile rather than to a wrong icon for the rest.
+    /// The lookups against the real Mac: identifier via LaunchServices, then running apps, then app folders.
     static let system = ApplicationIconSource(
         identified: { identifier in
             NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier)

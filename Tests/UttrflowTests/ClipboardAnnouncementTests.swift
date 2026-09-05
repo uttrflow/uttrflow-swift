@@ -1,26 +1,14 @@
+// Tests that every clipboard write is announced, by reading the source.
+
 import Foundation
 import Testing
 
 @testable import Uttrflow
 
-/// Every write Uttrflow makes to the clipboard is announced to the watcher first.
-///
-/// This is a seam, and it failed exactly the way seams fail here: the rule was obeyed at
-/// one call site, written down in a doc comment on that call site, and quietly not obeyed
-/// at the other. `SystemPasteboard`'s `willWrite` defaults to doing nothing — which is
-/// right, since most callers never write — so the inserter the dictation pipeline was
-/// built with compiled, ran, and recorded every pasted dictation a second time as a copy
-/// from whichever application was in front. The store then merged the two by text and
-/// took the arrival's provenance, so the word "Dictation" never once reached the disk.
-///
-/// Nothing about that is visible in a diff, in a type, or in the coverage report —
-/// `AppDelegate` is excluded from it, because it assembles the real engines. So the guard
-/// is a reading of the source, in the same spirit as `EvaluationSeparationTests`: it is
-/// checking an assembly rule that has no other place to live.
+/// Every write Uttrflow makes to the clipboard is announced first; checked by reading the source.
 @Suite("Uttrflow announces its own writes to the clipboard")
 struct ClipboardAnnouncementTests {
-    /// The package root, found from this file rather than from the working directory,
-    /// which is wherever the test runner happened to be started.
+    /// The package root, found from this file rather than from the working directory.
     private var appSources: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // UttrflowTests
@@ -29,10 +17,7 @@ struct ClipboardAnnouncementTests {
             .appending(path: "Sources/Uttrflow")
     }
 
-    /// The source with its line comments taken out.
-    ///
-    /// A rule about what the code does should not be broken by a sentence describing it —
-    /// and the comment explaining this very rule names the trap it is about.
+    /// The source with its line comments taken out, so a sentence describing the rule cannot break it.
     private func code(of file: URL) throws -> String {
         try String(contentsOf: file, encoding: .utf8)
             .split(separator: "\n", omittingEmptySubsequences: false)
@@ -43,9 +28,7 @@ struct ClipboardAnnouncementTests {
     private func swiftFiles() throws -> [URL] {
         let walker = FileManager.default.enumerator(at: appSources, includingPropertiesForKeys: nil)
         let files = walker?.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" } ?? []
-        // A path that resolves to nothing looks exactly like a rule nobody is breaking,
-        // which is how a check like this dies silently. See the account suite, which sat
-        // skipped for days behind a stale path.
+        // A path that resolves to nothing looks exactly like a rule nobody is breaking.
         #expect(files.count > 5, "no app sources found at \(appSources.path)")
         return files
     }
@@ -71,8 +54,7 @@ struct ClipboardAnnouncementTests {
         return found
     }
 
-    /// The bug this suite exists for: the dictation pipeline's inserter was built with
-    /// the default pasteboard, and the panel's was not.
+    /// Every inserter the app builds must be given the announcing pasteboard.
     @Test("every text inserter the app builds is given the announcing pasteboard")
     func everyInserterAnnounces() throws {
         for file in try swiftFiles() {
@@ -90,8 +72,7 @@ struct ClipboardAnnouncementTests {
         }
     }
 
-    /// And the announcement is not something a caller assembles for itself. One of these
-    /// exists; the reason the two call sites could disagree is that there used to be two.
+    /// The announcement is not something a caller assembles for itself; one pasteboard exists.
     @Test("and the app never builds a silent one")
     func noSilentPasteboards() throws {
         for file in try swiftFiles() {
@@ -105,18 +86,14 @@ struct ClipboardAnnouncementTests {
         }
     }
 
-    /// The other half of the same rule, for the two places that reach `NSPasteboard`
-    /// directly rather than through an inserter — pasting a picture, and putting a clip
-    /// back when there is nowhere to insert it.
+    /// The two places that reach `NSPasteboard` directly must announce too.
     @Test("and the writes it makes by hand announce themselves too")
     func directWritesAnnounce() throws {
         for file in try swiftFiles() {
             let source = try code(of: file)
             let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
             for (number, line) in lines.enumerated() where line.contains("clearContents()") {
-                // The announcement goes immediately *before* the write, which is what
-                // makes it exact: a tick landing between the two still sees it. Ten lines
-                // is room for the guard clauses that sit in between, and no more.
+                // The announcement goes immediately before the write; ten lines is room for the guards.
                 let window = lines[max(0, number - 10)..<number].joined(separator: "\n")
                 // With or without the text it names: a picture has none.
                 #expect(
