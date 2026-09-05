@@ -5,17 +5,25 @@ extension CleaningPipeline {
     public static let standard = standard(for: .standard(for: .plain), situation: .unknown)
 
     /// The passes a language model is handed the result of; casing and the full stop are finished after it.
-    public static let beforeModel = standard.without([FirstWordPass.id, TerminalStopPass.id])
+    public static let beforeModel = beforeModel(steps: .default)
 
-    /// Every pass in the shipped order, the first word and the final stop decided by the formatter and the caret.
+    /// The same, with the steps the user switched off left out.
+    public static func beforeModel(steps: CleaningSteps) -> CleaningPipeline {
+        standard(for: .standard(for: .plain), situation: .unknown, steps: steps)
+            .without([FirstWordPass.id, TerminalStopPass.id])
+    }
+
+    /// Every pass the user has left on, in the shipped order; the finishing two are the formatter's and always run.
     public static func standard(
-        for formatter: DestinationFormatter, situation: Situation
+        for formatter: DestinationFormatter, situation: Situation, steps: CleaningSteps = .default
     ) -> CleaningPipeline {
-        CleaningPipeline(
-            passes: [
-                FillersPass(), StammersPass(), RepeatedPhrasePass(), SelfCorrectionPass(),
-                SpokenPunctuationPass(), LayoutWordsPass(), NumberFormsPass(), SpacingPass(),
-            ] + finishing(for: formatter, situation: situation).passes)
+        let cleanings: [any CleaningPass] = [
+            FillersPass(), StammersPass(), RepeatedPhrasePass(), SelfCorrectionPass(),
+            SpokenPunctuationPass(), LayoutWordsPass(), NumberFormsPass(), SpacingPass(),
+        ]
+        return CleaningPipeline(
+            passes: cleanings.filter { steps.runs($0.id) }
+                + finishing(for: formatter, situation: situation).passes)
     }
 
     /// The passes that finish a model's answer: the caret's echo taken back, then casing and the final stop as the formatter says.

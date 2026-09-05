@@ -10,7 +10,7 @@ public import UttrflowCore
 /// that produced them, so writing them to disk would create a file about the user's
 /// habits that nobody asked for — and the page says in as many words that the window it
 /// covers begins when the app starts.
-public actor DiagnosticsRecorder: MetricsRecording {
+public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
     /// Enough that a heavy day is still fully represented — six stages at a hundred
     /// dictations — and small enough to be uninteresting to hold.
     ///
@@ -39,5 +39,12 @@ public actor DiagnosticsRecorder: MetricsRecording {
     /// Oldest first, which is the order they were measured in.
     public var recorded: [StageMeasurement] {
         measurements
+    }
+
+    /// What the clean-up steps did to the last dictation; keeping every one would be a transcript of the day.
+    public private(set) var lastCleaning: CleaningRecord?
+
+    public func record(_ record: CleaningRecord) async {
+        lastCleaning = record
     }
 }

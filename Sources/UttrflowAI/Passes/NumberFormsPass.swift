@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Writes spoken numbers as numerals: ten and up always, a digit only in a phrase. See `Docs/cleanup.md`.
 public struct NumberFormsPass: CleaningPass {
-    public static let id: PassID = "numberForms"
+    public static let id: PassID = .numberForms
 
     /// Words after which a lone digit is a numeral, digit groups run together, and no separator is used.
     static let contextWords: Set<String> = [

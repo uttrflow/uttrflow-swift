@@ -30,6 +30,16 @@ Each released version is a git tag and a build at
   tidying already makes, never a second one, and the guard refuses a rewrite that wrote
   a word nobody offered. Nothing fires unless the recogniser actually reported how sure
   it was, word by word. `Docs/cleanup.md` has the rule.
+- **You can see what the clean-up did, and switch parts of it off.** Diagnostics now lists
+  what each clean-up step changed in the last dictation, by word — "Filler words: removed
+  3: um, uh, um" — so a word that went missing can be accounted for rather than guessed
+  at; a step that is switched off is named as off, because that is why a word you expected
+  to go is still there. It stays on this Mac, and the Copy Diagnostics report counts the
+  words rather than quoting them. Settings → Dictation offers the eight deterministic
+  steps with a switch each, all on to begin with, and lets you tell Uttrflow what kind of
+  place an app really is when the built-in table has it wrong — every override you make is
+  listed there with a button that puts it back. All three take effect on your next
+  dictation rather than at the next launch.
 - **Grammar slips are repaired where the place calls for it.** "there is three", "he
   don't", "we have went", "a apple", a tense that drifts mid-sentence — the model may
   fix these in a document, an email or plain text, and leaves them alone in a message,
@@ -88,6 +98,18 @@ Each released version is a git tag and a build at
   with a Retry, which runs it through the same stages and copies the result. The floating
   button's failure state gains a Retry that opens that page. Nothing leaves the Mac; the
   privacy wording in Settings, onboarding and History now says exactly this.
+- **A long dictation is laid out where its pieces meet.** Each piece of a long dictation
+  is cleaned on its own, so three things can only be decided at the seams, and a new
+  `PieceJoiner` decides them. A spoken sequence over consecutive pieces — "first… second…
+  third", "one… two…", "number one…" — becomes a list where the place takes one (a
+  document, an email): two items at least, each of them a clause, the sequence unbroken
+  to the end of the dictation, the sequence word dropped and the item given a bullet. A
+  chat, a cell, code and SQL keep the prose. A piece that opens on a new topic — "also",
+  "next", "okay so", "another thing", "moving on", an ordinal — starts a new paragraph
+  where the place has paragraphs, and never inside a list or in a spreadsheet cell. And a
+  correction the speaker made across the pause — "let's meet at four" | "no sorry at
+  five" — now drops the half they replaced, by the same rule the self-correction pass
+  uses inside one piece.
 
 ## [0.4.0] — 2026-09-01
 

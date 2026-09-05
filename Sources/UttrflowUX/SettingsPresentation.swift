@@ -220,6 +220,16 @@ public enum SettingsChange: Sendable, Equatable {
     case retention(days: Int)
     case appearance(AppAppearance)
 
+    /// Switch one clean-up step on or off; a step nobody offers is refused.
+    case cleaningStep(PassID, isOn: Bool)
+
+    /// Treat one app as a kind of place, whatever the table says it is.
+    case appDestination(
+        bundleIdentifier: String, name: String?, destination: UttrflowCore.Destination)
+
+    /// Put one app back on the table's answer.
+    case forgetAppDestination(bundleIdentifier: String)
+
     /// Ask the update feed now rather than waiting for the next scheduled check.
     ///
     /// A change with nothing to change, which is why it carries no value: it alters no

@@ -51,7 +51,8 @@ struct GenerativeTextTransformerTests {
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         let result = try await sut.transform(request("hello there"))
-        #expect(result == TransformationResult(text: "Hello there.", producedBy: .foundationModels))
+        #expect(result.text == "Hello there.")
+        #expect(result.producedBy == .foundationModels)
     }
 
     /// The model leaves output ragged even when told not to, so a deterministic pass

@@ -62,6 +62,12 @@ public enum SettingsEditor {
             updated.appearance = appearance
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
+        case .cleaningStep(let step, let isOn):
+            try applyCleaningStep(step, isOn: isOn, to: &updated)
+        case .appDestination(let bundle, let name, let destination):
+            try applyDestination(destination, for: bundle, named: name, to: &updated)
+        case .forgetAppDestination(let bundle):
+            updated.destinations = updated.destinations.removing(bundle)
         case .checkForUpdatesNow:
             // Changes nothing, and says so here rather than being absent.
             //
@@ -237,6 +243,36 @@ public enum SettingsEditor {
             languages.removeAll { $0 == code }
         }
         settings.profile.preferredLanguages = languages
+    }
+
+    // MARK: - Clean-up steps
+
+    /// Switches one step on or off, refusing rather than ignoring a step that is the formatter's.
+    private static func applyCleaningStep(
+        _ step: PassID, isOn: Bool, to settings: inout Settings
+    ) throws(SettingsRejection) {
+        guard CleaningSteps.isOffered(step) else {
+            throw SettingsRejection(
+                reason: "That part of the clean-up follows the app you are typing into.")
+        }
+        settings.cleaning = settings.cleaning.setting(step, isOn: isOn)
+    }
+
+    // MARK: - Where the words go
+
+    /// Treats one app as a kind of place, refusing an override with no app to be about.
+    private static func applyDestination(
+        _ destination: UttrflowCore.Destination,
+        for bundleIdentifier: String,
+        named name: String?,
+        to settings: inout Settings
+    ) throws(SettingsRejection) {
+        guard !bundleIdentifier.isEmpty else {
+            throw SettingsRejection(
+                reason: "Uttrflow could not tell which app that was, so it cannot remember this.")
+        }
+        settings.destinations = settings.destinations.setting(
+            destination, for: bundleIdentifier, named: name)
     }
 
     // MARK: - Forgetting

@@ -19,12 +19,13 @@ enum DiagnosticsFixture {
         availability: [TransformerKind: Bool] = [:],
         model: DiagnosticsModelPresence? = nil,
         permissions: [PermissionKind: PermissionStatus] = [:],
-        measurements: [StageMeasurement] = []
+        measurements: [StageMeasurement] = [],
+        cleaning: CleaningRecord? = nil
     ) -> DiagnosticsPresentation {
         DiagnosticsPresenter.page(
             for: DiagnosticsSnapshot(
                 engines: engines, transformerAvailability: availability, speechModel: model,
-                permissions: permissions, measurements: measurements),
+                permissions: permissions, measurements: measurements, cleaning: cleaning),
             locale: locale)
     }
 }

@@ -59,15 +59,15 @@ them. When the signal is missing or could be read two ways, the words stay.
 
 | Cleaning | Signal | Example | Today |
 |---|---|---|---|
-| Self-correction by trigger phrase | "no", "no sorry", "sorry", "I mean", "actually", "scratch that", "wait", "never mind" between two halves of the same shape | "at four no sorry at five" → "at five"; "coffee at 2 actually 3" → "coffee at 3" | ✅ `SelfCorrectionPass`. The discarded half is removed only when (a) the phrase after the trigger starts with the same word as a suffix of the phrase before it, that suffix being at most six words, inside the sentence, and not anchored on a subject pronoun or an interjection ("I", "we", "it", "that", "yes"…), or (b) both sides are numbers. Otherwise everything stays, the trigger included: "no I don't think so", "I actually enjoyed it" |
+| Self-correction by trigger phrase | "no", "no sorry", "sorry", "I mean", "actually", "scratch that", "wait", "never mind" between two halves of the same shape | "at four no sorry at five" → "at five"; "coffee at 2 actually 3" → "coffee at 3" | ✅ `SelfCorrectionPass`. The discarded half is removed only when (a) the phrase after the trigger starts with the same word as a suffix of the phrase before it, that suffix being at most six words, inside the sentence, and not anchored on a subject pronoun or an interjection ("I", "we", "it", "that", "yes"…), or (b) both sides are numbers. Otherwise everything stays, the trigger included: "no I don't think so", "I actually enjoyed it". The same rule (`Restatement`, shared, not copied) runs once more at each piece boundary when the pieces are joined, so "let's meet at four" | "no sorry at five" becomes "Let's meet at five." — there the full stop the piece before was given is read through, being an artefact of cleaning each piece alone rather than a sentence the speaker ended |
 | Self-correction by restatement | the same slot said twice with the second replacing the first | "as a gift… as a present" → "as a present" | ❌; only when the two are the same part of speech in the same position |
 | Question mark from a question | interrogative shape, a rising tag ("right?", "isn't it?"), or a spoken "question mark" | "can you review the PR" → "Can you review the PR?" | ✅ prompt; ❌ rules. Note Hindi "क्या …" questions |
 | Sentence boundaries from pauses and shape | pause plus a new clause that stands alone | "the build passed everything looks good ship it" → "The build passed. Everything looks good. Ship it." | ✅ prompt; rules only cap the first word |
 | Commas from pauses and conjunctions | a short pause before "but", "so", "and then", a vocative | "thanks marcy i'll pick up…" → "Thanks Marcy, I'll pick up…" | ✅ prompt |
 | Spoken punctuation names | "comma", "full stop"/"period", "question mark", "exclamation mark"/"point", "colon", "semicolon", "open quote … close quote", "hyphen", "dash" | "add milk comma eggs comma and bread" → "add milk, eggs, and bread" | ✅ `SpokenPunctuationPass`. The mark goes on the word before it (a quote opens on the word after; a hyphen joins both sides). Left as a word when it is first, when the word before it is a determiner or a verb of placing ("a", "the", "this", "my", "put", "add", "insert", "with", "no"…), or when "of" follows ("a long period of time"). "full stop" and "period" are used only where the text closes — as the last word, or before "new line"/"new paragraph"/"bullet point" or "close quote" — so "the trial period ended last week" keeps its word and "ship it period" ends with a stop; a mid-sentence "period" stays a word and the model places the stop from the pause. "hyphen" and "dash" are the mirror: used only where the text does not close, since both need a word to follow |
 | Layout words | "new line", "new paragraph"/"blank line", "bullet point"/"next point" | a newline, a blank line, a list item | ✅ `LayoutWordsPass`, with the same mention guard as spoken punctuation and only between two words — a trailing "new line" stays words. A model's answer is read the same way: a line opening with `-`, `•` or `*` and a space is a list item, so each item takes a capital and no stop. "number one … number two" is still ❌ |
-| Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ❌. Wispr Flow builds numbered lists from sequence words. Only when there are at least two items and each is a clause of its own |
-| Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ❌; the pieces cut while recording are joined with a space. A pause long enough to cut at is also a candidate for a paragraph |
+| Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ✅ `PieceJoiner`, over the pieces a long dictation is cut into (`Docs/early-transcription.md`), since only their seams show the sequence. The items run from the piece that opens with "first" or "one" — "number one", "point two", "item three", "step four" too — to the last piece, each carrying the next number of the same kind, ordinals and cardinals never mixed. Two items at least, and each of them a clause: two words or more after the sequence word, not opening on a determiner. The sequence word goes, the item takes a capital, a `- ` and no stop. Everything short of that stays prose — a lone "first", a run that stops before the last piece ("first… second… and then the other thing"), a run that does not start at one, an item that only names a thing ("first, the milk"). Where the formatter has no `.lists` — messaging, spreadsheet, code, SQL — the words stay prose whatever they count |
+| Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ✅ `PieceJoiner`. A piece boundary is a pause the speaker made, so when the next piece opens on a topic — an ordinal ("second thing", "third"), or "also", "next", "okay so", "another thing", "one more thing", "moving on", "finally", "anyway", "additionally", "furthermore", "lastly" — and the formatter's layout has `.paragraphs`, the join is a blank line instead of a space. Otherwise a space. Never inside a list, never where a restatement swallowed the opening, and never in a cell, whose `.singleLine` keeps the whole dictation on one line |
 | Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ `ScreenCandidates` offers the identifier by name when the recogniser was unsure of the run, so the model is choosing between two spellings rather than being asked to notice one; spelling only, never SQL from prose |
 | Doubtful words — the reading the place decides | the recogniser scored the run below `WordCorrectionEngine.certaintyThreshold` (0.5) **and** a source offered another reading | "the crash is in payment sheet" → "PaymentSheet" in Xcode, "payment sheet" in Slack; "clear the cash" → "clear the cache" over `Cache.swift` | ✅ three `CandidateSource`s, asked at once, under 2 ms for a whole dictation: the personal dictionary by sound (the correction engine's own lookup), the screen — the window title, the selection and the text either side of the caret, matched by Double Metaphone or by the same letters with the spaces closed up — and ordinary words that sound alike **and open alike** over `GeneralVocabulary`. At most five spans per piece and three readings per span go into the prompt's "Doubtful words:" line; the model picks the one that fits the sentence and the place, or keeps the word as heard, and `MeaningPreservationGuard` refuses a rewrite that wrote anything else. Fires only where the recogniser reported real per-word scores (`Draft.confidencesAreReal`) |
 | Grammar slips, in places whose formatter repairs them | the destination's `GrammarPolicy` is `.repair` (document, email, plain) and the slip is one speech leaves behind: agreement, a participle, an article or preposition, a tense that drifts | "there is three of them" → "There are three of them"; "we have went" → "we have gone"; "a apple" → "an apple" | ✅ prompt block per destination, bounded: a fix changes only the form of a word the speaker said, or adds or removes an article or a preposition — never which content words are present or their order. Dialect and informality are not slips and stay ("gonna", "ain't", "me and him", "didn't do nothing" — a double negative is dialect). `MeaningPreservationGuard` enforces the bound on the draft's kept words, and the rules never repair, so the floor leaves every slip alone (`rulesLeaveGrammarAlone`) |
@@ -213,6 +213,39 @@ one model call per piece — is `Docs/cleanup-design.md`. Below is where things 
 - The pieces cut while recording (`Docs/early-transcription.md`) are each tidied alone,
   which is why paragraph breaks and list layout have to be decided when the pieces are
   joined, not inside one piece.
+
+## What the app shows and lets you change
+
+Three surfaces, so a word that went missing can be accounted for rather than guessed at.
+
+- **Diagnostics names what each step did to the last dictation.** Under "Clean-up steps,
+  last dictation" there is a row per step that changed something — "Filler words: removed
+  3: um, uh, um", "Numbers: rewrote 1: fifteen → 15" — and a grey row for each step that
+  is switched off, because a step that is off is why a word the user expected to go is
+  still there. It is read off the finished draft's own record of which pass touched which
+  word (`CleaningRecord`), so it cannot claim a removal nothing made. `DictationPipeline`
+  collects one account per piece where it already reports the stage timings and hands the
+  merged account to `DiagnosticsRecorder`, which keeps the last one and only the last.
+  Nothing is written to disk or sent anywhere; the **Copy Diagnostics** report counts the
+  words rather than quoting them, because that string is pasted somewhere else.
+- **A step can be switched off.** Settings → Dictation → "Clean-up steps" offers the eight
+  deterministic steps, all on by default, stored as the set that is *off*
+  (`Settings.cleaning`) so a step a later build adds is on for everybody who never said
+  otherwise. `CleaningPipeline.standard(for:situation:steps:)` builds only the ones left
+  on. `FirstWordPass` and `TerminalStopPass` are not offered: they carry the formatter's
+  decisions about the place, not a cleaning the user asked for, and `CleaningSteps` drops
+  them from a stored set rather than trusting it.
+- **An app can be treated as somewhere else.** Settings → Dictation → "Where your words
+  go" names the app the last dictation went into and offers every kind of place, plus
+  "Work it out", which is the table. A choice is stored against the bundle identifier
+  (`Settings.destinations`) and `DestinationClassifier` consults the overrides before the
+  table; every override made is listed underneath with a button that puts it back. The
+  table itself is never edited — an override is one app the user disagreed with Uttrflow
+  about. The app named is the last one dictated into rather than the frontmost, because
+  while the settings window is open the frontmost app is Uttrflow.
+
+All three take effect on the next dictation, not the next launch: `DictationPipeline.adopt`
+takes a freshly built cleaner and the overrides as they now stand.
 
 ## Sources
 

@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Removes the doubled short word a false start leaves behind: "the the deployment".
 public struct StammersPass: CleaningPass {
-    public static let id: PassID = "stammers"
+    public static let id: PassID = .stammers
 
     /// Longer repeated words are emphasis or a real repetition, so only these are stammers.
     static let longestStammer = 4

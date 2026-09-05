@@ -288,7 +288,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             capture: microphone,
             speech: speech,
             cleaner: TextTransformers.router(
-                configuration: settings.engines,
+                configuration: settings.engines, steps: settings.cleaning,
                 spellings: { [dictionary] in await dictionary.index() }),
             context: context,
             // Announced, like every write this app makes. See `Docs/insertion.md`.
@@ -298,6 +298,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
             vocabulary: LearnedVocabulary(dictionary: dictionary),
             metrics: diagnostics,
+            cleaningRecorder: diagnostics,
+            destinationOverrides: settings.destinations,
             recordings: recordings,
             // A retry runs with Uttrflow's own window in front, so its words can only be copied.
             clipboard: TextInsertionCoordinator(strategies: [
@@ -1007,6 +1009,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let self else { return }
             let measurements = await diagnostics.recorded
             lastMeasurements = measurements
+            lastCleaning = await diagnostics.lastCleaning
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
             self.kept = kept
@@ -1089,7 +1092,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             diagnostics: DiagnosticsPresenter.page(
                 for: DiagnosticsSnapshot(
                     engines: settings.engines, permissions: knownPermissions,
-                    measurements: measurements)),
+                    measurements: measurements, cleaning: lastCleaning)),
             account: AccountPagePresenter.page(
                 for: AccountPageSnapshot(
                     entitlement: knownEntitlement,
@@ -1103,6 +1106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// What one page is filtered by, asked per page because every page is rebuilt on each redraw.
     private func query(for page: MainTab) -> String { queries[page] ?? "" }
     private func scope(for page: MainTab) -> String { scopes[page] ?? "" }
+    /// What the clean-up steps did to the last dictation, read on the same hop as the timings.
+    private var lastCleaning: CleaningRecord?
     /// What the dictation pipeline last reported. See where it is written.
     private var lastDictationState: DictationState = .idle
     private var snippetEditorIsOpen = false
@@ -1358,6 +1363,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // As above: a switch that drew itself and changed nothing.
         if updated.installsUpdatesAutomatically != previous.installsUpdatesAutomatically {
             updates.setInstallsAutomatically(updated.installsUpdatesAutomatically)
+        }
+        // A freshly built cleaner, so the next dictation runs the choices just made.
+        if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations
+            || updated.engines != previous.engines
+        {
+            let cleaner = TextTransformers.router(
+                configuration: updated.engines, steps: updated.cleaning)
+            let overrides = updated.destinations
+            Task { [weak self] in
+                await self?.pipeline?.adopt(cleaner: cleaner, destinationOverrides: overrides)
+            }
         }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))

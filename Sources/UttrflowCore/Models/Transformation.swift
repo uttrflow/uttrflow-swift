@@ -30,10 +30,13 @@ public struct TransformationResult: Sendable, Equatable {
     public let text: String
     /// Which transformer produced this. Recorded for evaluation; never shown to users.
     public let producedBy: TransformerKind
+    /// What the deterministic steps did on the way, when the transformer keeps a record.
+    public let cleaning: CleaningRecord?
 
-    public init(text: String, producedBy: TransformerKind) {
+    public init(text: String, producedBy: TransformerKind, cleaning: CleaningRecord? = nil) {
         self.text = text
         self.producedBy = producedBy
+        self.cleaning = cleaning
     }
 }
 

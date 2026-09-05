@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Adds or takes back the final full stop the way the formatter's stop policy and layout say.
 public struct TerminalStopPass: CleaningPass {
-    public static let id: PassID = "terminalStop"
+    public static let id: PassID = .terminalStop
 
     public let policy: TerminalStopPolicy
     public let layout: LayoutPolicy
@@ -23,11 +23,11 @@ public struct TerminalStopPass: CleaningPass {
         case .always:
             finished = finishedLast(word, in: draft)
         case .never:
-            finished = Self.withoutTrailingStop(word)
+            finished = WordShape.withoutTrailingStop(word)
         case .offForShortMessages(let sentences):
             let stopped = finishedLast(word, in: draft)
             finished =
-                Self.sentenceCount(draft.text) <= sentences ? Self.withoutTrailingStop(stopped) : stopped
+                Self.sentenceCount(draft.text) <= sentences ? WordShape.withoutTrailingStop(stopped) : stopped
         }
         draft.replace(at: last, with: finished, by: Self.id)
         return draft
@@ -37,13 +37,7 @@ public struct TerminalStopPass: CleaningPass {
     private func finishedLast(_ word: String, in draft: Draft) -> String {
         if Self.lastSegmentIsListItem(draft) { return word }
         if layout.contains(.preserveNewlines), draft.text.contains(where: \.isNewline) { return word }
-        return Self.finished(word)
-    }
-
-    /// The word with a full stop when it ends in a letter or a digit; code, a mark or a quote is left alone.
-    static func finished(_ word: String) -> String {
-        guard let last = word.last, last.isLetter || last.isNumber else { return word }
-        return word + "."
+        return WordShape.finished(word)
     }
 
     /// Every layout mark taken out, so the words join on one line.
@@ -66,7 +60,7 @@ public struct TerminalStopPass: CleaningPass {
             if word.text.hasPrefix("\n\n"), let last = paragraph.last, paragraph.count >= 3,
                 !(opening?.isListMark ?? false)
             {
-                draft.replace(at: last, with: finished(draft.words[last].text), by: id)
+                draft.replace(at: last, with: WordShape.finished(draft.words[last].text), by: id)
             }
             if word.text.hasPrefix("\n\n") || word.isListMark {
                 opening = word
@@ -79,12 +73,6 @@ public struct TerminalStopPass: CleaningPass {
     private static func lastSegmentIsListItem(_ draft: Draft) -> Bool {
         let marks = draft.presentIndices.map { draft.words[$0] }.filter { $0.isLayoutMark }
         return marks.last(where: { $0.text.hasPrefix("\n\n") || $0.isListMark })?.isListMark ?? false
-    }
-
-    /// Takes back one trailing full stop; a question or exclamation mark, or an ellipsis, stays.
-    static func withoutTrailingStop(_ word: String) -> String {
-        guard word.hasSuffix("."), !word.hasSuffix("..") else { return word }
-        return String(word.dropLast())
     }
 
     /// How many sentences the text holds, counting a last one that has no mark yet.

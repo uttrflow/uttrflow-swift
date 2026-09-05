@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Turns a punctuation mark said by name into the mark, when it is used rather than mentioned.
 public struct SpokenPunctuationPass: CleaningPass {
-    public static let id: PassID = "spokenPunctuation"
+    public static let id: PassID = .spokenPunctuation
 
     /// What each spoken name becomes, longest names first so "question mark" wins over nothing.
     static let marks: [(words: [String], mark: String)] = [

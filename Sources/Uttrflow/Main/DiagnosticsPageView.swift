@@ -41,6 +41,7 @@ struct DiagnosticsPageView: View {
                 MainStatisticsRow(statistics: presentation.reliability)
             }
             section("Engines", presentation.engines)
+            section("Clean-up steps, last dictation", presentation.cleanUp)
             section("Permissions", presentation.permissions)
             section("On this Mac", presentation.storage)
             footer
