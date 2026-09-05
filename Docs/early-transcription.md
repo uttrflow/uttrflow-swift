@@ -47,6 +47,49 @@ answer, six seconds are spent finding that out, and the user gets the raw words.
 never get near that length, so this cannot happen any more — but the last row of the
 table is what a retry of a kept five-minute recording used to produce.
 
+## What it bought, measured on the real pipeline
+
+`uttrflow-dev dictate` plays the same files into the real pipeline at real time, once
+the new way and once with `--all-at-once`, and reports the wait between the key coming
+up and the words being ready. This synthesised speech never pauses for more than 0.4 s,
+so nothing could be cut before the thirty-second hard cut — the worst case for the
+design, and the one where it gains least.
+
+| speech | wait before | wait now |
+|---|---|---|
+| 10 s | 2.19 s | 2.21 s |
+| 30 s | 4.61 s | 4.66 s |
+| 60 s | 7.67 s | 4.52 s |
+| 120 s | 14.67 s | 4.55 s |
+| 300 s | 24.13 s, raw words | 1.55 s, tidied |
+
+Under thirty seconds with no pause there is nothing to work ahead on, so the wait is
+what it was. From a minute on it is the last piece's cost, whatever the length; the
+five-minute row is small because its last piece happened to be short. The same run
+reproduced the four-minute cliff on the old path: after 24 seconds the words came back
+untidied.
+
+The same passage spoken sentence by sentence with 0.8 s between sentences — closer
+to a person, who breathes — is where the design was aimed:
+
+| speech | wait before | wait now | with 0.5 s pauses instead |
+|---|---|---|---|
+| 10 s | 2.2 s | 2.25 s | |
+| 30 s | 4.6 s | 1.55 s | |
+| 60 s | 9.04 s | 2.31 s | 1.62 s |
+| 120 s | 13.43 s | 3.29 s | 2.94 s |
+| 300 s | 24 s, raw words | 1.49 s, tidied | |
+
+A ten-second dictation whose first pause comes before the five-second minimum is still
+one piece, which is why that row does not move; everything longer waits for its last
+sentence only. The five-minute recording came back tidied in full, so the cliff is gone
+from the ordinary path as well as the retry.
+
+The first run of the pause-less file also showed why a hard cut must not fall on a
+sample chosen for being thirty seconds in: "Terraform" came back as "Tara. Form" and one
+"seconds" was heard by both pieces. A hard cut now falls on the quietest frame after the
+comfortable length, which is between two words far more often than inside one.
+
 ## How it works
 
 `SpeechWindowing` decides where a piece ends, from the loudness frames `VoiceActivity`
@@ -98,8 +141,29 @@ tidying from 1.25 s to 0.92 s, so `TranscriptCleaning.warm()` is called as recor
 begins and `AppleFoundationCleanupModel` keeps that one session for the request that
 follows. It is still a fresh session per utterance: it is handed out once.
 
+## Trimming the prompt does not pay
+
+The tidier's fixed cost is mostly its instructions, so a shorter prompt was the obvious
+fourth idea. Measured with `make bakeoff ARGS="--baselines-only"` as the judge, on the
+same day:
+
+| prompt | pass | close | typical | slowest |
+|---|---|---|---|---|
+| shipping | 83% | 91% | 0.78 s | 1.50 s |
+| rules compressed to one paragraph, every example kept | 81% | 91% | 0.73 s | 1.36 s |
+| the three context examples removed | 75% | 88% | 0.66 s | 1.21 s |
+| no examples at all (probe, not the corpus) | fillers survive | | 0.67 s | |
+
+Every trim costs corpus cases, and the largest saving is a tenth of a second on a wait
+that working ahead has already taken out of the user's way. The prompt stays as it is.
+
 ## Reproducing the numbers
 
 `uttrflow-dev transcribe <file>` prints transcription and tidying separately for one
-file. The sweep above used `say -v Samantha` at 16 kHz cut to exact lengths, and
-`uttrflow-dev clean` for the tidying-only measurements.
+file, recognised whole. The sweep above used `say -v Samantha` at 16 kHz cut to exact
+lengths, and `uttrflow-dev clean` for the tidying-only measurements.
+
+`uttrflow-dev dictate <file>` plays a file into the real pipeline at real time, as if it
+were being spoken, and prints the wait between the key coming up and the words being
+ready — which is the figure this whole document is about. `--all-at-once` runs the same
+file the old way, so the two can be compared on one Mac.
