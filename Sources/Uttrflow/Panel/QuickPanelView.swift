@@ -495,7 +495,7 @@ struct QuickPanelView: View {
     }
 
     /// B6 — ⌘-click is ⌘⏎ on the row under the pointer.
-    private func chose(_ row: PanelRow, plain: Bool) {
+    private func choose(_ row: PanelRow, plain: Bool) {
         relayKey(plain ? .choosePlain(row.id) : .choose(row.id))
     }
 
@@ -506,7 +506,7 @@ struct QuickPanelView: View {
             // B6 — the same row, minus the formatting, when ⌘ is down. Read at the
             // moment of the click rather than tracked as state: a modifier held and
             // released between the press and the handler is not a mode.
-            chose(row, plain: NSEvent.modifierFlags.contains(.command))
+            choose(row, plain: NSEvent.modifierFlags.contains(.command))
         } label: {
             HStack(spacing: 9) {
                 mark(row)

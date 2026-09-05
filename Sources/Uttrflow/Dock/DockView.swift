@@ -253,7 +253,7 @@ struct DockView: View {
                 height: DockMetrics.weightMarkHeight
             )
             .frame(width: DockMetrics.weightSize, height: DockMetrics.weightSize)
-            .background(Color.dockSecondary, in: .circle)
+            .background(Color.dockActive, in: .circle)
     }
 
     // MARK: - Notices
@@ -574,7 +574,7 @@ private struct MarkTick: View {
     var body: some View {
         MarkCheck(progress: isTick ? 1 : 0)
             .stroke(
-                isTick ? Color.dockSuccess : Color.dockSecondary,
+                isTick ? Color.dockSuccess : Color.dockActive,
                 style: StrokeStyle(
                     lineWidth: UttrflowMark.lineWidth(forHeight: DockMetrics.markTickHeight),
                     lineCap: .round, lineJoin: .round)
@@ -668,7 +668,7 @@ extension DockMetrics {
         phase: Double, towardsLeading: Bool
     ) {
         let step = meterBarWidth + meterBarSpacing
-        let loud = GraphicsContext.Shading.color(.dockSecondary)
+        let loud = GraphicsContext.Shading.color(.dockActive)
         let quiet = GraphicsContext.Shading.color(
             Color.dockWaveform.opacity(meterQuietOpacity))
         for (index, level) in levels.enumerated() {
@@ -718,13 +718,8 @@ extension Color {
     /// window's critical tone and its destructive buttons are the same red, and this is
     /// still where the whole app's accent ramp is written down.
     static let dockRecording = Color(rgb: 0xFF_383C)
-    /// The live one: what is selected, what is running, the weight the meter hangs off.
-    ///
-    /// Named "secondary" from when the brand was purple and this was the foil to it, but
-    /// every one of its uses is a state rather than a counterpoint — so it is the mark's
-    /// own teal, lightened until it holds on a dark desktop, and not a second hue. The
-    /// identity has one accent, and this is it.
-    static let dockSecondary = Color(rgb: 0x29_C0B4)
+    /// The live accent: what is selected, what is running, the weight the meter hangs off.
+    static let dockActive = Color(rgb: 0x29_C0B4)
     /// The mark drawn *inside* the weight, which is a teal disc — so it is the ink, not
     /// the accent. Fixed rather than `.primary`: the disc is the same teal in both
     /// appearances, so ink that followed the appearance would vanish in one of them.
