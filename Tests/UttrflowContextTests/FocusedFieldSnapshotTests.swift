@@ -252,4 +252,14 @@ struct FocusedFieldSnapshotTests {
         #expect(!FocusedFieldSnapshot.isCaretShaped(CGRect(x: 0, y: 0, width: 1, height: 1)))
         #expect(!FocusedFieldSnapshot.isCaretShaped(CGRect(x: 0, y: 0, width: 1, height: 900)))
     }
+
+    @Test("Only a role text is entered into is taken for the field, never the word or group under the caret.")
+    func onlyTextEntryRolesAreTheField() {
+        #expect(FocusedFieldSnapshot.isTextEntry("AXTextArea"))
+        #expect(FocusedFieldSnapshot.isTextEntry("AXTextField"))
+        #expect(FocusedFieldSnapshot.isTextEntry("AXComboBox"))
+        #expect(!FocusedFieldSnapshot.isTextEntry("AXStaticText"))
+        #expect(!FocusedFieldSnapshot.isTextEntry("AXGroup"))
+        #expect(!FocusedFieldSnapshot.isTextEntry(nil))
+    }
 }

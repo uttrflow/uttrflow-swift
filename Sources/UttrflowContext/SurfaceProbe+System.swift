@@ -35,11 +35,16 @@ public enum SurfaceProbe {
     static func focusedField(of pid: pid_t) -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         _ = AXUIElementSetMessagingTimeout(system, messagingTimeout)
-        if let field = element(system, kAXFocusedUIElementAttribute) { return field }
-
+        let systemWide = element(system, kAXFocusedUIElementAttribute)
+        // While a browser editor is typed into, the system names the word under the caret; the application still names the field.
+        if let field = systemWide, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) {
+            return field
+        }
         let application = AXUIElementCreateApplication(pid)
         _ = AXUIElementSetMessagingTimeout(application, messagingTimeout)
-        return element(application, kAXFocusedUIElementAttribute)
+        let own = element(application, kAXFocusedUIElementAttribute)
+        if let field = own, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) { return field }
+        return systemWide ?? own
     }
 
     /// Tells one field in an application from another, so two of the same role do not collapse into one.

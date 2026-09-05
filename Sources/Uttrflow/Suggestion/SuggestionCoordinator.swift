@@ -255,7 +255,7 @@ final class SuggestionCoordinator {
         let read = front == ownBundleIdentifier ? nil : await FocusedFieldReader.read()
         guard turns.isCurrent(number) else { return }
         Self.log.debug(
-            "TURN front=\(front, privacy: .public) read=\(read != nil) line=\(read?.currentLine ?? "-", privacy: .public) value=\(read?.value != nil) caret=\(read?.caret != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
+            "TURN front=\(front, privacy: .public) read=\(read != nil) line=\(read?.currentLine ?? "-", privacy: .public) value=\(read?.value != nil) chars=\(read?.value?.count ?? -1) sel=\(read?.selection?.location ?? -1) caret=\(read?.caret != nil) role=\(read?.role ?? "-", privacy: .public) field=\(read?.accessibilityDescription ?? read?.identifier ?? "-", privacy: .public) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
         )
         guard front != ownBundleIdentifier, let snapshot = read else {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
