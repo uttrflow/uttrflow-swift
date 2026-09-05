@@ -45,7 +45,7 @@ private final class MinimalPlayer: SoundPlayer {
 }
 
 /// A "sounds off" setting the user can flip mid-recording.
-private final class Setting: Sendable {
+private final class SoundsSetting: Sendable {
     private let enabled: Mutex<Bool>
 
     init(_ enabled: Bool) {
@@ -188,7 +188,7 @@ struct SoundPlayingRecordingCueTests {
     @Test("does not answer a start the user never heard")
     func turnedOnMidRecording() {
         let player = SpyPlayer()
-        let setting = Setting(false)
+        let setting = SoundsSetting(false)
         let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: setting.reader)
 
         cue.playStart()
@@ -201,7 +201,7 @@ struct SoundPlayingRecordingCueTests {
     @Test("honours sounds being turned off part-way through a recording")
     func turnedOffMidRecording() {
         let player = SpyPlayer()
-        let setting = Setting(true)
+        let setting = SoundsSetting(true)
         let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: setting.reader)
 
         cue.playStart()
@@ -214,7 +214,7 @@ struct SoundPlayingRecordingCueTests {
     @Test("does not owe a stop cue to the next recording")
     func suppressedStopDoesNotCarryOver() {
         let player = SpyPlayer()
-        let setting = Setting(true)
+        let setting = SoundsSetting(true)
         let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: setting.reader)
 
         cue.playStart()

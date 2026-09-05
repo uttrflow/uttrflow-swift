@@ -196,8 +196,8 @@ struct ClipboardRepeatTests {
 
 /// The disk the history is allowed to take. Text cannot reach it; pictures reach it in a
 /// thousand copies, which is the case it exists for.
-@Suite("The clipboard's budget")
-struct ClipboardBudgetTests {
+@Suite("The clipboard's disk budget")
+struct ClipboardDiskBudgetTests {
     private func picture(
         _ store: ClipboardStore, byte: UInt8, size: Int, copies: Int = 1
     )
