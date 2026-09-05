@@ -20,4 +20,12 @@ public protocol AudioCaptureEngine: Sendable {
 
     /// Ends recording and discards the audio. Safe to call when idle.
     func cancel() async
+
+    /// Everything captured so far, at the canonical rate, while a recording is under way.
+    func capturedSoFar() async -> AudioSamples
+}
+
+extension AudioCaptureEngine {
+    /// Answers nothing, for an engine that can only hand its audio over at `stop`.
+    public func capturedSoFar() async -> AudioSamples { .empty }
 }

@@ -7,6 +7,14 @@ public protocol TranscriptCleaning: Sendable {
     func clean(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult
+
+    /// Gets ready for a request that is about to come, so the first one is not the slow one.
+    func warm() async
+}
+
+extension TranscriptCleaning {
+    /// Nothing to prepare, which is what most cleaners have.
+    public func warm() async {}
 }
 
 /// Puts finished text wherever the user is typing.

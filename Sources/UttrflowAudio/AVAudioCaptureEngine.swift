@@ -73,6 +73,12 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         return .canonical(accumulator.take())
     }
 
+    /// Everything the microphone has delivered so far, so work can begin before the key is released.
+    public func capturedSoFar() async -> AudioSamples {
+        guard currentState == .recording else { return .empty }
+        return .canonical(accumulator.snapshot)
+    }
+
     public func cancel() async {
         guard currentState == .recording else { return }
         source.stop()

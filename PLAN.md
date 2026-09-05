@@ -747,6 +747,15 @@ old build exits 137 and the new one exits 0 with a real transcript.
 
 ### Performance
 
+**Working ahead (2026-09-05).** The recording is cut at the speaker's pauses and each
+piece is recognised and tidied while the key is still held, so the wait after key-up is
+the last piece only, whatever the length. Measured before the change: about 0.12 s of
+wait per second of speech plus a second, so 14 s for two minutes. The tidier is warmed
+as recording starts (1.25 s → 0.92 s on a ten-second utterance), and a retried recording
+is processed in the same pieces, which removes the point past about four minutes where
+Apple's model returned a quarter of the words. What was measured, and the two things
+that were proven not to help, are in `Docs/early-transcription.md`.
+
 `Docs/performance.md`. Idle 10.9 MB; the 646 MB model adds ~113 MB of footprint because
 CoreML maps the weights; peak 273.6 MB mid-dictation. **Leak check: clean, and it runs the
 other way** — across thirty dictations the footprint *fell* 55 MB as the allocator

@@ -8,6 +8,7 @@ public actor FakeTextTransformationEngine: TextTransformationEngine {
     public let kind: TransformerKind
     public let availabilityCalls = CallLog<TransformationRequest>()
     public let transformCalls = CallLog<TransformationRequest>()
+    public let warmCalls = CallLog<Void>()
 
     private var availability: TransformerAvailability
     private var transformOutcome: ScriptedOutcome<TransformationResult, TransformationError>
@@ -34,6 +35,10 @@ public actor FakeTextTransformationEngine: TextTransformationEngine {
     ) async throws(TransformationError) -> TransformationResult {
         await transformCalls.append(request)
         return try transformOutcome.resolve()
+    }
+
+    public func warm() async {
+        await warmCalls.append(())
     }
 
     // MARK: Scripting
