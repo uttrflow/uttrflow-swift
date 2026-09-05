@@ -98,11 +98,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             // Stored results come back in whatever order the file system offers them, so
             // they are put back into corpus order here — a report whose rows move between
             // runs is one nobody can compare with the last one.
-            let order = TranscriptionCorpus.all.map(\.id)
-            let stored = try results.all().sorted {
-                (order.firstIndex(of: $0.caseID) ?? order.count, $0.caseID)
-                    < (order.firstIndex(of: $1.caseID) ?? order.count, $1.caseID)
-            }
+            let stored = TranscriptionCorpus.inCorpusOrder(try results.all())
             try compare(reporting: TranscriptionReport(label: label(model), scores: stored))
             return
         }
@@ -124,7 +120,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             label: label(model),
             over: recordings,
             onScore: { score in
-                FileHandle.standardError.write(Data(".".utf8))
+                Terminal.show(".")
                 do { try results.save(score) } catch { print("\n  ! could not save \(score.id): \(error)") }
             }
         ) { recording in
@@ -132,7 +128,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
                 recording, with: speech, router: router, metrics: metrics, clock: clock,
                 audioAt: source.audioURL)
         }
-        FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+        Terminal.clearLine()
 
         try compare(reporting: measured)
     }
@@ -157,7 +153,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             let missing = corpus.remaining()
             if !missing.isEmpty {
                 print(
-                    "Note: \(passages(missing.count)) never recorded — "
+                    "Note: \(counted(missing.count, "passage")) never recorded — "
                         + missing.map(\.id).joined(separator: ", "))
             }
             return Source(recordings: try corpus.all(), audioURL: { corpus.audioURL(for: $0) })
@@ -405,7 +401,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         let devanagari = report.answeredInDevanagari
         if !devanagari.isEmpty {
             print(
-                "\n\(passages(devanagari.count)) came back in Devanagari. Uttrflow's output is "
+                "\n\(counted(devanagari.count, "passage")) came back in Devanagari. Uttrflow's output is "
                     + "romanised Hinglish, so\nthose transcripts are scored against the Devanagari "
                     + "reading of the passage — the recogniser\nheard them, and romanising them is "
                     + "clean-up's job, measured separately.")
@@ -413,7 +409,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         let upperBounds = report.upperBounds
         if !upperBounds.isEmpty {
             print(
-                "\n\(passages(upperBounds.count)) had no reference in the script they came back "
+                "\n\(counted(upperBounds.count, "passage")) had no reference in the script they came back "
                     + "in and were transliterated:\ntheir rates are upper bounds — "
                     + upperBounds.map(\.caseID).joined(separator: ", "))
         }
@@ -457,7 +453,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
         if hidden > 0 {
             print(
-                "  and \(hidden) more finding\(hidden == 1 ? "" : "s") accounting for "
+                "  and \(counted(hidden, "more finding")) accounting for "
                     + "\(hiddenOccurrences) further errors — raise --findings to see them.")
         }
     }
@@ -583,10 +579,6 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     private func label(_ model: SpeechModel) -> String {
         "\(engine) \(model.variant)\(hintLanguage ? ", language hinted" : ", language detected")"
-    }
-
-    private func passages(_ count: Int) -> String {
-        "\(count) passage\(count == 1 ? "" : "s")"
     }
 
     private func percent(_ value: Double?) -> String {

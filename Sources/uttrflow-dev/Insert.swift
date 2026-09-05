@@ -43,10 +43,10 @@ struct Insert: AsyncParsableCommand {
 
         print("Click into a text field. Inserting in \(delay)s…")
         for remaining in stride(from: delay, to: 0, by: -1) {
-            FileHandle.standardError.write(Data("\r  \(remaining) ".utf8))
+            Terminal.show("\r  \(remaining) ")
             try await Task.sleep(for: .seconds(1))
         }
-        FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+        Terminal.clearLine()
 
         let coordinator =
             switch via {
