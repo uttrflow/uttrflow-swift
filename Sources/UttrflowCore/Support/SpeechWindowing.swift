@@ -57,7 +57,10 @@ public struct SpeechWindowing: Sendable, Equatable {
         {
             return start + pause * frameLength
         }
-        return limit - start >= Int(maximumLength * Double(sampleRate)) ? limit : nil
+        guard limit - start >= Int(maximumLength * Double(sampleRate)) else { return nil }
+        // Nobody paused, so the cut goes where the speaker was quietest: between words, not inside one.
+        let quietest = loudness[comfortable...].enumerated().min { $0.element < $1.element }
+        return start + (quietest.map { comfortable + $0.offset } ?? loudness.count) * frameLength
     }
 
     /// Every window in a finished recording, the last one taken whole however short it is.

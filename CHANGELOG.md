@@ -15,7 +15,9 @@ Each released version is a git tag and a build at
   are still talking, so releasing the key leaves only the last piece to do. A two-minute
   dictation used to wait fourteen seconds; the tidier is also warmed as recording starts.
   A retried recording is processed in the same pieces, which is what stops the tidier
-  losing words past about four minutes. `Docs/early-transcription.md` has the numbers.
+  losing words past about four minutes. A speaker who never pauses for half a minute is
+  cut at their quietest moment rather than mid-word. `Docs/early-transcription.md` has
+  the numbers, measured before and after on the real pipeline.
 
 ### Added
 - **A dictation that fails can be retried from its audio.** Every recording is written to

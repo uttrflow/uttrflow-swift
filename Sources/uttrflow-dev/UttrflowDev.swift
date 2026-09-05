@@ -9,7 +9,8 @@ struct UttrflowDev: AsyncParsableCommand {
         commandName: "uttrflow-dev",
         abstract: "Exercise Uttrflow end to end, one phase at a time.",
         subcommands: [
-            Doctor.self, Record.self, Models.self, Transcribe.self, Clean.self, Insert.self, Context.self,
+            Doctor.self, Record.self, Models.self, Transcribe.self, Dictate.self, Clean.self, Insert.self,
+            Context.self,
             SignIn.self, Probe.self,
         ]
     )
