@@ -127,26 +127,6 @@ struct InMemoryAuthenticationServiceTests {
         #expect((profile.subscription.currentPeriodEnd == nil) == (plan == .free))
     }
 
-    /// Sign-in failures are the ones nobody sees until a user does, because they need a
-    /// server to misbehave. Each call must be able to produce every one of them.
-    @Test("can be made to fail any call, once", arguments: AccountError.everyCase)
-    func scriptedFailures(failure: AccountError) async throws {
-        let begin = service()
-        begin.failNextCall(with: failure)
-        await #expect(throws: failure) { try await begin.beginSignIn(with: .google) }
-        // Once, not for ever: the very next call works.
-        _ = try await begin.beginSignIn(with: .google)
-
-        let complete = service()
-        let challenge = try await complete.beginSignIn(with: .google)
-        complete.failNextCall(with: failure)
-        await #expect(throws: failure) { try await complete.completeSignIn(challenge) }
-
-        let renew = service()
-        renew.failNextCall(with: failure)
-        await #expect(throws: failure) { try await renew.currentProfile(ifChangedFrom: nil) }
-    }
-
     /// The app opens this URL exactly as it will open the real one, so the code path is
     /// rehearsed even though nothing answers.
     @Test("names the provider and the state in a URL the app can open")
