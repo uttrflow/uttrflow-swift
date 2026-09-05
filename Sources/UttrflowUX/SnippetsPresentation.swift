@@ -204,15 +204,7 @@ public enum SnippetsPresenter {
     /// Matches the trigger and the text. The text matters because the trigger is the
     /// half people forget — you remember the address, not what you called it.
     static func matches(_ snippets: [Snippet], query: String, locale: Locale) -> [Snippet] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return snippets }
-        return snippets.filter { snippet in
-            [snippet.trigger, snippet.expansion].contains {
-                $0.range(
-                    of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-                    locale: locale) != nil
-            }
-        }
+        SearchQuery.matches(snippets, query: query, locale: locale) { [$0.trigger, $0.expansion] }
     }
 
     // MARK: - One snippet
@@ -230,9 +222,7 @@ public enum SnippetsPresenter {
             } ?? "Never",
             actions: [
                 MainAction(title: "Edit", symbolName: "pencil", intent: .editSnippet(snippet.id)),
-                MainAction(
-                    title: "Delete", symbolName: "trash", intent: .forgetSnippet(snippet.id),
-                    isDestructive: true),
+                .delete(.forgetSnippet(snippet.id)),
             ])
     }
 
@@ -280,12 +270,9 @@ public enum SnippetsPresenter {
     // MARK: - Nothing to show
 
     static func emptyState(for snapshot: SnippetsSnapshot) -> MainEmptyState {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {
-            return MainEmptyState(
-                symbolName: "magnifyingglass",
-                title: "No matches",
-                message: "No snippet of yours mentions “\(query)”.")
+            return .noMatches("No snippet of yours mentions “\(query)”.")
         }
         return MainEmptyState(
             symbolName: "doc.on.doc",

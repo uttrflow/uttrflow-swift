@@ -221,14 +221,8 @@ public enum CorrectionsPresenter {
     static func matches(
         _ corrections: [Correction], query: String, locale: Locale
     ) -> [Correction] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return corrections }
-        return corrections.filter { correction in
-            [correction.heard, correction.wrote, correction.reason.title].contains {
-                $0.range(
-                    of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-                    locale: locale) != nil
-            }
+        SearchQuery.matches(corrections, query: query, locale: locale) {
+            [$0.heard, $0.wrote, $0.reason.title]
         }
     }
 
@@ -259,12 +253,9 @@ public enum CorrectionsPresenter {
     static func emptyState(
         for snapshot: CorrectionsSnapshot, madeToday: Int, calendar: Calendar
     ) -> MainEmptyState {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {
-            return MainEmptyState(
-                symbolName: "magnifyingglass",
-                title: "No matches",
-                message: "Nothing Uttrflow changed today mentions “\(query)”.")
+            return .noMatches("Nothing Uttrflow changed today mentions “\(query)”.")
         }
         if madeToday > 0 {
             return MainEmptyState(

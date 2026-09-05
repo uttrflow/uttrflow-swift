@@ -164,8 +164,8 @@ public enum DictationPresenter {
     ) -> DictationPresentation {
         let kept = HistoryPresenter.retained(
             snapshot.entries, days: snapshot.settings.transcriptRetentionDays, now: snapshot.now)
-        let today = kept.filter { calendar.isDate($0.when, inSameDayAs: snapshot.now) }
-        let earlier = kept.filter { !calendar.isDate($0.when, inSameDayAs: snapshot.now) }
+        let (today, earlier) = HistoryPresenter.todayAndEarlier(
+            in: kept, now: snapshot.now, calendar: calendar)
         let listed = HistoryPresenter.matches(today, query: snapshot.query, locale: locale)
         let blocked = MainPresenter.obstruction(in: snapshot.permissions)
         // Recordings first: each is a dictation still owed its words, and the newest thing here.
@@ -246,11 +246,7 @@ public enum DictationPresenter {
                     symbolName: entry.isFlagged ? "flag.fill" : "flag",
                     intent: .flagDictation(entry.id)),
             ],
-            more: [
-                MainAction(
-                    title: "Delete", symbolName: "trash", intent: .forgetDictation(entry.id),
-                    isDestructive: true)
-            ])
+            more: [.delete(.forgetDictation(entry.id))])
     }
 
     /// A kept recording as a row: what stands in for its words, and the one button that gets them.
@@ -266,13 +262,7 @@ public enum DictationPresenter {
             detail: MainFormatting.spoken(recording.duration),
             changes: nil,
             actions: [],
-            more: retrying
-                ? []
-                : [
-                    MainAction(
-                        title: "Delete", symbolName: "trash", intent: .forgetRecording(recording.id),
-                        isDestructive: true)
-                ],
+            more: retrying ? [] : [.delete(.forgetRecording(recording.id))],
             status: retrying ? .retrying : .waiting,
             prominent: retrying
                 ? nil
@@ -308,8 +298,8 @@ public enum DictationPresenter {
         // lifetime total and must never be called one: the history keeps a retention
         // window and no more, so words older than that are gone and cannot be counted.
         // "Words dictated" over "in the N days Uttrflow keeps" is the whole truth.
-        let all = kept.reduce(0) { $0 + MainFormatting.words(in: $1.text) }
-        let todayWords = today.reduce(0) { $0 + MainFormatting.words(in: $1.text) }
+        let all = kept.totalWords
+        let todayWords = today.totalWords
         if all > 0 {
             figures.append(
                 MainStatistic(
@@ -472,12 +462,9 @@ public enum DictationPresenter {
         for snapshot: DictationSnapshot, today: [HistoryEntry], earlier: [HistoryEntry],
         calendar: Calendar, locale: Locale
     ) -> MainEmptyState {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {
-            return MainEmptyState(
-                symbolName: "magnifyingglass",
-                title: "No matches",
-                message: "Nothing you dictated today mentions “\(query)”.")
+            return .noMatches("Nothing you dictated today mentions “\(query)”.")
         }
 
         // The verb follows how the shortcut is set up: telling somebody to hold a key
@@ -521,8 +508,7 @@ public enum DictationPresenter {
 
         var chips = [
             MainStatistic(
-                value: said.reduce(0) { $0 + MainFormatting.words(in: $1.text) }
-                    .formatted(.number.locale(locale)),
+                value: said.totalWords.formatted(.number.locale(locale)),
                 caption: "words yesterday")
         ]
         if let pace = pace(of: said) {

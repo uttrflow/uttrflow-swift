@@ -154,6 +154,20 @@ public struct MainStatistic: Sendable, Equatable, Identifiable {
     }
 }
 
+extension MainAction {
+    /// The trash-can button every list draws: destructive, and never the default.
+    static func delete(_ intent: MainIntent) -> MainAction {
+        MainAction(title: "Delete", symbolName: "trash", intent: intent, isDestructive: true)
+    }
+}
+
+extension MainEmptyState {
+    /// The nothing every searchable page shares: a query that matched no row.
+    static func noMatches(_ message: String) -> MainEmptyState {
+        MainEmptyState(symbolName: "magnifyingglass", title: "No matches", message: message)
+    }
+}
+
 /// The chrome every page sits in.
 public enum MainPresenter {
     public static let windowTitle = "Uttrflow"
@@ -292,10 +306,8 @@ public enum MainFormatting {
         let whole = number / unit
         let tenth = (number % unit) * 10 / unit
         guard tenth > 0 else { return whole.formatted(.number.locale(locale)) }
-        return Decimal(whole * 10 + tenth) / 10 == 0
-            ? whole.formatted(.number.locale(locale))
-            : (Double(whole) + Double(tenth) / 10).formatted(
-                .number.locale(locale).precision(.fractionLength(1)))
+        return (Double(whole) + Double(tenth) / 10).formatted(
+            .number.locale(locale).precision(.fractionLength(1)))
     }
 
     public static func words(in text: String) -> Int {
@@ -316,15 +328,21 @@ public enum MainFormatting {
     public static func day(
         _ date: Date, now: Date, calendar: Calendar, locale: Locale
     ) -> String {
+        if let near = todayOrYesterday(date, now: now, calendar: calendar) { return near }
+        if let week = calendar.date(byAdding: .day, value: -6, to: now), date > week {
+            return date.formatted(.dateTime.weekday(.wide).locale(locale))
+        }
+        return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+    }
+
+    /// "Today" or "Yesterday" for a date that near to `now`, and `nil` for anything older.
+    static func todayOrYesterday(_ date: Date, now: Date, calendar: Calendar) -> String? {
         if calendar.isDate(date, inSameDayAs: now) { return "Today" }
         if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
             calendar.isDate(date, inSameDayAs: yesterday)
         {
             return "Yesterday"
         }
-        if let week = calendar.date(byAdding: .day, value: -6, to: now), date > week {
-            return date.formatted(.dateTime.weekday(.wide).locale(locale))
-        }
-        return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        return nil
     }
 }

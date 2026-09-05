@@ -72,19 +72,6 @@ public struct InsightsAverage: Sendable, Equatable {
 public struct InsightsSnapshot: Sendable, Equatable {
     /// Newest first, before retention is applied. The only thing this page now reads.
     public let entries: [HistoryEntry]
-    /// Read by nothing, and due to be deleted.
-    ///
-    /// It existed for one caller: the accuracy figure, which used to subtract from this
-    /// list while dividing by the words of ``entries``. Those were two counts of two
-    /// different things, which is precisely how the figure came to report 0% for a
-    /// dictionary working perfectly — so the figure now counts inside each record, where
-    /// the two halves cannot disagree, and this has no reader left.
-    ///
-    /// It stays only because deleting it changes `AppDelegate`, which this branch does
-    /// not own. Delete the property, the initialiser parameter, and the
-    /// `corrections: corrections,` argument at the `InsightsSnapshot` call site together
-    /// — nothing else refers to it.
-
     public let settings: Settings
     public let now: Date
 
@@ -249,8 +236,7 @@ public enum InsightsPresenter {
         for entries: [HistoryEntry], days: [InsightsDay], snapshot: InsightsSnapshot,
         calendar: Calendar, locale: Locale
     ) -> String {
-        let words = entries.reduce(0) { $0 + MainFormatting.words(in: $1.text) }
-        let total = MainFormatting.count(words, "word", "words")
+        let total = MainFormatting.count(entries.totalWords, "word", "words")
         // A window with no first day would be a window of nothing, and the caption is
         // then the total on its own rather than a range with a hole in it.
         let range = calendar.date(byAdding: .day, value: -(days.count - 1), to: snapshot.now)
@@ -317,18 +303,16 @@ public enum InsightsPresenter {
     /// meaning "your average dictating day", which is not what a reader takes from a line
     /// across a chart of every day.
     static func average(across days: [InsightsDay], locale: Locale) -> InsightsAverage? {
-        guard !days.isEmpty else { return nil }
-        let total = days.reduce(0) { $0 + $1.words }
-        guard total > 0 else { return nil }
-        let mean = Double(total) / Double(days.count)
         // The tallest day is `fraction == 1`, so the line's height is the mean measured
         // against that same day rather than against a scale this page would have to
         // invent.
         guard let tallest = days.map(\.words).max(), tallest > 0 else { return nil }
+        let mean = Double(days.reduce(0) { $0 + $1.words }) / Double(days.count)
+        let rounded = Int(mean.rounded())
         return InsightsAverage(
-            words: Int(mean.rounded()),
+            words: rounded,
             fraction: mean / Double(tallest),
-            label: "\(Int(mean.rounded()).formatted(.number.locale(locale))) a day")
+            label: "\(rounded.formatted(.number.locale(locale))) a day")
     }
 
     static func places(for entries: [HistoryEntry], locale: Locale) -> [InsightsPlace] {
@@ -367,8 +351,7 @@ public enum InsightsPresenter {
         for entries: [HistoryEntry], daysSpokenOn spoken: Int, now: Date, calendar: Calendar,
         locale: Locale
     ) -> MainEmptyState {
-        let words = entries.reduce(0) { $0 + MainFormatting.words(in: $1.text) }
-        return MainEmptyState(
+        MainEmptyState(
             symbolName: "chart.bar",
             title: "Not enough to chart yet",
             message: """
@@ -382,7 +365,8 @@ public enum InsightsPresenter {
                         value: entries.count.formatted(.number.locale(locale)),
                         caption: "dictations so far"),
                     MainStatistic(
-                        value: words.formatted(.number.locale(locale)), caption: "words so far"),
+                        value: entries.totalWords.formatted(.number.locale(locale)),
+                        caption: "words so far"),
                 ],
             progress: MainProgress(
                 fraction: Double(spoken) / Double(daysBeforeCharting),

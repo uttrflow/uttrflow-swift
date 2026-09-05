@@ -253,15 +253,7 @@ public enum DictionaryPresenter {
     static func matches(
         _ entries: [DictionaryEntry], query: String, locale: Locale
     ) -> [DictionaryEntry] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return entries }
-        return entries.filter { entry in
-            [entry.word, entry.pronunciation].compactMap(\.self).contains {
-                $0.range(
-                    of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-                    locale: locale) != nil
-            }
-        }
+        SearchQuery.matches(entries, query: query, locale: locale) { [$0.word, $0.pronunciation] }
     }
 
     // MARK: - One word
@@ -279,18 +271,8 @@ public enum DictionaryPresenter {
             undoneIsConcerning: entry.timesReverted > concerningUndos,
             isRetired: isRetired,
             badge: isRetired ? MainPill(text: "Retired", tone: .warning) : nil,
-            actions: isRetired
-                ? [
-                    MainAction(title: "Restore", intent: .restoreWord(entry.id)),
-                    MainAction(
-                        title: "Delete", symbolName: "trash", intent: .forgetWord(entry.id),
-                        isDestructive: true),
-                ]
-                : [
-                    MainAction(
-                        title: "Delete", symbolName: "trash", intent: .forgetWord(entry.id),
-                        isDestructive: true)
-                ])
+            actions: (isRetired ? [MainAction(title: "Restore", intent: .restoreWord(entry.id))] : [])
+                + [.delete(.forgetWord(entry.id))])
     }
 
     /// The user's words for where a word came from.
@@ -356,12 +338,9 @@ public enum DictionaryPresenter {
     // MARK: - Nothing to show
 
     static func emptyState(for snapshot: DictionarySnapshot) -> MainEmptyState {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {
-            return MainEmptyState(
-                symbolName: "magnifyingglass",
-                title: "No matches",
-                message: "No word in your dictionary looks or sounds like “\(query)”.")
+            return .noMatches("No word in your dictionary looks or sounds like “\(query)”.")
         }
         return MainEmptyState(
             symbolName: "character.book.closed",
