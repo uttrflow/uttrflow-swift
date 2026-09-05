@@ -95,6 +95,9 @@ extension DictationCorrection {
 }
 
 extension String {
+    /// The whitespace-separated words, which every ``DictationCorrection/wordRange`` indexes into.
+    var spokenWords: [Substring] { split(whereSeparator: \.isWhitespace) }
+
     /// Where each whitespace-separated word of this text begins and ends.
     ///
     /// Whitespace and not runs of letters, because that is how an utterance is counted
@@ -102,7 +105,7 @@ extension String {
     /// way would put "don't" at two indices and silently shift every correction after
     /// it onto the wrong word.
     fileprivate func spokenWordRanges() -> [Range<String.Index>] {
-        split(whereSeparator: \.isWhitespace).map { $0.startIndex..<$0.endIndex }
+        spokenWords.map { $0.startIndex..<$0.endIndex }
     }
 }
 
