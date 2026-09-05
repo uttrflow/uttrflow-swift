@@ -79,13 +79,6 @@ public enum ProfileRefresh: Sendable, Equatable {
     /// ``ProfileCache`` for that argument, and ``KeychainTokenStore`` for when an entry
     /// goes missing.
     case noCredential
-
-    /// The newer copy, when there is one. For callers that want the profile rather than
-    /// the distinction between the two ways there can fail to be a new one.
-    public var updatedProfile: Profile? {
-        guard case .updated(let profile) = self else { return nil }
-        return profile
-    }
 }
 
 /// The backend, as the rest of the app is allowed to see it.

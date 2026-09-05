@@ -4,6 +4,11 @@ import Testing
 
 @testable import UttrflowAI
 
+extension SnippetExpansion {
+    /// Whether anything fired.
+    var didExpand: Bool { !applied.isEmpty }
+}
+
 // MARK: - Fixtures
 
 private let address = "Flat 402, Example Residences, Sample Road, Bengaluru 560001"

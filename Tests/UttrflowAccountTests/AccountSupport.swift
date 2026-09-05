@@ -24,6 +24,14 @@ final class MemoryStorage: SessionStorage {
     }
 }
 
+extension ProfileRefresh {
+    /// The newer copy, when there is one.
+    var updatedProfile: Profile? {
+        guard case .updated(let profile) = self else { return nil }
+        return profile
+    }
+}
+
 /// A verifier that believes anything, for the one test that needs a store to keep
 /// something the signature would have refused.
 struct CredulousVerifier: EntitlementVerifying {

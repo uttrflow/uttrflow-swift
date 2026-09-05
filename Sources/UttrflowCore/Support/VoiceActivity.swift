@@ -37,7 +37,7 @@ public enum VoiceActivity: Sendable {
         guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames)
         else {
             // Loud and modulated, but no run long enough to point at: keep all of it.
-            return samples.indices.isEmpty ? nil : 0..<samples.count
+            return samples.isEmpty ? nil : 0..<samples.count
         }
 
         let margin = Int(Self.margin * Double(sampleRate))
