@@ -1,23 +1,18 @@
+// Fans the pipeline's state out to every watcher.
 import Foundation
 import UttrflowCore
 private import Synchronization
 
-/// Fans one sequence of states out to every interested watcher.
-///
-/// The menu bar icon, the floating button and the debug panel all follow the same
-/// dictation, so a single stream would have to be shared and could be consumed by
-/// whichever asked first.
+/// Fans one sequence of states out to every watcher, since a single stream has one consumer.
 final class StateObservers: Sendable {
     private let continuations = Mutex<[UUID: AsyncStream<DictationState>.Continuation]>([:])
 
-    /// A stream that begins with the current state, so a watcher that arrives late is
-    /// not left blank until something next happens.
+    /// A stream that begins with the current state, so a late watcher is not left blank.
     func makeStream(startingWith current: DictationState) -> AsyncStream<DictationState> {
         let id = UUID()
         let (stream, continuation) = AsyncStream<DictationState>.makeStream()
         continuation.yield(current)
-        // Captures self rather than the Mutex: a Mutex is non-copyable, so it cannot
-        // be pulled into a closure's capture list.
+        // Captures self rather than the Mutex, which is non-copyable and cannot enter a capture list.
         continuation.onTermination = { [weak self] _ in
             self?.continuations.withLock { $0[id] = nil }
         }
@@ -31,7 +26,6 @@ final class StateObservers: Sendable {
         }
     }
 
-    /// Number of live watchers. Lets a test prove that a finished stream is let go of
-    /// rather than leaked.
+    /// Number of live watchers, so a test can prove a finished stream is let go of.
     var observerCount: Int { continuations.withLock(\.count) }
 }

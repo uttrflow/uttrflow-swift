@@ -1,3 +1,4 @@
+// Sends recorded passages to the corpus service and keeps receipts for the ones it could not.
 public import Foundation
 
 /// What happened the last time this recording was offered to the corpus service.
@@ -6,11 +7,9 @@ public struct UploadReceipt: Sendable, Equatable, Codable, Identifiable {
     public enum Outcome: Sendable, Equatable, Codable {
         /// The bytes are in the bucket and the row is in the catalogue.
         case uploaded
-        /// A connection, a timeout, a five-hundred. Retried on the next sitting without
-        /// anybody being asked to do anything.
+        /// A connection, a timeout, a five-hundred: retried on the next sitting without anybody being asked.
         case heldBack(String)
-        /// The backend refused it, or it was never valid. Retrying would fail the same
-        /// way for ever, so this one needs a person and says so.
+        /// The backend refuses it, so retrying fails the same way for ever and a person is needed.
         case rejected(String)
 
         public var isSettled: Bool { self == .uploaded }
@@ -39,32 +38,16 @@ public struct UploadReceipt: Sendable, Equatable, Codable, Identifiable {
     }
 }
 
-/// Sends recorded passages to the corpus service, and keeps the ones it could not send.
-///
-/// The property the whole recording session rests on: **the local write is the commit.**
-/// `record` saves the audio to disk the moment the operator accepts a take, and only
-/// then offers it here. Nothing in this type can lose a recording, because nothing in
-/// this type is where the recording lives — the outbox is derived state, computed as
-/// "everything on disk that has no settled receipt". A crash, a dead Wi-Fi, a backend
-/// that has not shipped the upload endpoint yet: all of them leave the take on disk and
-/// the outbox non-empty, and the next `record --sync` picks up exactly where this one
-/// stopped.
-///
-/// That is also why there is no queue file. A queue is a second copy of the truth, and
-/// the interesting failure — the process dying between writing the audio and writing the
-/// queue entry — is precisely the one it would introduce.
+/// Sends recorded passages to the corpus service; the outbox is "on disk with no settled receipt".
 public struct CorpusUploadOutbox: Sendable {
-    /// Receipts live under the corpus directory rather than beside the recordings,
-    /// because ``JSONRecordStore`` names files by id and `<id>.json` is already taken by
-    /// the recording itself.
+    /// Receipts live under their own directory because `<id>.json` beside a recording is the recording.
     public static let receiptsDirectoryName = "uploads"
 
     private let recordings: TranscriptionCorpusStore
     private let receipts: JSONRecordStore<UploadReceipt>
     private let uploader: any CorpusUploading
     private let cohort: RecordingCohort?
-    /// Injected so a test does not have to wait for a clock, and so every receipt from
-    /// one sitting can share a timestamp when that is what the caller wants.
+    /// Injected so tests need no clock and a sitting's receipts can share one timestamp.
     private let now: @Sendable () -> Date
 
     public init(
@@ -91,20 +74,13 @@ public struct CorpusUploadOutbox: Sendable {
         try receipts.all().sorted { $0.passageID < $1.passageID }
     }
 
-    /// Everything recorded that the corpus service has not accepted.
-    ///
-    /// Rejected takes are included. They will fail again, and they should: an upload the
-    /// backend refuses is a corpus that is quietly smaller than the operator believes,
-    /// and the only thing worse than seeing it in the list every session is not seeing it.
+    /// Everything recorded that the corpus service has not accepted, rejected takes included.
     public func pending() throws(EvaluationStoreError) -> [RecordedPassage] {
         let settled = Set(try receipts.all().filter(\.outcome.isSettled).map(\.passageID))
         return try recordings.all().filter { !settled.contains($0.id) }
     }
 
-    /// Offers one recording to the corpus service and writes down what happened.
-    ///
-    /// Never throws. A recording session must not end because an upload did, and the
-    /// caller has a receipt to print either way.
+    /// Offers one recording to the corpus service and writes a receipt; never throws.
     public func send(_ recording: RecordedPassage) async -> UploadReceipt {
         let previous = try? receipt(for: recording.id)
         let attempts = (previous?.attempts ?? 0) + 1
@@ -129,8 +105,7 @@ public struct CorpusUploadOutbox: Sendable {
         do {
             audio = try Data(contentsOf: recordings.audioURL(for: recording.id))
         } catch {
-            // The recording is missing from the very directory that is supposed to hold
-            // it, so no number of retries will find it. Rejected, and named.
+            // The recording is missing from its own directory, so no retry will find it.
             return record(.rejected("could not read \(recording.id).wav: \(error)"))
         }
 
@@ -156,18 +131,11 @@ public struct CorpusUploadOutbox: Sendable {
         }
 
         public var isEmpty: Bool { uploaded.isEmpty && heldBack.isEmpty && rejected.isEmpty }
-        /// Whether anything still needs sending. The number `record --sync` prints, and
-        /// the reason an operator can walk away from a sitting without checking.
+        /// How many recordings still need sending; the number `record --sync` prints.
         public var outstanding: Int { heldBack.count + rejected.count }
     }
 
-    /// Sends everything outstanding, in one go.
-    ///
-    /// Stops early on the first held-back upload rather than grinding through nine
-    /// hundred more against a backend that is plainly down: the recordings are safe on
-    /// disk, and a session that spends twenty minutes timing out is a session the
-    /// operator learns to skip. A rejection is not a reason to stop — it is about one
-    /// sample, and the rest may be perfectly fine.
+    /// Sends everything outstanding, stopping at the first held-back upload since the backend is down.
     public func flush(
         onProgress: (@Sendable (UploadReceipt) -> Void)? = nil
     ) async throws(EvaluationStoreError) -> Summary {
@@ -185,8 +153,7 @@ public struct CorpusUploadOutbox: Sendable {
             case .rejected: rejected.append(receipt)
             case .heldBack:
                 heldBack.append(receipt)
-                // Everything left is still on disk and still pending, so this is a pause
-                // rather than a loss.
+                // Everything left is still on disk and still pending, so this is a pause rather than a loss.
                 heldBack.append(
                     contentsOf: outstanding.map {
                         UploadReceipt(
@@ -203,13 +170,7 @@ public struct CorpusUploadOutbox: Sendable {
 
     // MARK: Describing a recording to the catalogue
 
-    /// The catalogue row for a recording.
-    ///
-    /// `expectedTidiedText` is the passage as read. The column is what a correct clean-up
-    /// should produce and this harness does not know that — measuring it is the
-    /// transformation half's job, over a corpus written for it — so the honest value is
-    /// the reference itself, which scores clean-up as "changed nothing" rather than
-    /// inventing a target nobody agreed.
+    /// The catalogue row for a recording; `expectedTidiedText` is the passage as read.
     private func sample(for recording: RecordedPassage, slug: String, bytes: Int) -> CorpusSample {
         let passage = recording.passage
         let language = tag(for: passage.language)
@@ -229,11 +190,7 @@ public struct CorpusUploadOutbox: Sendable {
         )
     }
 
-    /// A BCP-47 tag the catalogue's `language_tag` domain accepts.
-    ///
-    /// Hinglish files under `hi-IN`, because BCP-47 has no tag for it and inventing one
-    /// would be refused by the CHECK constraint. Nothing is lost: the `code-switching`
-    /// stress is what marks it, and ``CorpusSample/spokenLanguage`` reads it back out.
+    /// A BCP-47 tag the catalogue accepts; Hinglish files under `hi-IN` and the stress marks it.
     private func tag(for language: TranscriptionCase.Language) -> String {
         switch language {
         case .english: "en-IN"
@@ -242,9 +199,7 @@ public struct CorpusUploadOutbox: Sendable {
     }
 
     private func write(_ receipt: UploadReceipt) -> UploadReceipt {
-        // A receipt that cannot be written is not worth failing an upload over: the
-        // consequence is that the next run offers this recording again, and the backend
-        // upserts by slug, so the worst case is one repeated transfer.
+        // A lost receipt only means one repeated transfer, because the backend upserts by slug.
         try? receipts.save(receipt)
         return receipt
     }

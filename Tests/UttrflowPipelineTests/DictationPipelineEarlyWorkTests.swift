@@ -1,3 +1,4 @@
+// Tests transcription that starts while the key is still held.
 import Foundation
 import Synchronization
 import Testing

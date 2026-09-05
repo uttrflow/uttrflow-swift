@@ -1,3 +1,4 @@
+// Keeps recordings on disk for retry and prunes the old ones.
 public import Foundation
 public import UttrflowCore
 

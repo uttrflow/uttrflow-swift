@@ -1,14 +1,9 @@
+// Tests the hand-written transcription corpus for mistakes that would mis-score.
 import Testing
 
 @testable import UttrflowEval
 
-/// What the passages have to be true of before they can measure anything.
-///
-/// A reading corpus is easy to get subtly wrong: a romanised reference with a stray
-/// Devanagari letter in it, a Hindi passage whose two forms have a different number of
-/// words, a required term that appears in one form and not the other. Every one of
-/// those shows up months later as a recogniser that "always scores badly on Hindi", so
-/// each is a test rather than a proofread.
+/// Checks the passages for the mistakes that show up months later as "always scores badly on Hindi".
 @Suite("Transcription corpus")
 struct TranscriptionCorpusTests {
     private let normaliser = TextNormaliser.standard
@@ -38,10 +33,7 @@ struct TranscriptionCorpusTests {
 
     @Test("uses every stressor it defines")
     func everyStressorAppears() {
-        // `.other` is deliberately absent from the hand-written corpus: it exists so a
-        // sample from the corpus catalogue, whose stress vocabulary is wider than this
-        // one, still has a value for the typed axis. Nothing written here should ever be
-        // filed under it — a passage whose stress we cannot name is one we cannot act on.
+        // `.other` exists for catalogue samples only; a hand-written passage must name its stress.
         for stressor in TranscriptionCase.Stressor.allCases where stressor != .other {
             #expect(
                 !TranscriptionCorpus.cases(stressing: stressor).isEmpty,
@@ -49,8 +41,7 @@ struct TranscriptionCorpusTests {
         }
     }
 
-    /// The product's output is romanised Hinglish, never Devanagari, so the reference it
-    /// is measured against must be too.
+    /// The product's output is romanised Hinglish, never Devanagari, so the reference must be too.
     @Test("keeps every romanised reference free of Devanagari")
     func romanisedIsRomanised() {
         for passage in TranscriptionCorpus.all {
@@ -73,10 +64,7 @@ struct TranscriptionCorpusTests {
         }
     }
 
-    /// The two forms of a passage are two spellings of one reading, so they must have the
-    /// same number of words. If they do not, the same recording scores differently
-    /// depending on which script the engine happened to answer in — and the difference
-    /// would be the corpus's fault, not the engine's.
+    /// Two forms of one reading must have the same word count, or the script answered in changes the score.
     @Test("writes both forms of a passage with the same number of words")
     func formsAreParallel() {
         for passage in TranscriptionCorpus.all {
@@ -104,9 +92,7 @@ struct TranscriptionCorpusTests {
         }
     }
 
-    /// The end-to-end check that the corpus and the scorer agree: a transcript of exactly
-    /// what was written must be a perfect score in either script. A passage that fails
-    /// this is unwinnable, and every engine would be marked down for the corpus's mistake.
+    /// A passage that fails this is unwinnable, and every engine would be marked down for the corpus's fault.
     @Test("scores a perfect transcript of either form at zero")
     func perfectTranscriptsScoreZero() {
         for passage in TranscriptionCorpus.all {
@@ -126,8 +112,7 @@ struct TranscriptionCorpusTests {
         }
     }
 
-    /// The session is sold to the operator as "about twenty minutes"; this is the check
-    /// that the corpus has not quietly grown into an afternoon.
+    /// The session is sold as "about twenty minutes", so the corpus must not grow into an afternoon.
     @Test("takes about twenty minutes to read")
     func readingTimeIsAsPromised() {
         let minutes = TranscriptionCorpus.estimatedReadingTime.components.seconds / 60

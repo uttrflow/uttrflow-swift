@@ -1,3 +1,4 @@
+// Watches keystrokes through an event tap without changing them.
 private import CoreGraphics
 private import Foundation
 private import Synchronization
@@ -42,7 +43,7 @@ final class TapObserver: @unchecked Sendable {
         return true
     }
 
-    /// Closes the tap, leaving the keyboard exactly as it was found.
+    /// Closes the tap, leaving the keyboard exactly as found.
     func stop() {
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }

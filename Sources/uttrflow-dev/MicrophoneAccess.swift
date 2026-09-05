@@ -1,3 +1,4 @@
+// Asks for microphone access before a command that needs it.
 import ArgumentParser
 private import UttrflowCore
 private import UttrflowPermissions

@@ -1,3 +1,4 @@
+// Writes a recording's WAV to disk while it is still being captured.
 public import Foundation
 public import UttrflowCore
 private import Synchronization

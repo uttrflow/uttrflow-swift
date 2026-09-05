@@ -1,19 +1,9 @@
+// Turns key presses and clicks into dictations.
 public import UttrflowCore
 
-/// Turns key presses into dictations.
-///
-/// The two activation modes differ only here, which is why neither the hotkey monitor
-/// below nor the pipeline above knows there is more than one way to start.
-///
-/// Generic over the clock so that the minimum-hold rule can be tested exactly and
-/// instantly, rather than by sleeping.
+/// Turns key presses into dictations; generic over the clock so the minimum hold tests instantly.
 public actor DictationController<ClockType: Clock> where ClockType.Duration == Duration {
-    /// A hold shorter than this was a slip, not a dictation.
-    ///
-    /// Tapping the shortcut by accident would otherwise start and instantly stop a
-    /// recording, and the user would be told their speech was too short to transcribe —
-    /// an error for something they never meant to do. Cancelling silently is the honest
-    /// response to a slip.
+    /// A hold shorter than this is a slip, cancelled silently rather than reported as too short.
     public static var minimumHold: Duration { .milliseconds(200) }
 
     private let pipeline: DictationPipeline
@@ -29,17 +19,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private var pressedAt: ClockType.Instant?
     private var forwardingTask: Task<Void, Never>?
 
-    /// Every gesture arrives here, from whatever source, and is handled one at a time.
-    ///
-    /// This has to exist because ``handle(_:)`` suspends: it awaits the pipeline while
-    /// the microphone opens. An actor is reentrant across that suspension, so a press
-    /// and a release delivered as two independent tasks can interleave — the release
-    /// runs first, sees a pipeline that is not listening yet, and returns. The press
-    /// then completes and the recording is left running with nothing able to stop it.
-    ///
-    /// The shortcut never hit this because its events already arrive down one sequential
-    /// stream. The floating button did, and on first launch it hit it every time: the
-    /// microphone prompt makes `start()` take seconds, so the release always lost.
+    /// Every gesture from every source, handled one at a time. See Docs/pipeline-gestures.md.
     private let gestures: AsyncStream<HotkeyEvent>
     private let gestureSink: AsyncStream<HotkeyEvent>.Continuation
 
@@ -63,9 +43,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         Task { await self.consumeGestures() }
     }
 
-    /// Hands a gesture to the controller from anywhere — the shortcut, the floating
-    /// button, a menu item. Returns immediately; the work is queued behind whatever is
-    /// already in flight.
+    /// Queues a gesture from any source behind whatever is in flight, and returns at once.
     public nonisolated func submit(_ event: HotkeyEvent) {
         gestureSink.yield(event)
     }
@@ -76,20 +54,13 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
     }
 
-    /// Begins watching for the shortcut, or rebinds to a different one.
-    ///
-    /// Called again whenever the user changes the shortcut, so the previous forwarding
-    /// task has to go first. The monitor's `events` is one stream for the life of the
-    /// monitor: leaving the old task iterating it would leave two consumers on one
-    /// `AsyncStream`, and each keypress would go to whichever happened to be waiting —
-    /// so roughly every other press would vanish.
+    /// Watches for the shortcut, or rebinds after ending the old forwarder. See Docs/pipeline-gestures.md.
     public func start(binding: HotkeyBinding) async throws(HotkeyError) {
         forwardingTask?.cancel()
         forwardingTask = nil
 
         try await monitor.start(binding: binding)
-        // Forwarded rather than handled here, so the shortcut queues behind the same
-        // single consumer as every other source.
+        // Forwarded rather than handled here, so the shortcut queues behind the same single consumer.
         let events = monitor.events
         forwardingTask = Task { [weak self] in
             for await event in events {
@@ -131,21 +102,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
     }
 
-    /// Starts or stops a dictation from a control somebody clicked, rather than a key
-    /// they are holding.
-    ///
-    /// A click has no release, and both ways of pretending otherwise were broken. Sending
-    /// `.pressed` and `.released` together made a hold shorter than the slip threshold, so
-    /// the recording was cancelled the instant it began — or, when the microphone was slow
-    /// to open, ran a whole dictation on a couple of milliseconds of audio. Sending
-    /// `.pressed` alone opened the microphone with nothing in hold-to-talk able to close
-    /// it: the next real hold was then refused as busy, and its release finished the
-    /// abandoned recording instead, inserting everything the microphone had heard in
-    /// between.
-    ///
-    /// So a click toggles, whatever the shortcut is set to — the same two branches
-    /// `pressToToggle` already uses, reached without inventing a keypress. What starts a
-    /// dictation this way is a control, and a control is still there to stop it.
+    /// Toggles a dictation from a click, which has no release. See Docs/pipeline-gestures.md.
     public func toggleFromControl() async {
         await toggleListening()
     }
@@ -163,8 +120,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private func beginListening() async {
         await pipeline.startRecording()
-        // Only once the pipeline is actually listening, so a refused microphone does
-        // not make a sound as though everything had worked.
+        // Only once the pipeline is listening, so a refused microphone does not sound as though it worked.
         if await pipeline.currentState.isListening {
             cue.playStart()
             watchTheLimit()

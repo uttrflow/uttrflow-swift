@@ -1,15 +1,4 @@
-/// The passages the operator reads once, and every transcription run is measured on
-/// for ever afterwards.
-///
-/// Written by hand, like ``EvaluationCorpus``, and for the same reason: each passage is
-/// something a person would really dictate. What is different here is that the corpus
-/// is also a script somebody has to read out loud, so a passage has to survive being
-/// spoken — no bracketed asides, no punctuation nobody voices, and long enough that the
-/// recogniser has some context to work with but short enough to read in one breath-group
-/// without losing the thread.
-///
-/// Six passages in each of the product's three ways of speaking, and five stressors
-/// spread across them, so no language is measured only on its easy cases.
+/// The passages the operator reads once and every run is measured on. See Docs/eval-methodology.md.
 public enum TranscriptionCorpus {
     public static let all: [TranscriptionCase] = english + hindi + hinglish
 
@@ -25,7 +14,7 @@ public enum TranscriptionCorpus {
         all.first { $0.id == id }
     }
 
-    /// `records` in corpus order, with anything no longer in the corpus sorted to the end by id.
+    /// `records` in corpus order, with anything the corpus has dropped sorted to the end by id.
     public static func inCorpusOrder<Record: Identifiable>(
         _ records: [Record], corpus: [TranscriptionCase] = all
     ) -> [Record] where Record.ID == String {
@@ -43,14 +32,7 @@ public enum TranscriptionCorpus {
     /// Words in the whole corpus.
     public static var wordCount: Int { all.reduce(0) { $0 + wordCount(of: $1) } }
 
-    /// Roughly how long reading these passages takes.
-    ///
-    /// Dictation runs near 120 words a minute — slower than reading silently, because a
-    /// passage rattled through is not the speech the product has to cope with — plus half
-    /// a minute a passage for reading ahead, settling and the occasional retake. Computed
-    /// rather than promised: an operator deciding whether to start now, or asking how much
-    /// is left, deserves a figure derived from the passages in front of them rather than a
-    /// number typed into a plan once and never revisited.
+    /// Roughly how long reading these passages takes, at 120 words a minute plus half a minute each.
     public static func estimatedReadingTime(of passages: [TranscriptionCase]) -> Duration {
         let words = passages.reduce(0) { $0 + wordCount(of: $1) }
         return .seconds(Double(words) / 120 * 60 + Double(passages.count) * 30)
@@ -122,11 +104,7 @@ public enum TranscriptionCorpus {
         ),
     ]
 
-    // MARK: Hindi
-    //
-    // No English loanwords in these six, deliberately. A recogniser writing Hindi leaves
-    // borrowed words in Latin script, so a passage that mixes them is a Hinglish passage
-    // however it is labelled — and there are six of those below to measure that with.
+    // MARK: Hindi, with no English loanwords, since a mixed passage is Hinglish whatever its label
 
     static let hindi: [TranscriptionCase] = [
         .init(
@@ -203,12 +181,7 @@ public enum TranscriptionCorpus {
         ),
     ]
 
-    // MARK: Hinglish
-    //
-    // The Devanagari form of each of these keeps its borrowed words in Latin script,
-    // because that is what the recogniser does — verified against the transcripts the
-    // transformation corpus was built from. Writing "मीटिंग" here instead of "meeting"
-    // would score a correct transcript as a substitution on every single passage.
+    // MARK: Hinglish; the Devanagari forms keep borrowed words in Latin script, as the recogniser does
 
     static let hinglish: [TranscriptionCase] = [
         .init(

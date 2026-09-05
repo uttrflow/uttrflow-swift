@@ -1,11 +1,10 @@
+// Tests the corpus client against the backend's real response shapes.
 import Foundation
 import Testing
 
 @testable import UttrflowEval
 
-/// Tested against the shapes the backend actually returns, taken from its route
-/// definitions and confirmed against a running instance. A client tested against a
-/// fixture somebody invented is a client that agrees with the fixture.
+/// Tested against the shapes the backend returns, from its route definitions and a running instance.
 @Suite("The corpus service, as a client")
 struct BackendCorpusClientTests {
     private func base() -> URL { URL(fileURLWithPath: "/") }
@@ -53,8 +52,7 @@ struct BackendCorpusClientTests {
         #expect(page.samples.first?.cohort == nil)
     }
 
-    /// The failure the corpus is most likely to hit at a thousand samples, and the one a
-    /// caller must never forget: the backend caps a page at 500.
+    /// The backend caps a page at 500, the failure a thousand samples is most likely to hit.
     @Test("pages until it has the whole catalogue")
     func pagesThroughEverything() async throws {
         let catalogue = FakeCatalogue(samples: (1...5).map { makeSample("sample-\($0)") }, pageSize: 2)
@@ -88,8 +86,7 @@ struct BackendCorpusClientTests {
         #expect(transport.requests.first?.url.path() == "/v1/corpus/samples/one/download")
     }
 
-    /// A run against a backend with no bucket would otherwise download a thousand 501
-    /// pages and report a thousand unreadable recordings instead of one problem.
+    /// Following a placeholder would report a thousand unreadable recordings instead of one problem.
     @Test("refuses a placeholder URL rather than following it")
     func refusesPlaceholders() async {
         let transport = StubTransport(
@@ -102,8 +99,7 @@ struct BackendCorpusClientTests {
         }
     }
 
-    /// The same status code, two entirely different problems, and only the body tells
-    /// them apart.
+    /// The same status code, two different problems, and only the body tells them apart.
     @Test("tells an unknown sample from a backend that has not got the endpoint")
     func distinguishesTheTwoKindsOf404() async {
         let unknown = StubTransport(status: 404, json: #"{"error":"unknown_sample"}"#)
@@ -118,8 +114,7 @@ struct BackendCorpusClientTests {
         }
     }
 
-    /// A 404 on a request that is not about one sample still has to name something, and
-    /// the last path component is the closest thing to a name there is.
+    /// The last path component is the closest thing to a name a sample-less 404 has.
     @Test("falls back to the path when a 404 is not about a named sample")
     func unknownSampleWithNoSlug() async {
         let transport = StubTransport(status: 404, json: #"{"error":"unknown_sample"}"#)
@@ -167,8 +162,7 @@ struct BackendCorpusClientTests {
         ])
         let data = try await client(transport).audio(at: "https://bucket.test/one.wav")
         #expect(data == Data([1, 2, 3]))
-        // The signature is the permission. Sending the corpus credential to whoever is
-        // serving the bucket would hand it to a third party for no benefit.
+        // The signature is the permission; the corpus credential never goes to whoever serves the bucket.
         #expect(transport.requests.first?.headers.isEmpty == true)
     }
 
@@ -201,8 +195,7 @@ struct BackendCorpusClientTests {
         #expect(post.url.path() == "/v1/corpus/samples")
         #expect(post.headers["Content-Type"] == "application/json")
         #expect(post.headers["Authorization"] == "Bearer operator-token")
-        // The row's identifier is the backend's to issue; posting one would be inventing
-        // a primary key.
+        // The row's identifier is the backend's to issue.
         let body = try #require(post.body).map { $0 }
         #expect(!String(decoding: body, as: UTF8.self).contains("\"id\""))
 
@@ -225,8 +218,7 @@ struct BackendCorpusClientTests {
 
 @Suite("What a corpus failure means")
 struct CorpusErrorTests {
-    /// The distinction the upload outbox is built on. Getting it wrong either abandons a
-    /// recording that a retry would have sent, or retries a rejection for ever.
+    /// Getting this wrong either abandons a recording a retry would send, or retries a rejection for ever.
     @Test("knows which failures are worth trying again")
     func transience() {
         #expect(CorpusError.unreachable("offline").isTransient)
@@ -266,8 +258,7 @@ struct HTTPTransportTests {
         #expect(!HTTPResponse(status: 404).isSuccess)
     }
 
-    /// An error page from a proxy can be a hundred kilobytes of HTML, and putting it in
-    /// a terminal unabridged loses whatever came before it.
+    /// A proxy's error page can be a hundred kilobytes of HTML.
     @Test("a body shown to a person is trimmed, and says it was")
     func text() {
         #expect(HTTPResponse(status: 400, body: Data("  oh dear\n".utf8)).text == "oh dear")

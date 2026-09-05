@@ -1,3 +1,4 @@
+// The whole product in one actor: from the key going down to the text landing.
 public import UttrflowCore
 public import struct Foundation.UUID
 
@@ -217,7 +218,7 @@ public actor DictationPipeline {
         transition(to: .idle)
     }
 
-    /// Whether the dictation that started at `mine` has since been abandoned, by it or by a later cancel.
+    /// Whether the dictation that started at `mine` is abandoned, by itself or by a later cancel.
     private func wasCancelled(_ mine: Int) -> Bool {
         guard let cancelledGeneration else { return false }
         return mine <= cancelledGeneration
@@ -280,7 +281,7 @@ public actor DictationPipeline {
         }
     }
 
-    /// The screen as it was while the key was held, read once for every early piece.
+    /// The screen while the key is held, read once for every early piece.
     private func earlyContextRead() async -> AppContext {
         if let earlyContext { return earlyContext }
         let read = await readContext()
@@ -357,7 +358,7 @@ public actor DictationPipeline {
             await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
-        // Every piece was done while recording, and the screen it was read against still applies.
+        // Every piece is done while recording, and the screen it is read against still applies.
         if state == .transcribing { transition(to: .tidying) }
         let whole = Piece.joining(pieces)
 

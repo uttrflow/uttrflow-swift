@@ -1,3 +1,4 @@
+// The `record` command: captures the microphone to a WAV.
 import ArgumentParser
 private import Foundation
 private import UttrflowAudio

@@ -1,11 +1,7 @@
+// A directory of one JSON file per record, and its errors.
 public import Foundation
 
-/// What can go wrong reading or writing a directory of measurements.
-///
-/// Deliberately not a ``UttrflowFailure``: that protocol exists so the app can put a
-/// sentence in front of a user, and nobody using the product will ever see one of
-/// these. They are read by whoever is running the harness, at a terminal, with the
-/// directory in front of them.
+/// What can go wrong reading or writing a directory of measurements, read at a terminal, never by a user.
 public enum EvaluationStoreError: Error, Sendable, Equatable, CustomStringConvertible {
     case couldNotWrite(path: String, reason: String)
     case couldNotRead(path: String, reason: String)
@@ -18,14 +14,7 @@ public enum EvaluationStoreError: Error, Sendable, Equatable, CustomStringConver
     }
 }
 
-/// A directory holding one JSON file per record, named by its id.
-///
-/// The shape `uttrflow-bakeoff` established: each result is written the moment it is
-/// finished, so a run that dies half way through has still banked everything before the
-/// point it died, and `--summarise` can print what exists without measuring anything
-/// again. Here it earns its keep twice over — the recording session is a person reading
-/// out loud for twenty minutes, and asking them to start again because the nineteenth
-/// passage crashed would be unforgivable.
+/// A directory holding one JSON file per record, written the moment each is finished.
 public struct JSONRecordStore<Record: Codable & Sendable & Identifiable>: Sendable
 where Record.ID == String {
     public let directory: URL
@@ -62,12 +51,7 @@ where Record.ID == String {
         try write(data, to: url(for: id, extension: pathExtension))
     }
 
-    /// Every record in the directory, in whatever order the file system offers.
-    ///
-    /// A file that will not decode is raised rather than skipped. Records are written
-    /// atomically, so a broken one is not a half-finished write — it is something that
-    /// has been edited or truncated, and quietly ignoring it would present a partial
-    /// corpus as a complete one.
+    /// Every record in file-system order; a file that will not decode is raised, since writes are atomic.
     public func all() throws(EvaluationStoreError) -> [Record] {
         // Nothing recorded yet is not an error; it is the first run.
         guard FileManager.default.fileExists(atPath: directory.path) else { return [] }

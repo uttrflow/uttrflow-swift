@@ -1,19 +1,11 @@
+// Reads and polls this process's memory use.
 import Foundation
 
-/// Two ways of saying how much memory this process is using, read together.
-///
-/// They differ, and the gap is the whole story for a product that memory-maps a 646 MB
-/// CoreML model: the mapped weights are clean, file-backed pages, so they show in the
-/// resident size and not in the footprint.
+/// Footprint and resident size together; only the second shows mapped weights. See Docs/eval-profiling.md.
 public struct MemoryReading: Sendable, Equatable {
-    /// `phys_footprint` — what Activity Monitor calls Memory, and what a memory limit is
-    /// enforced against. Dirty and compressed pages, not clean file-backed ones. The
-    /// number that decides whether a Mac starts swapping.
+    /// `phys_footprint`: dirty and compressed pages, what Activity Monitor calls Memory and limits act on.
     public let footprintBytes: Int64
-    /// `resident_size` — every page currently in physical RAM, mapped model weights
-    /// included. Larger, and evictable under pressure, so it overstates the cost; but a
-    /// report that showed only the footprint would look as though 300 MB of model had
-    /// gone missing.
+    /// `resident_size`: every page in RAM including mapped model weights, so it overstates the cost.
     public let residentBytes: Int64
 
     public init(footprintBytes: Int64, residentBytes: Int64) {
@@ -22,10 +14,7 @@ public struct MemoryReading: Sendable, Equatable {
     }
 }
 
-/// What the process weighed at one named moment in its life.
-///
-/// The label travels with the numbers because a column of bytes with the moments implied
-/// by row order is exactly the table someone mis-reads a year later.
+/// What the process weighed at one named moment, with the label travelling beside the numbers.
 public struct MemorySample: Sendable, Equatable {
     public let label: String
     public let reading: MemoryReading
@@ -36,10 +25,7 @@ public struct MemorySample: Sendable, Equatable {
     }
 }
 
-/// Reads how much memory this process is actually using.
-///
-/// Reported per model because a laptop with 16 GB is a target, and a model that wins
-/// on quality but needs 12 GB has not won.
+/// Reads how much memory this process is using, reported per model because 16 GB Macs are a target.
 public enum MemoryFootprint {
     /// The footprint alone, for callers that only ever wanted the one number.
     public static func current() -> Int64? { reading()?.footprintBytes }
@@ -52,14 +38,7 @@ public enum MemoryFootprint {
             footprintBytes: Int64(info.phys_footprint), residentBytes: Int64(info.resident_size))
     }
 
-    /// Reads memory now and names the moment.
-    ///
-    /// - Parameters:
-    ///   - label: What the process had just done.
-    ///   - read: Where the numbers come from. Injectable so a profile can be driven
-    ///     through a test with figures the test chose.
-    /// - Returns: `nil` when the reading failed, which is the same distinction
-    ///   ``reading()`` draws — an unavailable number is not zero bytes.
+    /// Reads memory now under `label`, through an injectable `read`; `nil` when the reading fails.
     public static func sample(
         _ label: String, read: () -> MemoryReading? = MemoryFootprint.reading
     ) -> MemorySample? {
@@ -81,43 +60,12 @@ enum MachTask {
     }
 }
 
-/// Watches memory while something slow runs, so a spike that settles again is still seen.
-///
-/// Readings taken before and after a transcription say nothing about the middle, and the
-/// middle is where a 16 GB Mac is pushed into swap. The only way to catch that from
-/// inside the process is to keep asking.
+/// Polls memory while something slow runs, so a spike that settles before the end is still seen.
 public enum PeakMemory {
-    /// How often memory is read while `operation` runs.
-    ///
-    /// Fast enough to catch a CoreML model materialising its weights, slow enough that
-    /// the polling itself is not part of what is being measured.
+    /// How often memory is read: fast enough to catch a model materialising, slow enough not to be the cost.
     public static let defaultInterval = Duration.milliseconds(20)
 
-    /// Runs `operation`, sampling memory throughout.
-    ///
-    /// - Parameters:
-    ///   - interval: How often to read. Injectable so a test does not have to wait.
-    ///   - read: Where the readings come from. Injectable for the same reason: the real
-    ///     figures move on their own, and a test that asserted on them would assert on
-    ///     the machine rather than on this code.
-    ///   - wait: Pauses between readings, and says whether to take another. Injectable
-    ///     for a sharper reason than convenience: the default waits on the wall clock, so
-    ///     a test asserting that polling actually happened would really be asserting that
-    ///     the machine was not busy — and on a loaded Mac it fails. A test supplies a wait
-    ///     it controls and gets an exact number of readings. A `Clock` would not do:
-    ///     every manual clock in this codebase returns from `sleep` immediately, which
-    ///     turns the poller into a spin and makes the count *less* predictable, not more.
-    ///     Returning `false` is how the default reports cancellation, and how a test says
-    ///     it has seen enough — either way the poller finishes rather than being left
-    ///     suspended inside somebody else's closure.
-    ///   - operation: The work to watch. Non-escaping, so it runs on the caller's
-    ///     context exactly as it would without the watching.
-    /// - Returns: Whatever `operation` returned, and the highest of each figure seen —
-    ///   `nil` only when every reading failed. Each field is its own maximum and the two
-    ///   may come from different instants, which is what "peak" has to mean when the
-    ///   process is only sampled.
-    /// - Throws: Rethrows whatever `operation` threw, with the peak discarded. A failed
-    ///   operation's peak describes a journey that did not finish.
+    /// Runs `operation` sampling memory throughout; `wait` is injectable so tests control the reading count.
     public static func observed<Success, Failure: Error>(
         interval: Duration = defaultInterval,
         read: @escaping @Sendable () -> MemoryReading? = MemoryFootprint.reading,
@@ -128,18 +76,12 @@ public enum PeakMemory {
         await recorder.observe()
         let poller = Task {
             while await wait(interval) {
-                // Checked after the wait as well: cancellation can land while a reading
-                // is being taken, and a reading taken then belongs to whatever the caller
-                // does next, not to this work.
+                // Checked after the wait too: a reading after cancellation belongs to the caller's next work.
                 guard !Task.isCancelled else { break }
                 await recorder.observe()
             }
         }
-        // Cancelled *and waited for*, on both paths, rather than abandoned in a `defer`.
-        // An abandoned poller outlives the call that started it: it can take one more
-        // reading and attribute it to work that has already finished, and the process it
-        // belongs to may tear its stack down underneath it. Waiting costs one scheduler
-        // hop and makes the function say exactly what it did.
+        // Cancelled and awaited on both paths, so a stray poller cannot bill a reading to finished work.
         let value: Success
         do {
             value = try await operation()
@@ -149,18 +91,12 @@ public enum PeakMemory {
         }
         await stop(poller)
 
-        // One last reading after the work finishes: a peak reached in the final
-        // milliseconds would otherwise fall between polls and go unreported.
+        // One last reading after the work, so a peak in the final milliseconds does not fall between polls.
         await recorder.observe()
         return (value, await recorder.peak)
     }
 
-    /// The default wait: sleep, and carry on unless this task has been cancelled.
-    ///
-    /// A named function rather than a closure literal in the default argument. A default
-    /// argument is compiled at the call site, so an `async` closure written there has its
-    /// frame allocated by whichever task evaluates it — and when that is not the task
-    /// that later awaits it, the runtime's allocator is entitled to object.
+    /// The default wait: sleeps, then carries on unless cancelled. Named; see Docs/eval-profiling.md.
     public static func sleeping(for interval: Duration) async -> Bool {
         do { try await Task.sleep(for: interval) } catch { return false }
         return true
@@ -172,8 +108,7 @@ public enum PeakMemory {
     }
 }
 
-/// Keeps the highest of each figure seen. An actor because the poller and the caller
-/// both write to it.
+/// Keeps the highest of each figure seen; an actor because the poller and the caller both write.
 private actor Recorder {
     private let read: @Sendable () -> MemoryReading?
     private(set) var peak: MemoryReading?

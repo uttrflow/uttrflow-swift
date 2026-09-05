@@ -1,7 +1,7 @@
+// A PermissionGate whose answer a test controls.
 public import UttrflowCore
 
-/// A ``PermissionGate`` whose status can be changed, including in response to being
-/// asked — which is how the real microphone prompt behaves.
+/// A ``PermissionGate`` whose status can change, including in response to being asked, like the real prompt.
 public actor FakePermissionGate: PermissionGate {
     public enum Event: Sendable, Equatable {
         case status

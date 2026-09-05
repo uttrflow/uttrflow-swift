@@ -1,3 +1,4 @@
+// Tests the dictionary, snippet and learning seams inside the pipeline.
 import Foundation
 import Synchronization
 import Testing
@@ -8,8 +9,7 @@ import Testing
 
 // MARK: - Doubles
 
-/// A ``WordCorrecting`` that proposes whatever the test scripted, and can be caught in
-/// the act.
+/// A ``WordCorrecting`` that proposes whatever the test scripts, and can be caught in the act.
 private final class FakeCorrector: WordCorrecting, Sendable {
     private struct State: Sendable {
         var seen: [Transcription] = []
@@ -65,7 +65,7 @@ private final class FakeExpander: SnippetExpanding, Sendable {
     var seen: [String] { state.withLock { $0 } }
 }
 
-/// A ``DictationLearning`` that remembers what it was told, and can refuse.
+/// A ``DictationLearning`` that remembers what it is told, and can refuse.
 private final class FakeLearner: DictationLearning, Sendable {
     private struct State: Sendable {
         var entries: [UUID] = []
@@ -93,7 +93,7 @@ private final class FakeLearner: DictationLearning, Sendable {
     var snippets: [[UUID]] { state.withLock { $0.snippets } }
 }
 
-/// A ``VocabularyLearning`` that remembers everything it was offered, and can refuse.
+/// A ``VocabularyLearning`` that remembers everything it is offered, and can refuse.
 private final class FakeVocabulary: VocabularyLearning, Sendable {
     /// One lesson: what was said, what was written, and what was on screen.
     struct Lesson: Sendable, Equatable {
@@ -119,7 +119,7 @@ private final class FakeVocabulary: VocabularyLearning, Sendable {
     var lessons: [Lesson] { state.withLock { $0 } }
 }
 
-/// A ``TranscriptCleaning`` that records what it was asked to tidy.
+/// A ``TranscriptCleaning`` that records what it is asked to tidy.
 private final class FakeCleaner: TranscriptCleaning, Sendable {
     private let state = Mutex<[TransformationRequest]>([])
     private let tidy: @Sendable (String) -> String
@@ -139,7 +139,7 @@ private final class FakeCleaner: TranscriptCleaning, Sendable {
     var requests: [TransformationRequest] { state.withLock { $0 } }
 }
 
-/// A ``TextInserting`` that records every string it was handed.
+/// A ``TextInserting`` that records every string it is handed.
 private final class FakeInserter: TextInserting, Sendable {
     private let state = Mutex<[String]>([])
     private let refuses: Bool
@@ -210,8 +210,7 @@ extension DictationPipeline {
 
 @Suite("Dictation pipeline: the user's own words")
 struct DictationPipelineCorrectionTests {
-    /// The dictionary runs before the tidier because a correction is argued from the
-    /// sentence as it was heard, and the tidier's whole job is to rewrite that sentence.
+    /// A correction is argued from the sentence as heard, and the tidier's job is to rewrite it.
     @Test("Corrects the transcript before the tidier sees it")
     func correctsBeforeTidying() async {
         let cleaner = FakeCleaner()
@@ -261,8 +260,7 @@ struct DictationPipelineCorrectionTests {
         #expect(await pipeline.outcome?.changes == AppliedChanges(spokenWords: 8))
     }
 
-    /// Cancelling leaves no trace, and that has to hold for every stage added after
-    /// transcription as well as the ones that were there before.
+    /// Cancelling leaves no trace, for every stage after transcription too.
     @Test("A cancel arriving during correction stops the dictation dead")
     func cancelDuringCorrection() async {
         let inserter = FakeInserter()
@@ -280,8 +278,7 @@ struct DictationPipelineCorrectionTests {
 
 @Suite("Dictation pipeline: the user's own snippets")
 struct DictationPipelineSnippetTests {
-    /// Snippets run after the tidier because the matcher is built to tolerate the
-    /// punctuation the tidier adds, and refuses a trigger assembled across a full stop.
+    /// The matcher tolerates the tidier's punctuation but refuses a trigger assembled across a full stop.
     @Test("Expands the tidied text, not the raw transcript")
     func expandsAfterTidying() async {
         let expander = FakeExpander()
@@ -325,9 +322,7 @@ struct DictationPipelineSnippetTests {
         #expect(inserter.received == [heard])
     }
 
-    /// The Accessibility route writes to the *selected* text, so an empty insertion
-    /// deletes whatever the user had highlighted. A hand-edited snippets file is the one
-    /// way this stage can produce one.
+    /// The Accessibility route replaces the selection, so an empty insertion would delete it.
     @Test("An expansion that comes back blank is refused, not inserted")
     func aBlankExpansionIsRefused() async {
         let inserter = FakeInserter()
@@ -368,8 +363,7 @@ struct DictationPipelineLearningTests {
         #expect(learner.entries == [entry])
     }
 
-    /// The dictionary counts the dictations an entry was applied to, so a sentence that
-    /// said the same mis-heard name twice is still one dictation.
+    /// The dictionary counts dictations an entry applied to, not words.
     @Test("Counts one entry once, however many words it corrected")
     func countsAnEntryOnce() async {
         let learner = FakeLearner()
@@ -406,8 +400,7 @@ struct DictationPipelineLearningTests {
         #expect(learner.snippets == [[snippet, snippet]])
     }
 
-    /// The guard that makes this feature free for the user who has neither a dictionary
-    /// nor a snippet: no hop, no write, nothing.
+    /// The guard that makes this free for a user with neither a dictionary nor a snippet.
     @Test("Says nothing to either store when nothing changed")
     func learnsNothingFromAnUnchangedDictation() async {
         let learner = FakeLearner()
@@ -419,8 +412,7 @@ struct DictationPipelineLearningTests {
         #expect(learner.snippets.isEmpty)
     }
 
-    /// A word earns its place by surviving a dictation. One whose words never reached
-    /// the screen proves nothing about the entry that changed them.
+    /// A word earns its place by surviving a dictation; one that never landed proves nothing.
     @Test("Learns nothing from a dictation that never landed")
     func learnsNothingFromAFailedInsertion() async {
         let learner = FakeLearner()
@@ -433,9 +425,7 @@ struct DictationPipelineLearningTests {
         #expect(learner.entries.isEmpty)
     }
 
-    /// This runs after the dictation has already been announced as inserted. Turning a
-    /// refused write into a failure would replace a dictation that worked with a notice
-    /// about bookkeeping that did not.
+    /// This runs after the dictation is announced as inserted, so a refused note cannot be a failure.
     @Test("A store that refuses the note does not undo the dictation")
     func aRefusedNoteChangesNothing() async {
         let inserter = FakeInserter()
@@ -457,9 +447,7 @@ struct DictationPipelineLearningTests {
 
 @Suite("Dictation pipeline: growing the user's vocabulary")
 struct DictationPipelineVocabularyTests {
-    /// What the dictionary is given, and it is deliberately three different things: the
-    /// transcript as the recogniser produced it, the text that actually landed, and the
-    /// one reading of the screen this dictation made.
+    /// Three different things: the raw transcript, the text that landed, and the one screen reading.
     @Test("Offers the dictionary what was said, what was written and what was on screen")
     func offersTheWholeDictation() async {
         let vocabulary = FakeVocabulary()
@@ -475,9 +463,7 @@ struct DictationPipelineVocabularyTests {
             ])
     }
 
-    /// The raw transcript and not the finished text. By the end of the pipeline the
-    /// dictionary, the tidier and the snippets have all had a turn at rewriting what the
-    /// user said, and the question this path asks is what they *said*.
+    /// The question this path asks is what the user *said*, before anything rewrote it.
     @Test("Offers what the recogniser heard, not what the dictionary already changed")
     func offersTheRawTranscript() async {
         let vocabulary = FakeVocabulary()
@@ -490,8 +476,7 @@ struct DictationPipelineVocabularyTests {
         #expect(vocabulary.lessons.map(\.wrote) == ["open the PaymentSheet and send my address"])
     }
 
-    /// A word earns its place by surviving a dictation. One whose words never reached
-    /// the screen showed nobody anything.
+    /// A word earns its place by surviving a dictation; one that never landed showed nobody anything.
     @Test("Teaches the dictionary nothing when the words never landed")
     func learnsNothingFromAFailedInsertion() async {
         let vocabulary = FakeVocabulary()
@@ -503,8 +488,7 @@ struct DictationPipelineVocabularyTests {
         #expect(vocabulary.lessons.isEmpty)
     }
 
-    /// Both learning paths read the screen, so a dictation macOS told us nothing about
-    /// has no raw material at all and the seam is not worth crossing.
+    /// Both learning paths read the screen, so with no screen there is no raw material.
     @Test("Does not cross the seam when macOS said nothing about the screen")
     func learnsNothingWithoutAScreen() async {
         let vocabulary = FakeVocabulary()
@@ -516,8 +500,7 @@ struct DictationPipelineVocabularyTests {
         #expect(vocabulary.lessons.isEmpty)
     }
 
-    /// §19. This runs after the dictation has been announced as inserted; a store that
-    /// will not take the lesson must cost the lesson and nothing else.
+    /// §19: a store that will not take the lesson costs the lesson and nothing else.
     @Test("A dictionary that refuses the lesson does not spoil the dictation")
     func aRefusedLessonChangesNothing() async {
         let inserter = FakeInserter()
@@ -530,8 +513,7 @@ struct DictationPipelineVocabularyTests {
         #expect(await pipeline.outcome?.text == heard)
     }
 
-    /// Cancelling leaves no trace, and a word learnt from an abandoned dictation would
-    /// be a trace that outlived the dictation itself.
+    /// A word learnt from an abandoned dictation would be a trace that outlived it.
     @Test("A cancelled dictation teaches nothing")
     func aCancelledDictationTeachesNothing() async {
         let vocabulary = FakeVocabulary()
@@ -548,8 +530,7 @@ struct DictationPipelineVocabularyTests {
 
 @Suite("Dictation pipeline: what it reads off the screen")
 struct DictationPipelineContextTests {
-    /// One Accessibility round trip a dictation, not two. Asking twice would also risk
-    /// describing two different screens, if the user switched app in between.
+    /// One Accessibility round trip per dictation; two could describe two different screens.
     @Test("Reads the screen once and shows the same reading to everything")
     func readsTheScreenOnce() async {
         let context = FakeContextEngine(context: .fixture())
@@ -576,11 +557,7 @@ struct DictationPipelineContextTests {
 
 // MARK: - Staging a cancel from inside a stage
 
-/// A stage that abandons the dictation it is in the middle of.
-///
-/// The knot it unties: a cancel arriving *during* a stage can only be staged from
-/// inside that stage, and the stage has to exist before the pipeline it belongs to. So
-/// it is aimed afterwards, at the pipeline it was built for.
+/// A stage that abandons the dictation it is in; aimed at its pipeline after both exist.
 private final class CancelsTheDictation: Sendable {
     private let target = Mutex<DictationPipeline?>(nil)
 
@@ -610,8 +587,7 @@ private struct CancelsWhileExpanding: SnippetExpanding {
 }
 
 extension String {
-    /// The same sentence with a capital at the front, which is the part of tidying these
-    /// tests need to be able to watch happening.
+    /// The same sentence with a capital at the front, the visible part of tidying.
     fileprivate var capitalisedFirst: String {
         guard let first else { return self }
         return first.uppercased() + dropFirst()

@@ -1,3 +1,4 @@
+// Tests catalogue samples, stress mapping and slugs.
 import Foundation
 import Testing
 
@@ -5,9 +6,7 @@ import Testing
 
 @Suite("A sample from the catalogue")
 struct CorpusSampleTests {
-    /// BCP-47 has no tag for Hinglish, so the stress decides. Getting this wrong would
-    /// file every code-switched sample under whichever base tag the curator happened to
-    /// pick, and the language breakdown would then be measuring nothing in particular.
+    /// BCP-47 has no tag for Hinglish, so the stress decides, or the language breakdown measures nothing.
     @Test("code-switching means Hinglish whatever the tag says")
     func spokenLanguage() {
         #expect(makeSample("a", language: "en-GB").spokenLanguage == .english)
@@ -20,8 +19,7 @@ struct CorpusSampleTests {
     func scripts() {
         let hindi = makeSample("hi", language: "hi-IN", reference: "वो query बहुत slow चल रही है")
         #expect(hindi.passage.devanagari == "वो query बहुत slow चल रही है")
-        // No Latin form exists, and pretending one does would score a Latin transcript
-        // against nothing.
+        // No Latin form exists, and pretending one does would score a Latin transcript against nothing.
         #expect(hindi.passage.reference(in: .latin) == nil)
         #expect(hindi.passage.forms.count == 1)
 
@@ -30,8 +28,7 @@ struct CorpusSampleTests {
         #expect(english.passage.devanagari == nil)
     }
 
-    /// A stress this harness has no word for must not be filed under the floor category:
-    /// an accented or noisy sample is not an easy one.
+    /// An accented or noisy sample is not an easy one, so it must not be filed under the floor category.
     @Test("an unmapped stress becomes 'other' rather than 'everyday'")
     func stressMapping() {
         #expect(makeSample("a", stresses: ["proper-nouns"]).passage.stressor == .properNouns)
@@ -54,8 +51,7 @@ struct CorpusSampleTests {
         #expect(makeSample("a").duration == .milliseconds(4_000))
     }
 
-    /// A hand-written passage says what it stresses once, in the typed field; making it
-    /// repeat itself in a list is how the two come to disagree.
+    /// A hand-written passage says what it stresses once; a second list is how the two come to disagree.
     @Test("a hand-written passage derives its stress list from its stressor")
     func handWrittenStresses() {
         let passage = TranscriptionCase(
@@ -63,8 +59,7 @@ struct CorpusSampleTests {
         #expect(passage.stresses == ["properNouns"])
     }
 
-    /// The recordings are days of somebody's time and outlive several versions of this
-    /// type. A decoder that refused an older file would turn a new field into a re-record.
+    /// The recordings outlive several versions of this type; a new field must not mean a re-record.
     @Test("a passage recorded before the stress list existed still decodes")
     func decodesAnOlderPassage() throws {
         let older = """
@@ -88,8 +83,7 @@ struct CorpusSampleTests {
 
 @Suite("Naming a sample the catalogue will accept")
 struct CorpusSlugTests {
-    /// Checked before a word is spoken, because a slug rejected at upload time is
-    /// rejected after somebody has already read forty passages.
+    /// Checked before a word is spoken, since a slug rejected at upload time comes after forty passages.
     @Test("matches the backend's url_slug domain")
     func validity() {
         #expect(CorpusSlug.isValid("en-standup"))
@@ -107,8 +101,7 @@ struct CorpusSlugTests {
     @Test("puts the cohort first, so a bucket sorts by sitting")
     func naming() {
         #expect(CorpusSlug.make(passage: "en-standup", cohort: "naveen-quiet") == "naveen-quiet-en-standup")
-        // No `unattributed-` prefix: it would become part of the key, and renaming a
-        // thousand objects later is not a thing anybody does.
+        // No `unattributed-` prefix: it would become part of the key, and nobody renames a thousand objects.
         #expect(CorpusSlug.make(passage: "en-standup", cohort: nil) == "en-standup")
     }
 
@@ -118,8 +111,7 @@ struct CorpusSlugTests {
         #expect(CorpusSlug.sanitised("  spaced  out  ") == "spaced-out")
         #expect(CorpusSlug.sanitised("!!!") == "")
         #expect(CorpusSlug.sanitised("café") == "caf")
-        // Not truncated: two long names that agree in their first sixty-four characters
-        // would become one slug, and the catalogue upserts by slug.
+        // Not truncated: two long names agreeing in their first sixty-four characters would become one slug.
         #expect(CorpusSlug.sanitised(String(repeating: "a", count: 100)).count == 100)
         #expect(!CorpusSlug.isValid(CorpusSlug.sanitised(String(repeating: "a", count: 100))))
     }

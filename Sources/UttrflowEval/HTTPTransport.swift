@@ -1,13 +1,7 @@
+// HTTP requests and responses as values, and the seam that sends them.
 public import Foundation
 
-/// One request, as a value.
-///
-/// The whole point of describing a request rather than making one: everything worth
-/// getting wrong — which path, which query, which header, what body — is decided here,
-/// in code a test can read, and the only thing left for the network layer is to put the
-/// bytes on the wire. That is what keeps ``BackendCorpusClient`` testable with no
-/// backend, and what keeps the single `URLSession` in this project down to a file small
-/// enough to review by eye.
+/// One request as a value, so everything worth getting wrong is decided in code a test can read.
 public struct HTTPRequest: Sendable, Equatable {
     public enum Method: String, Sendable, Equatable {
         case get = "GET"
@@ -17,8 +11,7 @@ public struct HTTPRequest: Sendable, Equatable {
 
     public let method: Method
     public let url: URL
-    /// Header names are compared case-insensitively by HTTP but not by `Dictionary`, so
-    /// they are written in canonical form here and never assembled from user input.
+    /// Headers in canonical case, since HTTP compares names case-insensitively and `Dictionary` does not.
     public let headers: [String: String]
     public let body: Data?
 
@@ -41,25 +34,16 @@ public struct HTTPResponse: Sendable, Equatable {
 
     public var isSuccess: Bool { (200..<300).contains(status) }
 
-    /// The body as a person would read it in a terminal, trimmed so a stray HTML error
-    /// page from a proxy does not fill the screen.
+    /// The body as a person reads it in a terminal, trimmed so a proxy's HTML error page does not fill it.
     public var text: String {
         let text = String(decoding: body, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         return text.count <= 400 ? text : String(text.prefix(400)) + "…"
     }
 }
 
-/// The only way anything in this module reaches the network.
-///
-/// A protocol rather than a `URLSession` because the corpus is roughly a thousand
-/// recordings in a private bucket: a test that needed either the bucket or the backend
-/// would be a test nobody could run, and a harness whose own tests need the thing it is
-/// measuring is not a harness anybody trusts. The conformance that actually opens a
-/// socket lives in the `uttrflow-eval` executable, which nothing else links.
+/// The only way this module reaches the network; the socket-opening conformance lives in `uttrflow-eval`.
 public protocol HTTPTransport: Sendable {
-    /// Non-throwing on the HTTP status: a 404 or a 501 is an answer, not an error, and
-    /// the caller has different things to say about each. Only a connection that could
-    /// not be made at all throws.
+    /// Throws only when no connection can be made; a 404 or 501 is an answer the caller reads.
     func perform(_ request: HTTPRequest) async throws(HTTPTransportError) -> HTTPResponse
 }
 

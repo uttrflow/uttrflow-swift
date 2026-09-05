@@ -1,3 +1,4 @@
+// Tests the recording kept for retry and its presentation.
 import Foundation
 import Synchronization
 import Testing
@@ -15,7 +16,7 @@ private struct RecordingFakeCleaner: TranscriptCleaning {
     }
 }
 
-/// A ``TextInserting`` that records what it was handed and answers as scripted.
+/// A ``TextInserting`` that records what it is handed and answers as scripted.
 private final class RecordingFakeInserter: TextInserting, Sendable {
     private struct State: Sendable {
         var outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError>

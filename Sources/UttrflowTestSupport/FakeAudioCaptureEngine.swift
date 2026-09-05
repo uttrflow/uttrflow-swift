@@ -1,3 +1,4 @@
+// An AudioCaptureEngine that records without a microphone.
 public import UttrflowCore
 
 /// An ``AudioCaptureEngine`` that records its lifecycle calls and returns scripted audio.
