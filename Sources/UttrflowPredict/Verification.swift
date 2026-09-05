@@ -184,8 +184,7 @@ public enum Verification {
     private static func lookups(for token: CompletionToken) -> Attestation? {
         let word = token.token
         let shape = LineShape.of(token)
-        // A path is looked up where it points, whatever the command; only `cd` and its kin narrow it to directories.
-        // A word the command reads as text is not a path, whatever its slashes: `deploy/api` names a resource, not a directory.
+        // A path is looked up where it points, narrowed to directories by `cd` and its kin; a word read as text is never a path, so `deploy/api` stands.
         if word.contains("/"), shape.kind != .free {
             guard let path = path(word, directoriesOnly: shape.kind == .directory) else { return nil }
             return shape.kind == .branch
