@@ -102,6 +102,11 @@ worse.
 
 ## How this maps onto the code
 
+The design that generalises all of it — `Situation`, `Formatter`, `CleaningPass`, `Draft`,
+one model call per piece — is `Docs/cleanup-design.md`. Below is where things are today.
+
+### Today
+
 - `TextTidy` and `RuleBasedTransformer` are the floor: Tier 1 only, deterministic, and
   what the user gets when the model declines or fails.
 - `CleanupPrompt` asks the model for Tier 1 and the parts of Tier 2 marked ✅, with the
