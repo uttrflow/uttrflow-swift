@@ -1,36 +1,33 @@
+// The verdict on a rewrite, and the guard that reaches it.
 /// Whether a rewrite may be shown to the user.
 public enum GuardVerdict: Sendable, Equatable {
+    /// The rewrite may be shown.
     case accepted
+    /// The rewrite is refused, with the reason a log can show.
     case rejected(reason: String)
 
     public var isAccepted: Bool { self == .accepted }
 }
 
-/// Checks that a language model tidied the words rather than replacing them.
-///
-/// §9 of the requirements is that meaning must not change. A small on-device model
-/// breaks that in specific, observable ways — it answers a dictated question, it obeys
-/// a dictated instruction, it prefixes "Here is the text:" — all of which were seen
-/// while building this. Each check below exists because a real model did the thing it
-/// catches.
+/// Checks that a model tidied the words rather than replacing them. See Docs/ai-model-output.md.
 public struct MeaningPreservationGuard: Sendable {
     /// A rewrite may grow — punctuation, expanded contractions — but not by this much.
     private static let maximumGrowthFactor = 2.0
-    /// Below this fraction of the original words, the model has replaced rather than
-    /// tidied. Tuned to allow heavy filler removal from a short utterance.
+    /// Below this fraction of the original words the model replaced rather than tidied.
     private static let minimumRetainedFraction = 0.4
-    /// Short utterances are exempt from the retention floor: "um yes" legitimately
-    /// becomes "Yes." Kept deliberately low — at six, "what is the capital of france"
-    /// was exempt, and the model answering it with "Paris" slipped through.
+    /// Utterances this short skip the retention floor ("um yes" to "Yes."); at six, "Paris" slipped through.
     private static let shortUtteranceWords = 3
 
+    /// Openings that mean the model is chatting rather than tidying.
     private static let preambles = [
         "here is", "here's", "sure,", "certainly", "of course", "i've", "i have",
         "the corrected", "the cleaned", "cleaned:", "output:", "result:",
     ]
 
+    /// Makes a guard; it holds no state.
     public init() {}
 
+    /// Accepts a rewrite unless it is empty, chatty, far longer, mostly dropped, or invents a number.
     public func verdict(original: String, rewritten: String) -> GuardVerdict {
         let originalWords = TextTidy.words(original)
         let rewrittenWords = TextTidy.words(rewritten)
@@ -58,31 +55,22 @@ public struct MeaningPreservationGuard: Sendable {
 
     // MARK: Checks
 
-    /// A number in the rewrite that was not in what was said.
-    ///
-    /// Spelled-out numbers are normalised first, because turning "twenty" into "20" is
-    /// exactly the kind of tidying this product is for — only a *new* number is a lie.
+    /// A number in the rewrite the speaker said neither in digits nor in words, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
         let spoken = numbers(in: original).union(spelledNumbers(in: original))
         return numbers(in: rewritten).subtracting(spoken).min()
     }
 
+    /// Every run of digits in the text.
     private static func numbers(in text: String) -> Set<String> {
         Set(text.split(whereSeparator: { !$0.isNumber }).map(String.init))
     }
 
-    /// Digits the speaker uttered as words. Covers what people dictate in practice —
-    /// times, counts and short quantities — rather than every possible numeral.
-    ///
-    /// Hindi is here, in both scripts, because it has to be: a Hindi speaker saying
-    /// "बीस मिनट" gets "20 minute", and with only English words in this table the
-    /// guard called that an invented number and threw the rewrite away. Every Hindi
-    /// utterance containing a number failed that way.
-    /// Built so that a word appearing in both tables is a build-time-fatal mistake
-    /// rather than a silent winner: the two languages must not disagree about a digit.
+    /// Digits people dictate as words, in English and Hindi; traps on first use if the tables share a word.
     private static let numberWords: [String: String] = Dictionary(
         uniqueKeysWithValues: Array(englishNumberWords) + Array(hindiNumberWords))
 
+    /// Hindi number words in both scripts, without which every Hindi utterance with a number fails the guard.
     private static let hindiNumberWords: [String: String] = [
         "एक": "1", "ek": "1",
         "दो": "2", "do": "2",
@@ -105,6 +93,7 @@ public struct MeaningPreservationGuard: Sendable {
         "हज़ार": "1000", "हजार": "1000", "hazaar": "1000", "hazar": "1000",
     ]
 
+    /// The English number words people dictate in practice: times, counts and short quantities.
     private static let englishNumberWords: [String: String] = [
         "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
         "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
@@ -115,6 +104,7 @@ public struct MeaningPreservationGuard: Sendable {
         "hundred": "100", "thousand": "1000",
     ]
 
+    /// The digits for every number word in the text.
     private static func spelledNumbers(in text: String) -> Set<String> {
         Set(TextTidy.words(text).compactMap { numberWords[$0] })
     }

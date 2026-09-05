@@ -4,10 +4,10 @@ import Testing
 
 @testable import UttrflowAI
 
-/// Condition three on its own, away from the engine, because it is the piece that decides
-/// whether this feature is a help or a vandal.
+/// Condition three on its own, away from the engine.
 @Suite("CorrectionEvidence")
 struct CorrectionEvidenceTests {
+    /// Evidence for an utterance of `heard` with `screen` selected.
     private func evidence(
         heard: String = "", seeing screen: String = ""
     ) -> CorrectionEvidence {
@@ -38,8 +38,7 @@ struct CorrectionEvidenceTests {
         #expect(sut.decisiveReason(preferring: "Claude", over: "clawed") == .seenOnScreen)
     }
 
-    /// A run collapsing into one written word is a signal in its own right, so a word on
-    /// screen only needs that one companion.
+    /// A run collapsing into one written word is a signal, so the screen needs only that companion.
     @Test("a split word on the screen needs no other help")
     func aSplitWordOnScreenIsEnough() {
         #expect(
@@ -47,16 +46,14 @@ struct CorrectionEvidenceTests {
                 .decisiveReason(preferring: "PaymentSheet", over: "payment sheet") == .seenOnScreen)
     }
 
-    /// Stray letters are worth two on their own — the heard reading has neither the
-    /// whole-words signal nor the shorter-reading one.
+    /// Stray letters are worth two alone: the heard reading lacks both whole-words and shorter-reading.
     @Test("stray letters are decisive without any context at all")
     func strayLettersAreDecisiveAlone() {
         #expect(
             evidence().decisiveReason(preferring: "SQL", over: "s q l") == .heardAsStrayLetters)
     }
 
-    /// The evidence must be able to run *against* the dictionary word too, or it is not
-    /// comparing anything.
+    /// The evidence must run against the dictionary word too, or it compares nothing.
     @Test("evidence for what was heard cancels evidence for the candidate")
     func theHeardReadingCanWin() {
         let sut = evidence(heard: "clawed at it again", seeing: "clawed marks on the bark")
@@ -86,8 +83,7 @@ struct CorrectionEvidenceTests {
         #expect(sut.decisiveReason(preferring: "asyncpg", over: "a sink pee gee") == .seenOnScreen)
     }
 
-    /// A run of words has to appear on screen *in order* to count, or "sheet payment" would
-    /// be as corroborated as "payment sheet".
+    /// A run counts only in order, or "sheet payment" would corroborate "payment sheet".
     @Test("a run only counts when the screen shows it in that order")
     func runsMustMatchInOrder() {
         let sut = evidence(seeing: "the sheet and the payment are separate things")
@@ -100,8 +96,7 @@ struct CorrectionEvidenceTests {
         #expect(sut.decisiveReason(preferring: "payment sheet", over: "PaymentSheet") == nil)
     }
 
-    /// A selection can be a whole document, so the read is capped. Past the cap the screen
-    /// stops corroborating, which is the safe direction to fail in.
+    /// Past the cap the screen stops corroborating, which is the safe direction to fail in.
     @Test("only the first few hundred words on screen are read")
     func theScreenReadIsBounded() {
         let padding = String(repeating: "filler ", count: CorrectionEvidence.maximumWordsOnScreen)
@@ -130,8 +125,7 @@ struct CorrectionEvidenceTests {
     }
 }
 
-/// The ordering of the runs the engine considers, which has to be total or the same
-/// utterance could produce different corrections on different runs.
+/// The run ordering has to be total, or the same utterance could correct differently between runs.
 @Suite("UncertainSpan")
 struct CorrectionSpanTests {
     @Test("the least confident run is considered first")
@@ -152,8 +146,7 @@ struct CorrectionSpanTests {
         #expect(spans.map(\.text) == ["one two three", "one two", "one", "two three", "two", "three"])
     }
 
-    /// No run reaches across "three", which the recogniser was sure of — the three-word run
-    /// starting at "one" is never even considered.
+    /// No run reaches across "three", which the recogniser was sure of.
     @Test("runs stop at the first word the recogniser was sure of")
     func confidentWordsEndTheRun() {
         let spans = UncertainSpan.spans(

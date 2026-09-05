@@ -2,14 +2,18 @@ import Testing
 
 @testable import UttrflowAI
 
+/// The guard's verdicts on rewrites a model has produced.
 @Suite("MeaningPreservationGuard")
 struct MeaningPreservationGuardTests {
+    /// The guard under test.
     private let sut = MeaningPreservationGuard()
 
+    /// Expects the guard to reject the rewrite.
     private func rejected(_ original: String, _ rewritten: String, _ hint: Comment? = nil) {
         #expect(!sut.verdict(original: original, rewritten: rewritten).isAccepted, hint)
     }
 
+    /// Expects the guard to accept the rewrite.
     private func accepted(_ original: String, _ rewritten: String, _ hint: Comment? = nil) {
         #expect(sut.verdict(original: original, rewritten: rewritten).isAccepted, hint)
     }
@@ -103,13 +107,13 @@ struct MeaningPreservationGuardTests {
     }
 }
 
+/// Hindi number words in both scripts pass the invented-number check.
 @Suite("Numbers spoken in Hindi")
 struct HindiNumberTests {
+    /// The guard under test.
     private let sut = MeaningPreservationGuard()
 
-    /// A Hindi speaker saying "बीस मिनट" gets "20 minute". With only English number
-    /// words in the table the guard called that invented and threw the rewrite away —
-    /// so every Hindi utterance containing a number failed.
+    /// "बीस मिनट" as "20 minute" must not count as an invented number. See Docs/ai-model-output.md.
     @Test(
         "accepts a number spoken in Hindi and written as digits",
         arguments: [
@@ -142,11 +146,10 @@ struct HindiNumberTests {
     }
 }
 
+/// The combined number-word table.
 @Suite("Number words")
 struct NumberWordTests {
-    /// English and Hindi must not disagree about what a word means. Building the
-    /// combined table would trap if they did, so simply reaching both languages
-    /// through it proves they are disjoint.
+    /// Reaching both languages through the combined table proves the two tables are disjoint.
     @Test("resolves spoken numbers in both languages from one table")
     func bothLanguagesResolve() {
         let sut = MeaningPreservationGuard()
