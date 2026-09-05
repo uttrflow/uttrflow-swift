@@ -184,11 +184,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
     private func beginDeviceSignIn(
         with provider: SignInProvider
     ) async throws(AccountError) -> SignInChallenge {
-        let response = try await send(
-            BackendRequest(
-                method: .post, url: url("v1/auth/device/code"),
-                headers: ["Content-Type": "application/json"],
-                body: encode(DeviceCodeBody(clientID: clientID))))
+        let response = try await send(post("v1/auth/device/code", DeviceCodeBody(clientID: clientID)))
 
         guard response.isSuccess else { throw refusal(response) }
         guard let started = decode(StartedDeviceSignIn.self, from: response.body),
@@ -219,12 +215,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
     /// and abandons the attempt; the browser tab stays open, because nothing here can
     /// close it.
     public func completeSignIn(_ challenge: SignInChallenge) async throws(AccountError) -> Profile {
-        guard
-            let attempt = pending.withLock({ pending -> Pending? in
-                defer { pending = nil }
-                return pending
-            }), attempt.state == challenge.state
-        else {
+        guard let attempt = pending.take(\.self), attempt.state == challenge.state else {
             throw .providerRefused(description: "that sign-in does not answer this attempt")
         }
 
@@ -256,24 +247,18 @@ public final class HTTPAuthenticationService: AuthenticationService {
         }
 
         let response = try await send(
-            BackendRequest(
-                method: .post, url: url("v1/auth/token"),
-                headers: ["Content-Type": "application/json"],
-                body: encode(
-                    TokenBody(
-                        grantType: "authorization_code",
-                        clientID: clientID,
-                        code: callback.code,
-                        codeVerifier: pkce.verifier,
-                        redirectURI: redirectURI.absoluteString,
-                        device: device?.registration()))))
+            post(
+                "v1/auth/token",
+                TokenBody(
+                    grantType: "authorization_code",
+                    clientID: clientID,
+                    code: callback.code,
+                    codeVerifier: pkce.verifier,
+                    redirectURI: redirectURI.absoluteString,
+                    device: device?.registration())))
 
         guard response.isSuccess else { throw refusal(response) }
-        guard let session = decode(IssuedSession.self, from: response.body) else {
-            throw .providerRefused(description: "the server issued a session we could not read")
-        }
-        try adopt(session)
-        return try await readProfile(validator: nil)
+        return try await beginSession(issuedBy: response)
     }
 
     /// Polls until somebody approves the code, or the window closes.
@@ -297,23 +282,15 @@ public final class HTTPAuthenticationService: AuthenticationService {
             }
 
             let response = try await send(
-                BackendRequest(
-                    method: .post, url: url("v1/auth/device/token"),
-                    headers: ["Content-Type": "application/json"],
-                    body: encode(
-                        DeviceTokenBody(
-                            grantType: "urn:ietf:params:oauth:grant-type:device_code",
-                            clientID: clientID,
-                            deviceCode: deviceCode,
-                            device: device?.registration()))))
+                post(
+                    "v1/auth/device/token",
+                    DeviceTokenBody(
+                        grantType: "urn:ietf:params:oauth:grant-type:device_code",
+                        clientID: clientID,
+                        deviceCode: deviceCode,
+                        device: device?.registration())))
 
-            if response.isSuccess {
-                guard let session = decode(IssuedSession.self, from: response.body) else {
-                    throw .providerRefused(description: "the server issued a session we could not read")
-                }
-                try adopt(session)
-                return try await readProfile(validator: nil)
-            }
+            if response.isSuccess { return try await beginSession(issuedBy: response) }
 
             switch decode(ServerError.self, from: response.body)?.error {
             case "authorization_pending":
@@ -332,13 +309,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     /// Stops waiting for a sign-in that is somewhere else, and gives the port back.
     private func abandonPending() async {
-        guard
-            let attempt = pending.withLock({ pending -> Pending? in
-                defer { pending = nil }
-                return pending
-            })
-        else { return }
-        if case .browser(_, _, _, let listener) = attempt {
+        if case .browser(_, _, _, let listener)? = pending.take(\.self) {
             await listener.close()
         }
     }
@@ -352,10 +323,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         case .sessionOver: return .signedOut
         case .noCredential: return .noCredential
         case .token(let token):
-            let response = try await send(
-                BackendRequest(
-                    method: .get, url: url("v1/me"),
-                    headers: authorisation(token, ifNoneMatch: cached?.validator)))
+            let response = try await send(profileRequest(token, ifNoneMatch: cached?.validator))
 
             if response.status == 304 { return .unchanged }
 
@@ -372,10 +340,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
                 // on the strength of a race.
                 case .noCredential: return .noCredential
                 case .token(let renewed):
-                    let retried = try await send(
-                        BackendRequest(
-                            method: .get, url: url("v1/me"),
-                            headers: authorisation(renewed, ifNoneMatch: cached?.validator)))
+                    let retried = try await send(profileRequest(renewed, ifNoneMatch: cached?.validator))
                     if retried.status == 304 { return .unchanged }
                     if retried.status == 401 { return .signedOut }
                     return .updated(try believe(retried))
@@ -408,16 +373,11 @@ public final class HTTPAuthenticationService: AuthenticationService {
         guard let first = try? await authorised(), case .token(let token) = first else {
             return nil
         }
-        guard
-            var response = try? await send(
-                BackendRequest(method: .get, url: address, headers: authorisation(token, ifNoneMatch: nil)))
-        else { return nil }
+        guard var response = try? await send(get(address, token: token)) else { return nil }
 
         if response.status == 401 {
             guard let renewed = try? await renew(), case .token(let token) = renewed,
-                let retried = try? await send(
-                    BackendRequest(
-                        method: .get, url: address, headers: authorisation(token, ifNoneMatch: nil)))
+                let retried = try? await send(get(address, token: token))
             else { return nil }
             response = retried
         }
@@ -433,15 +393,10 @@ public final class HTTPAuthenticationService: AuthenticationService {
     /// making and not worth waiting on, and the token expires on its own regardless.
     public func signOut() async {
         let refreshToken = tokens.refreshToken()
-        tokens.clear()
-        access.withLock { $0 = nil }
+        forgetSession()
 
         guard let refreshToken else { return }
-        _ = try? await transport.perform(
-            BackendRequest(
-                method: .post, url: url("v1/auth/sign-out"),
-                headers: ["Content-Type": "application/json"],
-                body: encode(SignOutBody(refreshToken: refreshToken))))
+        _ = try? await transport.perform(post("v1/auth/sign-out", SignOutBody(refreshToken: refreshToken)))
     }
 
     // MARK: The session
@@ -470,16 +425,12 @@ public final class HTTPAuthenticationService: AuthenticationService {
         guard let refreshToken = tokens.refreshToken() else { return .noCredential }
 
         let response = try await send(
-            BackendRequest(
-                method: .post, url: url("v1/auth/refresh"),
-                headers: ["Content-Type": "application/json"],
-                body: encode(RefreshBody(refreshToken: refreshToken, device: device?.registration()))))
+            post("v1/auth/refresh", RefreshBody(refreshToken: refreshToken, device: device?.registration())))
 
         // The refresh token was revoked, replayed, or has expired. All three mean the same
         // thing to this Mac: it is signed out, and it should stop pretending otherwise.
         if response.status == 401 {
-            tokens.clear()
-            access.withLock { $0 = nil }
+            forgetSession()
             return .sessionOver
         }
         guard response.isSuccess, let session = decode(IssuedSession.self, from: response.body) else {
@@ -506,6 +457,21 @@ public final class HTTPAuthenticationService: AuthenticationService {
         }
     }
 
+    /// Keeps the session a sign-in was answered with, then reads the profile it unlocks.
+    private func beginSession(issuedBy response: BackendResponse) async throws(AccountError) -> Profile {
+        guard let session = decode(IssuedSession.self, from: response.body) else {
+            throw .providerRefused(description: "the server issued a session we could not read")
+        }
+        try adopt(session)
+        return try await readProfile(validator: nil)
+    }
+
+    /// Drops both halves of the session, which is what signing out means on this Mac.
+    private func forgetSession() {
+        tokens.clear()
+        access.withLock { $0 = nil }
+    }
+
     // MARK: Reading the profile
 
     private func readProfile(validator: String?) async throws(AccountError) -> Profile {
@@ -517,10 +483,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
             // to tell — which is the whole reason this does not fall back to a cache.
             throw .providerRefused(description: "that session was already over")
         case .token(let token):
-            let response = try await send(
-                BackendRequest(
-                    method: .get, url: url("v1/me"),
-                    headers: authorisation(token, ifNoneMatch: validator)))
+            let response = try await send(profileRequest(token, ifNoneMatch: validator))
             guard response.isSuccess else { throw refusal(response) }
             return try believe(response)
         }
@@ -548,10 +511,22 @@ public final class HTTPAuthenticationService: AuthenticationService {
         baseURL.appending(path: path)
     }
 
-    private func authorisation(_ token: String, ifNoneMatch validator: String?) -> [String: String] {
+    /// A JSON body posted to `path`.
+    private func post(_ path: String, _ body: some Encodable) -> BackendRequest {
+        BackendRequest(
+            method: .post, url: url(path), headers: ["Content-Type": "application/json"],
+            body: encode(body))
+    }
+
+    /// A bearer-authorised read of `address`, conditional on `validator` when there is one.
+    private func get(_ address: URL, token: String, ifNoneMatch validator: String? = nil) -> BackendRequest {
         var headers = ["Authorization": "Bearer \(token)"]
         if let validator { headers["If-None-Match"] = validator }
-        return headers
+        return BackendRequest(method: .get, url: address, headers: headers)
+    }
+
+    private func profileRequest(_ token: String, ifNoneMatch validator: String?) -> BackendRequest {
+        get(url("v1/me"), token: token, ifNoneMatch: validator)
     }
 
     private func send(_ request: BackendRequest) async throws(AccountError) -> BackendResponse {
@@ -583,7 +558,6 @@ public final class HTTPAuthenticationService: AuthenticationService {
         // happen.
         (try? JSONEncoder().encode(value)) ?? Data()
     }
-
 }
 
 // MARK: - What the backend sends and expects
