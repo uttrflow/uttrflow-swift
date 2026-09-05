@@ -146,6 +146,7 @@ EXCLUDED_FILES = {
     "UttrflowSpeech/AppleSpeechBackend.swift": "drives the system recogniser on real speech",
     "UttrflowAI/AppleFoundationCleanupModel.swift": "runs Apple's on-device language model",
     "UttrflowLocalModel/MLXCleanupModel.swift": "downloads gigabytes and runs GPU inference",
+    "UttrflowLocalModel/AppleCandidateGenerator.swift": "runs Apple's on-device model, which only the real system can",
     "UttrflowLocalModel/TokenHealing+Model.swift": (
         "reads the loaded model's vocabulary and masks its Metal logits; the rule it applies is "
         "TokenHealing, tested byte by byte without a model"

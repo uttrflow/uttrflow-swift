@@ -19,7 +19,7 @@ struct Complete: AsyncParsableCommand {
     @Option(name: .long, help: "The page or directory the field belongs to, if any.")
     var document: String?
 
-    @Option(name: .long, help: "Which model to run: gemma3, gemma3Small, or a repository name.")
+    @Option(name: .long, help: "Which model to run: gemma3, gemma3Small, apple, or a repository name.")
     var model = "gemma3"
 
     @Flag(name: .long, help: "Run every fixture and report hit rate, register conformance and latency.")
@@ -43,24 +43,36 @@ struct Complete: AsyncParsableCommand {
     var failedIn: String?
 
     func run() async throws {
-        guard let chosen = Self.model(named: model) else {
-            print("no such model: \(model)")
-            return
-        }
-        let scorer = MLXCandidateScorer(model: chosen)
-        try await scorer.prepare { fraction in
-            FileHandle.standardError.write(Data("\r  loading \(Int(fraction * 100))% ".utf8))
-        }
-        FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
-        if fixtures {
-            await measure(with: scorer)
+        let generator: any CandidateGenerating
+        if model == "apple" {
+            // Apple's model is bundled with the system and loads itself; there is nothing to download or warm.
+            let apple = AppleCandidateGenerator()
+            guard await apple.isReady else {
+                print("Apple's on-device model is not available: turn on Apple Intelligence and try again")
+                return
+            }
+            generator = apple
         } else {
-            await complete(typed ?? "", with: scorer)
+            guard let chosen = Self.model(named: model) else {
+                print("no such model: \(model)")
+                return
+            }
+            let scorer = MLXCandidateScorer(model: chosen)
+            try await scorer.prepare { fraction in
+                FileHandle.standardError.write(Data("\r  loading \(Int(fraction * 100))% ".utf8))
+            }
+            FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+            generator = scorer
+        }
+        if fixtures {
+            await measure(with: generator)
+        } else {
+            await complete(typed ?? "", with: generator)
         }
     }
 
     /// One line, printed with everything the model offered for it.
-    private func complete(_ typed: String, with scorer: MLXCandidateScorer) async {
+    private func complete(_ typed: String, with scorer: any CandidateGenerating) async {
         let situation = GenerationSituation(application: application, document: document)
         print("completions for \(typed.debugDescription) in \(application):")
         let completions: [String]
@@ -78,7 +90,7 @@ struct Complete: AsyncParsableCommand {
     }
 
     /// Every chosen fixture in turn, each timed, then the rates that decide whether a phase held and the failures.
-    private func measure(with scorer: MLXCandidateScorer) async {
+    private func measure(with scorer: any CandidateGenerating) async {
         var chosen = Fixture.all.filter { only.map($0.name.hasPrefix) ?? true }
         if let failedIn {
             guard let missed = Self.misses(recordedIn: failedIn) else {
@@ -100,7 +112,8 @@ struct Complete: AsyncParsableCommand {
             var failure: String?
             var words: String?
             do {
-                if raw {
+                // Only the local model can show its pass raw; Apple's answers in text alone.
+                if raw, let scorer = scorer as? MLXCandidateScorer {
                     let pass = try await scorer.pass(for: fixture.typed, in: fixture.situation)
                     completions = pass?.completions ?? []
                     words = pass.map { "[\($0.stopReason)] \($0.text)" } ?? "[not asked]"

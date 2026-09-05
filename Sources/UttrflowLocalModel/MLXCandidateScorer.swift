@@ -151,12 +151,16 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         from run: Run, typed: String, asking ask: Ask, in situation: GenerationSituation
     ) -> [String] {
         let text = ask == .one && run.stop == .length ? wholeWords(of: run.text) : run.text
-        // The screen and the text before the line are context, never words to copy; the person's own lines may be repeated.
-        let context = [situation.surroundings, situation.preceding].compactMap { $0 }
+        let context = contextNeverCopied(in: situation)
         // What was written for the model is the line's own start, so the answer is read as the whole line it would have echoed.
         return parse(run.written + text, typed: typed).compactMap {
             trimmed($0, typed: typed, echoing: context)
         }
+    }
+
+    /// The screen and the text before the line are context, never words to copy; the person's own lines may be repeated.
+    static func contextNeverCopied(in situation: GenerationSituation) -> [String] {
+        [situation.surroundings, situation.preceding].compactMap { $0 }
     }
 
     /// A run of the screen this long, repeated word for word past the typed text, is copying rather than completing.
@@ -294,7 +298,7 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
     }
 
     /// One instruction for every field: infer the kind of input from the words, then continue it.
-    private static let instructions = """
+    static let instructions = """
         You are an autocomplete engine. From the application and the partial text, work out what is being \
         typed — a shell command, a database query, a URL, code, a sentence — and finish it as asked: either \
         the single most likely completion, or several alternatives, one per line. Each line must repeat the \
