@@ -1,0 +1,69 @@
+import Testing
+import UttrflowCore
+
+@testable import UttrflowAI
+
+@Suite("SpokenPunctuationPass")
+struct SpokenPunctuationPassTests {
+    private let sut = SpokenPunctuationPass()
+
+    @Test(
+        "turns a mark said by name into the mark on the word before it",
+        arguments: [
+            ("add milk comma eggs comma and bread", "add milk, eggs, and bread"),
+            ("is it ready question mark", "is it ready?"),
+            ("ship it full stop", "ship it."),
+            ("ship it period", "ship it."),
+            ("wow exclamation mark", "wow!"),
+            ("wow exclamation point", "wow!"),
+            ("two things colon milk", "two things: milk"),
+            ("milk semicolon eggs", "milk; eggs"),
+            ("milk semi colon eggs", "milk; eggs"),
+            ("ready. question mark", "ready?"),
+            ("milk, comma eggs", "milk, eggs"),
+            ("done full stop next", "done. next"),
+        ]
+    )
+    func attachesMarks(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("wraps the words between open quote and close quote")
+    func quotes() {
+        #expect(cleaned("he said open quote hello there close quote", by: sut) == "he said \"hello there\"")
+    }
+
+    @Test("joins the words around a hyphen, and spaces a dash")
+    func hyphenAndDash() {
+        #expect(cleaned("a well hyphen known bug", by: sut) == "a well-known bug")
+        #expect(cleaned("we went home dash it was late", by: sut) == "we went home \u{2014} it was late")
+    }
+
+    @Test(
+        "leaves a mark that is mentioned rather than used",
+        arguments: [
+            "put a comma after the greeting",
+            "the period of time",
+            "add a period",
+            "with no comma",
+            "comma",
+            "comma first",
+            "a long period of time",
+            "this period was hard",
+            "insert a colon",
+            "say open quote",
+            "a well hyphen",
+        ]
+    )
+    func leavesMentions(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test("records the mark on the word before and the name as removed")
+    func provenance() {
+        let draft = sut.apply(Draft(text: "milk comma eggs"))
+        #expect(draft.words[0].state == .replaced(by: SpokenPunctuationPass.id, from: "milk"))
+        #expect(draft.words[1].state == .removed(by: SpokenPunctuationPass.id))
+        #expect(draft.words[2].state == .kept)
+    }
+}

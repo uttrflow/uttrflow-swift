@@ -19,9 +19,7 @@ struct TextTidyTests {
         #expect(TextTidy.collapseWhitespace(input) == expected)
     }
 
-    /// A recogniser's line breaks are an artefact of how it chunked the audio, so the
-    /// transcript path is right to flatten them. A language model's are not: dictated
-    /// code comes back as several lines and must stay that way.
+    /// A model's line breaks can be the whole point: dictated code comes back as several lines.
     @Test(
         "keeps the line breaks a model meant, while still tidying the spacing",
         arguments: [
@@ -38,94 +36,12 @@ struct TextTidyTests {
         #expect(TextTidy.collapseSpacing(input) == expected)
     }
 
-    /// The guard in `ensureTerminalPunctuation` exists for exactly this, and was
-    /// unreachable from the generative path because the newlines were destroyed one
-    /// call earlier. This is that path, in order.
     @Test("dictated code keeps its shape and gains no stray full stop")
     func dictatedCodeSurvivesTheGenerativePath() {
         let modelAnswer = "def add(a, b):\n    return a + b"
         let finished = TextTidy.ensureTerminalPunctuation(TextTidy.collapseSpacing(modelAnswer))
         #expect(finished.contains("\n"), "the line break was flattened away")
         #expect(!finished.hasSuffix("."), "a full stop was added to code")
-    }
-
-    @Test(
-        "removes the sounds people make while thinking",
-        arguments: [
-            ("um hello there", "hello there"),
-            ("hello uh there", "hello there"),
-            ("er hello", "hello"),
-            ("hello there hmm", "hello there"),
-            ("Um, hello", "hello"),
-            ("uh um er hello", "hello"),
-        ]
-    )
-    func removesFillers(input: String, expected: String) {
-        #expect(TextTidy.removeFillers(input) == expected)
-    }
-
-    /// These are ordinary words far more often than they are filler; removing them
-    /// changes what the speaker said.
-    @Test(
-        "keeps words that only sometimes act as filler",
-        arguments: [
-            "I would like a coffee",
-            "well done everyone",
-            "so the answer is four",
-            "you know the answer",
-            "that is a hard problem",
-        ]
-    )
-    func keepsAmbiguousWords(input: String) {
-        #expect(TextTidy.removeFillers(input) == input)
-    }
-
-    @Test("removes the doubled word a false start leaves behind")
-    func removesStammer() {
-        #expect(TextTidy.removeFillers("the the deployment") == "the deployment")
-        #expect(TextTidy.removeFillers("I I think so") == "I think so")
-    }
-
-    /// A repeated long word is emphasis or a real repetition, not a stammer.
-    @Test("keeps a repeated long word")
-    func keepsRepeatedLongWord() {
-        #expect(TextTidy.removeFillers("really really good") == "really really good")
-    }
-
-    @Test(
-        "capitalises the start of every sentence",
-        arguments: [
-            ("hello there", "Hello there"),
-            ("hello. there", "Hello. There"),
-            ("hello! there? okay", "Hello! There? Okay"),
-            ("  hello", "  Hello"),
-            ("42 things", "42 things"),
-            ("", ""),
-        ]
-    )
-    func capitalisesSentences(input: String, expected: String) {
-        #expect(TextTidy.capitaliseSentences(input) == expected)
-    }
-
-    @Test(
-        "capitalises the pronoun I where it stands alone",
-        arguments: [
-            ("i think so", "I think so"),
-            ("well i think", "well I think"),
-            ("i", "I"),
-            ("i, therefore", "I, therefore"),
-        ]
-    )
-    func capitalisesPronoun(input: String, expected: String) {
-        #expect(TextTidy.capitalisePronounI(input) == expected)
-    }
-
-    @Test(
-        "leaves an i that is part of another word alone",
-        arguments: ["it is fine", "in the middle", "i18n is hard"]
-    )
-    func leavesOtherWordsAlone(input: String) {
-        #expect(TextTidy.capitalisePronounI(input) == input)
     }
 
     @Test(
@@ -144,8 +60,6 @@ struct TextTidyTests {
         #expect(TextTidy.ensureTerminalPunctuation(input) == input)
     }
 
-    /// A full stop after code would be wrong, and dictating code is a use this
-    /// product intends to serve.
     @Test(
         "does not finish something that looks like code",
         arguments: [

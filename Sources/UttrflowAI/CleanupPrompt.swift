@@ -165,8 +165,8 @@ public struct CleanupPrompt: Sendable, Equatable {
     /// words changed nothing at all, in either of the two designs it was tried with.
     /// When there is no context to describe, the prompt is byte-identical to v2's, so
     /// an utterance with nothing known about it is not paying for this feature.
-    public func userPrompt(for request: TransformationRequest) -> String {
-        let spoken = "Spoken: \"\(request.transcription.text)\""
+    public func userPrompt(for request: TransformationRequest, spoken: String? = nil) -> String {
+        let spoken = "Spoken: \"\(spoken ?? request.transcription.text)\""
         guard let context = AppContextDescriber.describe(request.context) else { return spoken }
         return "\(context)\n\(spoken)"
     }

@@ -12,17 +12,21 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     private let model: any CleanupModel
     private let prompt: CleanupPrompt
     private let meaningGuard: MeaningPreservationGuard
+    private let pipeline: CleaningPipeline
 
+    /// `pipeline` runs before the model and should leave casing and the full stop for afterwards.
     public init(
         kind: TransformerKind,
         model: any CleanupModel,
         prompt: CleanupPrompt = .current,
-        meaningGuard: MeaningPreservationGuard = MeaningPreservationGuard()
+        meaningGuard: MeaningPreservationGuard = MeaningPreservationGuard(),
+        pipeline: CleaningPipeline = .beforeModel
     ) {
         self.kind = kind
         self.model = model
         self.prompt = prompt
         self.meaningGuard = meaningGuard
+        self.pipeline = pipeline
     }
 
     public func availability(for request: TransformationRequest) async -> TransformerAvailability {
@@ -37,19 +41,19 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        let spoken = request.transcription.text
+        // The passes go first, so fillers and self-corrections are gone before the model can rewrite them.
+        let draft = pipeline.run(Draft(transcription: request.transcription))
+        let spoken = draft.text
         let rewritten = try await model.rewrite(
-            prompt.userPrompt(for: request), instructions: prompt.instructions, kind: kind
+            prompt.userPrompt(for: request, spoken: spoken), instructions: prompt.instructions, kind: kind
         )
 
-        // Models echo the shape of the worked examples, so the answer often arrives
-        // wrapped in the label they were shown. Unwrap before judging it.
+        // Models echo the shape of the worked examples, so the answer is unwrapped before it is judged.
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
         let finished = TextTidy.ensureTerminalPunctuation(TextTidy.collapseSpacing(unwrapped))
 
-        // Rejecting is not a failure of the product: the router simply moves to the
-        // next engine, and the floor beneath them all cannot invent anything.
-        if case .rejected(let reason) = meaningGuard.verdict(original: spoken, rewritten: finished) {
+        // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
+        if case .rejected(let reason) = meaningGuard.verdict(draft: draft, rewritten: finished) {
             throw .outputRejected(reason: reason)
         }
 

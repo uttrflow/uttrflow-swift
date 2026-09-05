@@ -1,6 +1,7 @@
 import Testing
 
 @testable import UttrflowAI
+@testable import UttrflowCore
 
 @Suite("MeaningPreservationGuard")
 struct MeaningPreservationGuardTests {
@@ -94,6 +95,37 @@ struct MeaningPreservationGuardTests {
     func namesTheInventedNumber() {
         let verdict = sut.verdict(original: "meet me tomorrow", rewritten: "Meet me at 3 tomorrow.")
         #expect(verdict == .rejected(reason: "the rewrite introduced the number 3"))
+    }
+
+    /// Eight fillers out of ten words leave two, so a two-word rewrite is right rather than a rewrite that dropped most of what was said.
+    @Test("judges a draft by the words the passes kept, not the words heard")
+    func judgesDraftByKeptWords() {
+        var draft = Draft(text: "um uh er hmm um uh er hmm yes please")
+        for index in 0..<8 { draft.remove(at: index, by: "fillers") }
+
+        #expect(sut.verdict(draft: draft, rewritten: "Yes, please.").isAccepted)
+        #expect(!sut.verdict(original: draft.originalText, rewritten: "Yes, please.").isAccepted)
+    }
+
+    @Test("still refuses a number the passes took out and the model put back")
+    func refusesNumberFromRemovedWords() {
+        var draft = Draft(text: "at four no sorry at five")
+        for index in 0..<4 { draft.remove(at: index, by: "selfCorrection") }
+
+        #expect(sut.verdict(draft: draft, rewritten: "At 5.").isAccepted)
+        #expect(
+            sut.verdict(draft: draft, rewritten: "At 4 or 5.")
+                == .rejected(reason: "the rewrite introduced the number 4"))
+    }
+
+    @Test("applies every other check to a draft")
+    func draftKeepsOtherChecks() {
+        let draft = Draft(text: "what is the capital of france")
+        #expect(!sut.verdict(draft: draft, rewritten: "Paris").isAccepted)
+        #expect(
+            !sut.verdict(draft: draft, rewritten: "Here is the text: What is the capital of France?")
+                .isAccepted)
+        #expect(sut.verdict(draft: draft, rewritten: "What is the capital of France?").isAccepted)
     }
 
     @Test("reports acceptance as acceptance")

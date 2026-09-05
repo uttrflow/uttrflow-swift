@@ -71,6 +71,44 @@ struct GenerativeTextTransformerTests {
         #expect(try await sut.transform(request("hello there")).text == expected)
     }
 
+    /// The passes run first, so the model never sees the fillers and discarded halves it might rewrite.
+    @Test("hands the model the draft after the passes, not the raw words")
+    func handsModelTheDraft() async throws {
+        let model = FakeCleanupModel { _ in "Let's meet at five." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        _ = try await sut.transform(request("um let's meet at four no sorry at five"))
+
+        #expect(model.calls.first?.text == "Spoken: \"let's meet at five\"")
+    }
+
+    @Test("leaves casing and the full stop to the model, and finishes what it forgets")
+    func leavesFinishingToTheModel() async throws {
+        let model = FakeCleanupModel { _ in "hello there" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        #expect(try await sut.transform(request("um hello there")).text == "hello there.")
+    }
+
+    @Test("does not count a pass's removals against the model")
+    func judgesAgainstTheDraft() async throws {
+        let model = FakeCleanupModel { _ in "Yes, please." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        let result = try await sut.transform(request("um uh er hmm um uh er hmm yes please"))
+        #expect(result.text == "Yes, please.")
+    }
+
+    @Test("runs whatever pipeline it is given before the model")
+    func usesGivenPipeline() async throws {
+        let model = FakeCleanupModel { _ in "Um, hello there." }
+        let sut = GenerativeTextTransformer(
+            kind: .foundationModels, model: model, pipeline: CleaningPipeline(passes: []))
+
+        _ = try await sut.transform(request("um hello there"))
+        #expect(model.calls.first?.text == "Spoken: \"um hello there\"")
+    }
+
     @Test("refuses a rewrite that changed what the speaker meant")
     func rejectsChangedMeaning() async {
         let model = FakeCleanupModel { _ in "Paris" }
@@ -138,10 +176,19 @@ struct RuleBasedTransformerTests {
             ("uh i think so", "I think so."),
             ("the the deployment is running", "The deployment is running."),
             ("hello. um there", "Hello. There."),
+            ("let's meet at four no sorry at five", "Let's meet at five."),
+            ("we're on postgres sixteen point two", "We're on postgres 16.2."),
+            ("milk comma eggs comma and bread", "Milk, eggs, and bread."),
         ]
     )
     func tidies(input: String, expected: String) async throws {
         #expect(try await sut.transform(request(input)).text == expected)
+    }
+
+    @Test("runs whatever pipeline it is given")
+    func usesGivenPipeline() async throws {
+        let sut = RuleBasedTransformer(pipeline: CleaningPipeline(passes: [FillersPass()]))
+        #expect(try await sut.transform(request("um hello there")).text == "hello there")
     }
 
     @Test("attributes its work to itself")

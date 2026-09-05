@@ -1,0 +1,54 @@
+import Testing
+import UttrflowCore
+
+@testable import UttrflowAI
+
+@Suite("The standard pipeline")
+struct StandardPipelineTests {
+    @Test("runs the passes in the shipped order")
+    func order() {
+        #expect(
+            CleaningPipeline.standard.ids == [
+                "fillers", "stammers", "repeatedPhrase", "selfCorrection", "spokenPunctuation", "layoutWords",
+                "numberForms", "spacing", "firstWord", "terminalStop",
+            ])
+    }
+
+    @Test("leaves casing and the full stop for after the model")
+    func beforeModel() {
+        #expect(CleaningPipeline.beforeModel.ids == Array(CleaningPipeline.standard.ids.dropLast(2)))
+    }
+
+    @Test(
+        "cleans a whole utterance with the model switched off",
+        arguments: [
+            (
+                "um so uh basically the the thing is we need more time",
+                "So basically the thing is we need more time."
+            ),
+            ("let's meet at four no sorry at five on tuesday", "Let's meet at five on tuesday."),
+            ("we still need milk comma eggs comma and bread", "We still need milk, eggs, and bread."),
+            ("we're on postgres sixteen point two right now", "We're on postgres 16.2 right now."),
+            ("first line new line second line", "First line\nsecond line"),
+            ("thanks new paragraph the second issue", "Thanks\n\nThe second issue"),
+            ("is it ready question mark", "Is it ready?"),
+            ("i think i'll take the earlier train", "I think I'll take the earlier train."),
+            ("the dentist moved it to two thirty pm", "The dentist moved it to 2:30 pm."),
+            ("", ""),
+        ]
+    )
+    func endToEnd(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("keeps the record of every pass that touched a word")
+    func provenance() {
+        let draft = CleaningPipeline.standard.run(Draft(text: "um at four no sorry at five"))
+        #expect(draft.text == "At five.")
+        #expect(draft.removed.map(\.heard) == ["um", "at", "four", "no", "sorry"])
+        #expect(draft.words[0].state == .removed(by: FillersPass.id))
+        #expect(draft.words[1].state == .removed(by: SelfCorrectionPass.id))
+        #expect(draft.words[5].state == .replaced(by: FirstWordPass.id, from: "at"))
+        #expect(draft.words[6].state == .replaced(by: TerminalStopPass.id, from: "five"))
+    }
+}

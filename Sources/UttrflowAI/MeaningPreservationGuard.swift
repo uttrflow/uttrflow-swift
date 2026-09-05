@@ -1,3 +1,5 @@
+public import UttrflowCore
+
 /// Whether a rewrite may be shown to the user.
 public enum GuardVerdict: Sendable, Equatable {
     case accepted
@@ -30,6 +32,11 @@ public struct MeaningPreservationGuard: Sendable {
     ]
 
     public init() {}
+
+    /// Judges the rewrite against the words the passes kept, so the passes' removals do not count against it.
+    public func verdict(draft: Draft, rewritten: String) -> GuardVerdict {
+        verdict(original: draft.text, rewritten: rewritten)
+    }
 
     public func verdict(original: String, rewritten: String) -> GuardVerdict {
         let originalWords = Self.words(original)

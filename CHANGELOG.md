@@ -20,6 +20,17 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **The tidier's rules now do every cleaning that needs no model, before any model is
+  asked.** Ten small passes run in order over the words — fillers, stammers, a phrase
+  said twice, a spoken self-correction ("at four no sorry at five" → "at five"), spoken
+  punctuation ("milk comma eggs" → "milk, eggs", but "put a comma there" stays), "new
+  line" and "new paragraph", numbers ("sixteen point two" → "16.2", "two thirty pm" →
+  "2:30 pm", "five percent" → "5%", "port eight thousand eighty" → "port 8080"), spacing,
+  capitals and the final full stop — and each records what it did to every word. The
+  language model is handed the result, so it cannot rewrite around a filler it no longer
+  sees, and its answer is judged against the words the rules kept. `Docs/cleanup.md` has
+  the rules; ten corpus cases were added to measure them.
+
 - **A dictation that fails can be retried from its audio.** Every recording is written to
   this Mac while the key is held, beside the buffer the recogniser reads, and deleted the
   moment the words land. When the words are lost — the recogniser fails, or the app dies

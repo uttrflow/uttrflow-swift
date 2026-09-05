@@ -88,6 +88,66 @@ public enum EvaluationCorpus {
             spoken: "um yes",
             expected: "Yes."
         ),
+        .init(
+            id: "repeated-phrase", category: .everyday,
+            spoken: "can you can you send me the link to the doc again",
+            expected: "Can you send me the link to the doc again?",
+            mustKeep: ["link", "doc"]
+        ),
+        .init(
+            id: "i-mean-correction", category: .everyday,
+            spoken: "send the invoice on tuesday I mean on wednesday",
+            expected: "Send the invoice on Wednesday.",
+            mustKeep: ["invoice", "Wednesday"],
+            mustNotAdd: ["Tuesday"]
+        ),
+        .init(
+            id: "actually-between-numbers", category: .everyday,
+            spoken: "let's get coffee at two actually three",
+            expected: "Let's get coffee at three.",
+            mustKeep: ["coffee"],
+            mustNotAdd: ["two"]
+        ),
+        // "no" opens the sentence rather than correcting one, and "wait" is a verb here.
+        .init(
+            id: "false-no-stays", category: .everyday,
+            spoken: "no I don't think so we should wait for the results",
+            expected: "No, I don't think so. We should wait for the results.",
+            mustKeep: ["no", "wait", "results"]
+        ),
+        .init(
+            id: "spoken-comma", category: .everyday,
+            spoken: "we still need milk comma eggs comma and bread from the shop",
+            expected: "We still need milk, eggs, and bread from the shop.",
+            mustKeep: ["milk", "eggs", "bread"],
+            mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "comma-as-a-word", category: .everyday,
+            spoken: "put a comma after the greeting",
+            expected: "Put a comma after the greeting.",
+            mustKeep: ["comma"]
+        ),
+        .init(
+            id: "new-paragraph", category: .everyday,
+            spoken: "thanks for the update new paragraph the second issue is the login timeout",
+            expected: "Thanks for the update.\n\nThe second issue is the login timeout.",
+            mustKeep: ["login", "timeout"],
+            mustNotAdd: ["paragraph"]
+        ),
+        .init(
+            id: "time-of-day", category: .everyday,
+            spoken: "the dentist moved my appointment to two thirty pm tomorrow",
+            expected: "The dentist moved my appointment to 2:30 pm tomorrow.",
+            mustKeep: ["2:30 pm", "dentist"]
+        ),
+        .init(
+            id: "percentage", category: .everyday,
+            spoken: "conversion dropped by five percent after the redesign",
+            expected: "Conversion dropped by 5% after the redesign.",
+            mustKeep: ["5", "redesign"],
+            mustNotAdd: ["percent"]
+        ),
     ]
 
     // MARK: Technical terms that must survive
@@ -126,6 +186,12 @@ public enum EvaluationCorpus {
             id: "acronyms", category: .technical,
             spoken: "the api returns a json payload over https",
             expected: "The API returns a JSON payload over HTTPS."
+        ),
+        .init(
+            id: "port-number", category: .technical,
+            spoken: "the gateway listens on port eight thousand eighty in staging",
+            expected: "The gateway listens on port 8080 in staging.",
+            mustKeep: ["8080", "staging"]
         ),
     ]
 

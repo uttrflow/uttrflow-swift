@@ -34,15 +34,15 @@ would make. Safe in every register.
 
 | Cleaning | Example | Today |
 |---|---|---|
-| Hesitation sounds | "um", "uh", "er", "erm", "ah", "hmm", "mmm", "aah", "mm-hmm" as a hesitation | ✅ `TextTidy.fillerWords`; extend with "aah", "ahh", "mhm", "huh" (when not a question) |
-| Stammers — the same short word twice | "the the deployment" → "the deployment" | ✅ `TextTidy.removeFillers` (≤4 letters) |
-| Repeated phrase — a false start restarted verbatim | "so I was I was thinking" → "so I was thinking" | ✅ prompt; ❌ rules (only single words). Extend to 2–4-word repeats |
-| Sentence capitalisation and the pronoun "I" | "i think i'll go" → "I think I'll go" | ✅ both |
-| Terminal punctuation on the last sentence | "ship it" → "Ship it." | ✅ both, except when the text holds a newline (dictated code) |
-| Whitespace and spacing around punctuation | no space before `, . ? ! : ;`; one after | ✅ rules; make the punctuation spacing explicit |
+| Hesitation sounds | "um", "uh", "er", "erm", "ah", "hmm", "mmm", "aah", "ahh", "mhm", "mm" | ✅ `FillersPass`; whole words only, and never "like", "well", "so" or "basically" |
+| Stammers — the same short word twice | "the the deployment" → "the deployment" | ✅ `StammersPass` (≤4 letters; a long repeat is emphasis) |
+| Repeated phrase — a false start restarted verbatim | "so I was I was thinking" → "so I was thinking" | ✅ `RepeatedPhrasePass`: a 2–4-word run repeated right after itself, case-insensitive, never across a punctuation mark; the first copy goes |
+| Sentence capitalisation and the pronoun "I" | "i think i'll go" → "I think I'll go" | ✅ `FirstWordPass` (also "i'll", "i'm"; a new sentence after `. ! ?`, a paragraph or a bullet, not after a plain line break) and the prompt |
+| Terminal punctuation on the last sentence | "ship it" → "Ship it." | ✅ `TerminalStopPass` and the prompt, except when the text holds a newline (dictated code) |
+| Whitespace and spacing around punctuation | no space before `, . ? ! : ;`; one after | ✅ `Draft.text` joins words with one space; `SpacingPass` fixes a stray mark onto the word before it and collapses doubled marks |
 | Apostrophes in contractions | "dont", "Ill" → "don't", "I'll" | ✅ prompt (as "obvious mis-hearings"); worth a rule |
-| Numbers that read as numerals | "fifteen" → "15", "sixteen point two" → "16.2", "nine thousand rupees" → "9,000 rupees" | 🟡 prompt does numerals; **version numbers still fail** (`version-number` corpus case) |
-| Times, dates, money, units in their written form | "two thirty pm" → "2:30 pm", "five percent" → "5%", "eight thousand eighty" (a port) → "8080" | 🟡 partly; needs cases in the corpus |
+| Numbers that read as numerals | "fifteen" → "15", "sixteen point two" → "16.2", "nine thousand rupees" → "9000 rupees", "fifteen thousand" → "15,000" | ✅ `NumberFormsPass`. Ten and up always; zero to nine stay words ("one of them") unless inside a number phrase — a decimal, a percentage, a time, a year, or after "port", "version", "page", "chapter", "step", "number" and the like, where digit groups also run together ("port eighty eighty" → "port 8080"). Commas only from 10,000. "a hundred" stays words |
+| Times, percentages, ports | "two thirty pm" → "2:30 pm", "ten am" → "10 am", "five o'clock" → "5 o'clock", "five percent" → "5%", "port eight thousand eighty" → "port 8080", "twenty twenty four" → "2024" | ✅ `NumberFormsPass`; an hour (1–12) followed by minutes (10–59) is a time even without am/pm. Dates, money and units are still ❌ and have no corpus case |
 | Acronyms and known casing | "api", "json", "https", "ecs" → "API", "JSON", "HTTPS", "ECS" | ✅ prompt (`acronyms` case); the dictionary can pin others |
 | Spellings the screen shows | a name in the window title decides "Aarav" over "arav" | ✅ context rule; spelling only, never anything else |
 | Personal dictionary spellings | the user's own names and terms | ✅ correction engine, before the tidier |
@@ -54,13 +54,13 @@ them. When the signal is missing or could be read two ways, the words stay.
 
 | Cleaning | Signal | Example | Today |
 |---|---|---|---|
-| Self-correction by trigger phrase | "no", "no sorry", "sorry", "I mean", "actually", "scratch that", "wait", "never mind" between two candidates | "at four no sorry at five" → "at five"; "coffee at 2 actually 3" → "coffee at 3" | ❌ **the corpus case every engine fails.** Wispr Flow: trigger phrases *and* natural restatement, and "actually" is kept when context does not read as a correction |
+| Self-correction by trigger phrase | "no", "no sorry", "sorry", "I mean", "actually", "scratch that", "wait", "never mind" between two halves of the same shape | "at four no sorry at five" → "at five"; "coffee at 2 actually 3" → "coffee at 3" | ✅ `SelfCorrectionPass`. The discarded half is removed only when (a) the phrase after the trigger starts with the same word as a suffix of the phrase before it, that suffix being at most six words, inside the sentence, and not anchored on a subject pronoun or an interjection ("I", "we", "it", "that", "yes"…), or (b) both sides are numbers. Otherwise everything stays, the trigger included: "no I don't think so", "I actually enjoyed it" |
 | Self-correction by restatement | the same slot said twice with the second replacing the first | "as a gift… as a present" → "as a present" | ❌; only when the two are the same part of speech in the same position |
 | Question mark from a question | interrogative shape, a rising tag ("right?", "isn't it?"), or a spoken "question mark" | "can you review the PR" → "Can you review the PR?" | ✅ prompt; ❌ rules. Note Hindi "क्या …" questions |
 | Sentence boundaries from pauses and shape | pause plus a new clause that stands alone | "the build passed everything looks good ship it" → "The build passed. Everything looks good. Ship it." | ✅ prompt; rules only cap the first word |
 | Commas from pauses and conjunctions | a short pause before "but", "so", "and then", a vocative | "thanks marcy i'll pick up…" → "Thanks Marcy, I'll pick up…" | ✅ prompt |
-| Spoken punctuation names | "comma", "full stop"/"period", "question mark", "new line", "new paragraph", "open quote … close quote", "hyphen" | "add milk comma eggs comma and bread" → "add milk, eggs, and bread" | ❌. Apple and Dragon do this always; Wispr Flow does. Only when the word is used *as* punctuation, never when mentioned ("put a comma there") |
-| Layout words | "new line", "new paragraph", "bullet point", "next point", "number one … number two" | a newline, a blank line, a list item | ❌; MacWhisper's prompt treats these as commands only when clearly instructional |
+| Spoken punctuation names | "comma", "full stop"/"period", "question mark", "exclamation mark"/"point", "colon", "semicolon", "open quote … close quote", "hyphen", "dash" | "add milk comma eggs comma and bread" → "add milk, eggs, and bread" | ✅ `SpokenPunctuationPass`. The mark goes on the word before it (a quote opens on the word after; a hyphen joins both sides). Left as a word when it is first, when the word before it is a determiner or a verb of placing ("a", "the", "this", "my", "put", "add", "insert", "with", "no"…), or when "of" follows ("a long period of time") |
+| Layout words | "new line", "new paragraph"/"blank line", "bullet point"/"next point" | a newline, a blank line, a list item | ✅ `LayoutWordsPass`, with the same mention guard as spoken punctuation and only between two words — a trailing "new line" stays words. "number one … number two" is still ❌ |
 | Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ❌. Wispr Flow builds numbered lists from sequence words. Only when there are at least two items and each is a clause of its own |
 | Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ❌; the pieces cut while recording are joined with a space. A pause long enough to cut at is also a candidate for a paragraph |
 | Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ context rule; spelling only, never SQL from prose |
@@ -91,24 +91,33 @@ Removals and additions that lose or invent meaning, however tempting the polish.
 
 ## What the corpus says is still wrong
 
-Two cases defeat every engine, Apple's included, and both are Tier 2: the spoken
-self-correction (`self-correction`: "at four no sorry at five") and the spoken version
-number (`version-number`: "sixteen point two"). Nothing in Tier 2's ❌ column has a corpus
-case yet — spoken punctuation, layout words, sequence lists, paragraph breaks,
-restatement corrections, mid-sentence casing, chat trailing periods — so the first step
-for each is a case, not a prompt line. `Docs/bakeoff.md` explains why: a prompt line
-that is not measured is a guess, and two of the last three guesses made the output
-worse.
+The two cases that defeated every engine, Apple's included — the spoken self-correction
+(`self-correction`: "at four no sorry at five") and the spoken version number
+(`version-number`: "sixteen point two") — now pass with the model switched off, because
+the passes do them before any model is asked. Spoken punctuation, layout words, times,
+percentages and ports each have a corpus case and a pass (`RulesCorpusTests` names the
+cases the rules must pass). Sequence lists, paragraph breaks, restatement corrections,
+mid-sentence casing and chat trailing periods still have no case, so the first step for
+each is a case, not a prompt line. `Docs/bakeoff.md` explains why: a prompt line that is
+not measured is a guess, and two of the last three guesses made the output worse.
 
 ## How this maps onto the code
 
-- `TextTidy` and `RuleBasedTransformer` are the floor: Tier 1 only, deterministic, and
-  what the user gets when the model declines or fails.
+- `CleaningPipeline.standard` — ten `CleaningPass` values run in order over a `Draft`,
+  each recording what it removed or rewrote — is the floor: everything marked ✅ with a
+  pass name above, deterministic, and what the user gets when the model declines or
+  fails. `RuleBasedTransformer` is nothing but that pipeline. `Docs/cleanup-design.md`
+  is the design.
+- The generative transformer runs the same passes first, without the casing and the
+  final full stop, and hands the model the draft's text — so the fillers and the
+  discarded half of a correction are gone before the model can rewrite around them.
 - `CleanupPrompt` asks the model for Tier 1 and the parts of Tier 2 marked ✅, with the
   Tier 3 list as prohibitions. Additions go in as one rule and one worked example each,
   measured against the corpus before and after (`make bakeoff ARGS="--baselines-only"`),
   and the examples must not overlap corpus cases (two tests enforce this).
-- `MeaningPreservationGuard` polices Tier 3 after the fact.
+- `MeaningPreservationGuard` polices Tier 3 after the fact, judging the model against
+  the words the passes kept, so a pass's removal is never counted as the model dropping
+  words.
 - `CorrectionEngine` and the dictionary handle spellings before the tidier sees the text.
 - The pieces cut while recording (`Docs/early-transcription.md`) are each tidied alone,
   which is why paragraph breaks and list layout have to be decided when the pieces are

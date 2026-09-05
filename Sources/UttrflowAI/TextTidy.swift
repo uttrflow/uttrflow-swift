@@ -1,31 +1,11 @@
-/// Deterministic text repairs, shared by every transformer.
-///
-/// The rule-based transformer is built entirely from these; the model-backed ones use
-/// the safe subset to finish output that a language model left slightly ragged. Pure
-/// functions, so the same repair cannot behave differently depending on who applied it.
+/// String-level repairs for text that is not a draft: a language model's answer, a snippet, a window title.
 public enum TextTidy {
-    /// Sounds people make while thinking. Only whole words are removed, and only ones
-    /// that are never meaningful on their own — "like" and "well" are excluded because
-    /// they are ordinary words far more often than they are filler.
-    static let fillerWords: Set<String> = ["um", "umm", "uh", "uhh", "uhm", "er", "erm", "ah", "hmm", "mmm"]
-
     /// Collapses runs of whitespace and trims the ends.
     public static func collapseWhitespace(_ text: String) -> String {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    /// Tidies spacing without destroying line breaks.
-    ///
-    /// ``collapseWhitespace`` treats a newline as whitespace, which is right for a raw
-    /// transcript — a recogniser's line breaks are an artefact of how it chunked the
-    /// audio, not something the speaker said. It is wrong for a language model's answer,
-    /// where a line break can be the whole point: dictated code comes back as several
-    /// lines and was being flattened into one.
-    ///
-    /// Worse, flattening happened *before* ``ensureTerminalPunctuation``, whose first
-    /// guard is "no full stop if this contains a newline, because dictating code is a
-    /// use this product intends to serve". There were no newlines left by then, so that
-    /// guard could never fire and the flattened code gained a stray full stop.
+    /// Tidies spacing on every line without destroying the line breaks a model meant.
     public static func collapseSpacing(_ text: String) -> String {
         text
             .split(separator: "\n", omittingEmptySubsequences: false)
@@ -34,70 +14,11 @@ public enum TextTidy {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Removes filler words, and the doubled word a false start leaves behind.
-    public static func removeFillers(_ text: String) -> String {
-        var kept: [Substring] = []
-        for word in text.split(whereSeparator: \.isWhitespace) {
-            let bare = word.lowercased().filter { $0.isLetter }
-            if fillerWords.contains(bare), word.allSatisfy({ $0.isLetter || $0.isPunctuation }) {
-                continue
-            }
-            // "the the deployment" — a stammer, not emphasis.
-            if let previous = kept.last, previous.lowercased() == word.lowercased(), word.count <= 4 {
-                continue
-            }
-            kept.append(word)
-        }
-        return kept.joined(separator: " ")
-    }
-
-    /// Capitalises the first letter of the text and of each new sentence.
-    public static func capitaliseSentences(_ text: String) -> String {
-        var result = ""
-        var startOfSentence = true
-        for character in text {
-            // Any visible character ends the start of a sentence, not just a letter:
-            // otherwise "42 things" capitalises the wrong word.
-            if startOfSentence, !character.isWhitespace {
-                result.append(contentsOf: character.uppercased())
-                startOfSentence = false
-            } else {
-                result.append(character)
-                if character == "." || character == "!" || character == "?" {
-                    startOfSentence = true
-                }
-            }
-        }
-        return result
-    }
-
-    /// Capitalises the pronoun "i" where it stands alone.
-    public static func capitalisePronounI(_ text: String) -> String {
-        text.split(separator: " ", omittingEmptySubsequences: false)
-            .map { word -> String in
-                let letters = word.filter(\.isLetter)
-                guard letters == "i" else { return String(word) }
-                return String(word).replacingCharacter("i", with: "I")
-            }
-            .joined(separator: " ")
-    }
-
-    /// Adds a full stop when the text plainly ends a sentence without one.
-    ///
-    /// Skipped when the text looks like code or a list — a trailing `)`, `;`, `}` or a
-    /// line break means a full stop would be wrong, and dictating code is a use this
-    /// product intends to serve.
+    /// Adds a full stop to a plain sentence with no ending; code and text with a line break are untouched.
     public static func ensureTerminalPunctuation(_ text: String) -> String {
         guard let last = text.last, !text.contains(where: \.isNewline) else { return text }
         let alreadyFinished: Set<Character> = [".", "!", "?", ";", ":", ")", "}", "]", ",", "\"", "'", "…"]
         guard !alreadyFinished.contains(last), last.isLetter || last.isNumber else { return text }
         return text + "."
-    }
-}
-
-extension String {
-    /// Replaces the single occurrence of a letter, leaving punctuation around it.
-    fileprivate func replacingCharacter(_ target: Character, with replacement: Character) -> String {
-        String(map { $0 == target ? replacement : $0 })
     }
 }
