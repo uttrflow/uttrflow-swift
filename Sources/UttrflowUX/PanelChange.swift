@@ -83,8 +83,7 @@ public enum PanelSheet: Sendable, Equatable {
     public var category: String? {
         switch self {
         case .renamingCategory(let name, _), .deletingCategory(let name, _): name
-        case .formatting: nil
-        case .aliasing, .moving, .confirmingDelete: nil
+        case .aliasing, .moving, .confirmingDelete, .formatting: nil
         }
     }
 
@@ -114,9 +113,7 @@ extension PanelSnapshot {
 
     /// F7, F8 — delete, with or without asking.
     func deleting(_ id: Clip.ID) -> PanelResponse {
-        guard let clip = clips.first(where: { $0.id == id }) else {
-            return PanelResponse(state: self, outcome: .open)
-        }
+        guard let clip = clip(id) else { return stayingOpen }
         guard !clip.isKept else { return opening(.confirmingDelete(id)) }
         return PanelResponse(state: closingSheet(), outcome: .change(.delete(id)))
     }
@@ -129,7 +126,7 @@ extension PanelSnapshot {
     func committingSheet() -> PanelResponse {
         switch sheet {
         case .none:
-            return PanelResponse(state: self, outcome: .open)
+            return stayingOpen
 
         case .aliasing(let id, let draft):
             let proposal = PanelAlias.propose(draft, for: id, among: clips, locale: locale)
@@ -137,16 +134,16 @@ extension PanelSnapshot {
             if proposal.corrected.isEmpty {
                 return PanelResponse(state: closingSheet(), outcome: .change(.setAlias(id, nil)))
             }
-            guard proposal.isUsable else { return PanelResponse(state: self, outcome: .open) }
+            guard proposal.isUsable else { return stayingOpen }
             return PanelResponse(
                 state: closingSheet(), outcome: .change(.setAlias(id, proposal.corrected)))
 
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !named.isEmpty else { return PanelResponse(state: self, outcome: .open) }
+            guard !named.isEmpty else { return stayingOpen }
             // G3 — a name that already exists files the clip there rather than making a
             // second collection with the same name, which nobody could tell apart.
-            let existing = categories.first { $0.caseInsensitiveCompare(named) == .orderedSame }
+            let existing = existingCategory(named: named)
             return PanelResponse(
                 state: closingSheet(), outcome: .change(.setCategory(id, existing ?? named)))
 
@@ -159,19 +156,11 @@ extension PanelSnapshot {
 
         case .renamingCategory(let name, let draft):
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !renamed.isEmpty, renamed != name else {
-                return PanelResponse(state: self, outcome: .open)
-            }
+            guard !renamed.isEmpty, renamed != name else { return stayingOpen }
             // Renaming onto a name that already exists is a merge, and merging is not
             // what the user asked for. They are told, and nothing happens until they
             // choose a different word.
-            guard
-                !categories.contains(where: {
-                    $0 != name && $0.caseInsensitiveCompare(renamed) == .orderedSame
-                })
-            else {
-                return PanelResponse(state: self, outcome: .open)
-            }
+            guard existingCategory(named: renamed, besides: name) == nil else { return stayingOpen }
             var next = closingSheet()
             // Followed here as well as in the store, so the chips and the open tab do not
             // flicker through the old name while the write is in flight.
@@ -212,9 +201,9 @@ extension PanelSnapshot {
     /// reloads, the clip is edited — and re-indenting is one of the few things here that
     /// rewrites a clip's own text, so it asks the question at the moment it acts.
     func reindenting(_ id: Clip.ID) -> PanelResponse {
-        guard let clip = clips.first(where: { $0.id == id }),
-            let tidied = CodeReindent.reindented(clip.text)
-        else { return PanelResponse(state: self, outcome: .open) }
+        guard let clip = clip(id), let tidied = CodeReindent.reindented(clip.text) else {
+            return stayingOpen
+        }
         return PanelResponse(state: self, outcome: .change(.rewriteText(id, tidied)))
     }
 
@@ -224,18 +213,15 @@ extension PanelSnapshot {
     /// has written with a fresh copy of its own plain text, which is the one way this
     /// action could destroy something.
     func promoting(_ id: Clip.ID) -> PanelResponse {
-        guard let clip = clips.first(where: { $0.id == id }), clip.richText == nil else {
-            return PanelResponse(state: self, outcome: .open)
-        }
+        guard let clip = clip(id), clip.richText == nil else { return stayingOpen }
         return PanelResponse(
             state: self, outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
     }
 
     /// E5 — tick or untick one box, and write it.
     func ticking(_ id: Clip.ID, box index: Int) -> PanelResponse {
-        guard let clip = clips.first(where: { $0.id == id }), let note = clip.richText,
-            let ticked = NoteChecklist.toggling(index, in: note)
-        else { return PanelResponse(state: self, outcome: .open) }
+        guard let note = clip(id)?.richText, let ticked = NoteChecklist.toggling(index, in: note)
+        else { return stayingOpen }
         return PanelResponse(state: self, outcome: .change(.setRichText(id, ticked)))
     }
 
@@ -244,7 +230,7 @@ extension PanelSnapshot {
     /// The clip's current alias, so that naming and renaming are the same gesture and an
     /// existing name can be adjusted rather than retyped. Empty for a clip that has none.
     func aliasDraft(for id: Clip.ID) -> String {
-        clips.first { $0.id == id }?.alias ?? ""
+        clip(id)?.alias ?? ""
     }
 
     func closingSheet() -> PanelSnapshot {

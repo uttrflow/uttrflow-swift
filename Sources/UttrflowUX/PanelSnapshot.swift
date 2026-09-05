@@ -282,6 +282,22 @@ public struct PanelSnapshot: Sendable, Equatable {
         return seen
     }
 
+    /// The query as it is searched, trimmed; empty means the panel is browsing.
+    var needle: String { SearchQuery.needle(in: query) }
+
+    /// Whether anything has been typed, which is what leaves the tab and collection behind.
+    var isSearching: Bool { !needle.isEmpty }
+
+    /// The clip with this identity, or `nil` once the store no longer has it.
+    func clip(_ id: Clip.ID) -> Clip? {
+        clips.first { $0.id == id }
+    }
+
+    /// The collection spelt like `name` in any case, ignoring `excluded`; `nil` when there is none.
+    func existingCategory(named name: String, besides excluded: String? = nil) -> String? {
+        categories.first { $0 != excluded && $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
     /// Whether the user has given this clip somewhere else to live.
     ///
     /// The two tabs of arrivals — History and From Uttrflow — show what has *not* been put

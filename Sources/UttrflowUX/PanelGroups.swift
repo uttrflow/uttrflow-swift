@@ -90,8 +90,7 @@ extension PanelPresenter {
     /// Nothing is said while browsing. The active chip already answers the question, and a
     /// line repeating it would be a line of a 420-point panel spent on something visible.
     static func scope(for snapshot: PanelSnapshot) -> String? {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty, let leaving = PanelSnapshot.name(snapshot.category) else {
+        guard snapshot.isSearching, let leaving = PanelSnapshot.name(snapshot.category) else {
             return nil
         }
         // Not "esc to go back": esc closes the panel. What returns the user to the
@@ -111,7 +110,7 @@ extension PanelPresenter {
     /// Worth having because a fruitless search is often somebody discovering they never
     /// copied the thing they meant to, and the text they typed is usually the thing.
     static func emptyAction(for snapshot: PanelSnapshot) -> PanelAction? {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = snapshot.needle
         guard !query.isEmpty else { return nil }
         return PanelAction(
             title: "Keep “\(query)” as a clip", symbolName: "plus.circle",

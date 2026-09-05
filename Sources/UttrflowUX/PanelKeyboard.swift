@@ -91,6 +91,11 @@ public struct PanelResponse: Sendable, Equatable {
 }
 
 extension PanelSnapshot {
+    /// This panel unchanged and still open, which is what a key that could not act answers.
+    var stayingOpen: PanelResponse { PanelResponse(state: self, outcome: .open) }
+}
+
+extension PanelSnapshot {
     /// One keystroke.
     ///
     /// Every key is a function from state to state, with nothing kept between calls. The
@@ -227,7 +232,7 @@ extension PanelSnapshot {
     /// a search that matches nothing, and closing would throw away what they typed along
     /// with the panel.
     func resolving(_ clip: Clip?) -> PanelResponse {
-        guard let clip else { return PanelResponse(state: self, outcome: .open) }
+        guard let clip else { return stayingOpen }
         // Decided here rather than after the fact. Once the panel has closed there is
         // nowhere left to say that the words only reached the clipboard, and B3–B5 all
         // turn on the user being told which of the three happened.
@@ -252,7 +257,7 @@ extension PanelSnapshot {
     /// machine that cannot place text still copies and still says so. Only the formatting
     /// differs; everything about *whether it lands* is the same question.
     func resolvingPlain(_ clip: Clip?) -> PanelResponse {
-        guard let clip else { return PanelResponse(state: self, outcome: .open) }
+        guard let clip else { return stayingOpen }
         switch insertion {
         case .atCaret:
             return PanelResponse(state: self, outcome: .insertPlain(clip))
@@ -263,9 +268,7 @@ extension PanelSnapshot {
 
     /// ⌘-click, which is ⌘-Return on the row under the pointer.
     func choosingPlain(_ id: Clip.ID) -> PanelResponse {
-        guard let row = results.rows.first(where: { $0.id == id }) else {
-            return PanelResponse(state: self, outcome: .open)
-        }
+        guard let row = results.rows.first(where: { $0.id == id }) else { return stayingOpen }
         var next = self
         next.selection = id
         return next.resolvingPlain(row.clip)
@@ -275,9 +278,7 @@ extension PanelSnapshot {
     /// state left behind agrees with what was inserted. A click on a row that is not in
     /// the list cannot come from the drawn panel, and is ignored rather than trusted.
     func choosing(_ id: Clip.ID) -> PanelResponse {
-        guard let row = results.rows.first(where: { $0.id == id }) else {
-            return PanelResponse(state: self, outcome: .open)
-        }
+        guard let row = results.rows.first(where: { $0.id == id }) else { return stayingOpen }
         var next = self
         next.selection = id
         // Through `resolving`, not straight to `.insert`. Answering here was a second

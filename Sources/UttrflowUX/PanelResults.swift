@@ -11,7 +11,7 @@ public import UttrflowClipboard
 ///
 /// The order of the cases is the order of precedence, and the one place it is written
 /// down: a clip matching in two places is reported as the strongest of them.
-public enum PanelMatchField: Sendable, Equatable, CaseIterable {
+public enum PanelMatchField: Int, Sendable, Equatable, CaseIterable {
     case alias
     case category
     case content
@@ -74,7 +74,7 @@ extension PanelSnapshot {
     /// Return mean" — which is the one question this whole module exists to have a single
     /// answer to.
     public var results: PanelResults {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let needle = self.needle
         // A tab narrows what is *browsed*, never what is *searched*. Typing therefore
         // leaves the tab behind and looks everywhere.
         //
@@ -145,7 +145,7 @@ extension PanelSnapshot {
     /// and this collapses to what it was: pinned first, then arrival order.
     static func rank(_ entry: (Int, PanelResult)) -> (Int, Int, Int, Int) {
         (
-            entry.1.match.map(order(of:)) ?? 0,
+            entry.1.match?.rawValue ?? 0,
             entry.1.isExactAlias ? 0 : 1,
             entry.1.clip.isPinned ? 0 : 1,
             entry.0
@@ -178,16 +178,6 @@ extension PanelSnapshot {
         return (kept, omitted)
     }
 
-    /// Alias before collection before contents — a name the user chose for this clip,
-    /// then a name they chose for a set of clips, then a word that merely occurs in one.
-    static func order(of field: PanelMatchField) -> Int {
-        switch field {
-        case .alias: 0
-        case .category: 1
-        case .content: 2
-        }
-    }
-
     /// Where the selection has landed.
     ///
     /// A selection naming a clip that is no longer listed falls back to the top rather
@@ -206,10 +196,10 @@ extension PanelSnapshot {
     /// be in it. A secret's contents are searched like anything else — the row stays
     /// masked, so what is learnt is that a clip matches, never what it says.
     static func field(matching needle: String, in clip: Clip, locale: Locale) -> PanelMatchField? {
-        if contains(clip.alias, needle, locale: locale) { return .alias }
-        if contains(clip.category, needle, locale: locale) { return .category }
-        if contains(clip.text, needle, locale: locale) { return .content }
-        return nil
+        let fields: [(PanelMatchField, String?)] = [
+            (.alias, clip.alias), (.category, clip.category), (.content, clip.text),
+        ]
+        return fields.first { $0.1?.contains(needle, ignoringCaseAndAccentsIn: locale) == true }?.0
     }
 
     /// Whether what was typed is this clip's alias, slash or no slash.
@@ -219,25 +209,8 @@ extension PanelSnapshot {
     /// when they are in a hurry. Both spellings are the same name.
     static func isAlias(_ needle: String, of clip: Clip, locale: Locale) -> Bool {
         guard let alias = clip.alias else { return false }
-        let typed = handle(needle, locale: locale)
-        return !typed.isEmpty && typed == handle(alias, locale: locale)
-    }
-
-    /// An alias reduced to the part that identifies it.
-    ///
-    /// Deliberately the same function the alias field saves through. Two reductions here
-    /// would be two spellings of the same name, and the one that failed to match would
-    /// fail while the user was typing it into somebody else's application.
-    static func handle(_ text: String, locale: Locale) -> String {
-        PanelAlias.handle(text, locale: locale)
-    }
-
-    /// Case- and accent-insensitive, for the reason the history page gives: what people
-    /// type when looking for a word is rarely how the word was spelt when it arrived.
-    static func contains(_ haystack: String?, _ needle: String, locale: Locale) -> Bool {
-        haystack?.range(
-            of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-            locale: locale
-        ) != nil
+        // The same reduction the alias field saves through, so both spell one name.
+        let typed = PanelAlias.handle(needle, locale: locale)
+        return !typed.isEmpty && typed == PanelAlias.handle(alias, locale: locale)
     }
 }

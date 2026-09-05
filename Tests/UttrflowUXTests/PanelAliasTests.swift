@@ -9,7 +9,7 @@ import Testing
 /// name would otherwise find nothing.
 @Suite("Correcting an alias as it is typed")
 struct PanelAliasCorrectionTests {
-    static let locale = Locale(identifier: "en_GB")
+    static let locale = PanelFixture.locale
 
     @Test(
         "the same name, typed six ways, reduces to one handle",
@@ -62,7 +62,7 @@ struct PanelAliasCorrectionTests {
 /// "by what" leaves the user guessing at a name they cannot see.
 @Suite("An alias somebody else already has")
 struct PanelAliasConflictTests {
-    static let locale = Locale(identifier: "en_GB")
+    static let locale = PanelFixture.locale
 
     static let existing = PanelFixture.clip("postgres://prod", minutesAgo: 1, alias: "pgprod")
     static let other = PanelFixture.clip("something else", minutesAgo: 2)
@@ -103,7 +103,7 @@ struct PanelAliasConflictTests {
 /// finds nothing.
 @Suite("Creating an alias and finding it are the same rule")
 struct PanelAliasRoundTripTests {
-    static let locale = Locale(identifier: "en_GB")
+    static let locale = PanelFixture.locale
 
     @Test(
         "whatever is saved is found by typing any spelling of it",
