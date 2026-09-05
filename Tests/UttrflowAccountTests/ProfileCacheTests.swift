@@ -1,6 +1,7 @@
 import Foundation
 import UttrflowCore
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowAccount
 
@@ -123,18 +124,18 @@ struct ProfileCacheTests {
 struct SystemDefaultsStorageTests {
     @Test("keeps a value, gives it back, and removes it")
     func roundTripThroughUserDefaults() {
-        let suite = "com.uttrflow.tests.\(UUID().uuidString)"
-        let storage = SystemDefaultsStorage(suiteName: suite)
-        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        withTemporaryDefaultsSuite { suite in
+            let storage = SystemDefaultsStorage(suiteName: suite.name)
 
-        let key = "session"
-        #expect(storage.data(forKey: key) == nil)
+            let key = "session"
+            #expect(storage.data(forKey: key) == nil)
 
-        storage.set(Data("kept".utf8), forKey: key)
-        #expect(storage.data(forKey: key) == Data("kept".utf8))
+            storage.set(Data("kept".utf8), forKey: key)
+            #expect(storage.data(forKey: key) == Data("kept".utf8))
 
-        storage.set(nil, forKey: key)
-        #expect(storage.data(forKey: key) == nil)
+            storage.set(nil, forKey: key)
+            #expect(storage.data(forKey: key) == nil)
+        }
     }
 
     /// Without a suite name it reads the standard domain, which the app itself uses.
