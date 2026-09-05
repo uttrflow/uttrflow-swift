@@ -50,6 +50,13 @@ struct MeaningPreservationGuardTests {
         rejected("hello there my friend", rewritten)
     }
 
+    @Test("keeps a rewrite whose opening the speaker said, however much it reads like a preamble")
+    func keepsSpokenOpening() {
+        accepted("i have three things to raise", "I have three things to raise.")
+        accepted("i've sent the quote already", "I've sent the quote already.")
+        rejected("three things to raise", "I have three things to raise.")
+    }
+
     /// A dictated question answered instead of typed. Observed with a real model.
     @Test("rejects a rewrite that answered the dictation instead of tidying it")
     func rejectsAnswering() {
@@ -229,7 +236,7 @@ struct GrammarGuardTests {
     func acceptsIrregularForm() {
         #expect(
             verdict(
-                "we have went through the whole report twice", "We have gone through the whole report twice."
+                "I have went through the whole report twice", "I have gone through the whole report twice."
             )
             .isAccepted)
     }

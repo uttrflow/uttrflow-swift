@@ -48,7 +48,10 @@ public struct MeaningPreservationGuard: Sendable {
         if !originalWords.isEmpty, rewrittenWords.isEmpty {
             return .rejected(reason: "the rewrite is empty")
         }
-        if let preamble = Self.preambles.first(where: rewritten.lowercased().hasPrefix) {
+        // A speaker who opens with "I have" gets their words, not a preamble check.
+        if let preamble = Self.preambles.first(where: {
+            rewritten.lowercased().hasPrefix($0) && !original.lowercased().hasPrefix($0)
+        }) {
             return .rejected(reason: "the rewrite begins with '\(preamble)'")
         }
         if Double(rewrittenWords.count) > Double(originalWords.count) * Self.maximumGrowthFactor + 4 {

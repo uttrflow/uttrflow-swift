@@ -792,8 +792,8 @@ public enum EvaluationCorpus {
         ),
         .init(
             id: "participle-have-went", category: .grammar,
-            spoken: "we have went through the whole report twice",
-            expected: "We have gone through the whole report twice.",
+            spoken: "I have went through the whole report twice",
+            expected: "I have gone through the whole report twice.",
             mustKeep: ["report", "twice"],
             context: AppContext(
                 applicationName: "Notes",
@@ -807,8 +807,8 @@ public enum EvaluationCorpus {
         ),
         .init(
             id: "article-a-apple", category: .grammar,
-            spoken: "can you pass me a apple from the bowl",
-            expected: "Can you pass me an apple from the bowl?",
+            spoken: "there was a apple left in the bowl",
+            expected: "There was an apple left in the bowl.",
             mustKeep: ["apple", "bowl"],
             context: AppContext(
                 applicationName: "TextEdit",
@@ -816,8 +816,8 @@ public enum EvaluationCorpus {
                 documentName: "Untitled"
             ),
             destination: .document,
-            mustBeginWith: "Can",
-            mustEndWith: "?"
+            mustBeginWith: "There was an apple",
+            mustEndWith: "."
         ),
         .init(
             id: "tense-drift", category: .grammar,

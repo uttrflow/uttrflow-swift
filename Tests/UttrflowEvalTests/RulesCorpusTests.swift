@@ -64,8 +64,8 @@ struct RulesCorpusTests {
         arguments: [
             ("agreement-there-is", "There is three of them waiting outside."),
             ("agreement-he-dont", "He don't know about the meeting yet."),
-            ("participle-have-went", "We have went through the whole report twice."),
-            ("article-a-apple", "Can you pass me a apple from the bowl."),
+            ("participle-have-went", "I have went through the whole report twice."),
+            ("article-a-apple", "There was a apple left in the bowl."),
             ("tense-drift", "Yesterday I open the file and it crashes immediately."),
             ("preposition-slip", "She is good in maths and physics."),
             ("plural-slip", "We need two more developer on this team."),
