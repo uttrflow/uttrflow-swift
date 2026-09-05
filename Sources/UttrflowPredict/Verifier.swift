@@ -148,7 +148,7 @@ public actor Verifier {
         word.isEmpty ? !value.hasPrefix(".") : value.hasPrefix(word) && value != word
     }
 
-    /// The model's lines whose every new word the machine can stand behind; a line naming what this machine does not have is dropped.
+    /// The model's whole lines whose every word past the typing the machine can stand behind; a line naming what this machine does not have is dropped.
     public func standing(
         _ completions: [String], after typed: String, in surface: Surface, now: Date
     ) async -> [String] {
@@ -163,7 +163,7 @@ public actor Verifier {
     private func stands(
         _ completion: String, after typed: String, in surface: Surface, now: Date
     ) async -> Bool {
-        for token in Verification.words(typed, completedBy: completion) {
+        for token in Verification.words(of: completion, addedAfter: typed) {
             guard let attestation = Verification.attestation(for: token) else { continue }
             var vouched = false
             for lookup in attestation.lookups where !vouched {

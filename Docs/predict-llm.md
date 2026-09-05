@@ -29,7 +29,11 @@ over the fixture set, the table in [predict-context.md](predict-context.md) — 
 that serves suggestions is the one dictation already uses. What is done so far — a 120 ms
 debounce, one line first, a warm instruction prefix, a 1 400-character prompt budget, and the
 line itself up to its last word written into the model's own turn so the answer can only
-continue it and no echo is paid for — is also there. A smaller model dedicated to suggestions, speculative decoding and the thermal
+continue it and no echo is paid for — is also there. In a terminal the machine now speaks before the
+model ([predict-agent.md](predict-agent.md)): where the next word is a directory, a file, a branch
+or a program's verb, the pass is told the values that exist and `TokenChoice` holds the decode to
+one of them, so the model ranks what is there and cannot write what is not; where nothing there
+begins as the word was typed, no pass runs and the turn is quiet for `notOnThisMachine`. A smaller model dedicated to suggestions, speculative decoding and the thermal
 and battery guards are still to come and do not gate a working system. Dictation keeps its
 own model so its quality is never traded for the speed of a suggestion.
 

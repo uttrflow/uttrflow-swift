@@ -356,6 +356,26 @@ struct ArgumentOptionsTests {
                 == .among(["~/work"]))
     }
 
+    @Test("A branch prefix ending in a slash offers the branches under it as well as a path git would take.")
+    func branchPrefixesOfferBranches() async {
+        let machine: [EnvironmentKind: [String]] = [
+            .branch: ["feat/login", "feat/billing", "main"], .entries(under: "feat"): [],
+        ]
+        #expect(
+            await options(for: "git checkout feat/", machine: machine)
+                == .among(["feat/login", "feat/billing"]))
+        #expect(
+            await options(for: "git checkout fix/", machine: [.branch: ["main"], .entries(under: "fix"): []])
+                == .none)
+    }
+
+    @Test("A lone dot begins a hidden name, so the hidden names are what it is chosen from.")
+    func aDotBeginsAHiddenName() async {
+        #expect(
+            await options(for: "vim .", machine: [.file: [".env", ".gitignore", "src"]])
+                == .among([".env", ".gitignore"]))
+    }
+
     @Test("A word already whole and known is open, since the line may go on after it.")
     func aWholeKnownWordIsOpen() async {
         #expect(
@@ -393,14 +413,14 @@ struct ArgumentOptionsTests {
 struct GeneratedLineTests {
     @Test("A file the model invented in a directory the machine has listed is not drawn.")
     func inventedFilesAreDropped() async {
-        let kept = await standing([".vim"], after: "vim .env", machine: [.file: [".env", "src"]])
+        let kept = await standing(["vim .env.vim"], after: "vim .env", machine: [.file: [".env", "src"]])
         #expect(kept.isEmpty)
     }
 
     @Test("A path into a directory that is not there is not drawn, wherever the model read it.")
     func pathsNotFromHereAreDropped() async {
         let kept = await standing(
-            ["backend/"], after: "cd projects/x-growth/",
+            ["cd projects/x-growth/backend/"], after: "cd projects/x-growth/",
             machine: [.directories(under: "projects/x-growth"): []])
         #expect(kept.isEmpty)
     }
@@ -408,9 +428,9 @@ struct GeneratedLineTests {
     @Test("A path to a directory that is there stands, resolved where it points.")
     func pathsFromHereStand() async {
         let kept = await standing(
-            ["ces/UttrflowPredict", "ces/Nowhere"], after: "cd Sour",
+            ["cd Sources/UttrflowPredict", "cd Sources/Nowhere"], after: "cd Sour",
             machine: [.directories(under: "Sources"): ["UttrflowPredict"]])
-        #expect(kept == ["ces/UttrflowPredict"])
+        #expect(kept == ["cd Sources/UttrflowPredict"])
     }
 
     @Test("A branch with a slash stands as a branch, and where it is not one as a path git also takes.")
@@ -418,42 +438,52 @@ struct GeneratedLineTests {
         let machine: [EnvironmentKind: [String]] = [
             .branch: ["feat/login"], .entries(under: "docs"): ["guide.md"],
         ]
-        #expect(await standing(["/login"], after: "git checkout feat", machine: machine) == ["/login"])
-        #expect(await standing(["/guide.md"], after: "git checkout docs", machine: machine) == ["/guide.md"])
-        #expect(await standing(["/nowhere"], after: "git checkout docs", machine: machine).isEmpty)
+        #expect(
+            await standing(["git checkout feat/login"], after: "git checkout feat", machine: machine) == [
+                "git checkout feat/login"
+            ])
+        #expect(
+            await standing(["git checkout docs/guide.md"], after: "git checkout docs", machine: machine) == [
+                "git checkout docs/guide.md"
+            ])
+        #expect(
+            await standing(["git checkout docs/nowhere"], after: "git checkout docs", machine: machine)
+                .isEmpty)
     }
 
     @Test("A make target the model invented is not drawn where the Makefile lists the real ones.")
     func targetsAreLookedUp() async {
         let kept = await standing(
-            ["erify", "env"], after: "make v", machine: [.subcommand(of: "make"): ["verify", "lint"]])
-        #expect(kept == ["erify"])
+            ["make verify", "make venv"], after: "make v",
+            machine: [.subcommand(of: "make"): ["verify", "lint"]])
+        #expect(kept == ["make verify"])
     }
 
     @Test("A program the machine has is drawn and one it has not is dropped, in the model's order.")
     func programsAreLookedUp() async {
-        let kept = await standing(["t status", "thub"], after: "gi", machine: [.executable: ["git"]])
-        #expect(kept == ["t status"])
+        let kept = await standing(["git status", "github"], after: "gi", machine: [.executable: ["git"]])
+        #expect(kept == ["git status"])
     }
 
     @Test("A git subcommand the model misspelt is dropped where the machine lists them.")
     func gitSubcommandsAreLookedUp() async {
         let kept = await standing(
-            ["kout main", "k"], after: "git chec", machine: [.subcommand(of: "git"): ["checkout"]])
-        #expect(kept == ["kout main"])
+            ["git checkout main", "git check"], after: "git chec",
+            machine: [.subcommand(of: "git"): ["checkout"]])
+        #expect(kept == ["git checkout main"])
     }
 
     @Test("An invented name in the middle of a line drops the whole line, not only its last word.")
     func everyAddedWordIsAsked() async {
         let kept = await standing(
-            ["backend/ && npm run dev"], after: "cd projects/x-growth/",
+            ["cd projects/x-growth/backend/ && npm run dev"], after: "cd projects/x-growth/",
             machine: [.directories(under: "projects/x-growth"): []])
         #expect(kept.isEmpty)
     }
 
     @Test("A machine that has not answered denies nothing, so the model's line stands.")
     func silenceLetsTheLineStand() async {
-        #expect(await standing([".vim"], after: "vim .env", machine: [:]) == [".vim"])
+        #expect(await standing(["vim .env.vim"], after: "vim .env", machine: [:]) == ["vim .env.vim"])
     }
 
     @Test("A field that is not a directory is never asked about, so prose is never denied.")

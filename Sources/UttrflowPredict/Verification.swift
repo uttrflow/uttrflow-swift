@@ -154,15 +154,17 @@ public enum Verification {
     /// What the next word may be chosen from: the lookups for a word begun or not yet begun, absent where the word may be anything.
     static func choices(for token: CompletionToken) -> Attestation? {
         let word = token.token
-        if word.isEmpty { return lookups(for: token) }
+        // A word not begun, or a lone dot beginning a hidden name, is chosen from what the shape lists.
+        if word.isEmpty || word == "." { return lookups(for: token) }
         guard !isFree(word) else { return nil }
         // A path ending in its slash is open at a name not yet begun, so what is under the path is offered.
         guard word.hasSuffix("/") else { return lookups(for: token) }
         let under = word == "/" ? "/" : String(word.dropLast())
-        let narrow = LineShape.of(token).kind == .directory
-        return Attestation(lookups: [
-            Lookup("", [narrow ? .directories(under: under) : .entries(under: under)], prefix: word)
-        ])
+        let kind = LineShape.of(token).kind
+        let below = Lookup(
+            "", [kind == .directory ? .directories(under: under) : .entries(under: under)], prefix: word)
+        // Where a branch is wanted, the slash may be a branch's own, so the branches beginning this way are offered too.
+        return Attestation(lookups: kind == .branch ? [Lookup(word, [.branch]), below] : [below])
     }
 
     /// The most values the model is offered to choose among, since each costs prompt and a directory may hold hundreds.
@@ -229,9 +231,8 @@ public enum Verification {
         return Lookup(name, [kind], prefix: prefix)
     }
 
-    /// The words a completion puts on the line, each with what precedes it; a word the typing began and the model finished is the model's.
-    static func words(_ typed: String, completedBy completion: String) -> [CompletionToken] {
-        let line = typed + completion
+    /// The words of a whole line past what was typed, each with what precedes it; a word the typing began and the model finished is the model's.
+    static func words(of line: String, addedAfter typed: String) -> [CompletionToken] {
         var words: [CompletionToken] = []
         var start = line.startIndex
         while start < line.endIndex {

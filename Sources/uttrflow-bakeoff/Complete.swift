@@ -42,6 +42,13 @@ struct Complete: AsyncParsableCommand {
     @Option(name: .long, help: "Run only the fixtures that missed in this earlier run's JSON.")
     var failedIn: String?
 
+    @Flag(
+        name: .long,
+        help:
+            "Where the first pass leaves nothing, spend a second, wider pass and record what it rescues and what it costs."
+    )
+    var secondOpinion = false
+
     func run() async throws {
         let generator: any CandidateGenerating
         if model == "apple" {
@@ -112,6 +119,8 @@ struct Complete: AsyncParsableCommand {
             var failure: String?
             var words: String?
             var invented = false
+            var rescued = false
+            var secondMs: Int?
             // A fixture on a machine is asked what the word may be first, and its answer is sieved after, as the app does both.
             let grounding = await Grounding(for: fixture)
             var situation = fixture.situation
@@ -136,6 +145,16 @@ struct Complete: AsyncParsableCommand {
                     invented = standing.count < completions.count
                     completions = standing
                 }
+                // The second opinion is the wider pass the person would never wait for, measured here to see whether it earns its place.
+                if secondOpinion, completions.isEmpty, !denied {
+                    let again = ContinuousClock.now
+                    var others = try await scorer.alternatives(
+                        for: fixture.typed, in: situation, excluding: "")
+                    if let grounding { others = await grounding.standing(others, after: fixture.typed) }
+                    secondMs = Int((ContinuousClock.now - again) / .milliseconds(1))
+                    rescued = fixture.hits(others)
+                    completions = others
+                }
             } catch {
                 failure = "error: \(error)"
             }
@@ -143,7 +162,8 @@ struct Complete: AsyncParsableCommand {
             let result = FixtureResult(
                 name: fixture.name, category: fixture.category, typed: fixture.typed,
                 hit: fixture.hits(completions), conforms: fixture.conforms(completions), elapsedMs: elapsed,
-                first: failure ?? completions.first, raw: words, invented: invented)
+                first: failure ?? completions.first, raw: words, invented: invented, rescued: rescued,
+                secondOpinionMs: secondMs)
             results.append(result)
             print(result.row)
         }

@@ -96,6 +96,40 @@ recorded in `predict-reliability.md`.
 
 ## Where it stands
 
+- **A1 — done, 2026-09-05.** `LineShape.of(token)` reads the last simple command (after `&&`, `|`, `;`,
+  through `sudo`, `time`, `nohup`), drops flags from the count, and gives the word a kind from
+  `CommandGrammar`: directory commands, file commands, pattern commands, programs with verbs, git's
+  branch and path verbs, `make`'s targets, a runner's `run` scripts. Attestation, the machine's own
+  candidates and the verifier's kinds all read the shape; an unknown command's arguments are free.
+- **A2 — done, 2026-09-05.** `EnvironmentKind` gained `entries(under:)`, `directories(under:)` and
+  `subcommand(of:)`. A path is resolved from the terminal's directory as the shell resolves it and its
+  last name looked up under the directory before it; verbs are read from the program itself (git's
+  command list, the Makefile, `package.json`, `--help` for docker, kubectl, gh and the rest, `cargo
+  --list`, `brew commands`). A reader answers `nil` for a failure and `[]` for a directory that is not
+  there, and the index keeps both, so a missing directory denies every name and a program that would
+  not list its verbs denies none. `uttrflow-dev machine --directory … --under …` prints it all.
+- **A3 — done, 2026-09-05.** `Verifier.options(for:in:now:)` runs before a pass: `.open`, `.among`
+  (whole values beginning as the typed word does, capped at 40) or `.none` (quiet, `notOnThisMachine`,
+  no pass). For `.among` the prompt names the values and `TokenChoice` holds the decode to one of
+  them, byte by byte, freeing the model once a value is written whole; the other values are the
+  alternatives, with no second pass. A path ending in its slash offers what is under it; a branch
+  prefix offers the branches under it too; a word already whole and known is open.
+- **A5 — done, 2026-09-05.** `terminal/cwd` (15 lines, 47 cuts) and `terminal/cwd-absent` (7 whole
+  lines whose right answer is nothing) stand on a substitute machine; `Grounding` in the bakeoff asks
+  it before the pass and sieves after, as the app does, and every result records `invented`. Run 3
+  of the set: 53/54 hit, 54/54 in register, **invented 0**; the one miss is `git s` → `git stash`, a
+  real verb the fixture did not want. Run 1 of the set found the whole-line bug in A4 (see
+  `predict-reliability.md`), which is what the set is for.
+- **A6 — measured, 2026-09-05, and not wired.** `uttrflow-bakeoff complete --second-opinion` spends the
+  wider alternatives pass wherever the first pass leaves nothing and records what it rescues and
+  what it costs. Over run 7's 80 misses it was spent 7 times (the 7 empties in 1 154 cases, 0.6 %),
+  rescued 3 (`git l` → `git log -p`, `npm i` → `npm install` twice) at a median 887 ms more, one at
+  2.7 s. All three are verbs a real Mac lists, so on a grounded field the constrained pass has them
+  already; the two `to` notes and the two addresses stayed empty. A second pass that rescues nothing
+  the machine would not have given, on one turn in a hundred and sixty, at a second's cost, does not
+  earn a place in the loop; the flag stays in the bakeoff so the question can be asked again when the
+  free-kind misses change. Apple's model with tools was not tried: at 41 % on this catalogue it would
+  have to be measured against nothing, and the same measurement applies.
 - **A4 — done, 2026-09-05.** `Verifier.standing(_:after:in:now:)` takes every word a generated line
   adds (`Verification.words`) and asks the machine what it can deny (`Verification.attestation(for:)`):
   the first word among programs and aliases, git's second word among its subcommands and aliases, a

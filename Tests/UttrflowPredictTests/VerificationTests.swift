@@ -159,7 +159,7 @@ private func lookup(_ word: String, _ kinds: [EnvironmentKind]) -> String { "\(w
 
 /// The words a completion adds to a line, as text, with what precedes each.
 private func added(_ typed: String, _ completion: String) -> [String] {
-    Verification.words(typed, completedBy: completion).map { "\($0.leading)|\($0.token)" }
+    Verification.words(of: typed + completion, addedAfter: typed).map { "\($0.leading)|\($0.token)" }
 }
 
 @Suite("What the machine can deny in a line the model wrote")
