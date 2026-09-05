@@ -3,10 +3,13 @@ import Testing
 
 @testable import UttrflowAccount
 
+/// ``UserDefaultsLocalAccountStore``, and the name normalisation ``LocalAccount`` does.
 @Suite("Working on this Mac without an account")
 struct LocalAccountStoreTests {
+    /// The fixed instant the account is dated from.
     private let noon = Date(timeIntervalSince1970: 1_700_000_000)
 
+    /// A store over fresh in-memory bytes.
     private func store() -> UserDefaultsLocalAccountStore {
         UserDefaultsLocalAccountStore(storage: MemoryStorage())
     }
@@ -23,9 +26,7 @@ struct LocalAccountStoreTests {
         #expect(store.load() == nil)
     }
 
-    /// A name that is only spaces is not a name, and every page that draws this already
-    /// knows how to say nothing. Normalising once here is what keeps each of them from
-    /// having to know it too.
+    /// A blank name is normalised to none once here, so no page drawing it has to know.
     @Test(
         "a blank name is no name at all",
         arguments: ["", "   ", "\n"])
@@ -39,8 +40,7 @@ struct LocalAccountStoreTests {
         #expect(LocalAccount(name: "  Naveen  ", since: noon).name == "Naveen")
     }
 
-    /// The same rule ``ProfileCache`` keeps: a value that cannot be read means there is
-    /// no local account, and the app opens on the page it would have opened on anyway.
+    /// Unreadable bytes mean no local account, the same rule ``ProfileCache`` keeps.
     @Test("bytes that are not a local account read as no local account")
     func rubbishIsNotAnAccount() {
         let storage = MemoryStorage()
@@ -48,9 +48,7 @@ struct LocalAccountStoreTests {
         #expect(UserDefaultsLocalAccountStore(storage: storage).load() == nil)
     }
 
-    /// The in-memory store ships in the module rather than in the tests, so it is worth
-    /// one test of its own: a fake that quietly stopped behaving like the protocol would
-    /// take every test built on it with it.
+    /// The in-memory store ships in the module, so a fake drifting from the protocol is caught here.
     @Test("the in-memory store behaves as the real one does")
     func inMemoryAgrees() {
         let store = InMemoryLocalAccountStore()

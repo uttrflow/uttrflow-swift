@@ -1,42 +1,34 @@
+// The real loopback listener over Network.framework: one port, one browser redirect, then closed.
 public import Foundation
 import Network
 private import Synchronization
 public import UttrflowCore
 
-/// The real loopback listener: one port, one browser redirect, then closed.
-///
-/// Small on purpose, because nothing here can be exercised by a test that does not bind a
-/// socket. Everything worth deciding — what goes in the URL, which state is expected, what
-/// happens when the answer is wrong — is in ``HTTPAuthenticationService``, on the other
-/// side of ``LoopbackListening``.
-///
-/// Three details are load-bearing:
-///
-/// * The port is `0`, so the operating system chooses. That is what RFC 8252 §7.3 requires
-///   a server to permit, and why the redirect cannot be registered in advance.
-/// * It binds to `127.0.0.1` and nothing else, so nothing off this machine can reach it.
-/// * It answers exactly one request and closes. A listener left open is a port on the
-///   user's machine accepting connections for as long as the app runs.
+/// Binds an OS-chosen port on `127.0.0.1` only, answers exactly one request, and closes.
 public actor SystemLoopbackListener: LoopbackListening {
-    /// The path the redirect arrives on. Any path would do; a fixed one makes a stray
-    /// request to `/` distinguishable from the callback in a log.
+    /// The path the redirect arrives on; fixed, so a stray request to `/` is distinguishable in a log.
     public static let callbackPath = "/callback"
 
     /// The refusal for a wait that ended with no browser having arrived.
     private static let noAnswer = AccountError.providerRefused(description: "that sign-in did not come back")
 
+    /// The bound listener, until closed.
     private var listener: NWListener?
+    /// Connections accepted and not yet cancelled.
     private var connections: [NWConnection] = []
+    /// The caller waiting for the callback, if any.
     private var waiting: CheckedContinuation<LoopbackCallback, any Error>?
+    /// The callback that arrived, kept in case the wait begins after it.
     private var received: LoopbackCallback?
 
+    /// Binds nothing until asked.
     public init() {}
 
+    /// Binds a port and returns the redirect URI; ``AccountError/serverUnreachable`` when none binds.
     public func bind() async throws(AccountError) -> URL {
         do {
             let parameters = NWParameters.tcp
-            // Loopback only. Without this the port is reachable from the local network,
-            // which is a listening socket on somebody's laptop in a coffee shop.
+            // Loopback only, or the port is reachable from the local network.
             parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: .any)
             parameters.allowLocalEndpointReuse = true
 
@@ -69,12 +61,12 @@ public actor SystemLoopbackListener: LoopbackListening {
             }
             return url
         } catch {
-            // No port to bind is not a refusal, it is a Mac that cannot finish this flow.
-            // The device grant is the way round it.
+            // No port is not a refusal; the device flow is the way round it.
             throw .serverUnreachable
         }
     }
 
+    /// Waits for the first callback; cancellation throws the no-answer refusal.
     public func awaitCallback() async throws(AccountError) -> LoopbackCallback {
         if let received { return received }
 
@@ -87,6 +79,7 @@ public actor SystemLoopbackListener: LoopbackListening {
         }
     }
 
+    /// Cancels the listener and every connection, and resumes any waiter with a cancellation.
     public func close() async {
         listener?.cancel()
         listener = nil
@@ -98,6 +91,7 @@ public actor SystemLoopbackListener: LoopbackListening {
         }
     }
 
+    /// Starts a connection and reads its first request.
     private func accept(_ connection: NWConnection) {
         connections.append(connection)
         connection.start(queue: .global(qos: .userInitiated))
@@ -107,6 +101,7 @@ public actor SystemLoopbackListener: LoopbackListening {
         }
     }
 
+    /// Parses the request, answers it, and hands a valid callback to the waiter.
     private func handle(_ request: String, on connection: NWConnection) {
         let callback = Self.parse(request)
         respond(to: connection, signedIn: callback != nil)
@@ -133,6 +128,7 @@ public actor SystemLoopbackListener: LoopbackListening {
         return LoopbackCallback(code: code, state: state)
     }
 
+    /// Sends a page saying whether the sign-in worked, then closes the connection.
     private func respond(to connection: NWConnection, signedIn: Bool) {
         let body = Self.page(signedIn: signedIn)
         let response = """
@@ -148,6 +144,7 @@ public actor SystemLoopbackListener: LoopbackListening {
             completion: .contentProcessed { _ in connection.cancel() })
     }
 
+    /// The page the browser shows after the redirect.
     static func page(signedIn: Bool) -> String {
         let heading = signedIn ? "Signed in" : "Sign-in failed"
         let message =
@@ -176,14 +173,12 @@ public actor SystemLoopbackListener: LoopbackListening {
     }
 }
 
-/// A one-shot latch, so a continuation cannot be resumed twice.
-///
-/// `NWListener`'s state handler is called for every transition, and both `.ready` and
-/// `.failed` can arrive for one listener. Resuming a continuation twice is a crash, not an
-/// error, so the guard is a class the closures share rather than a captured `var`.
+/// A one-shot latch shared by the state-handler closures, because resuming a continuation twice is a crash.
 private final class Resumed: Sendable {
+    /// Whether the continuation is spent.
     private let used = Mutex(false)
 
+    /// Whether this is the first call.
     func claim() -> Bool {
         used.withLock { used in
             defer { used = true }

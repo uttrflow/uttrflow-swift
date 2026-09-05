@@ -1,14 +1,9 @@
-/// A BCP-47 primary language subtag, normalised to lowercase (`"en"`, `"hi"`).
-///
-/// Speech engines, transformers and the UI all need to agree on how a language is
-/// spelled. Normalising once, here, keeps `"EN"`, `"en-US"` and `"en"` from being
-/// treated as three different languages further down the pipeline.
+/// A BCP-47 primary subtag in lowercase, so `"EN"`, `"en-US"` and `"en"` are one language everywhere.
 public struct LanguageCode: Hashable, Sendable, CustomStringConvertible {
     /// The normalised primary subtag, e.g. `"en"`.
     public let value: String
 
-    /// Creates a language code from any BCP-47 identifier, keeping only the primary
-    /// subtag. Returns `nil` when `identifier` contains no alphabetic primary subtag.
+    /// Keeps the primary subtag of any BCP-47 identifier, or `nil` when it has no alphabetic one.
     public init?(_ identifier: String) {
         let separators: Set<Character> = ["-", "_"]
         let primarySubtag =
@@ -27,8 +22,11 @@ public struct LanguageCode: Hashable, Sendable, CustomStringConvertible {
     public var description: String { value }
 }
 
+/// The languages the product names by hand.
 extension LanguageCode {
+    /// `"en"`.
     public static let english = LanguageCode(unchecked: "en")
+    /// `"hi"`.
     public static let hindi = LanguageCode(unchecked: "hi")
 
     /// Bypasses validation for compile-time-known-good literals.
@@ -37,7 +35,9 @@ extension LanguageCode {
     }
 }
 
+/// Encoded as its bare string, and refused on decode when that string is not a language.
 extension LanguageCode: Codable {
+    /// Decodes a string, throwing `dataCorrupted` when it is not a BCP-47 identifier.
     public init(from decoder: any Decoder) throws {
         let identifier = try decoder.singleValueContainer().decode(String.self)
         guard let code = LanguageCode(identifier) else {
@@ -51,6 +51,7 @@ extension LanguageCode: Codable {
         self = code
     }
 
+    /// Encodes the bare subtag.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(value)

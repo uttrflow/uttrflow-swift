@@ -1,3 +1,4 @@
+// Tests DictationHistoryStore against real files: persistence, retention, cap, deletion, undo, corruption.
 import Foundation
 import UttrflowCore
 import Testing
@@ -6,12 +7,13 @@ import Testing
 
 // MARK: - Fixtures
 
-/// A fixed instant. Nothing here reads the real clock, so a slow machine cannot change
-/// a result and a test never has to sleep to get a predictable one.
+/// A fixed instant, so no test reads the real clock or sleeps.
 private let epoch = Date(timeIntervalSince1970: 1_700_000_000)
 
+/// A seven-day window measured from `epoch`.
 private let week = Retention(days: 7, now: epoch)
 
+/// A plain dictation `daysAgo` before `epoch`, with no recorded changes.
 private func spoken(
     _ text: String, daysAgo: Double = 0, id: UUID = UUID(), app: String? = nil
 ) -> DictationRecord {
@@ -20,8 +22,7 @@ private func spoken(
         applicationName: app)
 }
 
-/// A dictation the dictionary changed: its first two spoken words, "utter flow", were
-/// replaced by one written word, so the text on the record is already the corrected one.
+/// A dictation whose first two spoken words, "utter flow", the dictionary replaced with `wrote`.
 private func changed(
     _ text: String, wrote: String, daysAgo: Double = 0, entry: UUID = UUID(),
     isUndone: Bool = false
@@ -36,37 +37,36 @@ private func changed(
             ]))
 }
 
-/// A directory of its own per test, removed with the test. Real files, because the
-/// store's whole job is what happens on disk and a substitute would test the substitute.
+/// A directory per test, removed with it; real files, because the store's whole job is what happens on disk.
 private struct Sandbox: ~Copyable {
+    /// The per-test directory.
     let root: URL
 
+    /// Names a fresh directory under the temporary folder without creating it.
     init() {
         root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appending(path: "uttrflow-history-\(UUID().uuidString)")
     }
 
-    /// The folder the store is expected to make for itself. Deliberately absent to
-    /// begin with.
+    /// The folder the store is expected to make for itself; absent to begin with.
     var folder: URL { root.appending(path: "Uttrflow") }
 
     /// The path the store is pointed at.
     var file: URL { folder.appending(path: "history.v1.json") }
 
-    /// What is actually on disk, decoded — the only honest way to check that a
-    /// deletion reached it.
+    /// What is on disk, decoded; the only honest way to check that a deletion reached it.
     func onDisk() -> [DictationRecord]? {
         guard let data = try? Data(contentsOf: file) else { return nil }
         return try? JSONDecoder().decode([DictationRecord].self, from: data)
     }
 
-    /// Puts bytes where the store will look, so a test can hand it a file it did not
-    /// write: an aged history, or a mangled one.
+    /// Puts bytes where the store will look, so a test can hand it an aged or mangled file.
     func seed(_ data: Data) throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try data.write(to: file)
     }
 
+    /// Seeds the file with encoded records.
     func seed(_ records: [DictationRecord]) throws {
         try seed(JSONEncoder().encode(records))
     }
@@ -76,6 +76,7 @@ private struct Sandbox: ~Copyable {
 
 // MARK: - Tests
 
+/// Exercises the store through real files in a per-test sandbox.
 @Suite("Dictation history, as it is kept")
 struct DictationHistoryStoreTests {
 
@@ -89,8 +90,7 @@ struct DictationHistoryStoreTests {
         #expect(file.deletingLastPathComponent().lastPathComponent == "Uttrflow")
     }
 
-    /// Reaching for the real location must not touch it. Building the store is not
-    /// reading or writing anything, and this is the test that says so.
+    /// Building the store reads and writes nothing.
     @Test("defaults to a real Application Support path without going near it")
     func defaultsAreInert() {
         #expect(DictationHistoryStore.defaultFile().path.contains("Application Support"))
@@ -165,8 +165,6 @@ struct DictationHistoryStoreTests {
         #expect(sandbox.onDisk() == nil)
     }
 
-    /// The file is left alone when there is nothing to tidy: a read should not keep
-    /// rewriting a file it has no quarrel with.
     @Test("reading a history that is entirely current does not rewrite it")
     func nothingToPruneLeavesTheFileAlone() async throws {
         let sandbox = Sandbox()
@@ -303,8 +301,7 @@ struct DictationHistoryStoreTests {
         #expect(await DictationHistoryStore(file: sandbox.file).records(keeping: week).isEmpty)
     }
 
-    /// Whatever could not be read is not preserved — there was nothing readable to
-    /// preserve — but the next dictation must still be kept.
+    /// There is nothing readable to preserve, but the next dictation must still be kept.
     @Test("a mangled file is written over rather than making the store useless")
     func corruptFileIsRecoveredFrom() async throws {
         let sandbox = Sandbox()
@@ -316,8 +313,7 @@ struct DictationHistoryStoreTests {
 
     // MARK: A disk that says no
 
-    /// Forced by putting an ordinary file where the store expects its folder, which is
-    /// the cheapest real "the filesystem refused" there is.
+    /// A sandbox with a plain file where the store expects its folder, the cheapest real filesystem refusal.
     private func blockedSandbox() throws -> Sandbox {
         let sandbox = Sandbox()
         try FileManager.default.createDirectory(at: sandbox.root, withIntermediateDirectories: true)
@@ -336,8 +332,7 @@ struct DictationHistoryStoreTests {
 
     @Test("a clear the disk refuses is reported too")
     func clearFailureThrows() async throws {
-        // Something has to be there for its removal to be attempted at all, so the
-        // store is pointed at a file that exists and is then made undeletable.
+        // The store points at an existing file made undeletable, so there is something whose removal fails.
         let sandbox = try blockedSandbox()
         let path = sandbox.folder.path(percentEncoded: false)
         let store = DictationHistoryStore(file: sandbox.folder)
@@ -349,8 +344,7 @@ struct DictationHistoryStoreTests {
         }
     }
 
-    /// A read that finds nothing it can tidy must not turn a refusing disk into a
-    /// thrown error: the caller asked what to show, and "nothing" is the right answer.
+    /// A refusing disk must not turn "what should I show?" into a thrown error; "nothing" is the answer.
     @Test("a read never fails, even when the tidying it wanted to do cannot happen")
     func readSurvivesAnUnwritableDisk() async throws {
         let sandbox = Sandbox()
@@ -392,8 +386,7 @@ struct DictationHistoryStoreTests {
         #expect(undone.corrections.map(\.wrote) == ["Reverted"])
     }
 
-    /// A change belonging to a dictation the user was told is gone must not outlive it
-    /// on another page.
+    /// A change belonging to a dictation the user was told is gone must not outlive it on another page.
     @Test("a change expires with the dictation it was made in")
     func changesExpire() async throws {
         let sandbox = Sandbox()
@@ -402,10 +395,6 @@ struct DictationHistoryStoreTests {
         #expect(history.corrections.isEmpty)
     }
 
-    /// One dictation nobody was measuring makes the whole figure a guess, so the store
-    /// says so rather than letting the page average it in.
-    /// A dictation written before changes were kept contributes nothing, and does not
-    /// stop the ones beside it being read.
     @Test("a history holding one dictation from before changes were kept still lists the rest")
     func incompleteHistory() async throws {
         let sandbox = Sandbox()
@@ -431,8 +420,7 @@ struct DictationHistoryStoreTests {
         #expect(await store.records(keeping: week).first?.isFlagged == false)
     }
 
-    /// The caller is holding a list that no longer matches the disk, and should be told
-    /// rather than quietly succeeding.
+    /// The caller holds a list that does not match the disk, and is told rather than quietly succeeding.
     @Test("says nothing was flagged when the dictation is not there")
     func flaggingSomethingGone() async throws {
         let store = DictationHistoryStore(file: Sandbox().file)
@@ -455,10 +443,7 @@ struct DictationHistoryStoreTests {
         #expect(sandbox.onDisk()?.first?.changes?.corrections.map(\.isUndone) == [true])
     }
 
-    /// End to end, the way the user meets it: they say this dictation came out wrong,
-    /// then put one of its changes back. Their verdict is the one thing in the record
-    /// Uttrflow did not decide, and the undo used to overwrite it with the memberwise
-    /// default on its way past.
+    /// End to end as the user meets it: flag the dictation, then put one of its changes back.
     @Test("a dictation the user flagged is still flagged after one of its changes is undone")
     func flagSurvivesAnUndo() async throws {
         let sandbox = Sandbox()
@@ -476,8 +461,7 @@ struct DictationHistoryStoreTests {
         #expect(sandbox.onDisk()?.first?.isFlagged == true)
     }
 
-    /// Nothing to undo is not a failure, and it must not count a second revert against
-    /// an entry the user only rejected once.
+    /// Nothing to undo is not a failure, and must not count a second revert against an entry rejected once.
     @Test("undoing what is not there, or is already undone, changes nothing")
     func undoNothing() async throws {
         let sandbox = Sandbox()
@@ -510,10 +494,7 @@ struct DictationHistoryStoreTests {
 
     // MARK: Files this build did not write
 
-    /// The reason ``RecordedChanges`` salvages rather than throws. This store discards a
-    /// file it cannot decode and the next write deletes what is left, so a single change
-    /// naming a reason a later build introduced would cost the user every word they have
-    /// ever dictated — on nothing worse than running an older build again.
+    /// The reason ``RecordedChanges`` salvages instead of throwing. See Docs/core-history-decoding.md.
     @Test("a change this build cannot read costs that change, never the history")
     func unreadableChangeKeepsTheHistory() async throws {
         let sandbox = Sandbox()
@@ -532,16 +513,13 @@ struct DictationHistoryStoreTests {
         let records = await DictationHistoryStore(file: sandbox.file).records(keeping: week)
 
         #expect(records.map(\.text) == ["Uttrflow is late."])
-        // Present and empty: this dictation was measured, and the one change it recorded
-        // is one this build has nothing true to say about.
+        // Present and empty: measured, and its one change is one this build has nothing true to say about.
         #expect(records.first?.changes?.corrections.isEmpty == true)
     }
 
     // MARK: Two things at once
 
-    /// The pipeline writes while a window reads. Nothing may be lost, and nothing may
-    /// be half-written: every append is load-change-write with no suspension in the
-    /// middle, so the actor cannot interleave two of them.
+    /// The pipeline writes while a window reads; each append is load-change-write with no suspension inside.
     @Test("concurrent writing and reading loses nothing")
     func concurrentAccess() async {
         let sandbox = Sandbox()

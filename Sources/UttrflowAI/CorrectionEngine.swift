@@ -1,63 +1,19 @@
+// The word correction engine and the doubted runs it considers.
 public import UttrflowCore
 public import UttrflowDictionary
 
-/// Replaces a word that does not belong in a sentence, and otherwise does nothing.
-///
-/// The second half of that sentence is the feature. The owner asked for a wrong word to
-/// be fixed and was emphatic about the other side of it — "otherwise all good things also
-/// getting changed would be a bad design" — and those two pull against each other, so the
-/// resolution has to be written down rather than tuned. **The default is to do nothing.**
-///
-/// Three conditions, all of which must hold before a single word moves.
-///
-/// 1. *The recogniser was unsure* — every word in the run scored below
-///    ``certaintyThreshold``.
-/// 2. *A candidate exists* — the phonetic index already answers this, and answers it in
-///    constant time however large the dictionary grows.
-/// 3. *The sentence improves* — ``CorrectionEvidence`` scores both readings against the
-///    situation and the candidate must win by a clear margin.
-///
-/// Each condition alone is a different disaster, which is why all three are required.
-/// Condition one alone rewrites constantly, because recognisers are unsure all the time.
-/// Condition two alone is precisely how a correct-but-rare word gets destroyed: "clawed"
-/// and "Claude" sound identical and the index cannot tell you which was meant. Condition
-/// three alone would be a language model guessing at words it has never seen.
-///
-/// Nothing here is applied. The engine returns proposals and the caller decides, because
-/// only the caller knows what the text is for — and because a change nobody can see is a
-/// change nobody can undo.
+/// Proposes, never applies, dictionary words for doubted runs. See Docs/ai-correction-thresholds.md.
 public struct WordCorrectionEngine: Sendable {
-    /// Below this the recogniser was guessing; at or above it, it was sure.
-    ///
-    /// One number doing two jobs, deliberately. It is both the line under which a word may
-    /// be replaced and the line at or above which a word may corroborate a replacement,
-    /// and because those two sets are exact complements a mis-heard word cannot vouch for
-    /// itself.
-    ///
-    /// A half. Speech engines disagree wildly about what their scores mean, so a number
-    /// tuned against one of them would be wrong for the next; a half is the point at which
-    /// a recogniser is claiming to be more right than wrong, on anybody's scale.
+    /// Below this a word may be replaced; at or above it a word may corroborate, so none vouches for itself.
     public static let certaintyThreshold = 0.5
 
-    /// One word in five, and not one more.
-    ///
-    /// The second hard stop. An engine that wants to change a third of an utterance has
-    /// not found a third of a sentence's worth of mistakes, it has misread the sentence —
-    /// and the honest response to that is to leave the whole thing alone rather than to
-    /// apply the first few and hope.
+    /// Changing more than one spoken word in this many abandons the whole utterance, not just the excess.
     public static let maximumChangedInEvery = 5
 
+    /// Makes an engine; it holds no state.
     public init() {}
 
-    /// Every change worth arguing for, in the order the words were spoken.
-    ///
-    /// Empty is the expected answer and the commonest one. An utterance with nothing wrong
-    /// in it, or nothing corroborated, or too much wrong at once, all come back empty and
-    /// the caller types what was heard.
-    ///
-    /// The work is bounded by the utterance, not by the dictionary: at most three runs per
-    /// spoken word, each costing two hash probes into buckets the index caps. A user with
-    /// fifty thousand words pays what a user with ten pays.
+    /// Every change worth arguing for, in spoken order; usually empty, and bounded by the utterance's length.
     public func proposals(
         for utterance: Utterance,
         against dictionary: PhoneticIndex,
@@ -69,19 +25,13 @@ public struct WordCorrectionEngine: Sendable {
             .compactMap { proposal(for: $0, against: dictionary, given: evidence) }
         let chosen = Self.withoutOverlaps(wanted)
 
-        // The cap counts spoken words rather than proposals, because replacing a run of
-        // three with one word changes three words of what the user said.
+        // The cap counts spoken words, not proposals: replacing a run of three changes three words.
         let changed = chosen.reduce(0) { $0 + $1.wordRange.count }
         guard changed <= Self.budget(for: utterance.words.count) else { return [] }
         return chosen.sorted { $0.wordRange.lowerBound < $1.wordRange.lowerBound }
     }
 
-    /// How many spoken words this utterance may lose.
-    ///
-    /// The floor of one is not a softening of the rule but a refusal to round it into a
-    /// different one: without it every dictation shorter than five words would be exempt
-    /// from correction entirely, which is not "at most one in five", it is "never" — and
-    /// short dictations are most of them.
+    /// How many spoken words may change, never below one, or every dictation under five words is exempt.
     static func budget(for wordCount: Int) -> Int {
         max(1, wordCount / maximumChangedInEvery)
     }
@@ -93,13 +43,10 @@ public struct WordCorrectionEngine: Sendable {
         // Condition 2.
         let candidates = dictionary.candidates(soundingLike: span.text)
 
-        // The user's own dictionary spelling this exactly as it was heard is the strongest
-        // possible statement that the hearing was right. Offering them a homophone of
-        // their own word at that point would be the feature eating itself.
+        // An entry spelling the heard text exactly says the hearing is right, so no homophone is offered.
         guard !candidates.contains(where: { $0.word == span.text }) else { return nil }
 
-        // Ordered by how useful the index judges them, so the first that earns its place
-        // is the one to offer and the result does not depend on iteration luck.
+        // Candidates arrive in the index's usefulness order, so the first that earns its place is offered.
         for entry in candidates {
             // Condition 3.
             guard let reason = evidence.decisiveReason(preferring: entry.word, over: span.text)
@@ -111,11 +58,7 @@ public struct WordCorrectionEngine: Sendable {
         return nil
     }
 
-    /// The proposals that fit together, best first.
-    ///
-    /// Two runs can both want the same word — "s q l" and "q l" are both runs — and the
-    /// user can only be shown one answer for it. The input arrives in deserving order, so
-    /// taking greedily is taking the least confident, earliest, longest run each time.
+    /// The proposals that fit together, taken greedily from the deserving order the input arrives in.
     static func withoutOverlaps(_ proposals: [WordCorrection]) -> [WordCorrection] {
         var taken: [WordCorrection] = []
         for proposal in proposals
@@ -126,30 +69,16 @@ public struct WordCorrectionEngine: Sendable {
     }
 }
 
-/// A run of consecutive words the recogniser was unsure of, all the way through.
-///
-/// `UttrflowDictionary` has this shape already, in the `SpokenSpan` its own lookup is built
-/// from, but that type and the runs it makes are internal to that module. Three fields
-/// restated here is the cheaper of the two costs — the alternative is widening a
-/// neighbouring module's surface for one caller, and the runs are not the same runs
-/// anyway: those are ordered for a candidate budget, these are filtered by a hard stop
-/// this engine owns.
+/// A run of consecutive doubted words; restated here rather than widening `UttrflowDictionary`'s own span.
 struct UncertainSpan: Sendable, Equatable {
+    /// Which words of the utterance the run covers.
     let range: Range<Int>
-    /// The words with their spaces left in, which is what the phonetic index wants:
-    /// a space makes no sound, so "payment sheet" keys identically to `PaymentSheet`.
+    /// The words with their spaces kept, which the phonetic index keys the same as the joined word.
     let text: String
     /// The lowest confidence in the run, which is all a run is worth.
     let confidence: Double
 
-    /// Every run of up to ``PhoneticIndex/maximumWordsPerEntry`` words in which the
-    /// recogniser was unsure of *every* word, most deserving first.
-    ///
-    /// Every word, not the run's average or its minimum: a run containing one confidently
-    /// heard word cannot be replaced without overwriting that word, and the first hard
-    /// stop is that a confident hearing is never overwritten. Once a run hits a confident
-    /// word, every longer run from the same start contains it too, so the search stops
-    /// there rather than testing them.
+    /// Every run up to the index's word limit in which every word is doubted, most deserving first.
     static func spans(in utterance: Utterance, below threshold: Double) -> [UncertainSpan] {
         var spans: [UncertainSpan] = []
         for start in utterance.words.indices {
@@ -167,9 +96,7 @@ struct UncertainSpan: Sendable, Equatable {
         return spans.sorted(by: isMoreDeserving)
     }
 
-    /// A total order, so the same utterance always produces the same proposals. It mirrors
-    /// the index's own ordering — least confident first, then earliest, then longest —
-    /// because the two must not disagree about which run mattered most.
+    /// A total order mirroring the index's own: least confident, then earliest, then longest.
     static func isMoreDeserving(_ first: UncertainSpan, _ second: UncertainSpan) -> Bool {
         if first.confidence != second.confidence { return first.confidence < second.confidence }
         if first.range.lowerBound != second.range.lowerBound {

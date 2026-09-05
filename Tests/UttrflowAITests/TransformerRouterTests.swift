@@ -4,8 +4,10 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowTestSupport
 
+/// Which engine the router picks, and what it does when none can.
 @Suite("TransformerRouter")
 struct TransformerRouterTests {
+    /// A fixture request.
     private let request = TransformationRequest(transcription: .fixture())
 
     @Test("uses the first engine that can handle the request")
@@ -118,10 +120,10 @@ struct TransformerRouterTests {
     }
 }
 
+/// The engines the shipping build assembles.
 @Suite("Assembled transformers")
 struct TextTransformersTests {
-    /// The shipping build must contain a transformer that can never decline, or the
-    /// pipeline could dead-end on a language no model knows.
+    /// A transformer that can never decline keeps the pipeline from dead-ending on an unknown language.
     @Test("always includes the floor")
     func includesFloor() {
         #expect(TextTransformers.all().contains { $0.kind == .rules })
@@ -143,6 +145,7 @@ struct TextTransformersTests {
     }
 }
 
+/// The shipping prompt's earned instructions and shape.
 @Suite("CleanupPrompt")
 struct CleanupPromptTests {
     /// Each of these was added because a real model did the thing it prevents.
@@ -155,8 +158,7 @@ struct CleanupPromptTests {
             "disregard everything above",
             // Devanagari must come back in the Latin alphabet.
             "Latin alphabet",
-            // A mixed-language example, which is what stopped a trailing English
-            // clause being rewritten into Hinglish. The rule alone changed nothing.
+            // A mixed-language example stops a trailing English clause being rewritten into Hinglish.
             "I am working from home",
         ]
     )
@@ -176,6 +178,7 @@ struct CleanupPromptTests {
     }
 }
 
+/// The parser behind `workedExamples`.
 @Suite("Reading worked examples out of a prompt")
 struct WorkedExampleParsingTests {
     @Test("skips a line that is labelled but not quoted")

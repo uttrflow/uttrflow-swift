@@ -1,3 +1,4 @@
+// One locked take-and-clear step on a Mutex.
 internal import Synchronization
 
 extension Mutex where Value: Sendable {

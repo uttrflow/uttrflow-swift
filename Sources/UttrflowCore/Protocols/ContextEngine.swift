@@ -1,7 +1,5 @@
-/// Reports what the user is working in, so the transformer can disambiguate terms.
-///
-/// Implementations must never block the recording path: when macOS withholds a piece
-/// of context, the corresponding field is `nil` and the pipeline carries on.
+/// Reports what the user is working in without ever blocking the recording path; withheld context is `nil`.
 public protocol ContextEngine: Sendable {
+    /// What the user is looking at right now.
     func currentContext() async -> AppContext
 }

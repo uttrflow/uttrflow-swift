@@ -4,10 +4,10 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowPermissions
 
+/// Drives the gate through substituted system calls.
 @Suite("AccessibilityPermissionGate")
 struct AccessibilityPermissionGateTests {
-    /// `grantsWhenOpened` stands in for the user walking over to System Settings and
-    /// flipping the switch while the app waits.
+    /// A gate over a mutable status; `grantsWhenOpened` stands in for the user flipping the switch.
     private func gate(
         status: PermissionStatus,
         grantsWhenOpened: Bool = false,
@@ -65,11 +65,7 @@ struct AccessibilityPermissionGateTests {
         #expect(opened.withLock { $0 })
     }
 
-    /// macOS shows no modal here, so nobody has answered by the time `request()`
-    /// returns — the user grants it in Settings later, in their own time. Reporting
-    /// the unchanged "still not granted" is the honest answer, and callers must not
-    /// read it as a final "no" and lock the user out of the app. Onboarding is
-    /// expected to keep waiting and re-read the status instead.
+    /// Nobody has answered when `request()` returns; callers re-read later rather than read this as "no".
     @Test(
         "returns the unchanged status because the user answers in Settings later",
         arguments: [PermissionStatus.notDetermined, .denied, .restricted]

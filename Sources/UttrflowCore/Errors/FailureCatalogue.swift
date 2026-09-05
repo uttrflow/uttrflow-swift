@@ -1,17 +1,6 @@
-/// A failure enum that can hand back one value of every case it has.
-///
-/// Swift synthesises `CaseIterable` only for enums whose cases all lack associated
-/// values, and half of Uttrflow's do not qualify. So the cases are chained by hand —
-/// but through a `switch`, which the compiler *does* check: adding a case makes
-/// ``caseAfter`` non-exhaustive and the module stops building until the new case has
-/// been given a place in the chain. That is the difference between this and a plain
-/// hand-written array, which is what silently lost ``HotkeyError`` from one of the two
-/// lists that used to exist.
-///
-/// The chain is not proof against a deliberately wrong link — an author who answers the
-/// compiler with `nil` in the middle truncates the list, and one who links backwards
-/// makes ``everyCase`` spin. Neither survives reading the diff, which a missing array
-/// entry did.
+// Every failure enum chained into one list, so one test can prove each case has a sentence for the user.
+
+/// A failure enum that hands back one value of every case through a `switch` the compiler checks for gaps.
 public protocol CataloguedFailure: UttrflowFailure {
     /// The head of the chain.
     static var firstCase: Self { get }
@@ -20,11 +9,7 @@ public protocol CataloguedFailure: UttrflowFailure {
 }
 
 extension CataloguedFailure {
-    /// One value of every case, in the order the chain links them.
-    ///
-    /// Values carrying associated data get an empty placeholder: this list exists to
-    /// prove that every *case* has a story for the user, and no message is written from
-    /// the data anyway.
+    /// One value of every case in chain order, with empty placeholders for associated data.
     public static var everyCase: [Self] { Array(sequence(first: firstCase, next: \.caseAfter)) }
 }
 
@@ -153,16 +138,7 @@ extension HotkeyError: CataloguedFailure {
     }
 }
 
-/// Every failure the product can raise, in one place.
-///
-/// One list rather than one per test target. The two that existed before disagreed —
-/// ``HotkeyError`` was in the interface's and missing from the core's — and a rule that
-/// is only enforced against half the errors is not enforced.
-///
-/// Registering a *new enum* here is the one step still left to a person: Swift cannot
-/// enumerate the conformers of a protocol, so nothing can notice a seventh error type
-/// that never joined the list. What it can do is make forgetting cost something —
-/// there is now exactly one line to add, and every failure test walks this.
+/// Every failure the product can raise, in one list; a new failure enum is added with exactly one line here.
 public enum FailureCatalogue {
     /// One value of every case of every failure enum in the product.
     public static let everyFailure: [any UttrflowFailure] =

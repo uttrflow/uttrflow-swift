@@ -1,10 +1,14 @@
+// Tests for MacDeviceIdentity, the token stores, BackendResponse and Timestamp.
+
 import Foundation
 import Testing
 
 @testable import UttrflowAccount
 
+/// The registration this Mac sends, and the install identifier it keeps.
 @Suite("What this machine tells the backend about itself")
 struct DeviceIdentityTests {
+    /// An identity over `storage` that mints `identifier` when it holds none.
     private func identity(
         storage: MemoryStorage, name: String = "Naveen's MacBook Pro",
         appVersion: String? = "0.1.0", minting identifier: String = "install-0123456789"
@@ -24,9 +28,7 @@ struct DeviceIdentityTests {
         #expect(registration.appVersion == "0.1.0")
     }
 
-    /// One installation is one device. A Mac that appeared three times in somebody's device
-    /// list every time they signed in would make the list useless — and the list is what
-    /// "sign my old laptop out" is built on.
+    /// One installation is one device, or the list that "sign my old laptop out" is built on is useless.
     @Test("mints its identifier once and keeps it")
     func identifierIsStable() {
         let storage = MemoryStorage()
@@ -45,8 +47,7 @@ struct DeviceIdentityTests {
         #expect(MacDeviceIdentity.defaultKey.hasSuffix(".v1"))
     }
 
-    /// A lost identifier costs one extra row in a device list. Refusing to sign in over it
-    /// would cost the whole app, so anything unreadable is replaced rather than trusted.
+    /// A lost identifier costs one extra row; refusing to sign in over it would cost the app.
     @Test("mints a new one rather than refusing, when what was stored is not readable")
     func unreadableIdentifiersAreReplaced() {
         for stored in [Data(), Data([0xFF, 0xFE, 0x00])] {
@@ -61,8 +62,7 @@ struct DeviceIdentityTests {
         #expect(registration.appVersion == nil)
     }
 
-    /// Default `UUID` identifiers must satisfy the backend's `opaque_identifier` domain, or
-    /// the first sign-in from a real Mac is a 500 nobody saw in a test.
+    /// Default `UUID` identifiers must satisfy the backend's `opaque_identifier` domain, or sign-in is a 500.
     @Test("mints identifier-shaped values by default")
     func defaultIdentifiersAreIdentifierShaped() {
         let minted = MacDeviceIdentity(
@@ -74,6 +74,7 @@ struct DeviceIdentityTests {
     }
 }
 
+/// The in-memory token store.
 @Suite("Where the credential lives")
 struct TokenStoreTests {
     @Test("keeps a refresh token, replaces it, and gives it up on signing out")
@@ -84,7 +85,7 @@ struct TokenStoreTests {
         tokens.store("first")
         #expect(tokens.refreshToken() == "first")
 
-        // Rotation: every refresh replaces it, and the old one is already dead.
+        // Rotation: every refresh replaces it, and the replaced one is already dead.
         tokens.store("second")
         #expect(tokens.refreshToken() == "second")
 
@@ -98,11 +99,10 @@ struct TokenStoreTests {
     }
 }
 
+/// ``BackendResponse`` and ``BackendUnreachable``, the value types on the wire.
 @Suite("The wire")
 struct BackendTransportTests {
-    /// HTTP header names are case-insensitive and a proxy will re-case them. A client that
-    /// matched on the spelling it expected would silently never find the validator, and
-    /// would then re-download the profile for ever without anything looking broken.
+    /// A proxy re-cases header names; matching one spelling would re-download the profile for ever.
     @Test("finds a header however the server capitalised it")
     func headersAreCaseInsensitive() {
         let response = BackendResponse(status: 200, headers: ["ETag": "\"v1\"", "x-other": "1"])
@@ -128,6 +128,7 @@ struct BackendTransportTests {
     }
 }
 
+/// ``Timestamp``, and the two date encodings a profile carries.
 @Suite("Timestamps on the wire")
 struct TimestampTests {
     /// What `toISOString()` writes, which is what the backend sends.
@@ -138,8 +139,7 @@ struct TimestampTests {
                 == Date(timeIntervalSince1970: 1_787_822_441))
     }
 
-    /// "Always" is a property of one implementation of one backend. A date without
-    /// milliseconds is not a reason to sign somebody out.
+    /// "Always" is one backend's habit; a date without milliseconds is no reason to sign anybody out.
     @Test("reads one without them too")
     func withoutMilliseconds() {
         #expect(
@@ -162,8 +162,7 @@ struct TimestampTests {
         #expect(Timestamp.date(from: written) == moment)
     }
 
-    /// A cached profile is written by one launch and read by the next, so the two
-    /// encodings have to agree — including the one date that is a number.
+    /// One launch writes the profile and the next reads it, so both date encodings must agree.
     @Test("survives a profile going to disk and coming back")
     func profileRoundTrip() throws {
         let profile = Fixture.profile(for: Fixture.entitlement(expiring: 86_400))

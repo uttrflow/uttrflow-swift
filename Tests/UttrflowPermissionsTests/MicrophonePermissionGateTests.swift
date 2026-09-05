@@ -5,8 +5,10 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowPermissions
 
+/// Drives the gate through substituted system calls.
 @Suite("MicrophonePermissionGate")
 struct MicrophonePermissionGateTests {
+    /// A gate over a mutable status whose prompt answers `grants`.
     private func gate(
         status: PermissionStatus,
         grants: Bool = true,
@@ -41,9 +43,7 @@ struct MicrophonePermissionGateTests {
         #expect(MicrophonePermissionGate.permissionStatus(for: system) == expected)
     }
 
-    /// A future macOS could add a state. `init?(rawValue:)` rejects values it does
-    /// not know, so the bit pattern is forced to reach the `@unknown default` arm and
-    /// prove an unrecognised state fails closed rather than falling through.
+    /// `init?(rawValue:)` rejects unknown values, so the bit pattern is forced to reach `@unknown default`.
     @Test("treats an authorisation state it does not recognise as denied")
     func unknownStatusIsDenied() {
         let future = unsafeBitCast(Int(99), to: AVAuthorizationStatus.self)
@@ -78,8 +78,7 @@ struct MicrophonePermissionGateTests {
         #expect(await gate(status: .notDetermined, grants: false).request() == .denied)
     }
 
-    /// macOS prompts once and never again, so asking a user who has already decided
-    /// would silently do nothing. Returning their decision is the honest answer.
+    /// macOS prompts once only, so a decided user gets their decision back rather than a silent no-op.
     @Test(
         "returns the existing decision instead of pretending to prompt",
         arguments: [PermissionStatus.granted, .denied, .restricted]

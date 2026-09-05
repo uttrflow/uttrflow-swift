@@ -1,15 +1,13 @@
+// Tests for WordErrorRate on hand-counted examples.
+
 import Testing
 
 @testable import UttrflowCore
 
-/// Worked examples first, properties second.
-///
-/// Every rate in these tests was counted by hand before it was run, because a word
-/// error rate is the one number in this project that cannot be sanity-checked by
-/// looking at it: 12% and 21% are equally plausible-looking and only one of them is
-/// what the recogniser did.
+/// Worked examples with every rate counted by hand, since 12% and 21% look equally plausible on screen.
 @Suite("Word error rate")
 struct WordErrorRateTests {
+    /// Splits both strings on spaces and measures.
     private func measure(_ reference: String, _ hypothesis: String) -> WordErrorRate {
         .measure(
             reference: reference.split(separator: " ").map(String.init),
@@ -41,8 +39,7 @@ struct WordErrorRateTests {
         #expect(rate.alignment.contains(.deletion("brown")))
     }
 
-    /// A word nobody said: 1 error over 2, so 50% — insertions are divided by the
-    /// reference length, not by the transcript's.
+    /// A word nobody said: 1 error over 2, so 50%; insertions divide by the reference length.
     @Test("counts an insertion")
     func insertion() {
         let rate = measure("ship it", "ship it now")
@@ -52,8 +49,7 @@ struct WordErrorRateTests {
         #expect(rate.alignment.contains(.insertion("now")))
     }
 
-    /// One deletion and one insertion, not three substitutions: the cheapest path is
-    /// two edits, and a scorer that took the diagonal every time would report 3/7.
+    /// One deletion and one insertion, not three substitutions; the diagonal every time would report 3/7.
     @Test("finds the cheapest alignment when edits could be counted several ways")
     func mixedEdits() {
         let rate = measure("i would like a cup of coffee", "i would like cup of hot coffee")
@@ -64,8 +60,7 @@ struct WordErrorRateTests {
         #expect(rate.rate == 2.0 / 7.0)
     }
 
-    /// A hallucinating engine is more than 100% wrong, and clamping that to 1 would hide
-    /// the worst failure the product can have.
+    /// A hallucinating engine is more than 100% wrong, and clamping to 1 would hide it.
     @Test("allows a rate above one")
     func aboveOne() {
         let rate = measure("hello", "hello there my old friend")
@@ -89,8 +84,7 @@ struct WordErrorRateTests {
         #expect(rate.rate == 1)
     }
 
-    /// A rate needs a denominator. Reporting 0% for an empty reference would be a lie in
-    /// the flattering direction.
+    /// A rate needs a denominator; 0% for an empty reference would flatter.
     @Test("has no rate when there is no reference")
     func noReference() {
         #expect(measure("", "").rate == nil)
@@ -108,10 +102,7 @@ struct WordErrorRateTests {
         #expect(rate.alignment.map(\.kind) == [.match, .substitution, .match, .insertion])
     }
 
-    /// The whole point of keeping the alignment: a rate says a passage went badly and
-    /// only this says which words.
-    /// Three examples with only one cheapest alignment each, so what is asserted is the
-    /// diff itself rather than the tie-break below.
+    /// Three examples with one cheapest alignment each, so the diff itself is asserted, not the tie-break.
     @Test("says which words went wrong")
     func alignmentReadsAsADiff() {
         #expect(
@@ -129,12 +120,7 @@ struct WordErrorRateTests {
             ])
     }
 
-    /// When two alignments cost the same, the diagonal wins. "Send it to priya" heard as
-    /// "send to preeya now" is three edits either way — a deletion, a substitution and an
-    /// insertion, or three substitutions — and this is the one it reports. The total is
-    /// what the rate is made of and it is the same both ways; only the S/D/I breakdown
-    /// depends on the preference, which is why the preference is fixed and written down
-    /// rather than left to whichever path the search happened to reach first.
+    /// Three edits either way; the diagonal makes them three substitutions rather than D, S and I.
     @Test("prefers substitutions when two alignments cost the same")
     func tiedAlignmentsPreferTheDiagonal() {
         let rate = measure("send it to priya", "send to preeya now")
@@ -144,9 +130,7 @@ struct WordErrorRateTests {
         #expect(rate.insertions == 0)
     }
 
-    /// Summing errors and words, not averaging rates. The short passage here is 100%
-    /// wrong and the long one is perfect; averaging the two rates would report 50%,
-    /// which describes neither the corpus nor anything else.
+    /// The short passage is 100% wrong and the long one perfect; averaging the rates would say 50%.
     @Test("combines passages by summing, not by averaging rates")
     func combinesByTotal() {
         let short = measure("yes", "no")
@@ -163,9 +147,7 @@ struct WordErrorRateTests {
         #expect(WordErrorRate.combined([]).rate == nil)
     }
 
-    /// The split between kinds is decided by the backtrace's preference order. It cannot
-    /// change the total, but it must not change between runs either, or two identical
-    /// runs would report different tables.
+    /// The backtrace's preference cannot change the total, but must not change between runs either.
     @Test("splits a tie the same way every time")
     func deterministicTieBreak() {
         let first = measure("a b", "c d")
