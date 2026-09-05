@@ -159,13 +159,13 @@ trust. Each is kept short enough that reading it is a sufficient review:
 
 Recorded as they are decided, so the PRD and the code never quietly disagree.
 
-- **§29 "no audio saved" — no longer a deviation. The PRD was right.** V1 was going to
-  keep recordings on the device for seven days, so a bad dictation could be replayed.
-  It never did: nothing in the product has ever written audio to disk. The claim was
-  discovered during Phase 8 and reversed rather than implemented, because never keeping
-  a recording is a stronger promise than deleting one, and the interface was already
-  saying so. `WAVEncoder` survives for the developer CLI and the evaluation corpus,
-  neither of which is the app. Transcripts *are* kept, and deleted after their window.
+- **§29 "no audio saved" — deviated, deliberately, on 2026-09-04.** V1 was going to
+  keep recordings for seven days so a bad dictation could be replayed; Phase 8 reversed
+  that in favour of never writing audio at all. It is back in a narrower form: every
+  recording is written beside the live buffer and deleted the moment its words land,
+  and kept for a day only when the words were lost — a crash, or a recogniser that
+  never answered — so the dictation can be retried from the Dictation page. Nothing
+  leaves the Mac, and the privacy wording says exactly this. See `Docs/recordings.md`.
 - **§31 "no tiny fallback LLM".** A local open-weight model is in V1, because Apple's
   Foundation Models have no Hindi.
 - **§16 recording panel.** The floating button *is* the recorder rather than a
@@ -1131,3 +1131,55 @@ else depends on.
   nothing calls them. A soft cap with a warning is specified; today there is neither.
   Either wire it or delete it, but it should not sit there looking finished.
 
+
+## Tab-to-complete 🟡
+
+The field the user is typing into finishes itself, from what this Mac has typed into that
+same field before. Nine phases, each ending in something a person can run: the first two
+are merged, the third is in review, and nothing in the app depends on the module yet.
+
+| # | Phase | Status |
+|---|-------|--------|
+| 0 | Probe — what fields, retrieval and the event tap allow | ✅ **Done** |
+| 1 | Engine core — ranking, quieting, the decision, as pure code | ✅ **Done** |
+| 2 | Store — the corpus on disk, and matching what was nearly typed | 🟡 **In review** |
+| 3 | Capture and measure — record what is committed, per field | **Not started** |
+| 4 | Accept — Tab, the insertion, and what acceptance is worth | **Not started** |
+| 5 | Surface — the ghost, the chip, the strip, and drawing nothing | **Not started** |
+| 6 | Verify — the numbers, on the Insights page | **Not started** |
+| 7 | Generate — candidates beyond what was typed here | **Not started** |
+| 8 | Ship — settings, the resets, onboarding | **Not started** |
+
+The runbook and the rules that hold across all nine are in
+[Docs/predict.md](Docs/predict.md); phase 0's measurements are in
+[Docs/predict-probe.md](Docs/predict-probe.md).
+
+### What phase 0 bought
+
+Three numbers that each removed a choice. The prefix range scan beats `LIKE` — and phase 2
+found out why by reading the query plan rather than timing it, because `LIKE` constrains
+only the surface id and then filters every row of that field. The fuzzy prefilter's mask
+must be as wide as the query plus its edit budget: 14.9× against 4.0× for a fixed twelve
+bytes, and the fixed width fails silently. And `git p` matches 925 entries exactly against
+2,776 within one edit, which is why fuzzy is a fallback rather than a parallel path.
+
+### What phase 1 delivered
+
+`UttrflowPredict` — every decision with nothing attached: no store, no model, no AppKit
+and no clock, so a 21-day decay is exact in a test rather than nearly right. Certainty is
+separation rather than magnitude; quieting is seven ordered predicates, each naming itself
+so the diagnostics can say why nothing was drawn. **46 tests, 100% line coverage.**
+
+### What is still unanswered
+
+- **The placement ladder is undecided.** `SurfaceCapability` is written and tested, but the
+  application sweep needs Accessibility granted to `uttrflow-dev` and somebody clicking
+  into a field in each application, so no capability table exists yet. Whether the inline
+  ghost reaches enough fields to lead with is phase 5's first question and phase 0 could
+  not answer it.
+- **Nothing reports a composing input method.** Suppressing suggestions while a Hindi,
+  Chinese or Japanese IME is mid-composition is required — marked text under a ghost
+  overlay is unreadable — and the Accessibility API does not say. `PredictionContext` has
+  the flag; nothing can set it truthfully yet.
+- **Single-undo grouping** is a property of each target application, not of the insertion,
+  and needs the sweep to have run.

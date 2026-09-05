@@ -21,8 +21,7 @@ struct StageTimeoutTests {
                 return "never"
             }
         }
-        while clock.sleeperCount == 0 { await Task.yield() }
-        clock.advance(by: .seconds(15))
+        await clock.advanceWhenSomethingIsWaiting(by: .seconds(15))
         #expect(try await running.value == nil)
     }
 

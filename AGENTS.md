@@ -89,6 +89,12 @@ Both describe the same function. Only the first is still true in four months.
    a story does not.
 4. **The trailing comment on a line of code is exempt from the length rule** and still
    bound by the rest.
+5. **Document a parameter only where one line covers it.** `swift-format` rejects a
+   singular `- Parameter` on a function that has more than one, and a plural
+   `- Parameters:` block is multi-line by construction — so a function with several
+   parameters documents all of them or none, and none is what this rule chooses. Say what
+   is surprising about an argument in the summary line instead. Swift labels arguments at
+   the call site, so the loss is smaller than it looks.
 
 ### Where the rest goes
 

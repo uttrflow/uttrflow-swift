@@ -22,6 +22,8 @@ public enum RecoveryAction: Sendable, Equatable {
     /// Recent in the menu bar. Offering ``pasteManually`` here would name the one
     /// place the words are certainly not, so the user is shown where they went instead.
     case showRecentDictations
+    /// The words were lost but the audio was not: the Dictation page lists it with a Retry.
+    case retryFromRecording
 }
 
 /// How much a failure costs the user, and therefore how loudly it is said.

@@ -66,9 +66,16 @@ struct DictationRowView: View {
                 .frame(width: 52, alignment: .leading)
                 .padding(.top, 3)
             VStack(alignment: .leading, spacing: 6) {
-                Text(row.text)
-                    .font(.system(size: MainMetrics.bodySize))
-                    .fixedSize(horizontal: false, vertical: true)
+                if row.status != nil {
+                    // A recording has no words yet, so a waveform stands where they will go.
+                    Label(row.text, systemImage: "waveform")
+                        .font(.system(size: MainMetrics.bodySize))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(row.text)
+                        .font(.system(size: MainMetrics.bodySize))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 meta
             }
         }
@@ -87,6 +94,13 @@ struct DictationRowView: View {
                 Text("·")
             }
             Text(row.detail).fixedSize()
+            if let status = row.status {
+                Text(status.rawValue)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(MainTone.warning.background, in: .rect(cornerRadius: 5))
+                    .foregroundStyle(MainTone.warning.foreground)
+            }
             if let changes = row.changes {
                 Button(changes.title) { onIntent(changes.intent) }
                     .buttonStyle(.plain)
@@ -97,6 +111,9 @@ struct DictationRowView: View {
                     .help("See what Uttrflow changed in this dictation")
             }
             Spacer(minLength: 8)
+            if let prominent = row.prominent {
+                MainActionButton(action: prominent, isProminent: true, onIntent: onIntent)
+            }
             actions
         }
         .font(.system(size: MainMetrics.footnoteSize))

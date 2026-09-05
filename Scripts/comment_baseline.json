@@ -1,6 +1,5 @@
 {
   "files": {
-    "Sources/Uttrflow/AppDelegate.swift": 149,
     "Sources/Uttrflow/Brand/UttrflowMark.swift": 1,
     "Sources/Uttrflow/Brand/UttrflowMarkView.swift": 1,
     "Sources/Uttrflow/Dock/DockAnchor.swift": 7,
@@ -75,16 +74,12 @@
     "Sources/UttrflowAccount/BackendTransport.swift": 3,
     "Sources/UttrflowAccount/DeviceIdentity+System.swift": 1,
     "Sources/UttrflowAccount/DeviceIdentity.swift": 3,
-    "Sources/UttrflowAccount/EntitlementGate.swift": 11,
-    "Sources/UttrflowAccount/EntitlementSignature.swift": 12,
     "Sources/UttrflowAccount/HTTPAuthenticationService.swift": 27,
     "Sources/UttrflowAccount/InMemoryAuthenticationService.swift": 15,
     "Sources/UttrflowAccount/LocalAccount.swift": 10,
     "Sources/UttrflowAccount/LoopbackListener+System.swift": 5,
     "Sources/UttrflowAccount/LoopbackListener.swift": 4,
-    "Sources/UttrflowAccount/PKCE.swift": 4,
     "Sources/UttrflowAccount/Profile.swift": 13,
-    "Sources/UttrflowAccount/ProfileCache.swift": 11,
     "Sources/UttrflowAccount/TelemetryCollector.swift": 14,
     "Sources/UttrflowAccount/TelemetryReport.swift": 18,
     "Sources/UttrflowAccount/TelemetryService.swift": 14,
@@ -346,6 +341,7 @@
     "Tests/UttrflowAccountTests/TelemetryReportTests.swift": 14,
     "Tests/UttrflowAccountTests/TelemetryServiceTests.swift": 7,
     "Tests/UttrflowAccountTests/TelemetrySupport.swift": 1,
+    "Tests/UttrflowAccountTests/UnsignedHalfTests.swift": 4,
     "Tests/UttrflowAudioTests/AudioFileReaderTests.swift": 1,
     "Tests/UttrflowAudioTests/AudioResamplerTests.swift": 4,
     "Tests/UttrflowAudioTests/RecordingCueTests.swift": 1,
@@ -516,5 +512,5 @@
     "Tests/UttrflowUXTests/StylePagePresentationTests.swift": 3,
     "Tests/UttrflowUXTests/UpdateGateTests.swift": 3
   },
-  "total": 4411
+  "total": 4228
 }

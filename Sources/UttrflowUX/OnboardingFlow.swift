@@ -333,7 +333,7 @@ public final class OnboardingFlow {
             await refresh()
         case .downloadSpeechModel:
             await enter(.setup)
-        case .pasteManually, .showRecentDictations:
+        case .pasteManually, .showRecentDictations, .retryFromRecording:
             // Offered by failures elsewhere in the app, never by a page here. Ignored
             // rather than made impossible, so that onboarding can go on speaking the
             // same vocabulary of recoveries as everything else.

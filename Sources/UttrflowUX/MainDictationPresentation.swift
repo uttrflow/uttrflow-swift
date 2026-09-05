@@ -21,6 +21,10 @@ public struct DictationRow: Sendable, Equatable, Identifiable {
     public let actions: [MainAction]
     /// What the overflow menu offers.
     public let more: [MainAction]
+    /// Set on a kept recording, which has no words yet: what stands in for them.
+    public let status: DictationRowStatus?
+    /// The one button drawn in full whether or not the row is pointed at.
+    public let prominent: MainAction?
 
     public init(
         id: UUID,
@@ -30,7 +34,9 @@ public struct DictationRow: Sendable, Equatable, Identifiable {
         detail: String,
         changes: MainAction?,
         actions: [MainAction],
-        more: [MainAction]
+        more: [MainAction],
+        status: DictationRowStatus? = nil,
+        prominent: MainAction? = nil
     ) {
         self.id = id
         self.when = when
@@ -40,7 +46,15 @@ public struct DictationRow: Sendable, Equatable, Identifiable {
         self.changes = changes
         self.actions = actions
         self.more = more
+        self.status = status
+        self.prominent = prominent
     }
+}
+
+/// Where a kept recording has got to, as the badge on its row says it.
+public enum DictationRowStatus: String, Sendable, Equatable, CaseIterable {
+    case waiting = "Not transcribed"
+    case retrying = "Retrying…"
 }
 
 /// Everything the dictation page is drawn from.
@@ -57,6 +71,10 @@ public struct DictationSnapshot: Sendable, Equatable {
     /// which owns the mapping from key codes to the glyphs on a physical keyboard.
     public let shortcut: String
     public let settings: Settings
+    /// Recordings whose words were lost, newest first, each waiting for a retry.
+    public let recordings: [KeptRecording]
+    /// The recording going through transcription again right now, if one is.
+    public let retrying: UUID?
     public let now: Date
 
     public init(
@@ -66,6 +84,8 @@ public struct DictationSnapshot: Sendable, Equatable {
         query: String = "",
         shortcut: String,
         settings: Settings = .default,
+        recordings: [KeptRecording] = [],
+        retrying: UUID? = nil,
         now: Date
     ) {
         self.permissions = permissions
@@ -74,6 +94,8 @@ public struct DictationSnapshot: Sendable, Equatable {
         self.query = query
         self.shortcut = shortcut
         self.settings = settings
+        self.recordings = recordings
+        self.retrying = retrying
         self.now = now
     }
 }
@@ -146,9 +168,12 @@ public enum DictationPresenter {
         let earlier = kept.filter { !calendar.isDate($0.when, inSameDayAs: snapshot.now) }
         let listed = HistoryPresenter.matches(today, query: snapshot.query, locale: locale)
         let blocked = MainPresenter.obstruction(in: snapshot.permissions)
+        // Recordings first: each is a dictation still owed its words, and the newest thing here.
+        let recordings =
+            blocked == nil && snapshot.query.isEmpty
+            ? snapshot.recordings.map { row(for: $0, in: snapshot, locale: locale) } : []
         let rows =
-            blocked == nil
-            ? listed.map { row(for: $0, in: snapshot, locale: locale) } : []
+            recordings + (blocked == nil ? listed.map { row(for: $0, in: snapshot, locale: locale) } : [])
 
         return DictationPresentation(
             chrome: MainPageChrome(
@@ -226,6 +251,34 @@ public enum DictationPresenter {
                     title: "Delete", symbolName: "trash", intent: .forgetDictation(entry.id),
                     isDestructive: true)
             ])
+    }
+
+    /// A kept recording as a row: what stands in for its words, and the one button that gets them.
+    static func row(
+        for recording: KeptRecording, in snapshot: DictationSnapshot, locale: Locale
+    ) -> DictationRow {
+        let retrying = snapshot.retrying == recording.id
+        return DictationRow(
+            id: recording.id,
+            when: MainFormatting.time(recording.when, locale: locale),
+            text: retrying ? "Transcribing…" : "Couldn’t turn this into text",
+            application: nil,
+            detail: MainFormatting.spoken(recording.duration),
+            changes: nil,
+            actions: [],
+            more: retrying
+                ? []
+                : [
+                    MainAction(
+                        title: "Delete", symbolName: "trash", intent: .forgetRecording(recording.id),
+                        isDestructive: true)
+                ],
+            status: retrying ? .retrying : .waiting,
+            prominent: retrying
+                ? nil
+                : MainAction(
+                    title: "Retry", symbolName: "arrow.clockwise",
+                    intent: .retryRecording(recording.id)))
     }
 
     /// "11s · 21 words". The duration is dropped rather than guessed when nothing timed

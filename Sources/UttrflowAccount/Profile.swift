@@ -77,11 +77,11 @@ public struct Profile: Sendable, Equatable, Codable {
 
     /// Whether this document describes the account the entitlement was signed for.
     ///
-    /// Cheap, and worth checking before a cached copy is believed: the entitlement is
-    /// signed and the surrounding document is not, so a file edited by hand could pair a
-    /// genuine free entitlement with a `subscription` that claims Pro. The signature
-    /// would still verify — it covers the entitlement, not its neighbours — and every
-    /// screen drawn from the unsigned half would be wrong.
+    /// The account and nothing else. The plan beside it is **not** covered, so a free
+    /// entitlement inside a document claiming Pro passes this and verifies perfectly.
+    /// What stops that mattering is that the unsigned half decides nothing — see
+    /// `Docs/entitlements.md`, and `UnsignedHalfTests`, which is where that is checked
+    /// rather than asserted.
     public var isInternallyConsistent: Bool {
         entitlement.account.identifier == account.identifier
     }

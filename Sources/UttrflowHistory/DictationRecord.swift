@@ -8,8 +8,8 @@ public import struct Foundation.UUID
 /// known at the moment of dictation and were being discarded, which is why the history
 /// artboard's app tile and duration chip had nothing behind them.
 ///
-/// There is deliberately no audio here, and no path to any. Nothing in Uttrflow writes a
-/// recording to disk, so a field for one would be an invitation to start.
+/// There is deliberately no audio here, and no path to any: a recording lives only until its
+/// words land, and a finished dictation has none behind it. See `Docs/recordings.md`.
 public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
     public let id: UUID
     /// The text that was inserted, after tidying.
