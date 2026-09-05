@@ -65,14 +65,13 @@ would be missed.
 
 | The field reports | Placement |
 |---|---|
-| Its text, its caret rectangle and its styling | Inline ghost |
-| Its text and its caret rectangle | Caret chip |
-| Its text only | Window strip |
+| Its text and its caret rectangle (styling optional) | Inline ghost |
+| Its text only, with no caret rectangle | Nothing is drawn |
 | Nothing, or it is a secure field | Nothing is drawn |
 
 `CapabilitySweep` aggregates readings and answers the one question phase 0 exists to
 settle: whether the inline ghost reaches enough fields to lead with. Below 30% it does
-not, and the window strip is the product.
+not — and since the inline ghost is the only surface, there is nothing to fall back on.
 
 ## The application sweep — pending the operator
 
@@ -109,12 +108,10 @@ Accessibility. What it will answer:
 
 ## Open, and not answered by this probe
 
-**Detecting a composing input method.** Nothing in the Accessibility API reports that a
-Hindi, Chinese or Japanese IME is mid-composition in another application. Suppressing
-suggestions during composition — which the design requires, because marked text and a
-ghost overlay in the same place are unreadable — needs a different mechanism, most
-likely watching for the marked-text range the field itself exposes while composing. This
-is phase 5's problem and it is not solved.
+**Detecting a composing input method.** Measured since, in `Docs/predict-ime.md`. The
+marked-text range the field exposes is real and public — `AXTextInputMarkedRange` — but it
+reaches only AppKit multi-line text views, so everywhere else the answer is a capability
+guess from the selected input source. Partly solved, and the doc says what the rest costs.
 
 **Single-undo grouping.** Whether `⌘Z` reverts an accepted completion as one step is a
 property of each target application, not of the insertion. It needs the sweep to have

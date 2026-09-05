@@ -66,7 +66,7 @@ private func everyUserFacingString() -> [String] {
                     strings += [title]
                 case .text(let value):
                     strings += [value]
-                case .toggle, .anchorPicker, .shortcut, .tick:
+                case .toggle, .anchorPicker, .shortcut, .tick, .applicationSwitch:
                     break
                 }
             }

@@ -247,9 +247,18 @@ else
             #                       in is the one thing the product says needs it. The
             #                       privacy tests in UttrflowAccountTests are what police
             #                       what it may send.
+            #   UttrflowLocalModel — the on-device model that validates and generates
+            #                       suggestions. Like Hub for speech, it fetches its weights
+            #                       from Hugging Face once; every inference then runs on the
+            #                       GPU with nothing sent out. It is on no dictation path, so
+            #                       the guarantee this audit exists for — that speaking cannot
+            #                       reach the network — is untouched (check 1 still proves it).
+            #   HuggingFace,       — swift-huggingface and its SSE helper, the download
+            #   EventSource          machinery UttrflowLocalModel pulls in, the way Hub is
+            #                       WhisperKit's. They fetch model files and nothing else.
             #   Uttrflow          — the app target links the above, so it inherits the
             #                       symbol. Nothing in it opens a connection of its own.
-            ALLOWED_NETWORK_MODULES="Hub UttrflowSpeech UttrflowAccount Uttrflow"
+            ALLOWED_NETWORK_MODULES="Hub UttrflowSpeech UttrflowAccount UttrflowLocalModel HuggingFace EventSource Uttrflow"
             networking=""
             while IFS= read -r module_dir; do
                 found="$(find "$BIN_PATH/$module_dir" -name '*.o' -print0 2>/dev/null \
@@ -278,9 +287,9 @@ else
                 pass "network-capable modules in the app, all expected: ${networking:-none}"
             fi
 
-            # Uttrflow's own modules, narrowed to the ones the app actually links.
-            # UttrflowLocalModel is built by the package but stays out of the app, and
-            # counting it would report a reference the shipped binary does not contain.
+            # Uttrflow's own modules, narrowed to the ones the app actually links. The one
+            # exception, UttrflowLocalModel, is allowed above because it is the model's own
+            # downloader; every other Uttrflow-named module opening a connection is new.
             own_offenders=""
             for module in $networking; do
                 case " $ALLOWED_NETWORK_MODULES " in

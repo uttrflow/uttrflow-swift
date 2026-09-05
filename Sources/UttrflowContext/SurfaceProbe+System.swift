@@ -7,9 +7,9 @@ public enum SurfaceProbe {
     /// Caps one message so an app that never answers releases this thread.
     private static let messagingTimeout: Float = 0.1
 
-    /// Reads the field the user is typing in, or `nil` when nothing is focused.
-    public static func read() -> SurfaceCapability? {
-        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication else { return nil }
+    /// Reads the field the user is typing in, or `nil` when nothing is focused; identity comes from the main thread.
+    public static func read(of app: FrontmostApp) -> SurfaceCapability? {
+        guard AXIsProcessTrusted() else { return nil }
 
         let started = DispatchTime.now().uptimeNanoseconds
         guard let field = focusedField(of: app.processIdentifier) else { return nil }
@@ -20,7 +20,7 @@ public enum SurfaceProbe {
         let elapsed = Int((DispatchTime.now().uptimeNanoseconds - started) / 1000)
 
         return SurfaceCapability(
-            application: app.localizedName ?? app.bundleIdentifier ?? "unknown",
+            application: app.name,
             role: role,
             locator: locator(field),
             reportsValue: value != nil,
@@ -32,14 +32,19 @@ public enum SurfaceProbe {
     }
 
     /// Asks system-wide first and the application second, because apps answer only one. See `Docs/insertion.md`.
-    private static func focusedField(of pid: pid_t) -> AXUIElement? {
+    static func focusedField(of pid: pid_t) -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         _ = AXUIElementSetMessagingTimeout(system, messagingTimeout)
-        if let field = element(system, kAXFocusedUIElementAttribute) { return field }
-
+        let systemWide = element(system, kAXFocusedUIElementAttribute)
+        // While a browser editor is typed into, the system names the word under the caret; the application still names the field.
+        if let field = systemWide, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) {
+            return field
+        }
         let application = AXUIElementCreateApplication(pid)
         _ = AXUIElementSetMessagingTimeout(application, messagingTimeout)
-        return element(application, kAXFocusedUIElementAttribute)
+        let own = element(application, kAXFocusedUIElementAttribute)
+        if let field = own, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) { return field }
+        return systemWide ?? own
     }
 
     /// Tells one field in an application from another, so two of the same role do not collapse into one.

@@ -80,6 +80,19 @@ struct FieldReadingTests {
         #expect(scope("/") == "/")
     }
 
+    @Test("A document is scoped to the folder it sits in, so a project's files share one corpus.")
+    func documentScopeIsTheContainingDirectory() {
+        func scope(_ document: String) -> String? {
+            FieldReading(bundleIdentifier: "com.example.editor", role: "AXTextArea", document: document)
+                .scope
+        }
+        #expect(scope("file:///Users/someone/work/notes.rtf") == "/Users/someone/work")
+        #expect(scope("/Users/someone/work/notes.rtf") == scope("/Users/someone/work/plan.rtf"))
+        #expect(scope("file:///Users/someone/with%20space/notes.txt") == "/Users/someone/with space")
+        #expect(scope("~/work/notes.md") == "~/work")
+        #expect(scope("/notes.txt") == "/")
+    }
+
     @Test("A document that is neither an address nor a path scopes nothing, rather than guessing.")
     func unrecognisedDocumentIsNoScope() {
         func scope(_ document: String?) -> String? {
@@ -110,5 +123,34 @@ struct FieldReadingTests {
         let other = FieldReading(
             bundleIdentifier: "com.example.browser", role: "AXTextField", identifier: "find")
         #expect(one.surface != other.surface)
+    }
+}
+
+@Suite("A field that hides what is typed is refused")
+struct FieldReadingSecrecyTests {
+    @Test("The secure role and subrole are both recognised.")
+    func rolesAreSecure() {
+        #expect(FieldReading(bundleIdentifier: "com.example.app", role: "AXSecureTextField").isSecure)
+        #expect(
+            FieldReading(
+                bundleIdentifier: "com.example.app", role: "AXTextField",
+                subrole: "AXSecureTextField"
+            ).isSecure)
+    }
+
+    @Test("A password field that names itself is secure even without the role, as web fields are.")
+    func namedPasswordIsSecure() {
+        #expect(
+            FieldReading(
+                bundleIdentifier: "com.example.app", role: "AXTextField", identifier: "user_password"
+            ).isSecure)
+    }
+
+    @Test("An ordinary field is not treated as secure.")
+    func ordinaryIsNotSecure() {
+        #expect(
+            !FieldReading(
+                bundleIdentifier: "com.example.app", role: "AXTextField", identifier: "search"
+            ).isSecure)
     }
 }

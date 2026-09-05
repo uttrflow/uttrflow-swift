@@ -9,6 +9,8 @@ public enum PredictStoreError: Error, Equatable {
     case query(String)
     /// The file on disk is not a database this app wrote.
     case corrupt
+    /// The file was written by a newer build, so this one leaves it alone and goes without.
+    case newerThanThisBuild(version: Int)
 }
 
 /// Tells SQLite to copy a bound string, since Swift may free it before the step runs.
@@ -92,6 +94,19 @@ final class Database {
                 throw isCorrupt(result) ? .corrupt : .query(lastMessage())
             }
             return found
+        }
+    }
+
+    /// Runs the body as one transaction, so a step that fails leaves none of the others behind.
+    func transaction<T>(_ body: () throws(PredictStoreError) -> T) throws(PredictStoreError) -> T {
+        try execute("BEGIN")
+        do {
+            let result = try body()
+            try execute("COMMIT")
+            return result
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
         }
     }
 

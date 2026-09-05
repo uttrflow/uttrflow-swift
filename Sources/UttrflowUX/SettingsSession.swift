@@ -1,3 +1,4 @@
+public import struct Foundation.Date
 public import UttrflowCore
 public import UttrflowSettings
 
@@ -54,9 +55,14 @@ public struct SettingsSession: Sendable, Equatable {
     }
 
     public var presentation: SettingsWindowPresentation {
+        presentation(at: Date())
+    }
+
+    /// The window as it stands at one moment, which the half-hour pause is the whole reason for.
+    public func presentation(at moment: Date) -> SettingsWindowPresentation {
         SettingsPresenter.window(
             showing: tab, settings: settings, capabilities: capabilities,
-            personalisation: personalisation)
+            personalisation: personalisation, at: moment)
     }
 
     /// Carries out a change, or records why it could not be.
@@ -65,9 +71,10 @@ public struct SettingsSession: Sendable, Equatable {
     ///   ``settings`` exactly as it was, so a caller that ignores the answer is left
     ///   holding the state that was already good.
     @discardableResult
-    public mutating func apply(_ change: SettingsChange) -> Settings? {
+    public mutating func apply(_ change: SettingsChange, at moment: Date = Date()) -> Settings? {
         do {
-            settings = try SettingsEditor.apply(change, to: settings, given: capabilities)
+            settings = try SettingsEditor.apply(
+                change, to: settings, given: capabilities, at: moment)
         } catch {
             rejection = error.reason
             return nil

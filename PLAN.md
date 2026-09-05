@@ -1173,20 +1173,46 @@ the body. A step that costs a corpus case does not land.
 ## Tab-to-complete 🟡
 
 The field the user is typing into finishes itself, from what this Mac has typed into that
-same field before. Nine phases, each ending in something a person can run: the first two
-are merged, the third is in review, and nothing in the app depends on the module yet.
+same field before. Nine phases, each ending in something a person can run. Phases 0 to 7
+are built and the app now runs them behind a defaults key that is off by default; phase 8
+— the settings screen, the resets and the onboarding — is what is left.
 
 | # | Phase | Status |
 |---|-------|--------|
 | 0 | Probe — what fields, retrieval and the event tap allow | ✅ **Done** |
 | 1 | Engine core — ranking, quieting, the decision, as pure code | ✅ **Done** |
-| 2 | Store — the corpus on disk, and matching what was nearly typed | 🟡 **In review** |
-| 3 | Capture and measure — record what is committed, per field | **Not started** |
-| 4 | Accept — Tab, the insertion, and what acceptance is worth | **Not started** |
-| 5 | Surface — the ghost, the chip, the strip, and drawing nothing | **Not started** |
-| 6 | Verify — the numbers, on the Insights page | **Not started** |
-| 7 | Generate — candidates beyond what was typed here | **Not started** |
-| 8 | Ship — settings, the resets, onboarding | **Not started** |
+| 2 | Store — the corpus on disk, and matching what was nearly typed | ✅ **Done** |
+| 3 | Capture and measure — record what is committed, per field | ✅ **Done** |
+| 4 | Accept — Tab, the insertion, and what acceptance is worth | ✅ **Done** |
+| 5 | Surface — the ghost, the chip, the strip, and drawing nothing | ✅ **Done** |
+| 2 | Store — the corpus on disk, and matching what was nearly typed | ✅ **Done** |
+| 3 | Capture and measure — record what is committed, per field | ✅ **Done** |
+| 4 | Accept — Tab, the insertion, and what acceptance is worth | ✅ **Done** |
+| 5 | Surface — the ghost, the chip, the strip, and drawing nothing | ✅ **Done** |
+| 6 | Verify — the four gates that put correctness above habit | ✅ **Done**, wired |
+| 6b | The numbers, on the Insights page | **Not started** |
+| 7 | Generate — prose at an idle pause | **Deferred** until phase 3's numbers justify it |
+| 8 | Ship — settings, the resets, onboarding | **Settings wired**; the resets and onboarding are not |
+
+### What the wiring delivered
+
+`SuggestionSession` sequences the loop as pure code and `SuggestionCoordinator` runs it
+against the real machine; `AppDelegate` builds the coordinator when the Suggestions screen's
+master switch says so, takes it away when the switch goes off, and hands it every other
+choice on that screen as it is made.
+[Docs/predict.md](Docs/predict.md) has the steps for turning it on.
+
+The gates run inside that loop, between ranking and drawing. `resolve` hands back the head
+of the ranking to be verified, `Verifier` judges it against one deadline for the whole
+keystroke, and the second `resolve` draws what survived — corrected silently where the
+machine knew better, dropped where it did not, and reported to the corpus either way.
+
+Still open after it: no scorer is wired into the coordinator, so gate 2 never runs on a
+real machine; nothing draws the numbers on the Insights page (phase 6b); the settings
+window does not reach the corpus, so the per-application counts and the "forget what this
+application taught" buttons never appear (phase 8); consent per application is an `NSAlert`
+rather than anything designed; and the placement ladder is still chosen from what each
+field answers rather than from a sweep that has been run.
 
 The runbook and the rules that hold across all nine are in
 [Docs/predict.md](Docs/predict.md); phase 0's measurements are in
@@ -1207,6 +1233,21 @@ bytes, and the fixed width fails silently. And `git p` matches 925 entries exact
 and no clock, so a 21-day decay is exact in a test rather than nearly right. Certainty is
 separation rather than magnitude; quieting is seven ordered predicates, each naming itself
 so the diagnostics can say why nothing was drawn. **46 tests, 100% line coverage.**
+
+### What phase 6 delivered
+
+The verification tier: `Verdict`, `Verification`, `VerdictCache` and `Verifier`, all in
+`UttrflowPredict`, plus `MLXCandidateScorer` behind the `CandidateScoring` protocol. Four
+ordered gates — existence, plausibility, the nearest correct neighbour, and superseding
+what was corrected — with a 20 ms budget whose failure shows only what the machine had
+already attested. `Docs/predict.md` has the rules and the three things it leaves
+unfinished. **49 tests.**
+
+The gate that mattered was the first one, and it is not the typo model. `git cm` is a typo
+to any language model and a real alias to the machine, so existence runs first and nothing
+below it may interfere; a machine that has not answered yet is treated as having said
+nothing rather than as having said no. `EnvironmentKind` grew `.gitSubcommand` and
+`.gitAlias` for it, since a shell alias and a git alias are read differently.
 
 ### What is still unanswered
 

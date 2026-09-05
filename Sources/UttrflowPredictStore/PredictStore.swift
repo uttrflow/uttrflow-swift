@@ -1,7 +1,9 @@
+import UttrflowCore
 public import UttrflowPredict
 
 public import struct Foundation.Date
 public import class Foundation.FileManager
+public import struct Foundation.URL
 
 /// The corpus on disk: what the user has entered where, and what usually follows what.
 public actor PredictStore: PredictionStore {
@@ -14,14 +16,21 @@ public actor PredictStore: PredictionStore {
     private let path: String
     private var database: Database
 
-    /// Opens the corpus, replacing a file that is not a database this app can read.
+    /// Opens the corpus, replacing a file that is not a database at all and refusing one from a newer build.
     public init(path: String) throws(PredictStoreError) {
         self.path = path
         self.database = try Self.opened(at: path)
     }
 
+    /// Where the corpus lives, beside the clipboard and the history, versioned in its name.
+    public static func defaultFile(in directory: URL) -> URL {
+        LocalStore.file("predict.v1.sqlite", in: directory)
+    }
+
     /// Opens and migrates, and on corruption starts again rather than leaving the app broken.
     private static func opened(at path: String) throws(PredictStoreError) -> Database {
+        try? FileManager.default.createDirectory(
+            at: URL(filePath: path).deletingLastPathComponent(), withIntermediateDirectories: true)
         do {
             let database = try Database(path: path)
             try Schema.migrate(database)
@@ -40,14 +49,89 @@ public actor PredictStore: PredictionStore {
 
     // MARK: - Reading
 
-    /// What the user might be finishing, exact matches first and fuzzy ones only if there are none.
+    /// What the user might be finishing, drawn from every folder in this app they have typed it, not walled off by one.
     public func candidates(
         for surface: Surface, matching typed: String
     ) throws(PredictStoreError) -> [Candidate] {
-        guard let id = try identifier(of: surface, creating: false), !typed.isEmpty else { return [] }
-        let exact = try exactCandidates(surfaceIdentifier: id, typed: typed)
-        guard exact.isEmpty else { return exact }
-        return try fuzzyCandidates(surfaceIdentifier: id, typed: typed)
+        guard !typed.isEmpty else { return [] }
+        let ids = try surfaceIdentifiers(of: surface)
+        guard !ids.isEmpty else { return [] }
+        var exact: [Candidate] = []
+        for id in ids { exact += try exactCandidates(surfaceIdentifier: id, typed: typed) }
+        guard exact.isEmpty else { return merged(exact) }
+        var fuzzy: [Candidate] = []
+        for id in ids { fuzzy += try fuzzyCandidates(surfaceIdentifier: id, typed: typed) }
+        return merged(fuzzy)
+    }
+
+    /// The lines this person most recently entered in this field, each once: those written in this very document first, since a name or a greeting belongs to one conversation, then the rest of the field newest first.
+    public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
+        let ids = try surfaceIdentifiers(of: surface)
+        guard !ids.isEmpty, limit > 0 else { return [] }
+        let here = try identifier(of: surface, creating: false) ?? -1
+        return try database.rows(
+            Self.recentQuery(surfaces: ids.count),
+            { statement in
+                for (offset, id) in ids.enumerated() { statement.bind(Int32(offset + 1), id) }
+                statement.bind(Int32(ids.count + 1), here)
+                statement.bind(Int32(ids.count + 2), Int64(limit))
+            }
+        ) { $0.text(0) }
+    }
+
+    /// The recency read over this many surfaces of one field, which `entry_recent` exists to serve; the surface bound after them is the document being written in, whose lines lead.
+    static func recentQuery(surfaces: Int) -> String {
+        // Every placeholder is numbered, since one numbered among anonymous ones shifts the rest.
+        let placeholders = (1...surfaces).map { "?\($0)" }.joined(separator: ", ")
+        return """
+            SELECT text, MAX(last_used) AS used, MAX(surface_id = ?\(surfaces + 1)) AS here FROM entry
+            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
+            GROUP BY text ORDER BY here DESC, used DESC LIMIT ?\(surfaces + 2)
+            """
+    }
+
+    /// Every surface that is the same field in the same application, whatever document it was in.
+    private func surfaceIdentifiers(of surface: Surface) throws(PredictStoreError) -> [Int64] {
+        try database.rows(
+            "SELECT id FROM surface WHERE bundle_id = ? AND role = ? AND locator = ?",
+            {
+                $0.bind(1, surface.bundleIdentifier)
+                $0.bind(2, surface.role)
+                $0.bind(3, surface.locator ?? "")
+            }
+        ) { Int64($0.integer(0)) }
+    }
+
+    /// Folds the same text learned in several places into one candidate, its counts summed so it ranks by real use.
+    private func merged(_ candidates: [Candidate]) -> [Candidate] {
+        var byText: [String: Candidate] = [:]
+        var order: [String] = []
+        for candidate in candidates {
+            guard let existing = byText[candidate.text] else {
+                byText[candidate.text] = candidate
+                order.append(candidate.text)
+                continue
+            }
+            byText[candidate.text] = Self.combine(existing, candidate)
+        }
+        return Array(order.compactMap { byText[$0] }.prefix(Self.candidateLimit))
+    }
+
+    /// One text known in two surfaces becomes one candidate: evidence summed, the nearer edit kept.
+    private static func combine(_ first: Candidate, _ second: Candidate) -> Candidate {
+        let evidence: Entry?
+        if let a = first.evidence, let b = second.evidence {
+            evidence = Entry(
+                text: a.text, count: a.count + b.count, accepted: a.accepted + b.accepted,
+                rejected: a.rejected + b.rejected, selfSourced: a.selfSourced + b.selfSourced,
+                lastUsed: max(a.lastUsed, b.lastUsed))
+        } else {
+            evidence = first.evidence ?? second.evidence
+        }
+        return Candidate(
+            text: first.text, source: first.source, evidence: evidence,
+            editDistance: min(first.editDistance, second.editDistance),
+            isIrreversible: first.isIrreversible)
     }
 
     /// What usually follows what was last entered here, for a field nothing has been typed into.
@@ -68,28 +152,32 @@ public actor PredictStore: PredictionStore {
         var candidates: [Candidate] = []
         for text in texts {
             guard let evidence = try entry(surfaceIdentifier: id, text: text) else { continue }
-            candidates.append(Candidate(text: text, source: .succession, evidence: evidence))
+            candidates.append(
+                Candidate(
+                    text: text, source: .succession, evidence: evidence,
+                    isIrreversible: DestructiveCommand.matches(text)))
         }
         return candidates
     }
 
-    /// The range scan the whole design rests on, written as a range and never as a LIKE.
+    /// The range scan the whole design rests on, over the lowercased text so it ignores case yet keeps the index.
     static let prefixQuery = """
         SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
-        WHERE surface_id = ? AND text >= ? AND text < ? AND superseded_by IS NULL
+        WHERE surface_id = ? AND text_lower >= ? AND text_lower < ? AND superseded_by IS NULL
         ORDER BY count DESC LIMIT ?
         """
 
-    /// Every candidate whose opening is exactly what was typed.
+    /// Every candidate whose opening is what was typed, matched without regard to case.
     private func exactCandidates(
         surfaceIdentifier id: Int64, typed: String
     ) throws(PredictStoreError) -> [Candidate] {
-        guard let upper = Self.upperBound(of: typed) else { return [] }
+        let lowered = typed.lowercased()
+        guard let upper = Self.upperBound(of: lowered) else { return [] }
         return try rows(
             Self.prefixQuery,
             {
                 $0.bind(1, id)
-                $0.bind(2, typed)
+                $0.bind(2, lowered)
                 $0.bind(3, upper)
                 $0.bind(4, Int64(Self.candidateLimit))
             }, distance: 0)
@@ -123,24 +211,35 @@ public actor PredictStore: PredictionStore {
             matched.append(
                 Candidate(
                     text: candidate.text, source: candidate.source, evidence: candidate.evidence,
-                    editDistance: distance))
+                    editDistance: distance, isIrreversible: candidate.isIrreversible))
         }
         return Array(matched.prefix(Self.candidateLimit))
     }
 
     // MARK: - Writing
 
-    /// Records a value the user finished entering, and what it followed.
+    /// Records a value the user finished entering, and what it followed, as one transaction.
     public func record(
         _ text: String, in surface: Surface, after previous: String? = nil,
         selfSourced: Bool = false, at moment: Date
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
+        try database.transaction { () throws(PredictStoreError) in
+            try commit(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
+        }
+    }
+
+    /// The steps of a record, which stand or fall together.
+    private func commit(
+        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+    ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: true) else { return }
+        // A half-typed fragment is not stored when a longer line the user already entered begins with it.
+        if try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text) { return }
         try database.run(
             """
-            INSERT INTO entry (surface_id, text, count, self_sourced, last_used)
-            VALUES (?, ?, 1, ?, ?)
+            INSERT INTO entry (surface_id, text, text_lower, count, self_sourced, last_used)
+            VALUES (?, ?, ?, 1, ?, ?)
             ON CONFLICT (surface_id, text) DO UPDATE SET
               count = count + 1,
               self_sourced = self_sourced + excluded.self_sourced,
@@ -149,9 +248,12 @@ public actor PredictStore: PredictionStore {
             {
                 $0.bind(1, id)
                 $0.bind(2, text)
-                $0.bind(3, Int64(selfSourced ? 1 : 0))
-                $0.bind(4, moment.timeIntervalSince1970)
+                $0.bind(3, text.lowercased())
+                $0.bind(4, Int64(selfSourced ? 1 : 0))
+                $0.bind(5, moment.timeIntervalSince1970)
             })
+        // This whole value retires the shorter fragments it grew out of, so only it is ever proposed.
+        try supersedeFragments(surfaceIdentifier: id, of: text)
         if let previous, !previous.isEmpty {
             try database.run(
                 """
@@ -217,6 +319,60 @@ public actor PredictStore: PredictionStore {
         try database.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) }.first ?? 0
     }
 
+    // MARK: - Prefix hygiene
+
+    /// Whether a longer non-superseded line the user entered begins with this one, making it a fragment.
+    private func isFragmentOfLongerEntry(
+        surfaceIdentifier id: Int64, text: String
+    ) throws(PredictStoreError) -> Bool {
+        let lowered = text.lowercased()
+        let length = Int64(lowered.count)
+        let found = try database.rows(
+            """
+            SELECT 1 FROM entry
+            WHERE surface_id = ? AND superseded_by IS NULL
+              AND length(text_lower) > ? AND substr(text_lower, 1, ?) = ?
+            LIMIT 1
+            """,
+            {
+                $0.bind(1, id)
+                $0.bind(2, length)
+                $0.bind(3, length)
+                $0.bind(4, lowered)
+            }
+        ) { $0.integer(0) }
+        return !found.isEmpty
+    }
+
+    /// Retires every shorter non-superseded entry that this value begins with, pointing each at this value.
+    private func supersedeFragments(
+        surfaceIdentifier id: Int64, of text: String
+    ) throws(PredictStoreError) {
+        let lowered = text.lowercased()
+        let fragments = try database.rows(
+            """
+            SELECT text FROM entry
+            WHERE surface_id = ? AND superseded_by IS NULL AND text <> ?
+              AND length(text_lower) < ? AND text_lower = substr(?, 1, length(text_lower))
+            """,
+            {
+                $0.bind(1, id)
+                $0.bind(2, text)
+                $0.bind(3, Int64(lowered.count))
+                $0.bind(4, lowered)
+            }
+        ) { $0.text(0) }
+        for fragment in fragments {
+            try database.run(
+                "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
+                {
+                    $0.bind(1, text)
+                    $0.bind(2, id)
+                    $0.bind(3, fragment)
+                })
+        }
+    }
+
     // MARK: - Plumbing
 
     private func count(_ column: String, _ text: String, _ surface: Surface) throws(PredictStoreError) {
@@ -229,7 +385,7 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// Keeps a surface within its cap, dropping the entries with the least behind them.
+    /// Keeps a surface within its cap, dropping superseded entries first and then those with the least behind them.
     private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
         let held = try database.rows(
             "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
@@ -239,7 +395,7 @@ public actor PredictStore: PredictionStore {
             """
             DELETE FROM entry WHERE id IN (
               SELECT id FROM entry WHERE surface_id = ?
-              ORDER BY count ASC, last_used ASC LIMIT ?
+              ORDER BY (superseded_by IS NOT NULL) DESC, count ASC, last_used ASC LIMIT ?
             )
             """,
             {
@@ -259,7 +415,8 @@ public actor PredictStore: PredictionStore {
                     text: row.text(0), count: row.integer(1), accepted: row.integer(2),
                     rejected: row.integer(3), selfSourced: row.integer(4),
                     lastUsed: Date(timeIntervalSince1970: row.double(5))),
-                editDistance: distance)
+                editDistance: distance,
+                isIrreversible: DestructiveCommand.matches(row.text(0)))
         }
     }
 

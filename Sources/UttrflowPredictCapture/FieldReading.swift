@@ -35,10 +35,14 @@ public struct FieldReading: Sendable, Equatable {
 
 extension FieldReading {
     /// The role and subrole a password field is published under, by the two conventions in use.
-    public static let secureRole = "AXSecureTextField"
+    public static let secureRole = SecureField.secureRole
 
-    /// Whether the field hides what is typed into it, which AppKit says as a subrole and others as a role.
-    public var isSecure: Bool { role == Self.secureRole || subrole == Self.secureRole }
+    /// Whether the field hides what is typed, from its role, its subrole, or a name that betrays a password.
+    public var isSecure: Bool {
+        SecureField.isDeclaredSecure(
+            role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
+            description: accessibilityDescription)
+    }
 
     /// The field as the corpus knows it, or nothing when it does not say enough to be told apart.
     public var surface: Surface? {
@@ -53,7 +57,7 @@ extension FieldReading {
         Self.named(identifier) ?? Self.named(placeholder) ?? Self.named(accessibilityDescription)
     }
 
-    /// The page host for a web field and the directory for a terminal, which are the same question.
+    /// The page host for a web field and the containing directory for a file, which are the same question.
     public var scope: String? {
         guard let document = Self.named(document) else { return nil }
         if let host = Self.host(of: document) { return host }
@@ -68,13 +72,15 @@ extension FieldReading {
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
-    /// The directory, without the trailing slash that makes one path look like two.
+    /// The directory a path names, so every document of one project shares one corpus.
     private static func directory(of document: String) -> String? {
         let path = document.hasPrefix("file://") ? URL(string: document)?.path() ?? "" : document
         let decoded = path.removingPercentEncoding ?? path
         guard decoded.hasPrefix("/") || decoded.hasPrefix("~") else { return nil }
-        guard decoded.count > 1, decoded.hasSuffix("/") else { return named(decoded) }
-        return named(String(decoded.dropLast()))
+        guard decoded.count > 1 else { return named(decoded) }
+        guard !decoded.hasSuffix("/") else { return named(String(decoded.dropLast())) }
+        guard !(decoded as NSString).pathExtension.isEmpty else { return named(decoded) }
+        return named((decoded as NSString).deletingLastPathComponent)
     }
 
     /// The value with its surrounding space removed, or nothing when that leaves nothing.

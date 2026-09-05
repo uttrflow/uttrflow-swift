@@ -1,4 +1,5 @@
 private import UttrflowClipboard
+private import UttrflowPredict
 
 /// Why a value the user finished entering was not remembered.
 public enum CaptureRefusal: String, Sendable, Equatable, CaseIterable {
@@ -10,6 +11,8 @@ public enum CaptureRefusal: String, Sendable, Equatable, CaseIterable {
     case consentDeclined
     /// The value has the shape of a credential.
     case looksLikeSecret
+    /// The value would destroy data if it were ever completed and run.
+    case destructive
     /// The value is too short to ever be worth completing.
     case tooShort
 
@@ -33,7 +36,9 @@ public enum CaptureGate {
         case .proceed: break
         }
         guard text.count >= minimumLength else { return .tooShort }
-        return looksLikeSecret(text) ? .looksLikeSecret : nil
+        if looksLikeSecret(text) { return .looksLikeSecret }
+        // A destructive command is never stored, so it can never be one keystroke from running.
+        return DestructiveCommand.matches(text) ? .destructive : nil
     }
 
     /// Whether a value has the shape of a credential, asked of the rules the clipboard already uses.

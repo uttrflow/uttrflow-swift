@@ -74,7 +74,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
             FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        return base.appending(path: "Uttrflow/Models", directoryHint: .isDirectory)
+        return LocalStore.directory("Models", in: base)
     }
 
     public func location(of model: SpeechModel) -> URL {

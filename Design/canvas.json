@@ -225,233 +225,303 @@
       "h": 620
     },
     {
-      "file": "Main-Dictation.dc.html",
+      "file": "Predict-Certain.dc.html",
       "x": 0,
       "y": 2450,
+      "w": 820,
+      "h": 500
+    },
+    {
+      "file": "Predict-Certain-Dark.dc.html",
+      "x": 860,
+      "y": 2450,
+      "w": 820,
+      "h": 500
+    },
+    {
+      "file": "Predict-Choice.dc.html",
+      "x": 1720,
+      "y": 2450,
+      "w": 820,
+      "h": 580
+    },
+    {
+      "file": "Predict-Choice-Dark.dc.html",
+      "x": 2580,
+      "y": 2450,
+      "w": 820,
+      "h": 580
+    },
+    {
+      "file": "Predict-Minimised.dc.html",
+      "x": 3440,
+      "y": 2450,
+      "w": 820,
+      "h": 480
+    },
+    {
+      "file": "Predict-Minimised-Dark.dc.html",
+      "x": 4300,
+      "y": 2450,
+      "w": 820,
+      "h": 480
+    },
+    {
+      "file": "Predict-Window-Strip.dc.html",
+      "x": 5160,
+      "y": 2450,
+      "w": 820,
+      "h": 560
+    },
+    {
+      "file": "Predict-Window-Strip-Dark.dc.html",
+      "x": 6020,
+      "y": 2450,
+      "w": 820,
+      "h": 560
+    },
+    {
+      "file": "Predict-High-Contrast.dc.html",
+      "x": 6880,
+      "y": 2450,
+      "w": 820,
+      "h": 700
+    },
+    {
+      "file": "Predict-High-Contrast-Dark.dc.html",
+      "x": 7740,
+      "y": 2450,
+      "w": 820,
+      "h": 700
+    },
+    {
+      "file": "Main-Dictation.dc.html",
+      "x": 0,
+      "y": 3260,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Dictation-Dark.dc.html",
       "x": 1020,
-      "y": 2450,
+      "y": 3260,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Dictation-Empty.dc.html",
       "x": 2040,
-      "y": 2450,
+      "y": 3260,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Dictation-Empty-Dark.dc.html",
       "x": 3060,
-      "y": 2450,
+      "y": 3260,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Dictionary.dc.html",
       "x": 0,
-      "y": 3260,
+      "y": 4070,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Dictionary-Dark.dc.html",
       "x": 1020,
-      "y": 3260,
+      "y": 4070,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Dictionary-Empty.dc.html",
       "x": 2040,
-      "y": 3260,
+      "y": 4070,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Dictionary-Empty-Dark.dc.html",
       "x": 3060,
-      "y": 3260,
+      "y": 4070,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Corrections.dc.html",
       "x": 0,
-      "y": 4070,
+      "y": 4880,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Corrections-Dark.dc.html",
       "x": 1020,
-      "y": 4070,
+      "y": 4880,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Corrections-Empty.dc.html",
       "x": 2040,
-      "y": 4070,
+      "y": 4880,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Corrections-Empty-Dark.dc.html",
       "x": 3060,
-      "y": 4070,
+      "y": 4880,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Insights.dc.html",
       "x": 0,
-      "y": 4880,
+      "y": 5690,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Insights-Dark.dc.html",
       "x": 1020,
-      "y": 4880,
+      "y": 5690,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Insights-Empty.dc.html",
       "x": 2040,
-      "y": 4880,
+      "y": 5690,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Insights-Empty-Dark.dc.html",
       "x": 3060,
-      "y": 4880,
+      "y": 5690,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Snippets.dc.html",
       "x": 0,
-      "y": 5690,
+      "y": 6500,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Snippets-Dark.dc.html",
       "x": 1020,
-      "y": 5690,
+      "y": 6500,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Snippets-Empty.dc.html",
       "x": 2040,
-      "y": 5690,
+      "y": 6500,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Snippets-Empty-Dark.dc.html",
       "x": 3060,
-      "y": 5690,
+      "y": 6500,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Style.dc.html",
       "x": 0,
-      "y": 6500,
+      "y": 7310,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Style-Dark.dc.html",
       "x": 1020,
-      "y": 6500,
+      "y": 7310,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Account.dc.html",
       "x": 2040,
-      "y": 6500,
+      "y": 7310,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Account-Dark.dc.html",
       "x": 3060,
-      "y": 6500,
+      "y": 7310,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-History.dc.html",
       "x": 0,
-      "y": 7310,
+      "y": 8120,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-History-Dark.dc.html",
       "x": 1020,
-      "y": 7310,
+      "y": 8120,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Diagnostics.dc.html",
       "x": 2040,
-      "y": 7310,
+      "y": 8120,
       "w": 980,
       "h": 700
     },
     {
       "file": "Main-Diagnostics-Dark.dc.html",
       "x": 3060,
-      "y": 7310,
+      "y": 8120,
       "w": 980,
       "h": 700
     },
     {
       "file": "Settings-General.dc.html",
       "x": 0,
-      "y": 8120,
+      "y": 8930,
       "w": 800,
       "h": 660
     },
     {
       "file": "Settings-Languages.dc.html",
       "x": 840,
-      "y": 8120,
+      "y": 8930,
       "w": 800,
       "h": 660
     },
     {
       "file": "Settings-Dictation.dc.html",
       "x": 1680,
-      "y": 8120,
+      "y": 8930,
       "w": 800,
       "h": 660
     },
     {
       "file": "Settings-Privacy.dc.html",
       "x": 2520,
-      "y": 8120,
+      "y": 8930,
       "w": 800,
       "h": 660
     },
     {
       "file": "Errors.dc.html",
       "x": 0,
-      "y": 8890,
+      "y": 9700,
       "w": 900,
       "h": 700
     }
@@ -486,65 +556,72 @@
       "text": "Every day\nThe floating button is the whole product for most people. It is the recorder too \u2014 it expands in place rather than a second panel appearing somewhere else."
     },
     {
-      "id": "dictation",
+      "id": "predict",
       "x": -360,
       "y": 2450,
+      "w": 300,
+      "text": "Tab to complete\nThe suggestion surface, in the five shapes it can take. Which one is drawn is not a preference but a capability: the placement ladder in Docs/predict-probe.md reads what a field publishes, and a field that gives up its caret rectangle gets the inline ghost while one that gives up only its text gets the strip along the bottom of its window. The list is deliberately almost empty \u2014 a mark, a string and a Tab glyph, with no counts, percentages or confidence bars \u2014 because a number beside a completion has to be priced before a keypress that saves a quarter of a second. The last pair is what the system asks for under Increase Contrast: ghost text measures 2.8:1 on light and 3.9:1 on dark, so it is replaced rather than dimmed."
+    },
+    {
+      "id": "dictation",
+      "x": -360,
+      "y": 3260,
       "w": 300,
       "text": "The app window: Dictation\nThe sidebar turns a utility into an application. Product mark at the top, a flat list of destinations, the active one in accent, and \u2014 where a competitor puts a promo banner \u2014 your own most recent dictation. Dictation is the home surface: today's list newest first, hover actions on the row, and a rail of the three things the app can actually measure. Empty is a returning user who has not spoken today, so it shows yesterday rather than nothing."
     },
     {
       "id": "dictionary",
       "x": -360,
-      "y": 3260,
+      "y": 4070,
       "w": 300,
       "text": "Dictionary\nThe words you say that a general model has never heard. Where each came from, how often it earned its place, and how often you undid it. Zaprise has retired itself after seven undos out of fifteen \u2014 dimmed, labelled, and restorable. Empty means Uttrflow has not changed a single word of yours yet."
     },
     {
       "id": "corrections",
       "x": -360,
-      "y": 4070,
+      "y": 4880,
       "w": 300,
       "text": "Corrections\nThe screen no competitor has. Everything Uttrflow changed: what it heard, what it wrote, why, which dictation, and an undo. A product that quietly rewrites your words owes you this page. Empty here is the good outcome, and says so."
     },
     {
       "id": "insights",
       "x": -360,
-      "y": 4880,
+      "y": 5690,
       "w": 300,
       "text": "Insights\nOnly what the app already measures: words per day, speaking speed, accuracy against the user's own baseline, language mix, and which apps the words went into. No \"time saved\" tile \u2014 it would need a guess at how fast you type, and the artboard says so out loud. Empty waits for seven days rather than charting two."
     },
     {
       "id": "snippets",
       "x": -360,
-      "y": 5690,
+      "y": 6500,
       "w": 300,
       "text": "Snippets\nSay a trigger phrase, get a block of text. List, add and edit in one place \u2014 the last row is open in its editor. The empty state teaches the idea with one worked example instead of an illustration."
     },
     {
       "id": "style-account",
       "x": -360,
-      "y": 6500,
+      "y": 7310,
       "w": 300,
       "text": "Style and Account\nSettings idiom, inside the app window. Style is how much tidying and which languages, with the same sentence shown at both levels so the choice is not abstract. Account is an identity and nothing else \u2014 signing out leaves every file where it is."
     },
     {
       "id": "main-window",
       "x": -360,
-      "y": 7310,
+      "y": 8120,
       "w": 300,
       "text": "History and Diagnostics\nUnchanged in substance, redrawn inside the shell. Today lives on Dictation now, so History starts at yesterday. Diagnostics is still where the PRD's latency and failure numbers surface."
     },
     {
       "id": "settings",
       "x": -360,
-      "y": 8120,
+      "y": 8930,
       "w": 300,
       "text": "Settings\nIts own window, reached from the sidebar. Every choice is worded as an outcome \u2014 nothing here asks the user to understand how Uttrflow works."
     },
     {
       "id": "errors",
       "x": -360,
-      "y": 8890,
+      "y": 9700,
       "w": 300,
       "text": "When things go wrong\nEach failure states one problem and offers one action. The transcript is never lost, whatever fails."
     }

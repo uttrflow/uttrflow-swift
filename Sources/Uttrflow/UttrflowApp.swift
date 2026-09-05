@@ -1,16 +1,22 @@
 import AppKit
 import UttrflowCore
+import UttrflowLocalModel
 import UttrflowPipeline
 
 /// The app.
 ///
 /// Deliberately thin: it owns nothing but the objects it wires together, so that
 /// everything worth testing lives in a module that a test can reach without a screen.
+///
+/// It is also the one place the concrete local model is named, so everything below links no MLX.
 @main
 enum UttrflowApp {
     static func main() {
         let application = NSApplication.shared
-        let delegate = AppDelegate()
+        // One model both validates a remembered suggestion and invents one where there is none.
+        let model = MLXCandidateScorer(model: .gemma3)
+        Task.detached { try? await model.prepare() }
+        let delegate = AppDelegate(scoring: model, generating: model)
         application.delegate = delegate
         // Regular rather than accessory: Uttrflow has a Dock icon and its window opens at
         // launch, because a product whose whole interface is reachable only through a

@@ -54,7 +54,7 @@ extension SettingsPane {
                 strings += [title]
             case .text(let value):
                 strings += [value]
-            case .toggle, .anchorPicker, .tick:
+            case .toggle, .anchorPicker, .tick, .applicationSwitch:
                 break
             }
         }
@@ -117,7 +117,8 @@ struct SettingsWindowTests {
                         options.map(\.id).contains(selected),
                         "\(row.id) has selected something it does not offer")
                     #expect(Set(options.map(\.id)).count == options.count)
-                case .toggle, .anchorPicker, .shortcut, .tick, .removal, .action, .text:
+                case .toggle, .anchorPicker, .shortcut, .tick, .removal, .action, .text,
+                    .applicationSwitch:
                     break
                 }
             }

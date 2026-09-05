@@ -35,7 +35,15 @@ EXCLUDED_FILES = {
     "UttrflowSettings/LaunchAtLogin+System.swift": "registers a login item with the system",
     "UttrflowContext/MacContextEngine+System.swift": "reads other apps' windows through Accessibility",
     "UttrflowContext/SurfaceProbe+System.swift": "asks other apps about their focused field",
+    "UttrflowContext/FocusedFieldReader+System.swift": (
+        "reads the focused field of another app through Accessibility; everything decided "
+        "from what it reads is FocusedFieldSnapshot, which is tested"
+    ),
     "UttrflowPredictCapture/FieldReader+System.swift": "asks other apps what their focused field is called",
+    "UttrflowContext/CompositionProbe+System.swift": (
+        "asks the focused field and the Text Input Sources database about input-method "
+        "composition; the rule it feeds is Composition, which is tested"
+    ),
     "UttrflowInput/SystemInput.swift": "drives the clipboard, the keyboard and other apps' windows",
     "UttrflowAccount/BackendTransport+URLSession.swift": (
         "the one place this app opens a socket; every decision worth getting wrong is in "
@@ -51,6 +59,11 @@ EXCLUDED_FILES = {
         "— parsing the request line and the page it answers with — are tested directly"
     ),
     "UttrflowInput/CarbonHotkeyMonitor.swift": "registers a system-wide hotkey with Carbon",
+    "UttrflowInput/KeyInterceptor.swift": (
+        "creates a CGEventTap, which needs Accessibility and a window server; every rule "
+        "it holds — which keys are armed, and what each one means — is KeyRouting, which "
+        "is tested"
+    ),
     "UttrflowInput/HeldModifierMonitor.swift": (
         "watches NSEvent's global and local flag monitors, which need a window server; "
         "the two rules it used to hold are HeldModifierEdge, which is tested"
@@ -60,6 +73,11 @@ EXCLUDED_FILES = {
         "for needing a window server, so there is nothing here a test could reach"
     ),
     "UttrflowClipboard/CodeFormatting+System.swift": "spawns another program and pipes bytes through it",
+    "UttrflowPredict/EnvironmentReading+System.swift": (
+        "runs git, reads directories and scans PATH; what is done with the answers — which "
+        "kinds are asked for, what finishes the line, and how long an answer is believed — is "
+        "decided in EnvironmentSource and tested there against a substitute machine"
+    ),
     "Uttrflow/UttrflowApp.swift": "the process entry point",
     "Uttrflow/AppDelegate.swift": (
         "assembles the real engines, windows and permission gates; the intents that "
@@ -109,6 +127,16 @@ EXCLUDED_FILES = {
     "Uttrflow/Main/HistoryPageView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/DiagnosticsPageView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Dock/DockPanelController.swift": "owns an on-screen floating window",
+    "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
+        "wiring only: an event tap, a global key monitor and another app's focused field, "
+        "none of which a headless test has; every rule it sequences is SuggestionSession, "
+        "which is tested"
+    ),
+    "Uttrflow/Suggestion/SuggestionPanelController.swift": (
+        "owns an on-screen floating window; where it puts it is SuggestionGeometry and "
+        "what it draws is SuggestionPresentation, both of which are tested"
+    ),
+    "Uttrflow/Suggestion/SuggestionView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Panel/QuickPanelController.swift": "owns an on-screen floating window",
     "Uttrflow/Panel/QuickPanelView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Dock/DockView.swift": "SwiftUI, drawn from a tested presentation",
@@ -118,6 +146,16 @@ EXCLUDED_FILES = {
     "UttrflowSpeech/AppleSpeechBackend.swift": "drives the system recogniser on real speech",
     "UttrflowAI/AppleFoundationCleanupModel.swift": "runs Apple's on-device language model",
     "UttrflowLocalModel/MLXCleanupModel.swift": "downloads gigabytes and runs GPU inference",
+    "UttrflowLocalModel/AppleCandidateGenerator.swift": "runs Apple's on-device model, which only the real system can",
+    "UttrflowLocalModel/TokenHealing+Model.swift": (
+        "reads the loaded model's vocabulary and masks its Metal logits; the rule it applies is "
+        "TokenHealing, tested byte by byte without a model"
+    ),
+    "UttrflowLocalModel/MLXCandidateScorer.swift": (
+        "downloads gigabytes and runs GPU inference; what is done with the score — the floor "
+        "it is read against, and the budget it is raced against — is Verification and Verifier, "
+        "both of which are tested against a scripted model"
+    ),
 }
 
 
