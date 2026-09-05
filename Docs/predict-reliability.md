@@ -48,6 +48,17 @@ moment the person returns, because it shares their keyboard.
 - **The loop ticks against the login window.** With the screen locked the coordinator still reads the
   focused field once a second — 8 613 turns in one night, each answered `nothingFocused`. Harmless, but a
   locked session is a signal to rest the ticker until the session unlocks.
+- **Applications accessibility cannot see into.** DBeaver's SQL editor (Java/SWT) gives the reader
+  nothing: the focused element is an `SWTComposite` or an outline, and most reads fail outright
+  (`read=false`); from the background the application reports no focused element at all. No fix is
+  possible on the reading side. The way through is a second source for the line — the keystrokes
+  the tap already sees, assembled into the current line when the field says nothing — and a place
+  to draw that does not need a caret rectangle. Both are design work, recorded here rather than
+  attempted in passing.
+- **Browser code editors.** Fixed 2026-09-05 for the two ways they hide: a zero-size caret rectangle
+  (the hidden textarea parked at the caret is taken for the caret) and a system-wide focused element
+  that is the word under the caret while typing (the application's focused element is asked). Live
+  confirmation in Chrome is pending.
 - **Idle drafts in a chat composer.** Capture commits a line after an 8 s pause so that a document
   without a Return still teaches; in a composer that sends on Return the same pause records an
   abandoned or half-typed message as a line this person wrote. The current line is now kept out of
