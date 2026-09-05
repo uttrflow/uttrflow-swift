@@ -1,8 +1,4 @@
-public import struct Foundation.Data
 public import struct Foundation.Date
-
-public import class Foundation.JSONDecoder
-public import class Foundation.JSONEncoder
 
 private import Synchronization
 
@@ -92,14 +88,11 @@ public struct UserDefaultsLocalAccountStore: LocalAccountStore {
     }
 
     public func load() -> LocalAccount? {
-        guard let data = storage.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(LocalAccount.self, from: data)
+        storage.decoded(LocalAccount.self, forKey: key)
     }
 
     public func save(_ account: LocalAccount) {
-        // A value of one optional string and one date cannot fail to encode, so there is
-        // no second failure to report and no caller left holding one it could not act on.
-        storage.set(try? JSONEncoder().encode(account), forKey: key)
+        storage.set(encoding: account, forKey: key)
     }
 
     public func clear() {
