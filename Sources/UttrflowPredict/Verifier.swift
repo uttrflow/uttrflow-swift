@@ -135,7 +135,19 @@ public actor Verifier {
             answered = true
             // A word already whole and known may be continued freely; the model is held only while the word is open.
             if Verification.attests(lookup.word, known) { return .open }
-            offered += known.filter { Self.begins($0, as: lookup.word) }.map { lookup.prefix + $0 }
+            var values = known.filter { Self.begins($0, as: lookup.word) }.map { lookup.prefix + $0 }
+            // A runner's `run` takes a script, so where the scripts are listed each `run script` is offered whole and bare `run` is not.
+            if case .subcommand(let program)? = lookup.kinds.first,
+                CommandGrammar.scriptRunners.contains(program),
+                values.contains("run"),
+                let scripts = await self.known(
+                    of: [.subcommand(of: "\(program) run")], in: surface, now: now),
+                !scripts.isEmpty
+            {
+                values.removeAll { $0 == "run" }
+                values += scripts.sorted().map { "run \($0)" }
+            }
+            offered += values
         }
         guard answered else { return .open }
         var seen: Set<String> = []

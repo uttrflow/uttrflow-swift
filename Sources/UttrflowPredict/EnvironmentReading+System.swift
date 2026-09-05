@@ -51,7 +51,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         }
     }
 
-    /// The repository's local branches, absent when the directory is not one or `git` is missing.
+    /// The repository's refs by their short names — branches, tags and remote branches — absent when the directory is not one or `git` is missing.
     private func branches(in directory: String) async -> [String]? {
         guard let git = Self.gitPaths.first(where: FileManager.default.isExecutableFile(atPath:)) else {
             return nil
@@ -59,8 +59,8 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         let output = await run(
             git,
             arguments: [
-                "-C", directory, "for-each-ref", "--count=\(Self.limit)",
-                "--format=%(refname:short)", "refs/heads",
+                "-C", directory, "for-each-ref", "--count=\(Self.verbLimit)",
+                "--format=%(refname:short)", "refs/heads", "refs/tags", "refs/remotes",
             ])
         return output?.split(separator: "\n").map(String.init)
     }

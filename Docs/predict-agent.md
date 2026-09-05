@@ -119,7 +119,12 @@ recorded in `predict-reliability.md`.
   it before the pass and sieves after, as the app does, and every result records `invented`. Run 3
   of the set: 53/54 hit, 54/54 in register, **invented 0**; the one miss is `git s` → `git stash`, a
   real verb the fixture did not want. Run 1 of the set found the whole-line bug in A4 (see
-  `predict-reliability.md`), which is what the set is for.
+  `predict-reliability.md`), which is what the set is for. The four older terminal scenarios (git,
+  containers, node, shell) now stand on machines too — the api service, the web project and a home
+  directory — so every terminal fixture is grounded: 248/256 hit, invented 1 (`node scripts` →
+  `scripts/build.mjs`, a whole known directory left open and then finished with a file that is not
+  there). Grounding them found three more things to fix, recorded in `predict-reliability.md`: refs
+  denied as branches, `~` and `.` denied as names, and a runner's `run` freed before its script.
 - **A6 — measured, 2026-09-05, and not wired.** `uttrflow-bakeoff complete --second-opinion` spends the
   wider alternatives pass wherever the first pass leaves nothing and records what it rescues and
   what it costs. Over run 7's 80 misses it was spent 7 times (the 7 empties in 1 154 cases, 0.6 %),

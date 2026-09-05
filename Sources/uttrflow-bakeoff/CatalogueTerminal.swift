@@ -25,6 +25,7 @@ extension FixtureCatalogue {
                 "git commit --amend", "git cherry-pick", "git clone", "git reset --hard", "git restore .",
                 "git remote -v", "git show", "git switch main", "git tag", "git blame", "git bisect",
             ],
+            machine: api,
             lines: [
                 "git status", "git checkout main", "git checkout -b fix/login-timeout",
                 "git commit -m 'fix login timeout'", "git push origin main", "git pull --rebase",
@@ -56,6 +57,7 @@ extension FixtureCatalogue {
                 "docker inspect", "docker volume ls", "docker network ls", "kubectl delete pod",
                 "kubectl port-forward", "kubectl exec -it", "kubectl top pods", "kubectl scale",
             ],
+            machine: api,
             lines: [
                 "docker compose up -d", "docker compose down", "docker ps -a", "docker build -t api:latest .",
                 "docker logs -f api", "docker exec -it api sh", "docker image prune -f",
@@ -87,6 +89,7 @@ extension FixtureCatalogue {
                 "npm ci", "npm start", "npm publish", "npm version patch", "npx vite", "npx playwright test",
                 "yarn install", "yarn dev", "node --version", "node server.js",
             ],
+            machine: web,
             lines: [
                 "npm run build", "npm run dev", "npm install", "npm install --save-dev vitest", "npm test",
                 "npx prettier --write .", "npx tsc --noEmit", "yarn add zod", "node scripts/seed.js",
@@ -116,6 +119,7 @@ extension FixtureCatalogue {
                 "brew services", "cat README.md", "mkdir build", "tail -n 100", "chmod 644", "curl -I",
                 "open -a",
             ],
+            machine: home,
             lines: [
                 Line("ls -la", determinacy: .any), "cd ~/projects/web", Line("cd ..", determinacy: .any),
                 Line("grep -rn 'TODO' src", determinacy: .any), Line("ssh deploy@staging", determinacy: .any),
@@ -124,6 +128,101 @@ extension FixtureCatalogue {
                 "tail -f logs/app.log", "chmod +x scripts/deploy.sh",
                 Line("curl -s localhost:3000/health", determinacy: .any), "open .",
             ]),
+    ]
+
+    /// The programs every terminal here has on its path.
+    private static let programs = [
+        "git", "docker", "kubectl", "npm", "npx", "yarn", "node", "python3", "make", "brew", "ls", "cd",
+        "cat",
+        "tail", "grep", "ssh", "mkdir", "chmod", "curl", "open", "vim", "code", "swift",
+    ]
+
+    /// What every git here accepts, as `git --list-cmds` would list it.
+    private static let gitVerbs = [
+        "add", "bisect", "blame", "branch", "checkout", "cherry-pick", "clone", "commit", "diff", "fetch",
+        "log",
+        "merge", "pull", "push", "rebase", "remote", "reset", "restore", "show", "stash", "status", "switch",
+        "tag",
+    ]
+
+    /// The machine under `/Users/me/projects/api`: a Swift service with a Makefile, a manifest and a `k8s` folder.
+    private static let api: [EnvironmentKind: [String]] = [
+        .directory: ["Sources", "Tests", "Scripts", "k8s", "docs"],
+        .file: [
+            "Sources", "Tests", "Scripts", "k8s", "docs", "Package.swift", "Makefile", "README.md",
+            "Dockerfile",
+            "docker-compose.yml", ".env", ".gitignore",
+        ],
+        .entries(under: "Sources"): ["Login", "Billing"],
+        .directories(under: "Sources"): ["Login", "Billing"],
+        .entries(under: "Sources/Login"): ["Session.swift", "Token.swift"],
+        .entries(under: "k8s"): ["deployment.yaml", "service.yaml"],
+        .branch: ["main", "fix/login-timeout", "release", "origin/main", "origin/release", "v1.2.0"],
+        .gitAlias: [],
+        .subcommand(of: "git"): gitVerbs,
+        .subcommand(of: "make"): ["verify", "build", "test", "lint", "clean"],
+        .subcommand(of: "docker"): [
+            "build", "compose", "exec", "image", "images", "inspect", "logs", "network", "ps", "pull", "push",
+            "rm",
+            "run", "stop", "volume",
+        ],
+        .subcommand(of: "kubectl"): [
+            "apply", "config", "delete", "describe", "exec", "get", "logs", "port-forward", "rollout",
+            "scale", "top",
+        ],
+        .executable: programs, .alias: [],
+    ]
+
+    /// The machine under `/Users/me/projects/web`: a Vite project with scripts in its manifest.
+    private static let web: [EnvironmentKind: [String]] = [
+        .directory: ["src", "dist", "scripts", "node_modules", "public"],
+        .file: [
+            "src", "dist", "scripts", "node_modules", "public", "package.json", "package-lock.json",
+            "vite.config.ts", "tsconfig.json", "README.md", ".gitignore",
+        ],
+        .entries(under: "scripts"): ["seed.js", "build.sh"], .entries(under: "src"): ["main.ts", "App.tsx"],
+        .branch: ["main"], .gitAlias: [],
+        .subcommand(of: "git"): gitVerbs,
+        .subcommand(of: "npm"): [
+            "audit", "ci", "exec", "i", "init", "install", "ls", "outdated", "publish", "run", "start",
+            "test",
+            "uninstall", "update", "version",
+        ],
+        .subcommand(of: "npm run"): ["build", "dev", "lint", "preview", "test"],
+        .subcommand(of: "yarn"): ["add", "build", "dev", "install", "remove", "run", "test"],
+        .subcommand(of: "yarn run"): ["build", "dev", "lint", "preview", "test"],
+        .executable: programs, .alias: [],
+    ]
+
+    /// The machine under `/Users/me`: a home directory with projects, logs and the scripts the lines touch.
+    private static let home: [EnvironmentKind: [String]] = [
+        .directory: ["Desktop", "Documents", "Downloads", "projects", "logs", "scripts", "build"],
+        .file: [
+            "Desktop", "Documents", "Downloads", "projects", "logs", "scripts", "build", "manage.py",
+            "Makefile",
+            ".zshrc", ".venv",
+        ],
+        .entries(under: "~"): [
+            "Desktop", "Documents", "Downloads", "projects", "logs", "scripts", "build", "manage.py",
+            "Makefile",
+            ".zshrc", ".venv",
+        ],
+        .directories(under: "~"): [
+            "Desktop", "Documents", "Downloads", "projects", "logs", "scripts", "build",
+        ],
+        .directories(under: "~/projects"): ["api", "web", "notes"],
+        .entries(under: "~/projects"): ["api", "web", "notes"],
+        .directories(under: "projects"): ["api", "web", "notes"],
+        .entries(under: "projects"): ["api", "web", "notes"],
+        .entries(under: "logs"): ["app.log", "error.log"],
+        .entries(under: "scripts"): ["deploy.sh", "backup.sh"],
+        .branch: [], .gitAlias: [],
+        .subcommand(of: "git"): gitVerbs,
+        .subcommand(of: "make"): ["verify", "test", "build", "lint", "clean"],
+        .subcommand(of: "brew"): [
+            "info", "install", "list", "search", "services", "uninstall", "update", "upgrade",
+        ],
+        .executable: programs, .alias: [],
     ]
 
     /// A terminal whose field holds the scrollback, with the commands this person ran in it.

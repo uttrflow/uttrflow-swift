@@ -31,7 +31,10 @@ public struct LineShape: Equatable, Sendable {
         }
         guard let command = words.first else { return LineShape(command: nil, kind: .program) }
         let arguments = words.dropFirst().filter { !$0.hasPrefix("-") }
-        return LineShape(command: command, kind: CommandGrammar.kind(of: command, after: Array(arguments)))
+        let flagged = arguments.count < words.count - 1
+        return LineShape(
+            command: command,
+            kind: CommandGrammar.kind(of: command, after: Array(arguments), flagged: flagged))
     }
 }
 
@@ -49,9 +52,12 @@ enum CommandGrammar {
     /// Commands whose arguments are files or directories.
     static let fileCommands: Set<String> = [
         "ls", "cat", "less", "more", "head", "tail", "vim", "vi", "nvim", "nano", "code", "open", "source",
-        ".", "rm", "cp", "mv", "chmod", "chown", "diff", "wc", "tar", "unzip", "zip", "python", "python3",
-        "node", "ruby", "sh", "bash", "zsh", "stat", "file", "du", "tree", "bat", "subl", "rsync", "scp",
+        ".", "rm", "cp", "mv", "chmod", "chown", "diff", "wc", "tar", "unzip", "zip", "stat", "file", "du",
+        "tree", "bat", "subl", "rsync", "scp",
     ]
+
+    /// Interpreters, whose first word is a script and whose later words are the script's own; a flag such as `-m` or `-e` names what to run instead.
+    static let interpreters: Set<String> = ["python", "python3", "node", "ruby", "sh", "bash", "zsh"]
 
     /// Commands that take a pattern first and files after it.
     static let patternCommands: Set<String> = ["grep", "rg", "ag", "egrep", "fgrep"]
@@ -88,9 +94,10 @@ enum CommandGrammar {
         return Array(words[(separator + 1)...])
     }
 
-    /// What the next word of a command is, after the positional arguments already given.
-    static func kind(of command: String, after arguments: [String]) -> ArgumentKind {
+    /// What the next word of a command is, after the positional arguments already given and whether any flag came before it.
+    static func kind(of command: String, after arguments: [String], flagged: Bool = false) -> ArgumentKind {
         if directoryCommands.contains(command) { return .directory }
+        if interpreters.contains(command) { return arguments.isEmpty && !flagged ? .file : .free }
         if fileCommands.contains(command) { return .file }
         if patternCommands.contains(command) { return arguments.isEmpty ? .free : .file }
         if command == "find" { return arguments.isEmpty ? .directory : .free }

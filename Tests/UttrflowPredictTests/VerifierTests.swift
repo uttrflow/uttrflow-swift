@@ -356,6 +356,20 @@ struct ArgumentOptionsTests {
                 == .among(["~/work"]))
     }
 
+    @Test(
+        "A runner's `run` is offered with each script the project declares, so the choice covers both words.")
+    func runIsOfferedWithItsScripts() async {
+        let machine: [EnvironmentKind: [String]] = [
+            .subcommand(of: "npm"): ["run", "install", "test"], .subcommand(of: "npm run"): ["build", "dev"],
+        ]
+        #expect(await options(for: "npm r", machine: machine) == .among(["run dev", "run build"]))
+        #expect(
+            await options(for: "npm ", machine: machine)
+                == .among(["test", "install", "run dev", "run build"]))
+        let bare: [EnvironmentKind: [String]] = [.subcommand(of: "npm"): ["run", "install"]]
+        #expect(await options(for: "npm r", machine: bare) == .among(["run"]))
+    }
+
     @Test("A branch prefix ending in a slash offers the branches under it as well as a path git would take.")
     func branchPrefixesOfferBranches() async {
         let machine: [EnvironmentKind: [String]] = [
@@ -369,11 +383,13 @@ struct ArgumentOptionsTests {
                 == .none)
     }
 
-    @Test("A lone dot begins a hidden name, so the hidden names are what it is chosen from.")
+    @Test("A lone dot begins a hidden file, but for a directory may be the parent, so it is left open there.")
     func aDotBeginsAHiddenName() async {
         #expect(
             await options(for: "vim .", machine: [.file: [".env", ".gitignore", "src"]])
                 == .among([".env", ".gitignore"]))
+        #expect(await options(for: "cd .", machine: [.directory: [".git", "src"]]) == .open)
+        #expect(await options(for: "cd ~", machine: [.directory: ["src"]]) == .open)
     }
 
     @Test("A word already whole and known is open, since the line may go on after it.")

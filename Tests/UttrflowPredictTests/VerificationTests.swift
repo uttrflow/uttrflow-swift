@@ -207,7 +207,9 @@ struct GeneratedAttestationTests {
         #expect(asked("ls Sour") == [lookup("Sour", [.file])])
         #expect(asked("vim .env.vim") == [lookup(".env.vim", [.file])])
         #expect(asked("myapp .env.vim") == [lookup(".env.vim", [.file])])
-        #expect(asked("myapp Sources/x") == [lookup("x", [.entries(under: "Sources")])])
+        #expect(asked("myapp Sources/x") == nil)
+        #expect(asked("kubectl logs -f deploy/api") == nil)
+        #expect(asked("chmod +x scripts/deploy.sh") == [lookup("deploy.sh", [.entries(under: "scripts")])])
     }
 
     @Test(
@@ -228,6 +230,15 @@ struct GeneratedAttestationTests {
         #expect(asked("git commit fix") == nil)
         #expect(asked("grep TODO") == nil)
         #expect(asked("grep TODO Sour") == [lookup("Sour", [.file])])
+        #expect(asked("python3 mana") == [lookup("mana", [.file])])
+        #expect(asked("python3 -m ven") == nil)
+        #expect(asked("python3 manage.py migr") == nil)
+        #expect(asked("chmod +x") == nil)
+        #expect(asked("cd ~") == nil)
+        #expect(asked("git checkout HEAD~1") == nil)
+        #expect(asked("git diff HEAD") == nil)
+        #expect(asked("git checkout a1b2c3d") == nil)
+        #expect(asked("git checkout feat/x") != nil)
     }
 
     @Test(

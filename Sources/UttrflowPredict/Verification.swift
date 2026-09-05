@@ -142,8 +142,10 @@ public enum Verification {
         public let lookups: [Lookup]
     }
 
-    /// The characters that make a word a quotation, an expansion, an assignment or an address, none of which a listing can deny.
-    private static let freeCharacters: Set<Character> = ["\"", "'", "$", "*", "?", "{", "}", "=", ":", "`"]
+    /// The characters that make a word a quotation, an expansion, an assignment, an address or a mode, none of which a listing can deny.
+    private static let freeCharacters: Set<Character> = [
+        "\"", "'", "$", "*", "?", "{", "}", "=", ":", "`", "+",
+    ]
 
     /// What could vouch for a generated word, absent where any word is allowed: a flag, a number, a quotation, or a word the command reads as text.
     static func attestation(for token: CompletionToken) -> Attestation? {
@@ -154,8 +156,9 @@ public enum Verification {
     /// What the next word may be chosen from: the lookups for a word begun or not yet begun, absent where the word may be anything.
     static func choices(for token: CompletionToken) -> Attestation? {
         let word = token.token
-        // A word not begun, or a lone dot beginning a hidden name, is chosen from what the shape lists.
-        if word.isEmpty || word == "." { return lookups(for: token) }
+        // A word not begun is chosen from what the shape lists; a lone dot begins a hidden file, but for a directory may be `..`.
+        if word.isEmpty { return lookups(for: token) }
+        if word == "." { return LineShape.of(token).kind == .directory ? nil : lookups(for: token) }
         guard !isFree(word) else { return nil }
         // A path ending in its slash is open at a name not yet begun, so what is under the path is offered.
         guard word.hasSuffix("/") else { return lookups(for: token) }
@@ -182,7 +185,8 @@ public enum Verification {
         let word = token.token
         let shape = LineShape.of(token)
         // A path is looked up where it points, whatever the command; only `cd` and its kin narrow it to directories.
-        if word.contains("/") {
+        // A word the command reads as text is not a path, whatever its slashes: `deploy/api` names a resource, not a directory.
+        if word.contains("/"), shape.kind != .free {
             guard let path = path(word, directoriesOnly: shape.kind == .directory) else { return nil }
             return shape.kind == .branch
                 ? Attestation(lookups: [Lookup(word, [.branch]), path]) : Attestation(lookups: [path])
@@ -195,7 +199,8 @@ public enum Verification {
             ])
         case .directory: return Attestation(lookups: [Lookup(word, [.directory])])
         case .file: return Attestation(lookups: [Lookup(word, [.file])])
-        case .branch: return Attestation(lookups: [Lookup(word, [.branch])])
+        // A branch is one ref among many: `HEAD~1`, a tag, a commit hash and `origin/main` are git's to accept, not the list's to deny.
+        case .branch: return isRef(word) ? nil : Attestation(lookups: [Lookup(word, [.branch])])
         // A dotfile names one file here and nothing else; any other word may be one the command reads as text.
         case .free: return word.hasPrefix(".") ? Attestation(lookups: [Lookup(word, [.file])]) : nil
         }
@@ -250,10 +255,17 @@ public enum Verification {
         return words
     }
 
-    /// Whether a word could be anything at all: a flag, a number, here or the parent, or one the shell would rewrite.
+    /// Whether a word could be anything at all: a flag, a number, here, the parent or home, or one the shell would rewrite.
     private static func isFree(_ word: String) -> Bool {
-        word.hasPrefix("-") || word == "." || word == ".." || word.allSatisfy(\.isNumber)
+        word.hasPrefix("-") || word == "." || word == ".." || (word.hasPrefix("~") && !word.contains("/"))
+            || word.allSatisfy(\.isNumber)
             || word.contains(where: freeCharacters.contains)
+    }
+
+    /// Whether a word names a git ref no branch list holds: a `HEAD` form, a relative ref, or a commit hash.
+    private static func isRef(_ word: String) -> Bool {
+        word.hasPrefix("HEAD") || word.contains("~") || word.contains("^")
+            || (word.count >= 7 && word.allSatisfy(\.isHexDigit))
     }
 
     /// What could vouch for a word, which the command and the word's place in it decide; nothing for a word the command reads as text.
