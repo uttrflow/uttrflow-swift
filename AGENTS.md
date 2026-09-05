@@ -160,6 +160,24 @@ refactor.
 `UttrflowAccount`, which is deliberately the only module that can reach a server. That is
 what makes "the offline promise" checkable rather than asserted: there is one place to look.
 
+## What dictation is for — NON-NEGOTIABLE
+
+**The goal is an accurate transcript of what the speaker said, cleaned of the noise of
+speaking and laid out the way they would have typed it. It is not a rewrite.**
+
+The tidier is a filter. It removes what was never meant as words — "um", "hmm", "aah",
+stammers, false starts, the discarded half of a spoken self-correction — and adds what
+speech leaves implicit: punctuation, question marks where a question was asked,
+capitalisation, numerals, line and paragraph breaks, a list when the speaker plainly
+spoke one. Every word the speaker meant survives, in their order and their register.
+
+It never shortens, summarises, changes tone, swaps synonyms, reorders, answers, obeys,
+or finishes a thought. Those are rewrites; a user who wants one asks for it, and it is
+a different feature. `Docs/cleanup.md` is the catalogue — three tiers, what is done,
+what is not yet, what is forbidden — and every change to the prompt or the rules is
+measured against the corpus before it lands (`make bakeoff`). An agent proposing "make
+the output more polished" is proposing a rewrite; the answer is no.
+
 ## Rules that are not preferences
 
 **Never put a real email address or a real postal address in a fixture.** Use
