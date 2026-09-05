@@ -136,6 +136,26 @@ public enum EvaluationCorpus {
             mustNotAdd: ["paragraph"]
         ),
         .init(
+            id: "period-as-a-word", category: .everyday,
+            spoken: "the trial period ended last week",
+            expected: "The trial period ended last week.",
+            mustKeep: ["trial period", "last week"]
+        ),
+        .init(
+            id: "spoken-period", category: .everyday,
+            spoken: "ship it period",
+            expected: "Ship it.",
+            mustKeep: ["ship it"],
+            mustNotAdd: ["period"]
+        ),
+        .init(
+            id: "period-after-new-line", category: .everyday,
+            spoken: "first line new line second line period",
+            expected: "First line\nsecond line.",
+            mustKeep: ["first line", "second line"],
+            mustNotAdd: ["new", "period"]
+        ),
+        .init(
             id: "time-of-day", category: .everyday,
             spoken: "the dentist moved my appointment to two thirty pm tomorrow",
             expected: "The dentist moved my appointment to 2:30 pm tomorrow.",

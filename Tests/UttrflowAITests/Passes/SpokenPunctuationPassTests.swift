@@ -21,11 +21,31 @@ struct SpokenPunctuationPassTests {
             ("milk semi colon eggs", "milk; eggs"),
             ("ready. question mark", "ready?"),
             ("milk, comma eggs", "milk, eggs"),
-            ("done full stop next", "done. next"),
+            ("done comma next", "done, next"),
         ]
     )
     func attachesMarks(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "ends a sentence with a spoken full stop only where the text closes",
+        arguments: [
+            ("ship it period new line next", "ship it. new line next"),
+            ("ship it full stop new paragraph next", "ship it. new paragraph next"),
+            ("he said open quote ship it period close quote", "he said \"ship it.\""),
+            ("did you finish the trial period question mark", "did you finish the trial period?"),
+            ("the trial period comma which ended", "the trial period, which ended"),
+        ]
+    )
+    func fullStopsOnlyWhereTheTextCloses(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("ends a sentence with a spoken full stop before a layout mark already placed")
+    func fullStopBeforeLayoutMark() {
+        let draft = Draft(words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0) })
+        #expect(sut.apply(draft).text == "ship it.\nnext")
     }
 
     @Test("wraps the words between open quote and close quote")
@@ -53,9 +73,26 @@ struct SpokenPunctuationPassTests {
             "insert a colon",
             "say open quote",
             "a well hyphen",
+            "the Dash app crashed",
+            "a dash of salt",
         ]
     )
     func leavesMentions(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "leaves a full stop or period that is not at the end, and a hyphen or dash that is",
+        arguments: [
+            "the trial period ended last week",
+            "ship it period next thing",
+            "done full stop next",
+            "we made it home dash",
+            "well hyphen new line known",
+            "we went home dash new line late",
+        ]
+    )
+    func leavesMisplacedMarks(input: String) {
         #expect(cleaned(input, by: sut) == input)
     }
 

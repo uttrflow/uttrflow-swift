@@ -41,9 +41,12 @@ public struct Draft: Sendable, Equatable {
     }
 
     public var words: [Word]
+    /// Whether the words carry the recogniser's confidences rather than a stand-in of 1 for every word.
+    public let confidencesAreReal: Bool
 
-    public init(words: [Word]) {
+    public init(words: [Word], confidencesAreReal: Bool = false) {
         self.words = words
+        self.confidencesAreReal = confidencesAreReal
     }
 
     /// Splits plain text on whitespace, giving every word full confidence.
@@ -51,17 +54,44 @@ public struct Draft: Sendable, Equatable {
         self.init(words: Self.split(text, confidence: 1))
     }
 
-    /// Takes the recogniser's confidences when its timed words are the text's words, else splits the text.
+    /// Takes the recogniser's confidences when its timed words spell the text, spacing aside, else splits it.
     public init(transcription: Transcription) {
         let spoken = Self.split(transcription.text, confidence: 1)
         let timed = transcription.segments.flatMap(\.words).flatMap {
             Self.split($0.text, confidence: $0.confidence)
         }
-        self.init(words: timed.map(\.text) == spoken.map(\.text) ? timed : spoken)
+        guard !timed.isEmpty, timed.map(\.text).joined() == spoken.map(\.text).joined() else {
+            self.init(words: spoken)
+            return
+        }
+        self.init(words: Self.confidences(of: timed, onto: spoken), confidencesAreReal: true)
     }
 
     private static func split(_ text: String, confidence: Double) -> [Word] {
         text.split(whereSeparator: \.isWhitespace).map { Word(String($0), confidence: confidence) }
+    }
+
+    /// Gives each of `spoken` the lowest confidence among the timed words that spell it, letter for letter.
+    private static func confidences(of timed: [Word], onto spoken: [Word]) -> [Word] {
+        var remaining = timed[...]
+        var spent = 0
+        return spoken.map { word in
+            var needed = word.text.count
+            var confidence = 1.0
+            while needed > 0, let next = remaining.first {
+                confidence = min(confidence, next.confidence)
+                let available = next.text.count - spent
+                guard available <= needed else {
+                    spent += needed
+                    needed = 0
+                    continue
+                }
+                needed -= available
+                spent = 0
+                remaining.removeFirst()
+            }
+            return Word(word.text, confidence: confidence)
+        }
     }
 
     // MARK: Reading

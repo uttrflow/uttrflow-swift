@@ -94,6 +94,49 @@ struct DraftTests {
         let draft = Draft(transcription: transcription)
         #expect(draft.words.map(\.text) == ["hello", "there"])
         #expect(draft.words.map(\.confidence) == [0.9, 0.2])
+        #expect(draft.confidencesAreReal)
+    }
+
+    @Test("keeps the confidences when the timed words differ from the text only in spacing")
+    func usesTimedWordsWithWhisperKitSpacing() {
+        let transcription = Transcription(
+            text: "Okay so, um, quick",
+            segments: [
+                TranscriptionSegment(
+                    text: " Okay so, um, quick", start: .zero, end: .seconds(1),
+                    words: [
+                        TranscribedWord(text: " Okay", confidence: 0.9),
+                        TranscribedWord(text: " so,", confidence: 0.8),
+                        TranscribedWord(text: " um,", confidence: 0.3),
+                        TranscribedWord(text: " quick", confidence: 0.7),
+                    ]
+                )
+            ])
+        let draft = Draft(transcription: transcription)
+        #expect(draft.words.map(\.text) == ["Okay", "so,", "um,", "quick"])
+        #expect(draft.words.map(\.heard) == ["Okay", "so,", "um,", "quick"])
+        #expect(draft.words.map(\.confidence) == [0.9, 0.8, 0.3, 0.7])
+        #expect(draft.confidencesAreReal)
+    }
+
+    @Test("gives a word split across timed pieces the lowest confidence among them")
+    func lowestConfidenceAcrossPieces() {
+        let transcription = Transcription(
+            text: "hello there",
+            segments: [
+                TranscriptionSegment(
+                    text: "hel lo there", start: .zero, end: .seconds(1),
+                    words: [
+                        TranscribedWord(text: "hel", confidence: 0.9),
+                        TranscribedWord(text: "lo th", confidence: 0.4),
+                        TranscribedWord(text: "ere", confidence: 0.6),
+                    ]
+                )
+            ])
+        let draft = Draft(transcription: transcription)
+        #expect(draft.words.map(\.text) == ["hello", "there"])
+        #expect(draft.words.map(\.confidence) == [0.4, 0.4])
+        #expect(draft.confidencesAreReal)
     }
 
     @Test("splits the text when a segment reports no words")
@@ -113,18 +156,33 @@ struct DraftTests {
         let draft = Draft(transcription: transcription)
         #expect(draft.words.map(\.text) == ["hello", "there", "again"])
         #expect(draft.words.map(\.confidence) == [1, 1, 1])
+        #expect(!draft.confidencesAreReal)
     }
 
-    @Test("splits the text when the timed words disagree with it")
+    @Test("splits the text when a timed word is missing, and says the confidences are stand-ins")
     func fallsBackWhenWordsDisagree() {
         let transcription = Transcription(
-            text: "hello there",
+            text: "Okay so, um, quick",
             segments: [
                 TranscriptionSegment(
-                    text: "hello", start: .zero, end: .seconds(1),
-                    words: [TranscribedWord(text: "hello", confidence: 0.9)])
+                    text: " Okay so, quick", start: .zero, end: .seconds(1),
+                    words: [
+                        TranscribedWord(text: " Okay", confidence: 0.9),
+                        TranscribedWord(text: " so,", confidence: 0.8),
+                        TranscribedWord(text: " quick", confidence: 0.7),
+                    ]
+                )
             ])
-        #expect(Draft(transcription: transcription).words == [Draft.Word("hello"), Draft.Word("there")])
+        let draft = Draft(transcription: transcription)
+        #expect(draft.words == ["Okay", "so,", "um,", "quick"].map { Draft.Word($0) })
+        #expect(!draft.confidencesAreReal)
+    }
+
+    @Test("says the confidences are stand-ins when there are no timed words at all")
+    func fallsBackWithoutSegments() {
+        #expect(!Draft(transcription: Transcription(text: "hello")).confidencesAreReal)
+        #expect(!Draft(transcription: Transcription(text: "")).confidencesAreReal)
+        #expect(!Draft(text: "hello").confidencesAreReal)
     }
 
     @Test("names a pass from a string literal")

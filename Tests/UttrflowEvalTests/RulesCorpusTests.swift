@@ -11,7 +11,8 @@ struct RulesCorpusTests {
     static let rulesMustPass: Set<String> = [
         "false-start", "self-correction", "filler-heavy", "pronoun-i", "number-words", "short-yes",
         "repeated-phrase", "i-mean-correction", "actually-between-numbers", "false-no-stays", "spoken-comma",
-        "comma-as-a-word", "new-paragraph", "time-of-day", "percentage",
+        "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "period-as-a-word", "spoken-period",
+        "period-after-new-line",
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",
         "dictated-question", "dictated-instruction", "injection", "asks-for-help", "sounds-like-a-prompt",
     ]
@@ -52,6 +53,9 @@ struct RulesCorpusTests {
             ("port-number", "The gateway listens on port 8080 in staging."),
             ("percentage", "Conversion dropped by 5% after the redesign."),
             ("actually-between-numbers", "Let's get coffee at three."),
+            ("period-as-a-word", "The trial period ended last week."),
+            ("spoken-period", "Ship it."),
+            ("period-after-new-line", "First line\nsecond line."),
         ])
     func exactText(id: String, expected: String) async throws {
         let testCase = try #require(EvaluationCorpus.all.first { $0.id == id })

@@ -22,6 +22,7 @@ public struct SpokenPunctuationPass: CleaningPass {
             guard
                 let found = Self.marks.first(where: { matches($0.words, at: position, in: live, of: draft) }),
                 !MentionGuard.isMentioned(at: position, spanning: found.words.count, in: live, of: draft),
+                isPlaced(found.mark, before: position + found.words.count, in: live, of: draft),
                 attach(
                     found.mark, opening: found.words.first == "open", at: position,
                     spanning: found.words.count,
@@ -41,6 +42,22 @@ public struct SpokenPunctuationPass: CleaningPass {
             }
     }
 
+    /// A full stop is used only where the text closes; a hyphen or dash is used only where it does not.
+    private func isPlaced(_ mark: String, before next: Int, in live: [Int], of draft: Draft) -> Bool {
+        switch mark {
+        case ".": return closes(at: next, in: live, of: draft)
+        case "-", "\u{2014}": return !closes(at: next, in: live, of: draft)
+        default: return true
+        }
+    }
+
+    /// Whether the text ends at `next`, or a layout word, a layout mark or a closing quote stands there.
+    private func closes(at next: Int, in live: [Int], of draft: Draft) -> Bool {
+        next == live.count || draft.words[live[next]].isLayoutMark
+            || matches(["close", "quote"], at: next, in: live, of: draft)
+            || LayoutWordsPass.marks.contains { matches($0.words, at: next, in: live, of: draft) }
+    }
+
     /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.
     private func attach(
         _ mark: String, opening: Bool, at position: Int, spanning length: Int, in live: inout [Int],
@@ -52,7 +69,6 @@ public struct SpokenPunctuationPass: CleaningPass {
             guard after < live.count else { return false }
             draft.replace(at: live[after], with: mark + draft.words[live[after]].text, by: Self.id)
         } else if mark == "-" {
-            guard after < live.count else { return false }
             let joined = draft.words[previous].text + mark + draft.words[live[after]].text
             draft.replace(at: previous, with: joined, by: Self.id)
             draft.remove(at: live[after], by: Self.id)
@@ -66,10 +82,12 @@ public struct SpokenPunctuationPass: CleaningPass {
         return true
     }
 
-    /// The word with the mark on its end, replacing any clause mark already there.
+    /// The word with the mark on its end; a clause mark replaces one already there, a quote follows it.
     private static func marked(_ text: String, with mark: String) -> String {
         if mark == "\u{2014}" { return text + " " + mark }
-        if let last = text.last, ",.;:!?".contains(last) { return String(text.dropLast()) + mark }
+        if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
+            return String(text.dropLast()) + mark
+        }
         return text + mark
     }
 }

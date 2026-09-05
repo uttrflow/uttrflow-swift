@@ -23,7 +23,8 @@ Each released version is a git tag and a build at
 - **The tidier's rules now do every cleaning that needs no model, before any model is
   asked.** Ten small passes run in order over the words — fillers, stammers, a phrase
   said twice, a spoken self-correction ("at four no sorry at five" → "at five"), spoken
-  punctuation ("milk comma eggs" → "milk, eggs", but "put a comma there" stays), "new
+  punctuation ("milk comma eggs" → "milk, eggs", but "put a comma there" stays, and
+  "period" is a full stop only at the end, so "the trial period ended" keeps its word), "new
   line" and "new paragraph", numbers ("sixteen point two" → "16.2", "two thirty pm" →
   "2:30 pm", "five percent" → "5%", "port eight thousand eighty" → "port 8080"), spacing,
   capitals and the final full stop — and each records what it did to every word. The
