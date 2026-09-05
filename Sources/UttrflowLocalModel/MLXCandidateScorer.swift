@@ -23,7 +23,7 @@ public struct JudgedToken: Sendable, Equatable {
 }
 
 /// Judges and invents suggestions with one loaded model: scores a candidate, or generates one from nothing.
-public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
+public actor MLXCandidateScorer: CandidateScoring, PassShowing {
     private let model: LocalModel
     private let maximumTokens: Int
     private var container: ModelContainer?
@@ -101,22 +101,12 @@ public actor MLXCandidateScorer: CandidateScoring, CandidateGenerating {
         try await generate(typed: typed, in: situation, asking: .one, tokenShare: 1)
     }
 
-    /// One pass as the model wrote it, beside what the parser made of it, so a bake-off can read why a miss was a miss.
-    public struct Pass: Sendable {
-        /// Every token the model produced, unparsed, after the line's own start that opened its turn.
-        public let text: String
-        /// Why the pass ended: a stop token, the length budget, or a cancellation.
-        public let stopReason: String
-        /// What `completions(for:in:)` would have answered from the same pass.
-        public let completions: [String]
-    }
-
-    /// The one-line pass for `typed`, raw and parsed together; nothing when the line is too short to ask about.
-    public func pass(for typed: String, in situation: GenerationSituation) async throws -> Pass? {
+    /// The one-line pass for `typed`: every token after the line's own start that opened its turn, why it ended, and what the parser made of it.
+    public func pass(for typed: String, in situation: GenerationSituation) async throws -> GenerationPass? {
         guard let run = try await run(typed: typed, in: situation, asking: .one, tokenShare: 1) else {
             return nil
         }
-        return Pass(
+        return GenerationPass(
             text: run.text, stopReason: run.stop.map { String(describing: $0) } ?? "none",
             completions: Self.completions(from: run, typed: typed, asking: .one, in: situation))
     }

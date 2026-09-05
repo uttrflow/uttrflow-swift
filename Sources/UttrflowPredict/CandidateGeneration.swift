@@ -58,3 +58,25 @@ extension CandidateGenerating {
         []
     }
 }
+
+/// One pass as a generator wrote it, beside what the parser made of it, so a bake-off can read why a miss was a miss.
+public struct GenerationPass: Sendable {
+    /// Every word the generator produced, unparsed.
+    public let text: String
+    /// Why the pass ended, in the generator's own terms.
+    public let stopReason: String
+    /// What `completions(for:in:)` would have answered from the same pass.
+    public let completions: [String]
+
+    public init(text: String, stopReason: String, completions: [String]) {
+        self.text = text
+        self.stopReason = stopReason
+        self.completions = completions
+    }
+}
+
+/// A generator that can show one pass raw, which is how a measurement reads a miss.
+public protocol PassShowing: CandidateGenerating {
+    /// The one-line pass for `typed`, raw and parsed together; nothing when the line is too short to ask about.
+    func pass(for typed: String, in situation: GenerationSituation) async throws -> GenerationPass?
+}

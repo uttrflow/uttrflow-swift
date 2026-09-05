@@ -112,8 +112,7 @@ struct Complete: AsyncParsableCommand {
             var failure: String?
             var words: String?
             do {
-                // Only the local model can show its pass raw; Apple's answers in text alone.
-                if raw, let scorer = scorer as? MLXCandidateScorer {
+                if raw, let scorer = scorer as? any PassShowing {
                     let pass = try await scorer.pass(for: fixture.typed, in: fixture.situation)
                     completions = pass?.completions ?? []
                     words = pass.map { "[\($0.stopReason)] \($0.text)" } ?? "[not asked]"
