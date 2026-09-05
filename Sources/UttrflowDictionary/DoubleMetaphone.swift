@@ -39,6 +39,9 @@ extension PhoneticCode {
     /// word is looked up under both of its. Demanding that both readings agree would
     /// reinstate exactly the guess ``alternate`` exists to remove.
     func sounds(like other: PhoneticCode) -> Bool { keys.contains(where: other.keys.contains) }
+
+    /// Whether any reading of this word is among `sounds`, the keys of everything else that was said or shown.
+    func sounds(likeAnyOf sounds: Set<String>) -> Bool { keys.contains(where: sounds.contains) }
 }
 
 /// Double Metaphone: a word reduced to the sounds in it, so that two spellings a

@@ -75,9 +75,7 @@ enum LearnableWords {
         var already: Set<String> = []
         for term in words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
         where GeneralVocabulary.isWorthLearning(term) && already.insert(term.lowercased()).inserted {
-            guard DoubleMetaphone.code(for: term).keys.contains(where: said.contains) else {
-                continue
-            }
+            guard DoubleMetaphone.code(for: term).sounds(likeAnyOf: said) else { continue }
             found.append(term)
         }
         return found
@@ -148,7 +146,7 @@ enum LearnableWords {
     ///
     /// Bounded by the caller because both callers can be handed something unbounded: a
     /// window title is whatever an app chose to put there.
-    private static func words(in text: String, atMost limit: Int) -> [String] {
+    static func words(in text: String, atMost limit: Int) -> [String] {
         text.split { !$0.isLetter }.prefix(limit).map(String.init)
     }
 }
