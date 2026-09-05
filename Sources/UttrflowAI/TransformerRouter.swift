@@ -26,8 +26,11 @@ public struct TransformerRouter: TranscriptCleaning {
     }
 
     /// The engines that will be tried, in order.
-    public var route: [TransformerKind] {
-        preference.filter { kind in engines.contains { $0.kind == kind } }
+    public var route: [TransformerKind] { orderedEngines.map(\.kind) }
+
+    /// The preference list resolved to the engines this build has, in order.
+    private var orderedEngines: [any TextTransformationEngine] {
+        preference.compactMap { kind in engines.first { $0.kind == kind } }
     }
 
     /// Satisfies ``TranscriptCleaning`` so the pipeline can depend on the idea of
@@ -41,9 +44,7 @@ public struct TransformerRouter: TranscriptCleaning {
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        let ordered = preference.compactMap { kind in engines.first { $0.kind == kind } }
-
-        let outcome = await FallbackRunner.firstSuccess(among: ordered) { engine in
+        let outcome = await FallbackRunner.firstSuccess(among: orderedEngines) { engine in
             guard await engine.availability(for: request).isAvailable else {
                 throw TransformationError.noCapableTransformer
             }
