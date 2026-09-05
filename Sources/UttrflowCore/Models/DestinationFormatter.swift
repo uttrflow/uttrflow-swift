@@ -17,7 +17,7 @@ public enum TerminalStopPolicy: Sendable, Equatable {
 }
 
 /// What one kind of place wants done to the words: decisions, never code. See `Docs/cleanup-design.md`.
-public struct Formatter: Sendable, Equatable {
+public struct DestinationFormatter: Sendable, Equatable {
     public let destination: Destination
     public let firstWord: FirstWordPolicy
     public let terminalStop: TerminalStopPolicy
@@ -29,22 +29,28 @@ public struct Formatter: Sendable, Equatable {
     }
 
     /// The shipped value for every destination; code stays `.never` until comments are told apart.
-    public static let registry: [Destination: Formatter] = [
-        .document: Formatter(destination: .document, firstWord: .fromInsertionPoint, terminalStop: .always),
-        .spreadsheet: Formatter(destination: .spreadsheet, firstWord: .asSpoken, terminalStop: .never),
-        .sqlEditor: Formatter(destination: .sqlEditor, firstWord: .fromInsertionPoint, terminalStop: .always),
-        .codeEditor: Formatter(
+    public static let registry: [Destination: DestinationFormatter] = [
+        .document: DestinationFormatter(
+            destination: .document, firstWord: .fromInsertionPoint, terminalStop: .always),
+        .spreadsheet: DestinationFormatter(
+            destination: .spreadsheet, firstWord: .asSpoken, terminalStop: .never),
+        .sqlEditor: DestinationFormatter(
+            destination: .sqlEditor, firstWord: .fromInsertionPoint, terminalStop: .always),
+        .codeEditor: DestinationFormatter(
             destination: .codeEditor, firstWord: .fromInsertionPoint, terminalStop: .never),
-        .messaging: Formatter(
+        .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,
             terminalStop: .offForShortMessages(sentences: 2)),
-        .email: Formatter(destination: .email, firstWord: .fromInsertionPoint, terminalStop: .always),
-        .plain: Formatter(destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always),
+        .email: DestinationFormatter(
+            destination: .email, firstWord: .fromInsertionPoint, terminalStop: .always),
+        .plain: DestinationFormatter(
+            destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always),
     ]
 
     /// The formatter for a destination, falling back to plain text's for one the registry lacks.
-    public static func standard(for destination: Destination) -> Formatter {
+    public static func standard(for destination: Destination) -> DestinationFormatter {
         registry[destination]
-            ?? Formatter(destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always)
+            ?? DestinationFormatter(
+                destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always)
     }
 }

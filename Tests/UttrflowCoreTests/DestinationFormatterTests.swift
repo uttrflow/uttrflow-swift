@@ -2,15 +2,15 @@ import Testing
 
 @testable import UttrflowCore
 
-@Suite("Formatter")
-struct FormatterTests {
+@Suite("DestinationFormatter")
+struct DestinationFormatterTests {
     @Test("ships a value for every destination")
     func coversEveryDestination() {
         for destination in Destination.allCases {
             #expect(
-                Formatter.registry[destination]?.destination == destination, "no formatter for \(destination)"
-            )
-            #expect(Formatter.standard(for: destination).destination == destination)
+                DestinationFormatter.registry[destination]?.destination == destination,
+                "no formatter for \(destination)")
+            #expect(DestinationFormatter.standard(for: destination).destination == destination)
         }
     }
 
@@ -27,16 +27,16 @@ struct FormatterTests {
         ]
     )
     func policies(destination: Destination, firstWord: FirstWordPolicy, terminalStop: TerminalStopPolicy) {
-        let formatter = Formatter.standard(for: destination)
+        let formatter = DestinationFormatter.standard(for: destination)
         #expect(formatter.firstWord == firstWord)
         #expect(formatter.terminalStop == terminalStop)
     }
 
     @Test("is a value, so two formatters with the same decisions are the same formatter")
     func equality() {
-        let one = Formatter(destination: .plain, firstWord: .alwaysCapital, terminalStop: .never)
-        let two = Formatter(destination: .plain, firstWord: .alwaysCapital, terminalStop: .never)
+        let one = DestinationFormatter(destination: .plain, firstWord: .alwaysCapital, terminalStop: .never)
+        let two = DestinationFormatter(destination: .plain, firstWord: .alwaysCapital, terminalStop: .never)
         #expect(one == two)
-        #expect(one != Formatter.standard(for: .plain))
+        #expect(one != DestinationFormatter.standard(for: .plain))
     }
 }

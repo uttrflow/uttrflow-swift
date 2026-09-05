@@ -92,6 +92,18 @@ struct GenerativeTextTransformerTests {
         #expect(try await sut.transform(fresh).text == "The deployment script timed out.")
     }
 
+    @Test("keeps the capital of a name the window title shows, mid-sentence")
+    func keepsNameFromTheScreen() async throws {
+        let model = FakeCleanupModel { _ in "John said the build failed." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        let app = AppContext(documentName: "Chat with John", precedingText: "because ")
+        let mid = TransformationRequest(
+            transcription: .fixture(text: "john said the build failed", language: .english),
+            context: app,
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
+        #expect(try await sut.transform(mid).text == "John said the build failed.")
+    }
+
     @Test("withholds the stop of a short message, and keeps a question mark")
     func shortMessageHasNoStop() async throws {
         let model = FakeCleanupModel { _ in "On my way. Be there in ten." }
@@ -193,13 +205,22 @@ struct RuleBasedTransformerTests {
     }
 
     private func request(
-        _ text: String, destination: Destination, preceding: String? = nil
+        _ text: String, destination: Destination, preceding: String? = nil, title: String? = nil
     ) -> TransformationRequest {
-        let app = AppContext(precedingText: preceding)
+        let app = AppContext(documentName: title, precedingText: preceding)
         return TransformationRequest(
             transcription: .fixture(text: text, language: .english),
             context: app,
             situation: Situation(app: app, insertion: app.insertionPoint, destination: destination))
+    }
+
+    @Test("keeps the capital of a name the screen shows, and lowers one it does not")
+    func namesFromTheScreen() async throws {
+        let seen = request(
+            "john said so", destination: .document, preceding: "because ", title: "Chat with John")
+        #expect(try await sut.transform(seen).text == "John said so.")
+        let unseen = request("john said so", destination: .document, preceding: "because ", title: "Notes")
+        #expect(try await sut.transform(unseen).text == "john said so.")
     }
 
     @Test(

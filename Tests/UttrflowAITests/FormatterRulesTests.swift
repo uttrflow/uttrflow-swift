@@ -5,8 +5,11 @@ import Testing
 
 @Suite("FirstWordRule")
 struct FirstWordRuleTests {
-    private func fromCaret(_ text: String, state: InsertionPoint.SentenceState) -> String {
-        FirstWordRule.apply(text, heard: text.lowercased(), policy: .fromInsertionPoint, state: state)
+    private func fromCaret(
+        _ text: String, state: InsertionPoint.SentenceState, onScreen: [String] = []
+    ) -> String {
+        FirstWordRule.apply(
+            text, heard: text.lowercased(), policy: .fromInsertionPoint, state: state, onScreen: onScreen)
     }
 
     @Test("lower-cases a common first word when the caret sits mid-sentence")
@@ -83,6 +86,48 @@ struct FirstWordRuleTests {
             FirstWordRule.apply(
                 "\"Total\" revenue", heard: "total revenue", policy: .asSpoken, state: .unknown)
                 == "\"Total\" revenue")
+    }
+
+    @Test("keeps a first word that reappears capitalised later in the output, off a sentence start")
+    func keepsNameSeenAgainInOutput() {
+        #expect(
+            fromCaret("John said the build failed, so John fixed it.", state: .midSentence)
+                == "John said the build failed, so John fixed it.")
+        #expect(
+            fromCaret("Because the build failed. Because of that.", state: .midSentence)
+                == "because the build failed. Because of that.")
+    }
+
+    @Test("keeps a first word that the screen shows capitalised, in the title or around the caret")
+    func keepsNameSeenOnScreen() {
+        let text = "John said the build failed."
+        #expect(fromCaret(text, state: .midSentence, onScreen: ["Chat with John"]) == text)
+        #expect(fromCaret(text, state: .midSentence, onScreen: ["", "Ask (John) tomorrow."]) == text)
+        #expect(
+            fromCaret(text, state: .midSentence, onScreen: ["Notes"]) == "john said the build failed.")
+    }
+
+    @Test(
+        "lowers a common first word mid-sentence, and keeps I and an acronym, whatever the screen shows",
+        arguments: [
+            ("Because the build failed.", "because the build failed."),
+            ("I'll fix it.", "I'll fix it."), ("API returns JSON.", "API returns JSON."),
+        ]
+    )
+    func lowersOrKeepsWithScreen(text: String, expected: String) {
+        let screen = ["Because - Notes", "ok. Because"]
+        #expect(fromCaret(text, state: .midSentence, onScreen: screen) == expected)
+    }
+
+    @Test("sights a name off a sentence start only, and not in a text capitalised throughout")
+    func looksLikeName() {
+        #expect(FirstWordRule.looksLikeName("John", in: ["so John said"]))
+        #expect(FirstWordRule.looksLikeName("john", in: ["so \"John\" said"]))
+        #expect(!FirstWordRule.looksLikeName("John", in: ["so john said"]))
+        #expect(!FirstWordRule.looksLikeName("John", in: ["John said", "ok. John said", "ok\nJohn said"]))
+        #expect(!FirstWordRule.looksLikeName("John", in: ["Mail - John Smith"]))
+        #expect(!FirstWordRule.looksLikeName("...", in: ["so ... said"]))
+        #expect(!FirstWordRule.looksLikeName("John", in: []))
     }
 
     @Test("names an exemption exactly: a lone capital or a run of two or more")

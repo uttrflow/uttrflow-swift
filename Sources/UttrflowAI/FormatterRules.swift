@@ -2,9 +2,10 @@ public import UttrflowCore
 
 /// Cases the first word the way the formatter's policy and the caret say.
 public enum FirstWordRule {
-    /// `heard` is the transcript, whose first word's case is what `.asSpoken` keeps.
+    /// `heard` is the transcript whose case `.asSpoken` keeps; `onScreen` is where a name can be sighted.
     public static func apply(
-        _ text: String, heard: String, policy: FirstWordPolicy, state: InsertionPoint.SentenceState
+        _ text: String, heard: String, policy: FirstWordPolicy, state: InsertionPoint.SentenceState,
+        onScreen: [String] = []
     ) -> String {
         switch policy {
         case .alwaysCapital:
@@ -12,9 +13,9 @@ public enum FirstWordRule {
         case .asSpoken:
             return matchingHeardCase(text, heard: heard)
         case .fromInsertionPoint:
-            guard state == .midSentence, let first = firstWord(of: text), !keepsCapital(first) else {
-                return text
-            }
+            guard state == .midSentence, let first = firstWord(of: text), !keepsCapital(first),
+                !looksLikeName(first, in: [text] + onScreen)
+            else { return text }
             return replacingFirstCharacter(of: text) { $0.isLetter ? $0.lowercased() : String($0) }
         }
     }
@@ -25,6 +26,37 @@ public enum FirstWordRule {
         let letters = word.filter(\.isLetter)
         return letters.count >= 2 && letters.allSatisfy(\.isUppercase)
     }
+
+    /// Whether a text holds the word capitalised off a sentence start; a title-cased text says nothing.
+    static func looksLikeName(_ word: Substring, in texts: [String]) -> Bool {
+        let wanted = bareWord(word).lowercased()
+        guard !wanted.isEmpty else { return false }
+        return texts.contains { text in
+            let lines = text.split(whereSeparator: \.isNewline)
+                .map { $0.split(whereSeparator: \.isWhitespace) }
+            guard lines.joined().contains(where: { bareWord($0).first?.isLowercase ?? false }) else {
+                return false
+            }
+            return lines.contains { line in
+                zip(line, line.dropFirst()).contains { previous, token in
+                    let candidate = bareWord(token)
+                    let startsSentence = previous.last.map(sentenceEnds.contains) ?? false
+                    return (candidate.first?.isUppercase ?? false) && candidate.lowercased() == wanted
+                        && !startsSentence
+                }
+            }
+        }
+    }
+
+    /// The token without the quotes, brackets and marks around it.
+    private static func bareWord(_ token: Substring) -> Substring {
+        guard let start = token.firstIndex(where: { $0.isLetter || $0.isNumber }),
+            let end = token.lastIndex(where: { $0.isLetter || $0.isNumber })
+        else { return "" }
+        return token[start...end]
+    }
+
+    private static let sentenceEnds: Set<Character> = [".", "!", "?"]
 
     /// Copies the case the output's first word was heard in, skipping any filler heard before it.
     private static func matchingHeardCase(_ text: String, heard: String) -> String {
@@ -96,4 +128,11 @@ public enum TerminalStopRule {
     }
 
     private static let sentenceEnds: Set<Character> = [".", "!", "?"]
+}
+
+extension AppContext {
+    /// The strings read off the screen a name can be sighted in: title, selection and the text at the caret.
+    var textOnScreen: [String] {
+        [documentName, selectedText, precedingText, followingText].compactMap { $0 }
+    }
 }

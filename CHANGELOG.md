@@ -25,7 +25,8 @@ Each released version is a git tag and a build at
   document, spreadsheet, SQL editor, code editor, messaging app, email client or plain
   text from one table of bundle identifiers and window titles. Two decisions follow
   from that: dictation into the middle of a sentence starts lower-case ("…because " +
-  "the build failed"), and a message of one or two sentences in Slack, WhatsApp,
+  "the build failed") unless the first word is a name the screen or the rest of the
+  dictation shows capitalised, and a message of one or two sentences in Slack, WhatsApp,
   Telegram, Discord, Messages or Teams ends without a full stop, as does a spreadsheet
   cell or a line in a code editor. Apps that do not report their field, Electron ones
   among them, keep today's capital. `Docs/cleanup.md` has the rules.
