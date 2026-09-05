@@ -20,6 +20,7 @@ moment the person returns, because it shares their keyboard.
 
 | Found by | Symptom | Root cause | Fix |
 |---|---|---|---|
+| Operator, WhatsApp | `busy nahi ` → a ghost of one letter, `h` | three things met: an idle draft of the very line being typed had been recorded as a line this person wrote before, so the prompt showed the model its own half line as finished; the register quoted this person's short lines as the length to write; and when the model took the reply for complete, healing made it go on by a token, and the likeliest allowed token was a lone letter | the line being written is never listed among the lines written before; a reply always gets a whole message's budget and a terse typical length is not quoted for one; the instruction asks for the whole message; a new word of under three characters is nothing |
 | Operator, WhatsApp | `phone` → `phone pe nahi, 4Septemberat6:42 PM, Received from Nishtha♥️` | every bubble's accessibility label is "message, text, 3Septemberat6:41 PM, Received from Nishtha♥️" — WhatsApp publishes the date without spaces — and once the line is written into the model's turn it imitates the shape of the nearest lines; nothing had ever exercised WhatsApp after the collector rewrite, since the catalogue's chats are clean synthetic threads and the harness may not type into a chat | `Timestamps` drops a part that is only a time or a dated time in the calendar's own words from every label the collector reads and from every completion; a completion is cut where it repeats sixteen characters of the screen word for word; `uttrflow-dev context --bundle <id> --surroundings` dumps what the collector reads |
 | Operator, Messages | `Hello` → `Hello Papa,` in a chat with Nishtha | the person's recent lines in the field are drawn from every conversation, and a greeting typed to Papa led the list | the lines written in this very conversation come first, the rest of the field after |
 | Harness | typed two scenarios into the login window | idle is not the same as safe: a locked Mac is idle | the helper reports the locked screen; the gate waits and every key aborts on it |
@@ -45,6 +46,11 @@ moment the person returns, because it shares their keyboard.
 - **The loop ticks against the login window.** With the screen locked the coordinator still reads the
   focused field once a second — 8 613 turns in one night, each answered `nothingFocused`. Harmless, but a
   locked session is a signal to rest the ticker until the session unlocks.
+- **Idle drafts in a chat composer.** Capture commits a line after an 8 s pause so that a document
+  without a Return still teaches; in a composer that sends on Return the same pause records an
+  abandoned or half-typed message as a line this person wrote. The current line is now kept out of
+  the prompt, but abandoned drafts stay in the corpus. A composer and a document cannot yet be told
+  apart without naming applications; the field emptying in one step — a send — is the signal to build on.
 - **The address bar.** 35 of the 79 remaining wrong answers: with the register's hint and the kind named at
   the line, the model still continues `git` into a shell command. The corpus of visited addresses is the
   better source there; a per-register ranking of remembered lines over generation is the next lever.
