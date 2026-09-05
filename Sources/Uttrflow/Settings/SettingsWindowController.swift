@@ -52,22 +52,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             onChange: onChange, onReset: onReset, onShortcutRecording: onShortcutRecording)
     }
 
-    /// Opens the window at `tab`, bringing it forward if it is already open.
-    ///
-    /// What this Mac can do is asked again on every opening, because a model can finish
-    /// downloading and a login item can be allowed between one opening and the next. So
-    /// is how much the app has learned, for the same reason: the window is kept alive
-    /// between openings, and the user has been dictating in between.
-    /// Whether the window is on screen, and which tab it is showing.
-    ///
-    /// Read by the sidebar so its Settings row can light up while the window is open.
-    /// Settings is the one row that opens a window of its own rather than changing the
-    /// pane, so without this it was the one row that never looked chosen — the user
-    /// pressed it, a window appeared, and the row they pressed stayed dark.
-    var openTab: SettingsTab? {
-        window?.isVisible == true ? model.session.tab : nil
-    }
-
     /// Opens the window, and tells it who is signed in.
     ///
     /// Handed over on every opening rather than held: the app already re-reads the
