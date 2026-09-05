@@ -79,6 +79,32 @@ extension MetricsRecording {
     }
 }
 
+/// Adds up every measurement of a stage, so a dictation done in pieces reports one figure per stage.
+public actor StageTally: MetricsRecording {
+    private var totals: [PipelineStage: StageMeasurement] = [:]
+
+    public init() {}
+
+    public func record(_ measurement: StageMeasurement) {
+        let stage = measurement.stage
+        let previous = totals[stage]
+        totals[stage] = StageMeasurement(
+            stage: stage,
+            duration: (previous?.duration ?? .zero) + measurement.duration,
+            succeeded: (previous?.succeeded ?? true) && measurement.succeeded)
+    }
+
+    /// One total per stage that was measured, in the order the journey runs.
+    public var measurements: [StageMeasurement] {
+        PipelineStage.allCases.compactMap { totals[$0] }
+    }
+
+    /// Hands every total on as a single measurement.
+    public func report(to recorder: any MetricsRecording) async {
+        for measurement in measurements { await recorder.record(measurement) }
+    }
+}
+
 extension Duration {
     /// Seconds as a `Double`, for arithmetic and for printing.
     ///

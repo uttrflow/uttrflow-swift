@@ -24,7 +24,17 @@ public struct AppleFoundationCleanupModel: CleanupModel {
     /// composing.
     private static let options = GenerationOptions(temperature: 0.0)
 
+    /// One session made ahead of its request, shared by every copy of this value.
+    private static let warmed = WarmedSession()
+
     public init() {}
+
+    /// Makes the next utterance's session now and lets the system load its instructions. See `Docs/early-transcription.md`.
+    public func warm(instructions: String) async {
+        let session = LanguageModelSession(instructions: instructions)
+        session.prewarm()
+        await Self.warmed.keep(session, for: instructions)
+    }
 
     public func availability(for language: LanguageCode?) async -> TransformerAvailability {
         switch SystemLanguageModel.default.availability {
@@ -61,7 +71,8 @@ public struct AppleFoundationCleanupModel: CleanupModel {
     ) async throws(TransformationError) -> String {
         // A fresh session per utterance: dictation is one-shot, and carrying context
         // between unrelated sentences would let one bleed into the next.
-        let session = LanguageModelSession(instructions: instructions)
+        let session =
+            await Self.warmed.take(for: instructions) ?? LanguageModelSession(instructions: instructions)
         do {
             let response = try await session.respond(
                 to: text, generating: CleanedDictation.self, options: Self.options
@@ -70,5 +81,26 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         } catch {
             throw .transformFailed(kind: kind, description: error.localizedDescription)
         }
+    }
+}
+
+/// Holds one session that was made before its request, and hands it out exactly once.
+private actor WarmedSession {
+    private var session: LanguageModelSession?
+    private var instructions: String?
+
+    /// Keeps `session` for the next request carrying `instructions`, dropping any earlier one.
+    func keep(_ session: LanguageModelSession, for instructions: String) {
+        self.session = session
+        self.instructions = instructions
+    }
+
+    /// The kept session when it was made for `instructions`, and never the same one twice.
+    func take(for instructions: String) -> LanguageModelSession? {
+        defer {
+            session = nil
+            self.instructions = nil
+        }
+        return self.instructions == instructions ? session : nil
     }
 }

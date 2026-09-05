@@ -9,6 +9,14 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+### Changed
+- **Dictation is ready almost as soon as the key comes up, however long you spoke.** The
+  recording is cut at your own pauses and each piece is recognised and tidied while you
+  are still talking, so releasing the key leaves only the last piece to do. A two-minute
+  dictation used to wait fourteen seconds; the tidier is also warmed as recording starts.
+  A retried recording is processed in the same pieces, which is what stops the tidier
+  losing words past about four minutes. `Docs/early-transcription.md` has the numbers.
+
 ### Added
 - **A dictation that fails can be retried from its audio.** Every recording is written to
   this Mac while the key is held, beside the buffer the recogniser reads, and deleted the

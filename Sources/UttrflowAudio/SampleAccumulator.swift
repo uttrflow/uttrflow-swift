@@ -50,6 +50,9 @@ public final class SampleAccumulator: Sendable {
     /// Number of samples collected so far.
     public var count: Int { state.withLock(\.samples.count) }
 
+    /// A copy of everything collected so far, leaving the buffer as it is.
+    public var snapshot: [Float] { state.withLock(\.samples) }
+
     /// Loudest sample seen since the last ``reset()``, in `0...1`.
     ///
     /// Drives the recording meter, and tells the CLI whether the microphone actually

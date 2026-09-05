@@ -17,6 +17,7 @@ final class FakeCleanupModel: CleanupModel {
         var error: TransformationError?
         var calls: [Call] = []
         var languagesAsked: [LanguageCode?] = []
+        var warmed: [String] = []
     }
 
     private let state = Mutex(State())
@@ -52,7 +53,12 @@ final class FakeCleanupModel: CleanupModel {
         }
     }
 
+    func warm(instructions: String) async {
+        state.withLock { $0.warmed.append(instructions) }
+    }
+
     func fail(with error: TransformationError) { state.withLock { $0.error = error } }
+    var warmed: [String] { state.withLock(\.warmed) }
     var calls: [Call] { state.withLock(\.calls) }
     var languagesAsked: [LanguageCode?] { state.withLock(\.languagesAsked) }
 }
