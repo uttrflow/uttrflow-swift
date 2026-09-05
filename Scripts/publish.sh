@@ -192,29 +192,55 @@ fi
     fi
 )"
 
-if [[ "$NOTARISED" == "yes" ]]; then
+# The tag.
+# ---------------------------------------------------------------------------
+# A release is cut by pushing a tag, and .github/workflows/release.yml has already
+# checked that tag against the plist before anything was built. So when a tag drove this
+# run, that tag IS the release's name and this script's job is to use it, not to invent a
+# second one — which is what it used to do, publishing v0.4.0-test.<sha> for a run
+# triggered by v0.4.0. Worse, it flattened an -rc tag into the same shape, so the soak
+# that release.yml documents (an rc publishes as a prerelease and leaves latest.json
+# alone) could never actually happen.
+#
+# Run by hand with no tag, the version in the plist names the release. Notarisation no
+# longer appears here at all: it decides what the notes say and what `gatekeeper` records,
+# never what the release is called. Reserving a bare v$VERSION for a notarised build that
+# does not exist only ever produced a tag with "test" in it for the build people install.
+if [[ -n "${GITHUB_REF_NAME:-}" && "$GITHUB_REF_NAME" == v* ]]; then
+    TAG="$GITHUB_REF_NAME"
+else
     TAG="v$VERSION"
+fi
+
+# v0.4.0-rc.1 is a candidate; v0.4.0 is the release. Anything after the version is a
+# prerelease marker, which is Semver's rule and GitHub's: /releases/latest/download/ skips
+# a prerelease, so a soak build cannot become what the download button serves.
+if [[ "${TAG#v}" == *-* ]]; then
+    PRERELEASE=(--prerelease)
+    SOAK=yes
+else
+    PRERELEASE=()
+    SOAK=no
+fi
+
+if [[ "$NOTARISED" == "yes" ]]; then
     GATEKEEPER="notarised"
     NOTES="Notarised by Apple. Opens with a double-click on macOS 26 or later."
 else
-    # A test build never takes a bare version tag: that tag belongs to the real release of
-    # that version, which may not exist yet.
-    # An unsigned build still never takes a bare version tag: that tag belongs to the
-    # notarised release of that version, which may not exist yet. Distinct tags are what
-    # let the real v$VERSION publish later without colliding with this one — and, being a
-    # full release, it takes over /releases/latest/download/ the moment it lands.
-    TAG="v$VERSION-test.$BUILD_COMMIT"
     GATEKEEPER="unsigned"
     NOTES="$(cat <<EOF
-Test build from \`$BUILD_COMMIT\` — **not notarised**.
+Built from \`$BUILD_COMMIT\` — **not notarised**.
 
-macOS will say the app is damaged. It is not. Drag Uttrflow to Applications, then run:
+macOS will say the app is damaged. It is not. Once Uttrflow is in your Applications
+folder, however it got there, run this once:
 
 \`\`\`
 xattr -dr com.apple.quarantine /Applications/Uttrflow.app
 \`\`\`
 
-Sending it with scp, rsync or a USB stick sets no quarantine and needs none of this.
+Homebrew quarantines what it installs and has no flag to skip it, so this is needed
+after \`brew install --cask uttrflow/tap/uttrflow\` too. Copying the app with scp,
+rsync or a USB stick sets no quarantine and needs none of this.
 EOF
 )"
 fi
@@ -226,7 +252,11 @@ printf '  version      %s\n' "$VERSION"
 printf '  gatekeeper   %s\n' "$GATEKEEPER"
 printf '  tag          %s\n' "$TAG"
 printf '  repository   %s\n' "$DOWNLOADS_REPO"
-printf '  latest.json  will be rewritten to point at this release\n'
+if [[ "$SOAK" == "yes" ]]; then
+    printf '  latest.json  left alone — %s is a prerelease, so it soaks\n' "$TAG"
+else
+    printf '  latest.json  will be rewritten to point at this release\n'
+fi
 if [[ "$NOTARISED" != "yes" ]]; then
     # Said here rather than left to be discovered on the site, because this is the one
     # consequence that is invisible from the command being typed.
@@ -264,6 +294,7 @@ gh release create "$TAG" "$STAGE/$ASSET" "$STAGE/$ARCHIVE" \
     --repo "$DOWNLOADS_REPO" \
     --title "Uttrflow $VERSION" \
     --notes "$NOTES" \
+    ${PRERELEASE[@]+"${PRERELEASE[@]}"} \
     || fail "could not create the release"
 
 # ---------------------------------------------------------------------------
@@ -272,6 +303,14 @@ gh release create "$TAG" "$STAGE/$ASSET" "$STAGE/$ARCHIVE" \
 # Rewritten by every publish, so the version named on the site matches the file the
 # download button serves. The manifest only decorates that URL — it never carries it — so
 # a stale or blocked manifest costs a version label rather than the download itself.
+
+if [[ "$SOAK" == "yes" ]]; then
+    # The whole point of an rc: it exists to be installed deliberately, by somebody who
+    # went looking for it, and must not become what the download button and the updater
+    # hand to everybody else. GitHub already skips it for /releases/latest/download/;
+    # leaving the manifest and the appcast untouched is the other half of that.
+    step "Leaving latest.json and the appcast alone ($TAG is a prerelease)"
+else
 
 step "Pointing latest.json at $VERSION"
 
@@ -337,6 +376,8 @@ else
 fi
 rm -rf "$CLONE"
 
+fi
+
 cat <<EOF
 
 Published Uttrflow $VERSION.
@@ -344,12 +385,22 @@ Published Uttrflow $VERSION.
   release   https://github.com/$DOWNLOADS_REPO/releases/tag/$TAG
 EOF
 
-cat <<EOF
+if [[ "$SOAK" == "yes" ]]; then
+    cat <<EOF
+  download  https://github.com/$DOWNLOADS_REPO/releases/download/$TAG/$ASSET
+            (this tag only — a prerelease is not served by /latest/)
+
+uttrflow.com/download and the updater are unchanged. Send the address above to whoever
+is soaking it; tag the bare version when it is good.
+EOF
+else
+    cat <<EOF
   download  https://github.com/$DOWNLOADS_REPO/releases/latest/download/$ASSET
             (permanent — it follows every future release)
 
 uttrflow.com/download names this version as soon as the manifest propagates.
 EOF
+fi
 
 if [[ "$NOTARISED" != "yes" ]]; then
     cat <<EOF

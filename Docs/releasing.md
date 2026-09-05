@@ -65,8 +65,13 @@ same URL, no site deploy, and the page drops the `xattr` note on its own because
 The cost is stated rather than hidden: until then, the public download button serves a
 build macOS calls damaged. `publish.sh` prints that in capitals before it uploads.
 
-Unsigned builds still take a `-test.<sha>` tag, never a bare `v<version>` — that tag
-belongs to the notarised release of that version, which may not exist yet.
+The tag is not affected by any of this. It used to be: an unsigned build was published as
+`v<version>-test.<sha>`, reserving the bare tag for a notarised release of the same
+version. That reservation only ever cost something — it put the word "test" in the name of
+the build people actually install, and it overrode the tag that triggered the run, so an
+`-rc` candidate was flattened into a full release and moved `latest.json` in spite of the
+soak this document describes. A tagged run now publishes under its own tag, and a hand-run
+one under `v<version>`.
 
 Gatekeeper refuses an un-notarised app that arrived through a browser, saying it is
 damaged. It is not. The release notes carry the fix, and so does the download page:
