@@ -16,6 +16,14 @@ public enum TerminalStopPolicy: Sendable, Equatable {
     case offForShortMessages(sentences: Int)
 }
 
+/// Which spoken numbers a place wants written as numerals.
+public enum NumberPolicy: Sendable, Equatable {
+    /// Every number is a numeral, zero to nine included, as a cell or an editor wants.
+    case always
+    /// Ten and up are numerals; zero to nine stay words unless they sit in a number phrase.
+    case fromTen
+}
+
 /// How much grammar a place wants repaired.
 public enum GrammarPolicy: Sendable, Equatable {
     /// A slip speech left behind is fixed, changing only the form of a word the speaker said.
@@ -50,18 +58,22 @@ public struct DestinationFormatter: Sendable, Equatable {
     public let layout: LayoutPolicy
     /// Whether grammar slips are repaired here or the words go out as spoken.
     public let grammar: GrammarPolicy
+    /// Which spoken numbers become numerals here.
+    public let numbers: NumberPolicy
     /// The style rules and worked examples the model is shown for this place.
     public let promptBlock: PromptBlockID
 
     public init(
         destination: Destination, firstWord: FirstWordPolicy, terminalStop: TerminalStopPolicy,
-        layout: LayoutPolicy, grammar: GrammarPolicy, promptBlock: PromptBlockID
+        layout: LayoutPolicy, grammar: GrammarPolicy, numbers: NumberPolicy = .fromTen,
+        promptBlock: PromptBlockID
     ) {
         self.destination = destination
         self.firstWord = firstWord
         self.terminalStop = terminalStop
         self.layout = layout
         self.grammar = grammar
+        self.numbers = numbers
         self.promptBlock = promptBlock
     }
 
@@ -69,26 +81,30 @@ public struct DestinationFormatter: Sendable, Equatable {
     public static let registry: [Destination: DestinationFormatter] = [
         .document: DestinationFormatter(
             destination: .document, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], grammar: .repair, promptBlock: "document"),
+            layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen,
+            promptBlock: "document"),
         .spreadsheet: DestinationFormatter(
             destination: .spreadsheet, firstWord: .asSpoken, terminalStop: .never, layout: .singleLine,
-            grammar: .asSpoken, promptBlock: "spreadsheet"),
+            grammar: .asSpoken, numbers: .always, promptBlock: "spreadsheet"),
         .sqlEditor: DestinationFormatter(
             destination: .sqlEditor, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: .preserveNewlines, grammar: .asSpoken, promptBlock: "sqlEditor"),
+            layout: .preserveNewlines, grammar: .asSpoken, numbers: .always,
+            promptBlock: "sqlEditor"),
         .codeEditor: DestinationFormatter(
             destination: .codeEditor, firstWord: .fromInsertionPoint, terminalStop: .never,
-            layout: .preserveNewlines, grammar: .asSpoken, promptBlock: "codeEditor"),
+            layout: .preserveNewlines, grammar: .asSpoken, numbers: .always,
+            promptBlock: "codeEditor"),
         .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,
             terminalStop: .offForShortMessages(sentences: 2), layout: .paragraphs,
-            grammar: .asSpoken, promptBlock: "messaging"),
+            grammar: .asSpoken, numbers: .fromTen, promptBlock: "messaging"),
         .email: DestinationFormatter(
             destination: .email, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], grammar: .repair, promptBlock: "email"),
+            layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen,
+            promptBlock: "email"),
         .plain: DestinationFormatter(
             destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always, layout: .paragraphs,
-            grammar: .repair, promptBlock: "plain"),
+            grammar: .repair, numbers: .fromTen, promptBlock: "plain"),
     ]
 
     /// The formatter for a destination, falling back to plain text's for one the registry lacks.
@@ -96,7 +112,7 @@ public struct DestinationFormatter: Sendable, Equatable {
         registry[destination]
             ?? DestinationFormatter(
                 destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always,
-                layout: .paragraphs, grammar: .repair,
+                layout: .paragraphs, grammar: .repair, numbers: .fromTen,
                 promptBlock: "plain")
     }
 }

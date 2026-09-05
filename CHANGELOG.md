@@ -101,6 +101,37 @@ Each released version is a git tag and a build at
   five" — now drops the half they replaced, by the same rule the self-correction pass
   uses inside one piece.
 
+### Fixed
+- **The tidier deleted words the speaker said.** A sentence holding the word "wait"
+  opened a search for a correction, and the search would settle on an ordinary small word
+  as the point the two halves met — so "grab a coffee and wait a moment" came out as
+  "Grab a moment." and "we need to wait to finish the review" lost its "wait". "Wait" is
+  now heard as a correction only in "no wait" and "wait sorry", and a half taken back has
+  to hold a word the speaker meant rather than small words alone.
+- **The verb "dash" became an em-dash.** "We should dash off a quick note" is punctuation
+  nobody asked for; "dash" and "hyphen" now stay words when a particle follows them — off,
+  out, over, up, down, back, away, through, in, to, into, across.
+- **English doubles lost a word.** "I had had enough", "the thing that that person said"
+  and "bye bye for now" were read as stammers. The doubles the language itself makes —
+  "had had", "that that", "bye bye", "no no", "so so" — are kept; "we we" and "the the"
+  still go.
+
+### Added
+- **A correction the speaker made without saying so is taken back.** "I wanted to buy a
+  record as a gift as a present" becomes "…as a present", and "let's meet on tuesday on
+  wednesday" becomes "…on wednesday", from the shape alone: a short frame of small words
+  said twice over, each time with a different word after it. A frame that opens a clause
+  is not a correction, so "I like tea I like coffee both are fine" survives whole. It runs
+  inside a piece and across the pause between two.
+- **Contractions are repaired without a model.** "dont", "cant", "youre", "thats" and
+  their kind get their apostrophe back deterministically, so a dictation the model
+  declines — Hindi, a refusal, a timeout — no longer keeps them broken. Only the words
+  that are a contraction and nothing else: "Ill" and "Id" are repaired where the capital
+  says the speaker meant "I", and "its", "wed" and "were" are left as they were said.
+- **Numbers follow the place they are going.** A spreadsheet, a SQL editor and a code
+  editor now write every number as a numeral, "one of them" → "1 of them"; a document, an
+  email, a message and plain text keep ten and up, as before.
+
 ## [0.4.0] — 2026-09-01
 
 ### Changed

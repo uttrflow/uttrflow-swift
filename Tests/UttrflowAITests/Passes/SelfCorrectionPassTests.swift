@@ -14,8 +14,9 @@ struct SelfCorrectionPassTests {
             ("send it on tuesday I mean on wednesday", "send it on wednesday"),
             ("the red one scratch that the blue one", "the blue one"),
             ("at four never mind at five", "at five"),
-            ("at four wait at five", "at five"),
+            ("at four wait sorry at five", "at five"),
             ("at four no wait at five", "at five"),
+            ("call me no call me later", "call me later"),
             ("at four, no sorry, at five", "at five"),
             ("put it on the table no sorry on the shelf", "put it on the shelf"),
             ("at four no sorry at five I mean at six", "at six"),
@@ -55,9 +56,41 @@ struct SelfCorrectionPassTests {
             "at noon we will send the report to them no sorry at one",
             "the meeting is at four I mean it's at five",
             "wait for me",
+            // "wait" alone is a verb far more often than a trigger, so it needs "no" or "sorry" beside it.
+            "at four wait at five",
+            "grab a coffee and wait a moment",
+            "we need to wait to finish the review",
         ]
     )
     func leavesUnmatched(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// A frame of function words said twice, each time with a different word after it, is a correction.
+    @Test(
+        "replaces a restated phrase that had no trigger at all",
+        arguments: [
+            ("I wanted to buy a record as a gift as a present", "I wanted to buy a record as a present"),
+            ("let's meet on tuesday on wednesday afternoon", "let's meet on wednesday afternoon"),
+            ("send it to the office in london in paris", "send it to the office in paris"),
+        ]
+    )
+    func replacesUntriggeredRestatement(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves a repeat whose frame opens a clause, an infinitive, or a fixed comparison",
+        arguments: [
+            "I like tea I like coffee both are fine",
+            "she said she said nothing of the sort",
+            "we need to wait to finish the review",
+            "as soon as possible we should ship",
+            "the good the bad and the ugly",
+            "we met on tuesday. on wednesday we shipped",
+        ]
+    )
+    func leavesUntriggeredRepeats(input: String) {
         #expect(cleaned(input, by: sut) == input)
     }
 

@@ -161,6 +161,20 @@ struct PieceJoinerRestatementTests {
                 == "The build passed. Actually I should check the tests.")
     }
 
+    @Test("drops the half a piece restates with no trigger at all")
+    func untriggeredRestatementAcrossTheCut() {
+        #expect(
+            joined(["Let's meet on tuesday.", "On wednesday afternoon."], .document)
+                == "Let's meet on wednesday afternoon.")
+    }
+
+    @Test("keeps both pieces when the repeat opens a clause rather than restating one")
+    func untriggeredRepeatThatIsAClause() {
+        #expect(
+            joined(["I like tea.", "I like coffee, both are fine."], .document)
+                == "I like tea. I like coffee, both are fine.")
+    }
+
     @Test("never opens a paragraph on a piece whose opening it swallowed")
     func aRestatementIsNeverAParagraph() {
         #expect(

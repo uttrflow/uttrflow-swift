@@ -34,7 +34,7 @@ struct CleaningStepsTests {
         #expect(
             CleaningSteps.offered.map(\.id) == [
                 .fillers, .stammers, .repeatedPhrase, .selfCorrection, .spokenPunctuation,
-                .layoutWords, .numberForms, .spacing,
+                .layoutWords, .numberForms, .contractions, .spacing,
             ])
     }
 

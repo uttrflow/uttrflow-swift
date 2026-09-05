@@ -30,6 +30,8 @@ extension PassID {
     public static let layoutWords: PassID = "layoutWords"
     /// Spoken numbers written as numerals.
     public static let numberForms: PassID = "numberForms"
+    /// The apostrophe a contraction was said without.
+    public static let contractions: PassID = "contractions"
     /// Spaces around the marks the other passes put in.
     public static let spacing: PassID = "spacing"
     /// The case of the first word, which the formatter decides.

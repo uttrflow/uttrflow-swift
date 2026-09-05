@@ -12,13 +12,28 @@ struct StammersPassTests {
         arguments: [
             ("the the deployment", "the deployment"),
             ("I I think so", "I think so"),
-            ("no no no", "no"),
             ("The the plan", "The plan"),
             ("we we we should", "we should"),
+            ("the build is is red", "the build is red"),
         ]
     )
     func removesStammer(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// A double English means is not a stammer, and taking a word out of one loses what was said.
+    @Test(
+        "keeps a double the language itself makes",
+        arguments: [
+            "I had had enough by then",
+            "the thing that that person said",
+            "bye bye for now",
+            "no no no",
+            "the soup was so so",
+        ]
+    )
+    func keepsLegitimateDoubles(input: String) {
+        #expect(cleaned(input, by: sut) == input)
     }
 
     @Test(

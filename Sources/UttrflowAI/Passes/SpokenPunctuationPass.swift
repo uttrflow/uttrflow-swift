@@ -12,6 +12,11 @@ public struct SpokenPunctuationPass: CleaningPass {
         (["semicolon"], ";"), (["hyphen"], "-"), (["dash"], "\u{2014}"),
     ]
 
+    /// The particles after which "dash" and "hyphen" are the verbs they also are: "dash off a note".
+    static let particles: Set<String> = [
+        "off", "out", "over", "up", "down", "back", "away", "through", "in", "to", "into", "across",
+    ]
+
     public init() {}
 
     public func apply(_ draft: Draft) -> Draft {
@@ -22,6 +27,7 @@ public struct SpokenPunctuationPass: CleaningPass {
             guard
                 let found = Self.marks.first(where: { matches($0.words, at: position, in: live, of: draft) }),
                 !MentionGuard.isMentioned(at: position, spanning: found.words.count, in: live, of: draft),
+                !isVerb(found.words, at: position, in: live, of: draft),
                 isPlaced(found.mark, before: position + found.words.count, in: live, of: draft),
                 attach(
                     found.mark, opening: found.words.first == "open", at: position,
@@ -40,6 +46,12 @@ public struct SpokenPunctuationPass: CleaningPass {
             && zip(words, live[position..<position + words.count]).allSatisfy {
                 $0 == draft.shape(at: $1).key
             }
+    }
+
+    /// Whether "dash" or "hyphen" is the verb rather than the mark, told by the particle after it.
+    private func isVerb(_ words: [String], at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard words == ["dash"] || words == ["hyphen"], position + 1 < live.count else { return false }
+        return Self.particles.contains(draft.shape(at: live[position + 1]).key)
     }
 
     /// A full stop is used only where the text closes; a hyphen or dash is used only where it does not.

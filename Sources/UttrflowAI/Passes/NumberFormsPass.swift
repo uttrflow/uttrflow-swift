@@ -1,8 +1,11 @@
 public import UttrflowCore
 
-/// Writes spoken numbers as numerals: ten and up always, a digit only in a phrase. See `Docs/cleanup.md`.
+/// Writes spoken numbers as numerals, as many of them as the place asks for. See `Docs/cleanup.md`.
 public struct NumberFormsPass: CleaningPass {
     public static let id: PassID = .numberForms
+
+    /// Which spoken numbers this place wants as numerals.
+    let policy: NumberPolicy
 
     /// Words after which a lone digit is a numeral, digit groups run together, and no separator is used.
     static let contextWords: Set<String> = [
@@ -25,7 +28,9 @@ public struct NumberFormsPass: CleaningPass {
         let spoken: Bool
     }
 
-    public init() {}
+    public init(policy: NumberPolicy = .fromTen) {
+        self.policy = policy
+    }
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
@@ -33,7 +38,7 @@ public struct NumberFormsPass: CleaningPass {
         let shapes = live.map { draft.shape(at: $0) }
         var position = 0
         while position < live.count {
-            guard let phrase = Self.phrase(at: position, in: shapes) else {
+            guard let phrase = Self.phrase(at: position, in: shapes, policy: policy) else {
                 position += 1
                 continue
             }
@@ -47,7 +52,9 @@ public struct NumberFormsPass: CleaningPass {
     }
 
     /// The numeral for the number phrase starting at `position`, or nil when the words stay as they are.
-    static func phrase(at position: Int, in shapes: [WordShape]) -> Phrase? {
+    static func phrase(
+        at position: Int, in shapes: [WordShape], policy: NumberPolicy = .fromTen
+    ) -> Phrase? {
         let keys = shapes.map(\.key)
         guard let item = item(at: position, keys: keys, shapes: shapes) else { return nil }
         let inContext = position > 0 && contextWords.contains(keys[position - 1])
@@ -92,7 +99,7 @@ public struct NumberFormsPass: CleaningPass {
             }
         }
         if !isPhrase, item.spoken, let value = item.value {
-            guard inContext || value >= 10 else { return nil }
+            guard policy == .always || inContext || value >= 10 else { return nil }
             text = NumberWords.render(value, grouped: !inContext)
         } else if !isPhrase {
             return nil

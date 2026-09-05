@@ -15,25 +15,32 @@ struct DestinationFormatterTests {
     }
 
     /// The design's table, one row per destination.
-    static let table: [(Destination, FirstWordPolicy, TerminalStopPolicy, LayoutPolicy, GrammarPolicy)] = [
-        (.document, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair),
-        (.spreadsheet, .asSpoken, .never, .singleLine, .asSpoken),
-        (.sqlEditor, .fromInsertionPoint, .always, .preserveNewlines, .asSpoken),
-        (.codeEditor, .fromInsertionPoint, .never, .preserveNewlines, .asSpoken),
-        (.messaging, .fromInsertionPoint, .offForShortMessages(sentences: 2), .paragraphs, .asSpoken),
-        (.email, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair),
-        (.plain, .fromInsertionPoint, .always, .paragraphs, .repair),
-    ]
+    static let table:
+        [(Destination, FirstWordPolicy, TerminalStopPolicy, LayoutPolicy, GrammarPolicy, NumberPolicy)] = [
+            (.document, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .fromTen),
+            (.spreadsheet, .asSpoken, .never, .singleLine, .asSpoken, .always),
+            (.sqlEditor, .fromInsertionPoint, .always, .preserveNewlines, .asSpoken, .always),
+            (.codeEditor, .fromInsertionPoint, .never, .preserveNewlines, .asSpoken, .always),
+            (
+                .messaging, .fromInsertionPoint, .offForShortMessages(sentences: 2), .paragraphs,
+                .asSpoken, .fromTen
+            ),
+            (.email, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .fromTen),
+            (.plain, .fromInsertionPoint, .always, .paragraphs, .repair, .fromTen),
+        ]
 
-    @Test("decides the first word, the last mark, the layout and the grammar, as the design's table says")
+    @Test(
+        "decides the first word, the last mark, the layout, the grammar and the numbers, as the table says"
+    )
     func policies() {
         #expect(Self.table.count == Destination.allCases.count)
-        for (destination, firstWord, terminalStop, layout, grammar) in Self.table {
+        for (destination, firstWord, terminalStop, layout, grammar, numbers) in Self.table {
             let formatter = DestinationFormatter.standard(for: destination)
             #expect(formatter.firstWord == firstWord, "\(destination)")
             #expect(formatter.terminalStop == terminalStop, "\(destination)")
             #expect(formatter.layout == layout, "\(destination)")
             #expect(formatter.grammar == grammar, "\(destination)")
+            #expect(formatter.numbers == numbers, "\(destination)")
         }
     }
 
@@ -59,10 +66,10 @@ struct DestinationFormatterTests {
     func equality() {
         let one = DestinationFormatter(
             destination: .plain, firstWord: .alwaysCapital, terminalStop: .never, layout: .singleLine,
-            grammar: .asSpoken, promptBlock: "plain")
+            grammar: .asSpoken, numbers: .always, promptBlock: "plain")
         let two = DestinationFormatter(
             destination: .plain, firstWord: .alwaysCapital, terminalStop: .never, layout: .singleLine,
-            grammar: .asSpoken, promptBlock: "plain")
+            grammar: .asSpoken, numbers: .always, promptBlock: "plain")
         #expect(one == two)
         #expect(one != DestinationFormatter.standard(for: .plain))
     }

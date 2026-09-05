@@ -14,7 +14,7 @@ struct CleaningStepsPipelineTests {
         #expect(
             built == [
                 .fillers, .stammers, .repeatedPhrase, .selfCorrection, .spokenPunctuation,
-                .layoutWords, .numberForms, .spacing, .firstWord, .terminalStop,
+                .layoutWords, .numberForms, .contractions, .spacing, .firstWord, .terminalStop,
             ])
     }
 

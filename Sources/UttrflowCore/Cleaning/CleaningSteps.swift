@@ -62,6 +62,9 @@ public struct CleaningSteps: Sendable, Equatable, Codable {
             id: .numberForms, name: "Numbers",
             detail: "Writes spoken numbers, times and ports as numerals."),
         CleaningStep(
+            id: .contractions, name: "Contractions",
+            detail: "Puts the apostrophe back into dont, cant and their kind."),
+        CleaningStep(
             id: .spacing, name: "Spacing",
             detail: "Puts one space after a mark and none before it."),
     ]

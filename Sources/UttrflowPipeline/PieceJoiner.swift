@@ -85,26 +85,38 @@ enum PieceJoiner {
 
     // MARK: Restatements across the seam
 
-    /// Drops the tail the speaker replaced when a piece opens with a correction trigger, saying whether it did.
+    /// Drops the tail the speaker replaced when a piece restates it, saying whether it did.
     private static func restate(_ draft: inout Draft, at word: Int) -> Bool {
         let live = draft.presentIndices
         guard let position = live.firstIndex(of: word), position > 0 else { return false }
-        let trigger = Restatement.triggerRun(at: position, in: live, of: draft)
-        guard trigger > 0, position + trigger < live.count else { return false }
 
         // The stop the piece before was given ends a sentence the speaker never did, so the match reaches through it.
         let last = live[position - 1]
         let stopped = draft.words[last].text
         draft.words[last].text = WordShape.withoutTrailingStop(stopped)
-        guard
-            let start = Restatement.discardedStart(
-                before: position, after: position + trigger, in: live, of: draft)
-        else {
+        guard let discarded = discarded(at: position, in: live, of: draft) else {
             draft.words[last].text = stopped
             return false
         }
-        for index in live[start..<position + trigger] { draft.remove(at: index, by: id) }
+        for index in live[discarded] { draft.remove(at: index, by: id) }
+        // A frame that restates with no trigger opened its piece, so it carries a capital the sentence does not want.
+        if discarded.upperBound == position {
+            draft.replace(
+                at: live[position], with: WordShape.lowercased(draft.words[live[position]].text), by: id)
+        }
         return true
+    }
+
+    /// The half the piece opening at `position` takes back: the trigger form, else a frame said twice over.
+    private static func discarded(at position: Int, in live: [Int], of draft: Draft) -> Range<Int>? {
+        let trigger = Restatement.triggerRun(at: position, in: live, of: draft)
+        if trigger > 0, position + trigger < live.count,
+            let start = Restatement.discardedStart(
+                before: position, after: position + trigger, in: live, of: draft)
+        {
+            return start..<(position + trigger)
+        }
+        return Restatement.frameStart(endingAt: position, in: live, of: draft).map { $0..<position }
     }
 
     // MARK: Lists from spoken sequence words

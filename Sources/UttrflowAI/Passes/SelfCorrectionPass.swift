@@ -11,18 +11,26 @@ public struct SelfCorrectionPass: CleaningPass {
         var live = draft.presentIndices
         var position = 0
         while position < live.count {
-            let triggerLength = Restatement.triggerRun(at: position, in: live, of: draft)
-            guard triggerLength > 0, position > 0, position + triggerLength < live.count,
-                let start = Restatement.discardedStart(
-                    before: position, after: position + triggerLength, in: live, of: draft)
-            else {
+            guard let discarded = discarded(at: position, in: live, of: draft) else {
                 position += 1
                 continue
             }
-            for index in live[start..<position + triggerLength] { draft.remove(at: index, by: Self.id) }
-            live.removeSubrange(start..<position + triggerLength)
-            position = start
+            for index in live[discarded] { draft.remove(at: index, by: Self.id) }
+            live.removeSubrange(discarded)
+            position = discarded.lowerBound
         }
         return draft
+    }
+
+    /// The half a correction at `position` takes back: the trigger form, else a frame said twice over.
+    private func discarded(at position: Int, in live: [Int], of draft: Draft) -> Range<Int>? {
+        let trigger = Restatement.triggerRun(at: position, in: live, of: draft)
+        if trigger > 0, position > 0, position + trigger < live.count,
+            let start = Restatement.discardedStart(
+                before: position, after: position + trigger, in: live, of: draft)
+        {
+            return start..<(position + trigger)
+        }
+        return Restatement.repeatedFrame(at: position, in: live, of: draft)
     }
 }

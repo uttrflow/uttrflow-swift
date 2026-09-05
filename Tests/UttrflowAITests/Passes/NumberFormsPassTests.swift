@@ -27,6 +27,28 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A cell, a query and a line of code want the numeral; prose wants the word. See the design's §2 table.
+    @Test(
+        "writes every number as a numeral where the place asks for all of them",
+        arguments: [
+            ("one of them", "1 of them"),
+            ("zero", "0"),
+            ("two to three", "2 to 3"),
+            ("about fifteen people", "about 15 people"),
+            ("nine thousand rupees", "9000 rupees"),
+        ]
+    )
+    func everyNumberAsANumeral(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
+    }
+
+    @Test("the place a dictation lands in decides how many of its numbers are numerals")
+    func policyComesFromTheFormatter() {
+        #expect(cleaned("one of them", by: NumberFormsPass(policy: .fromTen)) == "one of them")
+        #expect(cleaned("one of them", by: NumberFormsPass()) == "one of them")
+        #expect(NumberFormsPass(policy: .always).policy == .always)
+    }
+
     @Test(
         "keeps a single digit as a word unless something makes it a number",
         arguments: [

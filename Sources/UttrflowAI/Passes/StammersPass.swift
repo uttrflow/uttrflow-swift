@@ -7,6 +7,9 @@ public struct StammersPass: CleaningPass {
     /// Longer repeated words are emphasis or a real repetition, so only these are stammers.
     static let longestStammer = 4
 
+    /// Short words English doubles on purpose: a past perfect, a doubled relative, a farewell, an emphatic.
+    static let legitimateDoubles: Set<String> = ["had", "that", "bye", "no", "so"]
+
     public init() {}
 
     public func apply(_ draft: Draft) -> Draft {
@@ -14,7 +17,9 @@ public struct StammersPass: CleaningPass {
         var previous: String?
         for index in draft.presentIndices {
             let word = draft.words[index].text.lowercased()
-            if word == previous, word.count <= Self.longestStammer {
+            if word == previous, word.count <= Self.longestStammer,
+                !Self.legitimateDoubles.contains(word)
+            {
                 draft.remove(at: index, by: Self.id)
                 continue
             }

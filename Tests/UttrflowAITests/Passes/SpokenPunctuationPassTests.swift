@@ -59,6 +59,20 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned("we went home dash it was late", by: sut) == "we went home \u{2014} it was late")
     }
 
+    /// "Dash" and "hyphen" are verbs too, and the particle after them is what says which was meant.
+    @Test(
+        "leaves dash and hyphen as words when a particle follows them",
+        arguments: [
+            "we should dash off a quick note to the client",
+            "she had to dash out before the standup",
+            "let me dash over to the other building",
+            "hyphen in the name is fine",
+        ]
+    )
+    func leavesTheVerb(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test(
         "leaves a mark that is mentioned rather than used",
         arguments: [
