@@ -12,7 +12,7 @@ final class TapObserver: @unchecked Sendable {
     }
 
     private let counts = Mutex(Counts())
-    private let stalling: Bool
+    private let stalls: Bool
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
 
@@ -20,7 +20,7 @@ final class TapObserver: @unchecked Sendable {
     private static let tabKeyCode: Int64 = 48
 
     init(stalling: Bool) {
-        self.stalling = stalling
+        self.stalls = stalling
     }
 
     /// Opens the tap on this thread's run loop, answering whether the system allowed it.
@@ -65,7 +65,7 @@ final class TapObserver: @unchecked Sendable {
             counts.withLock { $0.otherKeys += 1 }
             return Unmanaged.passUnretained(event)
         }
-        if stalling { Thread.sleep(forTimeInterval: 2) }
+        if stalls { Thread.sleep(forTimeInterval: 2) }
         counts.withLock { $0.tabsSwallowed += 1 }
         return nil
     }
