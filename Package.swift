@@ -256,7 +256,7 @@ let package = Package(
             dependencies: [
                 "UttrflowAccount",
                 "UttrflowCore", "UttrflowAI", "UttrflowAudio", "UttrflowContext", "UttrflowEval",
-                "UttrflowInput", "UttrflowPermissions", "UttrflowPredict",
+                "UttrflowInput", "UttrflowPermissions", "UttrflowPipeline", "UttrflowPredict",
                 "UttrflowSpeech",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],

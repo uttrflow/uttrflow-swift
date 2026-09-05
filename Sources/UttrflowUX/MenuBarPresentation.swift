@@ -521,7 +521,8 @@ public enum MenuBarPresenter {
     static func menuTitle(for action: FailureAction) -> String {
         switch action.recovery {
         case .openSystemSettings: "\(action.title)…"
-        case .retry, .downloadSpeechModel, .pasteManually, .showRecentDictations: action.title
+        case .retry, .downloadSpeechModel, .pasteManually, .showRecentDictations, .retryFromRecording:
+            action.title
         }
     }
 }

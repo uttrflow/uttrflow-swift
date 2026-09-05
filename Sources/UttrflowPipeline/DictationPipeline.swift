@@ -1,5 +1,5 @@
 public import UttrflowCore
-private import struct Foundation.UUID
+public import struct Foundation.UUID
 
 /// Speak, and the words appear where you were typing. See `Docs/pipeline.md`.
 public actor DictationPipeline {
@@ -13,8 +13,17 @@ public actor DictationPipeline {
     private let learner: any DictationLearning
     private let vocabulary: any VocabularyLearning
     private let metrics: any MetricsRecording
+    private let recordings: any RecordingKeeper
+    /// Where a retried dictation's words go, since the field they were meant for is gone.
+    private let clipboard: any TextInserting
     private let clock: any Clock<Duration>
     private let profile: UserProfile
+    /// How a recording is cut into pieces the recogniser and tidier take one at a time.
+    private let windowing: SpeechWindowing
+    /// How often the recording is looked at for a piece to work on while the key is held.
+    private let earlyPoll: Duration
+    /// Paces that look on its own clock, so a test driving the stage clock wakes only stages.
+    private let pollClock: any Clock<Duration>
 
     private var state: DictationState = .idle
     private let observers = StateObservers()
@@ -34,6 +43,15 @@ public actor DictationPipeline {
     private var insertedInto: String?
     private var insertedIntoIdentifier: String?
 
+    /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
+    private var openRecording: UUID?
+
+    /// Pieces finished while the key was still held, and where the audio they cover ends. See `Docs/early-transcription.md`.
+    private var earlyPieces: [Piece] = []
+    private var earlyCut = 0
+    private var earlyWork: Task<Void, Never>?
+    private var earlyContext: AppContext?
+
     public init(
         capture: any AudioCaptureEngine,
         speech: any SpeechEngine,
@@ -45,8 +63,13 @@ public actor DictationPipeline {
         learner: any DictationLearning = NoTextChanges(),
         vocabulary: any VocabularyLearning = NoTextChanges(),
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
+        recordings: any RecordingKeeper = RecordingsNotKept(),
+        clipboard: (any TextInserting)? = nil,
         clock: any Clock<Duration> = ContinuousClock(),
-        profile: UserProfile = .default
+        profile: UserProfile = .default,
+        windowing: SpeechWindowing = .standard,
+        earlyPoll: Duration = .seconds(1),
+        pollClock: any Clock<Duration> = ContinuousClock()
     ) {
         self.capture = capture
         self.speech = speech
@@ -58,8 +81,13 @@ public actor DictationPipeline {
         self.learner = learner
         self.vocabulary = vocabulary
         self.metrics = metrics
+        self.recordings = recordings
+        self.clipboard = clipboard ?? inserter
         self.clock = clock
         self.profile = profile
+        self.windowing = windowing
+        self.earlyPoll = earlyPoll
+        self.pollClock = pollClock
     }
 
     public var currentState: DictationState { state }
@@ -117,6 +145,7 @@ public actor DictationPipeline {
             insertedInto = nil
             insertedIntoIdentifier = nil
             transition(to: .recording)
+            beginWorkingAhead(mine)
         } catch {
             transition(to: .failed(DictationFailure(error)))
         }
@@ -149,13 +178,45 @@ public actor DictationPipeline {
             return
         }
 
-        await process(audio, mine)
+        // Written beside the buffer while the key was held, so it exists before anything can fail.
+        openRecording = await recordings.current()?.id
+        await process(audio, mine, delivery: .insert)
+    }
+
+    /// Runs a kept recording through the same stages, delivering the words to the clipboard.
+    public func retry(_ recording: UUID) async {
+        guard !isBusy else { return }
+        generation += 1
+        let mine = generation
+
+        let audio: AudioSamples
+        do {
+            audio = try await recordings.audio(of: recording)
+        } catch {
+            // A file that cannot be read cannot be retried, so it is not offered again.
+            await recordings.discard(recording)
+            transition(to: .failed(DictationFailure(error)))
+            return
+        }
+        stopwatch = nil
+        spokenFor = audio.duration
+        insertedInto = nil
+        insertedIntoIdentifier = nil
+        openRecording = recording
+        await process(audio, mine, delivery: .copy)
     }
 
     /// Abandons the dictation at any stage: nothing is transcribed and nothing is inserted.
     public func cancel() async {
         cancelledGeneration = generation
+        earlyWork?.cancel()
+        earlyPieces = []
+        earlyCut = 0
         await capture.cancel()
+        if let openRecording {
+            self.openRecording = nil
+            await recordings.discard(openRecording)
+        }
         transition(to: .idle)
     }
 
@@ -171,84 +232,223 @@ public actor DictationPipeline {
         transition(to: .idle)
     }
 
-    // MARK: Stages
+    // MARK: Working ahead
 
-    private func process(_ audio: AudioSamples, _ mine: Int) async {
-        transition(to: .transcribing)
-        let transcription: Transcription
-        do {
-            let recognised = try await metrics.measuring(.transcription, clock: clock) {
-                try await withStageTimeout(StageTimeout.transcription, clock: clock) { [speech] in
-                    try await speech.transcribe(audio, options: .automatic)
-                }
-            }
-            // Busy for ever is what refuses every later dictation. See `Docs/stuck-recording.md`.
-            guard let recognised else {
-                transition(
-                    to: .failed(
-                        DictationFailure(
-                            SpeechEngineError.transcriptionFailed(
-                                description: "the recogniser did not answer"))))
+    /// One piece of the recording, through every stage that runs before the words are joined.
+    fileprivate struct Piece: Sendable {
+        let heard: Transcription
+        let corrected: CorrectedTranscript
+        let cleaned: TransformationResult
+    }
+
+    /// Starts the tidier warming and the recogniser working on the recording as it grows.
+    private func beginWorkingAhead(_ mine: Int) {
+        earlyPieces = []
+        earlyCut = 0
+        earlyContext = nil
+        earlyWork = Task { [cleaner] in
+            await cleaner.warm()
+            await self.workAhead(mine)
+        }
+    }
+
+    /// Transcribes and tidies each piece the moment a pause ends it, until the key is released.
+    private func workAhead(_ mine: Int) async {
+        while state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled {
+            try? await pollClock.sleep(for: earlyPoll)
+            guard state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled
+            else { return }
+
+            let audio = await capture.capturedSoFar()
+            guard
+                let end = windowing.nextCut(
+                    in: audio.samples, sampleRate: audio.sampleRate, from: earlyCut)
+            else { continue }
+
+            // A piece that fails is left for the end, where its failure can be reported.
+            let heard: Transcription?
+            do {
+                heard = try await transcribe(audio, earlyCut..<end, recording: NoOpMetricsRecorder())
+            } catch {
                 return
             }
-            transcription = recognised
-        } catch {
-            transition(to: .failed(DictationFailure(error)))
-            return
+            guard generation == mine, !wasCancelled(mine) else { return }
+            if let heard {
+                let seeing = await earlyContextRead()
+                let piece = await finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
+                guard generation == mine, !wasCancelled(mine) else { return }
+                earlyPieces.append(piece)
+            }
+            earlyCut = end
+        }
+    }
+
+    /// The screen as it was while the key was held, read once for every early piece.
+    private func earlyContextRead() async -> AppContext {
+        if let earlyContext { return earlyContext }
+        let read = await readContext()
+        earlyContext = read
+        insertedInto = read.applicationName
+        insertedIntoIdentifier = read.bundleIdentifier
+        return read
+    }
+
+    /// Asks what is on screen, within a budget, answering nothing rather than waiting.
+    private func readContext() async -> AppContext {
+        ((try? await withStageTimeout(StageTimeout.quick, clock: clock) { [context] in
+            await context.currentContext()
+        }) ?? nil) ?? AppContext()
+    }
+
+    // MARK: Stages
+
+    /// Where the finished words go.
+    private enum Delivery {
+        case insert
+        case copy
+    }
+
+    private func process(_ audio: AudioSamples, _ mine: Int, delivery: Delivery) async {
+        transition(to: .transcribing)
+
+        // A piece under way is finished, not thrown away: its words are needed either way.
+        earlyWork?.cancel()
+        await earlyWork?.value
+        earlyWork = nil
+        var pieces = earlyPieces
+        var cut = earlyCut
+        let earlyContext = self.earlyContext
+        earlyPieces = []
+        earlyCut = 0
+        self.earlyContext = nil
+        // Pieces cut from other audio than this cannot be joined to it.
+        if delivery == .copy || cut > audio.samples.count {
+            pieces = []
+            cut = 0
         }
 
-        guard !wasCancelled(mine) else { return }
+        var remainder = windowing.windows(in: audio.samples, sampleRate: audio.sampleRate, from: cut)
+        // Nothing at all still goes to the recogniser, whose refusal names the reason.
+        if pieces.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
+
+        let tally = StageTally()
+        var appContext = earlyContext
+        for window in remainder {
+            let heard: Transcription?
+            do {
+                heard = try await transcribe(audio, window, recording: tally)
+            } catch {
+                await tally.report(to: metrics)
+                await fail(DictationFailure(error))
+                return
+            }
+            guard !wasCancelled(mine) else { return }
+            guard let heard else { continue }
+
+            if appContext == nil {
+                transition(to: .tidying)
+                appContext = await contextFor(delivery)
+            }
+            let seeing = appContext ?? AppContext()
+            pieces.append(await finish(heard, seeing: seeing, recording: tally))
+            guard !wasCancelled(mine) else { return }
+        }
+        await tally.report(to: metrics)
 
         // Silence is not a fault, but returning quietly to idle would look like a broken app.
-        guard !transcription.isBlank else {
-            transition(to: .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+        guard !pieces.isEmpty else {
+            await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
-
-        transition(to: .tidying)
-
-        // Read once and handed to everything that needs it, so two stages see one screen.
-        let appContext =
-            ((try? await withStageTimeout(StageTimeout.quick, clock: clock) { [context] in
-                await context.currentContext()
-            }) ?? nil) ?? AppContext()
-        // Kept from this read: by insertion time the user has often switched away.
-        insertedInto = appContext.applicationName
-        insertedIntoIdentifier = appContext.bundleIdentifier
-
-        // The dictionary before the tidier: a correction is argued from the sentence as heard.
-        let corrected = await correct(transcription, seeing: appContext)
-        guard !wasCancelled(mine) else { return }
-
-        let cleaned = await tidy(transcription, saying: corrected.text, seeing: appContext)
-        guard !wasCancelled(mine) else { return }
+        // Every piece was done while recording, and the screen it was read against still applies.
+        if state == .transcribing { transition(to: .tidying) }
+        let whole = Piece.joining(pieces)
 
         // Inserting a blank would delete the user's selection, so it is refused like silence.
-        guard !cleaned.text.isBlank else {
-            transition(to: .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+        guard !whole.cleaned.text.isBlank else {
+            await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
 
         // Snippets after the tidier, whose punctuation is what stops a trigger crossing a sentence.
-        let expanded = await expand(cleaned.text)
+        let expanded = await expand(whole.cleaned.text)
         guard !wasCancelled(mine) else { return }
 
         let changes = AppliedChanges(
-            corrections: corrected.corrections, snippets: expanded.snippets,
+            corrections: whole.corrected.corrections, snippets: expanded.snippets,
             // The unrewritten sentence, which is the space the corrections' word ranges index.
-            spokenWords: transcription.text.split(whereSeparator: \.isWhitespace).count)
-        guard await insert(expanded.text, cleanedBy: cleaned.producedBy, changes: changes) else {
-            return
-        }
+            spokenWords: whole.heard.text.spokenWordCount)
+        guard
+            await insert(
+                expanded.text, cleanedBy: whole.cleaned.producedBy, changes: changes,
+                delivery: delivery)
+        else { return }
 
         // Both run after the words are on screen, and neither can fail the dictation. §19.
         await count(changes)
-        await learnWords(heard: transcription.text, wrote: expanded.text, seeing: appContext)
+        await learnWords(heard: whole.heard.text, wrote: expanded.text, seeing: appContext ?? AppContext())
+    }
+
+    /// The screen to tidy against, which for a retry is Uttrflow's own window and says nothing.
+    private func contextFor(_ delivery: Delivery) async -> AppContext {
+        switch delivery {
+        case .insert:
+            let read = await readContext()
+            // Kept from this read: by insertion time the user has often switched away.
+            insertedInto = read.applicationName
+            insertedIntoIdentifier = read.bundleIdentifier
+            return read
+        case .copy:
+            return AppContext()
+        }
+    }
+
+    /// Recognises one window of the audio, answering `nil` when nothing was said in it.
+    private func transcribe(
+        _ audio: AudioSamples, _ window: Range<Int>, recording metrics: any MetricsRecording
+    ) async throws -> Transcription? {
+        let slice =
+            AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
+        let heard = try await metrics.measuring(.transcription, clock: clock) {
+            try await withStageTimeout(StageTimeout.transcription, clock: clock) {
+                [speech] () async throws -> Heard in
+                do {
+                    return Heard.words(try await speech.transcribe(slice, options: .automatic))
+                } catch SpeechEngineError.nothingHeard, SpeechEngineError.audioTooShort {
+                    // Only when there is nothing else: alone, silence is refused below.
+                    guard window != audio.samples.indices else { throw SpeechEngineError.nothingHeard }
+                    return Heard.nothing
+                }
+            }
+        }
+        // Busy for ever is what refuses every later dictation. See `Docs/stuck-recording.md`.
+        guard let heard else {
+            throw SpeechEngineError.transcriptionFailed(description: "the recogniser did not answer")
+        }
+        guard case .words(let transcription) = heard, !transcription.isBlank else { return nil }
+        return transcription
+    }
+
+    /// What the recogniser made of one window.
+    private enum Heard: Sendable {
+        case words(Transcription)
+        case nothing
+    }
+
+    /// Runs the dictionary and the tidier over one recognised piece.
+    private func finish(
+        _ heard: Transcription, seeing appContext: AppContext, recording metrics: any MetricsRecording
+    ) async -> Piece {
+        // The dictionary before the tidier: a correction is argued from the sentence as heard.
+        let corrected = await correct(heard, seeing: appContext, recording: metrics)
+        let cleaned = await tidy(heard, saying: corrected.text, seeing: appContext, recording: metrics)
+        return Piece(heard: heard, corrected: corrected, cleaned: cleaned)
     }
 
     /// Puts the user's own spellings in, leaving the transcript alone if it cannot. §19.
     private func correct(
-        _ transcription: Transcription, seeing appContext: AppContext
+        _ transcription: Transcription, seeing appContext: AppContext,
+        recording metrics: any MetricsRecording
     ) async -> CorrectedTranscript {
         do {
             return try await metrics.measuring(.correction, clock: clock) {
@@ -269,10 +469,13 @@ public actor DictationPipeline {
 
     /// Tidies the transcript, falling back to exactly what was said. The only optional stage.
     private func tidy(
-        _ transcription: Transcription, saying text: String, seeing appContext: AppContext
+        _ transcription: Transcription, saying text: String, seeing appContext: AppContext,
+        recording metrics: any MetricsRecording
     ) async -> TransformationResult {
+        // Every piece of a dictation is tidied against the one screen read, so all see one situation.
         let request = TransformationRequest(
-            transcription: transcription.saying(text), context: appContext, profile: profile)
+            transcription: transcription.saying(text), context: appContext, profile: profile,
+            situation: SituationResolver.resolve(from: appContext))
 
         do {
             let tidied = try await metrics.measuring(.transformation, clock: clock) {
@@ -307,11 +510,12 @@ public actor DictationPipeline {
 
     /// Puts the finished text where the user was typing, answering whether it reached the screen.
     private func insert(
-        _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges
+        _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges, delivery: Delivery
     ) async -> Bool {
+        let inserter = delivery == .copy ? clipboard : self.inserter
         do {
             let inserted = try await metrics.measuring(.insertion, clock: clock) {
-                try await withStageTimeout(StageTimeout.quick, clock: clock) { [inserter] in
+                try await withStageTimeout(StageTimeout.quick, clock: clock) {
                     try await inserter.insert(text)
                 }
             }
@@ -320,19 +524,40 @@ public actor DictationPipeline {
                 throw TextInsertionError.insertionRejected(
                     description: "the application did not respond")
             }
+            // The words landed, so the audio has done its job.
+            if let openRecording {
+                self.openRecording = nil
+                await recordings.discard(openRecording)
+            }
             transition(
                 to: .inserted(
                     DictationOutcome(
                         text: text, method: method, cleanedBy: cleanedBy,
                         insertedInto: insertedInto,
                         insertedIntoIdentifier: insertedIntoIdentifier,
-                        spokenFor: spokenFor, changes: changes)))
+                        spokenFor: spokenFor, changes: changes,
+                        fromRecording: delivery == .copy)))
             return true
         } catch {
             // The words survive the failure: the interface can still offer them.
-            transition(to: .failed(DictationFailure(error, transcript: text)))
+            await fail(DictationFailure(error, transcript: text))
             return false
         }
+    }
+
+    /// Ends the dictation in failure, keeping the audio exactly when the words were lost. See `Docs/recordings.md`.
+    private func fail(_ failure: DictationFailure) async {
+        var failure = failure
+        if let openRecording {
+            self.openRecording = nil
+            let wordsLost = failure.transcript == nil && failure.severity != .informational
+            if !wordsLost {
+                await recordings.discard(openRecording)
+            } else if failure.recovery == nil || failure.recovery == .retry {
+                failure = failure.offering(.retryFromRecording)
+            }
+        }
+        transition(to: .failed(failure))
     }
 
     /// Tells the stores what this dictation used, once the words are safely on screen.
@@ -363,9 +588,59 @@ public actor DictationPipeline {
     }
 }
 
+extension DictationPipeline.Piece {
+    /// Every piece as one, with the corrections' word ranges moved to where their piece begins.
+    fileprivate static func joining(_ pieces: [Self]) -> Self {
+        guard pieces.count > 1, let first = pieces.first else {
+            return pieces.first
+                ?? Self(
+                    heard: Transcription(text: ""), corrected: .unchanged(""),
+                    cleaned: TransformationResult(text: "", producedBy: .rules))
+        }
+        var corrections: [DictationCorrection] = []
+        var wordsBefore = 0
+        var heardText: [String] = []
+        var correctedText: [String] = []
+        var cleanedText: [String] = []
+        var producedBy = first.cleaned.producedBy
+        for piece in pieces {
+            corrections += piece.corrected.corrections.map { $0.shifted(by: wordsBefore) }
+            wordsBefore += piece.heard.text.spokenWordCount
+            heardText.append(piece.heard.text)
+            correctedText.append(piece.corrected.text)
+            cleanedText.append(piece.cleaned.text)
+            // Any piece the model left to the rules makes the whole a rules result.
+            if piece.cleaned.producedBy != producedBy { producedBy = .rules }
+        }
+        let heard = Transcription(
+            text: heardText.joined(separator: " "),
+            detectedLanguage: first.heard.detectedLanguage,
+            segments: pieces.flatMap(\.heard.segments),
+            audioDuration: pieces.reduce(.zero) { $0 + $1.heard.audioDuration })
+        return Self(
+            heard: heard,
+            corrected: CorrectedTranscript(
+                text: correctedText.joined(separator: " "), corrections: corrections),
+            cleaned: TransformationResult(text: cleanedText.joined(separator: " "), producedBy: producedBy))
+    }
+}
+
+extension DictationCorrection {
+    /// The same correction, indexing words `offset` further into a longer sentence.
+    fileprivate func shifted(by offset: Int) -> Self {
+        Self(
+            heard: heard, wrote: wrote,
+            wordRange: (wordRange.lowerBound + offset)..<(wordRange.upperBound + offset),
+            entryID: entryID, reason: reason, heardConfidence: heardConfidence)
+    }
+}
+
 extension String {
     /// Nothing but whitespace, the emptiness ``Transcription/isBlank`` means.
     fileprivate var isBlank: Bool { allSatisfy(\.isWhitespace) }
+
+    /// How many words were spoken, counted the way the corrections' ranges count them.
+    fileprivate var spokenWordCount: Int { split(whereSeparator: \.isWhitespace).count }
 }
 
 extension Transcription {

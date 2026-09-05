@@ -13,6 +13,9 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
     private var currentState: AudioCaptureState = .idle
     private var startOutcome: ScriptedOutcome<Void, AudioCaptureError>
     private var stopOutcome: ScriptedOutcome<AudioSamples, AudioCaptureError>
+    private var captured: AudioSamples = .empty
+    /// How many times the audio so far was asked for, kept apart from the lifecycle log.
+    public private(set) var snapshotCount = 0
 
     public init(
         startOutcome: ScriptedOutcome<Void, AudioCaptureError> = .ok,
@@ -42,6 +45,11 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
         currentState = .idle
     }
 
+    public func capturedSoFar() async -> AudioSamples {
+        snapshotCount += 1
+        return currentState == .recording ? captured : .empty
+    }
+
     // MARK: Scripting
 
     public func setStartOutcome(_ outcome: ScriptedOutcome<Void, AudioCaptureError>) {
@@ -50,5 +58,10 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
 
     public func setStopOutcome(_ outcome: ScriptedOutcome<AudioSamples, AudioCaptureError>) {
         stopOutcome = outcome
+    }
+
+    /// What ``capturedSoFar()`` answers while recording.
+    public func setCaptured(_ audio: AudioSamples) {
+        captured = audio
     }
 }

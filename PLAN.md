@@ -3,6 +3,8 @@
 Live tracking document. Updated as each phase closes.
 
 **Target:** a macOS clipboard manager with dictation built in, entirely on-device.
+Dictation means an accurate transcript, cleaned and laid out, never a rewrite —
+`Docs/cleanup.md` is the catalogue of what "cleaned" may mean.
 
 It began as the voice-input half alone — turning natural speech into the text the
 user meant — and phases 0 to 9 below are that work. Phase 10 is the pivot: the
@@ -24,6 +26,7 @@ clipboard is the product people open, and dictation is a shortcut inside it.
 | 8 | Evaluation harness and metrics | 🟡 **Built — awaiting the reading session** |
 | 9 | Hardening and packaging | ✅ **Done** |
 | 10 | Clipboard manager — the panel, and the pivot | ✅ **Done**, except where noted |
+| 11 | Cleaning, tier 2 — Situation, passes, prompt layers, grammar, doubtful words, join layout | 🟡 **A and B in progress** — `Docs/cleanup-design.md` |
 
 ## V2 — after the first release
 
@@ -159,13 +162,13 @@ trust. Each is kept short enough that reading it is a sufficient review:
 
 Recorded as they are decided, so the PRD and the code never quietly disagree.
 
-- **§29 "no audio saved" — no longer a deviation. The PRD was right.** V1 was going to
-  keep recordings on the device for seven days, so a bad dictation could be replayed.
-  It never did: nothing in the product has ever written audio to disk. The claim was
-  discovered during Phase 8 and reversed rather than implemented, because never keeping
-  a recording is a stronger promise than deleting one, and the interface was already
-  saying so. `WAVEncoder` survives for the developer CLI and the evaluation corpus,
-  neither of which is the app. Transcripts *are* kept, and deleted after their window.
+- **§29 "no audio saved" — deviated, deliberately, on 2026-09-04.** V1 was going to
+  keep recordings for seven days so a bad dictation could be replayed; Phase 8 reversed
+  that in favour of never writing audio at all. It is back in a narrower form: every
+  recording is written beside the live buffer and deleted the moment its words land,
+  and kept for a day only when the words were lost — a crash, or a recogniser that
+  never answered — so the dictation can be retried from the Dictation page. Nothing
+  leaves the Mac, and the privacy wording says exactly this. See `Docs/recordings.md`.
 - **§31 "no tiny fallback LLM".** A local open-weight model is in V1, because Apple's
   Foundation Models have no Hindi.
 - **§16 recording panel.** The floating button *is* the recorder rather than a
@@ -747,6 +750,15 @@ old build exits 137 and the new one exits 0 with a real transcript.
 
 ### Performance
 
+**Working ahead (2026-09-05).** The recording is cut at the speaker's pauses and each
+piece is recognised and tidied while the key is still held, so the wait after key-up is
+the last piece only, whatever the length. Measured before the change: about 0.12 s of
+wait per second of speech plus a second, so 14 s for two minutes. The tidier is warmed
+as recording starts (1.25 s → 0.92 s on a ten-second utterance), and a retried recording
+is processed in the same pieces, which removes the point past about four minutes where
+Apple's model returned a quarter of the words. What was measured, and the two things
+that were proven not to help, are in `Docs/early-transcription.md`.
+
 `Docs/performance.md`. Idle 10.9 MB; the 646 MB model adds ~113 MB of footprint because
 CoreML maps the weights; peak 273.6 MB mid-dictation. **Leak check: clean, and it runs the
 other way** — across thirty dictations the footprint *fell* 55 MB as the allocator
@@ -1131,6 +1143,32 @@ else depends on.
   nothing calls them. A soft cap with a warning is specified; today there is neither.
   Either wire it or delete it, but it should not sit there looking finished.
 
+
+## Phase 11 — Cleaning, tier 2 🔲
+
+`Docs/cleanup.md` is the catalogue of what may be done to the words; `Docs/cleanup-design.md`
+is the design it is built against: four types — `Situation` (where the words are going),
+`Formatter` (what that place wants), `CleaningPass` (one deterministic cleaning) and
+`Draft` (the words with a record of what was done to them) — one language-model call per
+piece as the last formatter, and a guard that holds the model to the record. No cleaning
+is hard-coded: a new app is a row, a new decision is a policy value, a new cleaning is a
+pass with a corpus case. The rule for every step: **a corpus case first, a pass or a
+prompt line second, the bake-off before and after.**
+
+| Phase | Builds | Done when |
+|---|---|---|
+| **A — Situation** | `InsertionPoint` from the field's text and selection; `Destination` and its rule table; the formatter registry with the first-word and terminal-stop policies live; a destination on corpus cases | mid-sentence dictation starts lower-case where the field reports; a two-sentence message has no trailing stop; the bake-off is flat elsewhere |
+| **B — Passes** | `Draft`; `CleaningPass` and the ten passes (fillers, stammers, repeated phrase, self-correction, spoken punctuation, layout words, number forms, spacing, first word, terminal stop); the guard reads provenance | every Tier 1 case and the self-correction, spoken punctuation, layout and number cases pass **with the model off** |
+| **C — Prompt layers** | `PromptBuilder`: the contract, one block per destination with examples as data, the situation block; the monolithic prompt deleted; bake-off per destination | no destination scores below today's prompt; message, code and sheet cases pass |
+| **C½ — Grammar slips** | a `grammar` policy on the formatter (`repair` / `asSpoken`); a fix may change a spoken word's form or an article or preposition, never which content words are present or their order; the guard enforces that; a grammar corpus category with slips and with dialect that must stay | slip cases pass in documents and email; dialect stays; no content word is ever lost |
+| **D — Doubtful words** | `CandidateSource` (dictionary, screen vocabulary, phonetic neighbours); candidates listed in the same model call; the guard accepts only offered candidates; mishearing cases in a titled window | mishearing cases pass; no regression; under 10 ms added per piece |
+| **E — Join-level layout** | `PieceJoiner`: lists from sequence words, paragraphs at piece boundaries, restatement corrections across pieces | list, paragraph and restatement cases pass on multi-piece dictations |
+| **F — Control** | Diagnostics show what each pass removed; a pass can be switched off; a destination can be overridden per app | the operator can read, in the app, why a word went missing |
+
+A and B are independent and started together in parallel worktrees on 2026-09-05. C needs
+A; C½ needs C and B's guard; D needs B and C; E needs B; F reports on all of them. Each
+phase is one or more pull requests, green through the gate, with its bake-off table in
+the body. A step that costs a corpus case does not land.
 
 ## Tab-to-complete 🟡
 

@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var recents = RecentDictations()
     /// Where dictations are kept between launches, and the only thing that decides what is deleted.
     private let history: DictationHistoryStore
+    /// Each dictation's audio, kept beside it only until its words land. See `Docs/recordings.md`.
+    private let recordings: RecordingStore
     /// The user's own words, shared by all three parts of a dictation that read them.
     private let dictionary: PersonalDictionaryStore
     private let snippets: SnippetStore
@@ -84,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         self.scoring = scoring
         self.generating = generating
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
+        recordings = RecordingStore(directory: RecordingStore.defaultDirectory(in: container))
         dictionary = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: container))
         snippets = SnippetStore(file: SnippetStore.defaultFile(in: container))
@@ -328,7 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         // Held so the floating button's meter reads the level without queueing behind a `stop()`.
         let microphone = AVAudioCaptureEngine(
-            source: AVAudioEngineMicrophoneSource())
+            source: AVAudioEngineMicrophoneSource(), recordings: recordings)
         dock.setLevelSource { microphone.momentaryLevel }
 
         let pipeline = DictationPipeline(
@@ -343,6 +346,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
             vocabulary: LearnedVocabulary(dictionary: dictionary),
             metrics: diagnostics,
+            recordings: recordings,
+            // A retry runs with Uttrflow's own window in front, so its words can only be copied.
+            clipboard: TextInsertionCoordinator(strategies: [
+                ClipboardTextInsertionEngine(pasteboard: announcingPasteboard)
+            ]),
             profile: settings.profile
         )
         self.pipeline = pipeline
@@ -884,7 +892,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Self.log.error(
                 """
                 dictation failed: \(notice.message, privacy: .public) \
-                salvaged=\(notice.transcript != nil, privacy: .public)
+                salvaged=\(notice.transcript != nil, privacy: .public) \
+                kept=\(notice.recovery == .retryFromRecording, privacy: .public)
                 """)
             if let salvaged = notice.transcript {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
@@ -893,6 +902,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .idle, .recording, .transcribing, .tidying:
             break
         }
+        // Whichever way it ended, the row that said "Retrying…" is not retrying any more.
+        if case .inserted = state { retryingRecording = nil }
+        if case .failed = state { retryingRecording = nil }
 
         // Kept here, where every change already arrives, so the updater need not ask the pipeline.
         lastDictationState = state
@@ -986,7 +998,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: Windows
 
     /// Opens whichever surface was asked for, so nothing else knows which class owns a window.
-    private func show(_ destination: Destination) {
+    private func show(_ destination: UttrflowUX.Destination) {
         switch destination {
         case .onboarding:
             // Not `presentOnboardingIfNeeded()`, which returns silently once the flow is finished.
@@ -1054,6 +1066,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
             self.kept = kept
+            knownRecordings = await recordings.waiting(now: Date())
             recents = RecentDictations(showing: kept)
             knownWords = await dictionary.allEntries()
             knownSnippets = await snippets.snippets()
@@ -1102,11 +1115,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 for: DictationSnapshot(
                     permissions: knownPermissions, entries: entries, corrections: corrections,
                     query: query(for: .dictation), shortcut: shortcut,
-                    settings: settings, now: now)),
+                    settings: settings, recordings: knownRecordings, retrying: retryingRecording,
+                    now: now)),
             history: HistoryPresenter.page(
                 for: HistorySnapshot(
                     entries: entries, query: query(for: .history), settings: settings,
-                    keepsRecordings: false, now: now)),
+                    keepsRecordings: true, now: now)),
             dictionary: DictionaryPresenter.page(
                 for: DictionarySnapshot(
                     entries: knownWords, draft: wordDraft, refusal: wordRefusal,
@@ -1181,6 +1195,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastMeasurements: [StageMeasurement] = []
     /// Everything the store keeps, which is not ``recents`` — that is the menu's five.
     private var kept: [DictationRecord] = []
+    /// Recordings whose words were lost, as of the last refresh.
+    private var knownRecordings: [KeptRecording] = []
+    /// The recording the pipeline is running again, so its row can say so.
+    private var retryingRecording: UUID?
 
     /// The last answer each gate gave; absent means unchecked, which the pages draw as silence.
     private var knownPermissions: [PermissionKind: PermissionStatus] = [:]
@@ -1224,6 +1242,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Redrawn from what was last read: nothing on disk changed by moving tabs.
             redrawMainWindow()
         case .change(let change): apply(change)
+
+        case .retryRecording(let id):
+            retryingRecording = id
+            redrawMainWindow()
+            Task { [weak self] in await self?.pipeline?.retry(id) }
+        case .forgetRecording(let id):
+            act { [weak self] in await self?.recordings.discard(id) }
 
         case .forgetDictation(let id):
             let retention = Retention(days: settings.transcriptRetentionDays, now: Date())
@@ -1468,6 +1493,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .showRecentDictations:
             // The clipboard is what failed, so this opens the menu, where Recent has the words.
             menuBar.openMenu()
+        case .retryFromRecording:
+            // The audio sits at the top of today's list with its own Retry.
+            show(.main(.dictation))
+            Task { await pipeline?.acknowledge() }
         }
     }
 

@@ -1,26 +1,29 @@
 public import Foundation
 public import UttrflowCore
 
-/// Writes canonical samples out as a 16-bit PCM WAV file.
-///
-/// Needed in two places — letting a developer hear what was captured, and building the
-/// evaluation corpus — so it lives here rather than in whichever one needed it first.
-///
-/// Deliberately not reachable from the app. There was a third reason once, keeping the
-/// user's recordings for a retention window, and it was dropped: Uttrflow never writes
-/// audio to disk, and the privacy promise now says so. Anything that links this type
-/// into the shipping app is a change of that promise, not a refactor.
+/// Writes canonical samples out as a 16-bit PCM WAV file. See `Docs/recordings.md`.
 public enum WAVEncoder {
     private static let bitsPerSample = 16
     private static let channelCount = 1
     private static let pcmFormatTag: UInt16 = 1
+    /// Bytes one frame of 16-bit mono takes.
+    static let bytesPerFrame = channelCount * bitsPerSample / 8
+    /// Bytes before the first sample.
+    static let headerSize = 44
+    /// Where the data chunk's byte count sits in the header.
+    static let dataSizeOffset = 40
 
     /// Encodes `audio` as a complete WAV file.
     public static func encode(_ audio: AudioSamples) -> Data {
-        let bytesPerFrame = channelCount * bitsPerSample / 8
-        let payloadSize = audio.samples.count * bytesPerFrame
+        var data = header(frames: audio.samples.count, sampleRate: audio.sampleRate)
+        data.append(pcm(audio.samples))
+        return data
+    }
 
-        var data = Data(capacity: 44 + payloadSize)
+    /// The 44-byte header declaring `frames` of 16-bit mono at `sampleRate`.
+    static func header(frames: Int, sampleRate: Int) -> Data {
+        let payloadSize = frames * bytesPerFrame
+        var data = Data(capacity: headerSize)
         data.append(ascii: "RIFF")
         data.append(littleEndian: UInt32(36 + payloadSize))
         data.append(ascii: "WAVE")
@@ -29,14 +32,20 @@ public enum WAVEncoder {
         data.append(littleEndian: UInt32(16))
         data.append(littleEndian: pcmFormatTag)
         data.append(littleEndian: UInt16(channelCount))
-        data.append(littleEndian: UInt32(audio.sampleRate))
-        data.append(littleEndian: UInt32(audio.sampleRate * bytesPerFrame))
+        data.append(littleEndian: UInt32(sampleRate))
+        data.append(littleEndian: UInt32(sampleRate * bytesPerFrame))
         data.append(littleEndian: UInt16(bytesPerFrame))
         data.append(littleEndian: UInt16(bitsPerSample))
 
         data.append(ascii: "data")
         data.append(littleEndian: UInt32(payloadSize))
-        for sample in audio.samples {
+        return data
+    }
+
+    /// The samples as little-endian 16-bit integers, clamped to full scale.
+    static func pcm(_ samples: [Float]) -> Data {
+        var data = Data(capacity: samples.count * bytesPerFrame)
+        for sample in samples {
             data.append(littleEndian: Int16(clampingAudioSample: sample))
         }
         return data

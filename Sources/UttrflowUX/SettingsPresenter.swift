@@ -523,9 +523,13 @@ public enum SettingsPresenter {
     /// is that the text is not attached to it, which is also what makes signing out
     /// harmless — see ``signingOutKeepsEverything``.
     static let privacyPromise =
-        "Recordings are never saved — audio becomes text and is gone. The text is kept on "
-        + "this Mac and deleted automatically. We never see it, and it is not tied to your "
-        + "account."
+        "\(recordingsPromise) The text is kept on this Mac and deleted automatically. We "
+        + "never see it, and it is not tied to your account."
+
+    /// What happens to the audio, in the one wording every screen repeats. See `Docs/recordings.md`.
+    public static let recordingsPromise =
+        "Audio is deleted the moment it becomes text, and kept on this Mac for a day only "
+        + "if it couldn’t be, so you can retry."
 
     /// The one period there is: how long the text of a dictation survives.
     ///

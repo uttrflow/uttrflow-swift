@@ -204,13 +204,7 @@ struct Bakeoff: AsyncParsableCommand {
     }
 
     private func request(for testCase: EvaluationCase) -> TransformationRequest {
-        TransformationRequest(
-            transcription: Transcription(
-                text: testCase.spoken,
-                detectedLanguage: DetectedLanguage(code: testCase.language)
-            ),
-            context: ignoreContext ? .unknown : testCase.context
-        )
+        testCase.transformationRequest(withholdingContext: ignoreContext)
     }
 
     // MARK: Reporting

@@ -1,6 +1,7 @@
 import Foundation
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 import UttrflowPredict
@@ -442,17 +443,17 @@ struct UserDefaultsSettingsStoreTests {
 struct SystemUserDefaultsTests {
     @Test("stores, returns and removes bytes in a real defaults domain")
     func roundTrip() {
-        let suite = "com.uttrflow.tests.\(UUID().uuidString)"
-        let defaults = SystemUserDefaults(suiteName: suite)
-        defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
+        withTemporaryDefaultsSuite { suite in
+            let defaults = SystemUserDefaults(suiteName: suite.name)
 
-        #expect(defaults.data(forKey: "settings") == nil)
+            #expect(defaults.data(forKey: "settings") == nil)
 
-        defaults.set(Data([1, 2, 3]), forKey: "settings")
-        #expect(defaults.data(forKey: "settings") == Data([1, 2, 3]))
+            defaults.set(Data([1, 2, 3]), forKey: "settings")
+            #expect(defaults.data(forKey: "settings") == Data([1, 2, 3]))
 
-        defaults.set(nil, forKey: "settings")
-        #expect(defaults.data(forKey: "settings") == nil)
+            defaults.set(nil, forKey: "settings")
+            #expect(defaults.data(forKey: "settings") == nil)
+        }
     }
 
     /// Reads only, so the developer's own preferences come out of the test unchanged.

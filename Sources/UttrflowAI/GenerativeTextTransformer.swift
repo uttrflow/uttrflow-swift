@@ -29,6 +29,11 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         await model.availability(for: request.effectiveLanguage)
     }
 
+    /// Hands the model the instructions every request carries, ahead of the request.
+    public func warm() async {
+        await model.warm(instructions: prompt.instructions)
+    }
+
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
@@ -40,7 +45,11 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         // Models echo the shape of the worked examples, so the answer often arrives
         // wrapped in the label they were shown. Unwrap before judging it.
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
-        let finished = TextTidy.ensureTerminalPunctuation(TextTidy.collapseSpacing(unwrapped))
+        let formatter = DestinationFormatter.standard(for: request.situation.destination)
+        let cased = FirstWordRule.apply(
+            TextTidy.collapseSpacing(unwrapped), heard: spoken, policy: formatter.firstWord,
+            state: request.situation.insertion.sentenceState, onScreen: request.situation.app.textOnScreen)
+        let finished = TerminalStopRule.apply(cased, policy: formatter.terminalStop)
 
         // Rejecting is not a failure of the product: the router simply moves to the
         // next engine, and the floor beneath them all cannot invent anything.

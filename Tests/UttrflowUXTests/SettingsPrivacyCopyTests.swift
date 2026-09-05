@@ -107,9 +107,9 @@ private func mentionsAudio(_ sentence: String) -> Bool {
 
 // MARK: - The promise
 
-/// Uttrflow kept audio on disk for seven days in its copy and never once in its code.
-/// The claim erred in the user's favour, which is why it survived four screens and a
-/// design review — so what stops it coming back cannot be a reader noticing.
+/// Uttrflow keeps a recording only until its words land, and for a day when they do not
+/// so the dictation can be retried. Every sentence about audio has to say that, and no
+/// sentence anywhere may say the audio goes further than this Mac.
 @Suite("What the app says it keeps is what it keeps")
 struct SettingsPrivacyCopyTests {
     /// Words that put audio somewhere it can be found again.
@@ -118,43 +118,47 @@ struct SettingsPrivacyCopyTests {
         "history", "deleted", "delete",
     ]
 
-    /// The one way a sentence may pair audio with storage: by denying it. Struck out
-    /// before the sentence is examined, so "recordings are never saved" reads as a
-    /// sentence about recordings with nothing left in it about storing them.
-    private static let denials = [
-        "never saved", "not saved", "never kept", "not kept", "never stored",
-        "not stored", "never written", "not written", "nothing is recorded",
-    ]
+    /// Words that would send audio off this Mac.
+    private static let egress = ["upload", "sent", "send", "server", "cloud", "share"]
 
-    /// Audio lives in memory for the length of one dictation and is gone. A sentence
-    /// that says otherwise — on any screen, in any wording — describes a product that
-    /// does not exist, and over-promising in the user's favour is not a defence: it is
-    /// what let the old wording stand.
-    @Test("no sentence anywhere claims a recording is stored")
-    func nothingClaimsAudioIsStored() {
+    /// A sentence that stores audio must say where, and that the storing ends.
+    @Test("every sentence that keeps a recording keeps it on this Mac and says when it goes")
+    func audioStaysOnThisMacAndGoes() {
         for string in everyUserFacingString() {
             for sentence in sentences(of: string) where mentionsAudio(sentence) {
-                var remaining = sentence
-                for denial in Self.denials {
-                    remaining = remaining.replacingOccurrences(of: denial, with: "")
-                }
-                for word in Self.storage {
-                    #expect(
-                        !remaining.contains(word),
-                        "“\(word)” claims audio is stored, in: \(sentence)")
+                let stores = Self.storage.contains { sentence.contains($0) }
+                guard stores, !sentence.contains("never saved") else { continue }
+                #expect(sentence.contains("this mac"), "audio is kept somewhere unnamed, in: \(sentence)")
+                #expect(
+                    sentence.contains("deleted") || sentence.contains("until"),
+                    "audio is kept with no end in sight, in: \(sentence)")
+            }
+        }
+    }
+
+    /// The one claim no wording may make, however the storage sentence is put.
+    @Test("no sentence anywhere sends a recording off this Mac")
+    func nothingSendsAudioAnywhere() {
+        for string in everyUserFacingString() {
+            for sentence in sentences(of: string) where mentionsAudio(sentence) {
+                for word in Self.egress where sentence.contains(word) {
+                    let denied = ["nothing", "never", "not "].contains { sentence.contains($0) }
+                    #expect(denied, "“\(word)” sends audio somewhere, in: \(sentence)")
                 }
             }
         }
     }
 
-    /// The wording that replaced the false one, in the one place it is written. Pinned
-    /// so that softening it back towards "deleted after a while" has to be a deliberate
-    /// edit to a test rather than a quiet edit to a string.
-    @Test("the promise says audio is never written down, not that it is tidied up later")
-    func thePromiseIsTheStrongerOne() {
-        let promise = SettingsPresenter.privacyPromise
-        #expect(promise.contains("Recordings are never saved"))
-        #expect(!promise.lowercased().contains("recordings and transcripts are stored"))
+    /// Pinned so that softening it has to be a deliberate edit to a test rather than a
+    /// quiet edit to a string.
+    @Test("the promise says the audio is deleted as it becomes text, and kept a day only to retry")
+    func thePromiseIsTheHonestOne() {
+        let promise = SettingsPresenter.recordingsPromise
+        #expect(promise.contains("deleted the moment it becomes text"))
+        #expect(promise.contains("kept on this Mac for a day only"))
+        #expect(promise.contains("retry"))
+        #expect(SettingsPresenter.privacyPromise.hasPrefix(promise))
+        #expect(!SettingsPresenter.privacyPromise.contains("Recordings are never saved"))
     }
 
     /// Not absolutist. The speech model arrives over the network and a cloud engine may
@@ -168,19 +172,14 @@ struct SettingsPrivacyCopyTests {
         }
     }
 
-    /// One promise, one wording. Three screens saying the same thing three ways is a
-    /// promise the user has to reconcile for themselves, and three wordings are how the
-    /// old one drifted far enough for nobody to notice it was wrong.
-    @Test("every screen denies keeping audio in the same words")
+    /// One promise, one wording. Two screens saying the same thing two ways is a promise
+    /// the user has to reconcile for themselves.
+    @Test("settings and onboarding describe the recordings in the same words")
     func oneWordingEverywhere() {
-        let denial = "Recordings are never saved"
-        let history = HistoryPresenter.page(for: HistorySnapshot(entries: [], now: Date()))
         let microphone = OnboardingPresenter.page(
             for: OnboardingState(step: .microphone, detail: .permission(.notDetermined)),
             hotkey: .optionSpace)
-
-        #expect(SettingsPresenter.privacyPromise.contains(denial))
-        #expect(history.retentionNotice.sentence.contains(denial))
-        #expect(microphone.body?.contains(denial) == true)
+        #expect(SettingsPresenter.privacyPromise.contains(SettingsPresenter.recordingsPromise))
+        #expect(microphone.body?.contains(SettingsPresenter.recordingsPromise) == true)
     }
 }

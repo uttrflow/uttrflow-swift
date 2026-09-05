@@ -15,4 +15,12 @@ public protocol CleanupModel: Sendable {
     func rewrite(
         _ text: String, instructions: String, kind: TransformerKind
     ) async throws(TransformationError) -> String
+
+    /// Gets ready to rewrite under `instructions`, so the next ``rewrite`` does not pay for that.
+    func warm(instructions: String) async
+}
+
+extension CleanupModel {
+    /// Nothing to prepare, which is what a hosted model has.
+    public func warm(instructions: String) async {}
 }

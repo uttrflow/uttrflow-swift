@@ -86,10 +86,7 @@ public struct HistorySnapshot: Sendable, Equatable {
     /// Retention and nothing else is read from here, so the page cannot drift from the
     /// promise the privacy screen makes.
     public let settings: Settings
-    /// Whether captured audio is being written to disk at all. Nothing in Uttrflow
-    /// writes any, so this is false in every build there is — but the notice makes a
-    /// promise about it, and a promise asserted rather than checked is one a later
-    /// build can silently turn into a lie. Read from the app, so it cannot.
+    /// Whether captured audio is written to disk, read from the app so the notice cannot claim otherwise.
     public let keepsRecordings: Bool
     public let now: Date
 
@@ -183,13 +180,12 @@ public enum HistoryPresenter {
     }
 
     /// The privacy screen's promise, cut to what fits under a list.
-    ///
-    /// The audio half is dropped rather than reworded if a build ever does keep a
-    /// recording: what is left is still true, where a shortened lie would not be.
     static func notice(for snapshot: HistorySnapshot) -> HistoryRetentionNotice {
         let text = snapshot.settings.transcriptRetentionDays
         let kept = "Kept on this Mac for \(MainFormatting.count(text, "day", "days")), then deleted."
-        let sentence = snapshot.keepsRecordings ? kept : "\(kept) Recordings are never saved."
+        let sentence =
+            snapshot.keepsRecordings
+            ? "\(kept) A recording stays only until its words land." : "\(kept) Recordings are never saved."
 
         return HistoryRetentionNotice(
             sentence: sentence,

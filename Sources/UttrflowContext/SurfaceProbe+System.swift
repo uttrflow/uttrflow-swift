@@ -60,7 +60,7 @@ public enum SurfaceProbe {
     }
 
     /// The caret as a range, which every parameterized read below is asked about.
-    private static func selectedRange(_ field: AXUIElement) -> CFRange? {
+    static func selectedRange(_ field: AXUIElement) -> CFRange? {
         var value: AnyObject?
         guard
             AXUIElementCopyAttributeValue(
