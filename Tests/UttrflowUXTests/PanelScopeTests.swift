@@ -1,13 +1,14 @@
+// Tests for the bottom bar: which clips each scope shows, how it combines with the filter, empty states.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// The bottom bar. Every button in it used to be decoration: three drawn disabled and the
-/// fourth wired to an empty closure, in the most reachable strip of the whole panel.
+/// The bottom bar, whose every button carries something to do.
 @Suite("The bottom bar")
 struct PanelScopeTests {
+    /// One clip in each combination of pinned and filed.
     static let clips = [
         PanelFixture.clip("kept and filed", minutesAgo: 1, category: "Work", isPinned: true),
         PanelFixture.clip("just kept", minutesAgo: 2, isPinned: true),
@@ -15,6 +16,7 @@ struct PanelScopeTests {
         PanelFixture.clip("neither", minutesAgo: 4),
     ]
 
+    /// The summaries a scope shows over these clips.
     static func rows(
         _ scope: PanelScope, clips: [Clip] = PanelScopeTests.clips, query: String = ""
     ) -> [String] {
@@ -23,19 +25,13 @@ struct PanelScopeTests {
         return PanelPresenter.present(snapshot).rows.map(\.summary)
     }
 
-    /// History is what you copied and have not put anywhere. A pin is somewhere to put
-    /// one: the clip moves to the Pinned tab rather than appearing in both, which made the
-    /// Pinned tab a second copy of the list and quietly filled History with things the
-    /// user had already filed away.
+    /// History is what you copied and have not put anywhere; a pin moves a clip rather than copying it.
     @Test("History is what you copied and have not put anywhere")
     func history() {
         #expect(Self.rows(.history) == ["neither"])
     }
 
-    /// The chips and the bottom bar combine rather than override, and a collection chip
-    /// is the one narrowing that has to *lift* the arrivals rule instead of adding to it:
-    /// History shows what was put nowhere, the chip asks for what was put in a collection,
-    /// and without this no clip is ever both.
+    /// A collection chip lifts the arrivals rule instead of adding to it, or no clip is ever both.
     @Test("but choosing a collection shows what is filed there")
     func aCollectionChipLiftsTheArrivalsRule() {
         var snapshot = PanelFixture.panel(Self.clips, category: "Work")
@@ -44,9 +40,7 @@ struct PanelScopeTests {
         #expect(PanelPresenter.present(snapshot).rows.map(\.summary) == ["just filed"])
     }
 
-    /// A pin moves a clip; it does not copy it. Showing a pinned clip in both places made
-    /// the Pinned tab a second view of the same list, and meant the longer the panel was
-    /// used the more of History was things the user had already put away.
+    /// A pin moves a clip; showing it in both places made Pinned a second view of the same list.
     @Test("a pinned clip is in Pinned and nowhere else it used to be")
     func pinningMovesRatherThanCopies() {
         let clips = [
@@ -62,8 +56,7 @@ struct PanelScopeTests {
         #expect(Self.rows(.pinned, clips: clips) == ["a pinned copy", "a pinned dictation"])
     }
 
-    /// Moving it out of History must not put it out of reach. A search looks everywhere by
-    /// design, and that is what stops the move being a disappearance.
+    /// A search looks everywhere by design, which is what stops the move being a disappearance.
     @Test("but a search still finds it")
     func aSearchStillFindsAPinnedClip() {
         let clips = [
@@ -74,9 +67,7 @@ struct PanelScopeTests {
         #expect(Self.rows(.history, clips: clips, query: "pinned") == ["the pinned one"])
     }
 
-    /// The row draws `pin.fill` on a pinned clip. The tab drew a star for the same idea,
-    /// so the panel had two glyphs for one thing and neither taught the other — and a star
-    /// means "favourite", which is a judgement about a clip, where a pin is a place.
+    /// The row draws a pin for a pinned clip, so the tab wears the same mark; a star means "favourite".
     @Test("and the tab wears the mark the row wears")
     func theTabIsAPin() {
         #expect(PanelScope.pinned.glyph == .symbol("pin"))
@@ -95,9 +86,7 @@ struct PanelScopeTests {
         #expect(Self.rows(.collections) == ["kept and filed", "just filed"])
     }
 
-    /// A different axis from the kind filter, so the two narrow together rather than one
-    /// replacing the other. Pinned and Images is "the pictures worth keeping", which is a
-    /// question somebody actually has.
+    /// A different axis from the kind filter, so the two narrow together rather than one replacing the other.
     @Test("the bar and the kind filter combine rather than override")
     func combinesWithTheFilter() {
         var snapshot = PanelFixture.panel([
@@ -113,9 +102,7 @@ struct PanelScopeTests {
         #expect(shown == ["https://example.com"])
     }
 
-    /// The same rule the collection chips already follow, for the same reason: somebody
-    /// searching for a clip does not remember whether they pinned it, so a search inside
-    /// Pinned answers "not here", which is the one answer they cannot act on.
+    /// Somebody searching does not remember whether they pinned it, so the search looks everywhere.
     @Test("a search looks everywhere, whatever the bar is showing")
     func searchingLeavesTheBarBehind() {
         #expect(Self.rows(.pinned, query: "neither") == ["neither"])
@@ -139,8 +126,7 @@ struct PanelScopeTests {
             ])
         #expect(tabs.last?.intent == .openSettings)
         for tab in tabs {
-            // A glyph that names nothing draws nothing, and a blank button in the most
-            // reachable strip of the panel is the decoration this test exists to refuse.
+            // A glyph that names nothing draws nothing, which is the decoration this test refuses.
             if case .symbol(let name) = tab.glyph { #expect(!name.isEmpty) }
         }
         #expect(
@@ -148,9 +134,7 @@ struct PanelScopeTests {
             "the mark says which tab is Uttrflow's own, and only that one")
     }
 
-    /// Exactly one, and never Settings — that is a door out of the panel rather than a
-    /// place the list can be, and drawing it lit would say the panel was somewhere it
-    /// cannot be.
+    /// Settings is a door out of the panel, not a place the list can be, so it is never drawn lit.
     @Test("exactly one is on, and it is never Settings")
     func oneIsOn() {
         for scope in PanelScope.allCases {
@@ -183,9 +167,7 @@ struct PanelScopeTests {
 
     // MARK: - Nothing to show
 
-    /// An empty Pinned tab over a full clipboard is not an empty clipboard. Telling
-    /// somebody who has copied three hundred things that whatever they copy will turn up
-    /// here reads as the app having lost them.
+    /// An empty Pinned tab over a full clipboard is not an empty clipboard, and must not read as one.
     @Test("an empty Pinned tab says nothing is pinned, not that nothing was copied")
     func emptyPinned() {
         var snapshot = PanelFixture.panel([PanelFixture.clip("something", minutesAgo: 1)])
@@ -205,8 +187,7 @@ struct PanelScopeTests {
         #expect(PanelPresenter.present(snapshot).emptyState?.title == "Nothing filed")
     }
 
-    /// The genuinely empty clipboard still says so, whichever tab is open — there is
-    /// nothing to pin or file either.
+    /// The genuinely empty clipboard still says so, whichever tab is open.
     @Test("but an empty clipboard still says nothing was copied")
     func trulyEmpty() {
         var snapshot = PanelFixture.panel([])
@@ -225,20 +206,17 @@ struct PanelScopeTests {
     }
 }
 
-/// Two questions the panel has to answer the same way every time: how many collections
-/// can be on at once, and whether an empty list explains itself honestly.
+/// How many collections can be on at once, and whether an empty list explains itself honestly.
 @Suite("One collection at a time, and an empty list that tells the truth")
 struct PanelNarrowingTests {
+    /// Two collections and a clip filed nowhere.
     static let clips = [
         PanelFixture.clip("in db", minutesAgo: 1, category: "db"),
         PanelFixture.clip("in personal", minutesAgo: 2, category: "personal"),
         PanelFixture.clip("filed nowhere", minutesAgo: 3),
     ]
 
-    /// Reported as a suspected invalid state: two collection chips looking chosen at
-    /// once. It cannot happen — the snapshot holds one optional name, and a chip is on
-    /// when it equals that name — and this says so for every collection and every
-    /// choice, so it stays impossible rather than merely being impossible today.
+    /// Two collection chips chosen at once cannot happen, and this says so for every collection and choice.
     @Test("never more than one collection chip is on, whichever is chosen")
     func atMostOneCollectionIsOn() {
         for chosen in [nil, "db", "personal", "missing"] {
@@ -254,12 +232,7 @@ struct PanelNarrowingTests {
         }
     }
 
-    /// One chip at a time across the whole row, kinds and collections together.
-    ///
-    /// They are different questions, and combining them answers a real one — "the
-    /// pictures in db". But a row of chips reads as one set whatever divider is drawn in
-    /// it, and two of them lit looked like a bug to everyone who saw it. Choosing either
-    /// clears the other, and this walks every reachable pair of presses to say so.
+    /// One chip at a time across the whole row; this walks every reachable pair of presses to say so.
     @Test("exactly one chip in the row is on, whatever is pressed")
     func oneChipAtATime() {
         for first in Self.everyChipPress() {
@@ -302,8 +275,7 @@ struct PanelNarrowingTests {
         #expect(then.filter == .all)
     }
 
-    /// ⌘1 is "show me everything", so it has to let go of both. Clearing only the
-    /// collection would leave a kind filter on under a row that says All.
+    /// ⌘1 is "show me everything", so it has to let go of both the kind and the collection.
     @Test("and everything means everything")
     func everythingClearsBoth() {
         let narrowed = PanelFixture.panel(Self.clips)
@@ -315,8 +287,7 @@ struct PanelNarrowingTests {
         #expect(then.filter == .all)
     }
 
-    /// A search spans every collection, so no collection is drawn as chosen — and the
-    /// kind chip comes back on, because the kind really is still narrowing the results.
+    /// A search spans every collection, so none is drawn chosen, while the kind chip stays on.
     @Test("while searching the kind is the chip that is on, because it is the one applied")
     func searchingHandsTheRowBackToTheKind() {
         let searching = PanelFixture.panel(Self.clips)
@@ -329,6 +300,7 @@ struct PanelNarrowingTests {
 
     // MARK: - What an empty list says
 
+    /// The empty state over the clips, narrowed this way.
     static func empty(
         scope: PanelScope = .history, filter: PanelFilter = .all, category: String? = nil
     ) -> MainEmptyState? {
@@ -337,8 +309,7 @@ struct PanelNarrowingTests {
         return PanelPresenter.present(snapshot).emptyState
     }
 
-    /// The case that was reported: a collection with clips in it, a kind filter hiding
-    /// all of them, and a sentence that named only the collection.
+    /// A collection with clips, a kind filter hiding all of them, and a sentence that names both.
     @Test("a kind and a collection are both named")
     func kindAndCollection() {
         let empty = Self.empty(filter: .images, category: "db")
@@ -371,8 +342,7 @@ struct PanelNarrowingTests {
         #expect(empty?.message == "Nothing filed in db is pinned.")
     }
 
-    /// Every combination has to produce a sentence, and none of them may end up saying
-    /// nothing was copied over a clipboard that has clips in it.
+    /// Every combination produces a sentence, and none claims the clipboard is empty when it is not.
     @Test("every combination says something, and none of them claims the clipboard is empty")
     func everyCombinationIsAnswerable() {
         for scope in PanelScope.allCases {

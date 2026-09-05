@@ -1,12 +1,16 @@
+// Tests for the Diagnostics page: latency, reliability, engines, permissions, storage, report, summary.
 import Foundation
 import UttrflowCore
 import Testing
 
 @testable import UttrflowUX
 
+/// Builds Diagnostics pages over fixed inputs and a fixed region.
 enum DiagnosticsFixture {
+    /// A fixed region, so numbers format the same everywhere.
     static let locale = Locale(identifier: "en_GB")
 
+    /// One measurement of a stage.
     static func timing(
         _ stage: PipelineStage, _ seconds: Double, succeeded: Bool = true
     ) -> StageMeasurement {
@@ -14,6 +18,7 @@ enum DiagnosticsFixture {
             stage: stage, duration: .milliseconds(Int(seconds * 1000)), succeeded: succeeded)
     }
 
+    /// The page over these inputs.
     static func page(
         engines: EngineConfiguration = .default,
         availability: [TransformerKind: Bool] = [:],
@@ -31,12 +36,10 @@ enum DiagnosticsFixture {
 
 @Suite("Diagnostics reports only what was measured")
 struct DiagnosticsLatencyTests {
-    /// One of everything, which is what the app records for a dictation that ran the
-    /// whole way through.
+    /// One of everything, which is what a dictation that ran the whole way through records.
     static let wholeJourney = PipelineStage.allCases.map { DiagnosticsFixture.timing($0, 1) }
 
-    /// The pipeline times transcription, clean-up and insertion. Nothing timed capture
-    /// here, so capture has no row of numbers — an absent measurement is not a zero.
+    /// Nothing timed capture here, so capture has no row of numbers; an absent measurement is not a zero.
     @Test("a stage nobody timed has no row of numbers")
     func unmeasuredStagesAreAbsent() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -63,8 +66,7 @@ struct DiagnosticsLatencyTests {
         #expect(page.latency?.unmeasured.isEmpty == true)
     }
 
-    /// The distinction the whole page is built on. A stage that has never run is named,
-    /// in the page's own vocabulary for "not known", rather than drawn as a fast one.
+    /// A stage that has never run is named in the page's vocabulary for "not known", not drawn as fast.
     @Test("a stage that has never run is reported as never run, not as no time")
     func neverRunIsNotZero() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -82,8 +84,7 @@ struct DiagnosticsLatencyTests {
         #expect(page.latency?.unmeasured.allSatisfy { $0.state == .unknown } == true)
     }
 
-    /// The rule applied to the total: a sum of four stages out of six is a floor, and
-    /// the headline is where a reader takes the number from.
+    /// A sum of four stages out of six is a floor, and the headline is where a reader takes the number.
     @Test("a total missing a stage says it is a floor rather than a time")
     func incompleteTotalSaysSo() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -95,8 +96,7 @@ struct DiagnosticsLatencyTests {
         #expect(page.latency?.caption.hasSuffix("without 4 stages nothing has ever timed") == true)
     }
 
-    /// And withdrawn once there is nothing missing: "at least" on a complete journey
-    /// would be its own small lie.
+    /// "at least" on a complete journey would be its own small lie.
     @Test("a complete journey states its total plainly")
     func completeTotalIsPlain() {
         let page = DiagnosticsFixture.page(measurements: Self.wholeJourney)
@@ -113,8 +113,7 @@ struct DiagnosticsLatencyTests {
         #expect(page.reliability.isEmpty)
     }
 
-    /// A mean would let one pathological dictation move the number a user reads as
-    /// "what usually happens".
+    /// A mean would let one pathological dictation move "what usually happens".
     @Test("the typical time is the middle measurement, not the average")
     func typicalIsTheMiddle() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -167,8 +166,7 @@ struct DiagnosticsLatencyTests {
         #expect(abs(shares[0] - 0.75) < 0.000_1)
     }
 
-    /// A journey with no time in it divides zero by zero; a flat bar is the truthful
-    /// picture of that, and a crash is not.
+    /// A journey with no time in it divides zero by zero; a flat bar is the truthful picture, a crash is not.
     @Test("stages that took no time at all leave the bar empty")
     func zeroDurationsDoNotDivideByZero() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -176,8 +174,7 @@ struct DiagnosticsLatencyTests {
         ])
 
         #expect(page.latency?.stages.first?.share == 0)
-        // Never "at least under 0.01s": an upper bound is the one thing a total with
-        // five stages missing from it cannot claim.
+        // Never "at least under 0.01s": an upper bound is the one claim a partial total cannot make.
         #expect(page.latency?.headline == "at least 0.00s")
     }
 
@@ -251,8 +248,7 @@ struct DiagnosticsEngineTests {
         #expect(page.engines.dropFirst().map(\.state) == [.attention, .good])
     }
 
-    /// "No" and "nobody has asked yet" are different answers, and a diagnostics page
-    /// that cannot tell them apart will eventually say something untrue.
+    /// "No" and "nobody has asked yet" are different answers, and conflating them ends in an untruth.
     @Test("an engine nobody has asked about is unknown, not unavailable")
     func unaskedEnginesAreUnknown() {
         let page = DiagnosticsFixture.page()
@@ -267,8 +263,7 @@ struct DiagnosticsEngineTests {
         #expect(page.engines.first?.detail == "Built-in speech recognition")
     }
 
-    /// §16: the user must never learn which engine ran. A diagnostics page is still the
-    /// user's, so it says what kind of thing is running and never what it is called.
+    /// §16: the user must never learn which engine ran, even on a diagnostics page.
     @Test("no engine is named after the thing it actually is")
     func noProductNamesAnywhere() {
         let forbidden = [
@@ -286,8 +281,7 @@ struct DiagnosticsEngineTests {
 
 @Suite("Diagnostics reports what is in the way")
 struct DiagnosticsPermissionTests {
-    /// A page that lists only the broken permissions cannot be used to confirm that
-    /// nothing is broken.
+    /// A page that lists only the broken permissions cannot confirm that nothing is broken.
     @Test("every permission is listed, granted or not")
     func everyPermissionIsListed() {
         let page = DiagnosticsFixture.page(permissions: [.microphone: .granted])
@@ -407,8 +401,7 @@ struct DiagnosticsReportTests {
                         for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)))
     }
 
-    /// The window the numbers cover begins when the app starts, and the page says so
-    /// rather than implying a history it does not keep.
+    /// The window begins when the app starts, and the page says so rather than implying a history.
     @Test("the footnote is honest about the window and about where the numbers stay")
     func footnoteIsHonest() {
         #expect(DiagnosticsFixture.page().footnote.contains("since Uttrflow started"))
@@ -418,8 +411,7 @@ struct DiagnosticsReportTests {
 
 @Suite("Keeping the measurements")
 struct DiagnosticsRecorderTests {
-    /// The page's footnote says the window begins when Uttrflow started. Adding a stage
-    /// without widening this quietly shortens it, and nothing on screen would say so.
+    /// Adding a stage without widening the capacity quietly shortens the window the footnote promises.
     @Test("holds a hundred whole dictations, whatever a dictation is made of")
     func capacityCoversAHundredDictations() {
         #expect(DiagnosticsRecorder.defaultCapacity >= PipelineStage.allCases.count * 100)
@@ -436,8 +428,7 @@ struct DiagnosticsRecorderTests {
         #expect(recorded.map(\.succeeded) == [true, false])
     }
 
-    /// Bounded, because this is a file about the user's habits that nobody asked for if
-    /// it is allowed to grow without limit.
+    /// Bounded, because a file about the user's habits must not grow without limit.
     @Test("the oldest measurements are dropped once it is full")
     func dropsTheOldest() async {
         let recorder = DiagnosticsRecorder(capacity: 2)
@@ -456,8 +447,7 @@ struct DiagnosticsRecorderTests {
         #expect(await recorder.recorded.isEmpty)
     }
 
-    /// The pipeline records through `measuring`, so that is the path worth exercising:
-    /// handing this recorder in is the whole of the wiring the app has to get right.
+    /// The pipeline records through `measuring`, so handing this recorder in is the whole of the wiring.
     @Test("timing something through the pipeline's own helper lands here")
     func recordsThroughMeasuring() async {
         let recorder = DiagnosticsRecorder()
@@ -471,8 +461,7 @@ struct DiagnosticsRecorderTests {
 
 @Suite("Diagnostics says what needs doing, above what it measured")
 struct DiagnosticsSummaryTests {
-    /// The page is a page of facts, and a page of facts makes the reader decide which
-    /// fact matters. This is the answer to the question they arrived with.
+    /// A page of facts makes the reader decide which matters; this answers the question they came with.
     @Test("names the first thing wrong, and carries its own fix")
     func namesTheProblem() {
         let page = DiagnosticsFixture.page(permissions: [.accessibility: .denied])
@@ -482,8 +471,7 @@ struct DiagnosticsSummaryTests {
         #expect(page.summary.action?.intent == .recover(.openSystemSettings(.accessibility)))
     }
 
-    /// Permissions first: a permission that is not granted means no dictation at all,
-    /// where an engine that is not ready only means a worse one is being used.
+    /// A missing permission means no dictation at all, where an engine not ready only means a worse one.
     @Test("a missing permission outranks an engine that is not ready")
     func permissionsComeFirst() {
         let page = DiagnosticsFixture.page(
@@ -493,8 +481,7 @@ struct DiagnosticsSummaryTests {
         #expect(page.summary.text.hasPrefix("Microphone"))
     }
 
-    /// Somebody who opens this page to be told nothing is wrong should be told, rather
-    /// than left to check three sections themselves.
+    /// Somebody who opens this page to be told nothing is wrong should be told, not left to check.
     @Test("says so plainly when there is nothing to do")
     func allClear() {
         let page = DiagnosticsFixture.page(permissions: [
@@ -506,8 +493,7 @@ struct DiagnosticsSummaryTests {
         #expect(page.summary.action == nil, "there is nothing to press")
     }
 
-    /// An unchecked permission is not a broken one. Reporting "not checked yet" as a
-    /// problem would put an amber banner on a page that has found nothing wrong.
+    /// "Not checked yet" reported as a problem would put an amber banner on a page that found nothing wrong.
     @Test("an unchecked permission is not a problem")
     func unknownIsNotAttention() {
         #expect(!DiagnosticsFixture.page().summary.needsAttention)

@@ -1,34 +1,33 @@
+// The Dictionary page: its rows, the inline editor, and the presenter that draws them.
 public import Foundation
 public import UttrflowDictionary
 
-/// One word, as the dictionary page lists it.
-///
-/// Drawn from ``DictionaryEntry`` and never from a copy of it. In particular
-/// ``isRetired`` is ``DictionaryEntry/isTrustworthy`` inverted rather than a second
-/// rule: the store decides which words it will apply, and a page that decided
-/// separately could show a word as retired while the recogniser was still using it.
+/// One word as the dictionary page lists it, drawn from ``DictionaryEntry`` and never a second rule.
 public struct DictionaryRow: Sendable, Equatable, Identifiable {
+    /// The entry's identity.
     public let id: UUID
+    /// The spelling.
     public let word: String
-    /// How it sounds. An em dash where the spelling is a fair guide, because an empty
-    /// cell in a table reads as missing data rather than as "nothing to say".
+    /// How it sounds; an em dash where the spelling is a fair guide, so the cell never reads as missing.
     public let pronunciation: String
     /// "Learned", "Added by you", "Seen on screen".
     public let origin: String
     /// "12 Aug".
     public let added: String
+    /// How often it has been applied, as text.
     public let timesUsed: String
+    /// How often the user has undone it, as text.
     public let timesUndone: String
-    /// Whether the undo count is the reason this word is in trouble. Drawn in red, so
-    /// a word about to retire itself can be seen before it does.
+    /// Whether the undo count is the reason this word is in trouble; drawn in red before it retires.
     public let undoneIsConcerning: Bool
-    /// A word that undid itself more often than it helped. Dimmed, badged, and — unlike
-    /// everything else about it — still operable, because the way out is a button on it.
+    /// A word that undid itself more often than it helped; dimmed and badged, but still operable.
     public let isRetired: Bool
+    /// "Retired", on a retired word.
     public let badge: MainPill?
     /// Restore on a retired word, delete on any other.
     public let actions: [MainAction]
 
+    /// Builds a row from its parts.
     public init(
         id: UUID,
         word: String,
@@ -56,44 +55,45 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
     }
 }
 
-/// The word being typed in.
-///
-/// Two fields and no identifier, because a dictionary row offers Restore and Delete and
-/// never Edit: a word whose spelling was wrong is deleted and re-added, and carrying an
-/// `editing` identifier here would model an operation the page does not have.
+/// The word being typed in; two fields and no identifier, since a row is never edited, only re-added.
 public struct DictionaryDraft: Sendable, Equatable {
+    /// The spelling typed so far.
     public let word: String
     /// How it sounds, when the spelling is not a fair guide. Blank is normal.
     public let pronunciation: String
 
+    /// Starts empty unless given text.
     public init(word: String = "", pronunciation: String = "") {
         self.word = word
         self.pronunciation = pronunciation
     }
 }
 
-/// The word being written, in the row where it will end up.
-///
-/// Inline for the same reason the snippet editor is: two fields do not deserve a modal
-/// window. The two editors are deliberately separate types rather than one generic pair
-/// of text fields — they share an arity and nothing else, and the rules about what may
-/// be saved are entirely different.
+/// The word being written, in the row where it will end up; a separate type from the snippet editor.
 public struct DictionaryEditor: Sendable, Equatable {
+    /// The spelling typed so far.
     public let word: String
+    /// The pronunciation typed so far.
     public let pronunciation: String
+    /// The label on the spelling field.
     public let wordLabel: String
+    /// The label on the pronunciation field.
     public let pronunciationLabel: String
-    /// What the second field is for, said in the row: nobody guesses what a Uttrflow
-    /// "pronunciation" is meant to look like from the label alone.
+    /// What the second field is for, said in the row, since the label alone does not explain it.
     public let pronunciationHint: String
+    /// "New".
     public let badge: MainPill
     /// Why this cannot be saved yet, in words. Absent when it can.
     public let problem: String?
+    /// Commits the word.
     public let save: MainAction
+    /// Closes the editor unchanged.
     public let cancel: MainAction
 
+    /// Whether Save is enabled.
     public var canSave: Bool { problem == nil }
 
+    /// Builds the editor from its parts.
     public init(
         word: String,
         pronunciation: String,
@@ -119,23 +119,18 @@ public struct DictionaryEditor: Sendable, Equatable {
 
 /// Everything the dictionary page is drawn from.
 public struct DictionarySnapshot: Sendable, Equatable {
-    /// In the order the store keeps them, retired entries included — the store lists
-    /// them on purpose, and a user told a word has stopped being used and unable to see
-    /// it has been told nothing useful.
+    /// In the store's order, retired entries included, so a word said to have stopped can be seen.
     public let entries: [DictionaryEntry]
     /// Set while the inline editor is open.
     public let draft: DictionaryDraft?
-    /// Why the last Save did not happen, when the store refused it.
-    ///
-    /// Separate from the draft because it is not something the user typed, and separate
-    /// from the presenter's own rules because those are known before the button is
-    /// pressed. A disk that will not take the word is only discovered afterwards, and
-    /// without somewhere to say so the editor sits there with an enabled button that
-    /// does nothing — which is the failure this whole page was rewired to remove.
+    /// Why the last Save did not happen, when the store refused it; known only after the button is pressed.
     public let refusal: String?
+    /// What has been typed into the search field.
     public let query: String
+    /// The clock the page is drawn against.
     public let now: Date
 
+    /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, refusal: String? = nil,
         query: String = "", now: Date
@@ -150,18 +145,20 @@ public struct DictionarySnapshot: Sendable, Equatable {
 
 /// What the dictionary page shows.
 public struct DictionaryPresentation: Sendable, Equatable {
+    /// The title, caption, search field and Add button across the top.
     public let chrome: MainPageChrome
     /// "24 words Uttrflow knows and a general model does not".
     public let caption: String
+    /// The words that match the query.
     public let rows: [DictionaryRow]
     /// The open editor, above the rows. Present only while a word is being written.
     public let editor: DictionaryEditor?
-    /// Absent while the editor is open: telling the user the dictionary is empty
-    /// underneath the box they are filling in would be telling them off for the thing
-    /// they are doing.
+    /// Absent while the editor is open, so the user is not told the dictionary is empty mid-entry.
     public let emptyState: MainEmptyState?
+    /// What the origins mean, under the rows.
     public let footnote: String?
 
+    /// Builds the page from its parts.
     public init(
         chrome: MainPageChrome,
         caption: String,
@@ -181,15 +178,13 @@ public struct DictionaryPresentation: Sendable, Equatable {
 
 /// Turns the personal dictionary into the page that explains it.
 public enum DictionaryPresenter {
+    /// What the empty search field says.
     public static let searchPlaceholder = "Search words"
 
-    /// The count at which an undo tally is worth pointing at.
-    ///
-    /// Below ``DictionaryEntry/isTrustworthy``'s threshold on purpose: the point of
-    /// colouring the number is to show a word going wrong *before* it retires itself,
-    /// so somebody can look at it while there is still a choice.
+    /// The undo count worth pointing at; below the retirement threshold so a word is seen going wrong first.
     static let concerningUndos = 2
 
+    /// Draws the Dictionary page from a snapshot.
     public static func page(
         for snapshot: DictionarySnapshot,
         calendar: Calendar = .autoupdatingCurrent,
@@ -217,19 +212,7 @@ public enum DictionaryPresenter {
             footnote: rows.isEmpty ? nil : footnote(for: listed))
     }
 
-    /// What the three origins mean, and — when one has actually happened — what a
-    /// retired word is.
-    ///
-    /// The retirement sentence appears only when there is a retired word on screen.
-    /// Explaining a state nothing is in teaches the user to skip the small print, and
-    /// then they skip it on the day it matters.
-    ///
-    /// Every sentence here names the thing the user actually did, in the words they
-    /// would use for it, and the two automatic ones are written narrowly on purpose.
-    /// "Seen on screen" is the title of the window they were working in and not
-    /// everything in front of them, because the title is all Uttrflow reads. A page that
-    /// describes more than the product does is worse than one that says nothing: the
-    /// user waits for something that is never going to happen.
+    /// What the three origins mean, and what a retired word is only when one is on screen.
     static func footnote(for entries: [DictionaryEntry]) -> String {
         let origins = """
             Learned means you said a word again over the spelling Uttrflow got wrong, and it \
@@ -247,9 +230,6 @@ public enum DictionaryPresenter {
     // MARK: - Searching
 
     /// Matches the spelling and the pronunciation, ignoring case and accents.
-    ///
-    /// The pronunciation is searchable because it is how the user thinks of the word
-    /// they cannot spell, which is the whole reason it is written down.
     static func matches(
         _ entries: [DictionaryEntry], query: String, locale: Locale
     ) -> [DictionaryEntry] {
@@ -258,6 +238,7 @@ public enum DictionaryPresenter {
 
     // MARK: - One word
 
+    /// One entry as a row, with Restore on a retired word and Delete on every one.
     static func row(for entry: DictionaryEntry, locale: Locale) -> DictionaryRow {
         let isRetired = !entry.isTrustworthy
         return DictionaryRow(
@@ -275,11 +256,7 @@ public enum DictionaryPresenter {
                 + [.delete(.forgetWord(entry.id))])
     }
 
-    /// The user's words for where a word came from.
-    ///
-    /// ``WordOrigin/observed`` reads as "Seen on screen" because that is what observing
-    /// actually was — the term was in front of them while they spoke. "Observed" is the
-    /// mechanism's name, and the mechanism is not the user's problem.
+    /// The user's words for where a word came from; "Seen on screen" rather than "observed".
     public static func title(for origin: WordOrigin) -> String {
         switch origin {
         case .learned: "Learned"
@@ -290,6 +267,7 @@ public enum DictionaryPresenter {
 
     // MARK: - Writing one
 
+    /// The inline editor over a draft, with the reason it cannot be saved yet.
     static func editor(
         for draft: DictionaryDraft, in snapshot: DictionarySnapshot
     ) -> DictionaryEditor {
@@ -310,25 +288,13 @@ public enum DictionaryPresenter {
             cancel: MainAction(title: "Cancel", intent: .cancelWordEdit))
     }
 
-    /// Why a draft cannot be saved, said before the button is pressed.
-    ///
-    /// A word already in the dictionary is refused rather than saved over the top.
-    /// ``PersonalDictionaryStore/add(_:)`` replaces an entry spelling the same word, and
-    /// a replacement arrives with its counters at zero — so a user re-adding “kubectl” to
-    /// change how it sounds would silently throw away everything the app had learned
-    /// about it. Refusing sends them to the row that already exists, which is the one
-    /// they meant.
+    /// Why a draft cannot be saved; an existing word is refused, since re-adding resets its counters.
     static func problem(with draft: DictionaryDraft, in snapshot: DictionarySnapshot) -> String? {
         let word = draft.word.trimmingCharacters(in: .whitespacesAndNewlines)
-        // The store's refusal wins over this page's own rules. It is the more recent
-        // fact, and it is about the attempt the user actually made.
+        // The store's refusal wins: it is the more recent fact and about the attempt the user made.
         if let refusal = snapshot.refusal, !word.isEmpty { return refusal }
         if word.isEmpty { return "A word needs a spelling." }
-        // Case only, matching ``PersonalDictionaryStore/add(_:)`` exactly. Ignoring
-        // accents as well made the page refuse a word the store would happily have kept:
-        // with "cafe" stored, typing "café" was told it was already in the dictionary and
-        // sent to look for a row that is not there. Two spellings of one word are also
-        // something a personal dictionary of unusual words has a fair claim to hold.
+        // Case only, matching ``PersonalDictionaryStore/add(_:)``, so "café" is not refused over "cafe".
         let clash = snapshot.entries.contains {
             $0.word.compare(word, options: .caseInsensitive) == .orderedSame
         }
@@ -337,6 +303,7 @@ public enum DictionaryPresenter {
 
     // MARK: - Nothing to show
 
+    /// No matches, or no words at all.
     static func emptyState(for snapshot: DictionarySnapshot) -> MainEmptyState {
         let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {

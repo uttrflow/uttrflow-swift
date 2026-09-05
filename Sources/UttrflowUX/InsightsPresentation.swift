@@ -1,3 +1,4 @@
+// The Insights page: the daily chart, the average line, pace and accuracy, and where the words went.
 public import Foundation
 public import UttrflowHistory
 public import UttrflowSettings
@@ -6,16 +7,19 @@ public import UttrflowSettings
 public struct InsightsDay: Sendable, Equatable, Identifiable {
     /// The number on the axis: "23".
     public let label: String
+    /// Words dictated that day.
     public let words: Int
     /// Of the tallest day in the window, so the view scales nothing itself.
     public let fraction: Double
-    /// A day the user did not dictate at all. Drawn flat and grey rather than omitted,
-    /// because a gap in a bar chart is information and a missing bar is a mystery.
+    /// A day with no dictation, drawn flat and grey rather than omitted, since a missing bar is a mystery.
     public let isSilent: Bool
+    /// Whether this bar is today's.
     public let isToday: Bool
 
+    /// The label, which is unique within the window.
     public var id: String { label }
 
+    /// Builds a bar; the fraction is clamped to 0…1.
     public init(label: String, words: Int, fraction: Double, isSilent: Bool, isToday: Bool) {
         self.label = label
         self.words = words
@@ -27,17 +31,19 @@ public struct InsightsDay: Sendable, Equatable, Identifiable {
 
 /// One app, and the share of dictations that went into it.
 public struct InsightsPlace: Sendable, Equatable, Identifiable {
+    /// The app.
     public let application: HistoryApplication
+    /// Its share of dictations, 0…1.
     public let share: Double
     /// "41%".
     public let percentage: String
-    /// "1,249 words". The share says how the day was divided; this says how much of it
-    /// there was, which is the difference between "half your dictating" and "half of the
-    /// two sentences you dictated".
+    /// "1,249 words": how much of the dictating there was, where the share says how it divides.
     public let words: String
 
+    /// The app's name, which is unique in the list.
     public var id: String { application.name }
 
+    /// Builds a place; the share is clamped to 0…1.
     public init(
         application: HistoryApplication, share: Double, percentage: String, words: String
     ) {
@@ -48,19 +54,16 @@ public struct InsightsPlace: Sendable, Equatable, Identifiable {
     }
 }
 
-/// The line across the chart that a bar means something against.
-///
-/// A column of bars answers "which day was biggest" and nothing else. The average is
-/// what turns each one into a statement — this day was a good one, that one was not —
-/// and it costs a dashed line rather than a second chart.
+/// The line across the chart that turns each bar into a statement, at the cost of one dashed line.
 public struct InsightsAverage: Sendable, Equatable {
+    /// The mean, rounded.
     public let words: Int
-    /// Where the line sits, on the same scale as ``InsightsDay/fraction``, so the view
-    /// scales nothing itself.
+    /// Where the line sits, on the same scale as ``InsightsDay/fraction``, so the view scales nothing.
     public let fraction: Double
     /// "388 a day".
     public let label: String
 
+    /// Builds the line; the fraction is clamped to 0…1.
     public init(words: Int, fraction: Double, label: String) {
         self.words = words
         self.fraction = min(max(fraction, 0), 1)
@@ -72,9 +75,12 @@ public struct InsightsAverage: Sendable, Equatable {
 public struct InsightsSnapshot: Sendable, Equatable {
     /// Newest first, before retention is applied. The only thing this page now reads.
     public let entries: [HistoryEntry]
+    /// The user's settings, for the retention window.
     public let settings: Settings
+    /// The clock the page is drawn against.
     public let now: Date
 
+    /// Builds a snapshot; entries and settings default to empty.
     public init(
         entries: [HistoryEntry] = [],
         settings: Settings = .default,
@@ -88,6 +94,7 @@ public struct InsightsSnapshot: Sendable, Equatable {
 
 /// What the insights page shows.
 public struct InsightsPresentation: Sendable, Equatable {
+    /// The title, caption and window label across the top.
     public let chrome: MainPageChrome
     /// The chart along the top. Empty exactly when ``emptyState`` is set.
     public let days: [InsightsDay]
@@ -97,15 +104,18 @@ public struct InsightsPresentation: Sendable, Equatable {
     public let chartCaption: String
     /// The heading over the chart.
     public let chartTitle: String
-    /// Words per minute, and accuracy where it can be measured. Two tiles or one, never
-    /// a placeholder.
+    /// Words per minute, and accuracy where it can be measured; two tiles or one, never a placeholder.
     public let figures: [MainStatistic]
     /// The pace, day by day, for the sparkline. Empty when nothing was timed.
     public let paceTrend: [Int]
+    /// The apps dictated into, busiest first.
     public let places: [InsightsPlace]
+    /// Shown until there is a week to chart.
     public let emptyState: MainEmptyState?
+    /// The line under the page while there is a chart.
     public let footnote: String?
 
+    /// Builds the page from its parts.
     public init(
         chrome: MainPageChrome,
         days: [InsightsDay],
@@ -131,21 +141,12 @@ public struct InsightsPresentation: Sendable, Equatable {
     }
 }
 
-/// Turns a fortnight of dictations into the few things that can honestly be said
-/// about them.
-///
-/// The rule this page is built on is what it leaves out. There is no "time saved" tile,
-/// because it needs a guess at how fast the user types and Uttrflow has never watched
-/// them type. There is no "languages you spoke" card either, though the artboard drew
-/// one: ``DictationRecord`` carries no detected language, so every figure on it would
-/// have had to be invented. Both come back the day something measures them, and not an
-/// hour before.
+/// Turns a fortnight of dictations into what can honestly be said; no "time saved" or language card.
 public enum InsightsPresenter {
-    /// A week, because every figure here is a comparison against the user's own
-    /// baseline and a baseline drawn from three days is noise wearing a number's
-    /// clothes.
+    /// A week, because a baseline drawn from three days is noise wearing a number's clothes.
     public static let daysBeforeCharting = 7
 
+    /// Draws the Insights page from a snapshot.
     public static func page(
         for snapshot: InsightsSnapshot,
         calendar: Calendar = .autoupdatingCurrent,
@@ -162,9 +163,7 @@ public enum InsightsPresenter {
             chrome: MainPageChrome(
                 title: "Insights",
                 caption: "Where the words went, and how fast they arrived.",
-                // A label rather than a choice: the window is however long the user's
-                // own retention setting keeps words for, and it is not this page's to
-                // widen.
+                // A label, not a choice: the window is the retention setting, not this page's to widen.
                 scope: MainScope(
                     title: "Last \(MainFormatting.count(window, "day", "days"))")),
             days: days,
@@ -193,11 +192,7 @@ public enum InsightsPresenter {
 
     // MARK: - What there is to chart
 
-    /// The distinct days the user actually said something on.
-    ///
-    /// Days rather than dictations, because the threshold is about having watched
-    /// somebody across a week of their working life, not about volume. Fifty dictations
-    /// in one afternoon is still one afternoon.
+    /// The distinct days the user said something on; fifty dictations in one afternoon is one afternoon.
     static func daysSpokenOn(_ entries: [HistoryEntry], calendar: Calendar) -> Set<Date> {
         Set(entries.map { calendar.startOfDay(for: $0.when) })
     }
@@ -216,8 +211,7 @@ public enum InsightsPresenter {
         let span = (0..<snapshot.settings.transcriptRetentionDays).reversed().compactMap {
             calendar.date(byAdding: .day, value: -$0, to: today)
         }
-        // A floor of one rather than a guard: it both keeps the division safe and
-        // spares a branch for a window that this path never asks for.
+        // A floor of one keeps the division safe without a branch for a window this path never asks for.
         let peak = totals.values.reduce(1, max)
 
         return span.map { day in
@@ -237,8 +231,7 @@ public enum InsightsPresenter {
         calendar: Calendar, locale: Locale
     ) -> String {
         let total = MainFormatting.count(entries.totalWords, "word", "words")
-        // A window with no first day would be a window of nothing, and the caption is
-        // then the total on its own rather than a range with a hole in it.
+        // A window with no first day is a window of nothing, so the caption is then the total on its own.
         let range = calendar.date(byAdding: .day, value: -(days.count - 1), to: snapshot.now)
             .map { first in
                 let from = first.formatted(.dateTime.day().locale(locale))
@@ -250,6 +243,7 @@ public enum InsightsPresenter {
 
     // MARK: - Figures
 
+    /// Pace and accuracy across the window, each only where measured.
     static func figures(for entries: [HistoryEntry], locale: Locale) -> [MainStatistic] {
         var figures: [MainStatistic] = []
 
@@ -266,8 +260,7 @@ public enum InsightsPresenter {
                 MainStatistic(
                     value: MainFormatting.percentage(accuracy, locale: locale),
                     caption: "Accuracy",
-                    // The dictation page's wording, not a second phrasing of it: one
-                    // arithmetic described two ways is one description waiting to drift.
+                    // The Dictation page's wording, so the two cannot drift apart.
                     comment: DictationPresenter.accuracyCaption,
                     meters: [MainMeter(label: "Now", fraction: accuracy)]))
         }
@@ -275,10 +268,7 @@ public enum InsightsPresenter {
         return figures
     }
 
-    /// The pace on each day that had one, oldest first.
-    ///
-    /// Days with nothing timed are left out rather than plotted as zero: a line that
-    /// dives to the floor because nobody spoke would read as the user getting worse.
+    /// The pace on each day that had one, oldest first; untimed days are left out, not plotted as zero.
     static func paceTrend(for entries: [HistoryEntry], calendar: Calendar) -> [Int] {
         var byDay: [Date: [HistoryEntry]] = [:]
         for entry in entries {
@@ -291,21 +281,9 @@ public enum InsightsPresenter {
 
     // MARK: - Where the words went
 
-    /// The apps the user dictates into, busiest first.
-    ///
-    /// Dictations whose destination was never known are left out of the total as well as
-    /// out of the list, so the percentages are shares of what is actually known rather
-    /// than shares that quietly fail to add up.
-    /// The mean words a day across the charted window.
-    ///
-    /// Silent days count. A week with two big days and five quiet ones averages low, and
-    /// that is the true answer — dropping the empty days would flatter the figure into
-    /// meaning "your average dictating day", which is not what a reader takes from a line
-    /// across a chart of every day.
+    /// The mean words a day across the charted window, silent days included.
     static func average(across days: [InsightsDay], locale: Locale) -> InsightsAverage? {
-        // The tallest day is `fraction == 1`, so the line's height is the mean measured
-        // against that same day rather than against a scale this page would have to
-        // invent.
+        // The tallest day is `fraction == 1`, so the line's height is the mean measured against that day.
         guard let tallest = days.map(\.words).max(), tallest > 0 else { return nil }
         let mean = Double(days.reduce(0) { $0 + $1.words }) / Double(days.count)
         let rounded = Int(mean.rounded())
@@ -315,10 +293,9 @@ public enum InsightsPresenter {
             label: "\(rounded.formatted(.number.locale(locale))) a day")
     }
 
+    /// The apps the user dictates into, busiest first; unknown destinations leave the total too.
     static func places(for entries: [HistoryEntry], locale: Locale) -> [InsightsPlace] {
-        // The application is kept alongside its tally rather than its name, so it is
-        // resolved once. Resolving it again from the name on the way out would be a
-        // second chance to fail at something that has already succeeded.
+        // The application is kept with its tally so it is resolved once and cannot fail on the way out.
         var counts: [String: (application: HistoryApplication, dictations: Int, words: Int)] = [:]
         for entry in entries {
             guard
@@ -345,8 +322,7 @@ public enum InsightsPresenter {
 
     // MARK: - Not yet
 
-    /// Waiting is not the same as empty, so this says how long is left and gives the two
-    /// figures that are already true.
+    /// Waiting is not empty: says how long is left and gives the two figures already true.
     static func emptyState(
         for entries: [HistoryEntry], daysSpokenOn spoken: Int, now: Date, calendar: Calendar,
         locale: Locale
@@ -378,15 +354,7 @@ public enum InsightsPresenter {
                 """)
     }
 
-    /// "Charts appear on Tuesday" — a day the user can look forward to, rather than a
-    /// countdown that makes them do the arithmetic.
-    ///
-    /// Assumes the days that remain will be spoken on, which is the optimistic reading
-    /// and the only one that can be turned into a weekday at all.
-    ///
-    /// Counted in flat days rather than through the calendar, so there is no arithmetic
-    /// that can fail and no branch for what to do if it did. The hour a clock change
-    /// would move this by is far inside the approximation the sentence already is.
+    /// "Charts appear on Tuesday", assuming the remaining days are spoken on, counted in flat days.
     static func remaining(spoken: Int, now: Date, calendar: Calendar, locale: Locale) -> String {
         let left = max(daysBeforeCharting - spoken, 1)
         let day = now.addingTimeInterval(Double(left) * 86_400)
