@@ -293,6 +293,9 @@ public enum SettingsPresenter {
                             unavailability: capabilities.readySpeechEngines.isEmpty
                                 ? "This option needs a download that has not finished yet." : nil)
                     ]),
+                SettingsDestinations.steps(settings.cleaning),
+                SettingsDestinations.places(
+                    settings.destinations, lastApp: personalisation.lastDictationApp),
                 SettingsGroup(
                     id: "learned",
                     title: "What Uttrflow has picked up",

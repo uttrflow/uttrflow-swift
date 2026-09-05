@@ -52,6 +52,38 @@ struct SettingsTests {
         #expect(settings.playsSoundWhenRecordingStarts)
         #expect(settings.opensAtLogin)
         #expect(settings.transcriptRetentionDays == 7)
+        #expect(settings.cleaning == .default)
+        #expect(settings.destinations == .none)
+    }
+
+    @Test("keeps a clean-up step switched off and an app treated as somewhere else")
+    func keepsTheClearUpChoices() throws {
+        var settings = Settings.default
+        settings.cleaning = CleaningSteps.default.setting(.fillers, isOn: false)
+        settings.destinations = DestinationOverrides.none.setting(
+            .document, for: "com.example.App", named: "App")
+
+        let restored = try JSONDecoder().decode(
+            Settings.self, from: JSONEncoder().encode(settings))
+
+        #expect(!restored.cleaning.runs(.fillers))
+        #expect(restored.destinations.destination(forBundleIdentifier: "com.example.App") == .document)
+    }
+
+    @Test("a build that never had these fields gets everything on and no overrides")
+    func payloadWithoutTheClearUpChoices() throws {
+        let settings = try decode(#"{"opensAtLogin": false}"#)
+        #expect(settings.cleaning == .default)
+        #expect(settings.destinations == .none)
+    }
+
+    @Test("an unreadable clean-up choice costs only that choice")
+    func corruptCleaningField() throws {
+        let settings = try decode(
+            #"{"cleaning": "nonsense", "destinations": 7, "transcriptRetentionDays": 21}"#)
+        #expect(settings.cleaning == .default)
+        #expect(settings.destinations == .none)
+        #expect(settings.transcriptRetentionDays == 21)
     }
 
     @Test("keeps every field through an encode and a decode")

@@ -5,16 +5,22 @@ public import UttrflowCore
 ///
 /// The one place that names concrete engines. Everything above it sees a router.
 public enum TextTransformers {
-    /// Every transformer compiled into this build.
-    public static func all(cloudEndpoint: URL? = nil) -> [any TextTransformationEngine] {
+    /// Every transformer compiled into this build, running the clean-up steps the user has left on.
+    public static func all(
+        cloudEndpoint: URL? = nil, steps: CleaningSteps = .default
+    ) -> [any TextTransformationEngine] {
         var engines: [any TextTransformationEngine] = [
-            GenerativeTextTransformer(kind: .foundationModels, model: AppleFoundationCleanupModel()),
-            RuleBasedTransformer(),
+            GenerativeTextTransformer(
+                kind: .foundationModels, model: AppleFoundationCleanupModel(),
+                pipeline: .beforeModel(steps: steps)),
+            RuleBasedTransformer(steps: steps),
         ]
         #if UTTRFLOW_CLOUD
             if let endpoint = cloudEndpoint {
                 engines.append(
-                    GenerativeTextTransformer(kind: .cloud, model: HTTPCleanupModel(endpoint: endpoint))
+                    GenerativeTextTransformer(
+                        kind: .cloud, model: HTTPCleanupModel(endpoint: endpoint),
+                        pipeline: .beforeModel(steps: steps))
                 )
             }
         #endif
@@ -22,8 +28,10 @@ public enum TextTransformers {
     }
 
     public static func router(
-        configuration: EngineConfiguration = .default, cloudEndpoint: URL? = nil
+        configuration: EngineConfiguration = .default, cloudEndpoint: URL? = nil,
+        steps: CleaningSteps = .default
     ) -> TransformerRouter {
-        TransformerRouter(engines: all(cloudEndpoint: cloudEndpoint), configuration: configuration)
+        TransformerRouter(
+            engines: all(cloudEndpoint: cloudEndpoint, steps: steps), configuration: configuration)
     }
 }

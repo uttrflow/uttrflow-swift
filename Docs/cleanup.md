@@ -203,6 +203,39 @@ one model call per piece — is `Docs/cleanup-design.md`. Below is where things 
   which is why paragraph breaks and list layout have to be decided when the pieces are
   joined, not inside one piece.
 
+## What the app shows and lets you change
+
+Three surfaces, so a word that went missing can be accounted for rather than guessed at.
+
+- **Diagnostics names what each step did to the last dictation.** Under "Clean-up steps,
+  last dictation" there is a row per step that changed something — "Filler words: removed
+  3: um, uh, um", "Numbers: rewrote 1: fifteen → 15" — and a grey row for each step that
+  is switched off, because a step that is off is why a word the user expected to go is
+  still there. It is read off the finished draft's own record of which pass touched which
+  word (`CleaningRecord`), so it cannot claim a removal nothing made. `DictationPipeline`
+  collects one account per piece where it already reports the stage timings and hands the
+  merged account to `DiagnosticsRecorder`, which keeps the last one and only the last.
+  Nothing is written to disk or sent anywhere; the **Copy Diagnostics** report counts the
+  words rather than quoting them, because that string is pasted somewhere else.
+- **A step can be switched off.** Settings → Dictation → "Clean-up steps" offers the eight
+  deterministic steps, all on by default, stored as the set that is *off*
+  (`Settings.cleaning`) so a step a later build adds is on for everybody who never said
+  otherwise. `CleaningPipeline.standard(for:situation:steps:)` builds only the ones left
+  on. `FirstWordPass` and `TerminalStopPass` are not offered: they carry the formatter's
+  decisions about the place, not a cleaning the user asked for, and `CleaningSteps` drops
+  them from a stored set rather than trusting it.
+- **An app can be treated as somewhere else.** Settings → Dictation → "Where your words
+  go" names the app the last dictation went into and offers every kind of place, plus
+  "Work it out", which is the table. A choice is stored against the bundle identifier
+  (`Settings.destinations`) and `DestinationClassifier` consults the overrides before the
+  table; every override made is listed underneath with a button that puts it back. The
+  table itself is never edited — an override is one app the user disagreed with Uttrflow
+  about. The app named is the last one dictated into rather than the frontmost, because
+  while the settings window is open the frontmost app is Uttrflow.
+
+All three take effect on the next dictation, not the next launch: `DictationPipeline.adopt`
+takes a freshly built cleaner and the overrides as they now stand.
+
 ## Sources
 
 - Wispr Flow help centre: [Smart Formatting & Backtrack](https://docs.wisprflow.ai/articles/5373093536-how-do-i-use-smart-formatting-and-backtrack),

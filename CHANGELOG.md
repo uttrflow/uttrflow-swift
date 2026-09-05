@@ -20,6 +20,16 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **You can see what the clean-up did, and switch parts of it off.** Diagnostics now lists
+  what each clean-up step changed in the last dictation, by word — "Filler words: removed
+  3: um, uh, um" — so a word that went missing can be accounted for rather than guessed
+  at; a step that is switched off is named as off, because that is why a word you expected
+  to go is still there. It stays on this Mac, and the Copy Diagnostics report counts the
+  words rather than quoting them. Settings → Dictation offers the eight deterministic
+  steps with a switch each, all on to begin with, and lets you tell Uttrflow what kind of
+  place an app really is when the built-in table has it wrong — every override you make is
+  listed there with a button that puts it back. All three take effect on your next
+  dictation rather than at the next launch.
 - **Grammar slips are repaired where the place calls for it.** "there is three", "he
   don't", "we have went", "a apple", a tense that drifts mid-sentence — the model may
   fix these in a document, an email or plain text, and leaves them alone in a message,

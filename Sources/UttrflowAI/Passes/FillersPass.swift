@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Removes the sounds people make while thinking, and nothing that is ever a word on its own.
 public struct FillersPass: CleaningPass {
-    public static let id: PassID = "fillers"
+    public static let id: PassID = .fillers
 
     /// Whole words that carry no meaning; "like", "well", "so" and "basically" are deliberately absent.
     static let fillerWords: Set<String> = [

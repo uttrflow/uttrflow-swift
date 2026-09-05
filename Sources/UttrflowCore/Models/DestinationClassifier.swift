@@ -23,10 +23,13 @@ public struct DestinationRule: Sendable, Equatable, Codable {
 
 /// Decides where the words are going by reading one table, so adding an app is a row.
 public enum DestinationClassifier {
-    /// The first rule that matches wins; an app no rule names is `.plain`.
+    /// The user's answer for this app first, then the first rule that matches; no match is `.plain`.
     public static func classify(
-        _ app: AppContext, rules: [DestinationRule] = DestinationRules.standard
+        _ app: AppContext, rules: [DestinationRule] = DestinationRules.standard,
+        overrides: DestinationOverrides = .none
     ) -> Destination {
-        rules.first { $0.matches(app) }?.destination ?? .plain
+        overrides.destination(for: app)
+            ?? rules.first { $0.matches(app) }?.destination
+            ?? .plain
     }
 }

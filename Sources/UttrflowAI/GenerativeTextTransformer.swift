@@ -61,6 +61,8 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
             throw .outputRejected(reason: reason)
         }
 
-        return TransformationResult(text: finished, producedBy: kind)
+        return TransformationResult(
+            text: finished, producedBy: kind,
+            cleaning: CleaningRecord(draft: draft, ran: pipeline.ids))
     }
 }

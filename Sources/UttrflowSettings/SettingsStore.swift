@@ -15,6 +15,12 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Who the user is and how they write.
     public var profile: UserProfile
 
+    /// Which clean-up steps run, so a user can switch one off and see what it was doing.
+    public var cleaning: CleaningSteps
+
+    /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
+    public var destinations: DestinationOverrides
+
     /// Whether the shortcut is held down or pressed twice.
     /// The shortcut itself, not merely how holding it behaves.
     public var hotkey: HotkeyBinding
@@ -82,6 +88,8 @@ public struct Settings: Sendable, Equatable, Codable {
     public init(
         engines: EngineConfiguration = .default,
         profile: UserProfile = .default,
+        cleaning: CleaningSteps = .default,
+        destinations: DestinationOverrides = .none,
         hotkey: HotkeyBinding = .optionSpace,
         hotkeyActivation: HotkeyActivation = .holdToTalk,
         clipboardHotkey: HotkeyBinding? = .shiftCommandV,
@@ -98,6 +106,8 @@ public struct Settings: Sendable, Equatable, Codable {
     ) {
         self.engines = engines
         self.profile = profile
+        self.cleaning = cleaning
+        self.destinations = destinations
         self.hotkey = hotkey
         self.hotkeyActivation = hotkeyActivation
         self.clipboardHotkey = clipboardHotkey
@@ -125,6 +135,8 @@ extension Settings {
     enum CodingKeys: String, CodingKey {
         case engines
         case profile
+        case cleaning
+        case destinations
         case hotkey
         case hotkeyActivation
         case clipboardHotkey
@@ -165,6 +177,8 @@ extension Settings {
         self.init(
             engines: container.value(forKey: .engines, default: fallback.engines),
             profile: container.value(forKey: .profile, default: fallback.profile),
+            cleaning: container.value(forKey: .cleaning, default: fallback.cleaning),
+            destinations: container.value(forKey: .destinations, default: fallback.destinations),
             hotkey: dictation,
             hotkeyActivation: container.value(
                 forKey: .hotkeyActivation, default: fallback.hotkeyActivation

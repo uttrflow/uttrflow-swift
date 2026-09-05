@@ -14,18 +14,23 @@ public struct Situation: Sendable, Equatable {
     public static let unknown = Situation(app: .unknown, insertion: .unknown, destination: .plain)
 }
 
-/// Turns what was read off the screen into a situation, by the classifier's table alone.
+/// Turns what was read off the screen into a situation, by the user's overrides and the classifier's table.
 public enum SituationResolver {
     public static func resolve(
-        app: AppContext, insertion: InsertionPoint, rules: [DestinationRule] = DestinationRules.standard
+        app: AppContext, insertion: InsertionPoint,
+        rules: [DestinationRule] = DestinationRules.standard,
+        overrides: DestinationOverrides = .none
     ) -> Situation {
         Situation(
-            app: app, insertion: insertion, destination: DestinationClassifier.classify(app, rules: rules))
+            app: app, insertion: insertion,
+            destination: DestinationClassifier.classify(app, rules: rules, overrides: overrides))
     }
 
     /// The situation a context read carries, with the caret text it was read with.
-    public static func resolve(from app: AppContext) -> Situation {
-        resolve(app: app, insertion: app.insertionPoint)
+    public static func resolve(
+        from app: AppContext, overrides: DestinationOverrides = .none
+    ) -> Situation {
+        resolve(app: app, insertion: app.insertionPoint, overrides: overrides)
     }
 }
 

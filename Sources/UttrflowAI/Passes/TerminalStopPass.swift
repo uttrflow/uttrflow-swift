@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Adds or takes back the final full stop the way the formatter's stop policy and layout say.
 public struct TerminalStopPass: CleaningPass {
-    public static let id: PassID = "terminalStop"
+    public static let id: PassID = .terminalStop
 
     public let policy: TerminalStopPolicy
     public let layout: LayoutPolicy

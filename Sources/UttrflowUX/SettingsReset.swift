@@ -87,10 +87,16 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Transcripts still inside the retention window, which is all there are to see.
     public let transcripts: Int
 
-    public init(learnedWords: Int, addedWords: Int, transcripts: Int) {
+    /// The app the last dictation went into; the frontmost one, while Settings is open, is Uttrflow.
+    public let lastDictationApp: SettingsApp?
+
+    public init(
+        learnedWords: Int, addedWords: Int, transcripts: Int, lastDictationApp: SettingsApp? = nil
+    ) {
         self.learnedWords = learnedWords
         self.addedWords = addedWords
         self.transcripts = transcripts
+        self.lastDictationApp = lastDictationApp
     }
 
     /// Counts a dictionary as it stands.
@@ -104,11 +110,15 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// - Parameters:
     ///   - entries: Every word in the dictionary.
     ///   - transcripts: How many dictations are still kept.
-    public init(entries: [DictionaryEntry], transcripts: Int) {
+    ///   - lastDictationApp: The app the last dictation went into, when one is known.
+    public init(
+        entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil
+    ) {
         self.init(
             learnedWords: entries.count(where: { $0.origin != .added }),
             addedWords: entries.count(where: { $0.origin == .added }),
-            transcripts: transcripts)
+            transcripts: transcripts,
+            lastDictationApp: lastDictationApp)
     }
 
     /// A fresh install, and what a window shows before it has asked.
@@ -179,9 +189,20 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         // `records(keeping:)` rather than the raw file: it applies the promise, and
         // applies it to the disk as well, so the number shown is the number that is
         // there to be removed and not a count of things already promised deleted.
-        await SettingsPersonalisation(
+        let kept = await history.records(keeping: retention)
+        return await SettingsPersonalisation(
             entries: dictionary.allEntries(),
-            transcripts: history.records(keeping: retention).count)
+            transcripts: kept.count,
+            lastDictationApp: Self.lastApp(in: kept))
+    }
+
+    /// The most recent dictation that named the app it went into, which is the app an override is about.
+    static func lastApp(in records: [DictationRecord]) -> SettingsApp? {
+        let named = records.filter { $0.applicationIdentifier?.isEmpty == false }
+        guard let latest = named.max(by: { $0.when < $1.when }),
+            let bundle = latest.applicationIdentifier
+        else { return nil }
+        return SettingsApp(bundleIdentifier: bundle, name: latest.applicationName)
     }
 
     public func carryOut(_ reset: SettingsReset) async throws(SettingsResetFailure) {

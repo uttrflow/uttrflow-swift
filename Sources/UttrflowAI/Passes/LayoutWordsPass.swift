@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Turns "new line", "new paragraph" and "bullet point" into layout when they stand between words.
 public struct LayoutWordsPass: CleaningPass {
-    public static let id: PassID = "layoutWords"
+    public static let id: PassID = .layoutWords
 
     /// What each spoken phrase becomes; a bullet marker carries its own dash and space.
     static let marks: [(words: [String], mark: String)] = [

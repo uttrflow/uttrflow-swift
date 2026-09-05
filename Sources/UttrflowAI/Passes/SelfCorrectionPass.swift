@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// Removes the discarded half of a spoken correction when both halves share a shape. See `Docs/cleanup.md`.
 public struct SelfCorrectionPass: CleaningPass {
-    public static let id: PassID = "selfCorrection"
+    public static let id: PassID = .selfCorrection
 
     /// Phrases that announce a correction, longest first so "no sorry" is one trigger rather than two.
     static let triggers: [[String]] = [
