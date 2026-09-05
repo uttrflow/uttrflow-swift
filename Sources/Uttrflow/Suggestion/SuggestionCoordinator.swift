@@ -308,10 +308,28 @@ final class SuggestionCoordinator {
                 turns.isCurrent(number)
             else { return }
             // When nothing remembered can be drawn — nothing held, the line itself, or a line the gates refused — the model invents the suggestion instead.
-            if update.suggestion.accepting == nil, update.silence != .overBudget, let generator, ready {
+            guard update.suggestion.accepting == nil, update.silence != .overBudget, let generator, ready
+            else {
+                return settle(update, in: snapshot, since: started)
+            }
+            // The machine says first what the next word may be: anything, one of its values, or nothing here, which no pass can improve on.
+            let options = await verifier.options(for: query.typed, in: query.surface, now: Date())
+            guard turns.isCurrent(number) else { return }
+            switch options {
+            case .none:
+                Self.log.debug("OPTIONS typed=\(query.typed, privacy: .public) none")
+                lastEmpty = (query.surface, query.typed)
+                guard
+                    let quiet = session.resolveGenerated(
+                        [], for: query, elapsedMilliseconds: since(started), whenEmpty: .notOnThisMachine)
+                else { return }
+                settle(quiet, in: snapshot, since: started)
+            case .among(let values):
+                Self.log.debug("OPTIONS typed=\(query.typed, privacy: .public) among=\(values.count)")
+                await generate(
+                    number, with: generator, for: query, in: snapshot, choosing: values, since: started)
+            case .open:
                 await generate(number, with: generator, for: query, in: snapshot, since: started)
-            } else {
-                settle(update, in: snapshot, since: started)
             }
         }
     }
@@ -353,10 +371,10 @@ final class SuggestionCoordinator {
         draw(update, in: fresh)
     }
 
-    /// Asks the model for a suggestion the corpus never held, from the field read live, and draws it.
+    /// Asks the model for a suggestion the corpus never held, from the field read live, held to the machine's values where it has them, and draws it.
     private func generate(
         _ number: Int, with generator: any CandidateGenerating, for query: SuggestionQuery,
-        in snapshot: FocusedFieldSnapshot, since started: Date
+        in snapshot: FocusedFieldSnapshot, choosing choices: [String] = [], since started: Date
     ) async {
         let completions: [String]
         // Whether the model wrote lines and the machine denied every one, which is a silence with its own name.
@@ -377,7 +395,7 @@ final class SuggestionCoordinator {
                 try? await Task.sleep(for: .milliseconds(Self.generationDebounceInMilliseconds))
                 guard !Task.isCancelled else { return [String]() }
                 // The context is read only once a pass is certain, so a cancelled burst never pays for it.
-                let situation = await Self.situation(of: snapshot, for: query, store: store)
+                let situation = await Self.situation(of: snapshot, for: query, store: store).choosing(choices)
                 return try await generator.completions(for: query.typed, in: situation)
             }
             generating = pass
@@ -419,6 +437,13 @@ final class SuggestionCoordinator {
         await drawFresh(update, for: snapshot, turn: number)
         // With the one line on screen, the others are fetched behind it, so Down has a list and the person never waited for it.
         guard completions.count == 1, let leader = completions.first, turns.isCurrent(number) else { return }
+        // Where the machine gave the values, the other values are the alternatives, and no pass is spent on them.
+        if !choices.isEmpty {
+            let others = Verification.completed(query.typed, with: choices).filter { $0 != leader }
+            guard !others.isEmpty, let expanded = session.expandGenerated(others, for: query) else { return }
+            lastGenerated = (query.surface, query.typed, [leader] + others)
+            return await drawFresh(expanded, for: snapshot, turn: number)
+        }
         let more = Task { [generator, store] in
             let situation = await Self.situation(of: snapshot, for: query, store: store)
             return try await generator.alternatives(for: query.typed, in: situation, excluding: leader)

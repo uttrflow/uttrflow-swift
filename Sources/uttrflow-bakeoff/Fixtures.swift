@@ -9,13 +9,18 @@ struct Fixture {
     let typed: String
     /// What counts as right here: the acceptable continuations, the length band, the text never to echo.
     let expectation: CompletionExpectation
+    /// What the machine under the field holds, for a terminal whose arguments it can vouch for or deny; absent where no machine is asked.
+    let machine: [EnvironmentKind: [String]]?
 
-    init(_ name: String, _ situation: GenerationSituation, typed: String, expectation: CompletionExpectation)
-    {
+    init(
+        _ name: String, _ situation: GenerationSituation, typed: String, expectation: CompletionExpectation,
+        machine: [EnvironmentKind: [String]]? = nil
+    ) {
         self.name = name
         self.situation = situation
         self.typed = typed
         self.expectation = expectation
+        self.machine = machine
     }
 
     init(

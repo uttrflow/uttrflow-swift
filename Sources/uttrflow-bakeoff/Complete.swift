@@ -111,13 +111,30 @@ struct Complete: AsyncParsableCommand {
             var completions: [String] = []
             var failure: String?
             var words: String?
+            var invented = false
+            // A fixture on a machine is asked what the word may be first, and its answer is sieved after, as the app does both.
+            let grounding = await Grounding(for: fixture)
+            var situation = fixture.situation
+            var denied = false
+            switch await grounding?.options(for: fixture.typed) {
+            case .none?: denied = true
+            case .among(let values)?: situation = situation.choosing(values)
+            case .open?, nil: break
+            }
             do {
-                if raw, let scorer = scorer as? any PassShowing {
-                    let pass = try await scorer.pass(for: fixture.typed, in: fixture.situation)
+                if denied {
+                    words = "[not on this machine]"
+                } else if raw, let scorer = scorer as? any PassShowing {
+                    let pass = try await scorer.pass(for: fixture.typed, in: situation)
                     completions = pass?.completions ?? []
                     words = pass.map { "[\($0.stopReason)] \($0.text)" } ?? "[not asked]"
                 } else {
-                    completions = try await scorer.completions(for: fixture.typed, in: fixture.situation)
+                    completions = try await scorer.completions(for: fixture.typed, in: situation)
+                }
+                if let grounding {
+                    let standing = await grounding.standing(completions, after: fixture.typed)
+                    invented = standing.count < completions.count
+                    completions = standing
                 }
             } catch {
                 failure = "error: \(error)"
@@ -126,7 +143,7 @@ struct Complete: AsyncParsableCommand {
             let result = FixtureResult(
                 name: fixture.name, category: fixture.category, typed: fixture.typed,
                 hit: fixture.hits(completions), conforms: fixture.conforms(completions), elapsedMs: elapsed,
-                first: failure ?? completions.first, raw: words)
+                first: failure ?? completions.first, raw: words, invented: invented)
             results.append(result)
             print(result.row)
         }

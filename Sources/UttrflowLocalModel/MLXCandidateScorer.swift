@@ -218,6 +218,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
         let register = Register.infer(from: situation, typed: typed)
         let message = PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
         let opening = ask.opening(of: typed)
+        // With the machine's values to choose among, the whole line before the word opens the turn and the word is one of them.
+        let choice = opening.flatMap { Self.choice(of: situation.choices, at: $0) }
         let warm = self.warm
         let vocabulary = self.vocabulary
         let perLine = register.maxTokens
@@ -234,8 +236,9 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
                 precondition(input.text.tokens.ndim == 1, "the processor hands over one flat run of tokens")
                 var all = input.text.tokens.asArray(Int32.self).map(Int.init)
                 // The line up to its last word opens the model's turn when one line is wanted, so decoding can only continue it.
-                if let opening, !opening.written.isEmpty {
-                    all += context.tokenizer.encode(text: opening.written, addSpecialTokens: false)
+                let written = choice?.written ?? opening?.written ?? ""
+                if !written.isEmpty {
+                    all += context.tokenizer.encode(text: written, addSpecialTokens: false)
                 }
                 var feed = LMInput(text: LMInput.Text(tokens: MLXArray(all.map(Int32.init))))
                 var cache: [KVCache]?
@@ -255,12 +258,17 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
                     return try MLXLMCommon.generate(
                         input: feed, cache: cache, parameters: parameters, context: context)
                 }
-                // The first tokens are held to the word being typed, so a word cut inside a token is continued rather than replaced.
+                // The first tokens are held to the word being typed, or to one of the machine's values, so the model continues rather than invents.
+                let processor: any LogitProcessor =
+                    if let choice {
+                        TokenChoice(vocabulary: vocabulary, choices: choice.choices)
+                    } else {
+                        TokenHealing(
+                            vocabulary: vocabulary, owed: opening.owed, wordComplete: opening.isWordComplete,
+                            mayEnd: opening.mayEnd)
+                    }
                 let iterator = try TokenIterator(
-                    input: feed, model: context.model, cache: cache,
-                    processor: TokenHealing(
-                        vocabulary: vocabulary, owed: opening.owed, wordComplete: opening.isWordComplete,
-                        mayEnd: opening.mayEnd),
+                    input: feed, model: context.model, cache: cache, processor: processor,
                     sampler: parameters.sampler(), maxTokens: parameters.maxTokens)
                 return generateTask(
                     promptTokenCount: feed.text.tokens.size, modelConfiguration: context.configuration,
@@ -287,7 +295,26 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
                 "PASS prompt=\(info.promptTokenCount) promptMs=\(Int(info.promptTime * 1_000)) generated=\(info.generationTokenCount) generateMs=\(Int(info.generateTime * 1_000))"
             )
         }
-        return Run(text: text, stop: info?.stopReason, written: opening?.written ?? "")
+        return Run(text: text, stop: info?.stopReason, written: choice?.written ?? opening?.written ?? "")
+    }
+
+    /// How a turn opens when the next word is one of the machine's values: everything typed before that word, and each value with the space that leads into it.
+    struct Choice: Equatable {
+        /// What opens the model's turn, which is the line up to the word being chosen.
+        let written: String
+        /// Every value the word may be, each led by the whitespace that separates it from the line.
+        let choices: [String]
+    }
+
+    /// The choice for a pass, or nothing when the machine offered no values.
+    static func choice(of values: [String], at opening: Ask.Opening) -> Choice? {
+        guard !values.isEmpty else { return nil }
+        // A word finished with a space is written whole and the value follows it; a word still open is one of the values itself.
+        guard !opening.isWordComplete else {
+            return Choice(written: opening.written + opening.owed, choices: values.map { " " + $0 })
+        }
+        let lead = String(opening.owed.prefix { $0.isWhitespace })
+        return Choice(written: opening.written, choices: values.map { lead + $0 })
     }
 
     /// The tokens a pass may spend: the register's share per line, capped, plus the echo of the line each answer repeats.
@@ -313,7 +340,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
     static let promptMarkers = [
         "continue this text", "continue this line", "continue this reply", "continue this web address",
         "continue this command", "on screen around the field", "lines this person wrote here",
-        "the text before the line reads", "hints:",
+        "the text before the line reads", "hints:", "the next word is one of these",
     ]
 
     /// A continuation longer than this is a paragraph, not the rest of a line.

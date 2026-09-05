@@ -23,7 +23,18 @@ extension TokenHealing.Vocabulary {
     }
 }
 
-extension TokenHealing: LogitProcessor {
+/// A processor that masks each step from the bytes written so far, which both the healing and the choice are.
+protocol StepMasking {
+    var vocabulary: TokenHealing.Vocabulary { get }
+    /// Whether every token is the model's own from here, after which no mask is built.
+    var isFree: Bool { get }
+    /// What a step adds to the logits, or nothing when the model is free.
+    func mask(width: Int) -> [Float]?
+    /// Advances by the bytes one token wrote.
+    mutating func took(_ written: [UInt8])
+}
+
+extension StepMasking {
     mutating func prompt(_ prompt: MLXArray) {}
 
     func process(logits: MLXArray) -> MLXArray {
@@ -37,3 +48,7 @@ extension TokenHealing: LogitProcessor {
         took(vocabulary.bytes.indices.contains(id) ? vocabulary.bytes[id] : [])
     }
 }
+
+extension TokenHealing: StepMasking, LogitProcessor {}
+
+extension TokenChoice: StepMasking, LogitProcessor {}

@@ -12,6 +12,8 @@ struct FixtureResult: Encodable {
     let first: String?
     /// How the pass ended and every word the model wrote, recorded only when the run asked for it.
     let raw: String?
+    /// Whether the model named a program, path, branch or verb the fixture's machine does not have, before the sieve dropped it.
+    let invented: Bool
 
     /// Whether this row belongs in the failures section.
     var failed: Bool { !hit || !conforms }
@@ -35,6 +37,8 @@ struct FixtureSummary: Encodable {
     let total: Int
     let hits: Int
     let conforming: Int
+    /// How many answers the model wrote that named what the machine does not have, which the sieve kept off the screen.
+    let invented: Int
     let p50Ms: Int
     let p95Ms: Int
     let categories: [Category]
@@ -43,6 +47,7 @@ struct FixtureSummary: Encodable {
         total = results.count
         hits = results.filter(\.hit).count
         conforming = results.filter(\.conforms).count
+        invented = results.filter(\.invented).count
         let times = results.map(\.elapsedMs).sorted()
         p50Ms = times.isEmpty ? 0 : times[times.count / 2]
         p95Ms = times.isEmpty ? 0 : times[min(times.count - 1, Int(Double(times.count) * 0.95))]
@@ -76,7 +81,7 @@ struct FixtureReport: Encodable {
         guard summary.total > 0 else { return }
         print(
             "\nall  hit \(summary.hits)/\(summary.total)  in register \(summary.conforming)/\(summary.total)"
-                + "  p50 \(summary.p50Ms)ms  p95 \(summary.p95Ms)ms")
+                + "  invented \(summary.invented)  p50 \(summary.p50Ms)ms  p95 \(summary.p95Ms)ms")
     }
 
     /// Every miss and every line out of register, each with what was typed and what came back first.

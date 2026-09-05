@@ -15,12 +15,15 @@ struct Scenario {
     let forbidden: [String]
     /// Lines typed here that are never cut themselves, only counted when they share a cut's typed text.
     let known: [String]
+    /// What the machine under the field holds, for a terminal whose arguments it vouches for or denies.
+    let machine: [EnvironmentKind: [String]]?
     let lines: [Line]
 
     init(
         category: String, name: String, situation: GenerationSituation, cuts: [LineCut],
         determinacy: Determinacy,
-        band: ClosedRange<Int>, forbidden: [String] = [], known: [String] = [], lines: [Line]
+        band: ClosedRange<Int>, forbidden: [String] = [], known: [String] = [],
+        machine: [EnvironmentKind: [String]]? = nil, lines: [Line]
     ) {
         self.category = category
         self.name = name
@@ -30,6 +33,7 @@ struct Scenario {
         self.band = band
         self.forbidden = forbidden
         self.known = known
+        self.machine = machine
         self.lines = lines
     }
 
@@ -49,7 +53,8 @@ struct Scenario {
             }
             return cut.cases(in: register).map {
                 Fixture(
-                    "\(category)/\(name)/\($0.name)", situation, typed: $0.typed, expectation: $0.expectation)
+                    "\(category)/\(name)/\($0.name)", situation, typed: $0.typed, expectation: $0.expectation,
+                    machine: machine)
             }
         }
     }
@@ -111,5 +116,5 @@ extension [LineCut] {
 enum FixtureCatalogue {
     static let all: [Fixture] = scenarios.flatMap(\.fixtures)
 
-    static let scenarios: [Scenario] = terminal + sql + url + chat + mail + notes + code + robust
+    static let scenarios: [Scenario] = terminal + cwd + sql + url + chat + mail + notes + code + robust
 }

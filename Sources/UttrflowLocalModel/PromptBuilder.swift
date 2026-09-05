@@ -65,7 +65,12 @@ enum PromptBuilder {
         if let document = situation.document {
             located += ", document \(Self.head(document, within: locatorCap))"
         }
-        let opening = "In \(located).\nHints: \(register.hints.joined(separator: "; "))."
+        var opening = "In \(located).\nHints: \(register.hints.joined(separator: "; "))."
+        // The machine's own values are the only right next words, so the model is told them and chooses rather than invents.
+        if ask == .one, !situation.choices.isEmpty {
+            opening +=
+                "\nThe next word is one of these, exactly as written: \(situation.choices.joined(separator: ", "))."
+        }
         let closing =
             switch ask {
             case .one:

@@ -96,3 +96,57 @@ struct TokenHealing {
         }
     }
 }
+
+/// Holds a pass to one of the machine's own values, so the model chooses among what exists and can write nothing else. See `Docs/predict-agent.md`, A3.
+struct TokenChoice {
+    let vocabulary: TokenHealing.Vocabulary
+    /// What remains to be written of each choice still open; a choice written whole frees the model.
+    private(set) var remaining: [[UInt8]]
+    /// Whether a choice has been written whole, after which every token is the model's own.
+    private(set) var isFree = false
+
+    init(vocabulary: TokenHealing.Vocabulary, choices: [String]) {
+        self.vocabulary = vocabulary
+        remaining = choices.map { Array($0.utf8) }.filter { !$0.isEmpty }
+    }
+
+    /// What a step adds to the logits: nothing for a token that keeps to some choice, minus infinity for the rest; nothing at all once a choice is written or when no token could keep to one.
+    func mask(width: Int) -> [Float]? {
+        guard !isFree else { return nil }
+        let allowed = vocabulary.bytes.indices.map { id in
+            Self.keeps(vocabulary.bytes[id], toOneOf: remaining)
+        }
+        guard allowed.contains(true) else { return nil }
+        var mask = [Float](repeating: -.infinity, count: width)
+        for (id, isAllowed) in allowed.enumerated() where isAllowed && id < width { mask[id] = 0 }
+        return mask
+    }
+
+    /// Whether a token keeps to a choice: it writes part of one, or all of one and then a space.
+    static func keeps(_ written: [UInt8], toOneOf choices: [[UInt8]]) -> Bool {
+        guard !written.isEmpty else { return false }
+        return choices.contains { choice in
+            choice.starts(with: written)
+                || (written.starts(with: choice) && TokenHealing.Vocabulary.isSpace(written[choice.count]))
+        }
+    }
+
+    /// Advances every choice by the bytes one token wrote, dropping those it left; a choice written whole frees the model.
+    mutating func took(_ written: [UInt8]) {
+        guard !isFree else { return }
+        var still: [[UInt8]] = []
+        for choice in remaining {
+            if choice.starts(with: written) {
+                still.append(Array(choice.dropFirst(written.count)))
+            } else if written.starts(with: choice) {
+                still.append([])
+            }
+        }
+        remaining = still
+        // A choice written whole, or a token the mask should have refused, leaves nothing to hold the model to.
+        if still.isEmpty || still.contains(where: \.isEmpty) { isFree = true }
+    }
+
+    /// Advances by one token's text, kept apart from the model so a test can drive it.
+    mutating func took(_ text: String) { took(Array(text.utf8)) }
+}

@@ -123,6 +123,31 @@ public actor Verifier {
         }
     }
 
+    /// What the next word may be, from the machine: anything, one of the values here that begin as it was typed, or nothing.
+    public func options(for typed: String, in surface: Surface, now: Date) async -> ArgumentOptions {
+        guard EnvironmentSource.workingDirectory(of: surface) != nil else { return .open }
+        let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
+        guard let choices = Verification.choices(for: token) else { return .open }
+        var offered: [String] = []
+        var answered = false
+        for lookup in choices.lookups {
+            guard let known = await known(of: lookup.kinds, in: surface, now: now) else { continue }
+            answered = true
+            // A word already whole and known may be continued freely; the model is held only while the word is open.
+            if Verification.attests(lookup.word, known) { return .open }
+            offered += known.filter { Self.begins($0, as: lookup.word) }.map { lookup.prefix + $0 }
+        }
+        guard answered else { return .open }
+        var seen: Set<String> = []
+        let distinct = offered.filter { seen.insert($0).inserted }.sorted { ($0.count, $0) < ($1.count, $1) }
+        return distinct.isEmpty ? .none : .among(Array(distinct.prefix(Verification.mostChoices)))
+    }
+
+    /// Whether a value continues the word: it begins as the word does, and a word not yet begun is not offered the hidden names.
+    private static func begins(_ value: String, as word: String) -> Bool {
+        word.isEmpty ? !value.hasPrefix(".") : value.hasPrefix(word) && value != word
+    }
+
     /// The model's lines whose every new word the machine can stand behind; a line naming what this machine does not have is dropped.
     public func standing(
         _ completions: [String], after typed: String, in surface: Surface, now: Date

@@ -307,6 +307,88 @@ private func standing(
     return await Verifier(index: index).standing(completions, after: typed, in: surface, now: moment)
 }
 
+/// What the machine says the next word may be, on a machine that has already answered.
+private func options(
+    for typed: String, machine: [EnvironmentKind: [String]], in surface: Surface = terminal
+) async -> ArgumentOptions {
+    let index = EnvironmentIndex(reader: StubEnvironment(machine))
+    if let directory = EnvironmentSource.workingDirectory(of: surface) {
+        for kind in machine.keys { _ = await index.values(of: kind, in: directory, now: moment) }
+        await index.settle()
+    }
+    return await Verifier(index: index).options(for: typed, in: surface, now: moment)
+}
+
+@Suite("What the next word may be")
+struct ArgumentOptionsTests {
+    @Test(
+        "A word begun is one of the values that begin as it does, shortest first, and a word not begun is any of them."
+    )
+    func valuesAreOffered() async {
+        let machine: [EnvironmentKind: [String]] = [.directory: ["Sources", "Scripts", "Tests", ".git"]]
+        #expect(await options(for: "cd S", machine: machine) == .among(["Scripts", "Sources"]))
+        #expect(await options(for: "cd ", machine: machine) == .among(["Tests", "Scripts", "Sources"]))
+    }
+
+    @Test("A word of a kind the machine lists that begins as nothing listed does is nothing.")
+    func nothingBeginsThatWay() async {
+        #expect(await options(for: "cd pro", machine: [.directory: ["Sources"]]) == .none)
+        #expect(await options(for: "make ven", machine: [.subcommand(of: "make"): ["verify"]]) == .none)
+        #expect(await options(for: "vim .env.v", machine: [.file: [".env", "src"]]) == .none)
+    }
+
+    @Test("A path is finished from the directory it points into, as whole words the line can take.")
+    func pathsAreFinishedWhereTheyPoint() async {
+        let machine: [EnvironmentKind: [String]] = [
+            .directories(under: "Sources"): ["Login", "Billing"], .directories(under: "projects"): [],
+        ]
+        #expect(
+            await options(for: "cd Sources/", machine: machine)
+                == .among(["Sources/Login", "Sources/Billing"]))
+        #expect(await options(for: "cd Sources/L", machine: machine) == .among(["Sources/Login"]))
+        #expect(await options(for: "cd projects/", machine: machine) == .none)
+        #expect(
+            await options(
+                for: "cd projects/x-growth/", machine: [.directories(under: "projects/x-growth"): []])
+                == .none)
+        #expect(
+            await options(for: "ls ~/", machine: [.entries(under: "~"): ["work", ".zshrc"]])
+                == .among(["~/work"]))
+    }
+
+    @Test("A word already whole and known is open, since the line may go on after it.")
+    func aWholeKnownWordIsOpen() async {
+        #expect(
+            await options(for: "make verify", machine: [.subcommand(of: "make"): ["verify", "lint"]]) == .open
+        )
+    }
+
+    @Test(
+        "A word the command reads as text, a machine that has not answered, and a field that is not a directory are all open."
+    )
+    func openWhereNothingIsListed() async {
+        #expect(await options(for: "echo hel", machine: [.file: ["hello.txt"]]) == .open)
+        #expect(await options(for: "cd pro", machine: [:]) == .open)
+        let notes = Surface(bundleIdentifier: "com.example.notes", role: "AXTextArea")
+        #expect(await options(for: "cd pro", machine: [.directory: ["Sources"]], in: notes) == .open)
+    }
+
+    @Test(
+        "No more than the cap reaches the model, and the typed line finished by each value is an alternative."
+    )
+    func choicesAreCappedAndCompleted() async {
+        let many = (0..<60).map { "dir\($0)" }
+        guard case .among(let offered) = await options(for: "cd ", machine: [.directory: many]) else {
+            Issue.record("a listed directory should offer choices")
+            return
+        }
+        #expect(offered.count == Verification.mostChoices)
+        #expect(
+            Verification.completed("cd S", with: ["Sources", "Scripts"]) == ["cd Sources", "cd Scripts"])
+        #expect(Verification.completed("cd ", with: ["Sources"]) == ["cd Sources"])
+    }
+}
+
 @Suite("The machine's word on what the model wrote")
 struct GeneratedLineTests {
     @Test("A file the model invented in a directory the machine has listed is not drawn.")

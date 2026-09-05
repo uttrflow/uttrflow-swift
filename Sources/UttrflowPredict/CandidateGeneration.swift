@@ -16,11 +16,13 @@ public struct GenerationSituation: Sendable, Equatable {
     public let recentLines: [String]
     /// Whether the field holds many lines, which is where paragraphs are written rather than commands or searches.
     public let isMultiline: Bool
+    /// The whole words the next word must be one of, as the machine lists them; empty when the word may be anything.
+    public let choices: [String]
 
     public init(
         application: String, field: String? = nil, document: String? = nil, preceding: String? = nil,
         windowTitle: String? = nil, surroundings: String? = nil, recentLines: [String] = [],
-        isMultiline: Bool = false
+        isMultiline: Bool = false, choices: [String] = []
     ) {
         self.application = application
         self.field = field
@@ -30,6 +32,15 @@ public struct GenerationSituation: Sendable, Equatable {
         self.surroundings = surroundings
         self.recentLines = recentLines
         self.isMultiline = isMultiline
+        self.choices = choices
+    }
+
+    /// The same moment with the next word held to these choices.
+    public func choosing(_ choices: [String]) -> GenerationSituation {
+        GenerationSituation(
+            application: application, field: field, document: document, preceding: preceding,
+            windowTitle: windowTitle, surroundings: surroundings, recentLines: recentLines,
+            isMultiline: isMultiline, choices: choices)
     }
 }
 

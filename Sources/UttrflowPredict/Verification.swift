@@ -44,6 +44,16 @@ public enum Plausibility: Sendable, Equatable {
     case overBudget
 }
 
+/// What the machine says the next word may be, which decides whether the model writes freely, chooses, or is not asked. See `Docs/predict-agent.md`, A3.
+public enum ArgumentOptions: Equatable, Sendable {
+    /// Anything: the word is one the command reads as text, or the machine has not answered yet.
+    case open
+    /// One of these, each a whole word beginning as the typed word does, shortest first.
+    case among([String])
+    /// Nothing: the word is of a kind the machine lists, and nothing listed begins as it was typed.
+    case none
+}
+
 /// Correctness in ordered gates, because frequency says what the user does rather than what is right.
 public enum Verification {
     /// How long a verdict waits for the model before a candidate stands on the machine's word alone.
@@ -137,8 +147,37 @@ public enum Verification {
 
     /// What could vouch for a generated word, absent where any word is allowed: a flag, a number, a quotation, or a word the command reads as text.
     static func attestation(for token: CompletionToken) -> Attestation? {
+        guard !isFree(token.token) else { return nil }
+        return lookups(for: token)
+    }
+
+    /// What the next word may be chosen from: the lookups for a word begun or not yet begun, absent where the word may be anything.
+    static func choices(for token: CompletionToken) -> Attestation? {
         let word = token.token
+        if word.isEmpty { return lookups(for: token) }
         guard !isFree(word) else { return nil }
+        // A path ending in its slash is open at a name not yet begun, so what is under the path is offered.
+        guard word.hasSuffix("/") else { return lookups(for: token) }
+        let under = word == "/" ? "/" : String(word.dropLast())
+        let narrow = LineShape.of(token).kind == .directory
+        return Attestation(lookups: [
+            Lookup("", [narrow ? .directories(under: under) : .entries(under: under)], prefix: word)
+        ])
+    }
+
+    /// The most values the model is offered to choose among, since each costs prompt and a directory may hold hundreds.
+    public static let mostChoices = 40
+
+    /// The typed line finished by each of the machine's values, which is what every alternative to a chosen word is.
+    public static func completed(_ typed: String, with choices: [String]) -> [String] {
+        let word = CompletionToken(typed)?.token ?? ""
+        let head = String(typed.dropLast(word.count))
+        return choices.map { head + $0 }
+    }
+
+    /// The lookups the line's shape gives a word, absent for one the command reads as text.
+    private static func lookups(for token: CompletionToken) -> Attestation? {
+        let word = token.token
         let shape = LineShape.of(token)
         // A path is looked up where it points, whatever the command; only `cd` and its kin narrow it to directories.
         if word.contains("/") {
