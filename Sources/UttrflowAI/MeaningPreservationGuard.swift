@@ -43,6 +43,9 @@ public struct MeaningPreservationGuard: Sendable {
         if case .rejected(let reason) = Self.candidateVerdict(doubtful, rewritten: rewritten) {
             return .rejected(reason: reason)
         }
+        if case .rejected(let reason) = Self.layoutVerdict(kept: draft.text, rewritten: rewritten) {
+            return .rejected(reason: reason)
+        }
         return Self.grammarVerdict(kept: draft.text, rewritten: rewritten, allowing: doubtful)
     }
 
@@ -56,6 +59,23 @@ public struct MeaningPreservationGuard: Sendable {
             return .rejected(reason: "the rewrite read '\(span.heard)' as a word it was not offered")
         }
         return .accepted
+    }
+
+    /// Refuses a rewrite that flattened a break the speaker asked for, since layout is the passes' to decide.
+    static func layoutVerdict(kept: String, rewritten: String) -> GuardVerdict {
+        let wanted = breaks(in: kept)
+        let got = breaks(in: rewritten)
+        guard wanted.paragraphs <= got.paragraphs, wanted.lines <= got.lines else {
+            return .rejected(reason: "the rewrite dropped a line break the speaker asked for")
+        }
+        return .accepted
+    }
+
+    /// Paragraph breaks and line breaks, counting a paragraph as one break rather than two lines.
+    private static func breaks(in text: String) -> (paragraphs: Int, lines: Int) {
+        let paragraphs = text.components(separatedBy: "\n\n").count - 1
+        let lines = text.filter { $0.isNewline }.count - paragraphs
+        return (paragraphs, lines)
     }
 
     public func verdict(original: String, rewritten: String) -> GuardVerdict {

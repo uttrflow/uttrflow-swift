@@ -852,7 +852,7 @@ public enum EvaluationCorpus {
             ),
             mustNotAdd: ["went"],
             destination: .document,
-            mustBeginWith: "We have",
+            mustBeginWith: "I have gone",
             mustEndWith: "twice."
         ),
         .init(

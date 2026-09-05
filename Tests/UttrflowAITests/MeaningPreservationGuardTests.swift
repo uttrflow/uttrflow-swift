@@ -401,3 +401,51 @@ struct IrregularVerbFormsTests {
         #expect(Set(forms).count == forms.count)
     }
 }
+
+@Suite("The guard keeps the layout the speaker asked for")
+struct LayoutGuardTests {
+    @Test("refuses a rewrite that flattened a line break")
+    func refusesFlattenedLine() {
+        let verdict = MeaningPreservationGuard.layoutVerdict(
+            kept: "retry the request\nlog the failure", rewritten: "Retry the request log the failure")
+        #expect(verdict.isAccepted == false)
+    }
+
+    @Test("refuses a rewrite that turned a paragraph into a line")
+    func refusesDowngradedParagraph() {
+        let verdict = MeaningPreservationGuard.layoutVerdict(
+            kept: "the venue is confirmed\n\nparking is round the back",
+            rewritten: "The venue is confirmed\nparking is round the back.")
+        #expect(verdict.isAccepted == false)
+    }
+
+    @Test("keeps a rewrite that carried every break through")
+    func keepsBreaks() {
+        #expect(
+            MeaningPreservationGuard.layoutVerdict(
+                kept: "retry the request\nlog the failure",
+                rewritten: "Retry the request\nlog the failure"
+            ).isAccepted)
+        #expect(
+            MeaningPreservationGuard.layoutVerdict(
+                kept: "the venue is confirmed\n\nparking is round the back",
+                rewritten: "The venue is confirmed.\n\nParking is round the back."
+            ).isAccepted)
+    }
+
+    @Test("says nothing about a dictation that asked for no break at all")
+    func ignoresProse() {
+        #expect(
+            MeaningPreservationGuard.layoutVerdict(
+                kept: "ship it today", rewritten: "Ship it today."
+            ).isAccepted)
+    }
+
+    @Test("allows a rewrite that added a break, which the formatter's own passes settle")
+    func allowsAddedBreak() {
+        #expect(
+            MeaningPreservationGuard.layoutVerdict(
+                kept: "one milk two eggs", rewritten: "one milk\ntwo eggs"
+            ).isAccepted)
+    }
+}
