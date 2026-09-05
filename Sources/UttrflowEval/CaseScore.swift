@@ -10,6 +10,8 @@ public struct CaseScore: Sendable, Equatable {
     /// Words the rewrite invented that the case forbade. Worse than losing one: the
     /// user is shown something they never said.
     public let invented: [String]
+    /// The exact beginning or ending the case required and the rewrite did not have.
+    public let brokeShape: [String]
     /// Whether the rewrite matched the reference exactly, ignoring case and spacing.
     public let isExact: Bool
     /// The engine said it could not handle this case at all.
@@ -21,7 +23,8 @@ public struct CaseScore: Sendable, Equatable {
 
     public init(
         caseID: String, similarity: Double, keptEverythingRequired: Bool,
-        lost: [String], isExact: Bool, declined: Bool = false, invented: [String] = []
+        lost: [String], isExact: Bool, declined: Bool = false, invented: [String] = [],
+        brokeShape: [String] = []
     ) {
         self.caseID = caseID
         self.similarity = similarity
@@ -30,12 +33,13 @@ public struct CaseScore: Sendable, Equatable {
         self.isExact = isExact
         self.declined = declined
         self.invented = invented
+        self.brokeShape = brokeShape
     }
 
     /// A case passes only if it kept everything required *and* stayed close to the
     /// reference. Similarity alone would pass a rewrite that dropped someone's name.
     public var passed: Bool {
-        !declined && keptEverythingRequired && invented.isEmpty && similarity >= 0.8
+        !declined && keptEverythingRequired && invented.isEmpty && brokeShape.isEmpty && similarity >= 0.8
     }
 }
 

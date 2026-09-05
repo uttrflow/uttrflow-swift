@@ -50,7 +50,10 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
 
         // Models echo the shape of the worked examples, so the answer is unwrapped before it is judged.
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
-        let finished = TextTidy.ensureTerminalPunctuation(TextTidy.collapseSpacing(unwrapped))
+        let formatter = DestinationFormatter.standard(for: request.situation.destination)
+        let finishing = CleaningPipeline.afterModel(
+            for: formatter, situation: request.situation, heard: request.transcription.text)
+        let finished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped))).text
 
         // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
         if case .rejected(let reason) = meaningGuard.verdict(draft: draft, rewritten: finished) {

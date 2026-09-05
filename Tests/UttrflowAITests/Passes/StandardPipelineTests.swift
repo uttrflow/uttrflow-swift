@@ -19,6 +19,45 @@ struct StandardPipelineTests {
         #expect(CleaningPipeline.beforeModel.ids == Array(CleaningPipeline.standard.ids.dropLast(2)))
     }
 
+    @Test("is the plain formatter at a caret that says nothing")
+    func plainByDefault() {
+        let first = CleaningPipeline.standard.passes.compactMap { $0 as? FirstWordPass }.first
+        let stop = CleaningPipeline.standard.passes.compactMap { $0 as? TerminalStopPass }.first
+        #expect(first?.policy == .fromInsertionPoint)
+        #expect(first?.state == .unknown)
+        #expect(first?.onScreen == [])
+        #expect(stop?.policy == .always)
+    }
+
+    @Test("configures the last two passes from the formatter, the caret and the screen")
+    func builtForTheSituation() {
+        let app = AppContext(documentName: "Forecast", selectedText: "Q3", precedingText: "because ")
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .spreadsheet)
+        let pipeline = CleaningPipeline.standard(for: .standard(for: .spreadsheet), situation: situation)
+        #expect(pipeline.ids == CleaningPipeline.standard.ids)
+        let first = pipeline.passes.compactMap { $0 as? FirstWordPass }.first
+        let stop = pipeline.passes.compactMap { $0 as? TerminalStopPass }.first
+        #expect(first?.policy == .asSpoken)
+        #expect(first?.state == .midSentence)
+        #expect(first?.onScreen == ["Forecast", "Q3", "because "])
+        #expect(first?.heard == nil)
+        #expect(stop?.policy == .never)
+    }
+
+    @Test("finishes a model's answer with the same two passes, copying the case the words were heard in")
+    func afterModel() {
+        let cell = CleaningPipeline.afterModel(
+            for: .standard(for: .spreadsheet), situation: .unknown, heard: "uh total revenue")
+        #expect(cell.ids == ["firstWord", "terminalStop"])
+        #expect(cell.run(Draft(text: "Total revenue.")).text == "total revenue")
+
+        let app = AppContext(documentName: "Chat with John", precedingText: "because ")
+        let chat = Situation(app: app, insertion: app.insertionPoint, destination: .messaging)
+        let message = CleaningPipeline.afterModel(for: .standard(for: .messaging), situation: chat)
+        #expect(message.run(Draft(text: "John said the build failed.")).text == "John said the build failed")
+        #expect(message.run(Draft(text: "The build failed.")).text == "the build failed")
+    }
+
     @Test(
         "cleans a whole utterance with the model switched off",
         arguments: [

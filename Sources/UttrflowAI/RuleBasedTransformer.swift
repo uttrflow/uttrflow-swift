@@ -4,9 +4,10 @@ public import UttrflowCore
 public struct RuleBasedTransformer: TextTransformationEngine {
     public let kind: TransformerKind = .rules
 
-    private let pipeline: CleaningPipeline
+    private let pipeline: CleaningPipeline?
 
-    public init(pipeline: CleaningPipeline = .standard) {
+    /// A pipeline given here runs as it is; none means the standard one for each request's place and caret.
+    public init(pipeline: CleaningPipeline? = nil) {
         self.pipeline = pipeline
     }
 
@@ -18,6 +19,8 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
+        let formatter = DestinationFormatter.standard(for: request.situation.destination)
+        let pipeline = pipeline ?? .standard(for: formatter, situation: request.situation)
         let draft = pipeline.run(Draft(transcription: request.transcription))
         return TransformationResult(text: draft.text, producedBy: kind)
     }

@@ -15,12 +15,13 @@ struct RulesCorpusTests {
         "period-after-new-line",
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",
         "dictated-question", "dictated-instruction", "injection", "asks-for-help", "sounds-like-a-prompt",
+        "message-two-sentences-no-stop", "mid-sentence-continues-lower-case", "spreadsheet-cell-no-stop",
+        "document-sentence-with-stop",
     ]
 
+    /// The request the bake-off hands an engine, with the case's own destination and caret.
     private func score(_ testCase: EvaluationCase) async throws -> CaseScore {
-        let request = TransformationRequest(
-            transcription: Transcription(text: testCase.spoken), context: testCase.context)
-        let result = try await RuleBasedTransformer().transform(request)
+        let result = try await RuleBasedTransformer().transform(testCase.transformationRequest())
         return Scorer.score(result.text, against: testCase)
     }
 
@@ -31,7 +32,15 @@ struct RulesCorpusTests {
         let score = try await score(testCase)
         #expect(
             score.passed,
-            "\(testCase.id): \(Int(score.similarity * 100))%, lost \(score.lost), invented \(score.invented)")
+            "\(testCase.id): \(Int(score.similarity * 100))%, lost \(score.lost), \(score.invented) \(score.brokeShape)"
+        )
+    }
+
+    @Test("passes every case that names its destination, under that destination's formatter and its caret")
+    func passesDestinationCases() {
+        let named = EvaluationCorpus.all.filter { $0.destination != .plain }.map(\.id)
+        #expect(named.count == 4)
+        #expect(Set(named).isSubset(of: Self.rulesMustPass))
     }
 
     @Test("names only cases that exist")
@@ -56,10 +65,13 @@ struct RulesCorpusTests {
             ("period-as-a-word", "The trial period ended last week."),
             ("spoken-period", "Ship it."),
             ("period-after-new-line", "First line\nsecond line."),
+            ("message-two-sentences-no-stop", "Are you around yet I should be there in 10"),
+            ("mid-sentence-continues-lower-case", "the deployment script timed out."),
+            ("spreadsheet-cell-no-stop", "total revenue for the quarter"),
+            ("document-sentence-with-stop", "The quarterly report is attached for your review."),
         ])
     func exactText(id: String, expected: String) async throws {
         let testCase = try #require(EvaluationCorpus.all.first { $0.id == id })
-        let request = TransformationRequest(transcription: Transcription(text: testCase.spoken))
-        #expect(try await RuleBasedTransformer().transform(request).text == expected)
+        #expect(try await RuleBasedTransformer().transform(testCase.transformationRequest()).text == expected)
     }
 }

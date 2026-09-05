@@ -54,6 +54,21 @@ public struct Draft: Sendable, Equatable {
         self.init(words: Self.split(text, confidence: 1))
     }
 
+    /// Splits text on spaces and tabs, keeping each run of line breaks between words as one layout mark.
+    public init(keepingLineBreaks text: String) {
+        var words: [Word] = []
+        var previousLine: Int?
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        for (number, line) in lines.enumerated() {
+            let lineWords = line.split(whereSeparator: \.isWhitespace)
+            guard !lineWords.isEmpty else { continue }
+            if let previousLine { words.append(Word(String(repeating: "\n", count: number - previousLine))) }
+            words += lineWords.map { Word(String($0)) }
+            previousLine = number
+        }
+        self.init(words: words)
+    }
+
     /// Takes the recogniser's confidences when its timed words spell the text, spacing aside, else splits it.
     public init(transcription: Transcription) {
         let spoken = Self.split(transcription.text, confidence: 1)

@@ -38,7 +38,7 @@ would make. Safe in every register.
 | Stammers — the same short word twice | "the the deployment" → "the deployment" | ✅ `StammersPass` (≤4 letters; a long repeat is emphasis) |
 | Repeated phrase — a false start restarted verbatim | "so I was I was thinking" → "so I was thinking" | ✅ `RepeatedPhrasePass`: a 2–4-word run repeated right after itself, case-insensitive, never across a punctuation mark; the first copy goes |
 | Sentence capitalisation and the pronoun "I" | "i think i'll go" → "I think I'll go" | ✅ `FirstWordPass` (also "i'll", "i'm"; a new sentence after `. ! ?`, a paragraph or a bullet, not after a plain line break) and the prompt |
-| Terminal punctuation on the last sentence | "ship it" → "Ship it." | ✅ `TerminalStopPass` and the prompt, except when the text holds a newline (dictated code) |
+| Terminal punctuation on the last sentence | "ship it" → "Ship it." | ✅ `TerminalStopPass` and the prompt, as the destination's formatter says, and never when the text holds a newline (dictated code) |
 | Whitespace and spacing around punctuation | no space before `, . ? ! : ;`; one after | ✅ `Draft.text` joins words with one space; `SpacingPass` fixes a stray mark onto the word before it and collapses doubled marks |
 | Apostrophes in contractions | "dont", "Ill" → "don't", "I'll" | ✅ prompt (as "obvious mis-hearings"); worth a rule |
 | Numbers that read as numerals | "fifteen" → "15", "sixteen point two" → "16.2", "nine thousand rupees" → "9000 rupees", "fifteen thousand" → "15,000" | ✅ `NumberFormsPass`. Ten and up always; zero to nine stay words ("one of them") unless inside a number phrase — a decimal, a percentage, a time, a year, or after "port", "version", "page", "chapter", "step", "number" and the like, where digit groups also run together ("port eighty eighty" → "port 8080"). Commas only from 10,000. "a hundred" stays words |
@@ -64,8 +64,8 @@ them. When the signal is missing or could be read two ways, the words stay.
 | Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ❌. Wispr Flow builds numbered lists from sequence words. Only when there are at least two items and each is a clause of its own |
 | Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ❌; the pieces cut while recording are joined with a space. A pause long enough to cut at is also a candidate for a paragraph |
 | Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ context rule; spelling only, never SQL from prose |
-| Trailing full stop dropped in chat apps | the destination is a messaging app and the text is one or two sentences | "on my way" stays "on my way" in WhatsApp | ❌; Wispr Flow does this per app category. A product decision, not a default |
-| Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ❌; Wispr Flow does. Needs the field's text before the caret, which the context engine can read |
+| Trailing full stop dropped in chat apps | the destination is a messaging app and the text is one or two sentences | "on my way" stays "on my way" in WhatsApp | ✅ `TerminalStopPass` under `DestinationFormatter` for `.messaging`, `.offForShortMessages(2)`; a question or exclamation mark is always kept. Decided by the app's bundle identifier, so Electron apps count |
+| Lower-case start when inserting mid-sentence | the caret sits after a word with no sentence end before it | "…because " + dictation → "…because the build failed" | ✅ `FirstWordPass` from `InsertionPoint.sentenceState`, read off the field's text before the caret; "I", its contractions and acronyms keep their capital. Electron apps (Slack, Discord, VS Code) do not report their field, so there the state is `unknown` and the first word stays capital |
 
 ## Tier 3 — never
 
@@ -95,19 +95,58 @@ The two cases that defeated every engine, Apple's included — the spoken self-c
 (`self-correction`: "at four no sorry at five") and the spoken version number
 (`version-number`: "sixteen point two") — now pass with the model switched off, because
 the passes do them before any model is asked. Spoken punctuation, layout words, times,
-percentages and ports each have a corpus case and a pass (`RulesCorpusTests` names the
-cases the rules must pass). Sequence lists, paragraph breaks, restatement corrections,
-mid-sentence casing and chat trailing periods still have no case, so the first step for
-each is a case, not a prompt line. `Docs/bakeoff.md` explains why: a prompt line that is
-not measured is a guess, and two of the last three guesses made the output worse.
+percentages and ports each have a corpus case and a pass, and the four cases that name
+a destination pass through the same passes under that destination's formatter
+(`RulesCorpusTests` names every case the rules must pass). Sequence lists, paragraph
+breaks and restatement corrections still have no case, so the first step for each is a
+case, not a prompt line. `Docs/bakeoff.md` explains why: a prompt line that is not
+measured is a guess, and two of the last three guesses made the output worse.
+
+## Where the words are going
+
+Two of the Tier 2 cleanings depend on the place rather than the speech, and the design
+in `Docs/cleanup-design.md` gives that place a name. `Situation` is what the screen said
+when the key went down, read once per dictation within the context engine's 100 ms
+budget: the app, an `InsertionPoint` — up to 300 characters before the caret and 100
+after, from the focused field's value and selected range — and a `Destination`
+(`document`, `spreadsheet`, `sqlEditor`, `codeEditor`, `messaging`, `email`, `plain`).
+The destination is read off one table, `DestinationRules.standard`, by bundle
+identifier prefix or window title; no code branches on a bundle identifier anywhere
+else. `DestinationFormatter.registry` holds one value per destination and, so far, two decisions:
+how the first word is cased and whether the last sentence gets a full stop. A first
+word lowered mid-sentence keeps its capital when it is "I", an acronym, or looks like a
+name: the same word is capitalised off a sentence start elsewhere in the output, or in
+the window title, the selection or the text around the caret — a text capitalised
+throughout, as a title-cased document name is, says nothing. A name spoken once and
+absent from the screen is still lowered; the personal dictionary is where that closes.
+Both transformers apply those two policies last, through `FirstWordPass` and
+`TerminalStopPass`, and the corpus cases that name a
+destination (`message-two-sentences-no-stop`, `mid-sentence-continues-lower-case`,
+`spreadsheet-cell-no-stop`, `document-sentence-with-stop`) are scored on the literal
+beginning and ending of the output, because the word scorer folds case and punctuation
+away.
+
+A field the app will not describe — every Electron app, in the probe — gives an
+`unknown` insertion point, which is treated as the start of a sentence: today's
+behaviour. The destination still comes through, because the bundle identifier costs no
+permission at all.
 
 ## How this maps onto the code
 
-- `CleaningPipeline.standard` — ten `CleaningPass` values run in order over a `Draft`,
-  each recording what it removed or rewrote — is the floor: everything marked ✅ with a
-  pass name above, deterministic, and what the user gets when the model declines or
-  fails. `RuleBasedTransformer` is nothing but that pipeline. `Docs/cleanup-design.md`
-  is the design.
+The design that generalises all of it — `Situation`, `Formatter`, `CleaningPass`, `Draft`,
+one model call per piece — is `Docs/cleanup-design.md`. Below is where things are today.
+
+### Today
+
+- `CleaningPipeline.standard(for:situation:)` — ten `CleaningPass` values run in order
+  over a `Draft`, each recording what it removed or rewrote — is the floor: everything
+  marked ✅ with a pass name above, deterministic, and what the user gets when the model
+  declines or fails. `RuleBasedTransformer` is nothing but that pipeline for the
+  request's formatter and caret.
+- `SituationResolver` turns the context read into a `Situation`; `FirstWordPass` and
+  `TerminalStopPass` carry the `DestinationFormatter` policies, and are the only place
+  either decision is made — last in the rules pipeline, and again after the model as
+  `CleaningPipeline.afterModel(for:situation:heard:)`.
 - The generative transformer runs the same passes first, without the casing and the
   final full stop, and hands the model the draft's text — so the fillers and the
   discarded half of a correction are gone before the model can rewrite around them.

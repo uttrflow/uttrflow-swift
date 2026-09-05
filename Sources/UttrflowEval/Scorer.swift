@@ -28,8 +28,17 @@ public enum Scorer {
             keptEverythingRequired: lost.isEmpty,
             lost: lost,
             isExact: produced == wanted,
-            invented: invented
+            invented: invented,
+            brokeShape: brokenShape(of: rewritten, against: reference)
         )
+    }
+
+    /// The beginning and ending checked literally, because case and a final mark are what these cases are about.
+    static func brokenShape(of rewritten: String, against reference: EvaluationCase) -> [String] {
+        var broken: [String] = []
+        if let head = reference.mustBeginWith, !rewritten.hasPrefix(head) { broken.append(head) }
+        if let tail = reference.mustEndWith, !rewritten.hasSuffix(tail) { broken.append(tail) }
+        return broken
     }
 
     /// Words, lowercased, with punctuation dropped.

@@ -13,6 +13,26 @@ struct DraftTests {
         #expect(draft.words.allSatisfy { $0.state == .kept && $0.confidence == 1 && $0.heard == $0.text })
     }
 
+    @Test(
+        "keeps line breaks between words as layout marks when asked, and round-trips the text",
+        arguments: [
+            ("hello there", ["hello", "there"], "hello there"),
+            ("line one\nline two", ["line", "one", "\n", "line", "two"], "line one\nline two"),
+            ("one\n\ntwo", ["one", "\n\n", "two"], "one\n\ntwo"),
+            (
+                "we need:\n- milk\n- eggs", ["we", "need:", "\n", "-", "milk", "\n", "-", "eggs"],
+                "we need:\n- milk\n- eggs"
+            ),
+            ("\n  hello \t there\n\n", ["hello", "there"], "hello there"),
+            ("", [], ""),
+        ]
+    )
+    func keepsLineBreaks(text: String, words: [String], rendered: String) {
+        let draft = Draft(keepingLineBreaks: text)
+        #expect(draft.words.map(\.text) == words)
+        #expect(draft.text == rendered)
+    }
+
     @Test("joins the words with single spaces")
     func joinsWords() {
         #expect(Draft(text: "hello there").text == "hello there")

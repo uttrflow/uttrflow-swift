@@ -16,6 +16,34 @@ struct ScorerTests {
         )
     }
 
+    private func shaped(expected: String, begin: String? = nil, end: String? = nil) -> EvaluationCase {
+        EvaluationCase(
+            id: "case", category: .everyday, spoken: "spoken", expected: expected,
+            mustBeginWith: begin, mustEndWith: end)
+    }
+
+    /// Case and a final mark are what the destination cases are about, so they are looked at literally.
+    @Test("checks a required beginning and ending exactly, case included")
+    func checksShape() {
+        let reference = shaped(expected: "the report is attached.", begin: "the report", end: ".")
+        #expect(Scorer.score("the report is attached.", against: reference).passed)
+
+        let capitalised = Scorer.score("The report is attached.", against: reference)
+        #expect(capitalised.brokeShape == ["the report"])
+        #expect(!capitalised.passed)
+
+        let unfinished = Scorer.score("the report is attached", against: reference)
+        #expect(unfinished.brokeShape == ["."])
+        #expect(!unfinished.passed)
+
+        #expect(Scorer.score("The Report Is Attached", against: reference).brokeShape == ["the report", "."])
+    }
+
+    @Test("asks nothing of the shape when the case says nothing about it")
+    func shapeIsOptional() {
+        #expect(Scorer.score("HELLO THERE", against: shaped(expected: "hello there.")).brokeShape.isEmpty)
+    }
+
     @Test("scores an exact match perfectly")
     func exactMatch() {
         let score = Scorer.score("Hello there.", against: reference(expected: "Hello there."))
