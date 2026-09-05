@@ -1,3 +1,4 @@
+// Tests for reasons, the corrections list, scopes, undo, corrected-word counting and salvage decoding.
 import Foundation
 import Testing
 
@@ -5,8 +6,10 @@ import Testing
 
 // MARK: - Fixtures
 
+/// A fixed instant.
 private let epoch = Date(timeIntervalSince1970: 1_700_000_000)
 
+/// A correction replacing "utter flow" with "Uttrflow" unless a field says otherwise.
 private func made(
     id: UUID = UUID(),
     heard: String = "utter flow",
@@ -22,6 +25,7 @@ private func made(
         heardConfidence: confidence, isUndone: isUndone)
 }
 
+/// A dictation `daysAgo` before `epoch`, into Slack unless said otherwise.
 private func said(
     _ text: String = "Uttrflow is late",
     id: UUID = UUID(),
@@ -36,14 +40,10 @@ private func said(
 
 // MARK: - The reason
 
+/// The vocabulary of reasons and its join to the engine's raw values.
 @Suite("The reason a word was changed")
 struct CorrectionReasonTests {
-    /// The one thing the build cannot check for itself. `UttrflowAI.CorrectionReason` is
-    /// the authority on these spellings and `DictationCorrection.reason` carries them
-    /// across as a bare `String`, but nothing in the package graph lets this module see
-    /// that one — so the join is these five literals. Rename a case there and this fails
-    /// here, which is the point: a raw value that drifted would turn every stored
-    /// correction into one this build cannot name.
+    /// The join to `UttrflowAI.CorrectionReason`, which this module cannot see; a drifted spelling fails.
     @Test("the raw values are the correction engine's own, letter for letter")
     func rawValuesMatchTheEngine() {
         #expect(
@@ -66,9 +66,7 @@ struct CorrectionReasonTests {
         #expect(String(decoding: encoded, as: UTF8.self) == "\"heardAsStrayLetters\"")
     }
 
-    /// "A change with no nameable reason is a change that should never have been made" —
-    /// so one that arrives with a reason this build cannot name is refused at the door
-    /// rather than drawn under a reason somebody guessed for it.
+    /// A change with a reason this build cannot name is refused rather than drawn under a guessed one.
     @Test("a correction is built from the engine's raw reason, or not at all")
     func builtFromTheRawReason() {
         let entry = UUID()
@@ -87,6 +85,7 @@ struct CorrectionReasonTests {
 
 // MARK: - Reading the history
 
+/// The list of changes read across records already in hand.
 @Suite("Every change across the history")
 struct CorrectionHistoryTests {
     @Test("changes are listed newest dictation first, in the order the words were spoken")
@@ -117,9 +116,7 @@ struct CorrectionHistoryTests {
         #expect(CorrectionHistory(of: [said(changes: RecordedChanges())]).corrections.isEmpty)
     }
 
-    /// A dictation that recorded nothing contributes nothing, rather than being read as
-    /// one that changed nothing. Which of the two it was is the difference between a
-    /// measurement and a number.
+    /// A dictation with no record and one that changed nothing are different facts; both contribute nothing.
     @Test("a dictation that kept no record contributes no changes")
     func unmeasured() {
         #expect(CorrectionHistory(of: [said()]).corrections.isEmpty)
@@ -130,10 +127,13 @@ struct CorrectionHistoryTests {
     }
 }
 
+/// Scope titles and narrowing.
 @Suite("Narrowing a list of changes")
 struct CorrectionsScopeTests {
+    /// A change still applied.
     private let kept = Correction(
         dictation: UUID(), heard: "utter flow", wrote: "Kept", reason: .seenOnScreen, when: epoch)
+    /// A change the user put back.
     private let reverted = Correction(
         dictation: UUID(), heard: "utter flow", wrote: "Reverted", reason: .seenOnScreen, when: epoch,
         isUndone: true)
@@ -156,6 +156,7 @@ struct CorrectionsScopeTests {
 
 // MARK: - Putting one back
 
+/// Putting one change back: the words, the entry, the flag and the refusals.
 @Suite("Undoing one change")
 struct CorrectionUndoTests {
     @Test("the words that were heard go back into the text")
@@ -166,8 +167,7 @@ struct CorrectionUndoTests {
         #expect(undone.record.text == "utter flow is late")
     }
 
-    /// The entry is the whole point. Without it a bad word stays in the dictionary and
-    /// is applied again tomorrow, and the undo was only cosmetic.
+    /// Without the entry a bad word stays in the dictionary and the undo is only cosmetic.
     @Test("the dictionary entry to blame comes back with it")
     func namesTheEntry() throws {
         let entry = UUID()
@@ -185,9 +185,7 @@ struct CorrectionUndoTests {
         #expect(undone.record.changes?.corrections.map(\.heard) == ["utter flow"])
     }
 
-    /// The whitespace between the words is the reason this splices by character range
-    /// instead of rejoining the words with spaces — a dictated code block put back
-    /// together the other way arrives on one line.
+    /// Splicing by character range keeps a dictated code block from arriving on one line.
     @Test("everything between the words is left exactly as it was")
     func keepsTheWhitespace() throws {
         let correction = made(heard: "s q l", wrote: "SQL", range: 1..<4)
@@ -197,9 +195,7 @@ struct CorrectionUndoTests {
         #expect(undone.record.text == "print s q l\n    print again")
     }
 
-    /// A replacement can be a different number of words from what it replaced, so a
-    /// later change no longer sits where it was spoken. Searching the text for the
-    /// written word instead would find the wrong one the moment a word appeared twice.
+    /// An earlier replacement with a different word count shifts a later change from its spoken position.
     @Test("a change shifted along by an earlier one is still found")
     func shiftedByAnEarlierChange() throws {
         let first = made(heard: "s q l", wrote: "SQL", range: 0..<3)
@@ -210,22 +206,11 @@ struct CorrectionUndoTests {
         let once = try #require(record.undoing(second.id))
         #expect(once.record.text == "SQL is fast")
 
-        // And again from the result, where the first change now has to be found past a
-        // neighbour that is already back to the words it was heard as.
+        // And again from the result, past a neighbour already restored to its heard words.
         #expect(try #require(once.record.undoing(first.id)).record.text == "s q l is fast")
     }
 
-    /// The one test here that cannot go stale as the record grows, and the reason the
-    /// list of fields it replaced was worth deleting.
-    ///
-    /// `undoing` changes exactly two things, so the expected answer is built the same
-    /// way the method builds it — a copy of the record with those two things changed —
-    /// and whole values are compared. Naming the fields that ought to have survived is
-    /// what let ``DictationRecord/isFlagged`` be dropped for as long as it was: the
-    /// checklist was written from the same memory as the code, and both forgot the same
-    /// field. `==` over the struct forgets nothing, and a field added to
-    /// ``DictationRecord`` tomorrow is covered by this without anybody remembering to
-    /// come back and add it.
+    /// Compares whole values, so a field added to ``DictationRecord`` tomorrow is covered with no checklist.
     @Test("the undone record is this record with one change put back, and nothing else")
     func changesOnlyWhatItSays() throws {
         let correction = made()
@@ -244,10 +229,7 @@ struct CorrectionUndoTests {
         #expect(undone == record)
     }
 
-    /// Named separately from ``changesOnlyWhatItSays()`` even though that would catch it,
-    /// because this is the one the user feels and a whole-value mismatch does not say so.
-    /// ``DictationRecord/isFlagged`` is the only judgement in the record that Uttrflow did
-    /// not make, and putting a change back is not the user withdrawing it.
+    /// Named apart from ``changesOnlyWhatItSays()`` because this is the failure the user feels.
     @Test("undoing a change does not withdraw the user's flag")
     func keepsTheFlag() throws {
         let correction = made(heard: "s q l", wrote: "SQL", range: 1..<4)
@@ -274,10 +256,7 @@ struct CorrectionUndoTests {
         #expect(said(changes: RecordedChanges(corrections: [correction])).undoing(correction.id) == nil)
     }
 
-    /// Tidying and snippet expansion both run after the dictionary has had its say, so
-    /// the text kept here is not always the text these ranges were measured against.
-    /// Overwriting it would cost the user a sentence to save a word — but their verdict
-    /// on the change is true either way, so the row and the dictionary still hear it.
+    /// Tidying and snippets run after the dictionary, so the text may not match; the verdict still counts.
     @Test("words that are no longer where the range says are left alone, and still counted")
     func textNoLongerMatches() throws {
         let entry = UUID()
@@ -304,6 +283,7 @@ struct CorrectionUndoTests {
 
 // MARK: - How much of the utterance is still the user's
 
+/// The count behind the accuracy figure. See Docs/core-history-accuracy.md.
 @Suite("Counting the words a dictation changed")
 struct CorrectedWordsTests {
     @Test("the spoken words a standing change covers are counted, in the utterance's terms")
@@ -323,9 +303,7 @@ struct CorrectedWordsTests {
         #expect(changes.correctedWords == 1)
     }
 
-    /// The pipeline cannot write two changes over the same word — the applier refuses an
-    /// overlap — but a hand-edited file can, and one word rewritten twice is still one
-    /// word the user did not get back.
+    /// Only a hand-edited file can overlap two changes; a word rewritten twice is still one word.
     @Test("a word two changes both claim is one word, not two")
     func overlapsCountOnce() {
         let changes = RecordedChanges(
@@ -333,9 +311,7 @@ struct CorrectedWordsTests {
         #expect(changes.correctedWords == 4)
     }
 
-    /// The guarantee the accuracy figure rests on, and the reason it needs no clamp:
-    /// what is counted are positions *within* the utterance, so the count cannot exceed
-    /// it whatever a file claims.
+    /// Positions are counted within the utterance, so the count cannot exceed it and needs no clamp.
     @Test("a change reaching past the end of the utterance is counted only as far as it reaches")
     func rangesPastTheEnd() {
         let changes = RecordedChanges(corrections: [made(range: 0..<9)], spokenWords: 2)
@@ -343,8 +319,7 @@ struct CorrectedWordsTests {
         #expect(RecordedChanges(corrections: [made(range: 4..<6)], spokenWords: 2).correctedWords == 0)
     }
 
-    /// Nobody counted the utterance, so there is nothing for these to be positions in.
-    /// The accuracy figure has already retired itself for such a dictation.
+    /// With no utterance counted there is nothing for these to be positions in.
     @Test("changes recorded before the utterance was counted count nothing")
     func withoutAnUtterance() {
         #expect(RecordedChanges(corrections: [made(range: 0..<2)]).correctedWords == 0)
@@ -353,13 +328,12 @@ struct CorrectedWordsTests {
 
 // MARK: - What a stored change survives
 
-/// ``DictationHistoryStore`` reads its file all-or-nothing: one throwing field discards
-/// the whole history, and the next write deletes it. So these are not tests about a
-/// field or two. They are tests that a build meeting a file it does not entirely
-/// understand loses the part it cannot read and keeps the user's words.
+/// Loses only the part it cannot read and keeps the user's words. See Docs/core-history-decoding.md.
 @Suite("Reading a stored change written by a build we are not")
 struct RecordedChangesDecodingTests {
+    /// A fixed correction identifier.
     private static let stray = "6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+    /// A fixed dictionary-entry identifier.
     private static let entry = "6BA7B811-9DAD-11D1-80B4-00C04FD430C8"
 
     /// One well-formed change, as today's build writes it.
@@ -372,13 +346,12 @@ struct RecordedChangesDecodingTests {
         """
     }
 
+    /// Decodes `json` as a ``RecordedChanges``.
     private func changes(_ json: String) throws -> RecordedChanges {
         try JSONDecoder().decode(RecordedChanges.self, from: Data(json.utf8))
     }
 
-    /// The case a fifth ``CorrectionReason`` creates for every user who runs an older
-    /// build again. The write path already drops a change it cannot name; this is the
-    /// same answer on the way back out, instead of the history file being discarded.
+    /// The case a fifth ``CorrectionReason`` creates for every user who runs an older build again.
     @Test("a change named with a reason this build does not know costs that change")
     func unknownReason() throws {
         let decoded = try changes(
@@ -389,8 +362,7 @@ struct RecordedChangesDecodingTests {
         #expect(decoded.corrections.map(\.wrote) == ["Uttrflow"])
     }
 
-    /// The same containment for the other way this type grows: a field added to it that
-    /// an older build requires and a newer file does not write, or the reverse.
+    /// The same containment for a field one build requires and another does not write.
     @Test("a change missing something this build requires costs that change")
     func missingRequiredField() throws {
         let decoded = try changes(
@@ -401,9 +373,7 @@ struct RecordedChangesDecodingTests {
         #expect(decoded.corrections.map(\.wrote) == ["Uttrflow"])
     }
 
-    /// Dropped only when there is no honest answer. "The user has not put it back" is an
-    /// honest answer, so a change from before undoing was recorded is kept rather than
-    /// lost — the same call ``DictationRecord/isFlagged`` makes.
+    /// Dropped only with no honest answer; "not put back" is one, as for ``DictationRecord/isFlagged``.
     @Test("a change from before undoing was recorded reads as one nobody undid")
     func missingIsUndone() throws {
         let decoded = try changes(
@@ -426,8 +396,7 @@ struct RecordedChangesDecodingTests {
         #expect(decoded.corrections.count == 1)
     }
 
-    /// Absent, not zero. A dictation nobody counted the words of must retire the accuracy
-    /// figure rather than claim the user said nothing.
+    /// Absent, not zero: an uncounted utterance retires the accuracy figure rather than claiming silence.
     @Test("changes written before the utterance was counted decode with no count")
     func missingSpokenWords() throws {
         #expect(try changes("{\"corrections\":[],\"snippets\":[]}").spokenWords == nil)
