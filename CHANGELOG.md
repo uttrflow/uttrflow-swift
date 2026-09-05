@@ -88,6 +88,18 @@ Each released version is a git tag and a build at
   with a Retry, which runs it through the same stages and copies the result. The floating
   button's failure state gains a Retry that opens that page. Nothing leaves the Mac; the
   privacy wording in Settings, onboarding and History now says exactly this.
+- **A long dictation is laid out where its pieces meet.** Each piece of a long dictation
+  is cleaned on its own, so three things can only be decided at the seams, and a new
+  `PieceJoiner` decides them. A spoken sequence over consecutive pieces — "first… second…
+  third", "one… two…", "number one…" — becomes a list where the place takes one (a
+  document, an email): two items at least, each of them a clause, the sequence unbroken
+  to the end of the dictation, the sequence word dropped and the item given a bullet. A
+  chat, a cell, code and SQL keep the prose. A piece that opens on a new topic — "also",
+  "next", "okay so", "another thing", "moving on", an ordinal — starts a new paragraph
+  where the place has paragraphs, and never inside a list or in a spreadsheet cell. And a
+  correction the speaker made across the pause — "let's meet at four" | "no sorry at
+  five" — now drops the half they replaced, by the same rule the self-correction pass
+  uses inside one piece.
 
 ## [0.4.0] — 2026-09-01
 

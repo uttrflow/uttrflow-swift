@@ -1,31 +1,31 @@
 /// The English number words and the grammar that joins them into one value.
-enum NumberWords {
-    static let units: [String: Int] = [
+public enum NumberWords {
+    public static let units: [String: Int] = [
         "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
         "eight": 8, "nine": 9,
     ]
-    static let teens: [String: Int] = [
+    public static let teens: [String: Int] = [
         "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
         "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
     ]
-    static let tens: [String: Int] = [
+    public static let tens: [String: Int] = [
         "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
         "eighty": 80, "ninety": 90,
     ]
-    static let scales: [String: Int] = ["hundred": 100, "thousand": 1_000, "million": 1_000_000]
+    public static let scales: [String: Int] = ["hundred": 100, "thousand": 1_000, "million": 1_000_000]
 
     /// The value of a single number word, or nil for any other word.
-    static func value(of key: String) -> Int? {
+    public static func value(of key: String) -> Int? {
         units[key] ?? teens[key] ?? tens[key] ?? scales[key]
     }
 
     /// Whether a word is a number, spoken or already in digits.
-    static func isNumber(_ key: String) -> Bool {
+    public static func isNumber(_ key: String) -> Bool {
         value(of: key) != nil || digits(key) != nil
     }
 
     /// The key when it is already a numeral such as 15, 16.2 or 2:30.
-    static func digits(_ key: String) -> String? {
+    public static func digits(_ key: String) -> String? {
         guard let first = key.first, let last = key.last, first.isNumber, last.isNumber,
             key.allSatisfy({ $0.isNumber || ".,:".contains($0) })
         else { return nil }
@@ -33,7 +33,7 @@ enum NumberWords {
     }
 
     /// Reads the longest cardinal number at the start of `keys`, saying how many words it used.
-    static func cardinal(_ keys: ArraySlice<String>) -> (value: Int, count: Int)? {
+    public static func cardinal(_ keys: ArraySlice<String>) -> (value: Int, count: Int)? {
         var total = 0
         var group = 0
         var hasTens = false
@@ -92,7 +92,7 @@ enum NumberWords {
     }
 
     /// Digits grouped in threes with commas, applied only from ten thousand up.
-    static func render(_ value: Int, grouped: Bool) -> String {
+    public static func render(_ value: Int, grouped: Bool) -> String {
         let plain = String(value)
         guard grouped, value >= 10_000 else { return plain }
         var out = ""

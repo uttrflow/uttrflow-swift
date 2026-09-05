@@ -256,13 +256,6 @@ public actor DictationPipeline {
 
     // MARK: Working ahead
 
-    /// One piece of the recording, through every stage that runs before the words are joined.
-    fileprivate struct Piece: Sendable {
-        let heard: Transcription
-        let corrected: CorrectedTranscript
-        let cleaned: TransformationResult
-    }
-
     /// Reads the screen, warms the tidier for where the words are going, then works on the recording as it grows.
     private func beginWorkingAhead(_ mine: Int) {
         earlyPieces = []
@@ -390,7 +383,9 @@ public actor DictationPipeline {
         }
         // Every piece was done while recording, and the screen it was read against still applies.
         if state == .transcribing { transition(to: .tidying) }
-        let whole = Piece.joining(pieces)
+        let whole = PieceJoiner.join(
+            pieces,
+            under: .standard(for: SituationResolver.resolve(from: appContext ?? AppContext()).destination))
 
         // Inserting a blank would delete the user's selection, so it is refused like silence.
         guard !whole.cleaned.text.isBlank else {
@@ -618,59 +613,9 @@ public actor DictationPipeline {
     }
 }
 
-extension DictationPipeline.Piece {
-    /// Every piece as one, with the corrections' word ranges moved to where their piece begins.
-    fileprivate static func joining(_ pieces: [Self]) -> Self {
-        guard pieces.count > 1, let first = pieces.first else {
-            return pieces.first
-                ?? Self(
-                    heard: Transcription(text: ""), corrected: .unchanged(""),
-                    cleaned: TransformationResult(text: "", producedBy: .rules))
-        }
-        var corrections: [DictationCorrection] = []
-        var wordsBefore = 0
-        var heardText: [String] = []
-        var correctedText: [String] = []
-        var cleanedText: [String] = []
-        var producedBy = first.cleaned.producedBy
-        for piece in pieces {
-            corrections += piece.corrected.corrections.map { $0.shifted(by: wordsBefore) }
-            wordsBefore += piece.heard.text.spokenWordCount
-            heardText.append(piece.heard.text)
-            correctedText.append(piece.corrected.text)
-            cleanedText.append(piece.cleaned.text)
-            // Any piece the model left to the rules makes the whole a rules result.
-            if piece.cleaned.producedBy != producedBy { producedBy = .rules }
-        }
-        let heard = Transcription(
-            text: heardText.joined(separator: " "),
-            detectedLanguage: first.heard.detectedLanguage,
-            segments: pieces.flatMap(\.heard.segments),
-            audioDuration: pieces.reduce(.zero) { $0 + $1.heard.audioDuration })
-        return Self(
-            heard: heard,
-            corrected: CorrectedTranscript(
-                text: correctedText.joined(separator: " "), corrections: corrections),
-            cleaned: TransformationResult(text: cleanedText.joined(separator: " "), producedBy: producedBy))
-    }
-}
-
-extension DictationCorrection {
-    /// The same correction, indexing words `offset` further into a longer sentence.
-    fileprivate func shifted(by offset: Int) -> Self {
-        Self(
-            heard: heard, wrote: wrote,
-            wordRange: (wordRange.lowerBound + offset)..<(wordRange.upperBound + offset),
-            entryID: entryID, reason: reason, heardConfidence: heardConfidence)
-    }
-}
-
 extension String {
     /// Nothing but whitespace, the emptiness ``Transcription/isBlank`` means.
     fileprivate var isBlank: Bool { allSatisfy(\.isWhitespace) }
-
-    /// How many words were spoken, counted the way the corrections' ranges count them.
-    fileprivate var spokenWordCount: Int { split(whereSeparator: \.isWhitespace).count }
 }
 
 extension Transcription {
