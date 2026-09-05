@@ -153,30 +153,26 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
         [situation.surroundings, situation.preceding].compactMap { $0 }
     }
 
-    /// A run of the screen this long, repeated word for word past the typed text, is copying rather than completing.
-    static let echoLength = 16
+    /// A label part shorter than this is a word any line may share; "Delivered" and longer are what a chat writes after a message.
+    static let shortestLabelPart = 8
 
     /// The fewest characters a continuation that opens a new word must have to be a word at all.
     static let shortestNewWord = 3
 
-    /// The line cut where its continuation starts repeating a run of the context, its timestamp parts dropped, or nothing when that leaves no continuation.
+    /// The line cut where its continuation takes up a part of a screen label — a comma-separated part, eight characters or more, repeated exactly, as "Received from Priya" is — its timestamp parts dropped, or nothing when that leaves no continuation; a reply may still quote the screen in its own words, a shell a file name, a query a column list.
     static func trimmed(_ line: String, typed: String, echoing context: [String]) -> String? {
-        let continuation = Array(line.dropFirst(typed.count))
-        var cut = continuation.count
-        if continuation.count >= echoLength {
-            let folded = context.map { fold($0) }
-            for start in 0...(continuation.count - echoLength) {
-                let window = fold(String(continuation[start..<(start + echoLength)]))
-                if folded.contains(where: { $0.contains(window) }) {
-                    cut = start
-                    break
-                }
-            }
+        let continuation = String(line.dropFirst(typed.count))
+        let known = Set(
+            context.flatMap { $0.split(whereSeparator: \.isNewline) }.flatMap { labelParts(of: String($0)) })
+        var parts = continuation.split(separator: ", ", omittingEmptySubsequences: false).map(String.init)
+        // The first part is the line's own words; only a part hung on a comma can be a label's.
+        if let copied = parts.indices.dropFirst().first(where: { known.contains(fold(parts[$0])) }) {
+            parts.removeSubrange(copied...)
         }
+        let own = parts.joined(separator: ", ")
         // A stamp the model wrote after its line is as little the answer as one it copied.
-        let own = String(continuation[..<cut])
         var kept = Substring(Timestamps.without(own))
-        let changed = cut < continuation.count || kept.count < own.count
+        let changed = kept.count < continuation.count
         // The separator the copy or the stamp hung off is not part of the answer either.
         while changed, let last = kept.last, last.isWhitespace || last == "," || last == ";" {
             kept.removeLast()
@@ -188,9 +184,14 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
         return changed ? typed + String(kept) : line
     }
 
-    /// Text as it compares for copying: lowercased, every kind of space the same space, marks gone.
+    /// The comma-separated parts of one screen label long enough to be a label's own, as they compare.
+    private static func labelParts(of label: String) -> [String] {
+        label.split(separator: ", ").map { fold(String($0)) }.filter { $0.count >= shortestLabelPart }
+    }
+
+    /// Text as it compares for copying: lowercased, every kind of space the same space, ends trimmed.
     private static func fold(_ text: String) -> String {
-        String(text.lowercased().map { $0.isWhitespace ? " " : $0 })
+        String(text.lowercased().map { $0.isWhitespace ? " " : $0 }).trimmingCharacters(in: .whitespaces)
     }
 
     /// The typed text with an answer that left out its echo joined on, or nothing when no boundary says how: a space on either side, or punctuation opening the answer, joins as written; letters against letters could be the rest of a word or a new one run together, and no reading is better than a wrong line.

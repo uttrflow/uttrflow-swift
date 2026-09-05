@@ -105,10 +105,11 @@ struct CompletionParsingTests {
     }
 
     @Test(
-        "A line is cut where it starts copying the screen word for word, and dropped when nothing of its own is left."
+        "A line is cut where it takes up a part of a screen label, and dropped when nothing of its own is left."
     )
     func copiesOfTheScreenAreCut() {
-        let screen = "message, Baby busy ho?, 3Septemberat6:41\u{202F}PM, Received from Priya"
+        let screen =
+            "message, Baby busy ho?, 3Septemberat6:41\u{202F}PM, Received from Priya\nYour message, Haan, Sent to Priya, Delivered"
         #expect(
             MLXCandidateScorer.trimmed(
                 "phone pe nahi, 4Septemberat6:42 PM, Received from Priya", typed: "phone", echoing: [screen])
@@ -117,13 +118,31 @@ struct CompletionParsingTests {
             MLXCandidateScorer.trimmed("phone, Received from Priya", typed: "phone", echoing: [screen]) == nil
         )
         #expect(
+            MLXCandidateScorer.trimmed("phone pe nahi, Delivered", typed: "phone", echoing: [screen])
+                == "phone pe nahi")
+        #expect(
             MLXCandidateScorer.trimmed("phone pe nahi yaar", typed: "phone", echoing: [screen])
                 == "phone pe nahi yaar")
         #expect(MLXCandidateScorer.trimmed("phone pe nahi", typed: "phone", echoing: []) == "phone pe nahi")
-        // A short repeat is a phrase in common, not a copy.
+        // Quoting the screen in the line's own words is a reply, not a copy of a label.
         #expect(
             MLXCandidateScorer.trimmed("phone busy ho?", typed: "phone", echoing: [screen])
                 == "phone busy ho?")
+        #expect(
+            MLXCandidateScorer.trimmed(
+                "khana bhi wahi kha lenge", typed: "khana ", echoing: ["Priya: wahi kha lenge?"])
+                == "khana bhi wahi kha lenge")
+        // A shell reuses a file name and a query a column list from the screen; neither is a label part.
+        #expect(
+            MLXCandidateScorer.trimmed(
+                "git add Sources/Login/Session.swift", typed: "git add ",
+                echoing: ["Sources/Login/Session.swift"])
+                == "git add Sources/Login/Session.swift")
+        #expect(
+            MLXCandidateScorer.trimmed(
+                "INSERT INTO products (id, name, price, stock)", typed: "INSERT INTO products ",
+                echoing: ["products: id, name, price, stock"])
+                == "INSERT INTO products (id, name, price, stock)")
     }
 
     @Test(
