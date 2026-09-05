@@ -1,9 +1,6 @@
+/// The one conversion from normalised float audio to 16-bit PCM.
 extension Int16 {
-    /// Converts a normalised audio sample in `-1...1` to 16-bit PCM.
-    ///
-    /// Clamps rather than wrapping: resampling routinely nudges a sample just past
-    /// the limit, and wrapping turns a loud moment into a loud click. A non-finite
-    /// sample becomes silence, which is the only safe reading of it.
+    /// A normalised sample as 16-bit PCM, clamped so an overshoot is loud, not a click; `nan` is silence.
     public init(clampingAudioSample sample: Float) {
         guard sample.isFinite else {
             self = 0

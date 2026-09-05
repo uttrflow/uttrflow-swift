@@ -1,9 +1,13 @@
 /// Something the user must grant before the pipeline can run.
 public enum PermissionError: UttrflowFailure {
+    /// The user refused microphone access.
     case microphoneDenied
+    /// A device policy blocks microphone access.
     case microphoneRestricted
+    /// This process is not trusted for Accessibility.
     case accessibilityNotTrusted
 
+    /// A plain sentence per case.
     public var userMessage: String {
         switch self {
         case .microphoneDenied:
@@ -15,6 +19,7 @@ public enum PermissionError: UttrflowFailure {
         }
     }
 
+    /// The System Settings pane that grants it, or nothing when a policy holds it.
     public var recovery: RecoveryAction? {
         switch self {
         case .microphoneDenied: .openSystemSettings(.microphone)
@@ -23,13 +28,12 @@ public enum PermissionError: UttrflowFailure {
         }
     }
 
+    /// Blocking without a microphone; degraded without Accessibility, as the words still reach the clipboard.
     public var severity: FailureSeverity {
         switch self {
-        // Both microphone refusals stop dictation dead, whether or not the user is the
-        // one who can lift them.
+        // Both microphone refusals stop dictation dead, whoever can lift them.
         case .microphoneDenied, .microphoneRestricted: .blocking
-        // Without Accessibility the words are still captured and still tidied; they
-        // arrive on the clipboard rather than in the app the user was typing into.
+        // The words are still captured and tidied; they arrive on the clipboard instead of in the app.
         case .accessibilityNotTrusted: .degraded
         }
     }

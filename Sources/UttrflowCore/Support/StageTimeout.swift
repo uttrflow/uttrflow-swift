@@ -12,12 +12,7 @@ public enum StageTimeout: Sendable {
     public static let quick = Duration.seconds(15)
 }
 
-/// Runs `work`, answering `nil` when it has not finished within `limit`.
-///
-/// The work is **abandoned rather than awaited** when the limit wins, which is the
-/// whole point: a stage worth timing out is usually one blocked inside a synchronous
-/// call that will not notice a cancellation, and a task group cannot return until every
-/// child has. Waiting for it would reproduce the hang the limit exists to end.
+/// Runs `work`, answering `nil` when `limit` wins; the work is abandoned, not awaited, since a blocked stage hangs.
 public func withStageTimeout<Success: Sendable>(
     _ limit: Duration,
     clock: any Clock<Duration>,
@@ -43,12 +38,14 @@ public func withStageTimeout<Success: Sendable>(
 
 /// Whichever of a stage and its limit answered first, and what it answered.
 private final class StageRace<Success: Sendable>: Sendable {
+    /// What the winner answered.
     enum Outcome: Sendable {
         case finished(Success)
         case failed(any Error)
         case expired
     }
 
+    /// The waiting caller and the first answer, kept together under one lock.
     private struct State {
         var waiting: CheckedContinuation<Void, Never>?
         var outcome: Outcome?
@@ -56,6 +53,7 @@ private final class StageRace<Success: Sendable>: Sendable {
 
     private let state = Mutex(State())
 
+    /// Parks the caller until the first answer.
     func arm(_ continuation: CheckedContinuation<Void, Never>) {
         state.withLock { $0.waiting = continuation }
     }
@@ -71,6 +69,7 @@ private final class StageRace<Success: Sendable>: Sendable {
         waiting?.resume()
     }
 
+    /// The value, the error rethrown, or `nil` when the limit won.
     func result() throws -> Success? {
         switch state.withLock({ $0.outcome }) {
         case .finished(let value): value

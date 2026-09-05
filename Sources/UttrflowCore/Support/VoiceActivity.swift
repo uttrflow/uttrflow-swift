@@ -6,7 +6,7 @@ public enum VoiceActivity: Sendable {
     /// A frame this quiet is silence however quiet the room is, at about -46 dBFS.
     static let absoluteFloor: Float = 0.005
 
-    /// Speech is this many times louder than the room it was spoken in.
+    /// Speech is this many times louder than the room around it.
     static let signalToNoise: Float = 3
 
     /// A burst shorter than this is a click or a bump rather than a word, in seconds.
@@ -101,16 +101,19 @@ public enum VoiceActivity: Sendable {
 
 /// Speech cut out of a longer recording, and where in it the cut began.
 public struct IsolatedSpeech: Sendable, Equatable {
+    /// The speech alone.
     public let audio: AudioSamples
     /// How far into the recording the speech starts, so timings can be put back.
     public let start: Duration
 
+    /// Speech with the offset of its cut.
     public init(audio: AudioSamples, start: Duration) {
         self.audio = audio
         self.start = start
     }
 }
 
+/// The trim a recording goes through before transcription.
 extension AudioSamples {
     /// The speech in this recording, or `nil` when it holds none.
     public func speechOnly() -> IsolatedSpeech? {
