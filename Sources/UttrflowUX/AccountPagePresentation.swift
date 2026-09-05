@@ -130,6 +130,10 @@ public struct AccountPagePresentation: Sendable, Equatable {
 /// leaves your Mac invites exactly one question, and the answer has to be on the screen
 /// rather than in a support article.
 public enum AccountPagePresenter {
+    /// The heading, the same over every form of the page.
+    static let chrome = MainPageChrome(
+        title: "Account", caption: "Who you are signed in as, and what you are paying for.")
+
     /// The promise, in the words the privacy screen uses.
     /// Deliberately does not say "recordings".
     ///
@@ -157,9 +161,7 @@ public enum AccountPagePresenter {
                 return page(for: local, callout: callout, locale: locale)
             }
             return AccountPagePresentation(
-                chrome: MainPageChrome(
-                    title: "Account",
-                    caption: "Who you are signed in as, and what you are paying for."),
+                chrome: chrome,
                 identity: nil,
                 details: [],
                 notice: nil,
@@ -176,9 +178,7 @@ public enum AccountPagePresenter {
         }
 
         return AccountPagePresentation(
-            chrome: MainPageChrome(
-                title: "Account",
-                caption: "Who you are signed in as, and what you are paying for."),
+            chrome: chrome,
             identity: identity(for: entitlement.account, picture: snapshot.picture),
             details: details(for: entitlement),
             notice: notice(for: snapshot.access),
@@ -203,9 +203,7 @@ public enum AccountPagePresenter {
     ) -> AccountPagePresentation {
         let name = local.name ?? "This Mac"
         return AccountPagePresentation(
-            chrome: MainPageChrome(
-                title: "Account",
-                caption: "Who you are signed in as, and what you are paying for."),
+            chrome: chrome,
             identity: AccountIdentity(
                 initials: initials(of: local.name),
                 name: name,

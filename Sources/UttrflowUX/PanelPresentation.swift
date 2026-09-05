@@ -341,10 +341,7 @@ public enum PanelPresenter {
             // A sheet has its own keys, so the list's line would be teaching the wrong ones.
             hint: hint(for: snapshot, isEmpty: rows.isEmpty),
             sheet: sheet(for: snapshot),
-            groups: groups(
-                for: rows, omitted: results.omitted,
-                isSearching: !snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
-                    .isEmpty),
+            groups: groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching),
             emptyAction: rows.isEmpty ? emptyAction(for: snapshot) : nil,
             notice: snapshot.notice,
             microphone: microphone(for: snapshot.dictation),
@@ -364,19 +361,17 @@ public enum PanelPresenter {
         let excerpt =
             isMasked || result.match != .content
             ? nil
-            : self.excerpt(
-                of: clip.text,
-                around: snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines),
-                locale: snapshot.locale)
+            : self.excerpt(of: clip.text, around: snapshot.needle, locale: snapshot.locale)
+        // The same words the history page uses, or "just now" means two things.
+        let when = HistoryPresenter.when(
+            clip.copiedAt, relativeTo: snapshot.now, locale: snapshot.locale)
         return PanelRow(
             id: clip.id,
             summary: isMasked ? mask : (excerpt ?? clip.summary),
             kind: clip.kind,
             symbolName: symbolName(for: clip.kind),
-            // The same words the history page uses, or "just now" means two things.
-            when: HistoryPresenter.when(
-                clip.copiedAt, relativeTo: snapshot.now, locale: snapshot.locale),
-            detail: detail(of: clip, in: snapshot),
+            when: when,
+            detail: detail(of: clip, when: when),
             alias: clip.alias,
             category: PanelSnapshot.name(clip.category),
             isPinned: clip.isPinned,
@@ -488,11 +483,8 @@ public enum PanelPresenter {
     }
 
     /// What the ⋯ menu says under the clip's words: kind, age and source, where each exists.
-    static func detail(of clip: Clip, in snapshot: PanelSnapshot) -> String {
-        var parts = [noun(for: clip.kind).capitalized]
-        parts.append(
-            HistoryPresenter.when(
-                clip.copiedAt, relativeTo: snapshot.now, locale: snapshot.locale))
+    static func detail(of clip: Clip, when: String) -> String {
+        var parts = [noun(for: clip.kind).capitalized, when]
         if let from = clip.source?.trimmingCharacters(in: .whitespaces), !from.isEmpty {
             parts.append(from)
         }
@@ -523,28 +515,21 @@ public enum PanelPresenter {
 
     /// The collection drawn as chosen, which a query replaces with All. See `Docs/panel.md`.
     static func shownCategory(for snapshot: PanelSnapshot) -> String? {
-        let searching = !snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return searching ? nil : PanelSnapshot.name(snapshot.category)
+        snapshot.isSearching ? nil : PanelSnapshot.name(snapshot.category)
     }
 
+    /// One chip per collection, numbered from 2; no "All" chip, since the shared row begins with one.
     static func categories(for snapshot: PanelSnapshot) -> [PanelCategoryChip] {
-        let names = snapshot.categories
-        guard !names.isEmpty else { return [] }
-
         // A query spans every tab, so All is the chip that is true.
         let active = shownCategory(for: snapshot)
-        // No "All" chip: the shared row already begins with one. See `Docs/panel.md`.
-        var chips: [PanelCategoryChip] = []
-        for (offset, name) in names.enumerated() {
+        return snapshot.categories.enumerated().map { offset, name in
             let number = offset + 2
-            chips.append(
-                PanelCategoryChip(
-                    title: name, category: name,
-                    shortcut: number <= PanelSnapshot.shortcutLimit ? number : nil,
-                    position: number,
-                    isActive: active == name))
+            return PanelCategoryChip(
+                title: name, category: name,
+                shortcut: number <= PanelSnapshot.shortcutLimit ? number : nil,
+                position: number,
+                isActive: active == name)
         }
-        return chips
     }
 
     /// The bottom bar: four slices the list can be, then settings, which it cannot.
@@ -589,7 +574,7 @@ public enum PanelPresenter {
 
     /// The nothings, told apart, because what to do about each one differs.
     static func emptyState(for snapshot: PanelSnapshot) -> MainEmptyState {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = snapshot.needle
 
         // The only nothing that is about the clipboard rather than the narrowing.
         if snapshot.clips.isEmpty {
@@ -614,11 +599,8 @@ public enum PanelPresenter {
 
         // A search spans everything, so naming a tab would describe a constraint not applied.
         if !query.isEmpty {
-            return MainEmptyState(
-                symbolName: "magnifyingglass",
-                title: "No matches",
-                // Not "nothing you have copied": a search spans what Uttrflow made too.
-                message: "Nothing on your clipboard mentions “\(query)”.")
+            // Not "nothing you have copied": a search spans what Uttrflow made too.
+            return .noMatches("Nothing on your clipboard mentions “\(query)”.")
         }
 
         return narrowedEmptyState(for: snapshot)

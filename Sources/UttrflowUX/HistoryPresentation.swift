@@ -201,19 +201,16 @@ public enum HistoryPresenter {
     /// them again, and a search that answers "no matches" to a word plainly on screen
     /// is worse than no search at all.
     static func matches(_ entries: [HistoryEntry], query: String, locale: Locale) -> [HistoryEntry] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return entries }
-        return entries.filter { entry in
-            contains(entry.text, needle, locale: locale)
-                || contains(entry.applicationName, needle, locale: locale)
-        }
+        SearchQuery.matches(entries, query: query, locale: locale) { [$0.text, $0.applicationName] }
     }
 
-    private static func contains(_ haystack: String?, _ needle: String, locale: Locale) -> Bool {
-        haystack?.range(
-            of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-            locale: locale
-        ) != nil
+    /// The kept dictations cut into today's and everything before it, as the figures compare them.
+    static func todayAndEarlier(
+        in entries: [HistoryEntry], now: Date, calendar: Calendar
+    ) -> (today: [HistoryEntry], earlier: [HistoryEntry]) {
+        let today = entries.filter { calendar.isDate($0.when, inSameDayAs: now) }
+        let earlier = entries.filter { !calendar.isDate($0.when, inSameDayAs: now) }
+        return (today, earlier)
     }
 
     // MARK: - Grouping
@@ -249,13 +246,8 @@ public enum HistoryPresenter {
     static func title(
         for day: Date, snapshot: HistorySnapshot, calendar: Calendar, locale: Locale
     ) -> String {
-        if calendar.isDate(day, inSameDayAs: snapshot.now) { return "Today" }
-        if let yesterday = calendar.date(byAdding: .day, value: -1, to: snapshot.now),
-            calendar.isDate(day, inSameDayAs: yesterday)
-        {
-            return "Yesterday"
-        }
-        return day.formatted(.dateTime.day().month(.wide).locale(locale))
+        MainFormatting.todayOrYesterday(day, now: snapshot.now, calendar: calendar)
+            ?? day.formatted(.dateTime.day().month(.wide).locale(locale))
     }
 
     static func row(for entry: HistoryEntry, relativeTo now: Date, locale: Locale) -> HistoryRow {
@@ -308,12 +300,9 @@ public enum HistoryPresenter {
 
     /// Three different nothings, told apart, because the answer to each is different.
     static func emptyState(for snapshot: HistorySnapshot) -> MainEmptyState {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {
-            return MainEmptyState(
-                symbolName: "magnifyingglass",
-                title: "No matches",
-                message: "Nothing kept on this Mac mentions “\(query)”.")
+            return .noMatches("Nothing kept on this Mac mentions “\(query)”.")
         }
         if snapshot.entries.isEmpty {
             return MainEmptyState(
@@ -331,5 +320,12 @@ public enum HistoryPresenter {
                 \(MainFormatting.count(snapshot.settings.transcriptRetentionDays, "day", "days")) \
                 has been deleted, as promised.
                 """)
+    }
+}
+
+extension Sequence where Element == HistoryEntry {
+    /// Every word across these dictations, counted the way a row counts its own.
+    var totalWords: Int {
+        reduce(0) { $0 + MainFormatting.words(in: $1.text) }
     }
 }

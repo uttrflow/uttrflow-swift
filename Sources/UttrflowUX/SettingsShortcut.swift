@@ -7,7 +7,12 @@ public enum SettingsShortcut {
     /// A fixed order rather than the set's own: `Set` has none, so two Macs showing the
     /// same shortcut could otherwise label it differently.
     public static func keycaps(for binding: HotkeyBinding) -> [String] {
-        modifierOrder.filter(binding.modifiers.contains).map(symbol(for:)) + [name(of: binding.keyCode)]
+        modifierCaps(for: binding) + [name(of: binding.keyCode)]
+    }
+
+    /// The modifier caps alone, in the order macOS draws them.
+    static func modifierCaps(for binding: HotkeyBinding) -> [String] {
+        modifierOrder.filter(binding.modifiers.contains).map(symbol(for:))
     }
 
     /// Modifiers as one run of glyphs, for places too narrow for separate caps.

@@ -103,15 +103,13 @@ extension PanelPresenter {
     /// Draws whatever sheet is open, or nothing.
     static func sheet(for snapshot: PanelSnapshot) -> PanelSheetPresentation? {
         guard let sheet = snapshot.sheet else { return nil }
-        let clip = snapshot.clips.first { $0.id == sheet.clip }
+        let clip = sheet.clip.flatMap(snapshot.clip)
 
         switch sheet {
         case .aliasing(let id, let draft):
             let proposal = PanelAlias.propose(
                 draft, for: id, among: snapshot.clips, locale: snapshot.locale)
-            let holder = proposal.takenBy.flatMap { taken in
-                snapshot.clips.first { $0.id == taken }
-            }
+            let holder = proposal.takenBy.flatMap(snapshot.clip)
             // An emptied field removes the alias, and the button says so rather than
             // reading "Save" over an action that takes something away.
             let isRemoval = proposal.corrected.isEmpty && clip?.alias != nil
@@ -143,9 +141,7 @@ extension PanelPresenter {
 
         case .renamingCategory(let name, let draft):
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-            let taken = snapshot.categories.contains {
-                $0 != name && $0.caseInsensitiveCompare(renamed) == .orderedSame
-            }
+            let taken = snapshot.existingCategory(named: renamed, besides: name) != nil
             return PanelSheetPresentation(
                 kind: .renamingCategory,
                 title: "Rename “\(name)”",
@@ -180,7 +176,7 @@ extension PanelPresenter {
                 isConfirmEnabled: true)
 
         case .formatting(let id, let formatted):
-            let original = snapshot.clips.first { $0.id == id }?.text ?? ""
+            let original = snapshot.clip(id)?.text ?? ""
             let changed = TextDiff.changedLines(from: original, to: formatted)
             return PanelSheetPresentation(
                 kind: .formatting,
@@ -221,8 +217,7 @@ extension PanelPresenter {
     ///
     /// Silent when the spelling matches exactly: that is simply choosing the collection.
     static func existing(_ named: String, in snapshot: PanelSnapshot) -> String? {
-        guard !named.isEmpty else { return nil }
-        let match = snapshot.categories.first { $0.caseInsensitiveCompare(named) == .orderedSame }
+        let match = snapshot.existingCategory(named: named)
         return match == named ? nil : match
     }
 
@@ -231,7 +226,7 @@ extension PanelPresenter {
     )
         -> [PanelCollectionOption]
     {
-        let current = snapshot.clips.first { $0.id == id }?.category
+        let current = snapshot.clip(id)?.category
         return snapshot.categories.map { name in
             PanelCollectionOption(
                 name: name,

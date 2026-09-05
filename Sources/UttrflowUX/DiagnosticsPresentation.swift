@@ -212,7 +212,7 @@ public enum DiagnosticsPresenter {
     public static func page(
         for snapshot: DiagnosticsSnapshot, locale: Locale = .autoupdatingCurrent
     ) -> DiagnosticsPresentation {
-        let summaries = summaries(for: snapshot.measurements)
+        let summaries = StageLatency.summarise(snapshot.measurements)
         let missing = StageLatency.unmeasuredStages(in: snapshot.measurements)
         let engines = engineRows(for: snapshot)
         let permissions = permissionRows(for: snapshot)
@@ -263,33 +263,8 @@ public enum DiagnosticsPresenter {
 
     // MARK: - Latency
 
-    /// One stage's timings, before anything has been made readable out of them.
-    struct StageSummary: Sendable, Equatable {
-        let stage: PipelineStage
-        /// The middle measurement — the upper of the two when there is an even number,
-        /// which needs no tie-breaking rule and cannot invent a value nobody recorded.
-        let typical: Duration
-        let slowest: Duration
-        let samples: Int
-    }
-
-    /// One summary per stage that was actually timed, in the order the journey runs.
-    ///
-    /// Driven by ``PipelineStage/allCases`` so a stage added to the pipeline appears
-    /// here as soon as it is measured — and a stage nobody measures, as capture
-    /// currently is not, simply has no row rather than a fabricated one.
-    static func summaries(for measurements: [StageMeasurement]) -> [StageSummary] {
-        // The arithmetic lives beside StageMeasurement in Core, because the evaluation
-        // harness needs exactly the same answer and had grown its own copy of it. A
-        // second median is a second chance for this page and that report to describe
-        // the same machine differently.
-        StageLatency.summarise(measurements).map {
-            StageSummary(
-                stage: $0.stage, typical: $0.typical, slowest: $0.slowest, samples: $0.samples)
-        }
-    }
-
-    static func stageRows(for summaries: [StageSummary]) -> [DiagnosticsStageRow] {
+    /// One row per stage something has timed, from Core's own medians so this page and the harness agree.
+    static func stageRows(for summaries: [StageLatency]) -> [DiagnosticsStageRow] {
         let total = summaries.reduce(0.0) { $0 + $1.typical.inSeconds }
         return summaries.map { summary in
             DiagnosticsStageRow(
@@ -309,7 +284,7 @@ public enum DiagnosticsPresenter {
     ///   - missing: The stages nothing has, which the total therefore does not include.
     /// - Returns: The headline, what it is made of, and what it is missing.
     static func latency(
-        for summaries: [StageSummary], missing: [PipelineStage]
+        for summaries: [StageLatency], missing: [PipelineStage]
     ) -> DiagnosticsLatency {
         let total = summaries.reduce(Duration.zero) { $0 + $1.typical }
         // One transcription per dictation, so its sample count is how many journeys the
@@ -506,7 +481,7 @@ public enum DiagnosticsPresenter {
     public static func report(
         for snapshot: DiagnosticsSnapshot, locale: Locale = .autoupdatingCurrent
     ) -> String {
-        let stages = stageRows(for: summaries(for: snapshot.measurements))
+        let stages = stageRows(for: StageLatency.summarise(snapshot.measurements))
         var lines = ["Uttrflow diagnostics", footnote, ""]
 
         if stages.isEmpty {

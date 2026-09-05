@@ -306,7 +306,8 @@ public enum HomePresenter {
     ) -> HomePresentation {
         let kept = HistoryPresenter.retained(
             snapshot.entries, days: snapshot.settings.transcriptRetentionDays, now: snapshot.now)
-        let today = kept.filter { calendar.isDate($0.when, inSameDayAs: snapshot.now) }
+        let (today, earlier) = HistoryPresenter.todayAndEarlier(
+            in: kept, now: snapshot.now, calendar: calendar)
         let blocked = MainPresenter.obstruction(in: snapshot.permissions)
         let listed = Array(kept.prefix(shown))
 
@@ -318,10 +319,7 @@ public enum HomePresenter {
             // itself.
             figures: blocked == nil
                 ? DictationPresenter.figures(
-                    today: today,
-                    earlier: kept.filter {
-                        !calendar.isDate($0.when, inSameDayAs: snapshot.now)
-                    }, calendar: calendar, locale: locale)
+                    today: today, earlier: earlier, calendar: calendar, locale: locale)
                 : [],
             recent: blocked == nil ? listed.map { row(for: $0, locale: locale) } : [],
             recentTitle: title(for: listed, calendar: calendar, now: snapshot.now),
@@ -449,14 +447,8 @@ public enum HomePresenter {
                 open: MainAction(title: "Account", intent: .show(.account)))
         }
 
-        // The Account page's own chain, so the corner never shows somebody the page does
-        // not. An address is a poor thing to greet a person by and a fine thing to
-        // recognise them by, and an opaque identifier is the last resort there too: it at
-        // least belongs to the right account, where a placeholder belongs to none.
-        let shown =
-            [account.displayName, account.emailAddress]
-            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { !$0.isEmpty } ?? account.identifier
+        // The Account page's own name for them, so the corner never shows somebody the page does not.
+        let shown = AccountPagePresenter.identity(for: account).name
 
         return .signedIn(
             initials: monogram(of: shown), name: firstWord(of: shown),
@@ -501,7 +493,7 @@ public enum HomePresenter {
             }
         guard let name, !name.isEmpty else { return timeOfDay }
         // The first name only. "Good morning, Naveen Bhatt" is a form letter.
-        return "\(timeOfDay), \(name.split(separator: " ").first.map(String.init) ?? name)"
+        return "\(timeOfDay), \(firstWord(of: name))"
     }
 
     static func subtitle(
@@ -512,7 +504,7 @@ public enum HomePresenter {
         guard !today.isEmpty else {
             return "Nothing yet today. Your words from earlier are still here."
         }
-        let words = today.reduce(0) { $0 + MainFormatting.words(in: $1.text) }
+        let words = today.totalWords
         // Both halves counted rather than one: "1 dictation today, 1 words" is the sort
         // of sentence that makes a person distrust the numbers around it.
         return """

@@ -55,7 +55,7 @@ struct PanelEndToEndTests {
         func panel() async -> PanelSnapshot {
             PanelSnapshot(
                 clips: await store.clips(keeping: retention), now: Date(),
-                locale: Locale(identifier: "en_GB"))
+                locale: PanelFixture.locale)
         }
 
         /// Carries out a change exactly as `AppDelegate` does, so the test exercises the

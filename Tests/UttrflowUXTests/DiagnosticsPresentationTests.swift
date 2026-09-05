@@ -195,9 +195,7 @@ struct DiagnosticsLatencyTests {
 
     @Test("a stage row is identified by its stage")
     func stageRowIdentity() {
-        let summaries = DiagnosticsPresenter.summaries(for: [
-            DiagnosticsFixture.timing(.insertion, 0.1)
-        ])
+        let summaries = StageLatency.summarise([DiagnosticsFixture.timing(.insertion, 0.1)])
         #expect(DiagnosticsPresenter.stageRows(for: summaries).first?.id == .insertion)
     }
 }

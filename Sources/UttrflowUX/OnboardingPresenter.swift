@@ -96,7 +96,7 @@ public enum OnboardingPresenter {
             account. It needs to know which one is yours.
             """
         case .signingIn(let provider):
-            "Finish signing in with \(name(of: provider)) in your browser."
+            "Finish signing in with \(AccountPagePresenter.title(for: provider)) in your browser."
         // The code is the instruction, so the sentence says what to do with it rather
         // than repeating it. A person reading "enter ABCD-EFGH" while ABCD-EFGH sits
         // underneath has been told the same thing twice and shown it once.
@@ -108,7 +108,7 @@ public enum OnboardingPresenter {
         case .enterCode(let provider, _):
             """
             Your browser is open. Type this code there to finish signing in with \
-            \(name(of: provider)).
+            \(AccountPagePresenter.title(for: provider)).
             """
         // The provider's own words, which are the only ones that can say what went
         // wrong. The three buttons come back live underneath, because another attempt
@@ -148,18 +148,6 @@ public enum OnboardingPresenter {
         // possible or the page is a trap.
         case .signingIn, .enterCode:
             [.plain("Cancel", .cancelSignIn)]
-        }
-    }
-
-    /// A provider by name, for a sentence rather than for its own button.
-    ///
-    /// ``SignInProvider/buttonTitle`` is the wording each provider requires on a button
-    /// and reads as nonsense inside a sentence, so the two are kept apart.
-    private static func name(of provider: SignInProvider) -> String {
-        switch provider {
-        case .google: "Google"
-        case .gitHub: "GitHub"
-        case .apple: "Apple"
         }
     }
 
@@ -235,19 +223,9 @@ public enum OnboardingPresenter {
     private static func setup(_ state: OnboardingState) -> OnboardingPage {
         switch state.detail {
         case .installing(let fraction):
-            page(
-                state,
-                symbolName: "arrow.down.circle",
-                emphasis: .neutral,
-                title: "Setting things up",
-                subtitle: "A one-time download, then you can start talking.",
-                note: staysOnThisMac,
-                progress: fraction,
-                buttons: [
-                    .plain("Cancel", .cancelInstall),
-                    .disabled("Continue"),
-                ]
-            )
+            settingUp(
+                state, progress: fraction,
+                buttons: [.plain("Cancel", .cancelInstall), .disabled("Continue")])
         case .installFailed(let message):
             page(
                 state,
@@ -265,16 +243,24 @@ public enum OnboardingPresenter {
         // here with the model already on disk. Letting the user past is the only
         // honest thing left to offer.
         default:
-            page(
-                state,
-                symbolName: "arrow.down.circle",
-                emphasis: .neutral,
-                title: "Setting things up",
-                subtitle: "A one-time download, then you can start talking.",
-                note: staysOnThisMac,
-                buttons: [.prominent("Continue", .advance)]
-            )
+            settingUp(state, progress: nil, buttons: [.prominent("Continue", .advance)])
         }
+    }
+
+    /// The download page, mid-download or with the model already on disk; only progress and buttons differ.
+    private static func settingUp(
+        _ state: OnboardingState, progress: Double?, buttons: [OnboardingButton]
+    ) -> OnboardingPage {
+        page(
+            state,
+            symbolName: "arrow.down.circle",
+            emphasis: .neutral,
+            title: "Setting things up",
+            subtitle: "A one-time download, then you can start talking.",
+            note: staysOnThisMac,
+            progress: progress,
+            buttons: buttons
+        )
     }
 
     /// The last page, which says what the user actually ended up with.
@@ -497,18 +483,7 @@ private struct PermissionWording {
 enum OnboardingKeys {
     /// Modifiers in the order macOS draws them, then the key itself.
     static func of(_ binding: HotkeyBinding) -> [String] {
-        let modifiers: [HotkeyModifier] = [.control, .option, .shift, .command]
-        return modifiers.filter(binding.modifiers.contains).map(symbol(for:))
-            + [name(for: binding.keyCode)]
-    }
-
-    private static func symbol(for modifier: HotkeyModifier) -> String {
-        switch modifier {
-        case .control: "⌃"
-        case .option: "⌥"
-        case .shift: "⇧"
-        case .command: "⌘"
-        }
+        SettingsShortcut.modifierCaps(for: binding) + [name(for: binding.keyCode)]
     }
 
     /// The keys a shortcut is realistically bound to, named as the keyboard names them.
