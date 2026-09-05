@@ -4,11 +4,7 @@ import UttrflowContext
 import UttrflowCore
 import UttrflowPermissions
 
-/// Shows what Uttrflow can see of the app you are working in.
-///
-/// Worth having as its own command: context is invisible in the finished text, so when a
-/// term comes out wrong the first question is always whether Uttrflow could see anything
-/// at all — and without Accessibility, it can see the app but not the window.
+/// Shows what Uttrflow can see of the app you are working in, which is invisible in the text.
 struct Context: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Report what Uttrflow can see of the frontmost app."

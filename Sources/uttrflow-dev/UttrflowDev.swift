@@ -1,8 +1,7 @@
 import ArgumentParser
 private import Foundation
 
-/// Developer harness. Gains a command per phase so every phase ends in something a
-/// person can run and judge, rather than only a passing test count.
+/// Developer harness, one command per stage, so each ends in something a person can run and judge.
 @main
 struct UttrflowDev: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

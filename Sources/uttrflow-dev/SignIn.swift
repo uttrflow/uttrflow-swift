@@ -3,23 +3,7 @@ import Foundation
 import UttrflowAccount
 import UttrflowCore
 
-/// Signs in against a real backend, using the same code the app uses.
-///
-/// The account tests substitute one half of the flow to make the other testable, and the
-/// end-to-end suite needs a provider that redirects straight back — which development has
-/// and production, by definition, does not. Neither can answer "does signing in work
-/// against the deployment people will actually use", because answering that needs a real
-/// person at a real browser with a real Google account.
-///
-/// This is that, minus the app's window: the same `HTTPAuthenticationService`, the same
-/// transport, the same loopback listener, the same entitlement verification. It prints the
-/// page to open, waits while somebody signs in, and prints what came back.
-///
-///     swift run uttrflow-dev sign-in --backend https://api.uttrflow.com
-///     swift run uttrflow-dev sign-in --backend https://api.uttrflow.com --by-code
-///
-/// Nothing is written to the Keychain: tokens live in memory and die with the process, so
-/// running this never disturbs the signed-in state of the app on this Mac.
+/// Signs in against a real backend with the app's own code, keeping tokens in memory only.
 struct SignIn: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "sign-in",
@@ -35,18 +19,14 @@ struct SignIn: AsyncParsableCommand {
     var timeout: Int = 180
 
     func run() async throws {
-        // Unbuffered, because the useful thing this prints — the page to open — is printed
-        // while the command is still running, and a redirected stdout would hold it until
-        // the process exits. Which is after the sign-in it is waiting for.
+        // Unbuffered, so the page to open is printed before the sign-in it waits for.
         setvbuf(stdout, nil, _IONBF, 0)
 
         guard let baseURL = URL(string: backend) else {
             throw ValidationError("\(backend) is not a URL.")
         }
 
-        // The key this deployment publishes, not the one this build was compiled with. The
-        // two matching is the thing worth checking; assuming it would hide exactly the
-        // mismatch that makes every entitlement fail to verify on a real Mac.
+        // The key this deployment publishes, not the compiled-in one: the two matching is what is checked.
         let liveKey = try await publishedKey(baseURL)
         let verifier = try makeVerifier(for: liveKey)
         let compiled = Ed25519EntitlementVerifier.releasePublicKeyBase64
@@ -57,9 +37,7 @@ struct SignIn: AsyncParsableCommand {
                 + (liveKey == compiled
                     ? "— same key" : "— DIFFERENT, this build will reject its entitlements"))
 
-        // `--by-code` is the only part of this that is pretended: a Mac whose security
-        // software refuses to let an application listen cannot be arranged on demand.
-        // Everything the backend sees after that is real.
+        // `--by-code` is the only pretence: a Mac that refuses a listener cannot be arranged on demand.
         let makeListener: @Sendable () -> any LoopbackListening
         if byCode {
             makeListener = { RefusingListener() as any LoopbackListening }

@@ -42,17 +42,13 @@ struct Transcribe: AsyncParsableCommand {
         }
     }
 
-    // Biasing changes what the recogniser hears, so it has to be reachable from here:
-    // the only honest way to tell whether a word made it into the prompt is to say the
-    // word and look at the transcript.
+    // Biasing changes what the recogniser hears, so saying a word and reading the transcript is the test.
     @Option(
         name: .long,
         help: "Words to bias the recogniser towards, comma separated.")
     var bias: String?
 
-    // Correction only touches a word the recogniser was unsure of, so the scores are
-    // the one thing that decides whether it can ever fire. Printing them is how you
-    // find out, rather than inferring it from whether a correction happened.
+    // The scores decide whether correction can ever fire, so they are printed rather than inferred.
     @Flag(name: .long, help: "Print what the recogniser thought of each word.")
     var confidence = false
 

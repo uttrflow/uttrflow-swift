@@ -4,8 +4,7 @@ import UttrflowCore
 import UttrflowInput
 import UttrflowPermissions
 
-/// Puts text into whatever app is frontmost, so the last stage of the pipeline can be
-/// watched rather than inferred.
+/// Puts text into whatever app is frontmost, so the last stage can be watched rather than inferred.
 struct Insert: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Insert text into the frontmost app, after a countdown."
@@ -17,10 +16,7 @@ struct Insert: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Seconds to wait so you can click into a text field.")
     var delay: Int = 4
 
-    // The three strategies fail for different reasons and the coordinator hides which
-    // one ran, which is precisely what makes "it just does not insert" hard to diagnose:
-    // a target where accessibility works will never exercise the paste that is actually
-    // broken for the user's own applications.
+    // The coordinator hides which strategy ran, so forcing one is how a broken paste is found.
     @Option(name: .long, help: "Force one strategy: accessibility, paste or clipboard.")
     var via: String?
 

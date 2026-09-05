@@ -1,8 +1,4 @@
-/// A result a fake should produce when called.
-///
-/// Every fake in this module resolves its behaviour through this one type, so
-/// "succeed with X" and "fail with Y" are expressed identically everywhere and no
-/// fake grows its own ad-hoc `shouldThrow` flags.
+/// A result a fake produces when called, so every fake scripts success and failure the same way.
 public enum ScriptedOutcome<Success: Sendable, Failure: Error>: Sendable {
     case success(Success)
     case failure(Failure)
@@ -20,10 +16,7 @@ extension ScriptedOutcome where Success == Void {
     public static var ok: Self { .success(()) }
 }
 
-/// An append-only, concurrency-safe record of what a fake was asked to do.
-///
-/// Shared by every fake so that assertions read the same way regardless of which
-/// collaborator is under test.
+/// An append-only, concurrency-safe record of what a fake was asked to do, shared by every fake.
 public actor CallLog<Event: Sendable> {
     public private(set) var events: [Event] = []
 
