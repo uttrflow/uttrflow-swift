@@ -2,12 +2,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// Wires the engine to macOS.
-///
-/// Excluded from the coverage gate: every line reaches into another running application
-/// or asks the window server about one, and what it must never do — wait — is decided in
-/// ``MacContextEngine`` and tested there. Kept short enough that reading it is a
-/// sufficient review.
+/// Wires the engine to macOS, off the coverage gate. See `Docs/context-accessibility.md`.
 extension MacContextEngine {
     /// The engine as the app uses it.
     public convenience init() {
@@ -30,13 +25,7 @@ extension MacContextEngine {
         )
     }
 
-    /// Title and selection, from Accessibility. `nil` without the permission, where
-    /// every call below would return `kAXErrorAPIDisabled` anyway.
-    ///
-    /// Runs on a thread of its own rather than the cooperative pool. These calls are
-    /// synchronous and block until the other app answers, which a napped app measurably
-    /// does not do for a tenth of a second; blocking a pool thread for that would stall
-    /// unrelated work in the app.
+    /// Title and selection, from Accessibility on a thread of its own. See `Docs/context-budget.md`.
     static func focusedWindow(of application: FrontmostApplication) async -> FocusedWindow? {
         guard AXIsProcessTrusted() else { return nil }
         return await withCheckedContinuation { continuation in
@@ -50,13 +39,10 @@ extension MacContextEngine {
 
     private static func read(_ processIdentifier: pid_t) -> FocusedWindow {
         let app = AXUIElementCreateApplication(processIdentifier)
-        // Caps each message so an app that never answers eventually releases this
-        // thread. The engine's budget is what the dictation waits for; this is what
-        // stops the abandoned read outliving it.
+        // Caps each message so an abandoned read does not outlive the budget the dictation waited for.
         _ = AXUIElementSetMessagingTimeout(app, budgetInSeconds)
 
-        // Read separately, so an app that names its window but hides its selection —
-        // Chrome, in the probe — still yields the half it was willing to give.
+        // Read separately, so an app that names its window but hides its selection still gives the half.
         let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute)
             .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
         let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute)
