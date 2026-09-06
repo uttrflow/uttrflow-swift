@@ -63,8 +63,13 @@ EXCLUDED_FILES = {
         "it holds — which keys are armed, and what each one means — is KeyRouting, which "
         "is tested"
     ),
+    "UttrflowInput/HeldModifierTap.swift": (
+        "creates a CGEventTap for flag changes, which needs Accessibility and a window "
+        "server; it decides nothing — it reads the flags and hands them on, and what is "
+        "made of them is HeldModifierEdge, which is tested"
+    ),
     "UttrflowInput/HeldModifierMonitor.swift": (
-        "watches NSEvent's global and local flag monitors, which need a window server; "
+        "watches a session tap and NSEvent's flag monitors, which need a window server; "
         "the two rules it used to hold are HeldModifierEdge, which is tested"
     ),
     "UttrflowInput/ActivationMonitor.swift": (

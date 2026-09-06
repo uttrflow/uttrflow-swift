@@ -1,7 +1,8 @@
 import AppKit
-import UttrflowCore
-import UttrflowUX
 import SwiftUI
+import UttrflowCore
+import UttrflowInput
+import UttrflowUX
 
 /// Whatever a row asked for, drawn as one switch over a closed set. See `Docs/app-settings-controls.md`.
 struct SettingsControlView: View {
@@ -177,6 +178,9 @@ struct SettingsShortcutField: View {
     /// A modifier held with nothing yet pressed against it, waiting to see which shortcut it becomes.
     @State private var pendingHeld: UInt16?
 
+    /// The session tap, because a local `NSEvent` monitor is never told about Fn either.
+    @State private var flagsTap = HeldModifierTap()
+
     var body: some View {
         HStack(spacing: 8) {
             if model.session.recorder.isRecording {
@@ -224,6 +228,13 @@ struct SettingsShortcutField: View {
 
     private func startListening() {
         guard monitor == nil else { return }
+        // Fn reaches no `NSEvent` monitor, so the shipping default could never be recorded here.
+        try? flagsTap.start { flags in
+            guard NSEvent.ModifierFlags(rawValue: UInt(flags)).contains(.function) else { return }
+            Task { @MainActor in
+                model.record(keyCode: HotkeyBinding.functionKeyCode, modifiers: [])
+            }
+        }
         // `.flagsChanged` too, so a modifier pressed alone is refused out loud rather than in silence.
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             let modifiers = SettingsShortcutField.modifiers(from: event.modifierFlags)
@@ -260,6 +271,7 @@ struct SettingsShortcutField: View {
     }
 
     private func stopListening() {
+        flagsTap.stop()
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
     }

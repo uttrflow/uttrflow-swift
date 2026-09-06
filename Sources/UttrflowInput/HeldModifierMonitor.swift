@@ -17,6 +17,7 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
 
     deinit {
         // Not `stop()`, which is main-actor isolated, and this can be released anywhere.
+        tap.stop()
         reconciliation.withLock { $0?.cancel() }
         state.withLock { $0.removeMonitors() }
         continuation.finish()
@@ -28,6 +29,9 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
     /// The timer comparing the real key state against what events have reported.
     private let reconciliation = Mutex<(any DispatchSourceTimer)?>(nil)
 
+    /// The session tap, which is the only one of the three that ever reports Fn.
+    private let tap = HeldModifierTap()
+
     @MainActor
     public func start(binding: HotkeyBinding) throws(HotkeyError) {
         guard binding.heldModifier != nil else { throw .shortcutUnavailable }
@@ -38,6 +42,11 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
 
         stop()
 
+        // A session tap as well, because the global monitor is never told about Fn.
+        try? tap.start { [weak self] flags in
+            // Straight through: the edge is behind a lock, and it absorbs a duplicate reading.
+            self?.update(with: NSEvent.ModifierFlags(rawValue: UInt(flags)))
+        }
         let global = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] in
             self?.handle($0)
         }
@@ -120,6 +129,7 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
     }
 
     public func stop() {
+        tap.stop()
         stopReconciling()
         // A hold interrupted by stopping is a release, or the microphone stays open.
         let owed = state.withLock { watch -> HotkeyEvent? in
