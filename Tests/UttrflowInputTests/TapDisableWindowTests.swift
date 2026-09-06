@@ -16,9 +16,9 @@ struct TapDisableWindowTests {
     @Test("Two disables close together give up, so a genuine fault does not loop forever.")
     func twoCloseTogetherGiveUp() {
         let first = TapDisableWindow.decide(last: 0, now: 10 * second, count: 0)
-        let second = TapDisableWindow.decide(
-            last: 10 * self.second, now: 11 * self.second, count: first.count)
-        #expect(!second.reEnable)
+        let next = TapDisableWindow.decide(
+            last: 10 * second, now: 11 * second, count: first.count)
+        #expect(!next.reEnable)
     }
 
     @Test("Two disables far apart both re-enable, so sleep and wake do not add up to a fault.")
@@ -26,8 +26,8 @@ struct TapDisableWindowTests {
         let first = TapDisableWindow.decide(last: 0, now: 10 * second, count: 0)
         // A day later: outside the window, so the count restarts and the tap comes back.
         let later = 10 * second + 86_400 * second
-        let second = TapDisableWindow.decide(last: 10 * self.second, now: later, count: first.count)
-        #expect(second.reEnable)
-        #expect(second.count == 1)
+        let next = TapDisableWindow.decide(last: 10 * second, now: later, count: first.count)
+        #expect(next.reEnable)
+        #expect(next.count == 1)
     }
 }

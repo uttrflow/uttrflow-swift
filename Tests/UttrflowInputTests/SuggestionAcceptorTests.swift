@@ -10,16 +10,16 @@ private final class RecordingField: FocusedTextField, @unchecked Sendable {
     /// Whether this field will select backwards, which is what separates the two Accessibility paths.
     private let selectsBackwards: Bool
     private let written = Mutex<[String]>([])
-    private let swallowed = Mutex<[Int]>([])
+    private let replacedCounts = Mutex<[Int]>([])
 
     init(selectsBackwards: Bool = true) { self.selectsBackwards = selectsBackwards }
 
     var text: [String] { written.withLock { $0 } }
-    var replaced: [Int] { swallowed.withLock { $0 } }
+    var replaced: [Int] { replacedCounts.withLock { $0 } }
 
     func replaceSelection(with text: String) throws(TextInsertionError) {
         written.withLock { $0.append(text) }
-        swallowed.withLock { $0.append(0) }
+        replacedCounts.withLock { $0.append(0) }
     }
 
     func replaceSelection(
@@ -29,7 +29,7 @@ private final class RecordingField: FocusedTextField, @unchecked Sendable {
             throw .insertionRejected(description: "the field cannot select backwards")
         }
         written.withLock { $0.append(text) }
-        swallowed.withLock { $0.append(characters) }
+        replacedCounts.withLock { $0.append(characters) }
     }
 }
 

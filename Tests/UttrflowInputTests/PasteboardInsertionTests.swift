@@ -9,7 +9,7 @@ final class FakePasteboard: Pasteboard {
     private struct State {
         var text: String?
         var changeCount = 0
-        var setTextCalls: [String] = []
+        var writes: [String] = []
         var acceptsWrites = true
     }
 
@@ -28,7 +28,7 @@ final class FakePasteboard: Pasteboard {
 
     func setText(_ text: String) {
         state.withLock { state in
-            state.setTextCalls.append(text)
+            state.writes.append(text)
             state.changeCount += 1
             if state.acceptsWrites { state.text = text }
         }
@@ -42,7 +42,7 @@ final class FakePasteboard: Pasteboard {
         }
     }
 
-    var setTextCalls: [String] { state.withLock(\.setTextCalls) }
+    var writes: [String] { state.withLock(\.writes) }
 }
 
 /// A ⌘V that can be counted, and made to fail.
@@ -116,7 +116,7 @@ struct PasteboardTextInsertionEngineTests {
 
         try await engine(pasteboard, keystrokes).insert("hello there")
 
-        #expect(pasteboard.setTextCalls.first == "hello there")
+        #expect(pasteboard.writes.first == "hello there")
         #expect(keystrokes.pasteCount == 1)
     }
 
@@ -136,14 +136,14 @@ struct PasteboardTextInsertionEngineTests {
 
         try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
     }
 
     /// Restoring over a copy the user made after dictating would be the same theft in
     /// the other direction, so a changed clipboard is left exactly as it is.
-    @Test("leaves a newer copy alone instead of restoring over it")
-    func skipsRestoreWhenSomethingElseCopied() async throws {
+    @Test("leaves a copy made since the paste exactly as it is")
+    func leavesANewerCopyAlone() async throws {
         let pasteboard = FakePasteboard(text: "the old paragraph")
         let keystrokes = FakeKeystrokeSender(
             onPaste: { pasteboard.copyFromAnotherApp("something copied since") }
@@ -151,19 +151,19 @@ struct PasteboardTextInsertionEngineTests {
 
         try await engine(pasteboard, keystrokes).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "something copied since")
     }
 
     /// A clipboard holding an image, or nothing at all, reads as `nil` text — there is
     /// no paragraph to hand back and inventing an empty one would erase the image.
-    @Test("restores nothing when the clipboard was not holding text")
-    func nothingToRestore() async throws {
+    @Test("keeps the words when the clipboard was not holding text")
+    func keepsWordsWhenTheClipboardHeldNothing() async throws {
         let pasteboard = FakePasteboard(text: nil)
 
         try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
     }
 
@@ -190,7 +190,7 @@ struct PasteboardTextInsertionEngineTests {
 
         try await engine(pasteboard, FakeKeystrokeSender()).insert("")
 
-        #expect(pasteboard.setTextCalls == [""])
+        #expect(pasteboard.writes == [""])
     }
 
     @Test("reports itself as the pasteboard method")
@@ -208,7 +208,7 @@ struct ClipboardTextInsertionEngineTests {
         let pasteboard = FakePasteboard(text: "previous")
         try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
     }
 
