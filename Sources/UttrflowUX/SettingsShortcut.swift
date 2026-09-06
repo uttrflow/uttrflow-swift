@@ -98,8 +98,12 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
         let modifiers: Set<HotkeyModifier>
     }
 
+    /// Which shortcut is being recorded, so what it earns lands in the right place.
+    public let action: ShortcutAction
+
     /// Starts from the shortcut in force; an undeliverable one is replaced by the default.
-    public init(binding: HotkeyBinding) {
+    public init(binding: HotkeyBinding, action: ShortcutAction = .dictate) {
+        self.action = action
         self.binding = binding.isDeliverable ? binding : .optionSpace
     }
 
@@ -181,6 +185,6 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
         binding = candidate
         isRecording = false
         rejection = nil
-        return .recorded(.shortcut(candidate))
+        return .recorded(.shortcut(action, candidate))
     }
 }

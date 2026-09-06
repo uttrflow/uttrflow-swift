@@ -44,19 +44,19 @@ struct SettingsShortcutValidationTests {
     @Test("saves a shortcut macOS would deliver")
     func acceptsDeliverable() throws {
         let binding = HotkeyBinding(keyCode: 40, modifiers: [.command, .shift])
-        #expect(try applied(.shortcut(binding)).hotkey == binding)
+        #expect(try applied(.shortcut(.dictate, binding)).hotkey == binding)
     }
 
     @Test("refuses a shortcut with no modifier, and says to add one")
     func refusesBareKey() {
-        let reason = refusal(.shortcut(HotkeyBinding(keyCode: 40, modifiers: [])))
+        let reason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 40, modifiers: [])))
         #expect(reason?.contains("⌘") == true)
     }
 
     @Test("refuses a key code no keyboard sends")
     func refusesUndeliverableKeys() {
         // 0x80 is past the 7-bit virtual key range, so nothing can press it.
-        let reason = refusal(.shortcut(HotkeyBinding(keyCode: 0x80, modifiers: [.control])))
+        let reason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 0x80, modifiers: [.control])))
         #expect(reason != nil)
         #expect(reason?.contains("did not come from the keyboard") == true)
     }
@@ -65,9 +65,10 @@ struct SettingsShortcutValidationTests {
     @Test("accepts a modifier combination held on its own")
     func acceptsHeldModifierCombination() {
         // 58 is Option's own key code — what arrives when ⌃⌥ is pressed in the field.
-        #expect(refusal(.shortcut(HotkeyBinding(keyCode: 58, modifiers: [.control, .option]))) == nil)
+        #expect(
+            refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 58, modifiers: [.control, .option]))) == nil)
         // And a single modifier, which is the owner's choice to make even though ⌘C fires it.
-        #expect(refusal(.shortcut(HotkeyBinding(keyCode: 55, modifiers: [.command]))) == nil)
+        #expect(refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 55, modifiers: [.command]))) == nil)
     }
 
     @Test("leaves the previous shortcut in force when the new one is refused")
@@ -75,7 +76,7 @@ struct SettingsShortcutValidationTests {
         var settings = Settings.default
         settings.hotkey = HotkeyBinding(keyCode: 40, modifiers: [.command])
         let refused = try? SettingsEditor.apply(
-            .shortcut(HotkeyBinding(keyCode: 40, modifiers: [])), to: settings)
+            .shortcut(.dictate, HotkeyBinding(keyCode: 40, modifiers: [])), to: settings)
         #expect(refused == nil)
         #expect(settings.hotkey == HotkeyBinding(keyCode: 40, modifiers: [.command]))
     }

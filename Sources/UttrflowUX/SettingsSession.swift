@@ -63,8 +63,9 @@ public struct SettingsSession: Sendable, Equatable {
         }
         rejection = nil
         // The field follows the setting however the change arrived, so the window never lags it.
-        if recorder.binding != settings.hotkey {
-            recorder = SettingsShortcutRecorder(binding: settings.hotkey)
+        let inForce = settings.shortcuts.first(for: recorder.action)
+        if let inForce, recorder.binding != inForce {
+            recorder = SettingsShortcutRecorder(binding: inForce, action: recorder.action)
         }
         return settings
     }
@@ -174,7 +175,16 @@ public struct SettingsSession: Sendable, Equatable {
 
     // MARK: - The shortcut field
 
+    /// Starts recording one named shortcut, so the row that asked is the row that changes.
+    public mutating func beginRecordingShortcut(_ action: ShortcutAction) {
+        recorder = SettingsShortcutRecorder(
+            binding: settings.shortcuts.first(for: action) ?? .optionSpace,
+            action: action)
+        beginRecordingShortcut()
+    }
+
     /// Puts the shortcut field into recording, where the next keystroke becomes a binding.
+
     public mutating func beginRecordingShortcut() {
         rejection = nil
         recorder.beginRecording()

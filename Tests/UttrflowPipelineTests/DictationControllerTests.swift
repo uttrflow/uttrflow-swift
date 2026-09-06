@@ -162,6 +162,14 @@ private func makeHarness(
 
 /// Just short of, exactly at, and just past the line between a slip and a dictation.
 private let justUnderTheMinimum = DictationController<ManualClock>.minimumHold - .milliseconds(1)
+
+/// One tap: pressed and released inside the slip threshold, which is half of a double tap.
+private func tap(_ harness: ControllerHarness) async {
+    await harness.controller.handle(.pressed)
+    harness.clock.advance(by: justUnderTheMinimum)
+    await harness.controller.handle(.released)
+}
+
 private let exactlyTheMinimum = DictationController<ManualClock>.minimumHold
 private let justOverTheMinimum = DictationController<ManualClock>.minimumHold + .milliseconds(1)
 
@@ -242,6 +250,80 @@ struct DictationControllerTests {
 
         #expect(harness.inserter.received == [controllerTidied])
         #expect(await harness.pipeline.currentState == .inserted(controllerOutcome))
+    }
+
+    // MARK: Double tap, which leaves the microphone open
+
+    /// Two taps on the dictation key mean "keep listening", so nothing has to be held down.
+    @Test("a double tap leaves the microphone open")
+    func doubleTapGoesHandsFree() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+
+        #expect(
+            await harness.pipeline.currentState.isListening,
+            "the second tap keeps the microphone open rather than cancelling")
+        #expect(harness.inserter.received.isEmpty, "nothing is inserted until it is stopped")
+    }
+
+    @Test("another double tap is what closes it")
+    func secondDoubleTapStops() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+
+        harness.clock.advance(by: .seconds(4))
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+
+        #expect(await harness.pipeline.currentState.isListening == false)
+        #expect(harness.inserter.received == [controllerTidied])
+    }
+
+    /// Two taps far apart are two slips, which is what an accidental brush against the key is.
+    @Test("taps too far apart stay two separate slips")
+    func slowTapsAreNotAGesture() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: DictationController<ManualClock>.doubleTapWindow + .milliseconds(1))
+        await tap(harness)
+
+        #expect(await harness.pipeline.currentState == .idle, "neither tap started anything")
+        #expect(harness.inserter.received.isEmpty)
+    }
+
+    /// A real hold must not become hands-free, or letting go would leave the microphone on.
+    @Test("holding after a tap still ends when the key comes up")
+    func aHoldAfterATapStillEnds() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: .seconds(3))
+        await harness.controller.handle(.released)
+
+        #expect(await harness.pipeline.currentState.isListening == false)
+        #expect(harness.inserter.received == [controllerTidied])
+    }
+
+    /// One stray tap while hands-free must not close the microphone on its own.
+    @Test("a single tap while hands-free changes nothing")
+    func oneTapDoesNotStopHandsFree() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+
+        harness.clock.advance(by: .seconds(2))
+        await tap(harness)
+
+        #expect(await harness.pipeline.currentState.isListening, "it takes two taps to stop")
+        #expect(harness.inserter.received.isEmpty)
     }
 
     /// An accidental tap must not tell the user their speech was too short.

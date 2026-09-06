@@ -6,6 +6,9 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// A hold shorter than this is a slip, cancelled silently rather than reported as too short.
     public static var minimumHold: Duration { .milliseconds(200) }
 
+    /// Two slips closer together than this are one double tap. See Docs/pipeline-gestures.md.
+    public static var doubleTapWindow: Duration { .milliseconds(450) }
+
     private let pipeline: DictationPipeline
     private let monitor: any HotkeyMonitoring
     private let cue: any RecordingCueing
@@ -17,6 +20,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private var activation: HotkeyActivation
     private var pressedAt: ClockType.Instant?
+    /// When the last slip ended, so the next one can tell whether it is the second of a pair.
+    private var lastTapEndedAt: ClockType.Instant?
+    /// Whether the microphone was left open by a double tap, and so waits for another to close it.
+    private var isHandsFree = false
     /// Every gesture from every source, handled one at a time. See Docs/pipeline-gestures.md.
     private let gestures: AsyncStream<HotkeyEvent>
     private let gestureSink: AsyncStream<HotkeyEvent>.Continuation
@@ -80,7 +87,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         switch (activation, event) {
         case (.holdToTalk, .pressed):
             pressedAt = clock.now
-            await beginListening()
+            // Hands-free is already listening; pressing again is the start of the gesture that ends it.
+            if !isHandsFree { await beginListening() }
 
         case (.holdToTalk, .released):
             await endHold()
@@ -151,15 +159,36 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     }
 
     private func endHold() async {
+        let pressed = pressedAt
         defer { pressedAt = nil }
-        stopWatchingTheLimit()
         guard await pipeline.currentState.isListening else { return }
 
-        if let pressedAt, pressedAt.duration(to: clock.now) < Self.minimumHold {
+        let now = clock.now
+        let wasTap = pressed.map { $0.duration(to: now) < Self.minimumHold } ?? false
+        if wasTap, let last = lastTapEndedAt, last.duration(to: now) < Self.doubleTapWindow {
+            lastTapEndedAt = nil
+            isHandsFree ? await stopHandsFree() : (isHandsFree = true)
+            return
+        }
+        if wasTap {
+            lastTapEndedAt = now
+            // A single tap while hands-free changes nothing; it may yet be half of the pair that ends it.
+            guard !isHandsFree else { return }
+            stopWatchingTheLimit()
             await pipeline.cancel()
             return
         }
+        // Letting go of a key that was never held is what ends a hold, and hands-free has no hold.
+        guard !isHandsFree else { return }
+        stopWatchingTheLimit()
+        cue.playStop()
+        await pipeline.finishRecording()
+    }
 
+    /// Closes a microphone a double tap left open, which another double tap is the only way to do.
+    private func stopHandsFree() async {
+        isHandsFree = false
+        stopWatchingTheLimit()
         cue.playStop()
         await pipeline.finishRecording()
     }

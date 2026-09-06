@@ -53,8 +53,8 @@ struct SettingsControlView: View {
         case .anchorPicker(let selected):
             SettingsAnchorPicker(selected: selected) { model.apply(.anchor($0)) }
 
-        case .shortcut(let keys):
-            SettingsShortcutField(keys: keys, model: model)
+        case .shortcut(let action, let keys):
+            SettingsShortcutField(action: action, keys: keys, model: model)
 
         case .tick(let isTicked, let change):
             Button {
@@ -170,18 +170,28 @@ struct SettingsAnchorPicker: View {
 
 /// The shortcut and the field that records a new one. See `Docs/app-settings-controls.md`.
 struct SettingsShortcutField: View {
+    let action: ShortcutAction
     let keys: [String]
     let model: SettingsViewModel
 
     @State private var listening = false
+
+    /// Recording belongs to one row, so the others keep showing their keys.
+    private var isRecording: Bool {
+        model.session.recorder.isRecording && model.session.recorder.action == action
+    }
 
     /// The one keyboard source, which reports every key including Fn.
     @State private var keyboard = SystemKeyboard()
 
     var body: some View {
         HStack(spacing: 8) {
-            if model.session.recorder.isRecording {
+            if isRecording {
                 Text(model.session.recorder.prompt)
+                    .font(.system(size: SettingsMetrics.calloutSize))
+                    .foregroundStyle(.secondary)
+            } else if keys.isEmpty {
+                Text("None")
                     .font(.system(size: SettingsMetrics.calloutSize))
                     .foregroundStyle(.secondary)
             } else {
@@ -189,21 +199,21 @@ struct SettingsShortcutField: View {
                     keycap(key)
                 }
             }
-            Button(model.session.recorder.isRecording ? "Cancel" : "Change") {
-                if model.session.recorder.isRecording {
+            Button(isRecording ? "Cancel" : "Change") {
+                if isRecording {
                     model.cancelRecordingShortcut()
                 } else {
-                    model.beginRecordingShortcut()
+                    model.beginRecordingShortcut(action)
                 }
             }
             .buttonStyle(SettingsButtonStyle())
         }
-        .onChange(of: model.session.recorder.isRecording, initial: true) { _, isRecording in
-            isRecording ? startListening() : stopListening()
+        .onChange(of: isRecording, initial: true) { _, recording in
+            recording ? startListening() : stopListening()
         }
         .onDisappear(perform: stopListening)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Dictation shortcut, \(keys.joined(separator: " "))")
+        .accessibilityLabel("\(action.rawValue) shortcut, \(keys.joined(separator: " "))")
     }
 
     /// A key drawn as a key, matching first-run so both windows show the same physical thing.

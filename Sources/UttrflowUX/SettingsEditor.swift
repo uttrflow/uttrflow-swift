@@ -31,9 +31,10 @@ public enum SettingsEditor {
             updated.hotkeyActivation = activation
         case .anchor(let anchor):
             updated.floatingButtonAnchor = anchor
-        case .shortcut(let binding):
+        case .shortcut(let action, let binding):
             if let rejection = rejection(forShortcut: binding) { throw rejection }
-            updated.hotkey = binding
+            if let clash = clash(for: action, binding: binding, in: updated) { throw clash }
+            updated.shortcuts.replace(at: 0, with: binding, for: action)
         case .tidying(let level):
             try applyTidying(level, to: &updated, given: capabilities)
         case .transcription(let quality):
@@ -144,7 +145,19 @@ public enum SettingsEditor {
 
     // MARK: - Shortcut
 
+    /// Refuses a shortcut another one already holds, naming it so the user knows what to change.
+    static func clash(
+        for action: ShortcutAction, binding: HotkeyBinding, in settings: Settings
+    ) -> SettingsRejection? {
+        guard let other = settings.shortcuts.action(holding: binding, besides: action) else {
+            return nil
+        }
+        return SettingsRejection(
+            reason: "That is already the \(ShortcutRegistry.label(for: other).lowercased()) shortcut.")
+    }
+
     /// The one gate a shortcut passes to be saved, asked by both the recorder and the editor.
+
     static func rejection(forShortcut binding: HotkeyBinding) -> SettingsRejection? {
         if !binding.isUsable {
             return SettingsRejection(

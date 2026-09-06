@@ -77,7 +77,7 @@ struct SettingsShortcutRecorderTests {
         let outcome = recorder.record(keyCode: 40, modifiers: [.command, .shift])
 
         let expected = HotkeyBinding(keyCode: 40, modifiers: [.command, .shift])
-        #expect(outcome == .recorded(.shortcut(expected)))
+        #expect(outcome == .recorded(.shortcut(.dictate, expected)))
         #expect(recorder.binding == expected)
         #expect(!recorder.isRecording)
         #expect(recorder.rejection == nil)
@@ -110,7 +110,7 @@ struct SettingsShortcutRecorderTests {
             Issue.record("holding Fn was refused: \(outcome)")
             return
         }
-        #expect(change == .shortcut(.functionHold))
+        #expect(change == .shortcut(.dictate, .functionHold))
         #expect(recorder.binding == .functionHold)
         #expect(!recorder.isRecording, "a recorded shortcut ends the recording")
         #expect(SettingsShortcut.compact(.functionHold) == "fn")
@@ -276,7 +276,7 @@ struct SettingsShortcutRecorderTests {
             var r = SettingsShortcutRecorder(binding: .optionSpace)
             r.beginRecording()
             _ = r.hold(keyCode: 63, modifiers: [])
-            #expect(r.release() == .recorded(.shortcut(.functionHold)))
+            #expect(r.release() == .recorded(.shortcut(.dictate, .functionHold)))
             #expect(r.binding == .functionHold)
         }
 
@@ -286,7 +286,9 @@ struct SettingsShortcutRecorderTests {
             var r = SettingsShortcutRecorder(binding: .functionHold)
             r.beginRecording()
             _ = r.hold(keyCode: 55, modifiers: [.command])
-            #expect(r.release() == .recorded(.shortcut(HotkeyBinding(keyCode: 55, modifiers: [.command]))))
+            #expect(
+                r.release()
+                    == .recorded(.shortcut(.dictate, HotkeyBinding(keyCode: 55, modifiers: [.command]))))
         }
 
         /// One modifier and one key: the combination that could not be typed at all.
@@ -295,7 +297,8 @@ struct SettingsShortcutRecorderTests {
             var r = SettingsShortcutRecorder(binding: .functionHold)
             r.beginRecording()
             _ = r.hold(keyCode: 58, modifiers: [.option])
-            #expect(r.record(keyCode: 49, modifiers: [.option]) == .recorded(.shortcut(.optionSpace)))
+            #expect(
+                r.record(keyCode: 49, modifiers: [.option]) == .recorded(.shortcut(.dictate, .optionSpace)))
             #expect(r.binding == .optionSpace)
             // The modifier coming up afterwards must not overwrite what was just recorded.
             #expect(r.release() == .ignored)
@@ -310,7 +313,8 @@ struct SettingsShortcutRecorderTests {
             _ = r.hold(keyCode: 55, modifiers: [.command])
             _ = r.hold(keyCode: 56, modifiers: [.command, .shift])
             let wanted = HotkeyBinding(keyCode: 0, modifiers: [.command, .shift])
-            #expect(r.record(keyCode: 0, modifiers: [.command, .shift]) == .recorded(.shortcut(wanted)))
+            #expect(
+                r.record(keyCode: 0, modifiers: [.command, .shift]) == .recorded(.shortcut(.dictate, wanted)))
             #expect(r.binding == wanted)
         }
 
@@ -322,7 +326,7 @@ struct SettingsShortcutRecorderTests {
             _ = r.hold(keyCode: 59, modifiers: [.control])
             _ = r.hold(keyCode: 58, modifiers: [.control, .option])
             let wanted = HotkeyBinding(keyCode: 58, modifiers: [.control, .option])
-            #expect(r.release() == .recorded(.shortcut(wanted)))
+            #expect(r.release() == .recorded(.shortcut(.dictate, wanted)))
             #expect(r.binding == wanted)
         }
 
@@ -335,7 +339,7 @@ struct SettingsShortcutRecorderTests {
             _ = r.hold(keyCode: 58, modifiers: [.control, .option])
             _ = r.hold(keyCode: 56, modifiers: [.control, .option, .shift])
             let wanted = HotkeyBinding(keyCode: 56, modifiers: [.control, .option, .shift])
-            #expect(r.release() == .recorded(.shortcut(wanted)))
+            #expect(r.release() == .recorded(.shortcut(.dictate, wanted)))
         }
 
         @Test("a release with nothing held changes nothing")
