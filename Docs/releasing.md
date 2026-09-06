@@ -1,7 +1,7 @@
 # Releasing Uttrflow
 
 Everything happens on a Mac somebody is sitting at. There is no build server, and adding
-one is not a pending task — see [Why there is no CI](#why-there-is-no-ci).
+one is not a pending task — see [CI, and why the gate is still local](#ci-and-why-the-gate-is-still-local).
 
 ## The version
 
