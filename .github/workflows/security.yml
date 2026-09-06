@@ -1,0 +1,128 @@
+# The security gate: three questions asked of every change before it can reach `main`.
+#
+# `ci.yml` asks whether the change works. This asks whether the change is safe, which is a
+# different question and is not answered by the tests passing. The three jobs are the three
+# ways a pull request from a stranger can hurt this repository:
+#
+#   secrets       a credential committed by accident, or planted on purpose
+#   workflows     an edit to CI itself — the one file that runs with the repository's own
+#                 permissions, so it is the highest-value thing in the tree to attack
+#   dependencies  a package with a known vulnerability, whether newly added or one that
+#                 has been sitting in Package.resolved since before it had a CVE
+#
+# GitHub already scans pushes for provider-shaped secrets and `dependency-review.yml`
+# already refuses a *newly added* vulnerable package. Neither looks at what is already
+# here, and neither reads the workflow files. This does both.
+#
+# On tools: each one is a pinned release binary checked against its published SHA-256
+# rather than a third-party action. A workflow whose job is to police the supply chain
+# should not widen it, and an action pinned by commit is still code that runs in this
+# job. The cost is that Dependabot cannot bump these — the versions live in `env` below
+# so an upgrade is two lines, and the weekly schedule means a stale scanner shows up as
+# a scanner that has stopped finding things rather than as silence.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Weekly, because a dependency that was clean when it was merged does not stay clean.
+  # An advisory published today applies to code nobody has touched in months, and without
+  # this the repository would only learn about it the next time somebody opened a PR.
+  schedule:
+    - cron: "0 8 * * 3"
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  ZIZMOR_VERSION: "1.30.0"
+  ZIZMOR_SHA256: "ec8c95cd800845abb9bbc5f377ec7c57d2eb8e2386a00a201d3a74ee4092e5ed"
+  OSV_VERSION: "2.5.1"
+  OSV_SHA256: "f9f25499a2c8cc367b3af45df2ea7eeca7fbccceab9c35079968f4b3652194be"
+
+jobs:
+  secrets:
+    name: No secrets in the history
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The whole history, not a shallow clone: a credential is just as live when it is
+      # four commits back and removed in the fifth, and that is the shape a leak usually
+      # has. `.gitleaks.toml` records the fixtures that are supposed to look like keys.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 -o gitleaks.tar.gz "$url"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+          chmod +x gitleaks
+
+      # --redact so a finding is reported as a location, never as the secret itself. A
+      # workflow log on a public repository is world-readable, and printing the value
+      # would publish the very thing the job exists to catch.
+      - name: Scan
+        run: ./gitleaks git --no-banner --redact --verbose .
+
+  workflows:
+    name: The CI is not itself a hole
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install zizmor
+        run: |
+          set -euo pipefail
+          url="https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 -o zizmor.tar.gz "$url"
+          echo "${ZIZMOR_SHA256}  zizmor.tar.gz" | sha256sum --check --strict
+          tar -xzf zizmor.tar.gz --strip-components=1 --wildcards '*/zizmor'
+          chmod +x zizmor
+
+      # Offline: the online audits ask GitHub about every action referenced, which needs a
+      # token this job deliberately does not have. What is left is the part that matters
+      # here — template injection through `${{ }}` in a `run:` block, a job handed more
+      # permissions than it uses, a checkout that leaves the token in .git/config, an
+      # action pinned to a moving tag. Failing at `warning` and above is the point: these
+      # findings are how a pull request turns CI into a way to run its own code.
+      - name: Audit the workflows
+        run: ./zizmor --no-online-audits --persona=regular --min-severity=low --format=plain .github/workflows/
+
+  dependencies:
+    name: No known-vulnerable dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install osv-scanner
+        run: |
+          set -euo pipefail
+          url="https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+          curl --fail --silent --show-error --location --retry 3 -o osv-scanner "$url"
+          echo "${OSV_SHA256}  osv-scanner" | sha256sum --check --strict
+          chmod +x osv-scanner
+
+      # Package.resolved is the exact set of dependencies that gets built, so it is the
+      # honest thing to scan — Package.swift only says what range is acceptable.
+      # `osv-scanner.toml` records anything knowingly accepted, with a date it must be
+      # looked at again.
+      - name: Scan Package.resolved
+        run: ./osv-scanner scan source --lockfile=Package.resolved
