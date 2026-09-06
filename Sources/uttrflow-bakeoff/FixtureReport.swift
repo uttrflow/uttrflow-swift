@@ -37,6 +37,9 @@ struct FixtureResult: Encodable {
         self.secondOpinionMs = secondOpinionMs
     }
 
+    /// Whether anything at all was put in front of the person, which is what a wrong answer needs to be wrong.
+    var shown: Bool { (first?.isEmpty == false) && first?.hasPrefix("error:") != true }
+
     /// Whether this row belongs in the failures section.
     var failed: Bool { !hit || !conforms }
 
@@ -61,6 +64,9 @@ struct FixtureSummary: Encodable {
     let conforming: Int
     /// How many answers the model wrote that named what the machine does not have, which the sieve kept off the screen.
     let invented: Int
+    /// How many turns drew something, and of those how many were right: the trust the feature is judged by.
+    let shown: Int
+    let right: Int
     /// How many second passes were spent, how many hit, and what the median one cost.
     let secondOpinions: Int
     let rescued: Int
@@ -74,6 +80,8 @@ struct FixtureSummary: Encodable {
         hits = results.filter(\.hit).count
         conforming = results.filter(\.conforms).count
         invented = results.filter(\.invented).count
+        shown = results.filter(\.shown).count
+        right = results.filter { $0.shown && $0.hit }.count
         let seconds = results.compactMap(\.secondOpinionMs).sorted()
         secondOpinions = seconds.count
         rescued = results.filter(\.rescued).count
@@ -100,6 +108,12 @@ struct FixtureReport: Encodable {
         summary = FixtureSummary(results)
     }
 
+    /// A rate as a percentage to two figures, since the last of them is what a trustworthy feature is judged on.
+    private static func rate(_ part: Int, of whole: Int) -> String {
+        guard whole > 0 else { return "-" }
+        return String(format: "%.2f %%", 100 * Double(part) / Double(whole))
+    }
+
     /// The per-category rates and the overall rates with latency percentiles.
     func printSummary() {
         print("")
@@ -112,6 +126,11 @@ struct FixtureReport: Encodable {
         print(
             "\nall  hit \(summary.hits)/\(summary.total)  in register \(summary.conforming)/\(summary.total)"
                 + "  invented \(summary.invented)  p50 \(summary.p50Ms)ms  p95 \(summary.p95Ms)ms")
+        // Precision is what a person feels: of the times it spoke, how often it was right. Coverage is how often it spoke at all.
+        let wrong = summary.shown - summary.right
+        print(
+            "precision \(Self.rate(summary.right, of: summary.shown)) (\(summary.right)/\(summary.shown) shown,"
+                + " \(wrong) wrong)  coverage \(Self.rate(summary.shown, of: summary.total))")
         guard summary.secondOpinions > 0 else { return }
         print(
             "second opinion  spent \(summary.secondOpinions)  rescued \(summary.rescued)"

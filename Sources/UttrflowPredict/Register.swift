@@ -12,10 +12,12 @@ public struct Register: Sendable, Equatable {
     public let usesSentenceCase: Bool?
     /// Whether this person's lines here are web addresses, which a bare word then continues into a host, not a command.
     public let writesAddresses: Bool
+    /// Whether the field is a search box, whose next word is what this person has looked for before or nothing at all.
+    public let isSearchField: Bool
 
     public init(
         isMultiline: Bool, typicalLength: Int?, isConversational: Bool, symbolShare: Double,
-        usesSentenceCase: Bool?, writesAddresses: Bool = false
+        usesSentenceCase: Bool?, writesAddresses: Bool = false, isSearchField: Bool = false
     ) {
         self.isMultiline = isMultiline
         self.typicalLength = typicalLength
@@ -23,6 +25,7 @@ public struct Register: Sendable, Equatable {
         self.symbolShare = symbolShare
         self.usesSentenceCase = usesSentenceCase
         self.writesAddresses = writesAddresses
+        self.isSearchField = isSearchField
     }
 
     /// Above this share of symbols the text reads as commands, code or queries: shell lines sit near 0.14, prose under 0.06.
@@ -50,7 +53,8 @@ public struct Register: Sendable, Equatable {
             symbolShare: symbolShare(of: [situation.preceding ?? "", typed] + own),
             usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
             // The person's own lines decide where there are any; a combined search-and-address field takes queries too.
-            writesAddresses: own.isEmpty ? namesAddressField(situation.field) : addressShare(of: own) >= 0.5)
+            writesAddresses: own.isEmpty ? namesAddressField(situation.field) : addressShare(of: own) >= 0.5,
+            isSearchField: namesSearchField(situation.field))
     }
 
     /// Whether the field's own accessibility name says it takes web addresses: browsers publish "Address and search bar", "Search or enter website name", "Search or enter address" or a URL field, while a postal or email address field never pairs the word with search.
@@ -59,6 +63,15 @@ public struct Register: Sendable, Equatable {
         return name.contains("url") || name.contains("website") || name.contains("web address")
             || (name.contains("search") && name.contains("address"))
     }
+
+    /// Whether the field's own accessibility name says it searches: a box called a search or a find is answered from what this person has looked for, never from a guess at what they mean; a filter or a query is not counted, since an editor calls its own field one.
+    static func namesSearchField(_ name: String?) -> Bool {
+        guard let name = name?.lowercased() else { return false }
+        return name.contains("search") || name.contains("find")
+    }
+
+    /// Whether the line can only come from what this person has entered here before: a host and a search phrase are both known or unknowable, never inferred. See `Docs/predict-precision.md`.
+    public var answersFromHistoryAlone: Bool { writesAddresses || isSearchField }
 
     /// What the line is, in the word the instruction at the line uses, so the register is stated once more where a small model weighs it most.
     public var kind: String {
