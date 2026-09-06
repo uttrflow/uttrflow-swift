@@ -11,31 +11,20 @@ public import UttrflowCore
 /// changed the clipboard in the meantime — replacing a newer copy would be the same
 /// theft in the other direction.
 public actor PasteboardTextInsertionEngine: TextInsertionEngine {
-    /// How long to let the paste land before taking the clipboard back.
-    ///
-    /// The paste is asynchronous: the keystroke returns immediately and the target app
-    /// reads the clipboard a moment later. Restoring too early pastes the old contents.
-    /// Kept as the record of a decision that was reversed, and as the number to reach
-    /// for if a way is ever found to tell whether a paste landed.
-    public static let restoreDelay = Duration.milliseconds(250)
-
     public nonisolated let method: TextInsertionMethod = .pasteboard
 
     private let focus: any AccessibilityFocus
     private let pasteboard: any Pasteboard
     private let keystrokes: any KeystrokeSender
-    private let clock: any Clock<Duration>
 
     public init(
         focus: any AccessibilityFocus,
         pasteboard: any Pasteboard,
-        keystrokes: any KeystrokeSender,
-        clock: any Clock<Duration> = ContinuousClock()
+        keystrokes: any KeystrokeSender
     ) {
         self.focus = focus
         self.pasteboard = pasteboard
         self.keystrokes = keystrokes
-        self.clock = clock
     }
 
     /// Always, unless Uttrflow itself is in front.
@@ -78,5 +67,4 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         // §19 decides it: the words must survive. So the dictation stays on the
         // clipboard, and the cost is the previous contents.
     }
-
 }

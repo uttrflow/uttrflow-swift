@@ -12,8 +12,6 @@ public protocol Pasteboard: Sendable {
 
     /// The same write, with the formatted flavour alongside where there is one.
     func setText(_ text: String, richText: String?)
-    /// Increments whenever anything changes the clipboard, including other apps.
-    func changeCount() -> Int
 }
 
 /// Sends the keystroke that pastes.

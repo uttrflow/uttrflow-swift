@@ -3,7 +3,6 @@ import Testing
 
 @testable import UttrflowCore
 @testable import UttrflowInput
-@testable import UttrflowTestSupport
 
 /// A clipboard that records everything written to it and never touches the real one.
 final class FakePasteboard: Pasteboard {
@@ -34,8 +33,6 @@ final class FakePasteboard: Pasteboard {
             if state.acceptsWrites { state.text = text }
         }
     }
-
-    func changeCount() -> Int { state.withLock(\.changeCount) }
 
     /// Stands in for another app copying something while the paste is in flight.
     func copyFromAnotherApp(_ text: String) {
@@ -85,11 +82,10 @@ struct PasteboardTextInsertionEngineTests {
     private func engine(
         _ pasteboard: FakePasteboard,
         _ keystrokes: FakeKeystrokeSender,
-        clock: ManualClock = ManualClock(),
         focus: any AccessibilityFocus = FakeFocus(field: FakeTextField())
     ) -> PasteboardTextInsertionEngine {
         PasteboardTextInsertionEngine(
-            focus: focus, pasteboard: pasteboard, keystrokes: keystrokes, clock: clock)
+            focus: focus, pasteboard: pasteboard, keystrokes: keystrokes)
     }
 
     /// Declines only for Uttrflow itself. Anywhere else is worth attempting: a paste
@@ -188,35 +184,6 @@ struct PasteboardTextInsertionEngineTests {
         #expect(pasteboard.text() == "dictated words", "the dictation must outlive the failure")
     }
 
-    /// The paste is asynchronous: the target app reads the clipboard after the
-    /// There is nothing to wait for any more: the clipboard is never taken back, so the
-    /// engine returns as soon as the keystroke is away.
-    @Test("does not stall the dictation waiting on a restore that no longer happens")
-    func doesNotWait() async throws {
-        let clock = ManualClock()
-
-        try await engine(FakePasteboard(), FakeKeystrokeSender(), clock: clock)
-            .insert("dictated words")
-
-        #expect(clock.now.offset == .zero)
-    }
-
-    /// Nothing was pasted, so there is nothing to wait for — the clipboard goes back
-    /// immediately rather than staying borrowed for a quarter of a second.
-    @Test("does not wait when the paste never happened")
-    func skipsTheWaitOnFailure() async {
-        let clock = ManualClock()
-        let sut = engine(
-            FakePasteboard(text: "previous"),
-            FakeKeystrokeSender(error: .accessibilityDenied),
-            clock: clock
-        )
-
-        await #expect(throws: TextInsertionError.self) { try await sut.insert("dictated words") }
-
-        #expect(clock.now.offset == .zero)
-    }
-
     @Test("copies an empty transcript without inventing anything")
     func emptyText() async throws {
         let pasteboard = FakePasteboard(text: "previous")
@@ -232,13 +199,6 @@ struct PasteboardTextInsertionEngineTests {
         #expect(sut.method == .pasteboard)
     }
 
-    /// Whether there is anywhere to paste into cannot be known from here, so the engine
-    /// always volunteers and the coordinator finds out by trying.
-    @Test("always offers to insert")
-    func alwaysCanInsert() async {
-        let sut = engine(FakePasteboard(), FakeKeystrokeSender())
-        #expect(await sut.canInsert())
-    }
 }
 
 @Suite("ClipboardTextInsertionEngine")

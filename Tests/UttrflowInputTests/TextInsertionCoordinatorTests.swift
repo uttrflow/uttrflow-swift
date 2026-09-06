@@ -272,22 +272,36 @@ final class FakeTextField: FocusedTextField {
 
 /// Focus that reports whichever field a test hands it, or nothing focused at all.
 struct FakeFocus: AccessibilityFocus {
-    let field: FakeTextField?
-    var isSelf = false
-    /// Separate from `field`, so a test can describe the case that matters most: an app
-    /// that has something focused but will not report its selection. That is where the
-    /// accessibility strategy fails and pasting must still be allowed to try.
+    let field: (any FocusedTextField)?
+    /// Separate from `field`, for an app that has something focused and will not report its selection.
     var somethingFocused: Bool?
+    var isSelf = false
+    /// What lies before the caret, for a field that will say but has no whole `value`.
+    var preceding: String?
+    /// The field's whole contents, read with the caret at its end.
+    var value: String?
 
-    init(field: FakeTextField?, somethingFocused: Bool? = nil, isSelf: Bool = false) {
+    init(
+        field: (any FocusedTextField)? = nil,
+        somethingFocused: Bool? = nil,
+        isSelf: Bool = false,
+        preceding: String? = nil,
+        value: String? = nil
+    ) {
         self.field = field
         self.somethingFocused = somethingFocused
         self.isSelf = isSelf
+        self.preceding = preceding
+        self.value = value
     }
 
     func focusedTextField() -> (any FocusedTextField)? { field }
     func hasFocusedElement() -> Bool { somethingFocused ?? (field != nil) }
     func isSelfFrontmost() -> Bool { isSelf }
+    func precedingText(_ count: Int) -> String? {
+        guard let value else { return preceding }
+        return BackwardSelection.text(in: value, endingAt: value.utf16.count, covering: count)
+    }
 }
 
 /// The case the whole fallback chain exists for, and the one that broke it.
@@ -299,86 +313,40 @@ struct FakeFocus: AccessibilityFocus {
 /// to the clipboard, and the user saw their dictation not appear.
 @Suite("An app that takes a paste but will not report its selection")
 struct PasteOnlyApplicationTests {
-    private final class RecordingPasteboard: Pasteboard, @unchecked Sendable {
-        private let held = Mutex<String?>(nil)
-        func text() -> String? { held.withLock { $0 } }
-        func setText(_ text: String) { held.withLock { $0 = text } }
-        func changeCount() -> Int { 0 }
-    }
-
-    private final class CountingKeystrokes: KeystrokeSender, @unchecked Sendable {
-        private let count = Mutex(0)
-        private let error: TextInsertionError?
-        init(error: TextInsertionError? = nil) { self.error = error }
-        var pasted: Int { count.withLock { $0 } }
-        func sendPaste() throws(TextInsertionError) {
-            count.withLock { $0 += 1 }
-            if let error { throw error }
-        }
-    }
-
     @Test("is pasted into, not dropped on the clipboard")
     func pasteWins() async throws {
         // Nothing readable as a text field, but something is focused.
         let focus = FakeFocus(field: nil, somethingFocused: true)
-        let keystrokes = CountingKeystrokes()
+        let keystrokes = FakeKeystrokeSender()
         let coordinator = TextInsertion.coordinator(
-            focus: focus, pasteboard: RecordingPasteboard(), keystrokes: keystrokes)
+            focus: focus, pasteboard: FakePasteboard(), keystrokes: keystrokes)
 
         let method = try await coordinator.insert("hello there")
 
         #expect(method == .pasteboard, "the words should have been pasted, not abandoned")
-        #expect(keystrokes.pasted == 1)
+        #expect(keystrokes.pasteCount == 1)
     }
 
     @Test("falls to the clipboard only when the paste itself is refused")
     func clipboardWhenThePasteIsRefused() async throws {
-        let keystrokes = CountingKeystrokes(error: .accessibilityDenied)
+        let keystrokes = FakeKeystrokeSender(error: .accessibilityDenied)
         let coordinator = TextInsertion.coordinator(
             focus: FakeFocus(field: nil, somethingFocused: false),
-            pasteboard: RecordingPasteboard(), keystrokes: keystrokes)
+            pasteboard: FakePasteboard(), keystrokes: keystrokes)
 
         #expect(try await coordinator.insert("hello there") == .clipboard)
-        #expect(keystrokes.pasted == 1, "it should have tried before giving up")
+        #expect(keystrokes.pasteCount == 1, "it should have tried before giving up")
     }
 }
 
 @Suite("The assembled strategies")
 struct TextInsertionAssemblyTests {
-    private struct NoFocus: AccessibilityFocus {
-        func focusedTextField() -> (any FocusedTextField)? { nil }
-        func hasFocusedElement() -> Bool { false }
-        func isSelfFrontmost() -> Bool { false }
-    }
-
-    /// A clipboard that actually holds what it is given.
-    ///
-    /// It used to hold nothing, and the suite still passed — because the paste strategy
-    /// claimed success into a window with nothing focused, so the floor below was never
-    /// reached and the test that exists to prove the floor works never ran it. A
-    /// clipboard that cannot store text is not a floor, and asserting against one proved
-    /// nothing.
-    private final class WorkingPasteboard: Pasteboard, @unchecked Sendable {
-        private let held = Mutex<String?>(nil)
-        func text() -> String? { held.withLock { $0 } }
-        func setText(_ text: String) { held.withLock { $0 = text } }
-        func changeCount() -> Int { 0 }
-    }
-
-    /// Refuses, so the chain is driven all the way to the floor. A keystroke that
-    /// silently succeeds would stop at pasting and leave the floor untested — which is
-    /// what this suite exists to exercise.
-    private struct RefusedKeystrokes: KeystrokeSender {
-        func sendPaste() throws(TextInsertionError) { throw .accessibilityDenied }
-    }
-
-    private struct SilentKeystrokes: KeystrokeSender {
-        func sendPaste() throws(TextInsertionError) {}
-    }
-
+    /// The keystroke is refused, so the chain is driven all the way to the floor this suite exercises.
     private func coordinator() -> TextInsertionCoordinator {
         TextInsertion.coordinator(
-            focus: NoFocus(), pasteboard: WorkingPasteboard(), keystrokes: RefusedKeystrokes())
+            focus: FakeFocus(),
+            pasteboard: FakePasteboard(),
+            keystrokes: FakeKeystrokeSender(error: .accessibilityDenied))
     }
 
     /// Accessibility first because it leaves the clipboard alone and writes at the
