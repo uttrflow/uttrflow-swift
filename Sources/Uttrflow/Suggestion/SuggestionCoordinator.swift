@@ -695,7 +695,8 @@ final class SuggestionCoordinator {
             bundleIdentifier: snapshot.bundleIdentifier, role: snapshot.role,
             subrole: snapshot.subrole, identifier: snapshot.identifier,
             placeholder: snapshot.placeholder,
-            accessibilityDescription: snapshot.accessibilityDescription, document: snapshot.document)
+            accessibilityDescription: snapshot.accessibilityDescription, document: snapshot.document,
+            windowTitle: snapshot.windowTitle, applicationName: snapshot.applicationName)
     }
 
     /// Everything about this moment that can silence a suggestion.

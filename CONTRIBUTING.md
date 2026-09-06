@@ -48,6 +48,31 @@ Small PRs get reviewed. Large ones get reviewed eventually. If you are planning 
 substantial, open an issue first so you do not build something that then gets declined for
 a reason that could have been said in a paragraph.
 
+## Claiming an issue, and what claiming it guarantees you
+
+**Say on the issue that you are taking it, and it is yours.** One comment is enough — no
+form, and you do not need to wait for an answer before you start.
+
+What the claim buys you is specific, because a vaguer promise would be worth nothing:
+
+- The issue gets the `claimed` label, and an assignee if GitHub will let us set one.
+- **No maintainer works on it while it is claimed.** Not a smaller version of it, not "just
+  the doc part", not as a side effect of a larger branch that happens to cross it.
+- If a maintainer branch has to touch the same lines for an unrelated reason, we say so on
+  the issue before pushing, not after.
+- A claim lapses after two weeks of silence, and we ask on the issue before releasing it.
+
+If we take a claimed issue anyway, that is a bug in how this project is run — please say so
+on the issue, and it will be treated as one.
+
+**This exists because it has already gone wrong.** The first outside pull request this
+project ever received (#62) implemented a `good first issue` whose author had asked for it
+on the issue thirty-two minutes earlier. Nobody answered them. Twelve minutes after they
+asked, a maintainer branch opened doing the same work, and it merged and closed the issue
+while their pull request sat open and unreviewed. They had done exactly what this file asks
+for. A *good first issue* that a maintainer finishes underneath a newcomer is worse than
+never having labelled one.
+
 ## What the code review is looking for
 
 This codebase has a particular style, and matching it will save a round trip:

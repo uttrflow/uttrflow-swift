@@ -159,3 +159,40 @@ struct RegisterTests {
         #expect(Register.sentenceCaseShare(of: []) == 0)
     }
 }
+
+@Suite("Fields whose answer lives in a history or nowhere")
+struct HistoryOnlyRegisterTests {
+    /// The register a field of this name infers, with nothing else on screen to go by.
+    private func register(field: String?) -> Register {
+        Register.infer(from: GenerationSituation(application: "App", field: field), typed: "ni")
+    }
+
+    @Test(
+        "A box that calls itself a search, a find, a filter or a query answers from what was entered before.")
+    func searchBoxesNameThemselves() {
+        for name in ["Search", "Search products", "Find in page", "Search this Mac"] {
+            #expect(register(field: name).answersFromHistoryAlone, "\(name)")
+        }
+    }
+
+    @Test(
+        "A message box, a document body and a nameless field are not searches, so the model still answers there."
+    )
+    func ordinaryFieldsStillAnswer() {
+        // An editor calls its own field a query or a filter, and what it holds is grounded by the schema on screen.
+        for name in ["Type a message", "Note Body Text View", "Subject", "Query", "Filter", nil] {
+            #expect(!register(field: name).answersFromHistoryAlone, "\(name ?? "nil")")
+        }
+    }
+
+    @Test("An address bar answers from history too, whether it names addresses or the person writes them.")
+    func addressBarsAnswerFromHistory() {
+        #expect(register(field: "Address and search bar").answersFromHistoryAlone)
+        let ownAddresses = Register.infer(
+            from: GenerationSituation(
+                application: "Browser", field: "Location",
+                recentLines: ["github.com/uttrflow", "linear.app/team", "example.com/docs"]),
+            typed: "git")
+        #expect(ownAddresses.answersFromHistoryAlone)
+    }
+}

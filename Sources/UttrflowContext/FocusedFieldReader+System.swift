@@ -155,7 +155,8 @@ public enum FocusedFieldReader {
             isComposing: Composition.isComposing(
                 markedText: CompositionProbe.markedText(of: field),
                 inputSource: CompositionProbe.inputSourceKind()),
-            readMicroseconds: Int((DispatchTime.now().uptimeNanoseconds - started) / 1000)
+            readMicroseconds: Int((DispatchTime.now().uptimeNanoseconds - started) / 1000),
+            windowTitle: windowTitle(of: field)
         )
     }
 
@@ -174,6 +175,12 @@ public enum FocusedFieldReader {
         if let own = SurfaceProbe.string(field, kAXDocumentAttribute) { return own }
         guard let window = element(field, kAXWindowAttribute) else { return nil }
         return SurfaceProbe.string(window, kAXDocumentAttribute)
+    }
+
+    /// The title of the window the field sits in, which is what names one conversation, note or thread apart from another.
+    private static func windowTitle(of field: AXUIElement) -> String? {
+        guard let window = element(field, kAXWindowAttribute) else { return nil }
+        return string(window, kAXTitleAttribute)
     }
 
     /// The window's rectangle, which is what the strip stands on when no caret can be read.

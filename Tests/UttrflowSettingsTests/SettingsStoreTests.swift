@@ -83,6 +83,18 @@ struct SettingsTests {
         #expect(restored == settings)
     }
 
+    /// Switching automatic updates off survives a save and a load.
+    @Test("keeps automatic updates switched off across a save and a load")
+    func automaticUpdatesStayOff() throws {
+        let settings = Settings(installsUpdatesAutomatically: false)
+
+        let restored = try JSONDecoder().decode(
+            Settings.self, from: JSONEncoder().encode(settings)
+        )
+
+        #expect(!restored.installsUpdatesAutomatically)
+    }
+
     /// The upgrade case: a build that added settings must still find the ones the user chose.
     @Test("keeps what an older build wrote and defaults what it never knew")
     func olderPayload() throws {

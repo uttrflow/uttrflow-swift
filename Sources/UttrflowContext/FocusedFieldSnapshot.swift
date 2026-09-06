@@ -38,6 +38,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let isComposing: Bool
     /// How long the whole reading took, in microseconds.
     public let readMicroseconds: Int
+    /// The title of the window holding the field, which names the conversation, the note or the thread the field belongs to.
+    public let windowTitle: String?
 
     public init(
         bundleIdentifier: String,
@@ -56,7 +58,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         fontFamily: String? = nil,
         isSecure: Bool = false,
         isComposing: Bool = false,
-        readMicroseconds: Int = 0
+        readMicroseconds: Int = 0,
+        windowTitle: String? = nil
     ) {
         self.bundleIdentifier = bundleIdentifier
         self.applicationName = applicationName
@@ -75,6 +78,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.isSecure = isSecure
         self.isComposing = isComposing
         self.readMicroseconds = readMicroseconds
+        self.windowTitle = windowTitle
     }
 }
 
