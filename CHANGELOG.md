@@ -7,7 +7,7 @@ Notable changes to Uttrflow. The format follows
 Each released version is a git tag and a build at
 [uttrflow/releases](https://github.com/uttrflow/releases).
 
-## [Unreleased]
+## [0.5.0] — 2026-09-06
 
 ### Changed
 - **Dictation is ready almost as soon as the key comes up, however long you spoke.** The
@@ -110,6 +110,14 @@ Each released version is a git tag and a build at
   correction the speaker made across the pause — "let's meet at four" | "no sorry at
   five" — now drops the half they replaced, by the same rule the self-correction pass
   uses inside one piece.
+- **Contractions are repaired without a model.** "dont", "cant", "youre", "thats" and
+  their kind get their apostrophe back deterministically, so a dictation the model
+  declines — Hindi, a refusal, a timeout — no longer keeps them broken. Only the words
+  that are a contraction and nothing else: "Ill" and "Id" are repaired where the capital
+  says the speaker meant "I", and "its", "wed" and "were" are left as they were said.
+- **Numbers follow the place they are going.** A spreadsheet, a SQL editor and a code
+  editor now write every number as a numeral, "one of them" → "1 of them"; a document, an
+  email, a message and plain text keep ten and up, as before.
 
 ### Fixed
 - **The tidier deleted words the speaker said.** A sentence holding the word "wait"
@@ -193,17 +201,6 @@ Each released version is a git tag and a build at
   given it a place of its own.
 - **An email whose subject mentioned Google Docs was written as a document.** What an app
   is now beats what its window happens to be called.
-
-### Added
-- **Contractions are repaired without a model.** "dont", "cant", "youre", "thats" and
-  their kind get their apostrophe back deterministically, so a dictation the model
-  declines — Hindi, a refusal, a timeout — no longer keeps them broken. Only the words
-  that are a contraction and nothing else: "Ill" and "Id" are repaired where the capital
-  says the speaker meant "I", and "its", "wed" and "were" are left as they were said.
-- **Numbers follow the place they are going.** A spreadsheet, a SQL editor and a code
-  editor now write every number as a numeral, "one of them" → "1 of them"; a document, an
-  email, a message and plain text keep ten and up, as before.
-
 ## [0.4.0] — 2026-09-01
 
 ### Changed
@@ -280,6 +277,7 @@ where its code became readable.
   disagree.
 
 [Unreleased]: https://github.com/uttrflow/uttrflow-swift/commits/main
+[0.5.0]: https://github.com/uttrflow/releases/releases/tag/v0.5.0
 [0.4.0]: https://github.com/uttrflow/releases/releases/tag/v0.4.0-test.90a5262
 [0.3.0]: https://github.com/uttrflow/releases/releases/tag/v0.3.0-test.0f0a7ad
 [0.2.2]: https://github.com/uttrflow/releases/releases/tag/v0.2.2-test.346aad1
