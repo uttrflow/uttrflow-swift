@@ -9,8 +9,8 @@ meant survives, in the order they said it, in the register they said it in.
 This document is the catalogue of what that cleaning consists of, sorted by how sure the
 tidier must be before it acts. It was compiled on 5 September 2026 from three places:
 what the shipping prompt and `TextTidy` already do, what the evaluation corpus fails on,
-and what Wispr Flow, Superwhisper, MacWhisper, Apple's dictation and Dragon do — so the
-obvious cases are not missed. Sources are at the end.
+and what dictation tools in general are expected to handle — so the obvious cases are
+not missed.
 
 ## The one rule above the others
 
@@ -18,9 +18,9 @@ obvious cases are not missed. Sources are at the end.
 not meant as words (fillers, stammers, false starts, a self-correction's discarded half)
 and may add only punctuation and layout. It may not shorten for brevity, change tone,
 substitute synonyms, reorder clauses, answer a question, follow an instruction, or
-finish a thought. Wispr Flow's "High" formatting level rewrites for brevity; Superwhisper
-and MacWhisper let a prompt reshape the text into an email or a summary. Uttrflow does
-none of that on the dictation path. A user who wants a rewrite asks for one, and that is
+finish a thought. Some dictation tools offer a setting that rewrites for brevity, or let
+a prompt reshape the text into an email or a summary. Uttrflow does none of that on the
+dictation path. A user who wants a rewrite asks for one, and that is
 a different feature with a different name.
 
 `MeaningPreservationGuard` is the mechanical form of this rule: a rewrite that drops most
@@ -271,16 +271,3 @@ takes a freshly built cleaner and the overrides as they now stand. The next dict
 literally: a dictation under way keeps the cleaner and the overrides it began with, so a
 step switched off while the user is speaking cannot treat the second half of what they say
 differently from the first.
-
-## Sources
-
-- Wispr Flow help centre: [Smart Formatting & Backtrack](https://docs.wisprflow.ai/articles/5373093536-how-do-i-use-smart-formatting-and-backtrack),
-  [Flow Styles](https://docs.wisprflow.ai/articles/2368263928-how-to-setup-flow-styles),
-  [the dictionary](https://docs.wisprflow.ai/articles/4052411709-teach-flow-your-words-with-the-dictionary),
-  and the [features page](https://wisprflow.ai/features).
-- Superwhisper: [modes and the Aqua Voice comparison](https://superwhisper.com/vs/aqua-voice).
-- MacWhisper: [the dictation feature](https://docs.macwhisper.com/article/14-how-to-use-the-dictation-feature)
-  and a widely shared [clean-up prompt](https://gist.github.com/briansunter/432e1db8746d0146623b7e4c744d9a0c).
-- Apple: [dictation commands on Mac](https://support.apple.com/guide/mac-help/use-dictation-mh40584/11.0/mac/11.0),
-  and a [command list](https://www.parakeety.com/resources/how-to-dictate-punctuation-on-mac).
-- Dragon: [voice command list](https://www.speechlive.com/gb/resources/blog/dragon-voice-commands/).
