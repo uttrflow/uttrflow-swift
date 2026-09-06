@@ -160,8 +160,8 @@ struct SettingsTests {
     /// audio was ever written to disk, so the period that claimed to govern it governed
     /// nothing. A user who set one is still a user with every other choice they made,
     /// and keyed decoding simply never asks for the key this build has no case for.
-    @Test("loads a blob written before the recording period was dropped")
-    func blobFromBeforeRecordingRetentionWentAway() throws {
+    @Test("keeps every readable choice beside a key this build has no case for")
+    func unknownKeyIsSkipped() throws {
         let settings = try decode(
             """
             {"recordingRetentionDays": 30, "transcriptRetentionDays": 21,
@@ -176,8 +176,8 @@ struct SettingsTests {
 
     /// A dropped key is a door left open, and a hostile value must not come back in
     /// through it: the period it once set is gone, not defaulted to something else.
-    @Test("ignores a hostile recording period an older blob still carries")
-    func hostileRecordingRetentionIsIgnored() throws {
+    @Test("ignores a hostile value stored under a key this build has no case for")
+    func hostileUnknownKeyIsSkipped() throws {
         let settings = try decode(
             """
             {"recordingRetentionDays": 0, "opensAtLogin": false}

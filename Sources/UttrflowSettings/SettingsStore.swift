@@ -1,9 +1,6 @@
 public import UttrflowCore
 public import UttrflowPredict
 
-/// Where the floating button parks itself.
-///
-
 /// Every choice the user has made, as one value.
 ///
 /// One value rather than a scattering of keys: a screen can be handed the whole of the
