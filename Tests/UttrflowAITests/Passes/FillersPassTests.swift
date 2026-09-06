@@ -51,4 +51,19 @@ struct FillersPassTests {
         #expect(draft.words[1].state == .kept)
         #expect(draft.originalText == "um hello")
     }
+
+    /// Found by dictating it: "we should, uh, ship" left a comma separating nothing.
+    @Test(
+        "takes the comma that only bracketed the filler",
+        arguments: [
+            ("we should, uh, ship it", "we should ship it"),
+            ("the build, um, failed", "the build failed"),
+            // Only a bracketed one: a comma doing its own work stays.
+            ("first, uh second", "first, second"),
+            ("So um, I think we should", "So I think we should"),
+        ]
+    )
+    func dropsTheBracketingComma(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
 }

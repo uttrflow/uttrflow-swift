@@ -155,6 +155,24 @@ private final class RegressionMonitor: HotkeyMonitoring {
     var events: AsyncStream<HotkeyEvent> { stream }
 }
 
+/// A monitor that owes a release when stopped mid-hold, as the real one does. See Docs/stuck-recording.md.
+private final class OwingMonitor: HotkeyMonitoring {
+    private let stream: AsyncStream<HotkeyEvent>
+    private let continuation: AsyncStream<HotkeyEvent>.Continuation
+
+    init() {
+        (stream, continuation) = AsyncStream<HotkeyEvent>.makeStream()
+    }
+
+    func start(binding: HotkeyBinding) {}
+
+    func stop() {
+        continuation.yield(.released)
+    }
+
+    var events: AsyncStream<HotkeyEvent> { stream }
+}
+
 /// A clock that moves on a step each read, so back-to-back gestures still make a full hold.
 private final class SteppingClock: Clock, Sendable {
     typealias Instant = ManualClock.Instant
@@ -259,6 +277,36 @@ private func endOfDictation(_ stream: AsyncStream<DictationState>) async -> Dict
 
 @Suite("Dictation regressions: gestures in order, and a cancel that really cancels")
 struct DictationRegressionTests {
+
+    // MARK: A hold cut short by stopping
+
+    /// Stopping mid-hold must still close the microphone. See Docs/stuck-recording.md.
+    @Test("stopping during a hold still finishes the recording", .timeLimit(.minutes(1)))
+    func stoppingDuringAHoldFinishesIt() async throws {
+        let capture = RegressionCapture()
+        let inserter = RegressionInserter()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: RegressionSpeech(), cleaner: RegressionCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: inserter,
+            clock: ManualClock())
+        let controller = DictationController(
+            pipeline: pipeline, monitor: OwingMonitor(), activation: .holdToTalk,
+            clock: SteppingClock())
+        let states = await pipeline.states()
+
+        try await controller.start(binding: .functionHold)
+        controller.submit(.pressed)
+        while await pipeline.currentState.isListening == false { await Task.yield() }
+
+        // The release the monitor owes has to reach the controller, which cancelling would prevent.
+        await controller.stop()
+        let ending = await endOfDictation(states)
+
+        #expect(ending == .inserted(regressionOutcome))
+        #expect(
+            await pipeline.currentState.isListening == false,
+            "a hold cut short by stopping must not leave the microphone open")
+    }
 
     // MARK: A press and a release that raced
 

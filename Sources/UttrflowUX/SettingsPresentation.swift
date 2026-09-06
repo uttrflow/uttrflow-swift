@@ -94,8 +94,8 @@ public enum SettingsControl: Sendable, Equatable {
     /// The four screen corners the floating button can park in.
     case anchorPicker(selected: DockAnchor)
 
-    /// The shortcut in force, as the keycaps it is drawn on.
-    case shortcut(keys: [String])
+    /// The shortcut in force, as the keycaps it is drawn on, and which shortcut it is.
+    case shortcut(action: ShortcutAction, keys: [String])
 
     /// A tick in a list where more than one line can be ticked at once.
     case tick(isTicked: Bool, change: SettingsChange)
@@ -175,7 +175,7 @@ public enum SettingsChange: Sendable, Equatable {
     case toggle(SettingsToggleField, isOn: Bool)
     case activation(HotkeyActivation)
     case anchor(DockAnchor)
-    case shortcut(HotkeyBinding)
+    case shortcut(ShortcutAction, HotkeyBinding)
     case tidying(SettingsTidyingLevel)
     case transcription(SettingsTranscriptionQuality)
     case spokenLanguage(LanguageCode, isSpoken: Bool)

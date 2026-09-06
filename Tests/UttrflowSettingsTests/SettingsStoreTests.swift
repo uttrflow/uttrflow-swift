@@ -244,6 +244,10 @@ struct SettingsTests {
             #"{"keyCode": 999, "modifiers": ["command"]}"#,
             // Command held down on its own, which is not a shortcut.
             #"{"keyCode": 200, "modifiers": ["command"]}"#,
+            // Option's key code carrying Command: the pair a recorder writes reading a key going up.
+            #"{"keyCode": 58, "modifiers": ["command"]}"#,
+            // Caps Lock, which sets no modifier flag and so can never be seen held.
+            #"{"keyCode": 57, "modifiers": []}"#,
         ]
     )
     func hostileHotkey(hotkey: String) throws {
@@ -343,6 +347,36 @@ struct SettingsTests {
         #expect(try decode(#"{"clipboardHotkey": null}"#).clipboardHotkey == nil)
         // Unreadable: the user never expressed a preference this build can act on.
         #expect(try decode(#"{"clipboardHotkey": "shift-command-v"}"#).clipboardHotkey == .shiftCommandV)
+    }
+
+    /// A file written before shortcuts were a set still opens, with the same shortcuts in it.
+    @Test("reads the two fields shortcuts replaced")
+    func migratesTheOldShape() throws {
+        let settings = try decode(
+            #"{"hotkey": {"keyCode": 63, "modifiers": []}, "clipboardHotkey": {"keyCode": 9, "modifiers": ["control"]}}"#
+        )
+
+        #expect(settings.shortcuts.first(for: .dictate) == .functionHold)
+        #expect(settings.shortcuts.first(for: .clipboard) == HotkeyBinding(keyCode: 9, modifiers: [.control]))
+    }
+
+    @Test("prefers the shortcuts it was given over the fields they replaced")
+    func newShapeWins() throws {
+        let settings = try decode(
+            #"{"shortcuts": {"dictate": [{"keyCode": 49, "modifiers": ["option"]}]}, "hotkey": {"keyCode": 63, "modifiers": []}}"#
+        )
+
+        #expect(settings.shortcuts.first(for: .dictate) == .optionSpace)
+    }
+
+    @Test("keeps every way into an action through a round trip")
+    func severalWaysSurvive() throws {
+        var written = Settings.default
+        written.shortcuts.add(.functionHold, to: .dictate)
+        let restored = try JSONDecoder().decode(
+            Settings.self, from: JSONEncoder().encode(written))
+
+        #expect(restored.shortcuts.bindings(for: .dictate) == [.optionSpace, .functionHold])
     }
 
     /// These strings are on disk in every installation, so renaming a case resets it for everyone.

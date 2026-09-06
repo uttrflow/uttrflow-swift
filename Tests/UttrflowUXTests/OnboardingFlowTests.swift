@@ -489,7 +489,10 @@ struct OnboardingFlowTests {
     func lastPageShowsTheChosenShortcut() async {
         let harness = Harness(
             microphone: .granted, accessibility: .granted,
-            settings: Settings(hotkey: HotkeyBinding(keyCode: 36, modifiers: [.command, .shift])))
+            settings: Settings(
+                shortcuts: ShortcutSet([
+                    .dictate: [HotkeyBinding(keyCode: 36, modifiers: [.command, .shift])]
+                ])))
         await harness.flow.start()
 
         #expect(await harness.press("Continue"))

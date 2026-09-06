@@ -1,58 +1,53 @@
+import Foundation
 import Synchronization
 
 public import UttrflowCore
 
-/// Watches for the chosen shortcut through whichever monitor delivers it. See `Docs/shortcuts.md`.
+/// Watches for the chosen shortcut through one source and one recogniser. See `Docs/shortcuts.md`.
 public final class ActivationMonitor: HotkeyMonitoring {
     public let events: AsyncStream<HotkeyEvent>
     private let continuation: AsyncStream<HotkeyEvent>.Continuation
-    private let current = Mutex<Current>(Current())
+    private let source: any KeyboardEventSource
+    private let recogniser = Mutex<HotkeyRecogniser?>(nil)
 
-    public init() {
+    /// Takes the source it listens through, so a test can hand it strokes instead of a keyboard.
+    public init(source: any KeyboardEventSource = SystemKeyboard()) {
+        self.source = source
         (events, continuation) = AsyncStream.makeStream()
     }
 
     deinit {
-        current.withLock { $0.tearDown() }
+        source.stop()
         continuation.finish()
     }
 
     @MainActor
     public func start(binding: HotkeyBinding) throws(HotkeyError) {
         stop()
-
-        // A fresh monitor each time: an `AsyncStream` has one consumer to iterate.
-        let monitor: any HotkeyMonitoring =
-            binding.heldModifier != nil ? HeldModifierMonitor() : CarbonHotkeyMonitor()
-        // Before the forwarding task, so a monitor that refuses leaves nothing behind.
-        try monitor.start(binding: binding)
-
-        let stream = monitor.events
-        let continuation = continuation
-        let forwarding = Task {
-            for await event in stream { continuation.yield(event) }
+        guard binding.isDeliverable else {
+            throw .shortcutUnavailable
         }
-        current.withLock {
-            $0.monitor = monitor
-            $0.forwarding = forwarding
+        recogniser.withLock { $0 = HotkeyRecogniser(binding: binding) }
+        let continuation = continuation
+        do {
+            try source.start { [weak self] stroke in
+                let happened = self?.recogniser.withLock { $0?.receive(stroke) } ?? nil
+                if let happened {
+                    continuation.yield(happened)
+                }
+            }
+        } catch {
+            throw .observationNotPermitted
         }
     }
 
     public func stop() {
-        current.withLock { $0.tearDown() }
-    }
-}
-
-/// The monitor in force and the task draining it, so neither can outlive the other.
-private struct Current {
-    var monitor: (any HotkeyMonitoring)?
-    var forwarding: Task<Void, Never>?
-
-    mutating func tearDown() {
-        // The monitor first: stopping it is what lets a held key report the release owed.
-        monitor?.stop()
-        forwarding?.cancel()
-        monitor = nil
-        forwarding = nil
+        source.stop()
+        // A hold interrupted by stopping is a release, or the microphone stays open.
+        let owed = recogniser.withLock { current -> HotkeyEvent? in
+            defer { current = nil }
+            return current?.finish()
+        }
+        if let owed { continuation.yield(owed) }
     }
 }

@@ -1,7 +1,8 @@
 import AppKit
-import UttrflowCore
-import UttrflowUX
 import SwiftUI
+import UttrflowCore
+import UttrflowInput
+import UttrflowUX
 
 /// Whatever a row asked for, drawn as one switch over a closed set. See `Docs/app-settings-controls.md`.
 struct SettingsControlView: View {
@@ -52,8 +53,8 @@ struct SettingsControlView: View {
         case .anchorPicker(let selected):
             SettingsAnchorPicker(selected: selected) { model.apply(.anchor($0)) }
 
-        case .shortcut(let keys):
-            SettingsShortcutField(keys: keys, model: model)
+        case .shortcut(let action, let keys):
+            SettingsShortcutField(action: action, keys: keys, model: model)
 
         case .tick(let isTicked, let change):
             Button {
@@ -169,15 +170,28 @@ struct SettingsAnchorPicker: View {
 
 /// The shortcut and the field that records a new one. See `Docs/app-settings-controls.md`.
 struct SettingsShortcutField: View {
+    let action: ShortcutAction
     let keys: [String]
     let model: SettingsViewModel
 
-    @State private var monitor: Any?
+    @State private var listening = false
+
+    /// Recording belongs to one row, so the others keep showing their keys.
+    private var isRecording: Bool {
+        model.session.recorder.isRecording && model.session.recorder.action == action
+    }
+
+    /// The one keyboard source, which reports every key including Fn.
+    @State private var keyboard = SystemKeyboard()
 
     var body: some View {
         HStack(spacing: 8) {
-            if model.session.recorder.isRecording {
+            if isRecording {
                 Text(model.session.recorder.prompt)
+                    .font(.system(size: SettingsMetrics.calloutSize))
+                    .foregroundStyle(.secondary)
+            } else if keys.isEmpty {
+                Text("None")
                     .font(.system(size: SettingsMetrics.calloutSize))
                     .foregroundStyle(.secondary)
             } else {
@@ -185,21 +199,21 @@ struct SettingsShortcutField: View {
                     keycap(key)
                 }
             }
-            Button(model.session.recorder.isRecording ? "Cancel" : "Change") {
-                if model.session.recorder.isRecording {
+            Button(isRecording ? "Cancel" : "Change") {
+                if isRecording {
                     model.cancelRecordingShortcut()
                 } else {
-                    model.beginRecordingShortcut()
+                    model.beginRecordingShortcut(action)
                 }
             }
             .buttonStyle(SettingsButtonStyle())
         }
-        .onChange(of: model.session.recorder.isRecording, initial: true) { _, isRecording in
-            isRecording ? startListening() : stopListening()
+        .onChange(of: isRecording, initial: true) { _, recording in
+            recording ? startListening() : stopListening()
         }
         .onDisappear(perform: stopListening)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Dictation shortcut, \(keys.joined(separator: " "))")
+        .accessibilityLabel("\(action.rawValue) shortcut, \(keys.joined(separator: " "))")
     }
 
     /// A key drawn as a key, matching first-run so both windows show the same physical thing.
@@ -220,36 +234,21 @@ struct SettingsShortcutField: View {
     }
 
     private func startListening() {
-        guard monitor == nil else { return }
-        // `.flagsChanged` too, so a modifier pressed alone is refused out loud rather than in silence.
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
-            let modifiers = SettingsShortcutField.modifiers(from: event.modifierFlags)
-
-            guard event.type == .flagsChanged else {
-                model.record(keyCode: event.keyCode, modifiers: modifiers)
-                // Swallowed: nothing pressed at this field should reach the rest of the app.
-                return nil
+        guard !listening else { return }
+        listening = true
+        // One source, and the recorder decides what each stroke means. Nothing here judges a key.
+        do {
+            try keyboard.start { stroke in
+                Task { @MainActor in model.receive(stroke) }
             }
-
-            // Fn is a shortcut in its own right and carries none of the four modifiers named below.
-            if event.keyCode == HotkeyBinding.functionKeyCode,
-                event.modifierFlags.contains(.function)
-            {
-                model.record(keyCode: event.keyCode, modifiers: [])
-                return event
-            }
-
-            // Only the press is an attempt at a shortcut; the release arrives with empty flags.
-            guard !modifiers.isEmpty else { return event }
-            model.record(keyCode: event.keyCode, modifiers: modifiers)
-            // Passed on, unlike a key press: the rest of the app must not think a key is still held.
-            return event
+        } catch {
+            model.shortcutSourceRefused()
         }
     }
 
     private func stopListening() {
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
+        keyboard.stop()
+        listening = false
     }
 
     /// Cocoa's flags reduced to the four the product recognises; the rest is window-server noise.

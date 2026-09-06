@@ -1,74 +1,112 @@
 # Watching for the shortcut
 
-Two mechanisms, because macOS offers no one way to do both. `ActivationMonitor` chooses
-between them and callers never know which answered.
+One keyboard source, one rule for deciding a shortcut is down, and one place that says what
+each shortcut is for. Everything below is what the alternatives cost when they were tried.
 
-## A combination: `CarbonHotkeyMonitor`
+## `NSEvent` cannot see Fn
 
-`RegisterEventHotKey` needs no permission at all, delivers the release as well as the
-press — which hold-to-talk is built on — and was measured here at well under a tenth of
-a millisecond.
+`NSEvent.addGlobalMonitorForEvents(.flagsChanged)` is the obvious way to watch a held
+modifier, and on macOS 26 it is **never told about Fn**. Measured side by side against a
+`CGEventTap` over the same keypresses: the tap saw 23 events, `NSEvent` saw 0. The same
+blindness applies to the polled sources — `NSEvent.modifierFlags` does not report Fn, and
+neither does `CGEventSource.flagsState(.combinedSessionState)`.
 
-A `CGEventTap` was the alternative and is worse: a tap sees nothing until the user has
-granted Accessibility, so the app would have to ask permission to read every keystroke
-in every app merely to learn when to start listening, before it has ever done anything
-useful.
+This cost real time twice, because a monitor that reports nothing is indistinguishable from
+a user whose keyboard is broken, and the second guess was to blame the hardware. It is not
+the hardware. Anything that must see Fn goes through a tap.
 
-The price is that Carbon swallows the keystroke — there is no pass-through option —
-which for a shortcut reserved for dictation is what we want anyway.
+## One tap: `SystemKeyboard`
 
-**One handler for the process, not one per monitor.** `InstallEventHandler` refuses the
-same handler function on the same target twice (`eventHandlerAlreadyInstalledErr`,
-−9866). The clipboard panel has a shortcut of its own, so a per-instance install meant
-whichever monitor registered second silently got nothing. The handler dispatches on
-`EventHotKeyID.id`, so one install has always been able to serve any number of
-shortcuts.
+A single `CGEvent.tapCreate(.cgSessionEventTap, .headInsertEventTap, .listenOnly)` on its own
+`.userInteractive` thread, listening to `flagsChanged`, `keyDown` and `keyUp`. Listen-only, so
+every key keeps doing whatever it did before. It is the only window-server code on this path,
+and it is where flags are decoded into a `KeyStroke` — once, so nothing downstream reads a raw
+flag word.
 
-**The handler must be installed on the same event target the hot key is registered
-against.** Pairing `GetApplicationEventTarget()` with `GetEventDispatcherTarget()`
-returns `noErr` from both calls and then never fires. Both say
-`GetEventDispatcherTarget()`, and must keep saying the same thing.
+A tap on a starved thread is a tap macOS disables, which is why it gets a thread of its own.
 
-## A held modifier: `HeldModifierMonitor`
+## The field a flags change does not have
 
-The window server accepts a hot key whose key *is* a modifier and then never fires it.
-So Fn is watched instead: the flags change when it goes down and again when it comes up,
-and those two are the press and the release.
+A `flagsChanged` event names one key and reports every modifier still held *after* it moved.
+It does not say whether that key went down or up, and the first version of this threw the
+question away: `KeyStroke` carried the key code and the resulting modifier set and nothing
+else.
 
-**Two `NSEvent` monitors, because one is not enough.** A global monitor sees every app
-except this one; a local monitor sees only this one. Uttrflow is a menu-bar app people
-dictate *into other applications* from, so the global monitor is the one that matters —
-but without the local one the shortcut would be dead in Uttrflow's own windows, which is
-exactly where somebody tries it first after turning it on.
+Releasing ⌥ while ⌘ was still held therefore looked exactly like pressing something, and the
+recorder stored `{keyCode: 58, modifiers: [command]}` — Option's key code labelled Command.
+It matched ⌘, ignored ⌥ and Fn, and presented as "I set it to Fn and nothing happens".
 
-**Matching is by equality, not containment.** ⌃⌥ and ⌃⌥⌘ are different holds, and
-matching a superset would mean a ⌃⌥ binding firing on the way to every ⌃⌥⌘ shortcut.
+`KeyStroke.isKeyDown` answers it, derived at the tap from the one thing that settles it:
+whether the key's own modifier survived the change. Fn follows `maskSecondaryFn`; every other
+modifier follows its own bit.
 
-**This cannot suppress what macOS does with Fn.** An `NSEvent` monitor observes; it
-cannot consume. If the Mac is set to show the emoji picker or start Apple's own
-dictation on Fn, that still happens and both fire alongside this. The setting is in
-System Settings → Keyboard → "Press 🌐 to", and the honest thing is to say so where the
-shortcut is chosen rather than let it look like a bug.
+## A binding must not contradict itself
 
-## Arming it again when it could not be armed
+`HotkeyBinding.isCoherent` refuses a key code whose own modifier its modifier set does not
+contain. The pair above cannot be stored, and `Settings` substitutes the default for any
+binding it cannot deliver, so one already on disk repairs itself on load.
 
-`HeldModifierMonitor.start` refuses without Accessibility, and Carbon refuses a
-combination another application already owns. Both were reported once, as a transient
-notice, and never retried — so a key that failed to arm at launch stayed dead until the
-app was relaunched, with nothing on screen connecting the two.
+Caps Lock is refused by the same rule. It sets no modifier flag at all, so a watcher reads it
+as *nothing held* and fires on every modifier release. It was never bindable; now it says so.
 
-Two things fix that between them. Granting Accessibility through Uttrflow's own button
-re-arms it directly. And **anything else the user does elsewhere** — granting the
-permission in System Settings, or quitting whatever owned the combination — is picked up
-when they come back to Uttrflow, because `applicationDidBecomeActive` retries whenever
-the last attempt failed. Neither of those events tells the app anything on its own.
+## One recogniser: `HotkeyRecogniser`
 
-## Neither is trusted to deliver the release
+Every binding shape goes through one type — Fn alone, one held modifier, several held
+modifiers, and a modifier with a key against it. It is a pure value with no window server in
+it, so every shape is tested as a sequence of `KeyStroke`s.
 
-Both reconcile against the real key state every 250 ms. See `Docs/stuck-recording.md`.
+**Matching is by equality, not containment.** ⌃⌥ and ⌃⌥⌘ are different holds, and matching a
+superset would fire a ⌃⌥ binding on the way to every ⌃⌥⌘ shortcut.
+
+There was once a 250 ms timer that re-read the modifier state to catch a release the monitor
+had missed. It polled a source that cannot see Fn, read "up" while Fn was held, and cancelled
+the dictation the instant it started. It is gone: the tap delivers clean pairs, and the one
+release worth guaranteeing is the one below.
+
+## The release nobody else will send
+
+`ActivationMonitor.stop()` yields a release when it is stopped mid-hold, because a hold
+interrupted by a rebind would otherwise leave the microphone open forever — the worst failure
+this product has.
+
+That release is easy to lose. `DictationController.stop()` used to cancel its event forwarder
+one line *before* calling `monitor.stop()`, so the release was yielded into a stream nobody
+was reading. The controller now reads the monitor's stream **once, for its life**, which also
+removes the second hazard: an `AsyncStream` has room for one reader, and creating a new one
+per rebind meant two consumers splitting keypresses between them.
+
+## Carbon, only where a key must be swallowed
+
+`CarbonHotkeyMonitor` stays for ⇧⌘V. `RegisterEventHotKey` **consumes** the combination, which
+a listen-only tap cannot do, and without that the clipboard panel would open *and* the app
+underneath would paste without formatting. It is kept for that one property; it cannot bind a
+held modifier or Fn at all.
+
+So delivery is a property of the shortcut: most are **observed** through the tap, and one is
+**claimed** through Carbon.
+
+## What a shortcut is for
+
+`ShortcutSet` holds every binding by `ShortcutAction`, and is what `Settings` stores. A file
+written before it — with `hotkey` and `clipboardHotkey` as separate fields — is read once
+through `LegacyShortcutKeys` and migrated; the three-way distinction those fields had is kept,
+so an absent clipboard shortcut still means the default and an explicit `null` still means off.
+
+`ShortcutRegistry` names each action and explains it, and the settings screen is generated
+from it. Adding a shortcut is adding an entry there, not a settings field, a monitor and a row.
+
+`hotkeyActivation` is still stored. It will go when a double tap on the dictation key means
+hands-free, and not before — removing it first would silently take press-to-toggle away from
+everyone using it.
 
 ## What is testable
 
-Almost none of either file: what is left once a shortcut has been translated is a
-registration with the window server. Both are excluded from the coverage gate, and every
-decision they make lives in `CarbonHotkey` and `HeldModifierEdge`, which are covered.
+Everything that decides anything. `HotkeyRecogniser`, `SettingsShortcutRecorder`, `ShortcutSet`
+and the settings decoding are pure values driven by `KeyStroke` sequences, with no window
+server involved. `SystemKeyboard` and `ActivationMonitor` are on the coverage exclusion list
+because they only create the tap and pass strokes on — what is made of those strokes is tested
+against every shape of binding.
+
+The parts that cannot be unit-tested are exercised by posting synthetic `CGEvent`s at the real
+app and watching the recording window appear. That proves the tap, the Accessibility grant and
+the UI agree; it proves nothing about what was said, which is `uttrflow-dev dictate`'s job.

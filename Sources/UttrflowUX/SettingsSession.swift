@@ -63,18 +63,39 @@ public struct SettingsSession: Sendable, Equatable {
         }
         rejection = nil
         // The field follows the setting however the change arrived, so the window never lags it.
-        if recorder.binding != settings.hotkey {
-            recorder = SettingsShortcutRecorder(binding: settings.hotkey)
+        let inForce = settings.shortcuts.first(for: recorder.action)
+        if let inForce, recorder.binding != inForce {
+            recorder = SettingsShortcutRecorder(binding: inForce, action: recorder.action)
         }
         return settings
     }
 
-    /// Takes a hardware key code and its modifiers, and applies whatever the keystroke earned.
+    /// Says why the shortcut cannot be changed right now, which the field shows in place of a key.
+    public mutating func rejectShortcut(_ reason: String) {
+        rejection = reason
+    }
+
+    /// Takes one keystroke and applies whatever it earned.
     @discardableResult
-    public mutating func record(
-        keyCode: UInt16, modifiers: Set<HotkeyModifier>
-    ) -> Settings? {
-        switch recorder.record(keyCode: keyCode, modifiers: modifiers) {
+    public mutating func receive(_ stroke: KeyStroke) -> Settings? {
+        settle(recorder.receive(stroke))
+    }
+
+    /// Takes a modifier going down; nothing is earned until it is known what it belongs to.
+    @discardableResult
+    public mutating func hold(keyCode: UInt16, modifiers: Set<HotkeyModifier>) -> Settings? {
+        settle(recorder.hold(keyCode: keyCode, modifiers: modifiers))
+    }
+
+    /// Takes every modifier coming up, which settles a modifier that was held on its own.
+    @discardableResult
+    public mutating func release() -> Settings? {
+        settle(recorder.release())
+    }
+
+    /// Applies whatever an outcome earned, which is the same for every way one is reached.
+    private mutating func settle(_ outcome: SettingsShortcutOutcome) -> Settings? {
+        switch outcome {
         case .recorded(let change):
             return apply(change)
         case .refused(let refusal):
@@ -84,6 +105,14 @@ public struct SettingsSession: Sendable, Equatable {
             rejection = nil
             return nil
         }
+    }
+
+    /// Takes a hardware key code and its modifiers, and applies whatever the keystroke earned.
+    @discardableResult
+    public mutating func record(
+        keyCode: UInt16, modifiers: Set<HotkeyModifier>
+    ) -> Settings? {
+        settle(recorder.record(keyCode: keyCode, modifiers: modifiers))
     }
 
     // MARK: - Forgetting
@@ -146,7 +175,16 @@ public struct SettingsSession: Sendable, Equatable {
 
     // MARK: - The shortcut field
 
+    /// Starts recording one named shortcut, so the row that asked is the row that changes.
+    public mutating func beginRecordingShortcut(_ action: ShortcutAction) {
+        recorder = SettingsShortcutRecorder(
+            binding: settings.shortcuts.first(for: action) ?? .optionSpace,
+            action: action)
+        beginRecordingShortcut()
+    }
+
     /// Puts the shortcut field into recording, where the next keystroke becomes a binding.
+
     public mutating func beginRecordingShortcut() {
         rejection = nil
         recorder.beginRecording()

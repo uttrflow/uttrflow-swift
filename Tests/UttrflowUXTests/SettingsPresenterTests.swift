@@ -38,7 +38,7 @@ extension SettingsPane {
             switch row.control {
             case .segmented(let options, _), .menu(let options, _):
                 strings += options.map(\.title)
-            case .shortcut(let keys):
+            case .shortcut(_, let keys):
                 strings += keys
             case .removal(let removal):
                 strings += [removal.title]
@@ -153,7 +153,9 @@ struct SettingsGeneralPaneTests {
     func showsTheShortcut() {
         var settings = Settings.default
         settings.hotkey = HotkeyBinding(keyCode: 40, modifiers: [.command])
-        #expect(general(settings).row("hotkey")?.control == .shortcut(keys: ["⌘", "K"]))
+        #expect(
+            general(settings).row("shortcut.dictate")?.control
+                == .shortcut(action: .dictate, keys: ["⌘", "K"]))
     }
 
     @Test("offers both ways of activating, with the stored one selected")

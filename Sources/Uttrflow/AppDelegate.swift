@@ -108,8 +108,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // No delegate means no idea, and no idea means do not interrupt.
         self?.updateActivity ?? UpdateActivity(isDictating: true)
     }
-    /// Its own monitor, because sharing one would mean one binding and these are two keys.
-    private let clipboardHotkeys = CarbonHotkeyMonitor()
+    /// One registration per claimed shortcut, because each one registers a single key.
+    private var claimedHotkeys: [ShortcutAction: CarbonHotkeyMonitor] = [:]
+    private var claimedTasks: [ShortcutAction: Task<Void, Never>] = [:]
+    /// The last thing dictated, so it can be put back without reopening History.
+    private var lastTranscript: String?
     /// Asked when the panel opens whether a paste can be placed, held so the answer costs one call.
     private let accessibility = AccessibilityPermissionGate()
     private let microphone = MicrophonePermissionGate()
@@ -129,7 +132,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The panel's state while it is open, held here because a window has no memory.
     private var panel: PanelSnapshot?
     private var clipboardWatchTask: Task<Void, Never>?
-    private var clipboardHotkeyTask: Task<Void, Never>?
 
     /// F7, F9 — the clip a delete removed, held by the app because the undo outlives the panel.
     private var undoable: Clip?
@@ -473,7 +475,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             await clipboardWatcher.run(handing: arrived)
         }
 
-        startWatchingForTheClipboardShortcut()
+        startWatchingForClaimedShortcuts()
     }
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
@@ -483,22 +485,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         await refreshPanelIfOpen()
     }
 
-    /// A second registration for a second key, whose refusal is logged rather than shown as a dictation failure.
-    private func startWatchingForTheClipboardShortcut() {
-        guard let binding = settings.clipboardHotkey else { return }
-        do {
-            try clipboardHotkeys.start(binding: binding)
-        } catch {
-            Self.log.error("clipboard shortcut refused: \(error.userMessage, privacy: .public)")
-            return
-        }
-        clipboardHotkeyTask = Task { [weak self, clipboardHotkeys] in
-            for await event in clipboardHotkeys.events {
-                // Releases ignored: a window that shut on key-up would punish a slow hand.
-                guard event == .pressed else { continue }
-                await self?.toggleQuickPanel()
+    /// One registration per claimed shortcut; a refusal is logged rather than shown as a dictation failure.
+    private func startWatchingForClaimedShortcuts() {
+        for task in claimedTasks.values { task.cancel() }
+        claimedTasks.removeAll()
+        for monitor in claimedHotkeys.values { monitor.stop() }
+        claimedHotkeys.removeAll()
+
+        for descriptor in ShortcutRegistry.claimed {
+            let action = descriptor.action
+            guard let binding = settings.shortcuts.first(for: action) else { continue }
+            let monitor = CarbonHotkeyMonitor()
+            do {
+                try monitor.start(binding: binding)
+            } catch {
+                Self.log.error(
+                    "\(action.rawValue, privacy: .public) shortcut refused: \(error.userMessage, privacy: .public)"
+                )
+                continue
+            }
+            claimedHotkeys[action] = monitor
+            claimedTasks[action] = Task { [weak self] in
+                for await event in monitor.events {
+                    // Releases ignored: acting on key-up would punish a slow hand.
+                    guard event == .pressed else { continue }
+                    await self?.perform(action)
+                }
             }
         }
+    }
+
+    /// Does what one claimed shortcut is for; the registry decides which ones exist.
+    private func perform(_ action: ShortcutAction) async {
+        switch action {
+        case .clipboard:
+            await toggleQuickPanel()
+        case .pasteLastTranscript:
+            await pasteLastTranscript()
+        case .copyLastTranscript:
+            copyLastTranscript()
+        // Watched through the tap rather than registered, so it never arrives here.
+        case .dictate:
+            break
+        }
+    }
+
+    /// Puts the last dictation back at the caret by the route a dictation takes, never the clipboard.
+    private func pasteLastTranscript() async {
+        guard let text = lastTranscript, !text.isEmpty else {
+            Self.log.notice("paste last transcript: nothing dictated yet")
+            return
+        }
+        do {
+            _ = try await clipInserter.insert(text)
+        } catch {
+            render(.failed(DictationFailure(error)))
+        }
+    }
+
+    /// Writes the clipboard on purpose, which is the one shortcut whose whole job that is.
+    private func copyLastTranscript() {
+        guard let text = lastTranscript, !text.isEmpty else {
+            Self.log.notice("copy last transcript: nothing dictated yet")
+            return
+        }
+        announcingPasteboard.setText(text)
     }
 
     /// The shortcut is a toggle, so the same key puts the panel away again.
@@ -882,6 +933,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Recorded before the menu is drawn, and kept even when insertion failed. §19.
         switch state {
         case .inserted(let outcome):
+            lastTranscript = outcome.text
             Self.log.notice(
                 """
                 dictation finished: method=\(outcome.method.rawValue, privacy: .public) \
@@ -1458,6 +1510,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Acted on here, or the shortcut relabels itself and the old key keeps working.
         if updated.hotkey != previous.hotkey {
             startWatchingForTheShortcut()
+        }
+        // Every registered key is re-armed together, or a changed one keeps firing the old binding.
+        if updated.shortcuts != previous.shortcuts {
+            startWatchingForClaimedShortcuts()
         }
         if updated.hotkeyActivation != previous.hotkeyActivation {
             let activation = updated.hotkeyActivation
