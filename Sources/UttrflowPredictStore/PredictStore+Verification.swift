@@ -1,3 +1,4 @@
+// How the verification tier retires a candidate, which is the corpus's supersession under another name.
 public import UttrflowPredict
 
 extension PredictStore: SupersessionRecording {

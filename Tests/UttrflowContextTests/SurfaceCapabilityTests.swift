@@ -50,11 +50,6 @@ struct PlacementTests {
     func secure() {
         #expect(reading(secure: true).placement == nil)
     }
-
-    @Test("The ladder orders best first.")
-    func order() {
-        #expect(SuggestionPlacement.inlineGhost < SuggestionPlacement.windowStrip)
-    }
 }
 
 @Suite("Sweeping a set of fields")
@@ -104,7 +99,7 @@ struct SweepTests {
         let sweep = CapabilitySweep([reading(role: nil, caret: false, style: false)])
         #expect(sweep.readings.count == 1)
         // With no caret there is nowhere on the line to draw, so the field supports no placement.
-        #expect(sweep.count(of: nil) == 1)
+        #expect(sweep.readings.first?.placement == nil)
     }
 
     @Test("Readings come back ordered, so two runs of the probe read alike.")
@@ -125,7 +120,6 @@ struct SweepTests {
         #expect(sweep.inlineShare == 0.5)
         // Only A and B can take anything: C hides its caret and D is secure, so both draw nothing.
         #expect(sweep.eligibleShare == 0.5)
-        #expect(sweep.count(of: nil) == 2)
     }
 
     @Test("At the threshold the ghost is worth building; below it, it is not.")

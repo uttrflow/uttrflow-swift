@@ -3,9 +3,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowInput
 
-/// Carbon's own modifier bitmask, verified against the constants in `HIToolbox` on this
-/// machine. Written out rather than imported so that a change to what we send Carbon
-/// has to be a deliberate edit to a number, not a silent follow-along.
+/// Carbon's own modifier bits, written out so a change to what we send has to be a deliberate edit.
 private enum CarbonBit {
     static let command: UInt32 = 256
     static let shift: UInt32 = 512
@@ -13,8 +11,7 @@ private enum CarbonBit {
     static let control: UInt32 = 4096
 }
 
-/// Key codes Carbon accepts and then never delivers on, which is why translation
-/// rejects them first.
+/// Key codes Carbon accepts and then never delivers on. See `Docs/core-hotkeys.md`.
 private enum CarbonUnusableKeyCode {
     static let leftOption: UInt16 = 58
     static let capsLock: UInt16 = 57
@@ -60,8 +57,7 @@ struct CarbonHotkeyTranslationTests {
                 == CarbonBit.command | CarbonBit.shift | CarbonBit.option | CarbonBit.control)
     }
 
-    /// The shortcut the product ships with, spelled out because everything else in the
-    /// hotkey path is only as right as this one case.
+    /// The shipped shortcut, spelled out because the rest of the hotkey path is only as right as it.
     @Test("translates Option+Space")
     func translatesOptionSpace() throws {
         let hotkey = try CarbonHotkey(binding: .optionSpace)
@@ -116,8 +112,7 @@ struct CarbonHotkeyTranslationTests {
         }
     }
 
-    /// A rejection that does not say what is wrong would reach the user as a shortcut
-    /// that simply does nothing, which is the failure this whole type exists to prevent.
+    /// A rejection that says nothing reaches the user as a shortcut that simply does nothing.
     @Test(
         "says why it refused",
         arguments: [
@@ -132,17 +127,7 @@ struct CarbonHotkeyTranslationTests {
         #expect(rejection.reason.hasSuffix("."))
     }
 
-    /// ``HotkeyBinding/isDeliverable`` restates these rules in a module that cannot
-    /// import the platform headers, so the two can drift apart. Nothing else would
-    /// notice: the settings store would keep a shortcut the monitor then refuses, or
-    /// throw away one that would have worked. This is the test that stops it.
-    ///
-    /// **Two delivery paths, so two invariants.** A binding whose key is an ordinary one
-    /// is registered with the window server, and there the two verdicts must agree
-    /// exactly. A binding whose key is a modifier is a *hold*, watched through flag
-    /// changes by ``HeldModifierMonitor`` — Carbon refuses those and always did, which is
-    /// the whole reason that monitor exists. Asserting agreement across both would assert
-    /// that holds do not work.
+    /// Holds ``HotkeyBinding/isDeliverable`` to the translator for every ordinary key. See `Docs/core-hotkeys.md`.
     @Test("agrees with the binding's own verdict for every key a keyboard can send")
     func deliverabilityMatchesTranslation() {
         for keyCode in UInt16(0)...UInt16(300) {
@@ -154,9 +139,7 @@ struct CarbonHotkeyTranslationTests {
         }
     }
 
-    /// The other half, and the one that says why holds need their own monitor: Carbon
-    /// refuses every one of them. If this ever started passing, `HeldModifierMonitor`
-    /// would be redundant — and far more likely, something has broken.
+    /// The half that says why holds need their own monitor: Carbon refuses every one of them.
     @Test("refuses every held-modifier binding, which is why they are watched instead")
     func holdsAreNeverCarbonRegistrable() {
         for keyCode in HotkeyBinding.modifierKeyCodes.sorted() {
@@ -193,14 +176,10 @@ struct CarbonHotkeyTranslationTests {
     }
 }
 
-/// What can be said about the monitor without asking the window server for a real,
-/// system-wide shortcut — which is to say, the refusals. Everything here stops short of
-/// ``CarbonHotkeyMonitor`` reaching Carbon at all.
+/// The refusals, which is all that can be said about the monitor without reaching Carbon at all.
 @Suite("CarbonHotkeyMonitor refusals")
 struct CarbonHotkeyMonitorTests {
-    /// The defect these cover: each of these bindings used to trap in a debug build and
-    /// do nothing at all in a release one, leaving a user with a shortcut that never
-    /// fired and no explanation.
+    /// Each of these would otherwise leave a user with a shortcut that never fires and no explanation.
     @Test(
         "refuses a shortcut it cannot watch for, rather than failing silently",
         arguments: [
@@ -226,12 +205,10 @@ struct CarbonHotkeyMonitorTests {
     }
 }
 
-/// Spelled out rather than derived from `CaseIterable`, so that adding a case to the
-/// error obliges someone to write the sentence a user will read for it.
+/// Spelled out rather than derived, so a new case obliges someone to write the sentence a user reads.
 private let everyHotkeyError: [HotkeyError] = [.observationNotPermitted, .shortcutUnavailable]
 
-/// The refusal is only worth throwing if what reaches the user says something. These
-/// two sentences are the whole of what they will see.
+/// These two sentences are the whole of what the user sees, so they have to say something.
 @Suite("HotkeyError")
 struct HotkeyErrorTests {
     @Test("offers System Settings only for the failure System Settings can fix")
@@ -247,8 +224,7 @@ struct HotkeyErrorTests {
         #expect(error.userMessage.first?.isUppercase == true)
     }
 
-    /// A message naming Carbon, a key code or a registration would tell the user
-    /// something about our code rather than about their Mac.
+    /// A message naming Carbon or a key code tells the user about our code, not about their Mac.
     @Test("keeps the implementation out of what the user reads")
     func messagesNameNoImplementation() {
         let forbidden = ["Carbon", "hot key", "hotkey", "register", "key code", "OSStatus"]

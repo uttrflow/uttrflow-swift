@@ -1,11 +1,8 @@
 public import Foundation
 public import UttrflowCore
 
-/// One separately fetchable part of an installed model.
-///
-/// The two come from different repositories and go missing independently — an install
-/// made before the tokenizer was part of one has weights and nothing else — so the
-/// store asks for them one at a time instead of treating an install as all or nothing.
+// Where speech models live on disk, and how they get there one component at a time.
+/// One separately fetchable part of a model, since the two go missing independently.
 public enum ModelComponent: Sendable, Hashable, CaseIterable {
     /// The CoreML weights the recogniser runs.
     case weights
@@ -25,16 +22,14 @@ public enum ModelComponent: Sendable, Hashable, CaseIterable {
 public protocol SpeechModelStore: Sendable {
     /// Where this model's files belong, installed or not.
     func location(of model: SpeechModel) -> URL
+    /// Whether everything needed to transcribe with this model is on disk.
     func isInstalled(_ model: SpeechModel) -> Bool
     /// Models present on disk, in catalogue order.
     func installedModels() -> [SpeechModel]
     /// Bytes this model occupies, or `nil` when it is not installed.
     func bytesOnDisk(_ model: SpeechModel) -> Int64?
 
-    /// Installs the model, reporting progress from `0` to `1`.
-    ///
-    /// - Returns: Where the files ended up. Returns immediately if already installed.
-    /// - Throws: ``SpeechEngineError/modelDownloadFailed(description:)``.
+    /// Installs the model, reporting progress from `0` to `1`, and answers with where the files are.
     @discardableResult
     func install(
         _ model: SpeechModel, onProgress: @escaping @Sendable (Double) -> Void
@@ -44,28 +39,25 @@ public protocol SpeechModelStore: Sendable {
     func remove(_ model: SpeechModel) throws(SpeechEngineError)
 }
 
-/// A store backed by a directory.
-///
-/// The download itself is injected, so everything else — where files go, what counts
-/// as installed, refusing to re-download, cleaning up a failed install — is testable
-/// against a temporary directory with no network.
+/// A store backed by a directory, with the download injected. See `Docs/speech-model-install.md`.
 public struct FileSystemSpeechModelStore: SpeechModelStore {
     /// Fetches one part of one model into the given directory.
     public typealias Downloader =
         @Sendable (SpeechModel, ModelComponent, URL, @escaping @Sendable (Double) -> Void)
         async throws -> Void
 
+    /// The directory every model's folder sits in.
     public let root: URL
+    /// How one component of one model is fetched.
     private let download: Downloader
 
+    /// Puts models under `root` and fetches them with `download`.
     public init(root: URL, download: @escaping Downloader) {
         self.root = root
         self.download = download
     }
 
-    /// `FileManager` is not `Sendable`, and the shared instance is documented as safe
-    /// for the file operations used here. Tests run against real temporary
-    /// directories, which is more faithful than a substitute would be.
+    /// Named rather than held, because `FileManager` is not `Sendable` though the shared one is safe here.
     private var fileManager: FileManager { .default }
 
     /// Where models live when the app has not been told otherwise.
@@ -81,32 +73,17 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         root.appending(path: model.variant, directoryHint: .isDirectory)
     }
 
-    /// A model counts as installed only when everything needed to transcribe with it is
-    /// on disk: the weights *and* the tokenizer.
-    ///
-    /// The weights alone used to be enough, and that made this method a lie. WhisperKit
-    /// will quietly fetch a missing tokenizer from Hugging Face the first time somebody
-    /// dictates — on a plane, an unrecoverable failure reported as a load error rather
-    /// than the missing download it actually is. Answering `false` is what puts the
-    /// offer to install back in front of the user, which is the whole remedy for an
-    /// install made by an earlier build.
-    ///
-    /// An empty directory is what a cancelled download leaves behind, and is likewise
-    /// not installed: treating it as installed would fail later, further from the cause.
+    /// Whether the weights *and* the tokenizer are on disk. See `Docs/speech-model-install.md`.
     public func isInstalled(_ model: SpeechModel) -> Bool {
         missingComponents(of: model).isEmpty
     }
 
-    /// The parts of `model` still to be fetched, weights first.
-    ///
-    /// Ordered because the weights are the wait: they own the progress bar, and asking
-    /// for them first means the bar starts moving straight away.
+    /// The parts of `model` still to be fetched, weights first because they own the progress bar.
     func missingComponents(of model: SpeechModel) -> [ModelComponent] {
         let folder = location(of: model)
         return ModelComponent.allCases.filter { component in
             switch component {
-            // Any file that is not part of the tokenizer, since a directory holding
-            // nothing but a tokenizer has no model in it.
+            // Any file that is not the tokenizer's, since a tokenizer alone is no model.
             case .weights:
                 !files(in: folder).contains {
                     !TokenizerAssets.fileNames.contains($0.lastPathComponent)
@@ -117,10 +94,12 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         }
     }
 
+    /// Models present on disk, in catalogue order.
     public func installedModels() -> [SpeechModel] {
         SpeechModel.catalogue.filter(isInstalled)
     }
 
+    /// Bytes this model occupies, or `nil` when it is not installed.
     public func bytesOnDisk(_ model: SpeechModel) -> Int64? {
         guard isInstalled(model) else { return nil }
         return files(in: location(of: model)).reduce(Int64(0)) { total, url in
@@ -129,11 +108,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         }
     }
 
-    /// Installs whatever parts of the model are not already there.
-    ///
-    /// Fetching only what is missing is what keeps an install made by an earlier build
-    /// cheap to repair: those have the weights and no tokenizer, and re-downloading six
-    /// hundred megabytes to add three would be a poor way to apologise.
+    /// Installs whatever parts of the model are not already there, so a repair fetches only those.
     @discardableResult
     public func install(
         _ model: SpeechModel, onProgress: @escaping @Sendable (Double) -> Void
@@ -160,8 +135,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
             throw .modelDownloadFailed(description: error.localizedDescription)
         }
 
-        // A download that reported success and produced nothing is the case that used
-        // to be discovered a launch later, as a model that would not load.
+        // Checked here, or a download that reports success and produces nothing surfaces a launch later.
         guard !missingComponents(of: model).contains(component) else {
             unwind(component, at: destination)
             throw .modelDownloadFailed(
@@ -169,14 +143,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         }
     }
 
-    /// Undoes a fetch that got part way, in proportion to what it was fetching.
-    ///
-    /// A failed weights download takes the whole directory: what it left is unusable and
-    /// indistinguishable from a complete install by size alone. A failed tokenizer fetch
-    /// takes only the tokenizer, because the weights beside it may be six hundred
-    /// megabytes the user has already waited for and are still perfectly good — and
-    /// ``isInstalled`` already refuses to call what remains usable, so nothing can
-    /// mistake it for a working model in the meantime.
+    /// Undoes a part-way fetch in proportion to it. See `Docs/speech-model-install.md`.
     private func unwind(_ component: ModelComponent, at destination: URL) {
         switch component {
         case .weights: try? fileManager.removeItem(at: destination)
@@ -184,6 +151,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         }
     }
 
+    /// Deletes the model. Does nothing if it is not installed.
     public func remove(_ model: SpeechModel) throws(SpeechEngineError) {
         let location = location(of: model)
         guard fileManager.fileExists(atPath: location.path) else { return }
@@ -194,19 +162,12 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         }
     }
 
-    /// Moves everything in `source` up into `destination`, then removes what the
-    /// download left wrapped around it.
-    ///
-    /// Model repositories nest their output — WhisperKit's lands in
-    /// `destination/models/<repo>/<variant>/`. The store's contract is that a model's
-    /// files sit directly in ``location(of:)``, so the nesting is undone here rather
-    /// than leaking into every caller that needs a path.
+    /// Moves everything in `source` up into `destination`, undoing the nesting a repository adds.
     public static func hoist(contentsOf source: URL, into destination: URL) throws {
         let fileManager = FileManager.default
         guard source.standardizedFileURL != destination.standardizedFileURL else { return }
 
-        // Remember the wrapper directly under the destination before moving anything;
-        // afterwards there is nothing left to identify it by.
+        // Identified before anything moves; afterwards there is nothing left to identify it by.
         let wrapper = source.standardizedFileURL.pathComponents
             .dropFirst(destination.standardizedFileURL.pathComponents.count)
             .first
@@ -227,6 +188,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
 
     // MARK: Directory inspection
 
+    /// Every regular file under `directory`.
     private func files(in directory: URL) -> [URL] {
         guard
             let enumerator = fileManager.enumerator(

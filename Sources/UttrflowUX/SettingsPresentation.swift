@@ -1,13 +1,11 @@
+// The shape of the Settings window: panes, cards, rows, controls, and the changes they ask for.
 public import UttrflowCore
 public import UttrflowPredict
 public import UttrflowSettings
 
 // MARK: - What a screen is made of
 
-/// One entry in the sidebar.
-///
-/// Built from ``SettingsTab/allCases`` rather than written out, so a tab cannot be
-/// added to the destination and then quietly missing from the window.
+/// One entry in the sidebar, built from ``SettingsTab/allCases`` so no tab can go missing.
 public struct SettingsTabItem: Sendable, Equatable, Identifiable {
     public let tab: SettingsTab
     public let title: String
@@ -16,11 +14,7 @@ public struct SettingsTabItem: Sendable, Equatable, Identifiable {
     public var id: SettingsTab { tab }
 }
 
-/// A whole screen: what it is called, and everything on it.
-///
-/// All four tabs are this one shape. A tab is a list of cards and, at most, a
-/// reassurance above them and a note below — so the view that draws one draws all of
-/// them, and a fifth tab needs no new drawing code.
+/// A whole screen: cards, and at most a statement above them and a note below.
 public struct SettingsPane: Sendable, Equatable {
     public let tab: SettingsTab
     public let title: String
@@ -46,21 +40,16 @@ public struct SettingsRow: Sendable, Equatable, Identifiable {
     public let explanation: String?
     public let control: SettingsControl
     /// Why this row cannot be operated, said in words the user can act on.
-    ///
-    /// A control the user can move that changes nothing is worse than one they cannot:
-    /// it teaches them the app is broken. Every row that is off is off for a stated
-    /// reason, whether the reason is a missing capability or another setting it depends
-    /// on, and the view has only to show what is here.
     public let unavailability: String?
 
     public var isEnabled: Bool { unavailability == nil }
 
-    /// What VoiceOver reads. The reason a row is off has to be spoken, not conveyed by
-    /// the row looking grey.
+    /// What VoiceOver reads, including why the row is off, which grey alone does not say.
     public var accessibilityLabel: String {
         [label, explanation, unavailability].compactMap(\.self).joined(separator: ". ")
     }
 
+    /// Builds a row; operable unless given a reason it is not.
     public init(
         id: String,
         label: String,
@@ -91,11 +80,7 @@ public struct SettingsCallout: Sendable, Equatable {
 
 // MARK: - Controls
 
-/// The thing on the right-hand side of a row.
-///
-/// Deliberately a closed set. Every case is something the design already draws, and a
-/// row can only ask for one of them, so the view has no case it might not handle and
-/// no chance to invent a control of its own.
+/// The thing on the right-hand side of a row, as a closed set the view draws every case of.
 public enum SettingsControl: Sendable, Equatable {
     /// A switch.
     case toggle(field: SettingsToggleField, isOn: Bool)
@@ -115,44 +100,28 @@ public enum SettingsControl: Sendable, Equatable {
     /// A tick in a list where more than one line can be ticked at once.
     case tick(isTicked: Bool, change: SettingsChange)
 
-    /// A button that removes something.
-    ///
-    /// Its own case rather than a general "button" because every one of them destroys
-    /// data. The view draws them destructively without being told to, and nothing that
-    /// merely navigates can be smuggled in here later and inherit that treatment.
+    /// A button that removes something, which the view draws destructively without being told to.
     case removal(SettingsRemoval)
 
-    /// A button that does something and destroys nothing.
-    ///
-    /// The counterpart the ``removal`` note above anticipates: it exists so that an
-    /// action which merely *does* a thing cannot be smuggled into the destructive case
-    /// and inherit its red treatment and its confirmation.
+    /// A button that does something and destroys nothing, so it earns neither red nor a question.
     case action(title: String, change: SettingsChange)
 
     /// A switch for a row that stands for one application rather than one named field.
     case applicationSwitch(isOn: Bool, change: SettingsChange)
 
     /// A value with nothing to press — a version number, a count, a date.
-    ///
-    /// A row rather than an explanation because it is an *answer*, and answers belong
-    /// where the eye goes for values. An explanation under a control is read as being
-    /// about the control.
     case text(String)
 }
 
 /// A destructive button: what it says, what it removes, and what it asks first.
 public struct SettingsRemoval: Sendable, Equatable {
     public let reset: SettingsReset
-    /// What the button says. Ends in an ellipsis exactly when pressing it asks first,
-    /// which is the platform's own promise about what a button is about to do.
+    /// What the button says, ending in an ellipsis exactly when pressing it asks first.
     public let title: String
-    /// What the user is shown before anything goes, or `nil` when they are not asked.
-    ///
-    /// Optional rather than always present because being asked is itself a cost: a
-    /// dialogue in front of a recoverable action teaches people to dismiss dialogues,
-    /// and the one in front of the irreversible action is then dismissed too.
+    /// What the user is shown before anything goes, or `nil` when a recoverable act needs no asking.
     public let confirmation: SettingsConfirmation?
 
+    /// Builds a destructive button; a `nil` confirmation means it acts without asking.
     public init(reset: SettingsReset, title: String, confirmation: SettingsConfirmation?) {
         self.reset = reset
         self.title = title
@@ -163,19 +132,15 @@ public struct SettingsRemoval: Sendable, Equatable {
 /// The question asked before something irreversible happens.
 public struct SettingsConfirmation: Sendable, Equatable {
     public let title: String
-    /// What will be removed, counted. Never "Are you sure?": a user who is told a real
-    /// number can decide, and a user who is asked whether they are sure can only guess
-    /// at what they are being asked about.
+    /// What will be removed, counted, so the user decides on a number rather than on a guess.
     public let message: String
     public let confirmTitle: String
     public let cancelTitle: String
 
-    /// The button Return presses.
-    ///
-    /// Always the one that removes nothing, and computed rather than stored so that it
-    /// cannot be set to anything else. Nothing here is destructive by accident.
+    /// The button Return presses, always the one that removes nothing.
     public var defaultTitle: String { cancelTitle }
 
+    /// Builds the question; Return presses the cancel button whatever it is called.
     public init(title: String, message: String, confirmTitle: String, cancelTitle: String) {
         self.title = title
         self.message = message
@@ -184,11 +149,7 @@ public struct SettingsConfirmation: Sendable, Equatable {
     }
 }
 
-/// One choice in a segmented control or a pop-up, and what choosing it means.
-///
-/// The change travels with the option so that picking one is a matter of handing back
-/// what was already decided here. Nothing downstream has to work out what an option id
-/// stood for, which is the step at which a view starts making decisions.
+/// One choice in a segmented control or a pop-up, carrying the change picking it means.
 public struct SettingsOption: Sendable, Equatable, Identifiable {
     public let id: String
     public let title: String
@@ -197,8 +158,7 @@ public struct SettingsOption: Sendable, Equatable, Identifiable {
 
 // MARK: - Changes
 
-/// A switch the user can throw, named so a row and a change cannot disagree about
-/// which field they are about.
+/// A switch the user can throw, named so a row and a change cannot disagree about the field.
 public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case showsFloatingButton
     case shrinksToGripWhenIdle
@@ -210,11 +170,7 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case quietSuggestions
 }
 
-/// Everything the user can ask for on this screen.
-///
-/// One vocabulary for every tab: the view reports a change, ``SettingsEditor`` is the
-/// only thing that decides whether it may happen, and no control anywhere writes to
-/// ``Settings`` itself.
+/// Everything the user can ask for on this screen; only ``SettingsEditor`` decides what happens.
 public enum SettingsChange: Sendable, Equatable {
     case toggle(SettingsToggleField, isOn: Bool)
     case activation(HotkeyActivation)
@@ -226,7 +182,7 @@ public enum SettingsChange: Sendable, Equatable {
     case retention(days: Int)
     case appearance(AppAppearance)
 
-    /// Switches suggestions on or off in one application, which is the only way back out of the shipped deny list.
+    /// Switches suggestions on or off in one application, the only way out of the shipped deny list.
     case suggestionsHere(application: String, isOn: Bool)
 
     /// Chooses the key that takes a suggestion in one application.
@@ -235,11 +191,6 @@ public enum SettingsChange: Sendable, Equatable {
     /// Starts the half-hour pause everywhere, or lifts one that is still running.
     case pauseSuggestions(isOn: Bool)
 
-    /// Ask the update feed now rather than waiting for the next scheduled check.
-    ///
-    /// A change with nothing to change, which is why it carries no value: it alters no
-    /// setting and writes nothing. It is here rather than as a separate callback because
-    /// this enum is the one vocabulary the settings screen speaks, and a second channel
-    /// out of the view is a second thing to keep in step.
+    /// Asks the update feed now rather than waiting for the next scheduled check.
     case checkForUpdatesNow
 }

@@ -6,13 +6,7 @@ import UttrflowCore
 import UttrflowEval
 import UttrflowSpeech
 
-/// Reports what a dictation costs this Mac, in memory and in seconds.
-///
-/// Sits alongside ``Footprint``, which answers a different question: that one is "will
-/// both models fit", this one is "what does using them feel like, and does repeating it
-/// leak". Every decision — the order of the phases, what counts as a leak, whether cost
-/// is linear in utterance length — lives in ``PerformanceProfiler`` and the types around
-/// it, where a test can reach them. What is left here is the wiring and the table.
+/// Reports what a dictation costs this Mac, in memory and seconds. See `Docs/bakeoff-method.md`.
 struct Profile: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "profile",
@@ -44,9 +38,7 @@ struct Profile: AsyncParsableCommand {
             throw CleanExit.message("Speech model not installed. Run: uttrflow-dev models install")
         }
 
-        // Read before anything is measured, so the timings are transcription and
-        // clean-up rather than the disk. The decoded samples are a few megabytes and are
-        // already resident when the "idle" reading is taken — see Docs/performance.md.
+        // Read before anything is measured, so the timings are not the disk's.
         let spoken = try SpokenPassages(
             directory: URL(fileURLWithPath: audioDirectory), voice: voice
         ).prepare(ProfileCorpus.all)
@@ -137,11 +129,7 @@ struct Profile: AsyncParsableCommand {
     }
 }
 
-/// Holds the recogniser the profiler most recently loaded.
-///
-/// The profiler asks for a *fresh* engine twice — once cold, once warm — and the
-/// dictation closure needs whichever is current. A reference box rather than a captured
-/// `var` because the two closures are separate captures of the same thing.
+/// Holds the recogniser the profiler last loaded, so the cold and warm closures share one.
 private final class EngineBox: @unchecked Sendable {
     var current: (any SpeechEngine)?
 }

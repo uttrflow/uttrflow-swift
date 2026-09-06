@@ -23,6 +23,7 @@ public struct FieldReading: Sendable, Equatable {
     /// The application as the user knows it, which is how a window naming only the application is told from one naming a thread.
     public let applicationName: String?
 
+    /// A reading of a field, of which only the application and the role are always published.
     public init(
         bundleIdentifier: String, role: String, subrole: String? = nil, identifier: String? = nil,
         placeholder: String? = nil, accessibilityDescription: String? = nil, document: String? = nil,
@@ -40,10 +41,8 @@ public struct FieldReading: Sendable, Equatable {
     }
 }
 
+/// What the corpus asks of a reading: whether it is secret, and which surface it names.
 extension FieldReading {
-    /// The role and subrole a password field is published under, by the two conventions in use.
-    public static let secureRole = SecureField.secureRole
-
     /// Whether the field hides what is typed, from its role, its subrole, or a name that betrays a password.
     public var isSecure: Bool {
         SecureField.isDeclaredSecure(
@@ -53,7 +52,7 @@ extension FieldReading {
 
     /// The field as the corpus knows it, or nothing when it does not say enough to be told apart.
     public var surface: Surface? {
-        guard let bundleIdentifier = Self.named(bundleIdentifier), let role = Self.named(role) else {
+        guard let bundleIdentifier = Self.trimmed(bundleIdentifier), let role = Self.trimmed(role) else {
             return nil
         }
         return Surface(bundleIdentifier: bundleIdentifier, role: role, locator: locator, scope: scope)
@@ -61,12 +60,12 @@ extension FieldReading {
 
     /// What tells this field from another of the same role, taking the first name it publishes.
     public var locator: String? {
-        Self.named(identifier) ?? Self.named(placeholder) ?? Self.named(accessibilityDescription)
+        Self.trimmed(identifier) ?? Self.trimmed(placeholder) ?? Self.trimmed(accessibilityDescription)
     }
 
     /// What the field belongs to: the page host for a web field, the directory for a file, and for a field that owns no document the window that holds it, since that is what tells one conversation or note from another. See `Docs/predict-precision.md`.
     public var scope: String? {
-        guard let document = Self.named(document) else {
+        guard let document = Self.trimmed(document) else {
             return Self.conversation(windowTitle, of: applicationName)
         }
         if let host = Self.host(of: document) { return host }
@@ -78,12 +77,12 @@ extension FieldReading {
 
     /// The window's title as a name for what is being written to, with the counts and marks a window adds to it removed, or nothing when it names only the application.
     static func conversation(_ title: String?, of application: String? = nil) -> String? {
-        guard var name = Self.named(title) else { return nil }
+        guard var name = Self.trimmed(title) else { return nil }
         // An edited window marks itself, an unread window counts itself, and neither is part of what the window names.
         while let last = name.last, last == "•" || last == "*" { name = String(name.dropLast()) }
         name = Self.withoutTrailingCount(name)
         while let first = name.first, first == "•" || first == "*" { name = String(name.dropFirst()) }
-        guard let trimmed = Self.named(name), trimmed.count <= conversationCap else { return nil }
+        guard let trimmed = Self.trimmed(name), trimmed.count <= conversationCap else { return nil }
         // A window called after its own application names no thread inside it, so it is no identity at all.
         guard trimmed.caseInsensitiveCompare(application ?? "") != .orderedSame else { return nil }
         return trimmed
@@ -116,14 +115,14 @@ extension FieldReading {
         let path = document.hasPrefix("file://") ? URL(string: document)?.path() ?? "" : document
         let decoded = path.removingPercentEncoding ?? path
         guard decoded.hasPrefix("/") || decoded.hasPrefix("~") else { return nil }
-        guard decoded.count > 1 else { return named(decoded) }
-        guard !decoded.hasSuffix("/") else { return named(String(decoded.dropLast())) }
-        guard !(decoded as NSString).pathExtension.isEmpty else { return named(decoded) }
-        return named((decoded as NSString).deletingLastPathComponent)
+        guard decoded.count > 1 else { return trimmed(decoded) }
+        guard !decoded.hasSuffix("/") else { return trimmed(String(decoded.dropLast())) }
+        guard !(decoded as NSString).pathExtension.isEmpty else { return trimmed(decoded) }
+        return trimmed((decoded as NSString).deletingLastPathComponent)
     }
 
     /// The value with its surrounding space removed, or nothing when that leaves nothing.
-    private static func named(_ value: String?) -> String? {
+    private static func trimmed(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty
         else { return nil }
         return trimmed

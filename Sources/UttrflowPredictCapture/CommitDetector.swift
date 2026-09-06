@@ -1,3 +1,4 @@
+// What happens in a field, why a value counts as finished, and the machine that decides.
 public import Foundation
 
 /// One thing that happened in a text field, carrying the moment it happened rather than reading a clock.
@@ -25,9 +26,13 @@ public enum CaptureEvent: Sendable, Equatable {
 
 /// Why a value counted as finished, which is what the measurements are broken down by.
 public enum CommitReason: String, Sendable, Equatable, CaseIterable {
+    /// The user pressed Return.
     case returnPressed
+    /// The focus moved off the field.
     case focusLeft
+    /// The application went to the background.
     case applicationDeactivated
+    /// The line sat untouched for longer than the idle interval.
     case wentIdle
 }
 
@@ -37,8 +42,10 @@ public struct Commit: Sendable, Equatable {
     public let text: String
     /// What an idle committed earlier in this field's life, which this value replaces whatever it has become.
     public let supersedes: String?
+    /// What ended the field's life, or the idle that stood in for it.
     public let reason: CommitReason
 
+    /// A finished value, optionally retiring the idle draft that came before it.
     public init(text: String, supersedes: String? = nil, reason: CommitReason) {
         self.text = text
         self.supersedes = supersedes
@@ -51,15 +58,18 @@ public struct CommitDetector: Sendable, Equatable {
     /// How long a line sits genuinely untouched before an idle commit will consider it finished.
     public static let idleInterval: TimeInterval = 8
 
+    /// The line as it last stood, trimmed, which is what any ending would commit.
     private var pending = ""
+    /// When the line was last touched, which is what an idle is measured from.
     private var lastKeystroke: Date?
     /// What an idle commit remembered, kept until the field's life ends so the finished line can retire it.
     private var committed: String?
 
+    /// A detector watching a field nothing has been typed into.
     public init() {}
 
     /// Whether an idle alone may learn a line, which needs more than a bare single token still being typed.
-    static func looksComplete(_ text: String) -> Bool {
+    private static func looksComplete(_ text: String) -> Bool {
         text.contains(" ")
     }
 
@@ -71,15 +81,15 @@ public struct CommitDetector: Sendable, Equatable {
             lastKeystroke = moment
             return nil
         case .returnPressed:
-            return finishing(.returnPressed)
+            return finish(.returnPressed)
         case .focusLeft:
-            return finishing(.focusLeft)
+            return finish(.focusLeft)
         case .applicationDeactivated:
-            return finishing(.applicationDeactivated)
+            return finish(.applicationDeactivated)
         case .tick(let moment):
             guard let lastKeystroke,
                 moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval,
-                // A still-being-typed fragment is left for Return or focus change to commit, not the idle timer.
+                // A fragment still being typed is left to Return or a focus change, not to the timer.
                 Self.looksComplete(pending)
             else { return nil }
             return commit(.wentIdle)
@@ -94,7 +104,7 @@ public struct CommitDetector: Sendable, Equatable {
     }
 
     /// Commits and then forgets, for the three events that end the field's life.
-    private mutating func finishing(_ reason: CommitReason) -> Commit? {
+    private mutating func finish(_ reason: CommitReason) -> Commit? {
         defer { reset() }
         return commit(reason)
     }

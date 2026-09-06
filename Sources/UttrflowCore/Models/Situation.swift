@@ -23,7 +23,7 @@ public enum SituationResolver {
             app: app, insertion: insertion, destination: DestinationClassifier.classify(app, rules: rules))
     }
 
-    /// The situation a context read carries, with the caret text it was read with.
+    /// The situation a context read carries, together with its own caret text.
     public static func resolve(from app: AppContext) -> Situation {
         resolve(app: app, insertion: app.insertionPoint)
     }

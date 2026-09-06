@@ -50,7 +50,7 @@ public enum ArgumentOptions: Equatable, Sendable {
     case open
     /// One of these, each a whole word beginning as the typed word does, shortest first.
     case among([String])
-    /// Nothing: the word is of a kind the machine lists, and nothing listed begins as it was typed.
+    /// Nothing: the word is of a kind the machine lists, and nothing listed begins the way it does.
     case none
 }
 

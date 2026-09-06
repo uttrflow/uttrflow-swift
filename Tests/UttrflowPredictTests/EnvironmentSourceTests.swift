@@ -3,31 +3,6 @@ import Testing
 
 @testable import UttrflowPredict
 
-/// A machine that says what a test tells it to, and counts how often it is asked; a kind it was told nothing about is one it cannot read.
-actor StubEnvironment: EnvironmentReading {
-    private let answers: [EnvironmentKind: [String]]
-    private let delay: Duration?
-    private(set) var reads = 0
-
-    init(_ answers: [EnvironmentKind: [String]], delay: Duration? = nil) {
-        self.answers = answers
-        self.delay = delay
-    }
-
-    func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
-        reads += 1
-        if let delay { try? await Task.sleep(for: delay) }
-        return answers[kind]
-    }
-}
-
-/// A terminal sitting in a working directory, which is the only surface this source answers for.
-let terminal = Surface(
-    bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "/repo")
-
-/// A fixed moment, so every cache lifetime in this suite is exact rather than nearly right.
-let moment = Date(timeIntervalSince1970: 1_800_000_000)
-
 /// The candidates a warmed source offers, which takes two passes because the first only asks.
 func offered(
     _ answers: [EnvironmentKind: [String]],
@@ -37,9 +12,9 @@ func offered(
 ) async -> [String] {
     let index = EnvironmentIndex(reader: StubEnvironment(answers))
     let source = EnvironmentSource(index: index)
-    _ = await source.candidates(for: surface, matching: typed, now: now)
+    _ = await source.candidates(for: surface, matching: typed, now: moment)
     await index.settle()
-    return await source.candidates(for: surface, matching: typed, now: now).map(\.text)
+    return await source.candidates(for: surface, matching: typed, now: moment).map(\.text)
 }
 
 @Suite("What exists on this machine right now")
@@ -280,5 +255,25 @@ struct ShellAliasesTests {
     @Test("Digits, dots, dashes and underscores are all part of a name.")
     func nameCharacters() {
         #expect(ShellAliases.names(in: "alias g.2_x-y=ls") == ["g.2_x-y"])
+    }
+}
+
+@Suite("The names git binds")
+struct GitAliasesTests {
+    @Test("Every alias git configuration declares is read, in the order it declares them.")
+    func readsNames() {
+        let configuration = """
+            alias.cm commit -m
+            alias.co checkout
+            alias.lg log --oneline --graph
+            """
+        #expect(GitAliases.names(in: configuration) == ["cm", "co", "lg"])
+    }
+
+    @Test("A line that binds nothing, or binds nothing to a name, is not an alias.")
+    func ignoresAnythingElse() {
+        #expect(GitAliases.names(in: "user.name Someone\ncore.editor vim").isEmpty)
+        #expect(GitAliases.names(in: "alias. commit").isEmpty)
+        #expect(GitAliases.names(in: "").isEmpty)
     }
 }

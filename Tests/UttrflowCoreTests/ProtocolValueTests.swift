@@ -1,3 +1,4 @@
+// Covers the small value types the pipeline protocols pass around.
 import Foundation
 import Testing
 
@@ -67,8 +68,7 @@ struct PCMConversionTests {
         #expect(Int16(clampingAudioSample: input) == expected)
     }
 
-    /// Resampling routinely nudges a sample just past the limit; wrapping would turn
-    /// a loud moment into a loud click.
+    /// Resampling nudges a sample past the limit, and wrapping would turn a loud moment into a click.
     @Test("clamps rather than wrapping", arguments: [Float(1.4), -1.4, 40, -40])
     func clamps(input: Float) {
         #expect(Int16(clampingAudioSample: input) == (input > 0 ? Int16.max : Int16.min))

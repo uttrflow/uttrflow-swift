@@ -29,7 +29,7 @@ struct AcceptKeyTests {
     }
 
     @Test(
-        "The table is read whatever the identifier's case, and covers the terminals the context reader once lacked."
+        "The table is read whatever the identifier's case, and holds every terminal both readers ask about."
     )
     func theTableIgnoresCase() {
         #expect(TerminalApplications.contains("COM.APPLE.TERMINAL"))
