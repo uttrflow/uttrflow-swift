@@ -17,6 +17,15 @@ rather than appearing only after something fails.
 
 So: clone, build, run. Everything works.
 
+## You do not need a Mac for every contribution
+
+Most of this tree needs Xcode and Apple Silicon, and CI proves that on every pull request
+so you never have to. [`Scripts/pii_audit.sh`](Scripts/pii_audit.sh) and
+[`Scripts/fetch-provider-marks.sh`](Scripts/fetch-provider-marks.sh) touch nothing
+macOS-specific and run identically on Linux, so a documentation or wording fix can be
+checked with those alone, with no Swift toolchain at all — push, and `ci.yml` builds and
+tests the rest for you.
+
 ```bash
 git clone https://github.com/uttrflow/uttrflow-swift.git
 cd uttrflow-swift
