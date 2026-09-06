@@ -95,6 +95,31 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// "Period", "comma" and "dash" are nouns too, and a modifier hides the determiner that says so.
+    @Test(
+        "leaves the noun a determiner opens even when a modifier stands between them",
+        arguments: [
+            "during the trial period", "I love the Victorian period",
+            "the 100 metre dash was close", "a short grace period follows",
+        ]
+    )
+    func leavesTheHeadOfANounPhrase(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// The lookback stops at a mark name, so the phrase before one does not reach past it.
+    @Test(
+        "still converts a mark the speaker used, determiner or not",
+        arguments: [
+            ("ship it period", "ship it."),
+            ("milk comma eggs and bread", "milk, eggs and bread"),
+            ("did you finish the trial period question mark", "did you finish the trial period?"),
+        ]
+    )
+    func convertsWhatWasUsed(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "leaves a full stop or period that is not at the end, and a hyphen or dash that is",
         arguments: [

@@ -30,6 +30,8 @@ public struct ContractionsPass: CleaningPass {
 
     /// The contraction the word stands for, or nil when the word is not one or is a word in its own right.
     static func repaired(_ shape: WordShape) -> String? {
+        // A capital after the first letter says the word is an acronym — "ID", "IM" — not a heard contraction.
+        guard !shape.core.dropFirst().contains(where: \.isUppercase) else { return nil }
         if let capitalised = capitalisedOnly[shape.key] {
             return shape.core.first?.isUppercase == true ? capitalised : nil
         }

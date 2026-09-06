@@ -59,8 +59,8 @@ public enum PromptBlocks {
             - full sentences; keep the breaks given, and a list only where one was spoken
             - fix a grammar slip: "there is three" → "there are three", "a apple" → "an apple", \
             a drifting tense
-            - change only the form of a word the speaker said, never the words; dialect stays — \
-            "gonna", "ain't", a double negative
+            - change a word's form, never the word; dialect stays — "gonna", "ain't", \
+            a double negative
             """,
         examples: [
             WorkedExample(
@@ -134,8 +134,8 @@ public enum PromptBlocks {
             - full sentences and paragraphs; keep the greeting, the sign-off and every break as given
             - fix a grammar slip: "there is three" → "there are three", "have went" → \
             "have gone", "a apple" → "an apple", a drifting tense
-            - change only the form of a word the speaker said, never the words; dialect stays — \
-            "gonna", "ain't", a double negative
+            - change a word's form, never the word; dialect stays — "gonna", "ain't", \
+            a double negative
             """,
         examples: [])
 
@@ -147,8 +147,8 @@ public enum PromptBlocks {
             - keep every line break given, and add none
             - fix a grammar slip: "there is three" → "there are three", "have went" → \
             "have gone", "a apple" → "an apple", a drifting tense
-            - change only the form of a word the speaker said, never the words; dialect stays — \
-            "gonna", "ain't", a double negative
+            - change a word's form, never the word; dialect stays — "gonna", "ain't", \
+            a double negative
             """,
         examples: [])
 }

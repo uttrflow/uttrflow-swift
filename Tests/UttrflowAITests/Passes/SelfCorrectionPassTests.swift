@@ -66,28 +66,20 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
-    /// A frame of function words said twice, each time with a different word after it, is a correction.
+    /// Only a trigger phrase marks a correction; a phrase said twice over is a list far more often. See `Docs/cleanup.md`.
     @Test(
-        "replaces a restated phrase that had no trigger at all",
+        "leaves a phrase repeated with no trigger exactly as it was said",
         arguments: [
-            ("I wanted to buy a record as a gift as a present", "I wanted to buy a record as a present"),
-            ("let's meet on tuesday on wednesday afternoon", "let's meet on wednesday afternoon"),
-            ("send it to the office in london in paris", "send it to the office in paris"),
-        ]
-    )
-    func replacesUntriggeredRestatement(input: String, expected: String) {
-        #expect(cleaned(input, by: sut) == expected)
-    }
-
-    @Test(
-        "leaves a repeat whose frame opens a clause, an infinitive, or a fixed comparison",
-        arguments: [
+            "I'll pay for lunch for everyone",
+            "coffee with milk with sugar",
+            "the meeting is on Monday on Zoom",
+            "I wanted to buy a record as a gift as a present",
+            "let's meet on tuesday on wednesday afternoon",
+            "send it to the office in london in paris",
             "I like tea I like coffee both are fine",
             "she said she said nothing of the sort",
-            "we need to wait to finish the review",
             "as soon as possible we should ship",
             "the good the bad and the ugly",
-            "we met on tuesday. on wednesday we shipped",
         ]
     )
     func leavesUntriggeredRepeats(input: String) {

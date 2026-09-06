@@ -39,7 +39,7 @@ enum IrregularVerbForms {
         ["forget", "forgot", "forgotten"],
     ]
 
-    /// Which set a lowercased form belongs to, or `nil` for a word no set holds.
+    /// Which set a lowercased form belongs to, or `nil` for a word no set holds; a form in two sets traps on first lookup.
     static let setIndex: [String: Int] = Dictionary(
         uniqueKeysWithValues: sets.enumerated().flatMap { index, forms in
             forms.map { ($0, index) }

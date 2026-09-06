@@ -99,24 +99,17 @@ enum PieceJoiner {
             return false
         }
         for index in live[discarded] { draft.remove(at: index, by: id) }
-        // A frame that restates with no trigger opened its piece, so it carries a capital the sentence does not want.
-        if discarded.upperBound == position {
-            draft.replace(
-                at: live[position], with: WordShape.lowercased(draft.words[live[position]].text), by: id)
-        }
         return true
     }
 
-    /// The half the piece opening at `position` takes back: the trigger form, else a frame said twice over.
+    /// The half the piece opening at `position` takes back, trigger included, or nil when the halves do not match.
     private static func discarded(at position: Int, in live: [Int], of draft: Draft) -> Range<Int>? {
         let trigger = Restatement.triggerRun(at: position, in: live, of: draft)
-        if trigger > 0, position + trigger < live.count,
+        guard trigger > 0, position + trigger < live.count,
             let start = Restatement.discardedStart(
                 before: position, after: position + trigger, in: live, of: draft)
-        {
-            return start..<(position + trigger)
-        }
-        return Restatement.frameStart(endingAt: position, in: live, of: draft).map { $0..<position }
+        else { return nil }
+        return start..<(position + trigger)
     }
 
     // MARK: Lists from spoken sequence words

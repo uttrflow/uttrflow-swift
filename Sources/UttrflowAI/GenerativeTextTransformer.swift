@@ -59,11 +59,12 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let formatter = DestinationFormatter.standard(for: request.situation.destination)
         let finishing = CleaningPipeline.afterModel(
             for: formatter, situation: request.situation, heard: request.transcription.text)
-        let finished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped))).text
+        let polished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped)))
+        let finished = polished.text
 
         // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
         if case .rejected(let reason) = meaningGuard.verdict(
-            draft: draft, rewritten: finished, offering: readings)
+            draft: draft, rewritten: finished, offering: readings, echoed: Self.echo(in: polished))
         {
             throw .outputRejected(reason: reason)
         }
@@ -71,5 +72,11 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         return TransformationResult(
             text: finished, producedBy: kind,
             cleaning: CleaningRecord(draft: draft, ran: pipeline.ids))
+    }
+
+    /// The caret's echo the finishing pipeline took back, which the model did answer with and the guard must see.
+    private static func echo(in draft: Draft) -> String {
+        draft.words.filter { $0.state == .removed(by: CaretEchoPass.id) }.map(\.text)
+            .joined(separator: " ")
     }
 }

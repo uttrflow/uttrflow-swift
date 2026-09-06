@@ -16,7 +16,7 @@ struct FillersPassTests {
             ("hello there hmm", "hello there"),
             ("Um, hello", "hello"),
             ("uh um er hello", "hello"),
-            ("aah ahh mhm mm okay", "okay"),
+            ("aah ahh mhm okay", "okay"),
             ("hmm? yes", "yes"),
         ]
     )
@@ -35,6 +35,9 @@ struct FillersPassTests {
             "the umbrella is in the hall",
             "uh-oh",
             "um2 is a label",
+            // "mm" is millimetres, and "MM" is millions.
+            "the gap is three mm",
+            "revenue of 4 MM",
         ]
     )
     func keepsAmbiguousWords(input: String) {

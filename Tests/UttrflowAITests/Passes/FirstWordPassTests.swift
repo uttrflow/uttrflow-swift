@@ -32,6 +32,19 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// An abbreviation carries a stop of its own, and the word after it is still inside the sentence.
+    @Test(
+        "does not start a sentence after a dotted abbreviation",
+        arguments: [
+            ("call me at 5 p.m. tomorrow", "Call me at 5 p.m. tomorrow"),
+            ("we meet at 9 a.m. sharp", "We meet at 9 a.m. sharp"),
+            ("bring a laptop e.g. the old one", "Bring a laptop e.g. the old one"),
+        ]
+    )
+    func abbreviationsDoNotEndASentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "capitalises the pronoun I, alone or contracted",
         arguments: [

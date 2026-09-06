@@ -316,8 +316,8 @@ struct PromptBuilderContextTests {
         }
     }
 
-    @Test("is version 7")
+    @Test("is version 8")
     func version() {
-        #expect(PromptBuilder.version == 7)
+        #expect(PromptBuilder.version == 8)
     }
 }

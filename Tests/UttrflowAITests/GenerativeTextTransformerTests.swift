@@ -136,6 +136,16 @@ struct GenerativeTextTransformerTests {
         #expect(try await sut.transform(fresh).text == "The deployment script timed out.")
     }
 
+    /// The echo pass runs before the guard, so a word inside the echo is not a word the model lost.
+    @Test("keeps a tidy answer whose caret echo repeated a word the speaker also said")
+    func keepsAnAnswerWhoseEchoRepeatedASpokenWord() async throws {
+        let model = FakeCleanupModel { _ in "and then we go" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        let mid = request("then we go", destination: .document, preceding: "and then ")
+        #expect(try await sut.transform(mid).text == "we go.")
+    }
+
     @Test("keeps the capital of a name the window title shows, mid-sentence")
     func keepsNameFromTheScreen() async throws {
         let model = FakeCleanupModel { _ in "John said the build failed." }

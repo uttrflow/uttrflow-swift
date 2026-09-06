@@ -125,14 +125,46 @@ Each released version is a git tag and a build at
   and "bye bye for now" were read as stammers. The doubles the language itself makes —
   "had had", "that that", "bye bye", "no no", "so so" — are kept; "we we" and "the the"
   still go.
+- **A phrase said twice over lost half of itself.** "I'll pay for lunch for everyone"
+  came out as "I'll pay for everyone", "coffee with milk with sugar" as "Coffee with
+  sugar", and "the meeting is on Monday on Zoom" as "The meeting is on Zoom". The rule
+  that did it read a repeated frame of small words as a correction the speaker made
+  without saying so — but that shape is a list at least as often, and which of the two
+  halves was meant to stand is a question about meaning, not about shape. The rule is
+  gone from the deterministic floor, inside a piece and across a pause both; a correction
+  the speaker announced — "no sorry", "I mean", "actually" — is still taken back, and the
+  model is now told to drop the earlier of two goes at the same slot.
+- **A repeated number word was read as a stammer.** "extension four four two" became
+  "Extension 42" and "port eight zero zero zero" became "Port 80". A number word is never
+  a stammer now, because each copy of it is a digit of one value.
+- **"mm" was removed as a hesitation sound.** It is millimetres, and "MM" is millions, so
+  "the gap is three mm" lost its unit. "mmm" is still a hesitation.
+- **The nouns "period", "comma" and "dash" turned into punctuation.** "During the trial
+  period" became "During the trial", "I love the Victorian period" lost its noun, and
+  "the 100 metre dash was close" became "the 100 metre — was close". The check for a word
+  being talked about rather than dictated looked only one word back, so any modifier hid
+  the determiner in front of it; it now reaches three words, stopping at a mark's own
+  name so "did you finish the trial period question mark" still ends in a question mark.
+- **An acronym was read as a contraction.** "Reset the user ID" became "Reset the user
+  I'd", and "an IM" became "an I'm". A capital past the first letter now says the word is
+  an acronym.
+- **Part of a number phrase was written as a numeral.** "About a hundred and fifty users"
+  became "About a hundred and 50 users" — and when the model wrote the sentence correctly
+  the guard threw the good answer away, so the mangled floor text was what the user got.
+  A phrase whose scale the parser cannot read whole is now left whole.
+- **A sentence started after "p.m."** "Call me at five p.m. tomorrow" became "Call me at
+  5 p.m. Tomorrow." A word carrying a stop inside itself — "p.m.", "a.m.", "e.g." — no
+  longer ends a sentence.
+- **A rewrite could drop a negation and be accepted.** "not" and the "n't" forms count as
+  small words, so "I do not think we should ship" becoming "I think we should ship"
+  passed every check the guard made — the worst edit it could let through. Negation is
+  now counted on both sides, and a rewrite holding less of it is refused.
+- **A good rewrite was thrown away over a word the caret echo had taken back.** The pass
+  that removes the model's repetition of the text before the caret runs before the guard,
+  so a word inside that repetition looked to the guard like a word the model had lost.
+  The echo now counts as written.
 
 ### Added
-- **A correction the speaker made without saying so is taken back.** "I wanted to buy a
-  record as a gift as a present" becomes "…as a present", and "let's meet on tuesday on
-  wednesday" becomes "…on wednesday", from the shape alone: a short frame of small words
-  said twice over, each time with a different word after it. A frame that opens a clause
-  is not a correction, so "I like tea I like coffee both are fine" survives whole. It runs
-  inside a piece and across the pause between two.
 - **Contractions are repaired without a model.** "dont", "cant", "youre", "thats" and
   their kind get their apostrophe back deterministically, so a dictation the model
   declines — Hindi, a refusal, a timeout — no longer keeps them broken. Only the words

@@ -1,6 +1,6 @@
 public import UttrflowCore
 
-/// Removes the discarded half of a spoken correction when both halves share a shape. See `Docs/cleanup.md`.
+/// Removes the discarded half of a spoken correction a trigger phrase announces. See `Docs/cleanup.md`.
 public struct SelfCorrectionPass: CleaningPass {
     public static let id: PassID = .selfCorrection
 
@@ -22,15 +22,13 @@ public struct SelfCorrectionPass: CleaningPass {
         return draft
     }
 
-    /// The half a correction at `position` takes back: the trigger form, else a frame said twice over.
+    /// The half the correction at `position` takes back, trigger included, or nil when the halves do not match.
     private func discarded(at position: Int, in live: [Int], of draft: Draft) -> Range<Int>? {
         let trigger = Restatement.triggerRun(at: position, in: live, of: draft)
-        if trigger > 0, position > 0, position + trigger < live.count,
+        guard trigger > 0, position > 0, position + trigger < live.count,
             let start = Restatement.discardedStart(
                 before: position, after: position + trigger, in: live, of: draft)
-        {
-            return start..<(position + trigger)
-        }
-        return Restatement.repeatedFrame(at: position, in: live, of: draft)
+        else { return nil }
+        return start..<(position + trigger)
     }
 }

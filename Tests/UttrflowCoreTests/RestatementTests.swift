@@ -35,32 +35,6 @@ struct RestatementTests {
         let bare = reading("we need to no sorry to finish")
         #expect(Restatement.discardedStart(before: 3, after: 5, in: bare.live, of: bare.draft) == nil)
     }
-
-    @Test("a frame of function words said twice, each with a different word after it, is a correction")
-    func repeatedFrames() {
-        let two = reading("as a gift as a present")
-        #expect(Restatement.repeatedFrame(at: 0, in: two.live, of: two.draft) == 0..<3)
-        let one = reading("on tuesday on wednesday")
-        #expect(Restatement.repeatedFrame(at: 0, in: one.live, of: one.draft) == 0..<2)
-        #expect(Restatement.frameStart(endingAt: 2, in: one.live, of: one.draft) == 0)
-    }
-
-    @Test(
-        "a frame that opens a clause, marks an infinitive, pairs a comparison or ends one is left alone",
-        arguments: [
-            "I like tea I like coffee",
-            "we need to wait to finish",
-            "as soon as possible",
-            "the good the bad",
-            "on tuesday, on tuesday",
-            "on tuesday. on wednesday",
-        ]
-    )
-    func framesThatAreNotCorrections(text: String) {
-        let (draft, live) = reading(text)
-        #expect(live.indices.allSatisfy { Restatement.repeatedFrame(at: $0, in: live, of: draft) == nil })
-        #expect(live.indices.allSatisfy { Restatement.frameStart(endingAt: $0, in: live, of: draft) == nil })
-    }
 }
 
 @Suite("Function words")
@@ -75,13 +49,5 @@ struct FunctionWordsTests {
     @Test("a curly apostrophe reads as the straight one the set is keyed by")
     func apostrophes() {
         #expect(FunctionWords.holds("don\u{2019}t") && FunctionWords.holds("don't"))
-    }
-
-    @Test("a frame opens on a preposition, never on the infinitive's mark")
-    func frameOpeners() {
-        #expect(FunctionWords.prepositions.contains("on") && FunctionWords.prepositions.contains("as"))
-        #expect(!FunctionWords.prepositions.contains("to") && !FunctionWords.prepositions.contains("the"))
-        #expect(FunctionWords.correlatives.contains("as"))
-        #expect(FunctionWords.clauseOpeners.isSubset(of: FunctionWords.all))
     }
 }

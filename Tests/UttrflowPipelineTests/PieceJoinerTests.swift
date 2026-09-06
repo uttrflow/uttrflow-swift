@@ -161,15 +161,12 @@ struct PieceJoinerRestatementTests {
                 == "The build passed. Actually I should check the tests.")
     }
 
-    @Test("drops the half a piece restates with no trigger at all")
-    func untriggeredRestatementAcrossTheCut() {
+    /// Only a trigger phrase marks a correction; a phrase said twice over is a list far more often. See `Docs/cleanup.md`.
+    @Test("keeps both pieces when the second repeats a phrase with no trigger at all")
+    func untriggeredRepeatKeepsEverything() {
         #expect(
             joined(["Let's meet on tuesday.", "On wednesday afternoon."], .document)
-                == "Let's meet on wednesday afternoon.")
-    }
-
-    @Test("keeps both pieces when the repeat opens a clause rather than restating one")
-    func untriggeredRepeatThatIsAClause() {
+                == "Let's meet on tuesday. On wednesday afternoon.")
         #expect(
             joined(["I like tea.", "I like coffee, both are fine."], .document)
                 == "I like tea. I like coffee, both are fine.")

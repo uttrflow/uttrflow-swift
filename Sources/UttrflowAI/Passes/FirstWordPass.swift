@@ -42,7 +42,7 @@ public struct FirstWordPass: CleaningPass {
                 cased = WordShape.capitalised(cased)
             }
             draft.replace(at: index, with: cased, by: Self.id)
-            startOfSentence = WordShape(cased).endsSentence
+            startOfSentence = Self.endsSentence(cased)
             isFirst = false
         }
         return draft
@@ -61,6 +61,12 @@ public struct FirstWordPass: CleaningPass {
             else { return WordShape.capitalised(word) }
             return WordShape.lowercased(word)
         }
+    }
+
+    /// Whether the word closes a sentence; a dotted abbreviation such as "p.m." carries a stop of its own.
+    static func endsSentence(_ text: String) -> Bool {
+        let shape = WordShape(text)
+        return shape.endsSentence && !shape.core.contains(".")
     }
 
     /// "i" and "i'll" become "I" and "I'll"; nothing else changes.

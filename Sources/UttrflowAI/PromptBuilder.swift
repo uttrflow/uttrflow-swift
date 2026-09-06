@@ -3,7 +3,7 @@ public import UttrflowCore
 /// Builds the model's instructions and user prompt from three layers: the contract, the destination's block and the situation. See `Docs/cleanup.md`.
 public struct PromptBuilder: Sendable, Equatable {
     /// Bumped whenever any wording changes, so a measured result can be tied to the prompt that produced it.
-    public static let version = 7
+    public static let version = 8
 
     /// The label the text before a mid-sentence caret sits behind; the contract teaches the model to read it.
     public static let caretLabel = "Text before the caret:"

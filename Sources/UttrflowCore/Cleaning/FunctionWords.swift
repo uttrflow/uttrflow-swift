@@ -33,22 +33,4 @@ public enum FunctionWords {
         "those", "there", "who", "whom", "whose", "which", "what", "myself", "yourself", "himself",
         "herself", "itself", "ourselves", "yourselves", "themselves",
     ]
-
-    /// The prepositions a repeated frame may open on; "to" is left out, being the mark of an infinitive.
-    public static let prepositions: Set<String> = [
-        "of", "in", "on", "at", "for", "with", "by", "from", "about", "into", "onto", "over",
-        "under", "after", "before", "between", "during", "among", "without", "within", "along",
-        "across", "behind", "beyond", "near", "past", "since", "until", "upon", "toward", "towards",
-        "as", "per",
-    ]
-
-    /// The words that pair with themselves in a fixed comparison, so one alone never frames a correction.
-    public static let correlatives: Set<String> = ["as"]
-
-    /// The subject pronouns and auxiliaries whose presence makes a repeated frame a fresh clause.
-    public static let clauseOpeners: Set<String> = [
-        "i", "you", "he", "she", "it", "we", "they", "there", "who", "that", "which",
-        "am", "is", "are", "was", "were", "be", "been", "being", "do", "does", "did", "have", "has",
-        "had", "having", "will", "would", "shall", "should", "can", "could", "may", "might", "must",
-    ]
 }

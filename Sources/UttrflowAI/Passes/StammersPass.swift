@@ -17,8 +17,9 @@ public struct StammersPass: CleaningPass {
         var previous: String?
         for index in draft.presentIndices {
             let word = draft.words[index].text.lowercased()
+            // A number said twice is two digits of one value — "four four two" is 442, not 42.
             if word == previous, word.count <= Self.longestStammer,
-                !Self.legitimateDoubles.contains(word)
+                !Self.legitimateDoubles.contains(word), !NumberWords.isNumber(word)
             {
                 draft.remove(at: index, by: Self.id)
                 continue

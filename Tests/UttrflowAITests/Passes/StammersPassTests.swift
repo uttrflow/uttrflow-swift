@@ -36,6 +36,15 @@ struct StammersPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A number said twice is two digits of one value, so taking one out changes the number.
+    @Test(
+        "keeps a repeated number word, which spells a digit rather than stammering",
+        arguments: ["extension four four two", "port eight zero zero zero", "the code is one one one"]
+    )
+    func keepsRepeatedNumbers(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test(
         "keeps a repeated long word, and a repeat split by punctuation",
         arguments: ["really really good", "had, had", "hello hello"]

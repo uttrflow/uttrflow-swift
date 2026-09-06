@@ -56,7 +56,9 @@ public struct NumberFormsPass: CleaningPass {
         at position: Int, in shapes: [WordShape], policy: NumberPolicy = .fromTen
     ) -> Phrase? {
         let keys = shapes.map(\.key)
-        guard let item = item(at: position, keys: keys, shapes: shapes) else { return nil }
+        guard !finishesAScale(at: position, keys: keys),
+            let item = item(at: position, keys: keys, shapes: shapes)
+        else { return nil }
         let inContext = position > 0 && contextWords.contains(keys[position - 1])
         var end = position + item.count
         var text = item.text
@@ -105,6 +107,11 @@ public struct NumberFormsPass: CleaningPass {
             return nil
         }
         return Phrase(text: text, count: end - position)
+    }
+
+    /// Whether the words here finish a scale the parser could not read whole, as in "a hundred and fifty".
+    private static func finishesAScale(at position: Int, keys: [String]) -> Bool {
+        position >= 2 && keys[position - 1] == "and" && NumberWords.scales[keys[position - 2]] != nil
     }
 
     private static func item(at position: Int, keys: [String], shapes: [WordShape]) -> Item? {

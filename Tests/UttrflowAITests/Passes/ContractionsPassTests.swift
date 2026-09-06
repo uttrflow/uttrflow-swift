@@ -64,6 +64,15 @@ struct ContractionsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// An acronym carries a capital past its first letter, which no heard contraction does.
+    @Test(
+        "leaves an acronym alone rather than reading it as a contraction",
+        arguments: ["reset the user ID", "an IM from her", "the IDs we issued", "DONT in caps"]
+    )
+    func leavesAcronyms(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// Each of these is a word in its own right, so repairing it would put words the speaker never said.
     @Test(
         "leaves a word whose contraction is a guess",

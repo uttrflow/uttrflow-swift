@@ -26,7 +26,9 @@ public struct SpokenPunctuationPass: CleaningPass {
         while position < live.count {
             guard
                 let found = Self.marks.first(where: { matches($0.words, at: position, in: live, of: draft) }),
-                !MentionGuard.isMentioned(at: position, spanning: found.words.count, in: live, of: draft),
+                !MentionGuard.isMentioned(
+                    at: position, spanning: found.words.count, in: live, of: draft,
+                    reach: MentionGuard.phraseReach),
                 !isVerb(found.words, at: position, in: live, of: draft),
                 isPlaced(found.mark, before: position + found.words.count, in: live, of: draft),
                 attach(
@@ -75,6 +77,7 @@ public struct SpokenPunctuationPass: CleaningPass {
         _ mark: String, opening: Bool, at position: Int, spanning length: Int, in live: inout [Int],
         of draft: inout Draft
     ) -> Bool {
+        guard position > 0 else { return false }
         let after = position + length
         let previous = live[position - 1]
         if opening {

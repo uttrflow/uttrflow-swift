@@ -33,9 +33,9 @@ public struct MeaningPreservationGuard: Sendable {
 
     public init() {}
 
-    /// Judges the rewrite against the kept words and against the readings the model was offered.
+    /// Judges the rewrite against the kept words, the readings offered, and the echo a pass took back after it.
     public func verdict(
-        draft: Draft, rewritten: String, offering doubtful: [DoubtfulSpan] = []
+        draft: Draft, rewritten: String, offering doubtful: [DoubtfulSpan] = [], echoed: String = ""
     ) -> GuardVerdict {
         if case .rejected(let reason) = verdict(original: draft.text, rewritten: rewritten) {
             return .rejected(reason: reason)
@@ -46,7 +46,8 @@ public struct MeaningPreservationGuard: Sendable {
         if case .rejected(let reason) = Self.layoutVerdict(kept: draft.text, rewritten: rewritten) {
             return .rejected(reason: reason)
         }
-        return Self.grammarVerdict(kept: draft.text, rewritten: rewritten, allowing: doubtful)
+        return Self.grammarVerdict(
+            kept: draft.text, rewritten: rewritten, allowing: doubtful, echoed: echoed)
     }
 
     /// A doubtful run may be written as it was heard or as a reading that was offered, and as nothing else.
@@ -125,11 +126,12 @@ public struct MeaningPreservationGuard: Sendable {
 
     /// A repair may change a word's form, never which content words survive. See `Docs/cleanup.md`.
     static func grammarVerdict(
-        kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = []
+        kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = [], echoed: String = ""
     ) -> GuardVerdict {
         let keptTokens = grammarTokens(kept)
         let rewrittenTokens = grammarTokens(rewritten)
-        let pool = Set(rewrittenTokens.filter(\.isPlain).map(\.matching))
+        // The echo the caret pass took back was in the model's answer, so its words still count as survivors.
+        let pool = Set((rewrittenTokens + grammarTokens(echoed)).filter(\.isPlain).map(\.matching))
         // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
         let offered = Set(
             doubtful
@@ -140,6 +142,10 @@ public struct MeaningPreservationGuard: Sendable {
             if !survives(token.matching, in: pool) {
                 return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
             }
+        }
+        let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + grammarTokens(echoed))
+        if dropped > 0 {
+            return .rejected(reason: "the rewrite dropped a negation")
         }
         let churn = functionWordChurn(keptTokens, rewrittenTokens)
         if churn > 3 * sentenceCount(rewritten) {
@@ -195,6 +201,18 @@ public struct MeaningPreservationGuard: Sendable {
         }
         return false
     }
+
+    /// How many words in `tokens` turn a sentence's meaning around.
+    static func negators(in tokens: [GrammarToken]) -> Int {
+        tokens.filter { negatingWords.contains($0.matching) }.count
+    }
+
+    /// The words that reverse a sentence, apostrophes aside; dropping one is the worst edit the model can make.
+    static let negatingWords: Set<String> = [
+        "not", "no", "never", "none", "nothing", "nobody", "nowhere", "neither", "nor", "cannot",
+        "dont", "doesnt", "didnt", "wont", "wouldnt", "cant", "couldnt", "shouldnt", "isnt",
+        "arent", "wasnt", "werent", "hasnt", "havent", "hadnt", "mustnt", "aint", "neednt",
+    ]
 
     /// Function words added plus removed, counted as multisets over the whole text.
     static func functionWordChurn(_ kept: [GrammarToken], _ rewritten: [GrammarToken]) -> Int {
@@ -291,8 +309,7 @@ public struct MeaningPreservationGuard: Sendable {
     /// "बीस मिनट" gets "20 minute", and with only English words in this table the
     /// guard called that an invented number and threw the rewrite away. Every Hindi
     /// utterance containing a number failed that way.
-    /// Built so that a word appearing in both tables is a build-time-fatal mistake
-    /// rather than a silent winner: the two languages must not disagree about a digit.
+    /// A word in both tables traps on the first lookup rather than letting one language quietly win.
     private static let numberWords: [String: String] = Dictionary(
         uniqueKeysWithValues: Array(englishNumberWords) + Array(hindiNumberWords))
 

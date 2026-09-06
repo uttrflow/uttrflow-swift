@@ -287,6 +287,39 @@ struct GrammarGuardTests {
         #expect(!verdict("the port is 8080", "The port is open.").isAccepted)
     }
 
+    /// Every negator is a function word, so nothing but counting them stops the worst edit there is.
+    @Test(
+        "rejects a rewrite that dropped a negation, however small the churn",
+        arguments: [
+            ("I do not think we should ship", "I think we should ship."),
+            ("she doesn't want the early slot", "She wants the early slot."),
+            ("we have not shipped it yet", "We have shipped it yet."),
+        ]
+    )
+    func rejectsDroppedNegation(kept: String, rewritten: String) {
+        #expect(verdict(kept, rewritten) == .rejected(reason: "the rewrite dropped a negation"))
+    }
+
+    /// "Never", "no" and "nothing" are content words, so the check above them catches those first.
+    @Test("rejects a dropped negation that is a word in its own right, by the word it lost")
+    func rejectsDroppedNegationAsAContentWord() {
+        #expect(!verdict("we never agreed to that", "We agreed to that.").isAccepted)
+        #expect(!verdict("there is no room left", "There is room left.").isAccepted)
+    }
+
+    @Test(
+        "accepts a rewrite that keeps the negation, whichever form it writes it in",
+        arguments: [
+            ("i do not think we should ship", "I do not think we should ship."),
+            ("we never agreed to that", "We never agreed to that."),
+            ("she dont want the early slot", "She doesn't want the early slot."),
+            ("we can not do that today", "We cannot do that today."),
+        ]
+    )
+    func acceptsKeptNegation(kept: String, rewritten: String) {
+        #expect(verdict(kept, rewritten).isAccepted)
+    }
+
     @Test("rejects a rewrite that reworded too many small words in one sentence")
     func rejectsFunctionChurn() {
         #expect(

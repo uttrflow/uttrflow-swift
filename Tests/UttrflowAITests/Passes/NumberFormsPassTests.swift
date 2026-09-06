@@ -49,6 +49,18 @@ struct NumberFormsPassTests {
         #expect(NumberFormsPass(policy: .always).policy == .always)
     }
 
+    /// Writing only the tail of a phrase the parser could not read whole says a number the speaker did not.
+    @Test(
+        "leaves a scale phrase whole rather than writing the part after its and",
+        arguments: [
+            "about a hundred and fifty users", "a thousand and twenty of them",
+            "roughly a hundred and fifteen",
+        ]
+    )
+    func leavesAnUnparsedScaleWhole(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test(
         "keeps a single digit as a word unless something makes it a number",
         arguments: [

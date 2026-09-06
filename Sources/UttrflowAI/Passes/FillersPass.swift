@@ -4,9 +4,9 @@ public import UttrflowCore
 public struct FillersPass: CleaningPass {
     public static let id: PassID = .fillers
 
-    /// Whole words that carry no meaning; "like", "well", "so" and "basically" are deliberately absent.
+    /// Whole words that carry no meaning; "like", "well", "so", "basically" and "mm" (millimetres) are out.
     static let fillerWords: Set<String> = [
-        "um", "umm", "uh", "uhh", "uhm", "er", "erm", "ah", "hmm", "mmm", "aah", "ahh", "mhm", "mm",
+        "um", "umm", "uh", "uhh", "uhm", "er", "erm", "ah", "hmm", "mmm", "aah", "ahh", "mhm",
     ]
 
     public init() {}
