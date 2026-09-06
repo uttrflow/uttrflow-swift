@@ -1,0 +1,57 @@
+# Where the spell checker is told to look the other way.
+#
+# Unconfigured, `typos` finds 165 things in this tree and not one of them is a mistake.
+# That is not the tool being bad; it is this repository being unusual in four ways.
+#
+# Uttrflow corrects typing, so misspellings are its *test data*. `comit`, `gti`, `teh`,
+# `swfit` and `chekout` appear thirty-odd times each because a test has to assert that
+# `chance("comit", meaning: "commit")` beats `chance("commt", …)`. It predicts from partial
+# input, so `hel`, `chec`, `statu` and `ommit` are prefixes mid-typing rather than words.
+# It transcribes Hinglish, so `tak`, `woh`, `arre`, `didi` and `lene` are vocabulary. And
+# it names things after what they are: `ANE` is Apple's Neural Engine, `caf` is Core Audio
+# Format, `PN` and `TIO` are Double Metaphone digraphs.
+#
+# The excluded paths are a real blind spot and worth being honest about: four test
+# directories, `Design/` and three data files get no spell checking at all. That is the
+# price of the other ninety per cent — every document, every prose comment in `Sources/`
+# and the rest of `Tests/` is checked, and `teh` written anywhere outside a fixture still
+# fails the build.
+#
+# 🔴 Never pass `--locale en-us`. This repository is written in British English on purpose
+# — notarise, recognise, behaviour, licence — and the default locale accepts all of it.
+# The American locale would reject the house style as a spelling mistake.
+
+[files]
+extend-exclude = [
+  ".build/",
+  "dist/",
+  "Package.resolved",
+  "Design/",
+  "Sources/UttrflowEval/TranscriptionCorpus.swift",
+  "Sources/UttrflowDictionary/GeneralVocabulary.swift",
+  "Sources/UttrflowDictionary/DoubleMetaphone.swift",
+  "Sources/uttrflow-bakeoff/",
+  "Tests/UttrflowPredictTests/",
+  "Tests/UttrflowPredictStoreTests/",
+  "Tests/UttrflowLocalModelTests/",
+  "Tests/UttrflowEvalTests/",
+]
+
+[default.extend-words]
+mis = "mis"
+gti = "gti"
+comit = "comit"
+ommit = "ommit"
+statu = "statu"
+chec = "chec"
+hel = "hel"
+ser = "ser"
+caf = "caf"
+ANE = "ANE"
+pretify = "pretify"
+personalis = "personalis"
+unparseable = "unparseable"
+postgress = "postgress"
+adress = "adress"
+ba = "ba"
+Iz = "Iz"
