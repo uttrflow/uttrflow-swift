@@ -43,6 +43,9 @@ extension SettingsReset {
         }
     }
 
+    /// Whether the last dictation's words go too, which every reset that clears the transcripts does.
+    public var forgetsTheLastDictation: Bool { targets.contains(.history) }
+
     /// Whether the user is asked first, which only what nothing brings back requires.
     public var isConfirmed: Bool {
         switch self {
@@ -65,16 +68,21 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Transcripts still inside the retention window, which is all there are to see.
     public let transcripts: Int
 
+    /// The app the last dictation went into; the frontmost one, while Settings is open, is Uttrflow.
+    public let lastDictationApp: SettingsApp?
+
     /// How many completions each application has taught, keyed by bundle identifier.
     public let suggestions: [String: Int]
 
     /// Takes the counts as given, lower-casing bundle identifiers so a lookup cannot miss.
     public init(
-        learnedWords: Int, addedWords: Int, transcripts: Int, suggestions: [String: Int] = [:]
+        learnedWords: Int, addedWords: Int, transcripts: Int,
+        lastDictationApp: SettingsApp? = nil, suggestions: [String: Int] = [:]
     ) {
         self.learnedWords = learnedWords
         self.addedWords = addedWords
         self.transcripts = transcripts
+        self.lastDictationApp = lastDictationApp
         self.suggestions = suggestions.reduce(into: [:]) { $0[$1.key.lowercased()] = $1.value }
     }
 
@@ -89,12 +97,15 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     }
 
     /// Counts a dictionary as it stands, calling anything not ``WordOrigin/added`` the app's own.
-    public init(entries: [DictionaryEntry], transcripts: Int, suggestions: [String: Int] = [:]) {
+    public init(
+        entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
+        suggestions: [String: Int] = [:]
+    ) {
         self.init(
             learnedWords: entries.count(where: { $0.origin != .added }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
-            suggestions: suggestions)
+            lastDictationApp: lastDictationApp, suggestions: suggestions)
     }
 
     /// A fresh install, and what a window shows before it has asked.
@@ -160,10 +171,21 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
     /// Counts the dictionary, the transcripts still inside the promise, and the completions.
     public func personalisation(keeping retention: Retention) async -> SettingsPersonalisation {
         // `records(keeping:)` applies the promise to the disk too, so the count is what is there.
-        await SettingsPersonalisation(
+        let kept = await history.records(keeping: retention)
+        return await SettingsPersonalisation(
             entries: dictionary.allEntries(),
-            transcripts: history.records(keeping: retention).count,
+            transcripts: kept.count,
+            lastDictationApp: Self.lastApp(in: kept),
             suggestions: suggestions?.learnedSuggestions() ?? [:])
+    }
+
+    /// The most recent dictation that named the app it went into, which is the app an override is about.
+    static func lastApp(in records: [DictationRecord]) -> SettingsApp? {
+        let named = records.filter { $0.applicationIdentifier?.isEmpty == false }
+        guard let latest = named.max(by: { $0.when < $1.when }),
+            let bundle = latest.applicationIdentifier
+        else { return nil }
+        return SettingsApp(bundleIdentifier: bundle, name: latest.applicationName)
     }
 
     /// Hands each of the level's targets to the store that owns it.

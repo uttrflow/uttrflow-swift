@@ -182,6 +182,16 @@ public enum SettingsChange: Sendable, Equatable {
     case retention(days: Int)
     case appearance(AppAppearance)
 
+    /// Switch one clean-up step on or off; a step nobody offers is refused.
+    case cleaningStep(PassID, isOn: Bool)
+
+    /// Treat one app as a kind of place, whatever the table says it is.
+    case appDestination(
+        bundleIdentifier: String, name: String?, destination: UttrflowCore.Destination)
+
+    /// Put one app back on the table's answer.
+    case forgetAppDestination(bundleIdentifier: String)
+
     /// Switches suggestions on or off in one application, the only way out of the shipped deny list.
     case suggestionsHere(application: String, isOn: Bool)
 

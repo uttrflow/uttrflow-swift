@@ -36,15 +36,19 @@ public struct WordCorrectionEngine: Sendable {
         max(1, wordCount / maximumChangedInEvery)
     }
 
+    /// Every reading the dictionary offers for a heard run, and none when it already spells it exactly so.
+    public static func spellings(of heard: String, in dictionary: PhoneticIndex) -> [DictionaryEntry] {
+        let candidates = dictionary.candidates(soundingLike: heard)
+        guard !candidates.contains(where: { $0.word == heard }) else { return [] }
+        return candidates
+    }
+
     /// The best change for one uncertain run, if there is one.
     private func proposal(
         for span: UncertainSpan, against dictionary: PhoneticIndex, given evidence: CorrectionEvidence
     ) -> WordCorrection? {
         // Condition 2.
-        let candidates = dictionary.candidates(soundingLike: span.text)
-
-        // An entry spelling the heard text exactly says the hearing is right, so no homophone is offered.
-        guard !candidates.contains(where: { $0.word == span.text }) else { return nil }
+        let candidates = Self.spellings(of: span.text, in: dictionary)
 
         // Candidates arrive in the index's usefulness order, so the first that earns its place is offered.
         for entry in candidates {
@@ -80,11 +84,26 @@ struct UncertainSpan: Sendable, Equatable {
 
     /// Every run up to the index's word limit in which every word is doubted, most deserving first.
     static func spans(in utterance: Utterance, below threshold: Double) -> [UncertainSpan] {
+        spans(in: utterance.words.map { ($0.text, $0.confidence) }, below: threshold)
+    }
+
+    /// The same runs over a draft, reading the words as the passes left them and skipping what nobody said.
+    static func spans(in draft: Draft, below threshold: Double) -> [UncertainSpan] {
+        spans(
+            in: draft.words
+                .filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
+                .map { ($0.text, $0.confidence) },
+            below: threshold)
+    }
+
+    /// The runs themselves, over anything that can name a word and how sure the recogniser was of it.
+    static func spans(
+        in words: [(text: String, confidence: Double)], below threshold: Double
+    ) -> [UncertainSpan] {
         var spans: [UncertainSpan] = []
-        for start in utterance.words.indices {
-            for length in 1...PhoneticIndex.maximumWordsPerEntry
-            where start + length <= utterance.words.count {
-                let run = utterance.words[start..<(start + length)]
+        for start in words.indices {
+            for length in 1...PhoneticIndex.maximumWordsPerEntry where start + length <= words.count {
+                let run = words[start..<(start + length)]
                 guard run.allSatisfy({ $0.confidence < threshold }) else { break }
                 spans.append(
                     UncertainSpan(

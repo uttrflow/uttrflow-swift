@@ -42,7 +42,7 @@ struct GenerativeTextTransformerTests {
 
         _ = try await sut.transform(request("hello there"))
 
-        #expect(model.calls.first?.instructions == CleanupPrompt.current.instructions)
+        #expect(model.calls.first?.instructions == PromptBuilder.standard.instructions(for: .plain))
         #expect(model.calls.first?.text == "Spoken: \"hello there\"")
         #expect(model.calls.first?.kind == .foundationModels)
     }
@@ -53,7 +53,8 @@ struct GenerativeTextTransformerTests {
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         let result = try await sut.transform(request("hello there"))
-        #expect(result == TransformationResult(text: "Hello there.", producedBy: .foundationModels))
+        #expect(result.text == "Hello there.")
+        #expect(result.producedBy == .foundationModels)
     }
 
     /// The model leaves output ragged even when told not to, so a deterministic pass finishes it.
@@ -70,6 +71,49 @@ struct GenerativeTextTransformerTests {
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         #expect(try await sut.transform(request("hello there")).text == expected)
+    }
+
+    /// The passes run first, so the model never sees the fillers and discarded halves it might rewrite.
+    @Test("hands the model the draft after the passes, not the raw words")
+    func handsModelTheDraft() async throws {
+        let model = FakeCleanupModel { _ in "Let's meet at five." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        _ = try await sut.transform(request("um let's meet at four no sorry at five"))
+
+        #expect(model.calls.first?.text == "Spoken: \"let's meet at five\"")
+    }
+
+    @Test("finishes the capitals and the full stop the model forgot, and lays out the list it meant")
+    func finishesWhatTheModelForgot() async throws {
+        let model = FakeCleanupModel { _ in "hello there" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        #expect(try await sut.transform(request("um hello there")).text == "Hello there.")
+
+        let listing = GenerativeTextTransformer(
+            kind: .foundationModels, model: FakeCleanupModel { _ in "we need:\n- milk\n\n- eggs" })
+        #expect(
+            try await listing.transform(request("we need milk and eggs")).text == "We need:\n- Milk\n\n- Eggs"
+        )
+    }
+
+    @Test("does not count a pass's removals against the model")
+    func judgesAgainstTheDraft() async throws {
+        let model = FakeCleanupModel { _ in "Yes, please." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        let result = try await sut.transform(request("um uh er hmm um uh er hmm yes please"))
+        #expect(result.text == "Yes, please.")
+    }
+
+    @Test("runs whatever pipeline it is given before the model")
+    func usesGivenPipeline() async throws {
+        let model = FakeCleanupModel { _ in "Um, hello there." }
+        let sut = GenerativeTextTransformer(
+            kind: .foundationModels, model: model, pipeline: CleaningPipeline(passes: []))
+
+        _ = try await sut.transform(request("um hello there"))
+        #expect(model.calls.first?.text == "Spoken: \"um hello there\"")
     }
 
     private func request(
@@ -91,6 +135,16 @@ struct GenerativeTextTransformerTests {
         #expect(try await sut.transform(mid).text == "the deployment script timed out.")
         let fresh = request("the deployment script timed out", destination: .document, preceding: "Done. ")
         #expect(try await sut.transform(fresh).text == "The deployment script timed out.")
+    }
+
+    /// The echo pass runs before the guard, so a word inside the echo is not a word the model lost.
+    @Test("keeps a tidy answer whose caret echo repeated a word the speaker also said")
+    func keepsAnAnswerWhoseEchoRepeatedASpokenWord() async throws {
+        let model = FakeCleanupModel { _ in "and then we go" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        let mid = request("then we go", destination: .document, preceding: "and then ")
+        #expect(try await sut.transform(mid).text == "we go.")
     }
 
     @Test("keeps the capital of a name the window title shows, mid-sentence")
@@ -162,6 +216,55 @@ struct GenerativeTextTransformerTests {
 
         await #expect(throws: TransformationError.self) { try await sut.transform(request("hello")) }
     }
+
+    // MARK: The readings the model is offered
+
+    /// A code editor with `PaymentSheet` in its title, hearing "payment sheet" as a half-guess.
+    private func doubtfulRequest() -> TransformationRequest {
+        let context = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode",
+            documentName: "PaymentSheet.swift")
+        let spoken = "the crash is in payment sheet"
+        let words = spoken.split(separator: " ").map {
+            TranscribedWord(text: String($0), confidence: $0.hasPrefix("payment") || $0 == "sheet" ? 0.3 : 1)
+        }
+        return TransformationRequest(
+            transcription: Transcription(
+                text: spoken, detectedLanguage: DetectedLanguage(code: .english),
+                segments: [TranscriptionSegment(text: spoken, start: .zero, end: .zero, words: words)]),
+            context: context,
+            situation: Situation(app: context, insertion: .unknown, destination: .codeEditor))
+    }
+
+    @Test("shows the model the readings the screen offers for what the recogniser half-heard")
+    func offersTheScreensReading() async throws {
+        let model = FakeCleanupModel { _ in "The crash is in PaymentSheet" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        let result = try await sut.transform(doubtfulRequest())
+
+        #expect(
+            model.calls.first?.text.contains(
+                "Doubtful words: \"payment sheet\" (heard at 0.30) — could be: PaymentSheet") == true)
+        #expect(result.text == "The crash is in PaymentSheet")
+    }
+
+    @Test("refuses a reading the sources never offered")
+    func refusesAnUnofferedReading() async {
+        let model = FakeCleanupModel { _ in "The crash is in CheckoutSheet" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        await #expect(throws: TransformationError.self) { try await sut.transform(doubtfulRequest()) }
+    }
+
+    @Test("says nothing about readings when the recogniser reported no scores")
+    func saysNothingWithoutScores() async throws {
+        let model = FakeCleanupModel { _ in "The crash is in payment sheet" }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        _ = try await sut.transform(request("the crash is in payment sheet"))
+        #expect(model.calls.first?.text.contains(PromptBuilder.doubtfulLabel) == false)
+    }
 }
 
 /// The floor transformer.
@@ -197,10 +300,19 @@ struct RuleBasedTransformerTests {
             ("uh i think so", "I think so."),
             ("the the deployment is running", "The deployment is running."),
             ("hello. um there", "Hello. There."),
+            ("let's meet at four no sorry at five", "Let's meet at five."),
+            ("we're on postgres sixteen point two", "We're on postgres 16.2."),
+            ("milk comma eggs comma and bread", "Milk, eggs, and bread."),
         ]
     )
     func tidies(input: String, expected: String) async throws {
         #expect(try await sut.transform(request(input)).text == expected)
+    }
+
+    @Test("runs whatever pipeline it is given")
+    func usesGivenPipeline() async throws {
+        let sut = RuleBasedTransformer(pipeline: CleaningPipeline(passes: [FillersPass()]))
+        #expect(try await sut.transform(request("um hello there")).text == "hello there")
     }
 
     @Test("attributes its work to itself")
@@ -266,4 +378,5 @@ struct RuleBasedTransformerTests {
         let result = try await sut.transform(request("नमस्ते मैं आज आऊंगा"))
         #expect(result.text.contains("नमस्ते"))
     }
+
 }

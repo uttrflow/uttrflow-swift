@@ -7,13 +7,13 @@ public protocol TranscriptCleaning: Sendable {
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult
 
-    /// Gets ready for a request that is about to come, so the first one is not the slow one.
-    func warm() async
+    /// Gets ready for a request going to `situation`, or to nowhere known, so the first one is not the slow one.
+    func warm(for situation: Situation?) async
 }
 
 extension TranscriptCleaning {
     /// Nothing to prepare, which is what most cleaners have.
-    public func warm() async {}
+    public func warm(for situation: Situation?) async {}
 }
 
 /// Puts finished text wherever the user is typing and says how; the pipeline never sees the strategies.

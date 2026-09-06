@@ -427,9 +427,9 @@ struct CorpusIndependenceTests {
     }
 
     /// A worked example that is a verbatim corpus case scores the model on answers it has been shown.
-    @Test("no corpus case appears among the prompt's worked examples")
+    @Test("no corpus case appears among any block's worked examples")
     func corpusIsNotInThePrompt() {
-        let examples = Set(CleanupPrompt.current.workedExamples.map(normalise))
+        let examples = Set(PromptBuilder.standard.allWorkedExamples.map(normalise))
         for testCase in EvaluationCorpus.all {
             #expect(!examples.contains(normalise(testCase.spoken)), "\(testCase.id) is in the prompt")
             #expect(
@@ -439,12 +439,12 @@ struct CorpusIndependenceTests {
     }
 
     /// An input that closely matches an example can make a model answer with a different example's text.
-    @Test("no corpus case is a near-copy of a worked example")
+    @Test("no corpus case is a near-copy of any block's worked example")
     func corpusIsNotNearlyInThePrompt() {
         for testCase in EvaluationCorpus.all {
             let spoken = Set(Scorer.tokens(testCase.spoken))
             guard spoken.count >= 5 else { continue }
-            for example in CleanupPrompt.current.workedExamples {
+            for example in PromptBuilder.standard.allWorkedExamples {
                 let overlap = spoken.intersection(Scorer.tokens(example))
                 let share = Double(overlap.count) / Double(spoken.count)
                 #expect(share < 0.7, "\(testCase.id) overlaps a worked example by \(Int(share * 100))%")
@@ -452,11 +452,19 @@ struct CorpusIndependenceTests {
         }
     }
 
-    @Test("finds every worked example in the prompt")
+    @Test("finds every block's worked examples, both halves of each")
     func readsTheExamples() {
-        let examples = CleanupPrompt.current.workedExamples
-        #expect(examples.count >= 8, "expected both halves of each example pair")
+        let examples = PromptBuilder.standard.allWorkedExamples
+        let shown = Set(
+            (PromptContract.examples + PromptBlocks.standard.values.flatMap(\.examples)).flatMap(\.sentences))
+        #expect(
+            Set(examples) == shown && examples.count == shown.count,
+            "expected both halves of every block's examples")
         #expect(examples.contains("When does the library close on Sunday?"))
+        #expect(examples.contains("42 units shipped in week 9"))
+        for destination in Destination.allCases {
+            #expect(Set(PromptBuilder.standard.workedExamples(for: destination)).isSubset(of: Set(examples)))
+        }
     }
 
     /// Rules cannot change alphabet, so romanised references measure clean-up rather than doing nothing.

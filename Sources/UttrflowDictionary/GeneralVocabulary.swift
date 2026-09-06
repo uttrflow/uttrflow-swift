@@ -1,5 +1,5 @@
 /// Words a general recogniser already knows and the dictionary must not learn. See Docs/app-dictionary.md.
-enum GeneralVocabulary {
+public enum GeneralVocabulary {
     /// The fewest letters a word worth learning can have: three, the length of `SQL` or `API`.
     static let shortestWorthLearning = 3
 
@@ -10,6 +10,32 @@ enum GeneralVocabulary {
     static func isWorthLearning(_ word: String) -> Bool {
         word.count >= shortestWorthLearning && word.contains(where: \.isLetter) && !knows(word)
     }
+
+    /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
+    public static let maximumPerSound = 4
+
+    /// The opening letters a reading must share, because a common word that merely rhymes is noise, not a reading.
+    public static let openingLettersShared = 2
+
+    /// Ordinary words this one could have been misheard as: the same likelier sound, the same opening. See `Docs/cleanup.md`.
+    public static func wordsSounding(like text: String) -> [String] {
+        let heard = text.lowercased()
+        let opening = heard.prefix(openingLettersShared)
+        return Array(
+            (byPrimarySound[DoubleMetaphone.code(for: text).primary] ?? [])
+                .filter { $0 != heard && $0.hasPrefix(opening) }
+                .prefix(maximumPerSound))
+    }
+
+    /// Every common word filed under its likelier sound, built once over a list that never grows at runtime.
+    private static let byPrimarySound: [String: [String]] = {
+        var buckets: [String: [String]] = [:]
+        for word in known {
+            let primary = DoubleMetaphone.code(for: word).primary
+            if !primary.isEmpty { buckets[primary, default: []].append(word) }
+        }
+        return buckets.mapValues { $0.sorted() }
+    }()
 
     /// Both lists, merged once, because a lookup does not care which language refused it.
     private static let known: Set<String> = commonEnglish.union(commonHinglish)
