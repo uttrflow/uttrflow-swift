@@ -487,7 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         let clips = await clipboard.clips(keeping: retention)
         let placement = await placement()
-        // Built fresh, so a revealed secret cannot outlive the panel it was revealed in.
+        // Built fresh, so a revealed secret cannot outlive the panel that revealed it.
         var snapshot = PanelSnapshot.opening(
             clips: clips, now: Date(), insertion: placement, resuming: resume)
         snapshot.dictation = await voice()
@@ -564,7 +564,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             closeQuickPanel()
             insertImage(clip)
         case .say(let notice):
-            // Stays open, or the sentence would be about a clip the user can no longer see.
+            // Stays open, or the sentence describes a clip the user cannot see.
             panel?.notice = notice
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             closeAfterReading()
@@ -829,7 +829,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let richText { NSPasteboard.general.setString(richText, forType: .html) }
     }
 
-    /// Long enough to read one short sentence, and no longer, since the panel is in the way.
+    /// Long enough to read one short sentence and no more, since the panel is in the way.
     private static let noticeLingers = Duration.seconds(2.5)
 
     private func closeAfterReading() {
@@ -1594,7 +1594,7 @@ struct LearnedVocabulary: VocabularyLearning {
     }
 }
 
-/// A menu is built from a snapshot, so an index that has since gone must do nothing.
+/// A menu is built from a snapshot, so an index that has gone stale must do nothing.
 extension Array {
     fileprivate subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
