@@ -143,7 +143,7 @@ struct DictionaryRetirementTests {
     @Test("a word undone more often than it is kept is drawn as retired")
     func retired() {
         let row = HistoryFixture.dictionary(entries: [
-            HistoryFixture.word("Zaprise", used: 10, reverted: 7)
+            HistoryFixture.word("Kestrel", used: 10, reverted: 7)
         ]).rows[0]
 
         #expect(row.isRetired)
@@ -154,7 +154,7 @@ struct DictionaryRetirementTests {
     @Test("a word that has not earned its retirement is not drawn as retired")
     func notRetired() {
         let row = HistoryFixture.dictionary(entries: [
-            HistoryFixture.word("Zaprise", used: 15, reverted: 7)
+            HistoryFixture.word("Kestrel", used: 15, reverted: 7)
         ]).rows[0]
         #expect(!row.isRetired)
         #expect(row.badge == nil)

@@ -1,7 +1,7 @@
 # Tab-to-complete: the machine as the agent's tools
 
 Two ghosts set this plan. In a terminal whose working directory was `backend`, `cd
-projects/x-growth/` drew `backend/` — a line the model read in the scrollback, correct from
+projects/beacon/` drew `backend/` — a line the model read in the scrollback, correct from
 Desktop, false from here. `vim .env` drew `.vim`, a file the model invented in a directory it was
 never shown. Both came from the model (`corpus=0` → `GENERATE`), and both are the same failure:
 a suggestion that was never checked against what is true on this Mac.
@@ -69,7 +69,7 @@ first. An unknown command's arguments are files or free. Prose registers are fre
 `Verification.attestingKinds(for:)` reads the kind from the shape instead of the position.
 
 **A2 — Two more tools.** Directories under a path prefix, resolved against the working directory,
-so `projects/x-growth/` from `backend` yields an empty set — which is the answer — and `..` and
+so `projects/beacon/` from `backend` yields an empty set — which is the answer — and `..` and
 `~` resolve as the shell would; and the subcommands a program advertises where they can be read
 cheaply (git's, from its own completion list; docker's and kubectl's from their help, cached for
 the session). Same per-directory cache, same budget.
