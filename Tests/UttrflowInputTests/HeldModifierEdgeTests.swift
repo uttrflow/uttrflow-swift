@@ -76,3 +76,20 @@ struct HeldModifierEdgeTests {
         #expect(edge.flagsChanged(isDownNow: true) == .pressed)
     }
 }
+
+@Suite("Which held keys the polled state can answer for")
+struct PolledStateTests {
+    /// Fn arrives as a flags change and never shows in the polled state, so polling it reads "up".
+    @Test("does not reconcile a held Fn, which polling would report as released mid-hold")
+    func refusesToReconcileFunction() {
+        #expect(!HeldModifierMonitor.polledStateCanSee(.function))
+        #expect(!HeldModifierMonitor.polledStateCanSee([.function, .command]))
+    }
+
+    @Test("reconciles every modifier the polled state does report")
+    func reconcilesTheRest() {
+        #expect(HeldModifierMonitor.polledStateCanSee(.command))
+        #expect(HeldModifierMonitor.polledStateCanSee(.option))
+        #expect(HeldModifierMonitor.polledStateCanSee([.control, .shift]))
+    }
+}

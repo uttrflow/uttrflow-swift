@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import Synchronization
 
 public import UttrflowCore
@@ -103,8 +104,21 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
     /// How often the real key state is checked, in milliseconds: below noticing, above nothing.
     private static let reconciliationMilliseconds = 250
 
+    /// The modifiers held right now, read from the session rather than from the event stream.
+    static func polledFlags() -> NSEvent.ModifierFlags {
+        NSEvent.ModifierFlags(rawValue: UInt(CGEventSource.flagsState(.combinedSessionState).rawValue))
+            .union(NSEvent.modifierFlags)
+    }
+
+    /// Whether a held key of these flags shows up in the polled state at all; Fn does not.
+    static func polledStateCanSee(_ wanted: NSEvent.ModifierFlags) -> Bool {
+        !wanted.contains(.function)
+    }
+
     /// Reads the flags directly, so a release that is never delivered is still noticed. See `Docs/stuck-recording.md`.
     private func startReconciling() {
+        // Only against a source that can see this key, or Fn reads "up" mid-hold and cancels itself.
+        guard Self.polledStateCanSee(watchedFlags.withLock { $0 }) else { return }
         let timer = DispatchSource.makeTimerSource(queue: .main)
         timer.schedule(
             deadline: .now() + .milliseconds(Self.reconciliationMilliseconds),
@@ -112,7 +126,7 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
         timer.setEventHandler { [weak self] in
             // A monitor released mid-hold cancels its own timer rather than firing for ever.
             guard let self else { timer.cancel(); return }
-            update(with: NSEvent.modifierFlags)
+            update(with: Self.polledFlags())
         }
         timer.resume()
         reconciliation.withLock { existing in
