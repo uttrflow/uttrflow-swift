@@ -1,3 +1,4 @@
+// One field at a time, watched for finished values and written through every refusal.
 public import UttrflowPredict
 
 public import struct Foundation.Date
@@ -14,14 +15,22 @@ public enum CaptureOutcome: Sendable, Equatable {
 
 /// Watches one field at a time and writes what the user finishes in it.
 public actor CaptureSession {
+    /// Where a finished value goes once every refusal has let it through.
     private let sink: any CaptureSink
+    /// The answers about each application, kept so one given today is not asked for tomorrow.
     private let preferencesFile: CapturePreferencesFile
+    /// Which endings of a field's life finish its value.
     private let policy: CommitPolicy
+    /// The answers as they stand, read once at launch and written back as they change.
     private var preferences: CapturePreferences
+    /// The field the events are believed to be about, until a different one is read.
     private var focused: FieldReading?
+    /// Where a value is watched for being finished.
     private var detector = CommitDetector()
-    private var previous: [Surface: String] = [:]
+    /// The last value written in each surface, which is what the next one is recorded as following.
+    private var lastRecorded: [Surface: String] = [:]
 
+    /// A session writing to this sink, remembering its answers in this file.
     public init(
         sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding
     ) {
@@ -46,7 +55,7 @@ public actor CaptureSession {
         return try await write(commit, from: reading, in: surface, at: event.moment)
     }
 
-    /// Records a completion the person took as a line of theirs, through the same refusals as anything they typed.
+    /// Records a completion the person took, through the same refusals as anything they typed.
     public func accepted(
         _ text: String, in reading: FieldReading, at moment: Date
     ) async throws -> CaptureOutcome {
@@ -54,10 +63,10 @@ public actor CaptureSession {
         if let refusal = CaptureGate.refusal(toRecord: text, from: reading, given: preferences) {
             return .refused(refusal)
         }
-        // The line is recorded before the acceptance is counted, so the first acceptance of a new line is not lost.
-        try await sink.record(text, in: surface, after: previous[surface], selfSourced: true, at: moment)
+        // Recorded before the acceptance is counted, so a new line's first acceptance is not lost.
+        try await sink.record(text, in: surface, after: lastRecorded[surface], selfSourced: true, at: moment)
         try await sink.recordAccepted(text, in: surface)
-        previous[surface] = text
+        lastRecorded[surface] = text
         return .recorded(text)
     }
 
@@ -113,8 +122,8 @@ public actor CaptureSession {
             try await sink.supersede(superseded, with: commit.text, in: surface)
         }
         try await sink.record(
-            commit.text, in: surface, after: previous[surface], selfSourced: false, at: moment)
-        previous[surface] = commit.text
+            commit.text, in: surface, after: lastRecorded[surface], selfSourced: false, at: moment)
+        lastRecorded[surface] = commit.text
         return .recorded(commit.text)
     }
 }

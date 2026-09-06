@@ -2,6 +2,7 @@
 public struct CommitPolicy: Sendable {
     private let admitting: @Sendable (CommitReason, FieldReading) -> Bool
 
+    /// A policy that finishes a field exactly where this answers true.
     public init(admitting: @escaping @Sendable (CommitReason, FieldReading) -> Bool) {
         self.admitting = admitting
     }
