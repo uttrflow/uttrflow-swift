@@ -5,7 +5,9 @@ public import UttrflowCore
 public enum SettingsShortcut {
     /// One cap per key, modifiers first in the order macOS draws them, since a `Set` has no order.
     public static func keycaps(for binding: HotkeyBinding) -> [String] {
-        modifierCaps(for: binding) + [name(of: binding.keyCode)]
+        // A held modifier is its own key, so naming it again beside itself draws ⌥ twice.
+        if binding.heldModifier != nil { return [name(of: binding.keyCode)] }
+        return modifierCaps(for: binding) + [name(of: binding.keyCode)]
     }
 
     /// The modifier caps alone, in the order macOS draws them.

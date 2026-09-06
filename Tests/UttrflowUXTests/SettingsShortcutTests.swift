@@ -27,6 +27,17 @@ struct SettingsShortcutDrawingTests {
         #expect(SettingsShortcut.name(of: 126) == "↑")
     }
 
+    /// A binding stored as its own modifier drew that modifier twice, once as a cap and once as the key.
+    @Test("draws a held modifier as one key, whatever modifiers came stored beside it")
+    func drawsAHeldModifierOnce() {
+        #expect(SettingsShortcut.keycaps(for: HotkeyBinding(keyCode: 58, modifiers: [])) == ["⌥"])
+        #expect(
+            SettingsShortcut.keycaps(for: HotkeyBinding(keyCode: 58, modifiers: [.option])) == ["⌥"])
+        #expect(SettingsShortcut.keycaps(for: .functionHold) == ["fn"])
+        // A real combination still draws every cap it is made of.
+        #expect(SettingsShortcut.keycaps(for: .optionSpace) == ["⌥", "Space"])
+    }
+
     @Test("shows a key it has no name for as its code rather than as nothing")
     func namesTheUnnameable() {
         #expect(SettingsShortcut.name(of: 200) == "Key 200")
