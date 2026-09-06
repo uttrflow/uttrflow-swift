@@ -308,7 +308,7 @@ struct DictationPipelineStateTests {
         #expect(inserter.received == [tidied])
     }
 
-    @Test("passes through transcribing, then tidying, then inserted")
+    @Test("passes through transcribing, then tidying, then inserting, then inserted")
     func happyPathVisitsEveryStageInOrder() async {
         let pipeline = makePipeline()
         let states = await pipeline.states()
@@ -320,9 +320,10 @@ struct DictationPipelineStateTests {
             text: tidied, method: .accessibility, cleanedBy: .foundationModels,
             insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
             spokenFor: .zero, changes: AppliedChanges(spokenWords: 10))
+        // Inserting is its own state because the application takes its own time to show the words.
         #expect(
-            await next(5, from: states) == [
-                .idle, .recording, .transcribing, .tidying, .inserted(inserted),
+            await next(6, from: states) == [
+                .idle, .recording, .transcribing, .tidying, .inserting, .inserted(inserted),
             ])
     }
 

@@ -47,8 +47,8 @@ public enum DictationPresenter {
                     .map { "Listening. Let go to finish. \($0)." }
                     ?? "Listening. Let go to finish.")
 
-        // Transcribing and tidying are one wait to the person waiting.
-        case .transcribing, .tidying:
+        // Transcribing, tidying and the wait for the app to take the words are one wait, so one line.
+        case .transcribing, .tidying, .inserting:
             DockPresentation(
                 symbolName: "sparkles", primaryLine: "Tidying up…", secondaryLine: nil,
                 showsWaveform: false, showsProgress: true, isRecording: false, action: nil,

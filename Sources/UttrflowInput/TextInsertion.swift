@@ -6,12 +6,13 @@ public enum TextInsertion {
     public static func coordinator(
         focus: any AccessibilityFocus = AXAccessibilityFocus(),
         pasteboard: any Pasteboard = SystemPasteboard(),
-        keystrokes: any KeystrokeSender = CGEventKeystrokeSender()
+        keystrokes: any KeystrokeSender = CGEventKeystrokeSender(),
+        reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil
     ) -> TextInsertionCoordinator {
         TextInsertionCoordinator(strategies: [
             AccessibilityTextInsertionEngine(focus: focus),
             PasteboardTextInsertionEngine(
-                focus: focus, pasteboard: pasteboard, keystrokes: keystrokes),
+                focus: focus, pasteboard: pasteboard, keystrokes: keystrokes, reporting: reporting),
             ClipboardTextInsertionEngine(pasteboard: pasteboard),
         ])
     }

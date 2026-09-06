@@ -158,9 +158,9 @@ struct DockView: View {
         compact { LevelMeterView(model: model, towardsLeading: $0) }
     }
 
-    /// Working: the row the voice left behind, combing level and folding to a tick in about a second.
+    /// Working: three dots walking left to right, for as long as there is work left to do.
     private func working() -> some View {
-        compact { SettleView(bars: model.bars.levels, towardsLeading: $0) }
+        compact { _ in WorkingDots() }
     }
 
     /// The pill listening and working share: the mark on the anchored edge, `centre` beside it.
@@ -368,100 +368,72 @@ private struct LevelMeterView: View {
 }
 
 /// Working: the row settles level and folds to a tick, once, and stops scrolling.
-private struct SettleView: View {
-    let bars: [CGFloat]
-    let towardsLeading: Bool
-
-    @State private var progress: CGFloat = 0
+private struct WorkingDots: View {
+    /// When the row appeared, so every dot walks off one clock.
+    @State private var began = Date.now
 
     var body: some View {
-        let settle = min(progress / 0.5, 1)
-        let fold = max((progress - 0.5) / 0.5, 0)
-
-        return ZStack {
-            Canvas { context, size in
-                let levelled = bars.map { $0 + (DockMetrics.settledLevel - $0) * settle }
-                DockMetrics.drawBars(
-                    levelled, in: context, size: size,
-                    phase: 1, towardsLeading: towardsLeading)
+        TimelineView(.animation) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(began)
+            HStack(spacing: DockMetrics.dotSpacing) {
+                ForEach(0..<DockMetrics.dotCount, id: \.self) { index in
+                    let lift = Self.lift(elapsed, index)
+                    Circle()
+                        .fill(Color.dockActive)
+                        .frame(width: DockMetrics.dotSize, height: DockMetrics.dotSize)
+                        .scaleEffect(0.72 + 0.28 * lift)
+                        .opacity(0.34 + 0.66 * lift)
+                }
             }
-            .scaleEffect(x: 1 - fold * 0.92)
-            .opacity(1 - Double(fold))
-
-            Image(systemName: "checkmark")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.dockSuccess)
-                .scaleEffect(0.2 + fold * 0.8)
-                .opacity(Double(fold))
         }
         .frame(width: DockMetrics.meterWidth, height: DockMetrics.meterHeight)
-        .clipShape(.rect)
-        .task {
-            withAnimation(.easeOut(duration: 0.34)) { progress = 0.5 }
-            try? await Task.sleep(for: .milliseconds(340))
-            withAnimation(.spring(duration: 0.3, bounce: 0.34)) { progress = 1 }
-        }
     }
+
+    /// How lit this dot is, 0 at rest and 1 at its brightest, each one a little behind the last.
+    static func lift(_ elapsed: TimeInterval, _ index: Int) -> Double {
+        var phase = ((elapsed - Double(index) * Self.stagger) / Self.cycle)
+            .truncatingRemainder(dividingBy: 1)
+        if phase < 0 { phase += 1 }
+        return sin(phase * .pi)
+    }
+
+    /// How long one walk across the three dots takes.
+    private static let cycle = 1.05
+
+    /// How far behind each dot follows the one to its left, which is what makes the walk read leftwards.
+    private static let stagger = 0.16
 }
 
-/// One stroke that is the mark at 0 and a checkmark at 1; the arms splay open. See Docs/app-dock.md.
-private struct MarkCheck: Shape {
-    /// 0 is the mark, 1 is the checkmark.
-    var progress: CGFloat
-
-    var animatableData: CGFloat {
-        get { progress }
-        set { progress = newValue }
-    }
-
-    /// The mark's own 100-unit grid, so both ends of the animation are the identity's geometry.
+/// A tick, drawn on the mark's own grid so its weight sits with everything around it.
+private struct Tick: Shape {
+    /// The mark's own 100-unit grid, which is what makes this stroke the same weight as the mark.
     private static let box = UttrflowMark.gridBox
 
     func path(in rect: CGRect) -> Path {
-        let t = min(max(progress, 0), 1)
         let scale = min(rect.width / Self.box.width, rect.height / Self.box.height)
         let originX = rect.midX - Self.box.midX * scale
         let originY = rect.midY - Self.box.midY * scale
         func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
             CGPoint(x: originX + x * scale, y: originY + y * scale)
         }
-        func lerp(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * t }
-
-        // The turn tightens from bowl to vertex and drops, because a check sits lower in its box.
-        let radius = lerp(24, 6)
-        let centre = CGPoint(x: 50, y: lerp(55, 64))
-        let leftFoot = CGPoint(x: centre.x - radius, y: centre.y)
-        let rightFoot = CGPoint(x: centre.x + radius, y: centre.y)
-
-        // The arms swing out from vertical; the short one leans further.
-        func arm(from foot: CGPoint, length: CGFloat, degrees: CGFloat) -> CGPoint {
-            let radians = degrees * .pi / 180
-            return CGPoint(
-                x: foot.x - sin(radians) * length,
-                y: foot.y - cos(radians) * length)
-        }
-        let leftEnd = arm(from: leftFoot, length: lerp(18, 16), degrees: lerp(0, 44))
-        let rightEnd = arm(from: rightFoot, length: lerp(34, 44), degrees: lerp(0, -32))
-
+        // Short arm, a corner rather than a turn, then the long arm: the three points of a check.
         var path = Path()
-        path.move(to: at(leftEnd.x, leftEnd.y))
-        path.addLine(to: at(leftFoot.x, leftFoot.y))
-        path.addArc(
-            center: at(centre.x, centre.y), radius: radius * scale,
-            startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
-        path.addLine(to: at(rightEnd.x, rightEnd.y))
+        path.move(to: at(20, 54))
+        path.addLine(to: at(42, 76))
+        path.addLine(to: at(82, 26))
         return path
     }
 }
 
-/// Inserted: the mark opening into a check, so the brand does the confirming.
+/// Inserted: the tick drawn on, so the panel confirms in the one glyph everybody reads as done.
 private struct MarkTick: View {
-    @State private var isTick = false
+    @State private var drawn = false
 
     var body: some View {
-        MarkCheck(progress: isTick ? 1 : 0)
+        Tick()
+            .trim(from: 0, to: drawn ? 1 : 0)
             .stroke(
-                isTick ? Color.dockSuccess : Color.dockActive,
+                Color.dockSuccess,
                 style: StrokeStyle(
                     lineWidth: UttrflowMark.lineWidth(forHeight: DockMetrics.markTickHeight),
                     lineCap: .round, lineJoin: .round)
@@ -471,7 +443,7 @@ private struct MarkTick: View {
                 height: DockMetrics.markTickHeight
             )
             .task {
-                withAnimation(.spring(duration: 0.44, bounce: 0.22)) { isTick = true }
+                withAnimation(.easeOut(duration: 0.26)) { drawn = true }
             }
     }
 }
@@ -528,6 +500,11 @@ extension DockMetrics {
     /// Where the row settles when the microphone closes; not zero, or the meter reads as broken.
     static let settledLevel: CGFloat = 0.18
     static let markTickHeight: CGFloat = 14
+
+    /// The working dots: three, because that is the shape everybody already reads as "still going".
+    static let dotCount = 3
+    static let dotSize: CGFloat = 5
+    static let dotSpacing: CGFloat = 6
 
     /// Draws the row for both the live meter and the working animation, so the two cannot drift apart.
     static func drawBars(
