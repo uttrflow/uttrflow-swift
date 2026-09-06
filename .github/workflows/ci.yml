@@ -21,8 +21,12 @@ on:
 concurrency:
   # A force-push or a second commit supersedes the run already going. Nobody is waiting on
   # the result for a commit that is no longer the tip.
+  #
+  # Only on a pull request. `main` can be merged into faster than a macOS runner is
+  # scheduled, and cancelling there leaves `main` with no verdict at all for as long as the
+  # merges keep coming. Every run on `main` is allowed to finish.
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
