@@ -1,0 +1,29 @@
+# What gitleaks is allowed to find and not fail on.
+#
+# Two files in this tree contain things shaped exactly like credentials, on purpose:
+#
+#   SecretDetectionTests.swift    the fixtures for the clipboard's secret detector. Its
+#                                 whole job is to recognise an AWS key, a GitHub token, a
+#                                 Stripe key and a private key so the panel can mask them,
+#                                 and it cannot be tested without examples of each. The
+#                                 values are the vendors' own documentation examples and
+#                                 invented strings.
+#   InMemoryAuthenticationService.swift
+#                                 the development sign-in stub, which mints its own
+#                                 Ed25519 key at run time and issues a profile at
+#                                 @uttrflow.invalid. Nothing it produces exists off the
+#                                 machine that ran it.
+#
+# These are allowed by path and by path alone. Nothing else in the tree is exempt, so a
+# real key committed anywhere — including into a different test file — still fails the
+# build. If a fixture ever needs to move, move the entry with it rather than widening it.
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Files whose contents are supposed to look like secrets."
+  paths = [
+    '''Tests/UttrflowClipboardTests/SecretDetectionTests\.swift''',
+    '''Sources/UttrflowAccount/InMemoryAuthenticationService\.swift''',
+    '''Tests/UttrflowAccountTests/AccountSupport\.swift''',
+  ]
