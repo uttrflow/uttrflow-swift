@@ -75,16 +75,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let scoring: (any CandidateScoring)?
     /// The local model that invents a suggestion where the corpus has none, handed in the same way.
     private let generating: (any CandidateGenerating)?
+    /// Fetches and loads that model's weights, run when tab-to-complete is first built rather than at launch.
+    private let prepareModel: (@Sendable () async -> Void)?
+    /// Whether the weights have been asked for already, so turning the feature off and on does not ask twice.
+    private var isModelPreparing = false
 
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
         container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
-        scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil
+        scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
+        prepareModel: (@Sendable () async -> Void)? = nil
     ) {
         self.container = container
         self.loginItem = loginItem
         self.scoring = scoring
         self.generating = generating
+        self.prepareModel = prepareModel
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
         recordings = RecordingStore(directory: RecordingStore.defaultDirectory(in: container))
         dictionary = PersonalDictionaryStore(
@@ -284,6 +290,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
     private func startCompletingWhatIsTyped() {
         guard settings.suggestions.isEnabled, completions == nil else { return }
+        // Several gigabytes of weights are fetched only once somebody has asked for the feature, so a Mac that never turns it on never downloads them.
+        if let prepareModel, !isModelPreparing {
+            isModelPreparing = true
+            Task.detached { await prepareModel() }
+        }
         do {
             let coordinator = try SuggestionCoordinator(
                 container: container, preferences: settings.suggestions, scoring: scoring,
