@@ -19,8 +19,7 @@ struct TextInsertionCoordinatorTests {
         #expect(floor.insertCount == 0, "the floor must not run when the first strategy works")
     }
 
-    /// This is how an app that hides its text fields from Accessibility gets served:
-    /// the strategy declines, and nothing about the text changes.
+    /// How an app that hides its text fields from Accessibility gets served: the strategy declines.
     @Test("steps around a strategy that cannot insert into what is focused")
     func skipsStrategyThatCannotInsert() async throws {
         let declining = StubInsertionEngine(method: .accessibility, canInsert: false)
@@ -45,8 +44,7 @@ struct TextInsertionCoordinatorTests {
         #expect(failing.insertCount == 1, "it should have been tried before falling through")
     }
 
-    /// The caller is told how the text arrived, not merely that it did, because the
-    /// evaluation harness needs to know which strategy carries real traffic.
+    /// Which strategy carried the text, not merely that one did, because the harness counts them.
     @Test("reports the method the text actually arrived by", arguments: TextInsertionMethod.allCases)
     func reportsSucceedingMethod(method: TextInsertionMethod) async throws {
         let coordinator = TextInsertionCoordinator(strategies: [StubInsertionEngine(method: method)])
@@ -65,8 +63,7 @@ struct TextInsertionCoordinatorTests {
         #expect(coordinator.route == [.pasteboard, .accessibility])
     }
 
-    /// The earlier failures are the expected ones — a strategy declining is routine.
-    /// The last one is the reason the user has nothing, so it is the one worth showing.
+    /// The last failure is the reason the user has nothing; the earlier refusals are routine.
     @Test("reports the last strategy's reason when every strategy failed, not the first")
     func reportsTheLastFailure() async {
         let coordinator = TextInsertionCoordinator(
@@ -107,8 +104,7 @@ struct TextInsertionCoordinatorTests {
         }
     }
 
-    /// The text is the user's own words. A coordinator that trimmed, re-encoded, or
-    /// re-wrapped them on the way past would have changed what was said.
+    /// The text is the user's own words, so trimming or re-encoding it would change what was said.
     @Test("hands every strategy it tries the exact text it was given")
     func passesTextThroughUnmodified() async throws {
         let text = "  नमस्ते — \"quoted\" & <angled>,\nsecond line\t "
@@ -165,7 +161,7 @@ struct AccessibilityTextInsertionEngineTests {
         }
     }
 
-    /// Structural, not caller discipline: dictation calls the write that reaches no further than the selection.
+    /// Structural, not caller discipline: this write reaches no further than the selection.
     @Test("can only ever replace the selection, never the whole field")
     func replacesOnlyTheSelection() async throws {
         let field = FakeTextField(before: "Dear ", selected: "Bob", after: ", thanks for the note.")
@@ -177,8 +173,7 @@ struct AccessibilityTextInsertionEngineTests {
         #expect(field.replacements == ["Alice"], "the selection is the only thing it may write to")
     }
 
-    /// The same one operation covers the ordinary case, where the user has a caret and
-    /// has selected nothing: an empty selection replaced by the text is an insertion.
+    /// The same operation covers a caret with nothing selected: an empty selection replaced is an insert.
     @Test("inserts at the caret when the user has selected nothing")
     func insertsAtTheCaret() async throws {
         let field = FakeTextField(before: "Dear ", selected: "", after: ", thanks for the note.")
@@ -199,7 +194,7 @@ struct AccessibilityTextInsertionEngineTests {
 
 // MARK: - Test doubles
 
-/// An insertion strategy that records what it was asked to insert and fails on demand.
+/// An insertion strategy that records the text handed to it and fails on demand.
 final class StubInsertionEngine: TextInsertionEngine {
     let method: TextInsertionMethod
 
@@ -232,10 +227,7 @@ final class StubInsertionEngine: TextInsertionEngine {
     var receivedText: [String] { state.withLock { $0.received } }
 }
 
-/// A text field modelled as text on either side of a selection.
-///
-/// Keeping the surroundings in the model is what lets a test observe that they survived
-/// an insertion, rather than only that the right call was made.
+/// A text field modelled as text on either side of a selection, so a test can see both survive.
 final class FakeTextField: FocusedTextField {
     private struct State {
         var before: String
@@ -304,13 +296,7 @@ struct FakeFocus: AccessibilityFocus {
     }
 }
 
-/// The case the whole fallback chain exists for, and the one that broke it.
-///
-/// Electron apps, web views and anything drawing its own text commonly expose a focused
-/// element while refusing to report its selection. Accessibility insertion cannot work
-/// there; pasting works fine. When pasting asked the same question accessibility had
-/// just failed — "can you report your selection?" — every one of those apps fell through
-/// to the clipboard, and the user saw their dictation not appear.
+/// The case the whole fallback chain exists for. See `Docs/input-paste-eligibility.md`.
 @Suite("An app that takes a paste but will not report its selection")
 struct PasteOnlyApplicationTests {
     @Test("is pasted into, not dropped on the clipboard")
@@ -349,21 +335,17 @@ struct TextInsertionAssemblyTests {
             keystrokes: FakeKeystrokeSender(error: .accessibilityDenied))
     }
 
-    /// Accessibility first because it leaves the clipboard alone and writes at the
-    /// caret; the clipboard last because it cannot fail.
+    /// Accessibility writes at the caret and touches nothing; the clipboard last cannot fail.
     @Test("tries the strategies in the order the product needs")
     func order() {
         #expect(coordinator().route == [.accessibility, .pasteboard, .clipboard])
     }
 
-    /// §19: a user must never lose their words to a failed insertion. The last
-    /// strategy exists so that "everything failed" cannot happen.
+    /// §19: a user must never lose words to a failed insertion, so the last strategy cannot fail.
     @Test("ends in a strategy that cannot fail")
     func endsInAGuaranteedStrategy() async throws {
         #expect(coordinator().route.last == .clipboard)
-        // `.clipboard`, not `.pasteboard`: the floor leaves the words on the clipboard
-        // and says so, where `.pasteboard` means a paste actually landed. They used to
-        // report the same value, so the interface said "Inserted" either way.
+        // `.clipboard`, not `.pasteboard`: the floor says the words are waiting, not that a paste landed.
         #expect(try await coordinator().insert("hello") == .clipboard)
     }
 }

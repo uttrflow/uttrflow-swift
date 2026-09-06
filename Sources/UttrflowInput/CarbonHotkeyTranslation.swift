@@ -1,12 +1,7 @@
 private import Carbon
 public import UttrflowCore
 
-/// Why a binding cannot become a Carbon hot key.
-///
-/// Carbon has no opinion about any of these: `RegisterEventHotKey` was measured
-/// returning `noErr` for a shortcut with no modifiers, for a key code far outside the
-/// virtual key range, and for a modifier key used as the shortcut key. Each one then
-/// never fires. Every check that keeps that from happening has to be ours.
+/// Why a binding cannot become a Carbon hot key. See `Docs/core-hotkeys.md`.
 public enum CarbonHotkeyRejection: Error, Sendable, Equatable {
     case noModifiers
     /// A modifier held down on its own — Carbon accepts the registration and stays silent.
@@ -27,21 +22,17 @@ public enum CarbonHotkeyRejection: Error, Sendable, Equatable {
     }
 }
 
-/// A shortcut in the shape `RegisterEventHotKey` takes it: a virtual key code and a
-/// bitmask of Carbon's own modifier constants.
-///
-/// The only way to make one is through the initialiser below, so a value of this type
-/// is a shortcut Carbon can actually deliver.
+/// A shortcut Carbon can deliver: a virtual key code and a bitmask of its own modifier constants.
 public struct CarbonHotkey: Sendable, Equatable {
+    /// The virtual key code, in the width `RegisterEventHotKey` takes.
     public let keyCode: UInt32
+    /// The modifiers as Carbon's own bits, ORed together.
     public let modifierMask: UInt32
 
-    /// Virtual key codes are 7-bit; anything above this came from somewhere other than
-    /// a keyboard.
+    /// Virtual key codes are 7-bit; anything above this came from something other than a keyboard.
     static let highestKeyCode: UInt16 = 0x7F
 
-    /// The keys that only ever modify another key. Held as codes rather than a range
-    /// because the range they happen to occupy is a coincidence of the layout tables.
+    /// The keys that only ever modify another key, as codes rather than the range they occupy.
     private static let modifierKeyCodes: Set<UInt16> = [
         UInt16(kVK_Command), UInt16(kVK_RightCommand),
         UInt16(kVK_Shift), UInt16(kVK_RightShift),
@@ -65,8 +56,7 @@ public struct CarbonHotkey: Sendable, Equatable {
         }
     }
 
-    /// Carbon's constants, not Cocoa's: `RegisterEventHotKey` predates
-    /// `NSEvent.ModifierFlags` and takes the older bitmask.
+    /// Carbon's own constant for one modifier, which is not `NSEvent.ModifierFlags`.
     private static func carbonBit(for modifier: HotkeyModifier) -> UInt32 {
         switch modifier {
         case .command: UInt32(cmdKey)

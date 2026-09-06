@@ -42,7 +42,7 @@ private final class NarrowField: FocusedTextField, @unchecked Sendable {
     }
 }
 
-/// A typist that keeps what it was asked to type and delete, or refuses.
+/// A typist that keeps every string it types and every deletion it makes, or refuses.
 private final class RecordingTypist: KeystrokeTyping, @unchecked Sendable {
     private let typed = Mutex<[String]>([])
     private let deleted = Mutex<[Int]>([])

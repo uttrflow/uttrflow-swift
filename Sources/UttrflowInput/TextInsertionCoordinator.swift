@@ -1,10 +1,6 @@
 public import UttrflowCore
 
-/// Gets finished text to the user, one way or another.
-///
-/// Tries each strategy in order and stops at the first that works. The list must end
-/// in one that cannot fail — leaving the text on the clipboard — because §19 is
-/// explicit that a user must never lose their words to a failed insertion.
+/// Gets finished text to the user by trying each strategy, ending in one that cannot fail.
 public struct TextInsertionCoordinator: TextInserting {
     private let strategies: [any TextInsertionEngine]
 
@@ -15,27 +11,13 @@ public struct TextInsertionCoordinator: TextInserting {
     /// The strategies that will be tried, in order.
     public var route: [TextInsertionMethod] { strategies.map(\.method) }
 
-    /// Inserts `text`, returning how it got there.
-    ///
-    /// - Throws: ``TextInsertionError/clipboardUnavailable`` only if every strategy
-    ///   failed, which means even the clipboard refused.
+    /// Inserts `text` and reports how it got there, throwing only when every strategy refused.
     @discardableResult
     public func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
         try await insert(text, richText: nil)
     }
 
-    /// E2 — the same insertion, with the formatted form carried alongside where there is
-    /// one.
-    ///
-    /// A formatted clip skips the Accessibility strategy. That strategy writes a plain
-    /// string straight into the focused element, which is the best route for words and
-    /// the wrong one for a note: it would silently drop every heading and bullet while
-    /// reporting success. Going by the pasteboard puts both flavours up and lets the
-    /// receiving application take the one it understands — which is the whole reason a
-    /// clip keeps both.
-    ///
-    /// The floor is unchanged: the last strategy cannot fail, so the worst outcome is
-    /// still the words sitting on the clipboard rather than nowhere.
+    /// The same insertion carrying the formatted form, which skips Accessibility so no heading is dropped.
     @discardableResult
     public func insert(
         _ text: String, richText: String?
@@ -52,8 +34,7 @@ public struct TextInsertionCoordinator: TextInserting {
         case .succeeded(let method):
             return method
         case .exhausted(let errors):
-            // Report the last strategy's reason: it is the most specific, and the
-            // earlier ones failing is expected rather than interesting.
+            // The last strategy's reason is the most specific; the earlier refusals are expected.
             throw errors.compactMap { $0 as? TextInsertionError }.last ?? .clipboardUnavailable
         }
     }

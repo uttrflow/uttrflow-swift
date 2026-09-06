@@ -1,9 +1,6 @@
 public import UttrflowCore
 
-/// The system clipboard, reduced to what insertion needs.
-///
-/// Behind a protocol because pasting borrows something that belongs to the user. Every
-/// rule about giving it back is therefore testable without touching the real clipboard.
+/// The system clipboard, reduced to what insertion needs and testable without touching the real one.
 public protocol Pasteboard: Sendable {
     /// The current text, or `nil` when the clipboard holds something else.
     func text() -> String?
@@ -16,15 +13,11 @@ public protocol Pasteboard: Sendable {
 
 /// Sends the keystroke that pastes.
 public protocol KeystrokeSender: Sendable {
-    /// Presses ⌘V.
-    ///
-    /// - Throws: ``TextInsertionError/accessibilityDenied`` when macOS will not let
-    ///   this process post events.
+    /// Presses ⌘V, refusing with ``TextInsertionError/accessibilityDenied`` where macOS forbids it.
     func sendPaste() throws(TextInsertionError)
 }
 
 extension Pasteboard {
-    /// Defaulted so every existing implementation and every test double keeps working:
-    /// a pasteboard that cannot carry formatting simply writes the words.
+    /// A pasteboard that cannot carry formatting simply writes the words.
     public func setText(_ text: String, richText: String?) { setText(text) }
 }

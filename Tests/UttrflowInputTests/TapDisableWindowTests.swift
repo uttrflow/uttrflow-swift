@@ -4,6 +4,7 @@ import Testing
 
 @Suite("Re-enabling a tap the system keeps disabling")
 struct TapDisableWindowTests {
+    /// One second in the uptime nanoseconds the window is measured in.
     private let second: UInt64 = 1_000_000_000
 
     @Test("The first disable is always re-enabled.")

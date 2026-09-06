@@ -8,7 +8,7 @@ public struct SystemPasteboard: Pasteboard {
     /// Told what this app is about to write, so the watcher can tell it from a copy. See `Docs/insertion.md`.
     private let willWrite: @Sendable (String?) -> Void
 
-    /// - Parameter willWrite: Told what is about to go on the clipboard, before it does.
+    /// Takes the announcement the clipboard watcher needs, and by default makes none.
     public init(willWrite: @escaping @Sendable (String?) -> Void = { _ in }) {
         self.willWrite = willWrite
     }
@@ -41,7 +41,7 @@ public struct SystemPasteboard: Pasteboard {
 /// What every failure to build a synthetic keystroke reports.
 private let unmakeableKeystroke = "could not create the keystroke"
 
-/// Posts one key-down and key-up marked as this app's own, after `prepare` has set up each.
+/// Posts one tagged key-down and key-up, after `prepare` has set each up. See `Docs/input-synthetic-keystrokes.md`.
 private func postTaggedKeyPair(
     from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
 ) throws(TextInsertionError) {
@@ -77,7 +77,7 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
 
 /// Types characters by posting key events that carry them, which no test can assert anything about.
 public struct CGEventTypist: KeystrokeTyping {
-    /// How many UTF-16 units one event may carry; longer strings are silently truncated by the system.
+    /// How many UTF-16 units one event may carry; the system truncates a longer string in silence.
     private static let unitsPerEvent = 16
 
     /// Virtual key code for Delete, positional and so correct on any keyboard layout.
@@ -90,7 +90,7 @@ public struct CGEventTypist: KeystrokeTyping {
         guard count > 0 else { return }
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: "could not create the keystroke")
+            throw .insertionRejected(description: unmakeableKeystroke)
         }
         for _ in 0..<count {
             // Flags cleared so a modifier the user is still holding cannot widen the delete.
@@ -101,7 +101,7 @@ public struct CGEventTypist: KeystrokeTyping {
     public func type(_ text: String) throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: "could not create the keystroke")
+            throw .insertionRejected(description: unmakeableKeystroke)
         }
         let units = Array(text.utf16)
         for start in stride(from: 0, to: units.count, by: Self.unitsPerEvent) {
@@ -182,6 +182,7 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
 
 /// Writes into one focused field, holding an `AXUIElement` that is safe to pass between threads.
 private struct AXTextField: FocusedTextField, @unchecked Sendable {
+    /// The focused element this writes into.
     let element: AXUIElement
 
     func replaceSelection(with text: String) throws(TextInsertionError) {
@@ -211,13 +212,13 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
         do {
             try replaceSelection(with: text)
         } catch {
-            // A field that took the selection but refused the text is left as it was found, so the next route sees the caret, not a selection.
+            // A field that takes the selection and refuses the text keeps its caret, not a selection.
             _ = try? select(caret)
             throw error
         }
     }
 
-    /// Moves the selection's start back over `characters` and answers with the selection as it was.
+    /// Moves the selection's start back over `characters` and answers with the selection it replaces.
     private func selectBackwards(_ characters: Int) throws(TextInsertionError) -> CFRange {
         guard let whole = value(), let selection = selectedRange() else {
             throw .insertionRejected(description: "the field will not report its selection")
