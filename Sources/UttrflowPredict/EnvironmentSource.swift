@@ -58,10 +58,14 @@ public actor EnvironmentIndex {
         let expires: Date
     }
 
+    /// The half that actually asks the machine.
     private let reader: any EnvironmentReading
+    /// What each key last answered, until it stops being believed.
     private var cached: [Key: Cached] = [:]
+    /// The reads in flight, one per key, so a burst cannot start a burst of them.
     private var refreshing: [Key: Task<Void, Never>] = [:]
 
+    /// An index over one reader, holding nothing until that reader answers.
     public init(reader: any EnvironmentReading) {
         self.reader = reader
     }
@@ -102,8 +106,10 @@ public struct EnvironmentSource: Sendable {
     /// How many of one kind may be offered, so a large directory cannot flood the ranking.
     public static let maximumPerKind = 8
 
+    /// What this machine last said about itself.
     private let index: EnvironmentIndex
 
+    /// A source over one index, which is the only thing it reads from.
     public init(index: EnvironmentIndex) {
         self.index = index
     }

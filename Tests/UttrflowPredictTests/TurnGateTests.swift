@@ -33,7 +33,7 @@ struct TurnGateTests {
         #expect(!gate.isRunning)
     }
 
-    @Test("A turn left behind is no longer current, so it can ask before it touches anything.")
+    @Test("A turn left behind stops being current, so it can ask before it touches anything.")
     func aStalledTurnIsNotCurrent() {
         var gate = TurnGate()
         _ = gate.begin(at: moment)

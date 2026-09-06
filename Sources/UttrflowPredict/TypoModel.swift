@@ -67,7 +67,7 @@ enum TypoModel {
             areAdjacent(meant, typed) ? adjacentSubstitutionCost : distantSubstitutionCost, atStart: atStart)
     }
 
-    /// What it costs to have missed out the meant character in that position, cheaply when it was a repeat.
+    /// What it costs to have missed out the meant character in that position, cheaply where it repeats a neighbour.
     static func deletion(_ meant: [Character], at i: Int) -> Double {
         let repeats = (i > 1 && meant[i - 1] == meant[i - 2]) || (i < meant.count && meant[i - 1] == meant[i])
         return weighted(repeats ? repeatedLetterCost : indelCost, atStart: i == 1)

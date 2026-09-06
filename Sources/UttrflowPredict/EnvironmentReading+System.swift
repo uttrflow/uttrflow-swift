@@ -33,8 +33,10 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     /// The names a Makefile goes by, in the order make itself tries them.
     static let makefiles = ["GNUmakefile", "makefile", "Makefile"]
 
+    /// A reader over this Mac, which needs nothing to be told.
     public init() {}
 
+    /// Every value of one kind here, each kind read the way that kind is read.
     public func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
         let path = (directory as NSString).expandingTildeInPath
         switch kind {
@@ -82,6 +84,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         return (joined as NSString).standardizingPath
     }
 
+    /// Whether a path names a directory rather than a file or nothing at all.
     private static func isDirectory(_ path: String) -> Bool {
         var isDirectory: ObjCBool = false
         return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)

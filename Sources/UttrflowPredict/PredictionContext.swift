@@ -23,6 +23,7 @@ public struct PredictionContext: Sendable, Equatable {
     /// Whether the field gives a place to draw at all, which a field that reports no caret does not.
     public let canDraw: Bool
 
+    /// One moment in one field, everything but the line defaulted to the ordinary case.
     public init(
         typed: String, caretAtLineEnd: Bool = true, hasSelection: Bool = false,
         isComposing: Bool = false, isSecure: Bool = false, isProse: Bool = false,

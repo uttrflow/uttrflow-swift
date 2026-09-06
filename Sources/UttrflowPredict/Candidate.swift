@@ -12,6 +12,7 @@ public enum CandidateSource: Sendable, Equatable, CaseIterable {
 public struct Candidate: Sendable, Equatable {
     /// The whole text, including the part already typed.
     public let text: String
+    /// Where it came from, which decides how much it is trusted on its own.
     public let source: CandidateSource
     /// What the corpus knows about it, absent for a candidate the environment supplied.
     public let evidence: Entry?
@@ -20,6 +21,7 @@ public struct Candidate: Sendable, Equatable {
     /// Whether taking it cannot be undone, which bars it from being offered on thin evidence.
     public let isIrreversible: Bool
 
+    /// One thing the user might be about to type, with whatever is known about it.
     public init(
         text: String, source: CandidateSource, evidence: Entry? = nil, editDistance: Int = 0,
         isIrreversible: Bool = false
@@ -34,6 +36,7 @@ public struct Candidate: Sendable, Equatable {
 
 /// A candidate with the score that decided its place.
 struct ScoredCandidate: Sendable, Equatable {
+    /// The candidate this score belongs to.
     let candidate: Candidate
     /// The raw score, which says how much evidence there is.
     let score: Double

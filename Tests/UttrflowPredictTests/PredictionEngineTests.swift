@@ -5,6 +5,7 @@ import Testing
 
 @Suite("Deciding what to draw")
 struct PredictionEngineTests {
+    /// What the engine draws for these candidates, at the one instant every suite measures from.
     private func suggestion(
         _ candidates: [Candidate], _ context: PredictionContext = PredictionContext(typed: "git c")
     ) -> Suggestion {

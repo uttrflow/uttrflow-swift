@@ -7,7 +7,7 @@ enum Frecency {
     /// How long a single use takes to lose half its weight.
     static let halfLifeInDays = 21.0
 
-    /// What an entry counts for when it was taken from us rather than typed, so we do not learn from ourselves.
+    /// What an entry counts for when we offered it rather than the user typing it, so it cannot feed itself.
     static let selfSourcedWeight = 0.25
 
     /// How much a perfect acceptance record lifts a candidate, and how much an entirely refused one lowers it.

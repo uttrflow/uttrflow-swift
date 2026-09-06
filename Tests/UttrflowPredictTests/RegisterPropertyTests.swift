@@ -12,10 +12,14 @@ private let words = [
 
 /// One moment built from a seed: a screen, the person's lines, the text before, and what is typed.
 struct RegisterCase: Sendable, CustomTestStringConvertible {
+    /// The seed the moment was built from, which a failure names.
     let seed: Int
+    /// The screen, the person's lines and the text before, as the reader would report them.
     let situation: GenerationSituation
+    /// The line being typed.
     let typed: String
 
+    /// One moment drawn from the seed.
     init(seed: Int) {
         var random = Seeded(seed: seed)
         self.seed = seed
@@ -35,6 +39,7 @@ struct RegisterCase: Sendable, CustomTestStringConvertible {
         typed = RegisterCase.line(&random, long: false)
     }
 
+    /// What a failure is named after, which is the seed that reproduces it.
     var testDescription: String { "seed \(seed)" }
 
     /// One line, sometimes long, sometimes opened with a capital and closed with sentence punctuation.
@@ -49,9 +54,12 @@ struct RegisterCase: Sendable, CustomTestStringConvertible {
 
 /// A register built directly rather than inferred, so the hints are tried on every combination of facts.
 struct RegisterFacts: Sendable, CustomTestStringConvertible {
+    /// The seed the facts were built from, which a failure names.
     let seed: Int
+    /// The facts themselves.
     let register: Register
 
+    /// One register drawn from the seed.
     init(seed: Int) {
         var random = Seeded(seed: seed)
         self.seed = seed
@@ -62,10 +70,13 @@ struct RegisterFacts: Sendable, CustomTestStringConvertible {
             usesSentenceCase: random.pick([nil, true, false]))
     }
 
+    /// What a failure is named after, which is the seed that reproduces it.
     var testDescription: String { "seed \(seed)" }
 }
 
+/// The moments every property below is tried against.
 private let samples = (0..<400).map(RegisterCase.init)
+/// The registers the hints are tried against, built directly so every combination turns up.
 private let facts = (0..<300).map(RegisterFacts.init)
 
 /// Whether a value sits in the middle of the values: at most half are below it and at most half above.

@@ -10,14 +10,17 @@ private let thread = """
     Priya: are you coming tonight?
     """
 
+/// A chat: short turns on screen, and the person's own lines short and casual.
 private let friendChat = GenerationSituation(
     application: "Chat", surroundings: thread, recentLines: ["on my way", "running late, sorry", "yes!"],
     isMultiline: true)
 
+/// A terminal: one line at a time, and mostly symbols.
 private let shell = GenerationSituation(
     application: "Terminal", preceding: "$ git status\n$ ls -la",
     recentLines: ["git commit -m 'fix'", "ls -la", "docker compose up -d"])
 
+/// A document: paragraphs on screen, and the person's own lines full sentences.
 private let essay = GenerationSituation(
     application: "Editor",
     surroundings: String(repeating: "A long paragraph of prose that runs on. ", count: 8),

@@ -4,18 +4,20 @@ import Foundation
 
 /// A machine that says what a test tells it to, and counts how often it is asked.
 actor StubEnvironment: EnvironmentReading {
-    /// What to answer for each kind; a kind it was told nothing about is one it cannot read.
+    /// What to answer for each kind; a kind absent here is one the machine cannot read.
     private let answers: [EnvironmentKind: [String]]
     /// How long each read takes, for the tests about a machine too slow to wait for.
     private let delay: Duration?
     /// How many reads it has been asked for.
     private(set) var reads = 0
 
+    /// A machine that answers this and takes this long over it.
     init(_ answers: [EnvironmentKind: [String]], delay: Duration? = nil) {
         self.answers = answers
         self.delay = delay
     }
 
+    /// What it was told to answer for this kind, after whatever delay it was given.
     func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
         reads += 1
         if let delay { try? await Task.sleep(for: delay) }
@@ -34,14 +36,17 @@ actor ScriptedScoring: CandidateScoring {
     /// How many scores it has been asked for.
     private(set) var asked = 0
 
+    /// A model that answers this, is up or is not, and takes this long over it.
     init(_ score: Double?, loaded: Bool = true, delay: Duration? = nil) {
         self.score = score
         self.loaded = loaded
         self.delay = delay
     }
 
+    /// Whether the model is up.
     var isReady: Bool { loaded }
 
+    /// The score it was told to answer, after whatever delay it was given.
     func logLikelihood(of candidate: String, following context: String) async -> Double? {
         asked += 1
         if let delay { try? await Task.sleep(for: delay) }
@@ -56,10 +61,12 @@ actor RecordingSupersession: SupersessionRecording {
     /// Each text condemned with nothing to put in its place.
     private(set) var rejected: [String] = []
 
+    /// Notes one supersession without doing anything else about it.
     func recordSupersession(of text: String, by replacement: String, in surface: Surface) {
         recorded.append("\(text) → \(replacement)")
     }
 
+    /// Notes one rejection without doing anything else about it.
     func recordRejection(of text: String, in surface: Surface) {
         rejected.append(text)
     }

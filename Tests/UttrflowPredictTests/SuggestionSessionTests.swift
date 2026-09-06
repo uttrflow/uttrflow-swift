@@ -377,7 +377,6 @@ struct SuggestionRejectionTests {
         #expect(session.rejectionsHere == 1)
     }
 
-    /// Reporting here once meant every keystroke toward a correction filed a rejection against it, so the offer was wrongly worn down.
     @Test(
         "Typing toward a correction is neither counted nor reported, since the offer never continued the line."
     )
@@ -552,6 +551,7 @@ struct QuietSuggestionTests {
 
 @Suite("Generating a suggestion the corpus never held")
 struct GeneratedSuggestionTests {
+    /// The query one turn asks, or a failure saying it asked nothing.
     private func asked(
         _ session: inout SuggestionSession, typing typed: String
     ) throws

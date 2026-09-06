@@ -15,10 +15,14 @@ public struct TurnGate: Sendable, Equatable {
         case stalled(Int)
     }
 
+    /// The turn running, absent when none is.
     private var current: Int?
+    /// When that turn was admitted, which is what a stall is measured from.
     private var startedAt: Date?
+    /// How many turns have been admitted, which is where the next number comes from.
     private var issued = 0
 
+    /// A gate with nothing running.
     public init() {}
 
     /// Whether a turn is running as far as the gate knows, which a stalled turn still counts as until replaced.
@@ -44,6 +48,7 @@ public struct TurnGate: Sendable, Equatable {
         return true
     }
 
+    /// Admits a turn under the next number and starts its clock.
     private mutating func admit(at now: Date) -> Int {
         issued += 1
         current = issued

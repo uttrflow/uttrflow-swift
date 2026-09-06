@@ -35,14 +35,21 @@ private let strokes = [
 
 /// One random run of turns and keystrokes against one session, checking the session's promises after each.
 private struct Script {
+    /// The seeded generator every choice in the run is drawn from.
     var random: Seeded
+    /// The session under test.
     var session = SuggestionSession()
-    var surface: Surface? = places[0]
+    /// The field the script is typing into, or nothing when it has moved away.
+    var surface: Surface?
+    /// What has been typed into it.
     var typed = ""
+    /// The key this application accepts with.
     var acceptKey = AcceptKey.tab
+    /// Whether only a completion the session is sure of may be drawn.
     var isQuiet = false
     /// The question the store is answering right now, which the next turn makes stale.
     var live: SuggestionQuery?
+    /// The questions the user has moved on from, which must all be dropped.
     var stale: [SuggestionQuery] = []
     /// Whether what is on screen came from the model, mirrored from outside the session.
     var shownGenerated = false
@@ -53,10 +60,13 @@ private struct Script {
     /// The line the drawn suggestion was asked about.
     var asked = ""
 
+    /// One run drawn from the seed, starting in the first field with nothing typed.
     init(seed: Int) {
         random = Seeded(seed: seed)
+        surface = places[0]
     }
 
+    /// Runs this many steps, checking every promise the session makes after each of them.
     mutating func run(steps: Int) {
         for _ in 0..<steps {
             switch Int.random(in: 0..<100, using: &random) {
@@ -99,6 +109,7 @@ private struct Script {
             millisecondsSinceKeystroke: random.pick([0, 100, 399, 400, 1_000]))
     }
 
+    /// One turn, and everything it must be true of before and after it.
     private mutating func turn() {
         let context = randomContext()
         let before = session.rejectionsHere
@@ -302,6 +313,7 @@ private struct Script {
         live = nil
     }
 
+    /// Records what is now drawn, and whether the model rather than the corpus produced it.
     private mutating func settled(_ update: SuggestionUpdate, generated: Bool) {
         check(update)
         last = update
@@ -338,7 +350,7 @@ private struct Script {
         }
     }
 
-    /// Whether a drawn line adds something to the line it was asked about.
+    /// Whether a drawn line adds something to the line under it.
     private func extends(_ text: String) -> Bool {
         text.lowercased().hasPrefix(asked.lowercased()) && text != asked
     }
@@ -349,6 +361,7 @@ private struct Script {
         return lines.filter { seen.insert($0.lowercased()).inserted }
     }
 
+    /// The lines under the leader, none where there is no list.
     private func listed(in suggestion: Suggestion) -> [String] {
         if case .choice(_, let others) = suggestion { return others }
         return []

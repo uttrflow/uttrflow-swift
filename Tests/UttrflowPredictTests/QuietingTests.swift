@@ -79,9 +79,12 @@ struct QuietingTests {
 
 /// One moment built from a seed, with every gate's input drawn at random.
 struct QuietingCase: Sendable, CustomTestStringConvertible {
+    /// The seed the moment was built from, which a failure names.
     let seed: Int
+    /// The moment itself.
     let context: PredictionContext
 
+    /// One moment drawn from the seed.
     init(seed: Int) {
         var random = Seeded(seed: seed)
         self.seed = seed
@@ -94,6 +97,7 @@ struct QuietingCase: Sendable, CustomTestStringConvertible {
             rejectionsThisSession: Int.random(in: 0...5, using: &random))
     }
 
+    /// What a failure is named after, which is the seed that reproduces it.
     var testDescription: String { "seed \(seed)" }
 }
 

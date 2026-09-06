@@ -22,15 +22,18 @@ struct VerdictCache: Sendable {
         let expires: Date
     }
 
+    /// Each verdict against the key it answers.
     private var held: [Key: Held] = [:]
+    /// The keys in the order they were first remembered, which is what capacity drops from.
     private var order: [Key] = []
 
+    /// A cache holding nothing.
     init() {}
 
     /// How many verdicts are remembered, for the tests and the diagnostics page.
     var count: Int { held.count }
 
-    /// What was decided about this key, absent when nothing was or what was is no longer believed.
+    /// The verdict on this key, absent when there is none or the one there has expired.
     func verdict(for key: Key, now: Date) -> Verdict? {
         guard let entry = held[key], entry.expires > now else { return nil }
         return entry.verdict
@@ -52,7 +55,7 @@ struct VerdictCache: Sendable {
         order.removeAll()
     }
 
-    /// Drops what is no longer believed, so capacity is spent on verdicts that still count.
+    /// Drops the expired verdicts, so capacity is spent on the ones that still count.
     private mutating func discardExpired(now: Date) {
         guard held.contains(where: { $0.value.expires <= now }) else { return }
         order.removeAll { key in held[key].map { $0.expires <= now } ?? true }

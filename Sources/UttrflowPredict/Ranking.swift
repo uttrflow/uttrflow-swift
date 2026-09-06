@@ -25,5 +25,6 @@ struct Ranking: Sendable, Equatable {
         return first.share - candidates[1].share
     }
 
+    /// Whether nothing survived scoring, so there is nothing to measure.
     var isEmpty: Bool { candidates.isEmpty }
 }

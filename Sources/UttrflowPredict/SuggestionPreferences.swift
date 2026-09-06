@@ -9,6 +9,7 @@ public struct SuggestionApplication: Sendable, Equatable, Hashable {
     /// What the list calls it, since a bundle identifier is not a name anybody recognises.
     public let name: String
 
+    /// One application as the screen lists it, its identifier lowercased for comparing.
     public init(bundleIdentifier: String, name: String) {
         self.bundleIdentifier = bundleIdentifier.lowercased()
         self.name = name
@@ -53,6 +54,7 @@ public enum SuggestionApplicationState: Sendable, Equatable, CaseIterable {
     /// One of the shipped editors, off until the user asks for it.
     case offByDefault
 
+    /// Whether suggestions run here.
     public var isOn: Bool { self == .on }
 }
 
@@ -79,6 +81,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
     /// When a pause everywhere runs out, held as a deadline so it expires by being compared against the moment rather than by a timer remembering to fire.
     public var pausedUntil: Date?
 
+    /// Everything the user has decided, each of them defaulted to having decided nothing.
     public init(
         isEnabled: Bool = false,
         turnedOff: Set<String> = [],
