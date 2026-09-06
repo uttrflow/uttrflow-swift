@@ -10,11 +10,7 @@ import Testing
 
 // MARK: - Fixtures
 
-/// Every shape the counts can take.
-///
-/// Held in one place and swept over by every suite that reads a sentence, because a
-/// count has a different wording for each of these and the ones nobody thought about —
-/// one of each, none at all — are exactly the ones that ship reading "1 words".
+/// Every shape the counts can take, swept by each suite that reads a sentence built from them.
 enum SettingsPersonalisationFixtures {
     static let nothing = SettingsPersonalisation.nothing
     static let onlyLearned = SettingsPersonalisation(
@@ -30,8 +26,7 @@ enum SettingsPersonalisationFixtures {
     ]
 }
 
-/// A directory of its own for each test, so nothing here can reach the dictionary or the
-/// history of whoever is running it.
+/// A directory of its own per test, so nothing here reaches the runner's own files.
 private func inATemporaryDirectory(
     _ body: (URL) async throws -> Void
 ) async throws {
@@ -39,8 +34,7 @@ private func inATemporaryDirectory(
         path: "uttrflow-reset-\(UUID().uuidString)", directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer {
-        // Permissions are put back first: a test that made the directory read-only to
-        // provoke a failure would otherwise leave a directory nothing can remove.
+        // Permissions go back first, or a read-only directory is one nothing can remove.
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path())
         try? FileManager.default.removeItem(at: directory)
     }
@@ -51,8 +45,7 @@ private func entry(_ word: String, _ origin: WordOrigin) -> DictionaryEntry {
     DictionaryEntry(word: word, origin: origin, firstSeen: Date(timeIntervalSince1970: 0))
 }
 
-/// Two of everything, so a reset that kept the wrong kind is visible rather than
-/// ambiguous.
+/// Two of everything, so a reset that keeps the wrong kind is visible rather than ambiguous.
 private let mixedDictionary = [
     entry("kubectl", .added), entry("Nikhil", .learned), entry("Aarav", .observed),
     entry("Bengaluru", .added), entry("terraform", .learned),
@@ -86,8 +79,7 @@ struct SettingsResetLevelTests {
         #expect(Set(Self.everyLevel).count == Self.everyLevel.count)
     }
 
-    /// Two opinions about the dictionary in one reset would mean the count the user was
-    /// shown described only the first of them.
+    /// Two opinions about the dictionary in one reset would leave the count describing only one.
     @Test("never holds two opinions about the dictionary at once")
     func noLevelBothKeepsAndEmpties() {
         for reset in Self.everyLevel {
@@ -103,9 +95,7 @@ struct SettingsResetLevelTests {
         }
     }
 
-    /// Being asked is itself a cost: a dialogue in front of the recoverable action
-    /// teaches people to dismiss dialogues, and the one in front of the irreversible
-    /// action is then dismissed too.
+    /// A dialogue in front of a recoverable action teaches people to dismiss dialogues.
     @Test("asks only before the one that cannot be undone")
     func onlyTheIrreversibleOneAsks() {
         #expect(!SettingsReset.learnedWords.isConfirmed)
@@ -182,8 +172,7 @@ struct FilePersonalisationStoreTests {
         }
     }
 
-    /// Transcripts the user was already told are gone must not be offered up for
-    /// deletion a second time: the number shown has to be the number that is there.
+    /// Transcripts already promised deleted are not counted again; the number shown is what is there.
     @Test("does not count transcripts the promise has already retired")
     func expiredTranscriptsAreNotCounted() async throws {
         try await inATemporaryDirectory { directory in
@@ -202,9 +191,7 @@ struct FilePersonalisationStoreTests {
         }
     }
 
-    /// The heart of the third level, asserted rather than assumed: the words the user
-    /// typed in survive, everything the app guessed does not, and the history is not
-    /// touched at all.
+    /// The heart of the third level: hand-added words survive, guesses do not, history is untouched.
     @Test("forgetting keeps the words the user added and drops the rest")
     func forgettingKeepsWhatWasTaught() async throws {
         try await inATemporaryDirectory { directory in
@@ -242,8 +229,7 @@ struct FilePersonalisationStoreTests {
         }
     }
 
-    /// A disk that refuses is not the same as a reset that happened, and the user is the
-    /// one person who cannot tell the difference by looking.
+    /// A disk that refuses is not a reset that happened, and looking cannot tell them apart.
     @Test("reports a disk that would not take the change")
     func aRefusedWriteIsReported() async throws {
         try await inATemporaryDirectory { directory in
@@ -305,8 +291,7 @@ struct SettingsRemovalRequestTests {
         #expect(session.rejection == nil)
     }
 
-    /// The one the requirement turns on: a question that is dismissed is a question that
-    /// removed nothing.
+    /// A question that is dismissed is a question that removes nothing.
     @Test("a confirmation that is dismissed removes nothing")
     func dismissingRemovesNothing() throws {
         var session = session()
@@ -331,9 +316,7 @@ struct SettingsRemovalRequestTests {
         #expect(session.pendingRemoval == nil)
     }
 
-    /// A dialogue clears itself as it closes, and whether that lands before or after the
-    /// button's own action is not ours to decide. The answer must survive either order,
-    /// or a reset the user asked for is silently not carried out.
+    /// The answer survives either order of the dialogue closing and its button acting.
     @Test("the answer survives the question being cleared first")
     func answeringDoesNotDependOnTheDialogueClosingLast() throws {
         var session = session()
@@ -344,8 +327,7 @@ struct SettingsRemovalRequestTests {
         #expect(session.confirm(removal) == .everything)
     }
 
-    /// Only a removal that asks can be answered. A button with no question behind it
-    /// cannot be talked into acting as though there had been one.
+    /// Only a removal that asks can be answered; one with no question behind it cannot.
     @Test("refuses to confirm something that was never asked")
     func nothingUnaskedCanBeConfirmed() throws {
         var session = session()
@@ -353,8 +335,7 @@ struct SettingsRemovalRequestTests {
         #expect(session.confirm(forget) == nil)
     }
 
-    /// The row is greyed for the same reason the request is refused, from the same
-    /// function, so a button drawn operable cannot decline afterwards.
+    /// The row greys and the request refuses from one function, so neither can outlive the other.
     @Test("refuses to forget what was never learned, and says so on the row first")
     func nothingLearnedIsRefusedAndShown() throws {
         var session = session(SettingsPersonalisationFixtures.onlyAdded)
@@ -434,8 +415,7 @@ struct SettingsRemovalCompletionTests {
         #expect(session.rejection == nil)
     }
 
-    /// The one thing a user cannot be left to assume is whether the words they asked to
-    /// delete are still there.
+    /// Whether the words a user asked to delete are still there is never left to assumption.
     @Test("says so when the disk refused, and says which way it left things")
     func aFailureIsSaidOutLoud() {
         var session = SettingsSession(settings: .default)
@@ -461,8 +441,7 @@ struct SettingsRemovalCopyTests {
             .groups.flatMap(\.rows).first { $0.id == id }
     }
 
-    /// The wording the design asks for, with real numbers in it, before the button is
-    /// pressed and without a dialogue to carry it.
+    /// The design's wording, with real numbers in it, in the row rather than in a dialogue.
     @Test("says what forgetting takes and what it keeps, counted")
     func forgettingIsCountedOnTheRow() {
         let row = row(.dictation, "forgetLearned", SettingsPersonalisationFixtures.plenty)
@@ -530,8 +509,7 @@ struct SettingsRemovalCopyTests {
         }
     }
 
-    /// Nothing is destructive by accident: the button that removes something is never
-    /// the one Return presses.
+    /// The button that removes something is never the one Return presses.
     @Test("never makes removing something the default answer")
     func theDefaultAnswerNeverRemovesAnything() {
         for counts in SettingsPersonalisationFixtures.every {
@@ -548,8 +526,7 @@ struct SettingsRemovalCopyTests {
         }
     }
 
-    /// The ellipsis is the platform's promise that a button asks before it acts, and it
-    /// is the only signal the user gets before they press.
+    /// The ellipsis is the only signal, before pressing, that a button asks before it acts.
     @Test("ends a button in an ellipsis exactly when it asks first")
     func theEllipsisMeansWhatItSays() {
         for counts in SettingsPersonalisationFixtures.every {
@@ -588,9 +565,7 @@ struct SettingsRemovalCopyTests {
 
 @Suite("Signing out")
 struct SettingsSignOutCopyTests {
-    /// Signing out takes nothing away, and the Privacy tab is where a user goes to find
-    /// that out. The old promise claimed there was no account at all, which stopped
-    /// being true the day one shipped.
+    /// Signing out takes nothing away, said on the Privacy tab where a user goes to find out.
     @Test("is said on the Privacy tab to leave everything where it is")
     func theTabSaysSigningOutKeepsEverything() {
         let pane = SettingsPresenter.pane(for: .privacy, settings: .default)
@@ -602,21 +577,18 @@ struct SettingsSignOutCopyTests {
         #expect(callout?.contains("resetting is the only thing that removes them") == true)
     }
 
-    @Test("the promise no longer denies that there is an account")
+    /// The promise says the text is not tied to the account, not that there is no account.
+    @Test("the promise does not deny that there is an account")
     func thePromiseDoesNotDenyTheAccount() {
         #expect(!SettingsPresenter.privacyPromise.contains("no account"))
         #expect(SettingsPresenter.privacyPromise.contains("not tied to your account"))
     }
 }
 
-/// The clipboard holds a second copy of every dictation, and the reset did not reach it.
+/// The clipboard holds a second copy of every dictation, so a full reset has to reach it.
 @Suite("Resetting reaches the clipboard too")
 struct SettingsResetClipboardTests {
-    /// "Puts Uttrflow back to a fresh install: your dictionary, your history and every
-    /// preference on this screen" — and it left, untouched, a file containing a full copy
-    /// of every transcript the user had ever spoken, reachable from the panel with one
-    /// shortcut. On a product whose central promise is about where your words live, a
-    /// reset that says everything is gone and leaves them is the worst kind of wrong.
+    /// A reset promising a fresh install leaves no file holding a copy of every transcript.
     @Test("a full reset names the clipboard among what it removes")
     func everythingIncludesTheClipboard() {
         #expect(SettingsReset.everything.targets.contains(.clipboard))
