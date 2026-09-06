@@ -400,10 +400,9 @@ struct StoredReport: Codable, Sendable {
         passRate(over: cases.filter { $0.category == category.rawValue })
     }
 
-    /// Pass rate over the cases dictated into one kind of place, over the cases this engine attempted.
+    /// Pass rate over the cases dictated into one kind of place; a result stored before the corpus named destinations is in no column.
     func passRate(for destination: Destination) -> Double? {
-        passRate(
-            over: cases.filter { ($0.destination ?? Destination.plain.rawValue) == destination.rawValue })
+        passRate(over: cases.filter { $0.destination == destination.rawValue })
     }
 
     private func passRate(over slice: [CaseResult]) -> Double? {

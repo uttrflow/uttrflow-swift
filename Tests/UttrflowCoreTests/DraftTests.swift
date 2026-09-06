@@ -93,7 +93,11 @@ struct DraftTests {
         #expect(draft.text == "hello there")
         #expect(draft.originalText == "um hello there")
         #expect(
-            draft.removed == [Draft.Word(text: "um", heard: "um", confidence: 1, state: .removed(by: pass))])
+            draft.removed == [
+                Draft.Word(
+                    text: "um", heard: "um", confidence: 1, state: .removed(by: pass),
+                    edits: [Draft.Word.Edit(by: pass, kind: .removed, from: "um", to: "")])
+            ])
         #expect(draft.presentIndices == [1, 2])
         #expect(!draft.words[0].isPresent)
     }
@@ -106,6 +110,29 @@ struct DraftTests {
         #expect(draft.words[0].state == .replaced(by: pass, from: "hello"))
         #expect(draft.words[0].heard == "hello")
         #expect(draft.words[0].isPresent)
+    }
+
+    @Test("a word two passes rewrote is owed to both of them, from the word as heard")
+    func chainedRewrites() {
+        var draft = Draft(text: "dont")
+        draft.replace(at: 0, with: "don't", by: "contractions")
+        draft.replace(at: 0, with: "Don't", by: "firstWord")
+        #expect(draft.text == "Don't")
+        #expect(
+            draft.words[0].edits == [
+                Draft.Word.Edit(by: "contractions", kind: .replaced, from: "dont", to: "don't"),
+                Draft.Word.Edit(by: "firstWord", kind: .replaced, from: "don't", to: "Don't"),
+            ])
+    }
+
+    @Test("a removed word cannot be brought back by a later pass rewriting it")
+    func replacingARemovedWordChangesNothing() {
+        var draft = Draft(text: "um hello")
+        draft.remove(at: 0, by: "fillers")
+        draft.replace(at: 0, with: "Um", by: "firstWord")
+        #expect(draft.text == "hello")
+        #expect(draft.words[0].state == .removed(by: "fillers"))
+        #expect(draft.words[0].edits.count == 1)
     }
 
     @Test("records nothing when a replacement changes nothing")

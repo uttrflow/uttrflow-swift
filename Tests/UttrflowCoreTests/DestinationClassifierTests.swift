@@ -79,6 +79,16 @@ struct DestinationClassifierTests {
         #expect(DestinationClassifier.classify(app("com.example.app"), rules: []) == .plain)
     }
 
+    @Test("an app the table names by identifier keeps its kind whatever its window is called")
+    func bundleBeatsATitleAboveIt() {
+        let mail = app("com.apple.mail", title: "Re: the Google Docs migration")
+        #expect(DestinationClassifier.classify(mail) == .email)
+        let sheet = app("com.example.Unknown", title: "Budget — Google Sheets")
+        #expect(
+            DestinationClassifier.classify(sheet) == .spreadsheet,
+            "a title still decides an app no row names")
+    }
+
     @Test("a rule can be built from either column and defaults the other to nothing")
     func ruleDefaults() {
         let rule = DestinationRule(titleContains: ["Docs"], destination: .document)

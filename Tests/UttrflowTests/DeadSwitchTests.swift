@@ -50,6 +50,20 @@ struct DeadSwitchTests {
 
         #expect(!readers.isEmpty, "nothing outside the settings screens reads \(field)")
     }
+
+    /// The rebuilt tidier once left the dictionary out, so half-heard words stopped being offered the user's spellings.
+    @Test("the tidier is built in one place, and that place hands it the personal dictionary")
+    func everyCleanerCarriesTheDictionary() throws {
+        let source = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "Sources/Uttrflow/AppDelegate.swift")
+        let text = try String(contentsOf: source, encoding: .utf8)
+        let built = text.components(separatedBy: "TextTransformers.router(").count - 1
+        #expect(built == 1, "a second place to build a tidier is a second place to forget the dictionary")
+        #expect(text.contains("spellings: { [dictionary] in await dictionary.index() }"))
+    }
 }
 
 /// A stand-in for macOS's login-item service, so the suite can watch what the app tells

@@ -97,4 +97,64 @@ struct DiagnosticsCleanUpTests {
         await recorder.record(CleaningRecord(changes: [.init(step: .fillers, removed: ["uh"])]))
         #expect(await recorder.lastCleaning?.changes.first?.removed == ["uh"])
     }
+
+    /// A reset says the words are gone, and the diagnostics page is the last place still holding them.
+    @Test("the recorder can be told to forget the last dictation")
+    func recorderForgets() async {
+        let recorder = DiagnosticsRecorder()
+        await recorder.record(CleaningRecord(changes: [.init(step: .fillers, removed: ["um"])]))
+        await recorder.forget()
+        #expect(await recorder.lastCleaning == nil)
+        let page = DiagnosticsFixture.page(cleaning: await recorder.lastCleaning)
+        #expect(page.cleanUp.map(\.detail) == ["Nothing dictated yet"])
+    }
+
+    /// The passes the formatter runs are nobody's setting, and their names are implementation names.
+    @Test("a step the user is not offered is named nowhere on the page or in the report")
+    func onlyOfferedStepsAreNamed() {
+        let record = CleaningRecord(
+            changes: [
+                .init(step: .fillers, removed: ["um"]),
+                .init(step: .firstWord, replaced: [.init(from: "we", to: "We")]),
+                .init(step: .terminalStop, replaced: [.init(from: "builds", to: "builds.")]),
+                .init(step: .caretEcho, removed: ["because"]),
+            ])
+        let page = DiagnosticsFixture.page(cleaning: record)
+        #expect(page.cleanUp.map(\.title) == ["Filler words"])
+        let report = DiagnosticsPresenter.report(
+            for: DiagnosticsSnapshot(cleaning: record), locale: DiagnosticsFixture.locale)
+        for name in ["firstWord", "terminalStop", "caretEcho"] {
+            #expect(!report.contains(name))
+        }
+    }
+
+    /// Which engine tidied the words is not the user's business, so the section cannot differ by it.
+    @Test("the same words report the same steps whether the model answered or declined")
+    func sameStepsWhicheverEngine() {
+        var spoken = Draft(text: "um we ship fifteen builds")
+        spoken.remove(at: 0, by: .fillers)
+        spoken.replace(at: 3, with: "15", by: .numberForms)
+        // What the rules do on their own: the same passes, and the formatter's two after them.
+        var finished = spoken
+        finished.replace(at: 1, with: "We", by: .firstWord)
+        finished.replace(at: 4, with: "builds.", by: .terminalStop)
+
+        let modelRan = DiagnosticsFixture.page(cleaning: CleaningRecord(draft: spoken, ran: []))
+        let rulesRan = DiagnosticsFixture.page(cleaning: CleaningRecord(draft: finished, ran: []))
+        #expect(modelRan.cleanUp.map(\.title) == rulesRan.cleanUp.map(\.title))
+        #expect(modelRan.cleanUp.map(\.detail) == rulesRan.cleanUp.map(\.detail))
+    }
+
+    /// Twelve words and their rewrites do not fit a row, and a count is honest where a list is unreadable.
+    @Test("a step that touched more words than fit quotes a few and counts the rest")
+    func quotesAFewAndCountsTheRest() {
+        let change = CleaningRecord.Change(
+            step: .fillers, removed: ["um", "uh", "er", "um", "hmm", "ah"])
+        #expect(
+            DiagnosticsPresenter.detail(of: change)
+                == "removed 6: um, uh, er, um and 2 more")
+        #expect(
+            DiagnosticsPresenter.detail(of: CleaningRecord.Change(step: .fillers, removed: ["um", "uh"]))
+                == "removed 2: um, uh")
+    }
 }

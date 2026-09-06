@@ -85,19 +85,18 @@ public struct CleaningRecord: Sendable, Equatable {
         var replaced: [PassID: [Rewrite]] = [:]
         var inserted: [PassID: [String]] = [:]
 
+        // Every edit, not the last state: a word two passes touched is owed to both of them.
         for word in draft.words {
-            switch word.state {
-            case .kept:
-                continue
-            case .removed(let pass):
-                note(pass, in: &order)
-                removed[pass, default: []].append(word.heard.isEmpty ? word.text : word.heard)
-            case .replaced(let pass, let from):
-                note(pass, in: &order)
-                replaced[pass, default: []].append(Rewrite(from: from, to: word.text))
-            case .inserted(let pass):
-                note(pass, in: &order)
-                inserted[pass, default: []].append(word.text)
+            for edit in word.edits {
+                note(edit.by, in: &order)
+                switch edit.kind {
+                case .removed:
+                    removed[edit.by, default: []].append(word.heard.isEmpty ? edit.from : word.heard)
+                case .replaced:
+                    replaced[edit.by, default: []].append(Rewrite(from: edit.from, to: edit.to))
+                case .inserted:
+                    inserted[edit.by, default: []].append(edit.to)
+                }
             }
         }
 

@@ -109,6 +109,16 @@ struct SettingsDestinationsTests {
         #expect(selected == UttrflowCore.Destination.document.rawValue)
     }
 
+    @Test("the app last dictated into is named once, not twice, when it is the one overridden")
+    func lastAppIsNotListedTwice() throws {
+        var settings = Settings.default
+        settings.destinations = DestinationOverrides.none
+            .setting(.document, for: slack.bundleIdentifier, named: "Slack")
+            .setting(.codeEditor, for: "com.example.Apricot", named: "Apricot")
+        let rows = try #require(places(settings, lastApp: slack)?.rows)
+        #expect(rows.map(\.label) == ["Slack", "Apricot"])
+    }
+
     @Test("every override made is listed, with a way to put it back")
     func listsTheOverrides() throws {
         var settings = Settings.default

@@ -55,13 +55,16 @@ public enum SettingsDestinations {
             })
     }
 
-    /// The rows for overriding where the words go: the app last dictated into, then every override made.
+    /// The rows for overriding where the words go: the app last dictated into, then every other override made.
     public static func places(
         _ overrides: DestinationOverrides, lastApp: SettingsApp?
     ) -> SettingsGroup {
-        SettingsGroup(
+        // The last app's own row already says what it is treated as, so listing it again names it twice.
+        let named = lastApp?.bundleIdentifier.lowercased()
+        return SettingsGroup(
             id: "places", title: "Where your words go",
-            rows: [lastAppRow(overrides, lastApp)] + overrides.overrides.map(overrideRow))
+            rows: [lastAppRow(overrides, lastApp)]
+                + overrides.overrides.filter { $0.id != named }.map(overrideRow))
     }
 
     /// What Uttrflow treats the last app as, and the pop-up for disagreeing with it.

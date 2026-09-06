@@ -30,6 +30,20 @@ struct CleaningRecordTests {
         #expect(record.changes.first { $0.step == .spokenPunctuation }?.inserted == [","])
     }
 
+    @Test("a word a later step rewrote again is still credited to the step that got there first")
+    func chainedRewrites() {
+        var draft = Draft(text: "dont ship it")
+        draft.replace(at: 0, with: "don't", by: .contractions)
+        draft.replace(at: 0, with: "Don't", by: .firstWord)
+        let record = CleaningRecord(draft: draft, ran: CleaningSteps.offered.map(\.id))
+        #expect(
+            record.changes.first { $0.step == .contractions }?.replaced
+                == [CleaningRecord.Rewrite(from: "dont", to: "don't")])
+        #expect(
+            record.changes.first { $0.step == .firstWord }?.replaced
+                == [CleaningRecord.Rewrite(from: "don't", to: "Don't")])
+    }
+
     @Test("orders the steps by the first word each one reached")
     func orderOfSteps() {
         let record = CleaningRecord(draft: draft(), ran: CleaningSteps.offered.map(\.id))

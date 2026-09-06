@@ -35,7 +35,7 @@ Each released version is a git tag and a build at
   3: um, uh, um" — so a word that went missing can be accounted for rather than guessed
   at; a step that is switched off is named as off, because that is why a word you expected
   to go is still there. It stays on this Mac, and the Copy Diagnostics report counts the
-  words rather than quoting them. Settings → Dictation offers the eight deterministic
+  words rather than quoting them. Settings → Dictation offers the nine deterministic
   steps with a switch each, all on to begin with, and lets you tell Uttrflow what kind of
   place an app really is when the built-in table has it wrong — every override you make is
   listed there with a button that puts it back. All three take effect on your next
@@ -125,6 +125,36 @@ Each released version is a git tag and a build at
   and "bye bye for now" were read as stammers. The doubles the language itself makes —
   "had had", "that that", "bye bye", "no no", "so so" — are kept; "we we" and "the the"
   still go.
+- **Reset left the last dictation's words on the Diagnostics page.** "Reset everything"
+  emptied the dictionary, the transcripts, the clipboard and every preference, and the
+  clean-up section went on naming the words of the dictation before it. It is cleared with
+  the transcripts now.
+- **Switching a clean-up step off stopped your own spellings informing a half-heard word**
+  until the next launch. The tidier is rebuilt in one place now, and that place hands it
+  the dictionary.
+- **An app you told Uttrflow to treat as somewhere else was treated that way only for a
+  short dictation.** A long one, cut into pieces at your pauses, was laid out for the app
+  the built-in table names instead.
+- **Pressing the key, giving up and pressing it again could send the second dictation to
+  the first one's app.** The screen read for a dictation you abandoned is now dropped with
+  it.
+- **A setting changed while you were speaking changed that dictation halfway through.**
+  Clean-up steps and per-app places now take effect on the next dictation, as they say.
+- **One correction from your dictionary silenced the half-heard-word readings for the rest
+  of the sentence.** Every other word keeps the score the recogniser gave it, so "clear the
+  cash in payment sheet" can have both its dictionary spelling and its doubtful word.
+- **One unreadable entry threw away every app you had told Uttrflow about.** An entry this
+  build has no word for now costs only itself.
+- **Diagnostics named clean-up steps by their internal names**, listed a different set of
+  them depending on how the dictation had been tidied, and ran a long row off the edge of
+  the page. It lists the steps you are offered, the same ones either way, and quotes the
+  first few words with a count of the rest.
+- **A step's work vanished from Diagnostics when a later step touched the same word.**
+  "dont" → "don't" → "Don't" was credited only to the last of them; both are named now.
+- **An app you dictate into was listed twice** under "Where your words go" once you had
+  given it a place of its own.
+- **An email whose subject mentioned Google Docs was written as a document.** What an app
+  is now beats what its window happens to be called.
 
 ### Added
 - **A correction the speaker made without saying so is taken back.** "I wanted to buy a
