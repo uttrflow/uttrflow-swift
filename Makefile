@@ -74,6 +74,12 @@ hooks: ## Install the pre-push gate that replaced CI.
 app: ## Build and sign Uttrflow.app into dist/ for this Mac.
 	./Scripts/bundle.sh
 
+# Its own identifier, so it runs beside the installed app and keeps its own settings,
+# stores and permission grants. Docs/development-build.md says what that costs.
+.PHONY: app-dev
+app-dev: ## Build Uttrflow-Dev.app into dist/, which runs beside the installed app.
+	./Scripts/bundle.sh development
+
 .PHONY: app-hardened
 app-hardened: ## Same, but under the hardened runtime. Rehearses a shippable build.
 	./Scripts/bundle.sh rehearsal

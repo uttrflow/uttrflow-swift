@@ -1,3 +1,4 @@
+// Fake recognisers for the speech tests.
 import Synchronization
 
 @testable import UttrflowCore
@@ -64,9 +65,7 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
     var calls: [Call] { state.withLock(\.calls) }
 }
 
-/// A recogniser with no way to bias its decoder, which is the shape
-/// ``AppleSpeechBackend`` has: it inherits the protocol's default and never sees a
-/// vocabulary at all.
+/// A recogniser with no way to bias its decoder, the shape ``AppleSpeechBackend`` has.
 final class UnbiasableBackend: TranscriptionBackend {
     private let heard = Mutex(0)
 

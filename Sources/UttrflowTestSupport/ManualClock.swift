@@ -1,3 +1,4 @@
+// A Clock a test advances by hand.
 private import Synchronization
 
 /// A `Clock` that only moves when a test tells it to, so sleeping on it costs nothing.

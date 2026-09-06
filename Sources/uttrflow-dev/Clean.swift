@@ -1,10 +1,10 @@
+// The `clean` command: runs clean-up on typed text.
 import ArgumentParser
 import Foundation
 import UttrflowAI
 import UttrflowCore
 
-/// Cleans up text without recording anything, so the transformation can be judged on
-/// its own. This is the loop the evaluation suite will run in bulk.
+/// Cleans up text without recording anything, so the transformation can be judged on its own.
 struct Clean: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Tidy a raw transcript, as if it had just been dictated."
@@ -16,9 +16,7 @@ struct Clean: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Force one transformer: foundationModels or rules.")
     var engine: String?
 
-    // Context changes the output, so it has to be reachable from here. Without these
-    // the only way to see what a window title does to a dictation was to run the whole
-    // bake-off, which reports a score rather than the sentence the model wrote.
+    // Context changes the output, so it has to be reachable from here without running the bake-off.
     @Option(name: .long, help: "Pretend the frontmost app is this one.")
     var app: String?
 
@@ -30,6 +28,12 @@ struct Clean: AsyncParsableCommand {
 
     @Option(name: .long, help: "Pretend this text is selected on screen.")
     var selection: String?
+
+    @Option(name: .long, help: "Pretend this text sits before the caret.")
+    var before: String?
+
+    @Flag(name: .long, help: "Also show the model's answer before anything unwraps or judges it.")
+    var showModel = false
 
     func run() async throws {
         let raw = try readInput()
@@ -52,21 +56,29 @@ struct Clean: AsyncParsableCommand {
         let start = clock.now
         let context = AppContext(
             applicationName: app, bundleIdentifier: bundleID,
-            documentName: document, selectedText: selection
+            documentName: document, selectedText: selection, precedingText: before
         )
-        let result = try await router.transform(
-            TransformationRequest(transcription: Transcription(text: raw), context: context)
-        )
+        let request = TransformationRequest(transcription: Transcription(text: raw), context: context)
+        let result = try await router.transform(request)
         let elapsed = start.duration(to: clock.now)
 
         print("  raw    \(raw)")
-        // Printed rather than echoed back from the flags, so what is shown is the line
-        // the model was actually given — including the case where it is given nothing.
-        if let described = AppContextDescriber.describe(context) {
-            print("  seen   \(described)")
+        // Printed from the context rather than the flags, so these are the lines the model is given.
+        for line in PromptBuilder.standard.situationBlock(for: request.situation) {
+            print("  seen   \(line)")
         }
+        print("  as     \(request.situation.destination.rawValue)")
         print("  clean  \(result.text)")
         print("  by     \(result.producedBy.rawValue) in \(format(elapsed))s")
+        if showModel {
+            let builder = PromptBuilder.standard
+            let spoken = CleaningPipeline.beforeModel.run(Draft(transcription: request.transcription)).text
+            let answer = try await AppleFoundationCleanupModel().rewrite(
+                builder.userPrompt(for: request, spoken: spoken),
+                instructions: builder.instructions(for: request.situation.destination),
+                kind: .foundationModels)
+            print("  model  \(answer.replacingOccurrences(of: "\n", with: "⏎"))")
+        }
     }
 
     private func readInput() throws -> String {

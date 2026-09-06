@@ -1,3 +1,4 @@
+// Tests the clean-up scorer, runner, report and corpus hygiene.
 import UttrflowAI
 import Synchronization
 import Testing
@@ -16,6 +17,34 @@ struct ScorerTests {
         )
     }
 
+    private func shaped(expected: String, begin: String? = nil, end: String? = nil) -> EvaluationCase {
+        EvaluationCase(
+            id: "case", category: .everyday, spoken: "spoken", expected: expected,
+            mustBeginWith: begin, mustEndWith: end)
+    }
+
+    /// Case and a final mark are what the destination cases are about, so they are looked at literally.
+    @Test("checks a required beginning and ending exactly, case included")
+    func checksShape() {
+        let reference = shaped(expected: "the report is attached.", begin: "the report", end: ".")
+        #expect(Scorer.score("the report is attached.", against: reference).passed)
+
+        let capitalised = Scorer.score("The report is attached.", against: reference)
+        #expect(capitalised.brokeShape == ["the report"])
+        #expect(!capitalised.passed)
+
+        let unfinished = Scorer.score("the report is attached", against: reference)
+        #expect(unfinished.brokeShape == ["."])
+        #expect(!unfinished.passed)
+
+        #expect(Scorer.score("The Report Is Attached", against: reference).brokeShape == ["the report", "."])
+    }
+
+    @Test("asks nothing of the shape when the case says nothing about it")
+    func shapeIsOptional() {
+        #expect(Scorer.score("HELLO THERE", against: shaped(expected: "hello there.")).brokeShape.isEmpty)
+    }
+
     @Test("scores an exact match perfectly")
     func exactMatch() {
         let score = Scorer.score("Hello there.", against: reference(expected: "Hello there."))
@@ -24,8 +53,7 @@ struct ScorerTests {
         #expect(score.passed)
     }
 
-    /// Several phrasings of a sentence are correct; punctuation and case are not what
-    /// is being measured.
+    /// Several phrasings of a sentence are correct; punctuation and case are not measured.
     @Test(
         "ignores case and punctuation",
         arguments: ["hello there", "HELLO THERE!", "Hello, there.", "  hello   there  "]
@@ -65,8 +93,7 @@ struct ScorerTests {
         #expect(Scorer.score("hello", against: reference(expected: "")).similarity == 0)
     }
 
-    /// Losing a name or a number is the worst thing a dictation tool can do, so it is
-    /// reported separately rather than folded into a score.
+    /// Losing a name or a number is reported separately rather than folded into a score.
     @Test("reports every required word that went missing")
     func reportsLostWords() {
         let score = Scorer.score(
@@ -86,8 +113,7 @@ struct ScorerTests {
         #expect(score.keptEverythingRequired)
     }
 
-    /// "get_user" tokenises to two words; both present separately is not the term
-    /// surviving.
+    /// "get_user" tokenises to two words, and both present separately is not the term surviving.
     @Test("requires a multi-word term to survive as a run, not scattered")
     func multiWordTerm() {
         let intact = Scorer.score(
@@ -128,9 +154,7 @@ struct ScorerTests {
                 .passed)
     }
 
-    /// A brace in a message to a colleague is the model answering the request instead
-    /// of transcribing it, so a context case has to be able to forbid one outright.
-    /// Words are the wrong unit for that guard: "{" has none.
+    /// A brace in a message to a colleague is the model answering, and "{" has no words to match on.
     @Test("catches a punctuation-only guard in the answer")
     func punctuationGuardFires() {
         let score = Scorer.score(
@@ -144,9 +168,7 @@ struct ScorerTests {
         #expect(!score.passed)
     }
 
-    /// The other half of the same guard: an answer that stayed prose has invented
-    /// nothing, and a guard that fires on it would fail every model on a fault in the
-    /// scorer — which is what a wordless guard used to do.
+    /// A wordless guard that fired on prose would fail every model on a fault in the scorer.
     @Test("leaves a punctuation-only guard unfired when the answer stayed prose")
     func punctuationGuardStaysQuiet() {
         let prose = "We need something that hands back the orders that failed."
@@ -164,8 +186,7 @@ struct ScorerTests {
         #expect(score.passed)
     }
 
-    /// The literal path is for punctuation only. A guard made of words keeps being
-    /// matched on whole words, or "cat" convicts every mention of concatenating.
+    /// The literal path is for punctuation only, or "cat" convicts every mention of concatenating.
     @Test("holds a word guard to whole words")
     func wordGuardRespectsWordBoundaries() {
         let inside = Scorer.score(
@@ -180,8 +201,7 @@ struct ScorerTests {
         #expect(onItsOwn.invented == ["cat"])
     }
 
-    /// "ORDER BY" is two ordinary words, and a sentence that happens to use both is not
-    /// a model writing SQL.
+    /// "ORDER BY" is two ordinary words, and a sentence using both is not a model writing SQL.
     @Test("fires a multi-word guard only on a consecutive run")
     func multiWordGuardNeedsARun() {
         let scattered = Scorer.score(
@@ -314,8 +334,7 @@ struct EvaluationRunnerTests {
         #expect(report.durations.count == 2)
     }
 
-    /// A model that refuses a third of the corpus should score badly, not go
-    /// unmeasured.
+    /// A model that refuses a third of the corpus should score badly, not go unmeasured.
     @Test("records a refusal as a failed case and keeps going")
     func failureDoesNotAbandonTheRun() async {
         struct Refused: Error {}
@@ -353,8 +372,7 @@ struct EvaluationRunnerTests {
         #expect(report.passRate == 0)
     }
 
-    /// Reported per model because a 16 GB laptop is a target, and a model that wins on
-    /// quality but needs 12 GB has not won.
+    /// A 16 GB laptop is a target, and a model that wins on quality but needs 12 GB has not won.
     @Test("reads this process's real memory use")
     func measuresMemory() {
         let footprint = MemoryFootprint.current()
@@ -373,8 +391,6 @@ struct DeclineTests {
     ]
 
     /// An engine that correctly refuses a language it does not know has behaved well.
-    /// Scoring that as a wrong answer made Apple's model look worse than the
-    /// deterministic floor, which was a fault in the measurement, not the model.
     @Test("keeps a refusal out of the score entirely")
     func declineDoesNotCountAgainstTheScore() async {
         let report = await EvaluationRunner(cases: cases).run(label: "declines-hindi") { testCase in
@@ -410,12 +426,10 @@ struct CorpusIndependenceTests {
         Scorer.tokens(text).joined(separator: " ")
     }
 
-    /// Three of five worked examples were once verbatim corpus cases, so every model
-    /// was partly being scored on sentences it had been shown the answers to. This
-    /// makes that impossible to reintroduce quietly.
-    @Test("no corpus case appears among the prompt's worked examples")
+    /// A worked example that is a verbatim corpus case scores the model on answers it has been shown.
+    @Test("no corpus case appears among any block's worked examples")
     func corpusIsNotInThePrompt() {
-        let examples = Set(CleanupPrompt.current.workedExamples.map(normalise))
+        let examples = Set(PromptBuilder.standard.allWorkedExamples.map(normalise))
         for testCase in EvaluationCorpus.all {
             #expect(!examples.contains(normalise(testCase.spoken)), "\(testCase.id) is in the prompt")
             #expect(
@@ -424,14 +438,13 @@ struct CorpusIndependenceTests {
         }
     }
 
-    /// An input that closely matches an example can make a model answer with a
-    /// *different* example's text — seen while investigating a Hindi failure.
-    @Test("no corpus case is a near-copy of a worked example")
+    /// An input that closely matches an example can make a model answer with a different example's text.
+    @Test("no corpus case is a near-copy of any block's worked example")
     func corpusIsNotNearlyInThePrompt() {
         for testCase in EvaluationCorpus.all {
             let spoken = Set(Scorer.tokens(testCase.spoken))
             guard spoken.count >= 5 else { continue }
-            for example in CleanupPrompt.current.workedExamples {
+            for example in PromptBuilder.standard.allWorkedExamples {
                 let overlap = spoken.intersection(Scorer.tokens(example))
                 let share = Double(overlap.count) / Double(spoken.count)
                 #expect(share < 0.7, "\(testCase.id) overlaps a worked example by \(Int(share * 100))%")
@@ -439,15 +452,22 @@ struct CorpusIndependenceTests {
         }
     }
 
-    @Test("finds every worked example in the prompt")
+    @Test("finds every block's worked examples, both halves of each")
     func readsTheExamples() {
-        let examples = CleanupPrompt.current.workedExamples
-        #expect(examples.count >= 8, "expected both halves of each example pair")
+        let examples = PromptBuilder.standard.allWorkedExamples
+        let shown = Set(
+            (PromptContract.examples + PromptBlocks.standard.values.flatMap(\.examples)).flatMap(\.sentences))
+        #expect(
+            Set(examples) == shown && examples.count == shown.count,
+            "expected both halves of every block's examples")
         #expect(examples.contains("When does the library close on Sunday?"))
+        #expect(examples.contains("42 units shipped in week 9"))
+        for destination in Destination.allCases {
+            #expect(Set(PromptBuilder.standard.workedExamples(for: destination)).isSubset(of: Set(examples)))
+        }
     }
 
-    /// The whole point of romanising: rules cannot change alphabet, so these cases
-    /// finally measure clean-up rather than measuring whether a model does nothing.
+    /// Rules cannot change alphabet, so romanised references measure clean-up rather than doing nothing.
     @Test("expects Hindi written in the Latin alphabet")
     func hindiReferencesAreRomanised() {
         for testCase in EvaluationCorpus.cases(for: .hindi) {

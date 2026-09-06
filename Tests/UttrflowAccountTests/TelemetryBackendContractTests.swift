@@ -3,33 +3,17 @@ import Testing
 
 @testable import UttrflowAccount
 
-/// Checks the app against the running backend rather than against our idea of it.
-///
-/// The sibling suite `BackendContractTests` exists because the two sides once disagreed in
-/// silence, each checking its own idea of the contract against itself. The same trap is set
-/// here: `telemetryReportSchema` is `.strict()`, so a key the app invents is a 400 and a key
-/// it forgets is a default — and unit tests on either side would pass throughout.
-///
-/// So this posts real bytes. It is skipped when nothing is listening, exactly as the
-/// fixture-based suite is skipped when the backend is not checked out, which keeps the
-/// suite green on a machine with no server and honest on one that has it. Point it
-/// somewhere else with `UTTRFLOW_BACKEND_URL`.
+/// Posts real bytes to a running backend; unit tests on either side cannot see a key the other refuses.
 @Suite(
     "The contract with uttrflow-backend's telemetry ingest",
     .enabled(if: LiveBackend.isConfigured, LiveBackend.absenceReason))
 struct TelemetryBackendContractTests {
-    /// Where telemetry is posted.
-    ///
-    /// This used to default to `http://127.0.0.1:8787` when the variable was unset, and
-    /// that default is what made the suite dishonest: with nothing listening there the
-    /// requests simply failed, both tests returned early, and both reported a pass. There
-    /// is no default now — ``LiveBackend`` requires the variable, and `.enabled(if:)` above
-    /// turns its absence into a reported skip.
+    /// Where telemetry is posted; no default, so `.enabled(if:)` reports an absent backend as a skip.
     private static var endpoint: URL? {
         LiveBackend.url?.appending(path: "v1/telemetry")
     }
 
-    /// - Returns: The status code, or `nil` when nothing answered.
+    /// Posts `body` and answers the status and body, or `nil` when nothing answers.
     private func post(_ body: Data) async -> (status: Int, body: Data)? {
         guard let endpoint = Self.endpoint else { return nil }
         var request = URLRequest(url: endpoint, timeoutInterval: 5)
@@ -66,9 +50,7 @@ struct TelemetryBackendContractTests {
             "backend refused a report the app built: \(String(decoding: answer.body, as: UTF8.self))")
     }
 
-    /// The other half of the contract, and the reason the strictness is worth having: had
-    /// the app put a transcript in the payload, it would be refused rather than stored.
-    /// This is what makes the privacy line enforced on both sides instead of trusted on one.
+    /// The strictness refuses a transcript rather than storing it, so the privacy line holds on both sides.
     @Test("the backend refuses a payload with a field the schema does not know")
     func theServerRefusesAnythingExtra() async throws {
         let report = try #require(Telemetry.report(languages: [.english: 1]))

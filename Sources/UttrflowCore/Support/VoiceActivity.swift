@@ -6,7 +6,7 @@ public enum VoiceActivity: Sendable {
     /// A frame this quiet is silence however quiet the room is, at about -46 dBFS.
     static let absoluteFloor: Float = 0.005
 
-    /// Speech is this many times louder than the room it was spoken in.
+    /// Speech is this many times louder than the room around it.
     static let signalToNoise: Float = 3
 
     /// A burst shorter than this is a click or a bump rather than a word, in seconds.
@@ -37,7 +37,7 @@ public enum VoiceActivity: Sendable {
         guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames)
         else {
             // Loud and modulated, but no run long enough to point at: keep all of it.
-            return samples.indices.isEmpty ? nil : 0..<samples.count
+            return samples.isEmpty ? nil : 0..<samples.count
         }
 
         let margin = Int(Self.margin * Double(sampleRate))
@@ -47,7 +47,7 @@ public enum VoiceActivity: Sendable {
     }
 
     /// Root-mean-square loudness of each whole frame, ignoring any partial last one.
-    private static func frameLoudness(of samples: [Float], frameLength: Int) -> [Float] {
+    static func frameLoudness(of samples: [Float], frameLength: Int) -> [Float] {
         var loudness: [Float] = []
         loudness.reserveCapacity(samples.count / frameLength)
         var start = 0
@@ -65,7 +65,7 @@ public enum VoiceActivity: Sendable {
     }
 
     /// The value at `fraction` through an already-sorted list.
-    private static func percentile(_ sorted: [Float], _ fraction: Double) -> Float {
+    static func percentile(_ sorted: [Float], _ fraction: Double) -> Float {
         guard !sorted.isEmpty else { return 0 }
         let index = Int((Double(sorted.count - 1) * fraction).rounded())
         return sorted[Swift.min(Swift.max(index, 0), sorted.count - 1)]
@@ -101,16 +101,19 @@ public enum VoiceActivity: Sendable {
 
 /// Speech cut out of a longer recording, and where in it the cut began.
 public struct IsolatedSpeech: Sendable, Equatable {
+    /// The speech alone.
     public let audio: AudioSamples
     /// How far into the recording the speech starts, so timings can be put back.
     public let start: Duration
 
+    /// Speech with the offset of its cut.
     public init(audio: AudioSamples, start: Duration) {
         self.audio = audio
         self.start = start
     }
 }
 
+/// The trim a recording goes through before transcription.
 extension AudioSamples {
     /// The speech in this recording, or `nil` when it holds none.
     public func speechOnly() -> IsolatedSpeech? {

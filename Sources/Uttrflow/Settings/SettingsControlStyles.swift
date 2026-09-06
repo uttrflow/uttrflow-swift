@@ -1,17 +1,9 @@
+// The switch, segmented control, pop-up and button drawn in the app's own style.
+
 import AppKit
 import SwiftUI
 
-/// The controls this window draws, in the app's own vocabulary rather than the system's.
-///
-/// The rail beside them is the product's accent at full strength; a pane of stock AppKit
-/// switches and segmented controls next to it read as two applications sharing a window.
-/// These are the same three shapes the rest of the app already uses — a filled accent for
-/// what is on, a card fill for what is not, and one hairline for both — applied to the
-/// controls a settings pane is made of.
-///
-/// Behaviour is unchanged in every case: a switch is a `Toggle`, a segmented control is a
-/// `Picker`, a pop-up is a `Menu`. Only what they look like is ours, which is what keeps
-/// keyboard focus, VoiceOver and the menu behaviour the platform's.
+/// The controls this window draws in the app's own vocabulary; behaviour stays the platform's.
 
 // MARK: - Switch
 
@@ -48,23 +40,13 @@ struct SettingsSwitchStyle: ToggleStyle {
     }
 
     private func track(isOn: Bool) -> AnyShapeStyle {
-        isOn
-            ? AnyShapeStyle(
-                LinearGradient(
-                    colors: [Color(nsColor: NSColor(rgb: 0x17_968C)), .dockAccent],
-                    startPoint: .top, endPoint: .bottom))
-            : AnyShapeStyle(Color.settingsControl)
+        isOn ? AnyShapeStyle(LinearGradient.accentFill) : AnyShapeStyle(Color.settingsControl)
     }
 }
 
 // MARK: - Segmented
 
-/// Two or three answers side by side, with the chosen one filled.
-///
-/// Its own view rather than a `PickerStyle`, because SwiftUI has no way to write one: the
-/// protocol is not open. The behaviour a picker gives for free is short enough to keep —
-/// a row of buttons, one of which is selected — and everything below it is the same
-/// selection binding the system control was driven by.
+/// Two or three answers side by side with the chosen one filled; SwiftUI cannot write a `PickerStyle`.
 struct SettingsSegmented: View {
     let options: [(id: String, title: String)]
     @Binding var selection: String
@@ -83,13 +65,7 @@ struct SettingsSegmented: View {
                         .frame(height: 24)
                         .background(
                             isSelected
-                                ? AnyShapeStyle(
-                                    LinearGradient(
-                                        colors: [
-                                            Color(nsColor: NSColor(rgb: 0x17_968C)), .dockAccent,
-                                        ],
-                                        startPoint: .top, endPoint: .bottom))
-                                : AnyShapeStyle(Color.clear),
+                                ? AnyShapeStyle(LinearGradient.accentFill) : AnyShapeStyle(Color.clear),
                             in: .rect(cornerRadius: 6)
                         )
                         .contentShape(.rect)
@@ -108,11 +84,7 @@ struct SettingsSegmented: View {
 
 // MARK: - Pop-up
 
-/// A list too long to lay out flat, behind a control that looks like the others.
-///
-/// A `Menu` with a label of our own rather than a styled `Picker`: the pop-up button's
-/// chrome cannot be replaced, and a menu gives the same list, the same keyboard handling
-/// and the same behaviour when it opens near the bottom of a screen.
+/// A long list behind a control that looks like the others; a `Menu`, since a pop-up's chrome is fixed.
 struct SettingsMenu: View {
     let options: [(id: String, title: String)]
     @Binding var selection: String
@@ -148,9 +120,7 @@ struct SettingsMenu: View {
             )
             .contentShape(.rect)
         }
-        // `.button` with a plain button style, not `.borderlessButton`: the borderless
-        // style draws its own indicator to the *left* of the label and ignores the
-        // background, which is how this came out as a bare chevron beside the word.
+        // `.button` with a plain style; `.borderlessButton` draws its own indicator and no background.
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
@@ -186,10 +156,8 @@ struct SettingsButtonStyle: ButtonStyle {
 // MARK: - Colours
 
 extension Color {
-    /// The fill under a control on a card: one step lifted, so a switch reads as a
-    /// switch and not as a hole in the row.
+    /// The fill under a control on a card, one step lifted, so a switch does not read as a hole.
     static let settingsControl = Color(nsColor: .orbit(dark: 0x12_151C, light: 0xF1_F0F5))
-    /// The accent where it is a mark rather than a fill — a chevron, a tick — in a
-    /// window that follows the system's appearance.
+    /// The accent as a mark rather than a fill, in a window that follows the system's appearance.
     static let settingsAccentInk = Color(nsColor: .orbit(dark: 0x5F_E0D3, light: 0x0E_6B64))
 }

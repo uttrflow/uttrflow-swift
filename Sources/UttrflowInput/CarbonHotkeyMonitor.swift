@@ -14,8 +14,8 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     private let continuation: AsyncStream<HotkeyEvent>.Continuation
     private let registration = Mutex<CarbonRegistration?>(nil)
 
-    /// Whether a press has been reported with no release yet, and which key it was for.
-    private let held = Mutex<HeldKey>(HeldKey())
+    /// Whether a press has been reported with no release yet.
+    private let held = Mutex<HeldModifierEdge>(HeldModifierEdge())
 
     /// The timer comparing the real key state against what Carbon has reported.
     private let reconciliation = Mutex<(any DispatchSourceTimer)?>(nil)
@@ -111,10 +111,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
 
     /// Reports one event, and only when it changes whether the key is down.
     private func deliver(_ event: HotkeyEvent, keyCode: UInt32) {
-        let happened = held.withLock { key -> HotkeyEvent? in
-            key.keyCode = keyCode
-            return key.edge.flagsChanged(isDownNow: event == .pressed)
-        }
+        let happened = held.withLock { $0.flagsChanged(isDownNow: event == .pressed) }
         guard let happened else { return }
         // Only while a key is down, so an idle app never wakes and no timer outlives one.
         switch happened {
@@ -133,7 +130,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
         timer.setEventHandler { [weak self] in
             // A monitor released mid-hold cancels its own timer rather than firing for ever.
             guard let self else { timer.cancel(); return }
-            guard held.withLock({ $0.edge.isDown }) else { return }
+            guard held.withLock({ $0.isDown }) else { return }
             guard !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(keyCode))
             else { return }
             deliver(.released, keyCode: keyCode)
@@ -155,7 +152,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     private func unregister() {
         stopReconciling()
         // A hold interrupted by unregistering is a release, or the microphone stays open.
-        let owed = held.withLock { $0.edge.stopped() }
+        let owed = held.withLock { $0.stopped() }
         if let owed { continuation.yield(owed) }
         guard
             let live = registration.withLock({ registration -> CarbonRegistration? in
@@ -174,12 +171,6 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
 private struct CarbonRegistration: @unchecked Sendable {
     let identifier: UInt32
     let hotKey: EventHotKeyRef
-}
-
-/// Whether the shortcut is down, and which key code it is.
-private struct HeldKey: Sendable, Equatable {
-    var edge = HeldModifierEdge()
-    var keyCode: UInt32 = 0
 }
 
 /// Where a fired hot key goes, so only a `UInt32` crosses the C boundary.

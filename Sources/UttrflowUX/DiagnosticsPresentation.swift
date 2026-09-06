@@ -1,25 +1,32 @@
+// The Diagnostics page: its rows, the latency figures, reliability, and the plain-text report.
 public import Foundation
 public import UttrflowCore
 
-/// Whether something the page reports is fine, wants attention, or is simply not known.
-///
-/// The third case is the point of the type. A diagnostics page that cannot tell "no"
-/// from "nobody has asked yet" will eventually tell the user something untrue.
+/// Whether something the page reports is fine, wants attention, or is not yet known.
 public enum DiagnosticsState: Sendable, Equatable {
+    /// Nothing to do.
     case good
+    /// Something needs the user.
     case attention
+    /// Nobody has asked yet.
     case unknown
 }
 
 /// One fact about the machine, and what to do if it is the wrong fact.
 public struct DiagnosticsRow: Sendable, Equatable, Identifiable {
+    /// What the row is about.
     public let title: String
+    /// The fact itself.
     public let detail: String
+    /// How the fact is coloured.
     public let state: DiagnosticsState
+    /// The fix, when the row offers one.
     public let action: MainAction?
 
+    /// The title, which is unique on the page.
     public var id: String { title }
 
+    /// Builds a row; without an action it is only a fact.
     public init(
         title: String, detail: String, state: DiagnosticsState, action: MainAction? = nil
     ) {
@@ -32,20 +39,23 @@ public struct DiagnosticsRow: Sendable, Equatable, Identifiable {
 
 /// How long one stage of the journey takes, from the times actually recorded.
 public struct DiagnosticsStageRow: Sendable, Equatable, Identifiable {
+    /// Which stage this row times.
     public let stage: PipelineStage
+    /// The stage in the product's words.
     public let title: String
-    /// The middle measurement, not a mean: one pathological dictation should not move
-    /// the number a user reads as "what usually happens".
+    /// The median, not a mean, so one pathological dictation does not move "what usually happens".
     public let typical: String
-    /// The worst one seen. Reported as the slowest rather than as a percentile, because
-    /// a percentile over a handful of samples is arithmetic pretending to be evidence.
+    /// The worst one seen, reported as the slowest rather than a percentile over a handful of samples.
     public let slowest: String
     /// This stage's share of the total below, for the bar. Zero to one.
     public let share: Double
+    /// How many timings the row rests on.
     public let samples: Int
 
+    /// The stage, which appears once.
     public var id: PipelineStage { stage }
 
+    /// Builds a row from its measurements.
     public init(
         stage: PipelineStage, title: String, typical: String, slowest: String, share: Double,
         samples: Int
@@ -61,22 +71,16 @@ public struct DiagnosticsStageRow: Sendable, Equatable, Identifiable {
 
 /// The headline number and what it is made of.
 public struct DiagnosticsLatency: Sendable, Equatable {
-    /// Prefixed with "at least" while any stage remains unmeasured, because a total
-    /// assembled from some of the journey is a floor and must not be read as the whole.
+    /// Prefixed with "at least" while any stage is unmeasured, because a partial total is a floor.
     public let headline: String
-    /// Says exactly what the headline is, because it is a sum of typicals rather than
-    /// the typical of any one dictation — the pipeline times stages, not journeys.
+    /// Says exactly what the headline is: a sum of typicals, not the typical of any one dictation.
     public let caption: String
+    /// One row per stage something has timed.
     public let stages: [DiagnosticsStageRow]
-    /// The stages nothing has ever timed, named rather than drawn.
-    ///
-    /// A row of its own instead of a zero among the others: "never run" and "took no
-    /// measurable time" are different facts about a stage, and the page that conflates
-    /// them tells the user the journey is shorter than it is.
+    /// The stages nothing has ever timed, named in a row of their own rather than drawn as zero.
     public let unmeasured: [DiagnosticsRow]
 
-    /// `unmeasured` has no default, deliberately: "nothing is missing" is a claim about
-    /// the journey, and a caller has to make it rather than fall into it.
+    /// `unmeasured` has no default: "nothing is missing" is a claim a caller has to make.
     public init(
         headline: String, caption: String, stages: [DiagnosticsStageRow],
         unmeasured: [DiagnosticsRow]
@@ -88,16 +92,16 @@ public struct DiagnosticsLatency: Sendable, Equatable {
     }
 }
 
-/// Whether a downloaded speech model is on the machine.
-///
-/// Described rather than named: this module knows nothing about model catalogues, and
-/// §16 says the user is not told which recogniser they are running in any case.
+/// Whether a downloaded speech model is on the machine; described, never named, per §16.
 public struct DiagnosticsModelPresence: Sendable, Equatable {
+    /// Whether the model is there.
     public let isInstalled: Bool
     /// What it occupies, when it is there.
     public let bytesOnDisk: Int64?
+    /// Whether it recognises every language or only English.
     public let isMultilingual: Bool
 
+    /// Builds the description.
     public init(isInstalled: Bool, bytesOnDisk: Int64?, isMultilingual: Bool) {
         self.isInstalled = isInstalled
         self.bytesOnDisk = bytesOnDisk
@@ -107,50 +111,47 @@ public struct DiagnosticsModelPresence: Sendable, Equatable {
 
 /// Everything the diagnostics page is drawn from.
 public struct DiagnosticsSnapshot: Sendable, Equatable {
+    /// Which engines are configured, in preference order.
     public let engines: EngineConfiguration
-    /// What each clean-up engine answered when last asked whether it could run here.
-    /// A kind that is absent has never been asked, and is reported as such.
+    /// What each clean-up engine answered when last asked whether it can run here; absent means never asked.
     public let transformerAvailability: [TransformerKind: Bool]
     /// Absent until the store has been consulted.
     public let speechModel: DiagnosticsModelPresence?
+    /// What macOS has granted, for every permission asked about.
     public let permissions: [PermissionKind: PermissionStatus]
     /// Every stage timing recorded since the app started.
     public let measurements: [StageMeasurement]
+    /// What the clean-up steps did to the last dictation, absent until one has been tidied.
+    public let cleaning: CleaningRecord?
 
+    /// Builds a snapshot; everything defaults to not yet checked.
     public init(
         engines: EngineConfiguration = .default,
         transformerAvailability: [TransformerKind: Bool] = [:],
         speechModel: DiagnosticsModelPresence? = nil,
         permissions: [PermissionKind: PermissionStatus] = [:],
-        measurements: [StageMeasurement] = []
+        measurements: [StageMeasurement] = [],
+        cleaning: CleaningRecord? = nil
     ) {
         self.engines = engines
         self.transformerAvailability = transformerAvailability
         self.speechModel = speechModel
         self.permissions = permissions
         self.measurements = measurements
+        self.cleaning = cleaning
     }
 }
 
-/// What the diagnostics page shows.
-/// The one line at the top of Diagnostics: whether anything needs doing, and the button
-/// that does it.
-///
-/// This page is a page of facts, and a page of facts makes the reader do the work of
-/// deciding which fact matters. Somebody opens Diagnostics because something is wrong or
-/// because they want to be told nothing is — both deserve an answer above the table
-/// rather than three sections down it.
+/// The one line at the top of Diagnostics: whether anything needs doing, and the button that does it.
 public struct DiagnosticsSummary: Sendable, Equatable {
+    /// The sentence itself.
     public let text: String
-    /// Whether this is a warning or an all-clear. The all-clear is drawn quietly: a green
-    /// banner every time somebody looks is a banner they stop reading, and then the amber
-    /// one does not register either.
+    /// Whether this is a warning or an all-clear; the all-clear is drawn quietly so the warning registers.
     public let needsAttention: Bool
-    /// The action from the row it is about, when that row offered one — the same button,
-    /// moved to where the sentence is, so a fix is never two scrolls from its own
-    /// explanation.
+    /// The action from the row it is about, moved up beside the sentence.
     public let action: MainAction?
 
+    /// Builds the summary.
     public init(text: String, needsAttention: Bool, action: MainAction?) {
         self.text = text
         self.needsAttention = needsAttention
@@ -158,26 +159,37 @@ public struct DiagnosticsSummary: Sendable, Equatable {
     }
 }
 
+/// What the diagnostics page shows.
 public struct DiagnosticsPresentation: Sendable, Equatable {
     /// The verdict, above everything else on the page.
     public let summary: DiagnosticsSummary
     /// Absent until something has been timed, in which case ``latencyEmptyState`` says so.
     public let latency: DiagnosticsLatency?
+    /// Shown instead of ``latency`` until something has been timed.
     public let latencyEmptyState: MainEmptyState?
     /// How often each measured stage worked. Empty until there is something to divide.
     public let reliability: [MainStatistic]
+    /// One row per speech and clean-up engine.
     public let engines: [DiagnosticsRow]
+    /// What each clean-up step did to the last dictation, and which steps are switched off.
+    public let cleanUp: [DiagnosticsRow]
+    /// One row per permission, granted or not.
     public let permissions: [DiagnosticsRow]
+    /// What the speech model occupies on disk.
     public let storage: [DiagnosticsRow]
+    /// The line under the page saying where the timings come from.
     public let footnote: String
+    /// Copies the same facts as plain text.
     public let copyAction: MainAction
 
+    /// Builds the page from its parts.
     public init(
         summary: DiagnosticsSummary,
         latency: DiagnosticsLatency?,
         latencyEmptyState: MainEmptyState?,
         reliability: [MainStatistic],
         engines: [DiagnosticsRow],
+        cleanUp: [DiagnosticsRow],
         permissions: [DiagnosticsRow],
         storage: [DiagnosticsRow],
         footnote: String,
@@ -188,6 +200,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.latencyEmptyState = latencyEmptyState
         self.reliability = reliability
         self.engines = engines
+        self.cleanUp = cleanUp
         self.permissions = permissions
         self.storage = storage
         self.footnote = footnote
@@ -195,12 +208,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     }
 }
 
-/// Turns what has actually been measured into the diagnostics page.
-///
-/// The rule the whole type is built around: nothing appears here that was not measured.
-/// A stage nobody timed has no row, a percentage with no samples behind it is not shown,
-/// and the artboard's memory figures are absent entirely because nothing measures them.
-/// A number a user cannot trust makes every other number on the page worthless.
+/// Turns what has been measured into the diagnostics page; nothing appears that was not measured.
 public enum DiagnosticsPresenter {
     /// The sentence under the page's name.
     public static let caption = "What is installed, what is allowed, and how fast it runs."
@@ -209,10 +217,11 @@ public enum DiagnosticsPresenter {
     public static let footnote =
         "Measured on this Mac since Uttrflow started, and never sent anywhere."
 
+    /// Draws the Diagnostics page from a snapshot.
     public static func page(
         for snapshot: DiagnosticsSnapshot, locale: Locale = .autoupdatingCurrent
     ) -> DiagnosticsPresentation {
-        let summaries = summaries(for: snapshot.measurements)
+        let summaries = StageLatency.summarise(snapshot.measurements)
         let missing = StageLatency.unmeasuredStages(in: snapshot.measurements)
         let engines = engineRows(for: snapshot)
         let permissions = permissionRows(for: snapshot)
@@ -224,6 +233,7 @@ public enum DiagnosticsPresenter {
             latencyEmptyState: summaries.isEmpty ? noTimingsYet : nil,
             reliability: reliability(for: snapshot.measurements, locale: locale),
             engines: engines,
+            cleanUp: cleanUpRows(for: snapshot.cleaning),
             permissions: permissions,
             storage: storage,
             footnote: footnote,
@@ -233,13 +243,7 @@ public enum DiagnosticsPresenter {
 
     // MARK: - The verdict
 
-    /// What to say above the table.
-    ///
-    /// Permissions first, then engines, then storage — the order somebody is stopped in.
-    /// A permission that is not granted means no dictation at all; an engine that is not
-    /// ready means a worse one is being used; storage is the least urgent of the three.
-    /// Only the first thing wrong is named, because a page that lists three problems at
-    /// the top has not summarised anything.
+    /// What to say above the table: the first thing wrong, in the order permissions, engines, storage.
     static func summary(
         engines: [DiagnosticsRow], permissions: [DiagnosticsRow], storage: [DiagnosticsRow]
     ) -> DiagnosticsSummary {
@@ -254,8 +258,7 @@ public enum DiagnosticsPresenter {
             action: problem.action)
     }
 
-    /// Nothing has been timed. Said plainly, with what to do about it, rather than by
-    /// drawing an empty chart.
+    /// Nothing has been timed, said plainly with what to do about it.
     static let noTimingsYet = MainEmptyState(
         symbolName: "gauge.with.dots.needle.bottom.50percent",
         title: "No timings yet",
@@ -263,33 +266,8 @@ public enum DiagnosticsPresenter {
 
     // MARK: - Latency
 
-    /// One stage's timings, before anything has been made readable out of them.
-    struct StageSummary: Sendable, Equatable {
-        let stage: PipelineStage
-        /// The middle measurement — the upper of the two when there is an even number,
-        /// which needs no tie-breaking rule and cannot invent a value nobody recorded.
-        let typical: Duration
-        let slowest: Duration
-        let samples: Int
-    }
-
-    /// One summary per stage that was actually timed, in the order the journey runs.
-    ///
-    /// Driven by ``PipelineStage/allCases`` so a stage added to the pipeline appears
-    /// here as soon as it is measured — and a stage nobody measures, as capture
-    /// currently is not, simply has no row rather than a fabricated one.
-    static func summaries(for measurements: [StageMeasurement]) -> [StageSummary] {
-        // The arithmetic lives beside StageMeasurement in Core, because the evaluation
-        // harness needs exactly the same answer and had grown its own copy of it. A
-        // second median is a second chance for this page and that report to describe
-        // the same machine differently.
-        StageLatency.summarise(measurements).map {
-            StageSummary(
-                stage: $0.stage, typical: $0.typical, slowest: $0.slowest, samples: $0.samples)
-        }
-    }
-
-    static func stageRows(for summaries: [StageSummary]) -> [DiagnosticsStageRow] {
+    /// One row per stage something has timed, from Core's own medians so this page and the harness agree.
+    static func stageRows(for summaries: [StageLatency]) -> [DiagnosticsStageRow] {
         let total = summaries.reduce(0.0) { $0 + $1.typical.inSeconds }
         return summaries.map { summary in
             DiagnosticsStageRow(
@@ -297,51 +275,34 @@ public enum DiagnosticsPresenter {
                 title: title(for: summary.stage),
                 typical: MainFormatting.seconds(summary.typical),
                 slowest: MainFormatting.seconds(summary.slowest),
-                // Everything measured as instant divides zero by zero; a flat bar is the
-                // truthful picture of a journey with no time in it.
+                // Everything measured as instant divides zero by zero; a flat bar is the truthful picture.
                 share: total > 0 ? summary.typical.inSeconds / total : 0,
                 samples: summary.samples)
         }
     }
 
-    /// - Parameters:
-    ///   - summaries: The stages something has timed, in journey order.
-    ///   - missing: The stages nothing has, which the total therefore does not include.
-    /// - Returns: The headline, what it is made of, and what it is missing.
+    /// The headline, what it is made of, and the stages it is missing.
     static func latency(
-        for summaries: [StageSummary], missing: [PipelineStage]
+        for summaries: [StageLatency], missing: [PipelineStage]
     ) -> DiagnosticsLatency {
         let total = summaries.reduce(Duration.zero) { $0 + $1.typical }
-        // One transcription per dictation, so its sample count is how many journeys the
-        // numbers rest on. Absent entirely if transcription was never reached.
+        // One transcription per dictation, so its sample count is how many journeys the numbers rest on.
         let dictations = summaries.first { $0.stage == .transcription }?.samples ?? 0
         let measured = MainFormatting.seconds(total)
         let overDictations = MainFormatting.count(dictations, "dictation", "dictations")
 
-        // "at least" needs a number it can qualify, and ``MainFormatting/seconds(_:)``
-        // says "under 0.01s" for an instant total — an upper bound, which is the one
-        // claim a total with a stage missing from it may not make.
+        // "at least" needs a number it can qualify, and "under 0.01s" is an upper bound, not a floor.
         let floor = total.inSeconds < 0.01 ? "0.00s" : measured
 
         return DiagnosticsLatency(
-            // A sum of the stages that were timed is a floor, not the journey, and the
-            // one word that says so has to be on the number itself: a caption below a
-            // confident "2.62s" is not what anybody reads.
+            // A sum of the timed stages is a floor, and the word saying so has to be on the number itself.
             headline: missing.isEmpty ? measured : "at least \(floor)",
             caption: caption(over: overDictations, missing: missing.count),
             stages: stageRows(for: summaries),
             unmeasured: missing.map(neverRunRow))
     }
 
-    /// Says exactly what the headline is, and — when it is one — that it is partial.
-    ///
-    /// The count rather than the names: the stages are listed underneath by name, and a
-    /// caption that repeated them would be the same fact twice at the width the page has.
-    ///
-    /// - Parameters:
-    ///   - dictations: How many dictations the numbers rest on, already written out.
-    ///   - missing: How many stages nothing has ever timed.
-    /// - Returns: The sentence under the headline.
+    /// The sentence under the headline; counts the missing stages rather than naming them again.
     static func caption(over dictations: String, missing: Int) -> String {
         let base = "each stage's typical time, added together, over \(dictations)"
         guard missing > 0 else { return base }
@@ -351,17 +312,12 @@ public enum DiagnosticsPresenter {
             """
     }
 
-    /// A stage nothing has timed, said in the page's own vocabulary for "not known".
-    ///
-    /// Grey and wordless rather than `0.00s`, for the reason ``DiagnosticsState`` exists:
-    /// a page that cannot tell "no time" from "no measurement" will eventually tell the
-    /// user something untrue.
+    /// A stage nothing has timed, grey and wordless rather than `0.00s`.
     static func neverRunRow(for stage: PipelineStage) -> DiagnosticsRow {
         DiagnosticsRow(title: title(for: stage), detail: "Never run", state: .unknown)
     }
 
-    /// The words the rest of the product already uses for these moments, so a user who
-    /// has read the floating button recognises the row.
+    /// The words the floating button already uses for these moments, so the row is recognised.
     static func title(for stage: PipelineStage) -> String {
         switch stage {
         case .capture: "Recording"
@@ -375,6 +331,7 @@ public enum DiagnosticsPresenter {
 
     // MARK: - Reliability
 
+    /// How often each measured stage worked, one figure per stage with samples.
     static func reliability(for measurements: [StageMeasurement], locale: Locale) -> [MainStatistic] {
         PipelineStage.allCases.compactMap { stage in
             let attempts = measurements.filter { $0.stage == stage }
@@ -389,6 +346,7 @@ public enum DiagnosticsPresenter {
 
     // MARK: - Engines
 
+    /// The speech engine, then every clean-up engine with whether it is in use, ready, or missing.
     static func engineRows(for snapshot: DiagnosticsSnapshot) -> [DiagnosticsRow] {
         let ordered = snapshot.engines.resolvedTransformerPreference
         let inUse = ordered.first { snapshot.transformerAvailability[$0] == true }
@@ -414,11 +372,7 @@ public enum DiagnosticsPresenter {
             }
     }
 
-    /// Plain English, never a product name.
-    ///
-    /// §16 says the user must never learn which engine ran, and a diagnostics page is
-    /// still the user's. What is useful here is *what kind of thing* is running — on
-    /// this Mac or not, downloaded or built in — and that survives the rule intact.
+    /// Plain English, never a product name, since §16 says the user never learns which engine ran.
     static func name(for kind: SpeechEngineKind) -> String {
         switch kind {
         case .whisperKit: "Downloaded speech model"
@@ -426,6 +380,7 @@ public enum DiagnosticsPresenter {
         }
     }
 
+    /// Plain English for a clean-up engine, never a product name.
     static func name(for kind: TransformerKind) -> String {
         switch kind {
         case .foundationModels: "Built-in language model"
@@ -435,10 +390,79 @@ public enum DiagnosticsPresenter {
         }
     }
 
+    // MARK: - What the clean-up steps did
+
+    /// At most this many words are quoted in a row; the rest are counted, so a row stays a line.
+    static let quoted = 4
+
+    /// The steps this page reports on: the ones the user is offered, whichever engine tidied the words.
+    static func reported(_ record: CleaningRecord) -> [CleaningRecord.Change] {
+        record.changes.filter { CleaningSteps.isOffered($0.step) }
+    }
+
+    /// One row per step that changed something, then every step that is off, naming the words rather than counting them.
+    static func cleanUpRows(for record: CleaningRecord?) -> [DiagnosticsRow] {
+        guard let record else {
+            return [
+                DiagnosticsRow(
+                    title: "Clean-up steps", detail: "Nothing dictated yet", state: .unknown)
+            ]
+        }
+
+        let changed = reported(record).map {
+            DiagnosticsRow(
+                title: CleaningSteps.name(of: $0.step), detail: detail(of: $0), state: .good)
+        }
+        // Named rather than absent: a step that is off is why a word is still there.
+        let off = record.switchedOff.map {
+            DiagnosticsRow(
+                title: CleaningSteps.name(of: $0), detail: "Switched off", state: .unknown)
+        }
+        guard changed.isEmpty, off.isEmpty else { return changed + off }
+        return [
+            DiagnosticsRow(
+                title: "Clean-up steps", detail: "Nothing needed changing", state: .good)
+        ]
+    }
+
+    /// What one step did, in the first few words it did it to and a count of the rest.
+    static func detail(of change: CleaningRecord.Change) -> String {
+        var parts: [String] = []
+        if !change.removed.isEmpty {
+            parts.append("removed \(change.removed.count): \(listed(change.removed))")
+        }
+        if !change.replaced.isEmpty {
+            let rewrites = change.replaced.map { "\($0.from) → \($0.to)" }
+            parts.append("rewrote \(rewrites.count): \(listed(rewrites))")
+        }
+        if !change.inserted.isEmpty {
+            parts.append("added \(change.inserted.count): \(listed(change.inserted))")
+        }
+        return parts.joined(separator: "; ")
+    }
+
+    /// The first few words, then how many more there were, because the row is one line of a page.
+    static func listed(_ words: [String]) -> String {
+        guard words.count > quoted else { return words.joined(separator: ", ") }
+        return words.prefix(quoted).joined(separator: ", ") + " and \(words.count - quoted) more"
+    }
+
+    /// The same steps counted rather than quoted, for the report that leaves this Mac by hand.
+    static func countedCleanUp(_ record: CleaningRecord) -> [String] {
+        reported(record).map { change in
+            let counts = [
+                change.removed.isEmpty ? nil : "removed \(change.removed.count)",
+                change.replaced.isEmpty ? nil : "rewrote \(change.replaced.count)",
+                change.inserted.isEmpty ? nil : "added \(change.inserted.count)",
+            ].compactMap(\.self)
+            return "  \(CleaningSteps.name(of: change.step)): \(counts.joined(separator: ", "))"
+        }
+            + record.switchedOff.map { "  \(CleaningSteps.name(of: $0)): switched off" }
+    }
+
     // MARK: - Permissions
 
-    /// Every permission, granted or not: a page that lists only the broken ones cannot
-    /// be used to confirm that nothing is broken.
+    /// Every permission, granted or not, so the page can confirm that nothing is broken.
     static func permissionRows(for snapshot: DiagnosticsSnapshot) -> [DiagnosticsRow] {
         PermissionKind.allCases.map { kind in
             switch snapshot.permissions[kind] {
@@ -468,6 +492,7 @@ public enum DiagnosticsPresenter {
         MainAction(title: MainPresenter.title(for: recovery), intent: .recover(recovery))
     }
 
+    /// The permission as the rest of the product names it.
     static func name(for kind: PermissionKind) -> String {
         switch kind {
         case .microphone: "Microphone"
@@ -477,6 +502,7 @@ public enum DiagnosticsPresenter {
 
     // MARK: - What is on the disk
 
+    /// The speech model row: not checked, not downloaded, or its size and languages.
     static func storageRows(for snapshot: DiagnosticsSnapshot, locale: Locale) -> [DiagnosticsRow] {
         guard let model = snapshot.speechModel else {
             return [DiagnosticsRow(title: "Speech model", detail: "Not checked yet", state: .unknown)]
@@ -499,14 +525,11 @@ public enum DiagnosticsPresenter {
 
     // MARK: - Copying it out
 
-    /// The same facts as plain text, for pasting into a bug report.
-    ///
-    /// Built from the page rather than assembled separately, so what is copied cannot
-    /// say something different from what was on screen.
+    /// The same facts as plain text for a bug report, built from the page so the two cannot differ.
     public static func report(
         for snapshot: DiagnosticsSnapshot, locale: Locale = .autoupdatingCurrent
     ) -> String {
-        let stages = stageRows(for: summaries(for: snapshot.measurements))
+        let stages = stageRows(for: StageLatency.summarise(snapshot.measurements))
         var lines = ["Uttrflow diagnostics", footnote, ""]
 
         if stages.isEmpty {
@@ -514,11 +537,16 @@ public enum DiagnosticsPresenter {
         } else {
             lines.append("Timings (typical / slowest / samples)")
             lines += stages.map { "  \($0.title): \($0.typical) / \($0.slowest) / \($0.samples)" }
-            // Named here as well as on the page, because a bug report that lists four
-            // stages of a six-stage journey is a bug report about the wrong four.
+            // Named here as on the page, so a bug report never lists four stages of a six-stage journey.
             lines += StageLatency.unmeasuredStages(in: snapshot.measurements).map {
                 "  \(title(for: $0)): never run"
             }
+        }
+
+        // Counted, never quoted: this string is pasted elsewhere, and dictated words are not a diagnostic.
+        let counted = snapshot.cleaning.map(countedCleanUp) ?? []
+        if !counted.isEmpty {
+            lines += ["", "Clean-up steps, last dictation"] + counted
         }
 
         let sections: [(String, [DiagnosticsRow])] = [

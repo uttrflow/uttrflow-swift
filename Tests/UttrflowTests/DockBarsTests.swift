@@ -1,3 +1,5 @@
+// Tests for the meter's level, bars and arrivals.
+
 import CoreGraphics
 import Foundation
 import Testing
@@ -5,10 +7,7 @@ import UttrflowPipeline
 
 @testable import Uttrflow
 
-/// The old waveform was seventeen bars running a canned loop — the same animation
-/// whether somebody shouted, whispered or said nothing at all — and nothing caught it
-/// because there was nothing to catch. These are the claims the meter makes now, written
-/// down so it cannot quietly go back to being a decoration.
+/// The claims the meter makes, written down so it cannot go back to being a decoration.
 @Suite("The level the floating button draws")
 struct DockLevelTests {
     @Test("silence is flat")
@@ -28,9 +27,7 @@ struct DockLevelTests {
         #expect(DockLevel.scale(rms: 1) == 1)
     }
 
-    /// The reason for using decibels at all. Speech at a laptop microphone sits around
-    /// −30 dBFS, which is an amplitude of about 0.03 — on a linear meter that is three
-    /// percent of the travel, and the meter looks broken.
+    /// Speech at −30 dBFS is 0.03 amplitude, three percent of a linear meter's travel.
     @Test("ordinary speech lands in the upper half, not the bottom three percent")
     func speechIsVisible() {
         let speech = DockLevel.scale(rms: 0.0316)  // −30 dBFS
@@ -48,11 +45,7 @@ struct DockLevelTests {
         }
     }
 
-    /// A microphone can hand over a block that fails to convert. A meter that answered
-    /// with a non-finite height would take the whole panel's layout with it — and an
-    /// unreadable sample is not a loud one, so the meter goes flat rather than full.
-    /// Flat is at worst "I am not hearing you", which is recoverable; full scale on
-    /// garbage would be the panel telling somebody they are being heard.
+    /// A block that fails to convert reads as flat, not loud; flat is at worst "I am not hearing you".
     @Test("a broken sample reads as flat, not as loud")
     func rejectsNonFinite() {
         #expect(DockLevel.scale(rms: .nan) == 0)
@@ -72,8 +65,7 @@ struct DockBarsTests {
         #expect(bars.levels.allSatisfy { $0 == 0 })
     }
 
-    /// The property the whole design rests on: a bar is a moment. The newest arrival is
-    /// at the edge sound comes in at, and everything else has moved one place along.
+    /// A bar is a moment: the newest arrival is at the edge sound comes in at.
     @Test("an arrival lands at the front and pushes the rest along")
     func arrivalsLandAtTheFront() {
         var bars = DockBars()
@@ -127,14 +119,7 @@ struct DockBarsTests {
         #expect(bars.levels.count == DockBars.capacity)
     }
 
-    /// Two teals the app already owns, split at half scale. The threshold says this
-    /// instant was louder than half and nothing else — it is not a second measurement,
-    /// because there is one microphone and one number.
-    /// Hue alone cannot carry this. Measured on the app's own values: the pair
-    /// separates at 2.24:1 on a light desktop and at 1.05:1 on a dark one, where the
-    /// accent is also the fractionally darker of the two. The weight step is what makes
-    /// the threshold survive the ground most desktops actually use, so it has to stay a
-    /// real difference rather than a rounding error.
+    /// Quiet bars are held back by weight, because hue alone separates at only 1.05:1 on a dark desktop.
     @Test("quiet bars are held back by enough to see")
     func quietBarsAreHeldBack() {
         #expect(DockMetrics.meterQuietOpacity < 0.75)
@@ -171,8 +156,7 @@ struct DockArrivalTests {
         #expect(dock.lastArrival == when)
     }
 
-    /// The row has to outlive the microphone by exactly one state: the working animation
-    /// settles the bars the voice actually left behind.
+    /// The row outlives the microphone by one state, so the working animation settles the real bars.
     @Test("the row survives the end of a recording")
     func rowSurvivesTheEnd() {
         let dock = model()
@@ -200,8 +184,7 @@ struct DockArrivalTests {
         #expect(dock.bars.levels.allSatisfy { $0 == 0 })
     }
 
-    /// A run of identical recording presentations is what arrives while somebody holds
-    /// the key. Clearing on each of them would wipe the row sixty times a second.
+    /// Identical recording presentations arrive while the key is held; clearing on each would wipe the row.
     @Test("a repeated recording presentation does not wipe the row")
     func repeatedPresentationKeepsTheRow() {
         let dock = model()

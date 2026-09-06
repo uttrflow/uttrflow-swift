@@ -1,3 +1,4 @@
+// Turns a recogniser's raw output into the product's Transcription.
 public import UttrflowCore
 
 extension RawTranscript {

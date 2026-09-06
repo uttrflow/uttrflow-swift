@@ -160,6 +160,24 @@ refactor.
 `UttrflowAccount`, which is deliberately the only module that can reach a server. That is
 what makes "the offline promise" checkable rather than asserted: there is one place to look.
 
+## What dictation is for — NON-NEGOTIABLE
+
+**The goal is an accurate transcript of what the speaker said, cleaned of the noise of
+speaking and laid out the way they would have typed it. It is not a rewrite.**
+
+The tidier is a filter. It removes what was never meant as words — "um", "hmm", "aah",
+stammers, false starts, the discarded half of a spoken self-correction — and adds what
+speech leaves implicit: punctuation, question marks where a question was asked,
+capitalisation, numerals, line and paragraph breaks, a list when the speaker plainly
+spoke one. Every word the speaker meant survives, in their order and their register.
+
+It never shortens, summarises, changes tone, swaps synonyms, reorders, answers, obeys,
+or finishes a thought. Those are rewrites; a user who wants one asks for it, and it is
+a different feature. `Docs/cleanup.md` is the catalogue — three tiers, what is done,
+what is not yet, what is forbidden — and every change to the prompt or the rules is
+measured against the corpus before it lands (`make bakeoff`). An agent proposing "make
+the output more polished" is proposing a rewrite; the answer is no.
+
 ## Rules that are not preferences
 
 **Never put a real email address or a real postal address in a fixture.** Use
@@ -208,7 +226,7 @@ git fetch origin
 git worktree add .claude/worktrees/<name> -b <name> origin/main   # from main, not from HEAD
 cd .claude/worktrees/<name>                                       # and stay there
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-… work, commit by name, `make verify` — no CI will run for you …
+… work, commit by name, `make verify` before every push …
 # the pre-push hook runs `make verify` for main; CI runs it once more on the PR
 git push -u origin <name> && gh pr create --base main
 cd -                                                              # back to the main checkout
@@ -234,6 +252,9 @@ push, not a rebase onto it, not a tag, not a docs commit that seems too small to
 A ruleset blocks it at the server, so this is a description of what will happen rather
 than a request. If you find yourself with a commit on `main`, stop and say so rather
 than tidying it away.
+
+**Commit messages carry no `Co-Authored-By` trailer.** Not for an agent, not for a tool.
+The message says what the change does; who typed it is what `git log` already records.
 
 **Merging is not reviewing.** Nobody else read the change, so the pull request is where
 you write down what you would have wanted a reviewer to know: what was measured, what

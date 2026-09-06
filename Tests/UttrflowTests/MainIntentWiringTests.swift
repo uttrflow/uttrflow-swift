@@ -1,3 +1,5 @@
+// Tests that the main window's buttons reach the stores.
+
 import Foundation
 import UttrflowAI
 import UttrflowCore
@@ -8,11 +10,7 @@ import Testing
 
 @testable import Uttrflow
 
-/// A folder of its own per test, removed with the test.
-///
-/// Real files rather than substitutes: what is being checked here is that a button
-/// reaches the store at all, and a substitute store would prove only that the substitute
-/// was called.
+/// A folder of its own per test, with real files, because a substitute store proves only itself.
 struct Sandbox: ~Copyable {
     let root: URL
 
@@ -25,12 +23,7 @@ struct Sandbox: ~Copyable {
     deinit { try? FileManager.default.removeItem(at: root) }
 }
 
-/// Waits for the change a button set going to reach disk.
-///
-/// Every store is an actor and every intent hands off to a `Task`, so the write has not
-/// happened when `carryOut` returns. Polling rather than sleeping a fixed time: a fixed
-/// sleep is either slower than it needs to be or flaky on a loaded machine, and this is
-/// both fast when the write lands immediately and patient when it does not.
+/// Polls until the change a button set going reaches disk; a fixed sleep is slow or flaky.
 @MainActor
 private func eventually(
     _ condition: () async -> Bool, within limit: Duration = .seconds(2)
@@ -98,8 +91,7 @@ struct MainIntentWiringTests {
         #expect(trusted)
     }
 
-    /// The presenter refuses a blank word before the button is live. Reaching the store
-    /// with one means the two disagree — and it must cost the save, not the file.
+    /// The presenter refuses a blank word first; one reaching the store must cost the save, not the file.
     @Test("a blank word writes nothing at all")
     func refusesABlankWord() async throws {
         let sandbox = Sandbox()
@@ -128,8 +120,7 @@ struct MainIntentWiringTests {
         #expect(await store.snippets().first?.trigger == "my address")
     }
 
-    /// The whole reason the store grew a save-from-the-editor call: an edit must not
-    /// reset what has been counted about a snippet.
+    /// An edit must not reset what has been counted about a snippet.
     @Test("editing a snippet keeps what the user did not type")
     func editsASnippet() async throws {
         let sandbox = Sandbox()
@@ -150,12 +141,7 @@ struct MainIntentWiringTests {
         #expect(kept.created == original.created)
     }
 
-    /// The window's copy of the list is the last refresh and can be a snippet behind, so
-    /// opening the editor from it would find nothing for a row just added.
-    ///
-    /// Read back off the window rather than by saving with an identity the test supplied
-    /// — that earlier version passed with the whole `.editSnippet` case deleted, because
-    /// the assertion only ever checked what the test had itself passed in.
+    /// The window's list can be a snippet behind, so the editor reads back off the window, not the test.
     @Test("editing a snippet added since the last redraw opens the editor on that row")
     func editsASnippetTheWindowHasNotSeen() async throws {
         let sandbox = Sandbox()
@@ -174,10 +160,7 @@ struct MainIntentWiringTests {
         #expect(app.mainWindow?.snippetDraft.text == "Flat 402")
     }
 
-    /// The one decision made from a cached list: whether Save is enabled is decided from
-    /// the words the page last drew. That list can now go stale *while the editor is
-    /// open*, because a dictation finishing in another app teaches the dictionary. The
-    /// store has the current answer and is asked again.
+    /// The words the page last drew can go stale while the editor is open; the store is asked again.
     @Test("a word learnt while the editor was open is not saved over")
     func doesNotOverwriteAWordLearntSinceTheEditorOpened() async throws {
         let sandbox = Sandbox()
@@ -193,9 +176,7 @@ struct MainIntentWiringTests {
 
         app.carryOut(.saveWord(word: "pgvector", pronunciation: ""))
 
-        // Still the learnt entry, with everything known about it: replacing would have
-        // reset the origin to `.added` and the count to zero, and `removeLearned()` would
-        // then no longer remove it.
+        // Still the learnt entry; replacing would reset the origin and count.
         let settled = await eventually(
             { await store.allEntries().first?.origin != .observed }, within: .milliseconds(300))
         #expect(!settled)
@@ -203,10 +184,7 @@ struct MainIntentWiringTests {
         #expect(await store.allEntries().first?.timesUsed == 6)
     }
 
-    /// `.addSnippet` opens the editor at once; `.editSnippet` has to read the store
-    /// first. Clicking Edit and then New used to give a blank form that filled itself
-    /// with the row's text a moment later — and because the draft carried `editing:`,
-    /// Save then edited that row instead of creating a snippet.
+    /// `.addSnippet` opens the editor at once; `.editSnippet` reads the store first and must not win late.
     @Test("clicking New after Edit gives a new snippet, not the one being edited")
     func newSnippetWinsOverAnEditStillReadingTheDisk() async throws {
         let sandbox = Sandbox()
@@ -219,17 +197,14 @@ struct MainIntentWiringTests {
         app.carryOut(.editSnippet(snippet.id))
         app.carryOut(.addSnippet)
 
-        // Long enough for the disk read behind the Edit to have finished and, unguarded,
-        // to have written itself over the blank form.
+        // Long enough for the disk read behind Edit to have finished.
         let filled = await eventually(
             { app.mainWindow?.snippetDraft.editing != nil }, within: .milliseconds(400))
         #expect(!filled)
         #expect(app.mainWindow?.snippetDraft == SnippetDraft())
     }
 
-    /// `saveWord`'s own documentation makes closing-only-once-it-is-in its contract, and
-    /// nothing checked it: removing the close from both success paths left every test
-    /// passing.
+    /// `saveWord` closes the editor only once the word is in.
     @Test("a saved word closes the editor, and a refused one leaves it open")
     func closesTheEditorOnlyOnSuccess() async throws {
         let sandbox = Sandbox()
@@ -237,10 +212,7 @@ struct MainIntentWiringTests {
         app.mainWindow = app.makeMainWindow()
 
         app.carryOut(.addWord)
-        // What typing into the field does. Without it the draft is empty before the save
-        // as well as after, and "the editor closed" is indistinguishable from "nothing
-        // happened" — which is how the first version of this test passed with the close
-        // removed.
+        // What typing into the field does; without it a closed editor looks like nothing happened.
         app.mainWindow?.editWord(DictionaryDraft(word: "Uttrflow", pronunciation: "utter-flow"))
         #expect(app.mainWindow?.wordDraft.word == "Uttrflow")
 
@@ -253,9 +225,7 @@ struct MainIntentWiringTests {
         #expect(closed)
     }
 
-    /// The other half of the contract, and the reason a refusal is worth showing: the
-    /// editor stays open holding what was typed rather than closing over a word that was
-    /// never saved.
+    /// A refusal leaves the editor open holding what was typed.
     @Test("a refused word leaves the editor open with the text still in it")
     func keepsTheEditorOpenOnRefusal() async throws {
         let sandbox = Sandbox()
@@ -329,9 +299,7 @@ struct MainIntentWiringTests {
         #expect(unflagged)
     }
 
-    /// Undo has to reach *both* stores. Putting the words back without telling the
-    /// dictionary its entry was wrong would leave the word to be applied again tomorrow,
-    /// which is the whole mechanism by which a bad word retires itself.
+    /// Undo reaches both stores, or the word is applied again tomorrow.
     @Test("undoing a correction puts the words back and blames the entry that caused it")
     func undoesACorrection() async throws {
         let sandbox = Sandbox()
@@ -358,10 +326,7 @@ struct MainIntentWiringTests {
         let blamed = await eventually { await dictionary.allEntries().first?.timesReverted == 1 }
         #expect(blamed)
 
-        // The order the comment in `carryOut` claims, made enforceable: undoing again
-        // must count nothing, because the history has already put the words back and
-        // says so. If the revert were counted first, a second click — or a stale row
-        // still on screen — would retire a word that nothing had corrected.
+        // Undoing again counts nothing, because the history already put the words back.
         app.carryOut(.undoCorrection(correction.id))
         let settled = await eventually(
             { await dictionary.allEntries().first?.timesReverted != 1 },
@@ -373,17 +338,10 @@ struct MainIntentWiringTests {
     }
 }
 
-/// The one place the two halves of the learning seam meet.
-///
-/// `UttrflowPipelineTests` proves the pipeline offers the raw transcript, the inserted text
-/// and the screen reading; `UttrflowDictionaryTests` proves what the store does with them.
-/// Neither target can see the other, so `LearnedVocabulary` is the only untested hop —
-/// and a swap of `heard` and `wrote` in it would compile, and would teach the dictionary
-/// exactly the words the user was getting rid of.
+/// The one place the two halves of the learning seam meet; a swap of `heard` and `wrote` would compile.
 @Suite("Teaching the dictionary from a finished dictation")
 struct LearnedVocabularyTests {
-    /// The correction path, end to end through the adapter: the user selected the wrong
-    /// spelling, said the word again, and the spelling they kept is learnt at once.
+    /// The correction path end to end through the adapter.
     @Test("a dictation over a selection that sounds the same teaches the new spelling")
     func learnsACorrection() async throws {
         let sandbox = Sandbox()
@@ -399,9 +357,7 @@ struct LearnedVocabularyTests {
         #expect(learnt.origin == .learned)
     }
 
-    /// The argument order, checked directly, because it is the failure this whole test
-    /// exists for: swapped, the adapter would learn "utter flow" — the spelling the user had
-    /// just deleted — and every later dictation of "Uttrflow" would be corrected back to it.
+    /// The argument order checked directly, because swapped it would learn the spelling the user deleted.
     @Test("the words the user got rid of are never what is learnt")
     func doesNotLearnWhatWasReplaced() async throws {
         let sandbox = Sandbox()
@@ -415,8 +371,7 @@ struct LearnedVocabularyTests {
         #expect(await store.allEntries().map(\.word) == ["Uttrflow"])
     }
 
-    /// Nothing on screen, nothing to learn from — and no write either, because an empty
-    /// dictionary file is a different thing from one that was never touched.
+    /// Nothing on screen, nothing to learn from, and no write either.
     @Test("a dictation with nothing on screen teaches nothing")
     func learnsNothingWithoutContext() async throws {
         let sandbox = Sandbox()

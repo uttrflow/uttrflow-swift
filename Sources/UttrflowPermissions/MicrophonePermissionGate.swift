@@ -1,19 +1,17 @@
 public import UttrflowCore
 import AVFoundation
 
-/// Reads and requests microphone access.
-///
-/// The two system calls are injected, in the product's own vocabulary rather than
-/// AVFoundation's, so every branch — including ones macOS will not let a test reach,
-/// like a policy-restricted device — is exercised without touching real permissions.
+/// Reads and requests microphone access; the two system calls are injected so tests reach every branch.
 public struct MicrophonePermissionGate: PermissionGate {
+    /// Reads the current authorisation in the product's vocabulary.
     private let readStatus: @Sendable () -> PermissionStatus
+    /// Shows the system prompt and answers whether the user allowed it.
     private let requestAccess: @Sendable () async -> Bool
 
+    /// Names this gate as the microphone permission.
     public let kind: PermissionKind = .microphone
 
-    /// Substitutes both system calls. The public `init()` that wires up the real ones
-    /// lives alongside them, in `MicrophonePermissionGate+System.swift`.
+    /// Substitutes both system calls; the real wiring lives in `MicrophonePermissionGate+System.swift`.
     init(
         readStatus: @escaping @Sendable () -> PermissionStatus,
         requestAccess: @escaping @Sendable () async -> Bool
@@ -22,15 +20,16 @@ public struct MicrophonePermissionGate: PermissionGate {
         self.requestAccess = requestAccess
     }
 
+    /// The permission as it stands right now.
     public func status() async -> PermissionStatus {
         readStatus()
     }
 
+    /// Prompts only while undecided; otherwise returns the decision the user already made.
     public func request() async -> PermissionStatus {
-        // macOS prompts once and never again. Asking a user who has already decided
-        // returns their decision immediately, so re-reading is the honest answer
-        // rather than pretending a prompt appeared.
-        guard readStatus() == .notDetermined else { return readStatus() }
+        // macOS prompts once only, so a user who has decided gets that decision back, not a prompt.
+        let current = readStatus()
+        guard current == .notDetermined else { return current }
         return await requestAccess() ? .granted : .denied
     }
 

@@ -37,9 +37,7 @@ extension MenuBarPresentation {
 
 @Suite("What the menu bar icon shows")
 struct MenuBarIconTests {
-    /// The menu bar is the only part of Uttrflow that is always on screen, so the icon
-    /// has to carry the state on its own — a user who never opens the menu still needs
-    /// to know whether the microphone is live.
+    /// The icon is always on screen, so it carries the state for a user who never opens the menu.
     @Test("shows a different icon for resting, listening, working and done")
     func iconFollowsActivity() {
         let icons = DictationActivity.allCases.map {
@@ -52,8 +50,7 @@ struct MenuBarIconTests {
         #expect(Set(icons).count == DictationActivity.allCases.count)
     }
 
-    /// Resting is the one moment the slot has nothing to report, so it says whose app
-    /// this is instead. Every other state has news and shows a symbol for it.
+    /// Resting has nothing to report, so it says whose app this is; every other state has news.
     @Test("carries the mark only while nothing is happening")
     func restIsTheMark() {
         #expect(MenuBarPresenter.present(MenuBarState(activity: .idle)).icon == .mark)
@@ -73,8 +70,7 @@ struct MenuBarIconTests {
         }
     }
 
-    /// A failure shown beside the work has already been seen. Lighting the menu bar up
-    /// as well would leave an orange warning over an app that is working perfectly.
+    /// A failure shown beside the work is already seen, and need not light the menu bar too.
     @Test("stays calm about a failure the floating button already reported")
     func degradedFailureDoesNotLightTheMenuBar() {
         let shown = MenuBarPresenter.present(MenuBarState(failure: clipboardFallback))
@@ -104,8 +100,7 @@ struct MenuBarStatusTests {
         #expect(lines == ["Ready", "Listening…", "Tidying up…", "Inserted"])
     }
 
-    /// "Ready" over a model that has not downloaded is a lie the user finds out about
-    /// by pressing the shortcut and getting nothing.
+    /// "Ready" over an undownloaded model is found out by pressing the shortcut and getting nothing.
     @Test("says setting up rather than ready while the model is still coming")
     func setupOutranksReady() {
         #expect(
@@ -120,8 +115,7 @@ struct MenuBarStatusTests {
                 == "Setup hasn't finished")
     }
 
-    /// A downloader reporting 140% is a bug in the downloader, and the menu bar is the
-    /// wrong place for the user to find out about it.
+    /// A downloader reporting 140% is the downloader's bug, and not the menu bar's to show.
     @Test("keeps a nonsense percentage out of the menu bar")
     func percentageIsClamped() {
         #expect(MenuBarPresenter.percentage(of: -3) == 0)
@@ -138,9 +132,7 @@ struct MenuBarStatusTests {
         #expect(shown.statusLine == microphoneOff.headline)
     }
 
-    /// VoiceOver reads this instead of the icon, so it has to be a sentence — and it
-    /// has to come from the same string the status line does, or the two drift apart
-    /// and the one that drifts is the one nobody can see.
+    /// VoiceOver reads a sentence built from the status line's own string, so the two cannot drift.
     @Test("says the same thing aloud that it says on screen")
     func accessibilityLabelFollowsTheStatusLine() {
         #expect(
@@ -151,8 +143,7 @@ struct MenuBarStatusTests {
         #expect(
             MenuBarPresenter.present(MenuBarState(activity: .working)).accessibilityLabel
                 == "Uttrflow. Tidying up.")
-        // The failure's own sentence already ends in a full stop; a second would be read
-        // out as a second pause.
+        // The failure's sentence ends in a full stop; a second is read out as a second pause.
         #expect(
             MenuBarPresenter.present(MenuBarState(failure: microphoneOff)).accessibilityLabel
                 == "Uttrflow. \(microphoneOff.headline)")
@@ -169,11 +160,12 @@ struct MenuBarContentsTests {
         let shown = MenuBarPresenter.present(MenuBarState(recents: twoRecents))
         #expect(
             shown.titles == [
-                // Directly under dictation, because they are the app's two halves and
-                // the clipboard is the half people reach for most.
+                // Directly under dictation: the app's two halves, and the one reached for most.
                 "Start Dictation", "Clipboard",
                 twoRecents[0].title, "Copy “\(twoRecents[0].title)”",
                 twoRecents[1].title, "Copy “\(twoRecents[1].title)”",
+                // The three halves of the product, each switched on its own.
+                "Dictation", "Clipboard", "Suggestions",
                 "Open Uttrflow", "Settings…", "Quit Uttrflow",
             ])
         guard case .status = shown.items.first else {
@@ -183,8 +175,7 @@ struct MenuBarContentsTests {
         #expect(shown.items.contains(.sectionHeader("Recent")))
     }
 
-    /// The problem and its one fix sit together at the top; anything between them makes
-    /// the user hunt for the way out of the thing they opened the menu about.
+    /// The problem and its fix sit together at the top, with nothing between them to hunt past.
     @Test("puts the one fix directly under the problem")
     func recoverySitsUnderTheProblem() {
         let shown = MenuBarPresenter.present(MenuBarState(failure: microphoneOff))
@@ -199,8 +190,7 @@ struct MenuBarContentsTests {
         #expect(fix.isEnabled)
     }
 
-    /// A menu row that opens something else gets an ellipsis; a row that just does the
-    /// thing does not. The banner button keeps the plainer wording either way.
+    /// A row that opens something else gets an ellipsis; the banner button stays plain either way.
     @Test("adds the ellipsis only where a menu should")
     func menuTitleEllipsis() {
         let shown = MenuBarPresenter.present(MenuBarState(failure: clipboardFallback))
@@ -215,8 +205,7 @@ struct MenuBarContentsTests {
         #expect(shown.commands.allSatisfy { if case .recover = $0.intent { false } else { true } })
     }
 
-    /// The menu names where it wants to go and the app owns the windows, so a new place
-    /// to open is one more ``Destination`` rather than one more callback.
+    /// The menu names a ``Destination`` and the app owns the windows, so no callback is added.
     @Test("asks for a window by naming the place, not by opening it")
     func windowsAreNamedAsDestinations() {
         let shown = MenuBarPresenter.present(MenuBarState())
@@ -238,8 +227,7 @@ struct MenuBarContentsTests {
         #expect(shown.command(.quit)?.shortcut == MenuBarShortcut(key: "q", modifiers: .command))
     }
 
-    /// Quitting has to work whatever else is broken; a user who cannot dictate and
-    /// cannot quit either is stuck with an icon they can do nothing about.
+    /// Quitting works whatever else is broken, so no icon is left with nothing to do about it.
     @Test("always lets the user leave")
     func quitIsAlwaysAvailable() {
         for failure in [microphoneOff, clipboardFallback, noWayOut] {
@@ -256,8 +244,7 @@ struct MenuBarContentsTests {
 
 @Suite("What the menu lets the user do")
 struct MenuBarEnablementTests {
-    /// Disabled rather than silently failing: pressing Start Dictation while the
-    /// microphone is refused would look like the app is broken.
+    /// Disabled rather than failing silently, which is what a refused microphone would look like.
     @Test("refuses to start a dictation that cannot happen")
     func startDictationEnablement() {
         #expect(MenuBarPresenter.canStartDictation(in: MenuBarState()))
@@ -275,8 +262,7 @@ struct MenuBarEnablementTests {
                 in: MenuBarState(speechModel: .downloading(fractionCompleted: 0.9))))
     }
 
-    /// A failure the user can carry on past must not take dictation away from them —
-    /// the whole point of calling it degraded is that the product still works.
+    /// A degraded failure keeps dictation, which is the whole of what degraded means.
     @Test("still lets a degraded failure be dictated past")
     func degradedFailureDoesNotBlock() {
         #expect(MenuBarPresenter.canStartDictation(in: MenuBarState(failure: clipboardFallback)))
@@ -292,10 +278,7 @@ struct MenuBarEnablementTests {
         #expect(shown.titles.contains("Start Dictation"))
     }
 
-    /// A dictation begun from the menu has to be endable from the menu. It was not: the
-    /// item read "Start Dictation" throughout, so the microphone stayed open with the
-    /// only escape being the shortcut — a short tap of which hits the slip rule and
-    /// silently discards everything recorded.
+    /// A dictation begun from the menu is endable from the menu, not only by the shortcut.
     @Test("offers a way to stop a dictation it started")
     func stopIsOfferedWhileListening() {
         let shown = MenuBarPresenter.present(MenuBarState(activity: .listening))
@@ -305,8 +288,7 @@ struct MenuBarEnablementTests {
         #expect(shown.command(.stopDictation)?.isEnabled == true)
     }
 
-    /// Even when something is wrong. A blocking failure must not strand the microphone
-    /// open by greying out the only thing that closes it.
+    /// A blocking failure does not grey out the only thing that closes an open microphone.
     @Test("still offers stop when a blocking failure would refuse a start")
     func stopSurvivesABlockingFailure() {
         let shown = MenuBarPresenter.present(
@@ -315,8 +297,7 @@ struct MenuBarEnablementTests {
         #expect(shown.command(.stopDictation)?.isEnabled == true)
     }
 
-    /// Transcription cannot be interrupted, and an enabled Stop that did nothing would
-    /// be worse than no Stop at all.
+    /// Transcription cannot be interrupted, so an enabled Stop would do nothing at all.
     @Test("offers no stop once the words are being worked on")
     func noStopWhileWorking() {
         let shown = MenuBarPresenter.present(MenuBarState(activity: .working))
@@ -325,8 +306,7 @@ struct MenuBarEnablementTests {
         #expect(shown.command(.startDictation)?.isEnabled == false)
     }
 
-    /// A permanently greyed "No recent dictations" row is a line of the menu spent
-    /// telling the user something they can already see.
+    /// No greyed "No recent dictations" row, which spends a line saying what is already visible.
     @Test("leaves out the Recent section entirely when there is nothing in it")
     func noRecentsMeansNoSection() {
         let shown = MenuBarPresenter.present(MenuBarState())
@@ -334,8 +314,7 @@ struct MenuBarEnablementTests {
         #expect(shown.commands.allSatisfy { if case .insertRecent = $0.intent { false } else { true } })
     }
 
-    /// Reaching for an old dictation while a new one is on its way into the same text
-    /// field would race the insertion that is already happening.
+    /// Reaching for an old dictation mid-insertion would race the one already on its way.
     @Test("will not re-insert a dictation in the middle of another")
     func recentsAreDisabledWhileBusy() {
         for activity in [DictationActivity.listening, .working] {
@@ -351,8 +330,7 @@ struct MenuBarEnablementTests {
         }
     }
 
-    /// Positions rather than text: the menu hands back which row was chosen and the app
-    /// looks it up in the list it already owns.
+    /// Positions rather than text: the app looks the row up in the list it already owns.
     @Test("identifies a recent dictation by where it is in the list")
     func recentsCarryTheirPosition() {
         let shown = MenuBarPresenter.present(MenuBarState(recents: twoRecents))
@@ -360,9 +338,7 @@ struct MenuBarEnablementTests {
         #expect(shown.command(.insertRecent(index: 2)) == nil)
     }
 
-    /// Copying is the rarer wish, so it hides behind Option on the same row rather than
-    /// doubling the length of the section — and the tooltip is the whole dictation,
-    /// because the shortened title is not what clicking would insert.
+    /// Copying hides behind Option, and the tooltip is the whole dictation the title shortens.
     @Test("hides copying behind Option and tells the truth in the tooltip")
     func copyIsTheAlternateRow() {
         let shown = MenuBarPresenter.present(MenuBarState(recents: twoRecents))
@@ -375,8 +351,7 @@ struct MenuBarEnablementTests {
         #expect(copy?.tooltip == twoRecents[0].fullText)
     }
 
-    /// The status line is a label, and a clickable label is a promise the menu cannot
-    /// keep.
+    /// The status line is a label, and a clickable label is a promise the menu cannot keep.
     @Test("never makes the status line clickable")
     func statusLineIsNotACommand() {
         let shown = MenuBarPresenter.present(MenuBarState(failure: microphoneOff))
@@ -384,8 +359,7 @@ struct MenuBarEnablementTests {
         #expect(!shown.titles.contains(microphoneOff.headline))
     }
 
-    /// Two presentations of the same moment are compared to decide whether the menu bar
-    /// has anything new to draw.
+    /// Two presentations of one moment compare equal, which is how redrawing is decided.
     @Test("presents the same state as the same thing twice")
     func presentationsAreValues() {
         let state = MenuBarState(activity: .listening, recents: twoRecents)
@@ -394,9 +368,7 @@ struct MenuBarEnablementTests {
     }
 }
 
-/// The menu prints its shortcuts, and a printed shortcut is a promise about which keys
-/// do the thing. These are about the promise being kept — the clipboard's said ⇧⌘V in
-/// the model while the app translated it to ⌘V, so the menu offered paste's own keys.
+/// A printed shortcut is a promise about which keys do the thing; these keep it.
 @Suite("What the menu's shortcuts say")
 struct MenuBarShortcutTests {
     @Test("the clipboard is reachable from the menu, with its real shortcut")
@@ -416,9 +388,7 @@ struct MenuBarShortcutTests {
         #expect(clipboard.shortcut?.modifiers == [.command, .shift])
     }
 
-    /// Shift is the one that was missing, so it is named rather than left to the set
-    /// comparison above: a test that only compares option sets passes just as happily
-    /// when the value is right and the thing reading it ignores half of it.
+    /// Shift is named rather than left to a set comparison, which passes even when it is ignored.
     @Test("shift is a modifier this model can express")
     func shiftIsExpressible() {
         let both: MenuBarModifiers = [.command, .shift]
@@ -427,9 +397,7 @@ struct MenuBarShortcutTests {
         #expect(!both.contains(.option))
     }
 
-    /// The app target translates these into AppKit flags by switching over `allCases`,
-    /// which only stays honest while every case has a distinct one-modifier value. A
-    /// duplicate here would silently bind two modifiers to one flag.
+    /// A duplicate value would silently bind two modifiers to one AppKit flag.
     @Test("every modifier is a distinct single value, and answers to itself")
     func everyModifierIsItsOwn() {
         let each = MenuBarModifier.allCases.map { MenuBarModifiers.one($0) }
@@ -455,8 +423,7 @@ struct MenuBarUpdateTests {
         #expect(line(.installing) == "Updating…")
     }
 
-    /// The wait is the part that needs explaining. "Ready" with nothing happening for a
-    /// minute looks stuck; saying what it waits for makes the pause legible.
+    /// The wait is named, since "Ready" with nothing happening for a minute looks stuck.
     @Test("a staged update says what it is waiting for")
     func readyExplainsTheWait() {
         #expect(line(.readyToInstall).contains("when you pause"))
@@ -473,8 +440,7 @@ struct MenuBarUpdateTests {
         #expect(line(.idle) == "Ready")
     }
 
-    /// A failure is why the user opened the menu. An update is not a problem, so it does
-    /// not get to hide one.
+    /// A failure is why the menu was opened, so an update does not get to hide one.
     @Test("a failure still outranks an update")
     func failureWins() {
         var state = MenuBarState(updateProgress: .installing)
@@ -484,8 +450,7 @@ struct MenuBarUpdateTests {
         #expect(MenuBarPresenter.present(state).statusLine == "Something went wrong")
     }
 
-    /// Below a failure but above everything else: an update is about to take the app
-    /// away, which outranks whatever it was otherwise doing.
+    /// Below a failure and above the rest: an update is about to take the app away.
     @Test("an update outranks the ordinary activity line")
     func updateOutranksActivity() {
         let state = MenuBarState(activity: .listening, updateProgress: .installing)

@@ -199,19 +199,23 @@ When a second platform exists, it uploads into the **same release**, and `latest
 must be written only after every platform has uploaded — otherwise the page can advertise
 a version that exists for one OS and 404s for another.
 
-## Why there is no CI
+## CI, and why the gate is still local
 
 GitHub Actions bills macOS runners at **ten times** Linux, and this project cannot use
 Linux: it builds against macOS 26 frameworks and its tests drive the real Accessibility,
-clipboard and speech APIs. Fifty-one runs over two days consumed **97% of the free plan's
-2,000 monthly minutes**, after which jobs stopped starting — silently, for days, while the
-repository went on looking green. A gate that can fail without saying so is worse than no
-gate, because it is trusted.
+clipboard and speech APIs. While the source was private, fifty-one runs over two days
+consumed **97% of the free plan's 2,000 monthly minutes**, after which jobs stopped
+starting — silently, for days, while the repository went on looking green. A gate that can
+fail without saying so is worse than no gate, because it is trusted.
 
-The source is private, so the free minutes public repositories get are not available.
+The repository is public now, and public repositories are not billed for Actions, so
+`.github/workflows/ci.yml` runs `make verify` on every pull request and on `main`, with
+CodeQL, dependency review and Scorecard beside it. That is the check a contributor sees.
 
-The gate is therefore **`.githooks/pre-push`**, which runs `make verify` — the same lint,
-build, 2,640 tests and coverage floor the workflow ran — before anything reaches `main`.
+The gate that stops a red commit reaching `main` in the first place is still
+**`.githooks/pre-push`**, which runs the same `make verify` — lint, PII audit, build, the
+full test suite and the coverage floor — before anything is pushed. A push that would fail
+CI never leaves the machine.
 
 ```bash
 make hooks     # once per clone: hooks are not cloned, this sets core.hooksPath

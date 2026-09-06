@@ -1,3 +1,5 @@
+// Tests for how a quick panel row is drawn, spoken and keyed.
+
 import Foundation
 import UttrflowClipboard
 import UttrflowUX
@@ -15,9 +17,7 @@ private func row(
         isSelected: isSelected, matched: nil, isMonospaced: false, actions: [])
 }
 
-/// Hover is the one thing about the panel the presentation cannot know, so the rule for
-/// reconciling it with the selection lives in the app target. It is a decision, not
-/// layout, which is why it is tested here rather than excluded with the view around it.
+/// Hover is the one thing the presentation cannot know, so the rule is a decision tested here.
 @Suite("How a row is drawn")
 struct QuickPanelRowAppearanceTests {
     @Test("the ring goes on the row the presenter selected, and only that one")
@@ -28,8 +28,7 @@ struct QuickPanelRowAppearanceTests {
         #expect(!QuickPanelRowAppearance.of(row(), hovered: nil, hasSelection: true).isSelected)
     }
 
-    /// The ring is the answer to "what will Return do". A hovered row that filled as
-    /// brightly as the ringed one would make the pointer look like the answer instead.
+    /// The ring answers "what will Return do"; a bright hovered row would make the pointer look like it.
     @Test("a hovered row is dimmed while the ring is somewhere else")
     func hoverYieldsToTheRing() {
         let hovered = row()
@@ -73,9 +72,7 @@ struct QuickPanelRowAppearanceTests {
     }
 }
 
-/// A masked row exists because somebody may be looking over the user's shoulder — or
-/// watching a shared screen. A screen reader announcing the token out loud defeats it in
-/// the room the masking was for.
+/// A masked row exists because somebody may be watching; a screen reader must not defeat it.
 @Suite("What a row reads as out loud")
 struct QuickPanelSpeechTests {
     @Test("a masked row never has its text in the spoken label")
@@ -88,8 +85,7 @@ struct QuickPanelSpeechTests {
         #expect(!spoken.contains("•"), "not even the bullets, which say how long it is")
     }
 
-    /// The presenter masks before the panel ever sees the row, so this is belt and
-    /// braces — and it is the brace that would still hold if a future presenter stopped.
+    /// The presenter masks before the panel sees the row; this is the brace that holds if it stops.
     @Test("a masked row would stay silent even if the summary still held the secret")
     func maskingIsNotTrustedToThePresenter() {
         let leaky = row("sk-live-abcdef123456", kind: .secret, isMasked: true)
@@ -124,13 +120,7 @@ struct QuickPanelSpeechTests {
     }
 }
 
-/// The list is drawn as runs — one unnamed run while browsing, one per heading while
-/// searching — and a row's identity has to name the run as well as the clip.
-///
-/// Tested because the alternative was invisible: with the clip's id alone, SwiftUI took
-/// a row moving from the flat list into a heading as the same view and left its drawing
-/// untouched, so after a search the row Return would paste was drawn as though it were
-/// not selected. Nothing failed; the panel just quietly stopped saying what Return meant.
+/// A row's identity names the run as well as the clip, or SwiftUI keeps the old drawing after a search.
 @MainActor
 @Suite("How the list is cut into runs")
 struct QuickPanelSectionTests {
@@ -151,8 +141,7 @@ struct QuickPanelSectionTests {
         #expect(browsing.key(for: clip).contains(clip.id.uuidString))
     }
 
-    /// Two clips in the same run must not collide, or one of them would inherit the
-    /// other's drawing.
+    /// Two clips in the same run must not collide.
     @Test("two rows in one run keep separate keys")
     func rowsInARunAreDistinct() {
         let section = QuickPanelSection(

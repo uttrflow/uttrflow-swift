@@ -2,14 +2,14 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// Reads what the focused text field says about itself. See `Docs/predict-probe.md`.
+/// Reads other applications through Accessibility, from one attribute to a whole field's capabilities. See `Docs/predict-probe.md`.
 public enum SurfaceProbe {
     /// Caps one message so an app that never answers releases this thread.
     private static let messagingTimeout: Float = 0.1
 
-    /// Reads the field the user is typing in, or `nil` when nothing is focused.
-    public static func read() -> SurfaceCapability? {
-        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication else { return nil }
+    /// Reads the field the user is typing in, or `nil` when nothing is focused; identity comes from the main thread.
+    public static func read(of app: FrontmostApp) -> SurfaceCapability? {
+        guard AXIsProcessTrusted() else { return nil }
 
         let started = DispatchTime.now().uptimeNanoseconds
         guard let field = focusedField(of: app.processIdentifier) else { return nil }
@@ -20,7 +20,7 @@ public enum SurfaceProbe {
         let elapsed = Int((DispatchTime.now().uptimeNanoseconds - started) / 1000)
 
         return SurfaceCapability(
-            application: app.localizedName ?? app.bundleIdentifier ?? "unknown",
+            application: app.name,
             role: role,
             locator: locator(field),
             reportsValue: value != nil,
@@ -32,14 +32,19 @@ public enum SurfaceProbe {
     }
 
     /// Asks system-wide first and the application second, because apps answer only one. See `Docs/insertion.md`.
-    private static func focusedField(of pid: pid_t) -> AXUIElement? {
+    static func focusedField(of processIdentifier: pid_t) -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         _ = AXUIElementSetMessagingTimeout(system, messagingTimeout)
-        if let field = element(system, kAXFocusedUIElementAttribute) { return field }
-
-        let application = AXUIElementCreateApplication(pid)
+        let systemWide = element(system, kAXFocusedUIElementAttribute)
+        // While a browser editor is typed into, the system names the word under the caret; the application still names the field.
+        if let field = systemWide, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) {
+            return field
+        }
+        let application = AXUIElementCreateApplication(processIdentifier)
         _ = AXUIElementSetMessagingTimeout(application, messagingTimeout)
-        return element(application, kAXFocusedUIElementAttribute)
+        let own = element(application, kAXFocusedUIElementAttribute)
+        if let field = own, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) { return field }
+        return systemWide ?? own
     }
 
     /// Tells one field in an application from another, so two of the same role do not collapse into one.
@@ -55,30 +60,15 @@ public enum SurfaceProbe {
     }
 
     /// The caret as a range, which every parameterized read below is asked about.
-    private static func selectedRange(_ field: AXUIElement) -> CFRange? {
-        var value: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(
-                field, kAXSelectedTextRangeAttribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXValueGetTypeID()
-        else { return nil }
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        var range = CFRange()
-        guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range)
-        else { return nil }
-        return range
+    static func selectedRange(_ field: AXUIElement) -> CFRange? {
+        value(field, kAXSelectedTextRangeAttribute, .cfRange)
     }
 
-    /// The insertion point's screen rectangle, which decides whether a ghost can be drawn.
-    private static func bounds(_ field: AXUIElement, at range: CFRange) -> CGRect? {
-        guard let answer = parameterized(field, kAXBoundsForRangeParameterizedAttribute, range),
-            CFGetTypeID(answer) == AXValueGetTypeID()
-        else { return nil }
-        var rect = CGRect.zero
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        guard AXValueGetValue(unsafeDowncast(answer, to: AXValue.self), .cgRect, &rect)
-        else { return nil }
-        return rect.isNull ? nil : rect
+    /// The screen rectangle Accessibility reports for one text range, which decides whether a ghost can be drawn.
+    static func bounds(_ field: AXUIElement, at range: CFRange) -> CGRect? {
+        let rect: CGRect? = unwrap(
+            parameterized(field, kAXBoundsForRangeParameterizedAttribute, range), .cgRect)
+        return rect.flatMap { $0.isNull ? nil : $0 }
     }
 
     /// The font and colour at the caret, without which a ghost cannot match the line.
@@ -96,7 +86,8 @@ public enum SurfaceProbe {
         range.length > 0 ? range : CFRange(location: max(range.location - 1, 0), length: 1)
     }
 
-    private static func parameterized(
+    /// One attribute read with a range for a parameter, which is how a field is asked about part of its text.
+    static func parameterized(
         _ field: AXUIElement, _ attribute: String, _ range: CFRange
     ) -> AnyObject? {
         var range = range
@@ -109,19 +100,45 @@ public enum SurfaceProbe {
         return answer
     }
 
-    private static func element(_ owner: AXUIElement, _ attribute: String) -> AXUIElement? {
+    /// One attribute that is itself an element, capped at the given timeout where the caller has one to impose.
+    static func element(
+        _ owner: AXUIElement, _ attribute: String, timeoutInSeconds: Float? = nil
+    ) -> AXUIElement? {
         var value: AnyObject?
         guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success,
             let value, CFGetTypeID(value) == AXUIElementGetTypeID()
         else { return nil }
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        return unsafeDowncast(value, to: AXUIElement.self)
+        let element = unsafeDowncast(value, to: AXUIElement.self)
+        if let timeoutInSeconds { _ = AXUIElementSetMessagingTimeout(element, timeoutInSeconds) }
+        return element
     }
 
-    private static func string(_ owner: AXUIElement, _ attribute: String) -> String? {
+    /// One attribute read as text, or nothing where the element answers something else.
+    static func string(_ owner: AXUIElement, _ attribute: String) -> String? {
         var value: AnyObject?
         guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
         else { return nil }
         return value as? String
+    }
+
+    /// One `AXValue` attribute, unwrapped into the Core Graphics type it stands for.
+    static func value<T>(_ owner: AXUIElement, _ attribute: String, _ kind: AXValueType) -> T? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
+        else { return nil }
+        return unwrap(value, kind)
+    }
+
+    /// One `AXValue`, already fetched, unwrapped into the Core Graphics type it stands for.
+    static func unwrap<T>(_ value: AnyObject?, _ kind: AXValueType) -> T? {
+        guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
+        let unwrapped = UnsafeMutablePointer<T>.allocate(capacity: 1)
+        defer { unwrapped.deallocate() }
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), kind, unwrapped) else {
+            return nil
+        }
+        return unwrapped.pointee
     }
 }

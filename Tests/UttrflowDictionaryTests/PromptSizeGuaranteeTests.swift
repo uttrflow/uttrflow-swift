@@ -1,20 +1,14 @@
+// Tests that the prompt is bounded by the utterance.
+
 import Foundation
 import Testing
 
 @testable import UttrflowDictionary
 
-/// **The guarantee, made mechanical.**
-///
-/// Everything else in this module is an implementation detail of one promise: *the size
-/// of the prompt is bounded by the utterance, never by the dictionary*. A user who has
-/// taught Uttrflow fifty thousand words must pay exactly what a user with ten pays — the
-/// same shortlist, in the same order, in the same time. Stated in a comment that claim
-/// is worth nothing, because the obvious implementations all break it quietly and none
-/// of them fail a functional test. So it is asserted here instead.
+/// The guarantee made mechanical: the prompt is bounded by the utterance, never by the dictionary.
 @Suite("The prompt is bounded by the utterance, not by the dictionary")
 struct PromptSizeGuaranteeTests {
-    /// The fixed utterance. Two of the user's words are hidden in it, one of them spoken
-    /// as the two words it is written as, and the recogniser is unsure of both.
+    /// The fixed utterance, with two of the user's words hidden in it and the recogniser unsure of both.
     private let utterance = Utterance(words: [
         SpokenWord(text: "email", confidence: 0.95),
         SpokenWord(text: "clawed", confidence: 0.31),
@@ -44,14 +38,7 @@ struct PromptSizeGuaranteeTests {
         UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", number)) ?? UUID()
     }
 
-    /// Forty-nine thousand nine hundred and ninety words that are not in the utterance.
-    ///
-    /// Built out of `B`, `V` and vowels alone, so every code is a string of `P`s and
-    /// `F`s. Nothing in the utterance — nor any run of its words, since a run's code is
-    /// its words' codes joined — can be spelt in `P` and `F` alone, so no filler entry
-    /// can collide with it by accident. That is what makes "identical" a fair thing to
-    /// assert rather than a lucky one: the shortlist is unchanged because the lookup
-    /// never reaches the filler, which is precisely the property under test.
+    /// Filler spelt in `B`, `V` and vowels only, so no filler entry can collide with the utterance.
     private func filler(_ count: Int) -> [DictionaryEntry] {
         (0..<count).map { number in
             let spelling = (0..<16)
@@ -89,12 +76,7 @@ struct PromptSizeGuaranteeTests {
             """)
     }
 
-    /// The same, timed. A scan would show up here as a factor of thousands; a hash shows
-    /// up as noise.
-    ///
-    /// The tolerance is deliberately loose — this runs on whatever machine CI happens to
-    /// give it, and the failure being guarded against is three orders of magnitude, not
-    /// three per cent. A build that made the lookup linear would exceed it by a mile.
+    /// The same, timed; a scan shows up as a factor of thousands, so the tolerance is loose on purpose.
     @Test("takes no longer to look a word up in fifty thousand than in ten")
     func lookupTimeDoesNotGrow() {
         let small = PhoneticIndex(entries: real)
@@ -129,14 +111,12 @@ struct PromptSizeGuaranteeTests {
     @Test("keeps every word, and still offers only a handful")
     func everyWordIsStillThere() {
         let large = PhoneticIndex(entries: real + filler(49_990))
-        // The filler is reachable — it was indexed, not discarded — so the shortlist
-        // above is small because the lookup is selective, not because the words are gone.
+        // The filler is reachable, so the shortlist is small because the lookup is selective.
         #expect(large.candidates(soundingLike: "bababababababababababababababab").isEmpty == false)
         #expect(large.candidates(for: utterance).count == 2)
     }
 
-    /// The adversarial case: a dictionary in which *everything* sounds like the word
-    /// that was spoken. The bucket cap is what stops the shortlist growing with it.
+    /// The adversarial case: everything sounds like the spoken word, and the bucket cap holds.
     @Test("stays bounded even when every word in the dictionary sounds the same")
     func boundedEvenWhenEverythingCollides() {
         let homophones = (0..<50_000).map {
@@ -147,8 +127,7 @@ struct PromptSizeGuaranteeTests {
         #expect(index.candidates(for: utterance).count == PhoneticIndex.maximumPerSound)
     }
 
-    /// The other half of the promise: the working set is a budget too, so the
-    /// conditioning prompt cannot grow with the dictionary either.
+    /// The working set is a budget too, so the conditioning prompt cannot grow with the dictionary.
     @Test("keeps the conditioning prompt inside its budget at any size")
     func workingSetIsBounded() {
         let words = WorkingSet.words(from: real + filler(49_990), limit: 32, now: epoch)

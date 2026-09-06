@@ -3,29 +3,20 @@ import UttrflowCore
 import UttrflowUX
 import SwiftUI
 
-/// Whatever a row asked for, drawn.
-///
-/// One `switch` over a closed set, so a control the presenter can ask for and the
-/// window cannot draw does not compile. Every case reports the change the presenter
-/// already attached to the choice; none of them works out what a choice ought to mean.
+/// Whatever a row asked for, drawn as one switch over a closed set. See `Docs/app-settings-controls.md`.
 struct SettingsControlView: View {
     let control: SettingsControl
     let isEnabled: Bool
-    /// What the row says this control is for.
-    ///
-    /// Every control here is drawn with `labelsHidden()`, because the row already writes
-    /// the label beside it — but the label passed in was `""`, so there was nothing for
-    /// SwiftUI to hand to VoiceOver either. Focusing any switch in Settings announced
-    /// "checkbox, checked" and named nothing. The row's own words are the right label;
-    /// they were simply never given to the control.
+    /// What the row says this control is for; the control hides its own label, so VoiceOver needs this.
     let label: String
     let model: SettingsViewModel
 
     var body: some View {
-        control(for: self.control).accessibilityLabel(label)
+        view(for: control).accessibilityLabel(label)
     }
 
-    @ViewBuilder private func control(for control: SettingsControl) -> some View {
+    /// The one control a settings row asked for.
+    @ViewBuilder private func view(for control: SettingsControl) -> some View {
         switch control {
         case .toggle(let field, let isOn):
             Toggle(
@@ -33,6 +24,17 @@ struct SettingsControlView: View {
                 isOn: Binding(
                     get: { isOn },
                     set: { model.apply(.toggle(field, isOn: $0)) })
+            )
+            .labelsHidden()
+            .toggleStyle(SettingsSwitchStyle())
+
+        case .applicationSwitch(let isOn, let change):
+            // The same switch as `.toggle`, for a row standing for an application.
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { isOn },
+                    set: { _ in model.apply(change) })
             )
             .labelsHidden()
             .toggleStyle(SettingsSwitchStyle())
@@ -65,21 +67,17 @@ struct SettingsControlView: View {
             .accessibilityAddTraits(isTicked ? [.isButton, .isSelected] : .isButton)
 
         case .removal(let removal):
-            // Red without asking, because the case exists only for buttons that destroy
-            // something. Never `.keyboardShortcut(.defaultAction)`: nothing on this
-            // screen removes anything because Return was pressed.
+            // Red without asking; never the default action, since Return must not remove anything.
             Button(removal.title) { model.request(removal) }
                 .buttonStyle(SettingsButtonStyle(isDestructive: true))
 
         case .action(let title, let change):
-            // Not destructive, so not red, and no confirmation: the case exists precisely
-            // to keep those two treatments attached to `removal` and nothing else.
+            // Not destructive, so not red and not confirmed: both belong to `removal` alone.
             Button(title) { model.apply(change) }
                 .buttonStyle(SettingsButtonStyle(isDestructive: false))
 
         case .text(let value):
-            // Selectable, because a version number's whole purpose is to be quoted into a
-            // bug report, and one that cannot be copied has to be transcribed by hand.
+            // Selectable, because a version number exists to be quoted into a bug report.
             Text(value)
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
@@ -87,10 +85,7 @@ struct SettingsControlView: View {
         }
     }
 
-    /// A picker's selection, written back as the change the chosen option carries.
-    ///
-    /// The `get` falls back to the id the presenter said was selected, so a pick that
-    /// is refused snaps back to the truth rather than showing a choice that was not made.
+    /// A picker's selection; the get answers the presenter's id, so a refused pick snaps back.
     private func selection(
         _ options: [SettingsOption], _ selectedID: String
     ) -> Binding<String> {
@@ -112,9 +107,7 @@ struct SettingsAnchorPicker: View {
 
     var body: some View {
         ZStack {
-            // The screen the button parks on, in this window's own colours. It was a
-            // lilac gradient left over from the palette before the identity was teal,
-            // and it was the one thing on the pane that belonged to no scheme at all.
+            // The screen the button parks on, in this window's own colours.
             RoundedRectangle(cornerRadius: 5)
                 .fill(Color.settingsControl)
                 .overlay(
@@ -174,13 +167,7 @@ struct SettingsAnchorPicker: View {
 
 // MARK: - The shortcut
 
-/// The shortcut, and the field that records a new one.
-///
-/// Keystrokes are taken through a local event monitor rather than SwiftUI's focus
-/// machinery because the combinations worth recording — ⌘Q, ⌥Space — are the ones the
-/// menus and the responder chain would otherwise eat before any view saw them. The
-/// monitor is installed only while recording and swallows what it takes, so nothing
-/// pressed at the field reaches the rest of the app.
+/// The shortcut and the field that records a new one. See `Docs/app-settings-controls.md`.
 struct SettingsShortcutField: View {
     let keys: [String]
     let model: SettingsViewModel
@@ -215,8 +202,7 @@ struct SettingsShortcutField: View {
         .accessibilityLabel("Dictation shortcut, \(keys.joined(separator: " "))")
     }
 
-    /// A key drawn as a key, the way the last page of first-run draws the same shortcut.
-    /// The two windows are showing the user the same physical thing.
+    /// A key drawn as a key, matching first-run so both windows show the same physical thing.
     private func keycap(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 12.5, weight: .semibold))
@@ -235,13 +221,7 @@ struct SettingsShortcutField: View {
 
     private func startListening() {
         guard monitor == nil else { return }
-        // `.flagsChanged` as well as `.keyDown`, because a modifier pressed on its own
-        // sends only the former. Without it, somebody trying to bind ⌘ or Fn alone — the
-        // obvious thing to try on a dictation app, and what several of them use — pressed
-        // their key and the field said nothing at all: no shortcut, no refusal, just
-        // "Press the new shortcut" for ever. Silence reads as a broken field, not as a
-        // rule. Such a binding is genuinely undeliverable, so it is still refused; the
-        // change is that now it is refused *out loud*.
+        // `.flagsChanged` too, so a modifier pressed alone is refused out loud rather than in silence.
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             let modifiers = SettingsShortcutField.modifiers(from: event.modifierFlags)
 
@@ -251,10 +231,7 @@ struct SettingsShortcutField: View {
                 return nil
             }
 
-            // Fn is a shortcut in its own right — held, not combined — so it is recorded
-            // rather than refused. It carries none of the four modifiers this app names,
-            // so it has to be recognised by its own flag before the empty-modifier check
-            // below would throw the press away as a release.
+            // Fn is a shortcut in its own right and carries none of the four modifiers named below.
             if event.keyCode == HotkeyBinding.functionKeyCode,
                 event.modifierFlags.contains(.function)
             {
@@ -262,18 +239,10 @@ struct SettingsShortcutField: View {
                 return event
             }
 
-            // `.flagsChanged` fires on the release too, where the flags have gone empty.
-            // Only the press is an attempt at a shortcut; reporting the release as one
-            // would answer a single tap with two different complaints.
-            //
-            // A modifier-only press — ⌃⌥, or ⌘ on its own — arrives here with the flags
-            // set and a modifier's own key code, and is recorded as the hold it is. That
-            // used to fall through to the refusal below, which is why ⌃⌥ answered a
-            // perfectly reasonable request with "Try a letter, a number or Space".
+            // Only the press is an attempt at a shortcut; the release arrives with empty flags.
             guard !modifiers.isEmpty else { return event }
             model.record(keyCode: event.keyCode, modifiers: modifiers)
-            // Passed on, unlike a key press: swallowing a modifier change would leave the
-            // rest of the app believing a key is still held after the user let go.
+            // Passed on, unlike a key press: the rest of the app must not think a key is still held.
             return event
         }
     }
@@ -283,8 +252,7 @@ struct SettingsShortcutField: View {
         monitor = nil
     }
 
-    /// Cocoa's flags reduced to the four the product recognises. Everything else — Caps
-    /// Lock, Fn, the numeric-keypad bit — is noise the window server sets on its own.
+    /// Cocoa's flags reduced to the four the product recognises; the rest is window-server noise.
     static func modifiers(from flags: NSEvent.ModifierFlags) -> Set<HotkeyModifier> {
         var modifiers: Set<HotkeyModifier> = []
         if flags.contains(.command) { modifiers.insert(.command) }

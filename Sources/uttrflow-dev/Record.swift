@@ -1,8 +1,8 @@
+// The `record` command: captures the microphone to a WAV.
 import ArgumentParser
 private import Foundation
 private import UttrflowAudio
 private import UttrflowCore
-private import UttrflowPermissions
 
 /// Records from the microphone and reports what was captured.
 struct Record: AsyncParsableCommand {
@@ -23,15 +23,7 @@ struct Record: AsyncParsableCommand {
     }
 
     func run() async throws {
-        let gate = MicrophonePermissionGate()
-        var status = await gate.status()
-        if status == .notDetermined {
-            print("Asking for microphone access…")
-            status = await gate.request()
-        }
-        guard status == .granted else {
-            throw CleanExit.message(PermissionError.microphoneDenied.userMessage)
-        }
+        try await requireMicrophoneAccess(announcing: "Asking for microphone access…")
 
         let engine = AVAudioCaptureEngine(source: AVAudioEngineMicrophoneSource())
         try await engine.start()
@@ -43,18 +35,18 @@ struct Record: AsyncParsableCommand {
             try await Task.sleep(for: tick)
             let level = await engine.peakLevel
             let elapsed = await Double(engine.capturedFrameCount) / Double(AudioSamples.canonicalSampleRate)
-            FileHandle.standardError.write(Data("\r  \(meter(level))  \(format(elapsed))s ".utf8))
+            Terminal.show("\r  \(meter(level))  \(format(elapsed))s ")
         }
 
         let audio = try await engine.stop()
-        FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+        Terminal.clearLine()
 
         let url = URL(fileURLWithPath: output ?? defaultFilename())
         try WAVEncoder.encode(audio).write(to: url)
 
         let duration = audio.duration.inSeconds
         print("Captured \(audio.samples.count) samples — \(format(duration))s at \(audio.sampleRate) Hz")
-        print("Loudest sample  \(String(format: "%.3f", await engineLevel(audio)))")
+        print("Loudest sample  \(String(format: "%.3f", loudestSample(in: audio)))")
         print("Written to      \(url.path)")
         if duration < seconds * 0.9 {
             print("\nNote: that is shorter than requested — the input may have dropped out.")
@@ -64,7 +56,7 @@ struct Record: AsyncParsableCommand {
         }
     }
 
-    private func engineLevel(_ audio: AudioSamples) async -> Float {
+    private func loudestSample(in audio: AudioSamples) -> Float {
         audio.samples.reduce(0) { Swift.max($0, Swift.abs($1)) }
     }
 

@@ -1,3 +1,4 @@
+// Tests the capture engine's lifecycle rules without a microphone.
 import Testing
 
 @testable import UttrflowAudio
@@ -136,5 +137,30 @@ struct AVAudioCaptureEngineTests {
 
         #expect(await engine.peakLevel == 0.6)
         #expect(await engine.capturedFrameCount == 3)
+    }
+}
+
+@Suite("AVAudioCaptureEngine: audio before the stop")
+struct AVAudioCaptureEngineSnapshotTests {
+    @Test("shares what has arrived so far without disturbing the recording")
+    func sharesAudioSoFar() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+
+        let early = await engine.capturedSoFar()
+        source.emit([0.3])
+        let all = try await engine.stop()
+
+        #expect(early.samples == [0.1, 0.2])
+        #expect(early.sampleRate == AudioSamples.canonicalSampleRate)
+        #expect(all.samples == [0.1, 0.2, 0.3])
+    }
+
+    @Test("shares nothing while idle")
+    func nothingWhileIdle() async {
+        let engine = AVAudioCaptureEngine(source: FakeMicrophoneSource())
+        #expect(await engine.capturedSoFar() == .empty)
     }
 }

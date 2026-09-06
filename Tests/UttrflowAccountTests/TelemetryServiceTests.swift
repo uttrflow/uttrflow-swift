@@ -1,3 +1,5 @@
+// Tests for TelemetryService: sending, the outbox, the ledger, the opt-out, and the recording sender.
+
 import Foundation
 import Synchronization
 import Testing
@@ -7,6 +9,7 @@ import Testing
 /// Sending, not sending, and remembering which of the two happened.
 @Suite("Sending telemetry")
 struct TelemetryServiceTests {
+    /// Records one completed dictation on the service's collector.
     private func dictate(_ service: TelemetryService, characters: Int = 10) {
         service.recorder.recordDictation(.completed, language: .english, charactersInserted: characters)
     }
@@ -23,8 +26,7 @@ struct TelemetryServiceTests {
 
         let dispatch = try #require(service.sentReports.first)
         #expect(dispatch.sentAt == Telemetry.anHourLater)
-        // The record is the report itself, so the settings page shows the user the very
-        // value that was uploaded rather than a description of it written separately.
+        // The record is the report itself, so the settings page shows the very value uploaded.
         #expect(dispatch.report == sender.reports[0])
         #expect(dispatch.report.charactersInserted == 10)
     }
@@ -40,8 +42,7 @@ struct TelemetryServiceTests {
 
     // MARK: - Failure
 
-    /// The whole point of item 6. A telemetry failure is Uttrflow's problem, and `flush`
-    /// cannot even express one to its caller: it does not throw.
+    /// A telemetry failure is Uttrflow's problem: `flush` does not throw, so it cannot even report one.
     @Test("an unreachable server costs the app nothing and is never reported")
     func failureIsSilent() async throws {
         let (service, sender) = Telemetry.service(sender: RecordingTelemetrySender(failing: .unreachable))
@@ -87,8 +88,7 @@ struct TelemetryServiceTests {
         }
 
         #expect(service.pendingReports.count == TelemetryService.outboxCapacity)
-        // The oldest were dropped: a report describes a window that has already closed, and
-        // the ancient one at the front of the queue is worth the least.
+        // The earliest are dropped: a report describes a closed window, and the earliest is worth the least.
         #expect(
             service.pendingReports.first?.charactersInserted == attempts - TelemetryService.outboxCapacity + 1
         )
@@ -125,8 +125,7 @@ struct TelemetryServiceTests {
         #expect(service.pendingReports.isEmpty)
     }
 
-    /// Reports waiting for a connection have not left the Mac yet. Sending them on the next
-    /// flight home would keep the letter of the setting and break all of it that matters.
+    /// Queued reports have not left the Mac, and sending them after an opt-out would break the setting.
     @Test("opting out empties the outbox as well as the counters")
     func optingOutEmptiesTheOutbox() async {
         let sender = RecordingTelemetrySender(failing: .unreachable)
@@ -144,8 +143,7 @@ struct TelemetryServiceTests {
         #expect(sender.reports.isEmpty)
     }
 
-    /// Belt and braces: the collector can be switched off directly, and the outbox must
-    /// still notice.
+    /// The collector can be switched off directly, and the outbox must still notice.
     @Test("a collector switched off behind the service's back still empties the outbox")
     func flushHonoursTheCollectorDirectly() async {
         let sender = RecordingTelemetrySender(failing: .unreachable)
@@ -165,8 +163,7 @@ struct TelemetryServiceTests {
 
     // MARK: - Concurrency
 
-    /// Two overlapping flushes would each see the same report at the front of the queue and
-    /// send it twice, and the server would faithfully count both.
+    /// Two overlapping flushes would each send the front report, and the server would count both.
     @Test("a flush that begins while another is running does nothing")
     func flushesDoNotOverlap() async throws {
         let sender = ReentrantSender()
@@ -181,19 +178,19 @@ struct TelemetryServiceTests {
     }
 }
 
-/// A sender that flushes the service again from inside a send.
-///
-/// The only honest way to provoke the overlap: a real one would need two tasks racing, and
-/// a test that depends on winning a race is a test that fails on somebody else's Mac.
+/// A sender that flushes the service again from inside a send, the only deterministic way to overlap two.
 private final class ReentrantSender: TelemetrySending {
+    /// The service to re-enter, and how many sends so far.
     private let state = Mutex<(service: TelemetryService?, count: Int)>((service: nil, count: 0))
 
     var sendCount: Int { state.withLock { $0.count } }
 
+    /// Names the service to flush from inside the first send.
     func reentering(into service: TelemetryService) {
         state.withLock { $0.service = service }
     }
 
+    /// Counts the send and, on the first one only, flushes the service again.
     func send(_ report: TelemetryReport) async throws(TelemetryError) {
         let service = state.withLock { state -> TelemetryService? in
             state.count += 1

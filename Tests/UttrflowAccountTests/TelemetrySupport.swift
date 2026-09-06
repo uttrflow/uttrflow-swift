@@ -2,11 +2,13 @@ import Foundation
 
 @testable import UttrflowAccount
 
-/// Fixed values every telemetry suite builds on, so a test says what it is testing rather
-/// than how to construct a report.
+/// Fixed values every telemetry suite builds on, so a test says what it tests, not how to build a report.
 enum Telemetry {
+    /// The fixed start of every window.
     static let noon = Date(timeIntervalSince1970: 1_700_000_000)
+    /// The fixed end of every window.
     static let anHourLater = noon.addingTimeInterval(3600)
+    /// The app version every report carries.
     static let version = TelemetryReport.AppVersion(major: 1, minor: 4, patch: 2)
 
     /// A report with one dictation in it, and whatever else the test cares about.

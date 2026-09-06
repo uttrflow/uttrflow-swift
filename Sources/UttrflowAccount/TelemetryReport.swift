@@ -1,24 +1,11 @@
+// The telemetry report: integers, dates and closed enumerations, the only shape that leaves the Mac.
 public import UttrflowCore
 public import struct Foundation.Date
 
 public import struct Foundation.Data
 public import class Foundation.JSONEncoder
 
-/// A language Uttrflow will admit to having heard.
-///
-/// A closed set rather than a tag the caller supplies, and that is the whole reason it
-/// exists. ``LanguageCode`` is the right type everywhere else in the app, but it wraps a
-/// `String`, and a `String` on a type that gets uploaded is a place a transcript can go —
-/// if not today then in two years, by somebody who needed "just a bit more context". The
-/// narrowing happens once, at ``init(_:)``, and after it there is no free text anywhere in
-/// this report.
-///
-/// Every raw value is a BCP-47 primary subtag matching the pattern the backend's
-/// `language_tag` domain enforces, so a value that exists here cannot be one the server
-/// refuses. Unrecognised languages become ``other`` rather than being passed through: an
-/// unusual tag is itself identifying, and the product question — "which languages do
-/// people dictate in" — is answered just as well by knowing that this one was not on the
-/// list.
+/// A closed set of languages a report may name; any other is ``other``. See Docs/account-telemetry.md.
 public enum TelemetryLanguage: String, Sendable, Equatable, CaseIterable, Codable {
     case arabic = "ar"
     case bengali = "bn"
@@ -49,41 +36,23 @@ public enum TelemetryLanguage: String, Sendable, Equatable, CaseIterable, Codabl
     case urdu = "ur"
     case vietnamese = "vi"
 
-    /// Anything not on the list. `und` is BCP-47's own "undetermined", so the server needs
-    /// no special case for it.
+    /// Anything not on the list; `und` is BCP-47's own "undetermined", so the server needs no special case.
     case other = "und"
 
-    /// Narrows the app's language code to something safe to upload.
-    ///
-    /// Lossy on purpose, and lossy in one line: a table mapping each language by hand
-    /// would be a table somebody could add a passthrough to.
+    /// Narrows the app's language code to one on the list, or ``other``; lossy on purpose, in one line.
     public init(_ code: LanguageCode) {
         self = TelemetryLanguage(rawValue: code.value) ?? .other
     }
 }
 
-/// A stage of the pipeline, named the way the backend's `pipeline_stage` enumeration
-/// names it.
-///
-/// Separate from ``PipelineStage`` because the two vocabularies genuinely differ — the
-/// server has stages this app does not measure, and spells two of the shared ones
-/// differently. Mapping in a total `switch` rather than by string manipulation means a
-/// stage added to the pipeline is a compile error here, which is the moment to decide
-/// whether it should be reported at all.
+/// A pipeline stage spelled as the backend's `pipeline_stage` enumeration spells it.
 public enum TelemetryStage: String, Sendable, Equatable, CaseIterable, Codable {
     case audioCapture = "audio-capture"
     case transcription
     case tidying
     case insertion
 
-    /// `nil` for a stage the server's `pipeline_stage` enumeration has no name for.
-    ///
-    /// Correction and expansion are measured on the Mac and reported on the diagnostics
-    /// page, but the backend's column is a closed domain and `migrations/0005_telemetry`
-    /// is not this repository's to widen: inventing a value here would turn every report
-    /// from a user with a dictionary into a 400. Declining to send them costs no total —
-    /// `processingTotalMs` still times the whole journey — and the day the column gains
-    /// the two names, this is the one place that has to change.
+    /// `nil` for correction and expansion, which the server cannot name. See Docs/account-telemetry.md.
     public init?(_ stage: PipelineStage) {
         switch stage {
         case .capture: self = .audioCapture
@@ -95,34 +64,18 @@ public enum TelemetryStage: String, Sendable, Equatable, CaseIterable, Codable {
     }
 }
 
-/// Everything Uttrflow ever sends about how it is being used, and nothing else.
-///
-/// The list of stored properties below is the complete, exhaustive answer to "what leaves
-/// my Mac". Read it: every one is an `Int`, a `Date`, or a value of a closed enumeration.
-/// There is no `String` on this type, none on any type it contains, and none reachable
-/// through either — so there is nowhere to put a transcript, a window title, an
-/// application name or a dictionary entry, and no reviewer has to take anyone's word for
-/// it. `TelemetryPrivacyTests` says the same thing in a test, and the backend's
-/// `migrations/0005_telemetry.sql` says it a third time in the columns.
-///
-/// The dates are the exception that proves it: a `Date` is a number of seconds, and the
-/// ISO-8601 string the server wants is produced during encoding rather than stored, so
-/// there is still no text a caller could reach.
-///
-/// Ranges are enforced in ``init(windowStartedAt:windowEndedAt:appVersion:osVersionMajor:dictationCount:cancelledCount:failureCount:audioTotalMs:processingTotalMs:charactersInserted:latencyP50Ms:latencyP90Ms:latencyP99Ms:languages:stages:)``
-/// rather than checked at the door, because the backend's schema is `.strict()` and its
-/// table has `check` constraints: an out-of-range number is a 400 or a 500, and a report
-/// that cannot be sent is worse than one that has been rounded into shape.
+/// Everything Uttrflow ever sends about its use, with no `String` in it. See Docs/account-telemetry.md.
 public struct TelemetryReport: Sendable, Equatable, Encodable {
-    /// The app's version, as three numbers.
-    ///
-    /// Not `"1.2.3"`. A version string is a `String`, and this type has none.
+    /// The app's version as three numbers, never as a string.
     public struct AppVersion: Sendable, Equatable, Encodable {
+        /// The first number.
         public let major: Int
+        /// The second number.
         public let minor: Int
+        /// The third number.
         public let patch: Int
 
-        /// Clamped to the server's `versionPart` of 0...999; anything else is a 400.
+        /// Clamps each part to the server's `versionPart` of 0...999; anything else is a 400.
         public init(major: Int, minor: Int, patch: Int) {
             self.major = TelemetryLimit.versionPart.clamping(major)
             self.minor = TelemetryLimit.versionPart.clamping(minor)
@@ -130,87 +83,75 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         }
     }
 
-    /// How many dictations were in one language.
+    /// How many dictations one language had.
     public struct LanguageCount: Sendable, Equatable, Encodable {
+        /// The language.
         public let language: TelemetryLanguage
+        /// How many dictations were in it, clamped to the server's `count`.
         public let dictationCount: Int
 
+        /// Clamps the count into the server's range.
         public init(language: TelemetryLanguage, dictationCount: Int) {
             self.language = language
             self.dictationCount = TelemetryLimit.count.clamping(dictationCount)
         }
     }
 
-    /// How one stage fared: how often it failed, and how slow it was when it did not.
+    /// How one stage fared: how often it failed, and how slow it ran when it did not.
     public struct StageOutcome: Sendable, Equatable, Encodable {
+        /// The stage.
         public let stage: TelemetryStage
+        /// How many times it failed.
         public let failureCount: Int
+        /// Median latency in milliseconds, or `nil` when nothing timed it.
         public let latencyP50Ms: Int?
+        /// Ninetieth-percentile latency, never below the median.
         public let latencyP90Ms: Int?
 
+        /// Clamps the count and latencies, raising the ninetieth percentile to the median when below it.
         public init(stage: TelemetryStage, failureCount: Int, latencyP50Ms: Int?, latencyP90Ms: Int?) {
             self.stage = stage
             self.failureCount = TelemetryLimit.count.clamping(failureCount)
-            let median = latencyP50Ms.map(TelemetryLimit.durationMs.clamping)
-            self.latencyP50Ms = median
-            // The table refuses a p90 below its p50, and a refused report is data lost for
-            // everyone rather than a wrong number for one stage.
-            self.latencyP90Ms = latencyP90Ms.map { max(TelemetryLimit.durationMs.clamping($0), median ?? 0) }
+            self.latencyP50Ms = TelemetryLimit.latency(latencyP50Ms)
+            self.latencyP90Ms = TelemetryLimit.latency(latencyP90Ms, notBelow: self.latencyP50Ms)
         }
     }
 
-    /// The period being summarised. Periods rather than events, so no timestamp here is
-    /// precise enough to say when any particular sentence was dictated.
+    /// When the summarised period opened; a period, not an event, so no sentence is timestamped.
     public let windowStartedAt: Date
+    /// When the summarised period closed.
     public let windowEndedAt: Date
+    /// This build.
     public let appVersion: AppVersion
-    /// The macOS major version. `nil` when the app has not been told what it is running on.
+    /// The macOS major version, or `nil` when the app has not been told what it runs on.
     public let osVersionMajor: Int?
 
+    /// How many dictations started in the window.
     public let dictationCount: Int
+    /// How many the user abandoned; never more than `dictationCount`.
     public let cancelledCount: Int
+    /// How many failed outright.
     public let failureCount: Int
     /// How long the microphone was open in total.
     public let audioTotalMs: Int
     /// How long the user waited in total.
     public let processingTotalMs: Int
-    /// A count of characters inserted. Not the characters.
+    /// A count of characters inserted, not the characters.
     public let charactersInserted: Int
 
+    /// Median end-to-end latency, or `nil` when nothing was measured.
     public let latencyP50Ms: Int?
+    /// Ninetieth percentile, never below the median.
     public let latencyP90Ms: Int?
+    /// Ninety-ninth percentile, never below the ninetieth.
     public let latencyP99Ms: Int?
 
-    /// Sorted by tag and deduplicated, so the same report always encodes to the same bytes
-    /// and cannot exceed the server's limit of sixty-four entries.
+    /// Sorted by tag and deduplicated, so the same report encodes to the same bytes, within the server's cap.
     public let languages: [LanguageCount]
-    /// One entry per stage at most, in the order the journey runs.
+    /// One entry per stage at most, sorted by name.
     public let stages: [StageOutcome]
 
-    /// Builds a report, or refuses.
-    ///
-    /// Fails when the window did not advance or when nothing happened in it. Both are
-    /// refusals rather than fixes: the table requires `window_ended_at > window_started_at`,
-    /// and a report of no dictations is a request that costs the user's battery to tell the
-    /// server nothing.
-    ///
-    /// - Parameters:
-    ///   - windowStartedAt: When the app started counting.
-    ///   - windowEndedAt: When it stopped. Must be later than `windowStartedAt`.
-    ///   - appVersion: This build.
-    ///   - osVersionMajor: The macOS major version, if known.
-    ///   - dictationCount: How many dictations were started. Must be more than none.
-    ///   - cancelledCount: How many the user abandoned. Clamped to `dictationCount`,
-    ///     which the table also insists on.
-    ///   - failureCount: How many failed outright.
-    ///   - audioTotalMs: Total milliseconds the microphone was open.
-    ///   - processingTotalMs: Total milliseconds the user spent waiting.
-    ///   - charactersInserted: How many characters were inserted, not which.
-    ///   - latencyP50Ms: Median end-to-end latency, if anything was measured.
-    ///   - latencyP90Ms: Ninetieth percentile, raised to the median if it fell below it.
-    ///   - latencyP99Ms: Ninety-ninth percentile, raised to the ninetieth likewise.
-    ///   - languages: How many dictations in each language.
-    ///   - stages: How each stage fared.
+    /// Builds a report, or `nil` when the window did not advance or held no dictation; numbers are clamped.
     public init?(
         windowStartedAt: Date,
         windowEndedAt: Date,
@@ -242,17 +183,12 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         self.processingTotalMs = TelemetryLimit.durationMs.clamping(processingTotalMs)
         self.charactersInserted = TelemetryLimit.count.clamping(charactersInserted)
 
-        // Percentiles that go backwards fail the table's `check` and cost the whole report.
-        let median = latencyP50Ms.map(TelemetryLimit.durationMs.clamping)
-        let ninetieth = latencyP90Ms.map { max(TelemetryLimit.durationMs.clamping($0), median ?? 0) }
-        self.latencyP50Ms = median
-        self.latencyP90Ms = ninetieth
-        self.latencyP99Ms = latencyP99Ms.map {
-            max(TelemetryLimit.durationMs.clamping($0), ninetieth ?? median ?? 0)
-        }
+        self.latencyP50Ms = TelemetryLimit.latency(latencyP50Ms)
+        self.latencyP90Ms = TelemetryLimit.latency(latencyP90Ms, notBelow: self.latencyP50Ms)
+        self.latencyP99Ms = TelemetryLimit.latency(
+            latencyP99Ms, notBelow: self.latencyP90Ms ?? self.latencyP50Ms)
 
-        // A dictionary in, a sorted array out: duplicate keys are impossible rather than
-        // merged, and the encoded bytes are the same every time for the same numbers.
+        // A dictionary in, a sorted array out: no duplicate keys, and the same bytes for the same numbers.
         self.languages =
             languages
             .filter { $0.value > 0 }
@@ -264,11 +200,7 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
             .sorted { $0.stage.rawValue < $1.stage.rawValue }
     }
 
-    /// The keys the backend's Zod schema declares, and no others.
-    ///
-    /// The schema is `.strict()`, so a key it has not heard of is a 400 rather than a
-    /// field it quietly drops. That is the behaviour we want and this is the list that has
-    /// to match it.
+    /// The keys the backend's `.strict()` Zod schema declares; a key it has not heard of is a 400.
     private enum CodingKeys: String, CodingKey {
         case windowStartedAt, windowEndedAt, appVersion, osVersionMajor
         case dictationCount, cancelledCount, failureCount
@@ -277,15 +209,10 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         case languages, stages
     }
 
-    /// Written out by hand so that the complete set of things that leave the Mac is one
-    /// function somebody can read in ten seconds.
-    ///
-    /// The optionals use `encodeIfPresent` rather than encoding `null`, because the
-    /// server's fields are `.optional()` and Zod refuses an explicit `null` for those.
+    /// Written by hand so what leaves the Mac is one readable function; optionals are omitted, never `null`.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        // Formatted here rather than left to the encoder's date strategy: a caller with a
-        // differently configured encoder would send a number and be refused.
+        // Formatted here rather than by the encoder's date strategy, which sends a number and is refused.
         try container.encode(windowStartedAt.formatted(.iso8601), forKey: .windowStartedAt)
         try container.encode(windowEndedAt.formatted(.iso8601), forKey: .windowEndedAt)
         try container.encode(appVersion, forKey: .appVersion)
@@ -303,27 +230,13 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         try container.encode(stages, forKey: .stages)
     }
 
-    /// The exact bytes a sender puts on the wire.
-    ///
-    /// Provided rather than left to the caller so there is one answer to "what did we
-    /// send", and so the settings page showing the user their own reports and the sender
-    /// uploading them are looking at the same thing.
-    ///
-    /// Optional rather than throwing, and with no fabricated fallback, for the reason
-    /// ``UserDefaultsProfileCache/save(_:)`` gives: a value of integers, dates and closed
-    /// enumerations has nothing in it that can fail to encode, so there is no second
-    /// failure worth describing and nothing a caller could usefully do about it. Handing
-    /// back the empty document instead would be inventing bytes nobody asked for.
+    /// The exact bytes a sender puts on the wire, so the settings page and the upload show the same thing.
     public func encodedForIngest() -> Data? {
         try? JSONEncoder().encode(self)
     }
 }
 
-/// The ranges the backend accepts, in one place.
-///
-/// Named rather than written as literals at each use, because the same three ranges are
-/// enforced in four types and a copy that drifts is a 400 nobody sees until the reports
-/// stop arriving.
+/// The ranges the backend accepts, named once so the four types enforcing them cannot drift apart.
 enum TelemetryLimit {
     /// The server's `count`: a non-negative 32-bit integer.
     static let count = 0...2_147_483_647
@@ -331,12 +244,14 @@ enum TelemetryLimit {
     static let durationMs = 0...604_800_000
     /// The server's `versionPart`.
     static let versionPart = 0...999
+
+    /// A latency percentile the table accepts: clamped, and never below the percentile under it.
+    static func latency(_ milliseconds: Int?, notBelow floor: Int? = nil) -> Int? {
+        milliseconds.map { Swift.max(durationMs.clamping($0), floor ?? 0) }
+    }
 }
 
 extension ClosedRange where Bound == Int {
-    /// `value`, brought inside the range.
-    ///
-    /// Qualified, because `ClosedRange` has `min()` and `max()` of its own and the
-    /// unqualified names would mean something else entirely here.
+    /// `value` brought inside the range; qualified because `ClosedRange` has `min()` and `max()` of its own.
     func clamping(_ value: Int) -> Int { Swift.min(Swift.max(value, lowerBound), upperBound) }
 }

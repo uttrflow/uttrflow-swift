@@ -3,10 +3,13 @@ import Testing
 
 @testable import UttrflowAccount
 
+/// ``Entitlement`` currency, provider button titles, and Codable.
 @Suite("Who is signed in, and what they may do")
 struct EntitlementTests {
+    /// The fixed instant the entitlements are dated from.
     private let noon = Date(timeIntervalSince1970: 1_700_000_000)
 
+    /// A pro entitlement for one fixed account, expiring `expiring` seconds from noon, unsigned.
     private func entitlement(expiring: TimeInterval) -> Entitlement {
         Entitlement(
             account: Account(
@@ -14,17 +17,14 @@ struct EntitlementTests {
             plan: .pro, expiresAt: noon.addingTimeInterval(expiring), signature: "sig")
     }
 
-    /// The expiry is a backstop against a cancelled subscription running for ever, not a
-    /// session timeout — so the question asked of it is only ever "is this still valid",
-    /// never "should we make them sign in again".
+    /// The expiry is a backstop against a cancelled subscription, never a session timeout.
     @Test("is current until it expires, and not after")
     func currency() {
         #expect(entitlement(expiring: 86_400).isCurrent(at: noon))
         #expect(entitlement(expiring: -1).isCurrent(at: noon) == false)
     }
 
-    /// Every provider needs a button, and Apple's wording is a trademark requirement
-    /// rather than a preference — a test so nobody tidies it into "Continue with Apple".
+    /// Apple's wording is a trademark requirement, so nobody tidies it into "Continue with Apple".
     @Test("every provider names its own button")
     func buttonTitles() {
         for provider in SignInProvider.allCases {

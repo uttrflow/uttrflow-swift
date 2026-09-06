@@ -1,3 +1,4 @@
+// Tests sample collection and the level meter.
 import Testing
 
 @testable import UttrflowAudio
@@ -82,10 +83,7 @@ struct SampleAccumulatorTests {
     }
 }
 
-/// ``SampleAccumulator/peakLevel`` is a high-water mark and never falls, which is what
-/// makes it right for asking afterwards whether the microphone was muted and wrong for
-/// drawing a meter — one loud syllable would peg the bars for the rest of the recording.
-/// The momentary level is the one the floating button reads.
+/// The momentary level is what the floating button reads; the peak never falls. See Docs/audio-capture.md.
 @Suite("The momentary level")
 struct MomentaryLevelTests {
     @Test("is zero before anything is heard")
@@ -97,8 +95,7 @@ struct MomentaryLevelTests {
     func isRootMeanSquare() {
         let accumulator = SampleAccumulator()
 
-        // One loud sample among sixteen quiet ones. A peak meter reads 1; the ear, and
-        // this, read something much smaller.
+        // One loud sample among sixteen quiet ones: a peak meter reads 1, the ear reads much less.
         accumulator.append([1] + Array(repeating: 0, count: 15))
 
         #expect(accumulator.peakLevel == 1)
@@ -118,8 +115,7 @@ struct MomentaryLevelTests {
         #expect(accumulator.peakLevel == 0.8)
     }
 
-    /// Gradually, though. A meter that dropped to nothing in one block would flicker at
-    /// every gap between syllables.
+    /// A meter that dropped to nothing in one block would flicker at every gap between syllables.
     @Test("falls gradually rather than cutting out")
     func fallsGradually() {
         let accumulator = SampleAccumulator()
@@ -168,5 +164,18 @@ struct MomentaryLevelTests {
         _ = accumulator.take()
 
         #expect(accumulator.momentaryLevel == 0)
+    }
+}
+
+@Suite("SampleAccumulator: snapshot")
+struct SampleAccumulatorSnapshotTests {
+    @Test("copies what has been collected and leaves it in place")
+    func snapshotLeavesBuffer() {
+        let accumulator = SampleAccumulator()
+        accumulator.append([0.1, 0.2])
+
+        #expect(accumulator.snapshot == [0.1, 0.2])
+        #expect(accumulator.count == 2)
+        #expect(accumulator.take() == [0.1, 0.2])
     }
 }

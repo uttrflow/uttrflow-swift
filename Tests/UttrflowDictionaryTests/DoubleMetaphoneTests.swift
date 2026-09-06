@@ -1,9 +1,10 @@
+// Tests for the phonetic codes.
+
 import Testing
 
 @testable import UttrflowDictionary
 
-/// Both codes of a word, as one string, so an expectation reads like the sound it is
-/// asserting rather than like two accessors.
+/// Both codes of a word as one string, so an expectation reads like the sound it asserts.
 private func sound(_ word: String) -> String {
     let code = DoubleMetaphone.code(for: word)
     return code.primary == code.alternate ? code.primary : "\(code.primary)|\(code.alternate)"
@@ -13,9 +14,7 @@ private func sound(_ word: String) -> String {
 struct DoubleMetaphoneTests {
     // MARK: The words this product exists for
 
-    /// The headline case. A recogniser that has never met the name writes down what it
-    /// heard, and what it heard is an ordinary English word. Unless all three key the
-    /// same, the dictionary can never repair it.
+    /// The headline case: a recogniser writes down an ordinary word, and all three must key the same.
     @Test("hears Claude, clawed and cloud as one sound")
     func theNameThisIsFor() {
         #expect(sound("Claude") == "KLT")
@@ -23,9 +22,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("cloud") == "KLT")
     }
 
-    /// A name whose spelling and pronunciation disagree, and the mis-spellings a
-    /// listener produces from it. "Nickel" is included because it is a real English word
-    /// that genuinely sounds the same — colliding with it is correct, not a defect.
+    /// A name whose spelling and pronunciation disagree; colliding with "nickel" is correct.
     @Test("hears Nikhil, Nikhel and nickel as one sound")
     func namesSpeltByEar() {
         #expect(sound("Nikhil") == "NKL")
@@ -33,9 +30,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("nickel") == "NKL")
     }
 
-    /// Nothing in the word may be lost to a four-character truncation: five sounds go in
-    /// and five come out. The product name is the word this matters most for, because it
-    /// is the one the recogniser has never heard and the dictionary exists to teach it.
+    /// Five sounds go in and five come out; the product name is where truncation would hurt most.
     @Test("keeps a whole product name")
     func productName() {
         #expect(sound("Uttrflow") == "ATRFL")
@@ -44,8 +39,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("utter flow") == "ATRFL")
     }
 
-    /// Identifiers are written closed and spoken open. The code has to be indifferent to
-    /// the spaces, or every camel-cased entry becomes unreachable from speech.
+    /// Identifiers are written closed and spoken open, and the code must not care about the spaces.
     @Test("hears a camel-cased identifier and the phrase it is spoken as identically")
     func identifiersAreSpokenAsPhrases() {
         #expect(sound("PaymentSheet") == sound("payment sheet"))
@@ -54,8 +48,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("setUserPrefs") == "STSRPRFS")
     }
 
-    /// Technical terms nobody pronounces the way they are written, and the wrong things
-    /// a recogniser puts on the page instead.
+    /// Technical terms nobody pronounces as written, and what a recogniser puts on the page instead.
     @Test("hears technical terms as the words they are mistaken for")
     func technicalTerms() {
         #expect(sound("kubectl") == "KPKTL")
@@ -64,8 +57,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("PostgreSQL") == sound("postgres QL"))
     }
 
-    /// Four characters is where Soundex stops, and it is why Soundex was not chosen:
-    /// these two would be one key.
+    /// Four characters is where Soundex stops, and these two would be one key.
     @Test("keeps two long identifiers apart")
     func longIdentifiersStayDistinct() {
         #expect(sound("setUserPrefs") != sound("setUserPrompts"))
@@ -131,8 +123,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("special") == "SPXL")
     }
 
-    /// CH is the one letter pair English cannot make up its mind about, which is exactly
-    /// what the alternate code is for.
+    /// CH is the pair English cannot make up its mind about, which is what the alternate code is for.
     @Test("offers both readings of CH, and hardens it before a consonant")
     func theLettersCH() {
         #expect(sound("Christmas") == "KRSTMS")
@@ -167,9 +158,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("gap") == "KP")
     }
 
-    /// An H needs a vowel leaning on it to be heard at all. "Nikhil" is the case that
-    /// matters: the H sits behind a K, nobody pronounces it, and a code that sounded it
-    /// would put "Nikhil" and "nickel" in different buckets.
+    /// "Nikhil" has an H behind a K that nobody pronounces; sounding it would split it from "nickel".
     @Test("only sounds an H a vowel leans on")
     func theLetterH() {
         #expect(sound("hat") == "HT")
@@ -208,8 +197,7 @@ struct DoubleMetaphoneTests {
         #expect(sound("tap") == "TP")
     }
 
-    /// A W in the middle of a word makes no sound of its own — which is precisely why
-    /// "clawed" can reach "Claude".
+    /// A W in the middle of a word makes no sound, which is why "clawed" reaches "Claude".
     @Test("says an opening W and swallows every other one")
     func theLetterW() {
         #expect(sound("water") == "ATR|FTR")
@@ -231,8 +219,7 @@ struct DoubleMetaphoneTests {
 
     // MARK: Nothing to say
 
-    /// Digits, punctuation and accents make no sound, so they cannot make a key either.
-    /// Two entries whose spellings differ only in an accent are one word to a listener.
+    /// Digits, punctuation and accents make no sound and no key.
     @Test("makes no sound out of anything that is not a letter")
     func silence() {
         #expect(DoubleMetaphone.code(for: "").isSilent)
@@ -251,8 +238,7 @@ struct DoubleMetaphoneTests {
         #expect(DoubleMetaphone.code(for: "2024").keys.isEmpty)
     }
 
-    /// Two spellings that sound alike must be one key and not merely two equal strings,
-    /// because the index hashes the code itself.
+    /// Two spellings that sound alike must be one hash key, not two equal strings.
     @Test("is a value, so equal sounds are one hash key")
     func codesAreValues() {
         #expect(DoubleMetaphone.code(for: "Claude") == DoubleMetaphone.code(for: "clawed"))

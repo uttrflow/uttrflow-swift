@@ -1,18 +1,8 @@
 import UttrflowCore
 
-/// Builds the insertion strategies, in the order they should be tried.
-///
-/// The one place that names concrete strategies. Everything above sees a coordinator.
+/// Builds the insertion strategies in the order they are tried, and is the one place that names them.
 public enum TextInsertion {
-    /// Accessibility first because it leaves the clipboard alone and puts the text
-    /// exactly at the caret. Pasting next because it works almost everywhere.
-    /// The clipboard last because it cannot fail, which is what stops a user ever
-    /// losing words to an app that refuses both.
-    ///
-    /// Pasting shares the focus reader with the first strategy, and needs it: without a
-    /// way to tell that nothing is focused, it claimed success into thin air and then
-    /// restored the clipboard over the dictation, so the floor below was never reached
-    /// and the words were gone from everywhere.
+    /// Accessibility, then pasting, then the clipboard, which cannot fail. See `Docs/insertion.md`.
     public static func coordinator(
         focus: any AccessibilityFocus = AXAccessibilityFocus(),
         pasteboard: any Pasteboard = SystemPasteboard(),
@@ -23,6 +13,17 @@ public enum TextInsertion {
             PasteboardTextInsertionEngine(
                 focus: focus, pasteboard: pasteboard, keystrokes: keystrokes),
             ClipboardTextInsertionEngine(pasteboard: pasteboard),
+        ])
+    }
+
+    /// The route an accepted suggestion takes, which has no clipboard in it at all. See `Docs/predict-accept.md`.
+    public static func completion(
+        focus: any AccessibilityFocus = AXAccessibilityFocus(),
+        typist: any KeystrokeTyping = CGEventTypist()
+    ) -> CompletionRoute {
+        CompletionRoute(strategies: [
+            AccessibilityTextInsertionEngine(focus: focus),
+            TypedTextInsertionEngine(focus: focus, typist: typist),
         ])
     }
 }

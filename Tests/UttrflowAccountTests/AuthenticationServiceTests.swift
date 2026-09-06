@@ -5,8 +5,10 @@ import Testing
 
 @testable import UttrflowAccount
 
+/// The in-memory service the development app signs in against, rehearsing the release build's flow.
 @Suite("Signing in against a backend that is not there yet")
 struct InMemoryAuthenticationServiceTests {
+    /// A service signing with the test backend's key, at noon.
     private func service(
         plan: Plan = .pro, lifetime: TimeInterval = 3_600
     ) -> InMemoryAuthenticationService {
@@ -30,13 +32,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(profile.currentDevice != nil)
     }
 
-    /// The challenge is handed around by the interface, so it must be worth nothing to
-    /// anybody who reads it. The verifier that will spend the code stays with the service,
-    /// and the device grant's own secret — the device code — stays there too; only the
-    /// short code a person is meant to read is here.
-    ///
-    /// Named rather than counted, so that adding a field is a decision somebody makes in
-    /// this test rather than a number that quietly goes up.
+    /// The challenge carries no secret; its fields are named, not counted, so adding one is decided here.
     @Test("carries no secret of any kind")
     func challengeIsNotACredential() async throws {
         let challenge = try await service().beginSignIn(with: .google)
@@ -44,9 +40,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(fields == ["authorisationURL", "method", "state"], "the challenge grew a field: \(fields)")
     }
 
-    /// The state value is what proves an answer belongs to this attempt rather than one
-    /// somebody else started in the user's browser. A development service that waved any
-    /// challenge through would be rehearsing a flow the release build does not have.
+    /// The state proves an answer belongs to this attempt; a development service must not wave any through.
     @Test("refuses a challenge that does not answer the attempt it claims to")
     func mismatchedState() async throws {
         let service = service()
@@ -89,8 +83,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(Fixture.verifier.isAuthentic(renewed.entitlement))
     }
 
-    /// The caching path, rehearsed: a caller holding the copy this service last handed
-    /// out is told it is current rather than given another one.
+    /// A caller holding the copy this service last handed out is told it is current.
     @Test("answers unchanged for a caller holding the current copy")
     func unchangedForTheCurrentCopy() async throws {
         let service = service()
@@ -100,9 +93,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(try await service.currentProfile(ifChangedFrom: signedIn) == .unchanged)
     }
 
-    /// Not ``ProfileRefresh/signedOut``: a service that forgets everything when the process
-    /// ends holds no credential on the second launch, and a development build must no more
-    /// delete its cached profile over that than a release build does.
+    /// Not ``ProfileRefresh/signedOut``: a missing credential deletes no cached profile in development.
     @Test("says it has no credential when nobody has signed in")
     func noCredentialWhenNobodyHas() async throws {
         #expect(try await service().currentProfile(ifChangedFrom: nil) == .noCredential)
@@ -127,28 +118,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect((profile.subscription.currentPeriodEnd == nil) == (plan == .free))
     }
 
-    /// Sign-in failures are the ones nobody sees until a user does, because they need a
-    /// server to misbehave. Each call must be able to produce every one of them.
-    @Test("can be made to fail any call, once", arguments: AccountError.everyCase)
-    func scriptedFailures(failure: AccountError) async throws {
-        let begin = service()
-        begin.failNextCall(with: failure)
-        await #expect(throws: failure) { try await begin.beginSignIn(with: .google) }
-        // Once, not for ever: the very next call works.
-        _ = try await begin.beginSignIn(with: .google)
-
-        let complete = service()
-        let challenge = try await complete.beginSignIn(with: .google)
-        complete.failNextCall(with: failure)
-        await #expect(throws: failure) { try await complete.completeSignIn(challenge) }
-
-        let renew = service()
-        renew.failNextCall(with: failure)
-        await #expect(throws: failure) { try await renew.currentProfile(ifChangedFrom: nil) }
-    }
-
-    /// The app opens this URL exactly as it will open the real one, so the code path is
-    /// rehearsed even though nothing answers.
+    /// The app opens this URL exactly as it opens the real one, so the code path is rehearsed.
     @Test("names the provider and the state in a URL the app can open")
     func challengeURL() async throws {
         let challenge = try await service().beginSignIn(with: .gitHub)
@@ -170,8 +140,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(first.state != second.state)
     }
 
-    /// The signature check must be live in development, not switched off. An
-    /// "accept everything" verifier for development is how a build ships with no check.
+    /// The signature check is live in development; an accept-all verifier is how a build ships with none.
     @Test("publishes a verifier that believes what it signs, and only that")
     func matchingVerifier() async throws {
         let service = InMemoryAuthenticationService(now: { Fixture.noon })
@@ -182,8 +151,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(service.verifier.isAuthentic(Fixture.entitlement(expiring: 1)) == false)
     }
 
-    /// Long by the standards of a session and short by the standards of a subscription,
-    /// because that is what an entitlement is.
+    /// Long for a session and short for a subscription, which is what an entitlement is.
     @Test("mints entitlements that outlast a month of aeroplanes by default")
     func defaultLifetime() async throws {
         let service = InMemoryAuthenticationService(now: { Fixture.noon })
@@ -193,9 +161,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(InMemoryAuthenticationService.defaultLifetime == 30 * 24 * 60 * 60)
     }
 
-    /// Built with nothing at all, which is how the development app builds it: a fresh
-    /// key, the real clock, and an entitlement dated from whenever the person signed in
-    /// rather than from a fixed instant a test chose.
+    /// Built with no arguments as the development app does: a fresh key, the real clock, and dated from now.
     @Test("needs no arguments, and dates its entitlements from now")
     func allDefaults() async throws {
         let before = Date()
@@ -210,8 +176,7 @@ struct InMemoryAuthenticationServiceTests {
         #expect(service.verifier.isAuthentic(profile.entitlement))
     }
 
-    /// The fallback exists only because this package forbids a force unwrap and
-    /// `URL(string:)` is failable. It must still produce something openable.
+    /// `safeURL` exists because the package forbids a force unwrap and `URL(string:)` is failable.
     @Test("builds a URL from a literal without a force unwrap, and copes with a bad one")
     func safeURLs() {
         #expect(safeURL("https://sign-in.invalid/uttrflow").host() == "sign-in.invalid")

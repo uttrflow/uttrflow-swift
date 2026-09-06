@@ -1,20 +1,9 @@
+// The main window's greys and the appearance-aware colour helpers.
+
 import AppKit
 import SwiftUI
 
-/// The window's own surfaces.
-///
-/// These were `windowBackgroundColor`, `controlBackgroundColor` and
-/// `underPageBackgroundColor` — Apple's neutral greys — and against the design they were
-/// wrong in three ways at once. In dark aqua they render `#1E1E1E`, a good deal lighter
-/// than the `#0B0C10` the artboards are drawn on and neutral where the design is cool;
-/// and `underPageBackgroundColor` is *lighter* than the window, so the rail lifted off
-/// the page where the design sinks it.
-///
-/// Named values rather than system ones, then, for the same reason the ring's colours
-/// are named: this window's grounds are part of the design, not a place to inherit
-/// whatever the platform's document windows happen to use. The light variant is derived
-/// from the same decisions rather than being the system's again — the rail one step
-/// darker than the page, the card one step lighter.
+/// The window's own surfaces, named rather than system greys. See Docs/app-main-window.md.
 extension Color {
     /// The page behind everything.
     static let mainBackground = Color(nsColor: .orbit(dark: 0x0B_0C10, light: 0xF3_F2F7))
@@ -24,30 +13,19 @@ extension Color {
     static let mainSeparator = Color(nsColor: .orbit(dark: 0x1E_212A, light: 0xE2_E0EA))
     /// The row under the pointer.
     static let mainHover = Color(nsColor: .orbitAlpha(dark: 0xFF_FFFF, light: 0x00_0000, alpha: 0.05))
-    /// The rail: a step darker than the page in the dark, a step darker in the light too,
-    /// so it reads as the edge of the window either way.
+    /// The rail: a step darker than the page in both appearances, so it reads as the edge of the window.
     static let railGround = Color(nsColor: .orbit(dark: 0x08_090C, light: 0xEA_E9F0))
     /// The lit rail icon's tile.
     static let railSelection = Color(nsColor: .orbitAlpha(dark: 0xFF_FFFF, light: 0x00_0000, alpha: 0.07))
     static let railIcon = Color.secondary
 
-    /// The three text tones, applied once at the window's root so that every
-    /// `.primary`, `.secondary` and `.tertiary` under it resolves to these.
-    ///
-    /// The system's are neutral greys; the design's carry the same cool cast as the
-    /// grounds they sit on, which is what stops a caption reading as slightly warm
-    /// against a slightly blue panel. Setting all three at the root rather than colouring
-    /// each label means a page cannot opt out of the palette by accident.
+    /// The three text tones, set once at the root so every label under it resolves to the design's greys.
     static let mainText = Color(nsColor: .orbit(dark: 0xF4_F4F6, light: 0x17_1320))
     static let mainMuted = Color(nsColor: .orbit(dark: 0x8B_90A0, light: 0x6F_6880))
     static let mainDim = Color(nsColor: .orbit(dark: 0x56_5B68, light: 0xA4_9DB3))
 }
 
-/// A hairline in the design's own colour.
-///
-/// `Divider()` draws the system's separator, which is a white wash: on `#0B0C10` it is
-/// brighter than the `#1E212A` the artboards rule the page with, and bright enough that
-/// a list of ten rows reads as a table.
+/// A hairline in the design's own colour; `Divider()` is a white wash bright enough to make a list a table.
 struct MainDivider: View {
     var body: some View {
         Rectangle()
@@ -58,11 +36,7 @@ struct MainDivider: View {
 }
 
 extension NSColor {
-    /// One colour per appearance, resolved when it is drawn rather than when it is made.
-    ///
-    /// `NSColor(name:dynamicProvider:)` rather than an asset catalogue: this package has
-    /// no catalogue, and a value in code is the only form the tests and the design notes
-    /// can both point at.
+    /// One colour per appearance, resolved when drawn; in code, because this package has no asset catalogue.
     static func orbit(dark: UInt32, light: UInt32) -> NSColor {
         NSColor(name: nil) { appearance in
             NSColor(rgb: appearance.isDark ? dark : light)
@@ -76,8 +50,7 @@ extension NSColor {
         }
     }
 
-    /// `0x0B0C10` as a colour. sRGB rather than device, so the value in the code is the
-    /// value on the screen.
+    /// `0x0B0C10` as an sRGB colour, so the value in the code is the value on the screen.
     convenience init(rgb: UInt32) {
         self.init(
             srgbRed: CGFloat((rgb >> 16) & 0xFF) / 255,
@@ -87,9 +60,17 @@ extension NSColor {
     }
 }
 
+extension Color {
+    /// `0x0B0C10` as a fixed sRGB colour, the same in both appearances.
+    init(rgb: UInt32) {
+        self.init(
+            .sRGB, red: Double((rgb >> 16) & 0xFF) / 255, green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255)
+    }
+}
+
 extension NSAppearance {
-    /// Whether this appearance is one of the dark ones, including the accessibility
-    /// variants — which `name == .darkAqua` alone would answer wrongly.
+    /// Whether this appearance is dark, including the accessibility variants `name == .darkAqua` misses.
     var isDark: Bool {
         bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }

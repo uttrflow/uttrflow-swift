@@ -1,3 +1,4 @@
+// Tests the model store against real directories.
 import Foundation
 import Synchronization
 import Testing
@@ -5,10 +6,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowSpeech
 
-/// Writes the tokenizer a real install would leave beside the weights.
-///
-/// One byte per file, because what is being tested is that they are there — the store
-/// only ever asks whether they exist.
+/// Writes the tokenizer a real install leaves beside the weights, one byte per file.
 private func writeTokenizer(into destination: URL) throws {
     for name in TokenizerAssets.fileNames {
         try Data([1]).write(to: destination.appending(path: name))
@@ -18,8 +16,7 @@ private func writeTokenizer(into destination: URL) throws {
 /// The bytes ``writeTokenizer(into:)`` adds to a model's directory.
 private let tokenizerBytes = Int64(TokenizerAssets.fileNames.count)
 
-/// Runs against a real temporary directory: the store's whole job is filesystem
-/// behaviour, and a substitute would test the substitute.
+/// Runs against a real temporary directory, since the store's whole job is filesystem behaviour.
 @Suite("FileSystemSpeechModelStore")
 struct FileSystemSpeechModelStoreTests {
     private struct Sandbox: ~Copyable {
@@ -31,8 +28,7 @@ struct FileSystemSpeechModelStoreTests {
         deinit { try? FileManager.default.removeItem(at: root) }
     }
 
-    /// A downloader that writes a plausible install: `fileCount` weight files of
-    /// `bytesEach`, reporting progress, and a tokenizer of one byte per file.
+    /// A downloader that writes a plausible install with progress, and a one-byte-per-file tokenizer.
     private func writingDownloader(
         fileCount: Int = 2, bytesEach: Int = 16, progressSteps: [Double] = [0.5]
     ) -> FileSystemSpeechModelStore.Downloader {
@@ -115,11 +111,7 @@ struct FileSystemSpeechModelStoreTests {
             "a complete install must fetch nothing at all")
     }
 
-    /// The reason ``FileSystemSpeechModelStore/isInstalled(_:)`` was made stricter: an
-    /// install made before the tokenizer was part of one has the weights and nothing
-    /// else, and WhisperKit would fetch the rest over the network on the first
-    /// dictation. Such an install has to read as incomplete, and repairing it must not
-    /// mean waiting for six hundred megabytes a second time.
+    /// A weights-only install reads as incomplete and is repaired without a second 600 MB download.
     @Test("tops up a tokenizer-less install without fetching the weights again")
     func repairsAnInstallMissingItsTokenizer() async throws {
         let sandbox = Sandbox()
@@ -143,8 +135,7 @@ struct FileSystemSpeechModelStoreTests {
         #expect(store.isInstalled(.base))
     }
 
-    /// Six hundred megabytes the user has already waited for must survive a tokenizer
-    /// fetch that fails — and what is left must still not pass for a working model.
+    /// Weights already waited for survive a failed tokenizer fetch, and what is left is still not installed.
     @Test("keeps the weights when only the tokenizer fetch fails")
     func failedTokenizerFetchKeepsTheWeights() async throws {
         struct Boom: Error {}
@@ -168,8 +159,7 @@ struct FileSystemSpeechModelStoreTests {
         #expect(!store.isInstalled(.base))
     }
 
-    /// A download that reports success and produces nothing used to be discovered a
-    /// launch later, as a model that would not load.
+    /// A download that reports success and produces nothing is caught now, not a launch later.
     @Test("rejects a tokenizer fetch that produced nothing")
     func silentlyEmptyTokenizerFetchRejected() async {
         let sandbox = Sandbox()
@@ -211,8 +201,7 @@ struct FileSystemSpeechModelStoreTests {
         #expect(!FileManager.default.fileExists(atPath: store.location(of: .base).path))
     }
 
-    /// An empty directory is what a cancelled download leaves; treating it as
-    /// installed would fail later, further from the cause.
+    /// An empty directory is what a cancelled download leaves.
     @Test("rejects a download that produced no files")
     func emptyDownloadRejected() async {
         let sandbox = Sandbox()
@@ -260,8 +249,7 @@ struct FileSystemSpeechModelStoreTests {
     }
 }
 
-/// Model repositories nest their output; the store promises files sit directly in the
-/// model's own directory.
+/// Model repositories nest their output; the store promises files directly in the model's directory.
 @Suite("Hoisting a nested download")
 struct HoistTests {
     private struct Sandbox: ~Copyable {
@@ -323,10 +311,7 @@ struct HoistTests {
     }
 }
 
-/// The one fact the store and the recogniser have to agree on: whether a folder holds a
-/// tokenizer. They ask it for different reasons — the store to decide an install is
-/// complete, the recogniser to decide it can load without a network — so it is answered
-/// in one place rather than twice, slightly differently.
+/// Whether a folder holds a tokenizer is answered once, for the store and the recogniser alike.
 @Suite("Tokenizer files beside the weights")
 struct TokenizerAssetsTests {
     private struct Sandbox: ~Copyable {
@@ -339,8 +324,7 @@ struct TokenizerAssetsTests {
         deinit { try? FileManager.default.removeItem(at: root) }
     }
 
-    /// The vocabulary and the tokeniser's own configuration. WhisperKit looks for the
-    /// first to decide a folder is worth reading and needs the second to build from it.
+    /// WhisperKit needs the vocabulary to find a folder worth reading and the configuration to build from it.
     @Test("asks for the vocabulary and the tokeniser configuration")
     func namesBothFiles() {
         #expect(TokenizerAssets.fileNames.contains("tokenizer.json"))
@@ -362,8 +346,7 @@ struct TokenizerAssetsTests {
         #expect(!TokenizerAssets.arePresent(in: sandbox.root.appending(path: "nowhere")))
     }
 
-    /// Half a tokenizer cannot be loaded, and calling it present would send the
-    /// recogniser to the network at the one moment it must not.
+    /// Half a tokenizer called present would send the recogniser to the network while decoding.
     @Test(
         "refuses a folder holding only one of the two files",
         arguments: TokenizerAssets.fileNames)

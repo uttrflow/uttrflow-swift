@@ -8,32 +8,23 @@ import MLXLLM
 import MLXLMCommon
 import Tokenizers
 
-/// Runs an open-weight model on the Mac's GPU.
-///
-/// Exists because Apple's on-device model has no Hindi. Slots in behind the same
-/// ``CleanupModel`` boundary as Apple's, so it inherits the same prompt, the same
-/// meaning checks and the same routing — the only difference is which weights run.
-///
-/// Excluded from the coverage gate: exercising it means downloading gigabytes and
-/// running inference, which `uttrflow-dev bakeoff` does.
-///
-/// - Important: MLX compiles Metal shaders that Swift Package Manager's command line
-///   cannot build, so anything linking this must be built with `xcodebuild`. See
-///   `make bakeoff`.
+// A local open-weight model behind the same clean-up boundary as Apple's, built with `make bakeoff`.
+/// Runs an open-weight model on the Mac's GPU, which is where Hindi clean-up comes from.
 public actor MLXCleanupModel: CleanupModel {
+    /// Which weights run.
     private let model: LocalModel
+    /// The most tokens one rewrite may produce.
     private let maximumTokens: Int
+    /// The loaded weights, absent until ``prepare(onProgress:)`` has run.
     private var container: ModelContainer?
 
+    /// Names the model to run, without loading anything yet.
     public init(model: LocalModel, maximumTokens: Int = 256) {
         self.model = model
         self.maximumTokens = maximumTokens
     }
 
-    /// Downloads and loads the weights, reporting progress.
-    ///
-    /// Separate from ``rewrite(_:instructions:kind:)`` so a caller can pay the cost
-    /// deliberately rather than inside a user's first dictation.
+    /// Downloads and loads the weights, so the cost is paid deliberately and not inside a dictation.
     public func prepare(
         onProgress: @escaping @Sendable (Double) -> Void = { _ in }
     ) async throws(TransformationError) {
@@ -50,12 +41,14 @@ public actor MLXCleanupModel: CleanupModel {
         }
     }
 
+    /// Whether this model is loaded and can work in `language`.
     public func availability(for language: LanguageCode?) async -> TransformerAvailability {
         guard container != nil else { return .unavailable(reason: "the local model is not loaded") }
         guard let language else { return .available }
         return model.supports(language) ? .available : .unsupportedLanguage(language)
     }
 
+    /// Rewrites `text` under `instructions`, loading the weights first if they are not yet there.
     public func rewrite(
         _ text: String, instructions: String, kind: TransformerKind
     ) async throws(TransformationError) -> String {
@@ -65,8 +58,7 @@ public actor MLXCleanupModel: CleanupModel {
         }
 
         do {
-            // A fresh session per utterance: dictation is one-shot, and carrying
-            // context between unrelated sentences would let one bleed into the next.
+            // A fresh session per utterance, so one sentence cannot bleed into the next.
             let session = ChatSession(
                 container,
                 instructions: instructions,

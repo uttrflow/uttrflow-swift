@@ -7,11 +7,7 @@ import Testing
 
 // MARK: - Fixtures
 
-/// Every pane a fully capable Mac would draw, in every state the counts can be in.
-///
-/// The counts are swept as well as the tabs, because a destructive row reads differently
-/// for each of them and a sentence written for one shape would otherwise never be looked
-/// at in the others.
+/// Every pane a fully capable Mac draws, swept over every state the counts can be in.
 private func everyPane(
     _ settings: Settings = .default,
     _ capabilities: SettingsCapabilities = .everything
@@ -54,7 +50,7 @@ extension SettingsPane {
                 strings += [title]
             case .text(let value):
                 strings += [value]
-            case .toggle, .anchorPicker, .tick:
+            case .toggle, .anchorPicker, .tick, .applicationSwitch:
                 break
             }
         }
@@ -117,15 +113,15 @@ struct SettingsWindowTests {
                         options.map(\.id).contains(selected),
                         "\(row.id) has selected something it does not offer")
                     #expect(Set(options.map(\.id)).count == options.count)
-                case .toggle, .anchorPicker, .shortcut, .tick, .removal, .action, .text:
+                case .toggle, .anchorPicker, .shortcut, .tick, .removal, .action, .text,
+                    .applicationSwitch:
                     break
                 }
             }
         }
     }
 
-    /// §16, on this screen as much as on the floating button: the user chooses how much
-    /// help they want, never which implementation gives it to them.
+    /// §16: the user chooses how much help they want, never which implementation gives it.
     @Test("never names an engine, a model or a file")
     func neverNamesAnEngine() {
         let forbidden = [
@@ -402,8 +398,7 @@ struct SettingsPrivacyPaneTests {
         #expect(options.allSatisfy { $0.change != .retention(days: 0) })
     }
 
-    /// One period, because there is one thing kept. A row offering to keep recordings
-    /// for a while would be offering to configure something the app never does.
+    /// One period, because the transcript is the one thing kept.
     @Test("offers a period for the text and for nothing else")
     func onlyTranscriptsHaveAPeriod() {
         let periods = privacy().everyRow.filter {
@@ -446,17 +441,13 @@ struct SettingsRowTests {
 /// Light, dark, or whatever the Mac is set to.
 @Suite("Choosing how Uttrflow is drawn")
 struct SettingsAppearanceTests {
-    /// The one choice here worth arguing about. Uttrflow's artboards are dark — the ring
-    /// on the home page is two saturated colours that only hold their meaning against
-    /// something dark — and the app that was designed should be the app that is seen.
+    /// Dark by default, because the artboards are dark and the ring needs a dark ground.
     @Test("a new install is drawn dark, not however the Mac happens to be set")
     func darkByDefault() {
         #expect(Settings.default.appearance == .dark)
     }
 
-    /// The explanation names the default, so the two have to agree. They did not: the
-    /// row went on saying "drawn light" for a build after the default became dark, and
-    /// nothing failed — copy that describes a decision has to be pinned to the decision.
+    /// The explanation names the default, so this pins the copy to the decision it describes.
     @Test("the explanation names the appearance a new install actually gets")
     func explanationMatchesTheDefault() {
         let row = SettingsPresenter.appearanceRow(Settings.default)
@@ -477,8 +468,7 @@ struct SettingsAppearanceTests {
         #expect(selected == "dark")
     }
 
-    /// Taking the choice away is worse than defaulting it: somebody who wants their whole
-    /// Mac to change together should be able to have that.
+    /// The choice stays on offer, for somebody who wants their whole Mac to change together.
     @Test("following the Mac is still on offer")
     func systemIsStillOffered() {
         let row = SettingsPresenter.appearanceRow(Settings())
@@ -498,8 +488,7 @@ struct SettingsAppearanceTests {
         #expect(after.opensAtLogin == before.opensAtLogin)
     }
 
-    /// Drawing itself light or dark is something every Mac can do, so there is no
-    /// capability to refuse it on.
+    /// Every Mac can draw itself light or dark, so there is no capability to refuse it on.
     @Test("it is never refused for want of a capability")
     func neverRefused() throws {
         for appearance in AppAppearance.allCases {
@@ -512,8 +501,7 @@ struct SettingsAppearanceTests {
         }
     }
 
-    /// A preferences file from a build that had no appearance key must not lose every
-    /// other choice in it, and must land on the default rather than on nothing.
+    /// A preferences file with no appearance key keeps every other choice and takes the default.
     @Test("a settings blob written before this existed still decodes")
     func decodesWithoutTheKey() throws {
         let json = """
@@ -554,9 +542,7 @@ struct SettingsUpdatesTests {
         #expect(row.unavailability == nil)
     }
 
-    /// The group stays, rather than vanishing. Somebody looking for a version number in a
-    /// build that cannot update still finds one, and is told why the rest is inert
-    /// instead of hunting for a control they remember.
+    /// The group stays in a build that cannot update, showing the version and why the rest is inert.
     @Test("a build with no feed keeps the version and explains the rest")
     func noFeed() throws {
         var capabilities = SettingsCapabilities.everything
@@ -615,8 +601,7 @@ struct SettingsUpdateEditingTests {
         #expect(reason?.contains("no update feed") == true)
     }
 
-    /// It travels in the same enum as every other change and alters nothing, so the thing
-    /// worth asserting is that it does not quietly alter something anyway.
+    /// It travels in the change enum and alters nothing, which is what this asserts.
     @Test("asking for a check changes no setting at all")
     func checkingChangesNothing() throws {
         let settings = Settings.default

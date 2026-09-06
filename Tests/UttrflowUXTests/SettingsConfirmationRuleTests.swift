@@ -1,3 +1,4 @@
+// Tests that every reset row asks a question exactly when SettingsReset says it must.
 import Testing
 
 import UttrflowSettings
@@ -20,9 +21,7 @@ private func everyRemoval() -> [SettingsRemoval] {
 
 @Suite("Every reset is asked about exactly as SettingsReset says it must be")
 struct SettingsConfirmationRuleTests {
-    /// The rule lives on ``SettingsReset``; the wording lives on the row. This is what
-    /// holds the two to the same answer, the way `HotkeyBinding.isDeliverable` is held
-    /// to the translator's.
+    /// The rule lives on ``SettingsReset`` and the wording on the row; this holds the two to one answer.
     @Test("the row a case is drawn with carries a question exactly when the case demands one")
     func rowsAgreeWithTheRule() {
         let removals = everyRemoval()
@@ -45,8 +44,7 @@ struct SettingsConfirmationRuleTests {
         }
     }
 
-    /// The runtime half. A row built without its question must not delete anything, even
-    /// though the presenter above is what normally stops that happening.
+    /// The runtime half: a row built without its question must not delete anything.
     @Test("a confirmed reset built with no question removes nothing")
     func aConfirmedResetWithNoQuestionIsRefused() {
         var session = SettingsSession(settings: Settings(), personalisation: filled)

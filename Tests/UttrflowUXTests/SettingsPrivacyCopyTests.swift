@@ -7,8 +7,7 @@ import Testing
 
 // MARK: - Fixtures
 
-/// Every page onboarding can draw, including the combinations no single run reaches,
-/// so a page cannot be added and quietly left out of the sweep below.
+/// Every page onboarding can draw, including combinations no single run reaches.
 private let everyOnboardingState: [OnboardingState] = {
     var states: [OnboardingState] = [
         OnboardingState(step: .welcome, detail: .reading),
@@ -29,19 +28,11 @@ private let everyOnboardingState: [OnboardingState] = {
     return states
 }()
 
-/// Everything the app says about what it keeps, gathered from the three screens that
-/// say it: the privacy tab makes the promise, the history page restates it under the
-/// list, and onboarding makes it before the user has dictated a word.
-///
-/// Every pane and every page, not the ones that happen to mention audio today: a claim
-/// that reappears on some fifth screen is exactly the one nobody would think to add
-/// here, so the sweep is over all of them.
+/// Everything the app says about what it keeps, swept over every pane and every page.
 private func everyUserFacingString() -> [String] {
     var strings: [String] = []
 
-    // Every tab, and every shape the counts can be in: the sentences in front of a
-    // destructive button are written per count, and the ones nobody sweeps are the ones
-    // that get to say something untrue about what is kept.
+    // Every tab and every shape of the counts: those sentences are written per count.
     for personalisation in SettingsPersonalisationFixtures.every {
         for tab in SettingsTab.allCases {
             let pane = SettingsPresenter.pane(
@@ -66,7 +57,7 @@ private func everyUserFacingString() -> [String] {
                     strings += [title]
                 case .text(let value):
                     strings += [value]
-                case .toggle, .anchorPicker, .shortcut, .tick:
+                case .toggle, .anchorPicker, .shortcut, .tick, .applicationSwitch:
                     break
                 }
             }
@@ -80,8 +71,7 @@ private func everyUserFacingString() -> [String] {
         strings += page.buttons.map(\.title)
     }
 
-    // With something in the list and with nothing, because the notice is drawn either
-    // way and the empty states are their own sentences about what is held.
+    // With something in the list and with nothing: the empty states have their own sentences.
     let now = Date()
     let entry = HistoryEntry(id: UUID(), text: "Hello", when: now, applicationName: "Mail")
     for entries in [[entry], []] {
@@ -93,8 +83,7 @@ private func everyUserFacingString() -> [String] {
     return strings
 }
 
-/// Roughly a sentence. Enough to keep a denial with the claim it denies, so that
-/// "Recordings are never saved. The text is kept for 7 days." is read as two things.
+/// Roughly a sentence, so a denial stays with the claim it denies.
 private func sentences(of string: String) -> [String] {
     string.lowercased()
         .components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
@@ -107,9 +96,7 @@ private func mentionsAudio(_ sentence: String) -> Bool {
 
 // MARK: - The promise
 
-/// Uttrflow keeps a recording only until its words land, and for a day when they do not
-/// so the dictation can be retried. Every sentence about audio has to say that, and no
-/// sentence anywhere may say the audio goes further than this Mac.
+/// Every sentence about audio says a recording lives until its words land, and never leaves the Mac.
 @Suite("What the app says it keeps is what it keeps")
 struct SettingsPrivacyCopyTests {
     /// Words that put audio somewhere it can be found again.
@@ -149,8 +136,7 @@ struct SettingsPrivacyCopyTests {
         }
     }
 
-    /// Pinned so that softening it has to be a deliberate edit to a test rather than a
-    /// quiet edit to a string.
+    /// Pinned, so softening it takes a deliberate edit to a test rather than to a string.
     @Test("the promise says the audio is deleted as it becomes text, and kept a day only to retry")
     func thePromiseIsTheHonestOne() {
         let promise = SettingsPresenter.recordingsPromise
@@ -161,9 +147,7 @@ struct SettingsPrivacyCopyTests {
         #expect(!SettingsPresenter.privacyPromise.contains("Recordings are never saved"))
     }
 
-    /// Not absolutist. The speech model arrives over the network and a cloud engine may
-    /// one day be offered, so a promise that Uttrflow never reaches out would be the next
-    /// inaccuracy in the same place.
+    /// Not absolutist: the speech model arrives over the network, so no promise denies one.
     @Test("the promise never claims the app stays off the network")
     func thePromiseDoesNotOverreachAboutTheNetwork() {
         let promise = SettingsPresenter.privacyPromise.lowercased()
@@ -172,8 +156,7 @@ struct SettingsPrivacyCopyTests {
         }
     }
 
-    /// One promise, one wording. Two screens saying the same thing two ways is a promise
-    /// the user has to reconcile for themselves.
+    /// One promise, one wording, so no user has to reconcile two screens saying it two ways.
     @Test("settings and onboarding describe the recordings in the same words")
     func oneWordingEverywhere() {
         let microphone = OnboardingPresenter.page(

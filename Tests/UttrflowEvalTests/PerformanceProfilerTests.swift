@@ -1,3 +1,4 @@
+// Tests the performance profiler against a scripted machine.
 import UttrflowCore
 import UttrflowTestSupport
 import Synchronization
@@ -5,12 +6,7 @@ import Testing
 
 @testable import UttrflowEval
 
-/// A machine whose memory does exactly what the test says it does.
-///
-/// Every reading is `base + step × (readings so far)`. A step rather than a script of
-/// exact figures because the profiler also polls while a dictation runs, and how many
-/// times it manages to poll is a property of the scheduler — a test pinned to exact
-/// values would be asserting on that.
+/// A machine whose memory reads `base + step × readings`, since how often the profiler polls is scheduling.
 private final class FakeMemory: Sendable {
     private let base: Int64
     private let step: Int64
@@ -22,8 +18,7 @@ private final class FakeMemory: Sendable {
     }
 
     var read: @Sendable () -> MemoryReading? {
-        // `self` rather than a capture list: `Mutex` is non-copyable and cannot be
-        // captured by value, and the class is `Sendable` so capturing it is enough.
+        // `self` rather than a capture list: `Mutex` is non-copyable, and the class is `Sendable`.
         {
             let taken = self.reads.withLock { count -> Int64 in
                 defer { count += 1 }
@@ -35,8 +30,7 @@ private final class FakeMemory: Sendable {
     }
 }
 
-/// Counts what the profiler asked for, so the order and the number of calls can be
-/// asserted rather than assumed.
+/// Counts what the profiler asks for, so the order and number of calls can be asserted.
 private final class Calls: Sendable {
     let loads = Mutex(0)
     let dictations = Mutex<[ProfilePassage.Length]>([])
@@ -95,8 +89,7 @@ struct PerformanceProfilerTests {
             ])
     }
 
-    /// The point of the warm-up: the first dictation of a process pays for buffers every
-    /// later one reuses, and counting it would make warm-up look like a leak.
+    /// The first dictation pays for buffers every later one reuses, and counting it would look like a leak.
     @Test("the leak check watches exactly the repetitions asked for, after a warm-up")
     func leakLoopExcludesWarmUp() async {
         let calls = Calls()
@@ -107,8 +100,7 @@ struct PerformanceProfilerTests {
         #expect(mediumDictations == 1 + 3 + 2, "warm-up, then the leak loop, then the sweep")
     }
 
-    /// End to end: memory that climbs at every reading and never comes back is the defect
-    /// this whole command exists to find, and the profiler has to hand that verdict up.
+    /// Memory that only climbs is the defect this command exists to find, and the verdict must come up.
     @Test("memory that only ever climbs comes back as a leak")
     func reportsALeak() async {
         let report = await profile(memory: FakeMemory(step: 20_000_000))
@@ -135,8 +127,7 @@ struct PerformanceProfilerTests {
         #expect(report.utterances.allSatisfy { $0.endToEnd.typical == .seconds(2) })
     }
 
-    /// Reading audio off disk means capture is never timed here, and a zero would read
-    /// as "instant" rather than "not measured".
+    /// Audio read off disk means capture is never timed here, and a zero would read as "instant".
     @Test("stages nothing timed are named rather than shown as zero")
     func namesUnmeasuredStages() async {
         let report = await profile()
@@ -162,8 +153,7 @@ struct PerformanceProfilerTests {
         #expect(report.timedStages.isEmpty)
     }
 
-    /// A profile of a recogniser that did not load would be a page of zeroes reported as
-    /// if they meant something.
+    /// A profile of a recogniser that did not load would be a page of zeroes posing as a result.
     @Test("a model that will not load stops the profile rather than reporting zeroes")
     func refusesToProfileWithoutAModel() async {
         let calls = Calls()
@@ -175,8 +165,7 @@ struct PerformanceProfilerTests {
         #expect(report.timeline.samples.count == 2, "idle and the failed load are still real")
     }
 
-    /// The user meets the first load, so both are asked for — and the warm one last, or
-    /// a second recogniser would double every footprint above it.
+    /// The user meets the first load; the warm one comes last, or it would double every footprint above.
     @Test("the model is loaded twice, and the warm load comes after everything else")
     func measuresBothLoads() async {
         let calls = Calls()
@@ -189,8 +178,7 @@ struct PerformanceProfilerTests {
 
     @Test("what the loaded model added is the difference between the first two moments")
     func reportsWhatTheModelAdded() async {
-        // Nothing reads memory between the two moments, so the difference is exactly one
-        // step of the fake machine.
+        // Nothing reads memory between the two moments, so the difference is exactly one step.
         let report = await profile(memory: FakeMemory(step: 690))
         #expect(report.modelLoad.addedBytes == 690)
     }
@@ -206,9 +194,7 @@ struct PerformanceProfilerTests {
         #expect(phases.contains(.timing(.long, run: 2, of: 2)))
     }
 
-    /// The peak is what polling caught between the named moments; without it a spike that
-    /// settled before the next reading would never appear.
-    /// Without polling, a figure reached between two named moments would never appear.
+    /// Without polling, a spike that settled before the next named moment would never appear.
     @Test("the peak is folded in from readings taken during the dictations")
     func recordsThePeak() async {
         let report = await profile(memory: FakeMemory(step: 1_000))
@@ -270,8 +256,7 @@ struct ProfileCorpusTests {
         }
     }
 
-    /// The passages exist to be timed on realistic speech, not on clean read-aloud prose:
-    /// fillers, a restart and a version number are what the recogniser actually meets.
+    /// Fillers, a restart and a version number are what the recogniser meets, not clean prose.
     @Test("the paragraph carries the things that make dictation hard")
     func passagesAreRealistic() {
         #expect(ProfileCorpus.medium.text.contains("um"))

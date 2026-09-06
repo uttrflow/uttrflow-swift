@@ -1,13 +1,8 @@
 public import UttrflowCore
+public import UttrflowPredict
 
-/// Where the floating button parks itself.
-///
-
-/// Every choice the user has made, as one value.
-///
-/// One value rather than a scattering of keys: a screen can be handed the whole of the
-/// configuration, compare it, and write it back in a single step, so a half-applied
-/// change is not representable. Nothing here leaves the Mac.
+// The user's choices as one value, and the forgiving decoding that keeps them.
+/// Every choice the user has made, as one value. See `Docs/settings-decoding.md`.
 public struct Settings: Sendable, Equatable, Codable {
     /// Which implementations the pipeline runs.
     public var engines: EngineConfiguration
@@ -15,21 +10,19 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Who the user is and how they write.
     public var profile: UserProfile
 
-    /// Whether the shortcut is held down or pressed twice.
-    /// The shortcut itself, not merely how holding it behaves.
+    /// Which clean-up steps run, so a user can switch one off and see what it was doing.
+    public var cleaning: CleaningSteps
+
+    /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
+    public var destinations: DestinationOverrides
+
+    /// The shortcut that starts a dictation.
     public var hotkey: HotkeyBinding
 
+    /// Whether that shortcut is held down or pressed twice.
     public var hotkeyActivation: HotkeyActivation
 
-    /// The shortcut that opens the clipboard panel, or nothing if the user does not
-    /// want one.
-    ///
-    /// Optional because "no clipboard shortcut" is a position a user can hold — the
-    /// panel is still reachable from the menu bar — and because it is where a collision
-    /// with ``hotkey`` lands. Two registrations of one combination both succeed and then
-    /// both fire, which would start a dictation and open the panel on the same keypress;
-    /// rather than silently move the clipboard key somewhere the user never chose,
-    /// the collision resolves to nothing and says so on the shortcuts screen.
+    /// The shortcut that opens the clipboard panel, or nothing. See `Docs/settings-decoding.md`.
     public var clipboardHotkey: HotkeyBinding?
 
     /// Whether the floating button is on screen at all.
@@ -41,8 +34,7 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Whether the button collapses to a grip until the pointer approaches it.
     public var shrinksToGripWhenIdle: Bool
 
-    /// Whether the main window gets out of the way while a dictation is running, so
-    /// the user can see the app they are dictating into.
+    /// Whether the main window gets out of the way, so the user can see what they dictate into.
     public var minimisesWhileDictating: Bool
 
     /// Whether recording starts with an audible cue.
@@ -51,15 +43,7 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Whether macOS launches Uttrflow when the user logs in.
     public var opensAtLogin: Bool
 
-    /// Whether a found update installs itself, or waits to be asked.
-    ///
-    /// On by default, which is the choice that keeps the most people on a build that has
-    /// the fixes. It is a setting rather than a policy because an update replaces the
-    /// binary holding somebody's microphone and Accessibility grants, and a person who
-    /// wants to know before that happens is not being unreasonable.
-    ///
-    /// Nothing is installed *while dictating* either way — see `UpdateGate`. This decides
-    /// whether the user is asked first, not whether the moment is chosen carefully.
+    /// Whether a found update installs itself or waits to be asked; `UpdateGate` picks the moment.
     public var installsUpdatesAutomatically: Bool
 
     /// Whether the interface is drawn light, dark, or however the Mac is set.
@@ -68,20 +52,18 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How many days finished text is kept before it is deleted automatically.
     public var transcriptRetentionDays: Int
 
-    /// How many days an unkept clip survives in the clipboard panel.
-    ///
-    /// Separate from ``transcriptRetentionDays`` because they are separate promises
-    /// about separate things. Someone who keeps dictation transcripts for a day has said
-    /// something about what Uttrflow writes down, not about their own clipboard, and
-    /// folding the two together would quietly empty the panel on their behalf.
-    ///
-    /// It governs history alone. A clip with an alias, a category or a pin has no clock
-    /// on it at all.
+    /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
+    /// Everything the user has decided about tab-to-complete.
+    public var suggestions: SuggestionPreferences
+
+    /// Takes the shipped default for anything the caller does not choose.
     public init(
         engines: EngineConfiguration = .default,
         profile: UserProfile = .default,
+        cleaning: CleaningSteps = .default,
+        destinations: DestinationOverrides = .none,
         hotkey: HotkeyBinding = .optionSpace,
         hotkeyActivation: HotkeyActivation = .holdToTalk,
         clipboardHotkey: HotkeyBinding? = .shiftCommandV,
@@ -94,10 +76,13 @@ public struct Settings: Sendable, Equatable, Codable {
         installsUpdatesAutomatically: Bool = true,
         appearance: AppAppearance = .dark,
         transcriptRetentionDays: Int = Settings.defaultRetentionDays,
-        clipboardRetentionDays: Int = Settings.defaultRetentionDays
+        clipboardRetentionDays: Int = Settings.defaultRetentionDays,
+        suggestions: SuggestionPreferences = .default
     ) {
         self.engines = engines
         self.profile = profile
+        self.cleaning = cleaning
+        self.destinations = destinations
         self.hotkey = hotkey
         self.hotkeyActivation = hotkeyActivation
         self.clipboardHotkey = clipboardHotkey
@@ -111,10 +96,10 @@ public struct Settings: Sendable, Equatable, Codable {
         self.appearance = appearance
         self.transcriptRetentionDays = transcriptRetentionDays
         self.clipboardRetentionDays = clipboardRetentionDays
+        self.suggestions = suggestions
     }
 
-    /// A week: long enough to find yesterday's dictation, short enough that a user who
-    /// never opens this screen is not quietly hoarding their own words.
+    /// A week: long enough to find yesterday's dictation, short enough not to hoard the user's words.
     public static let defaultRetentionDays = 7
 
     /// What a user gets before they configure anything.
@@ -122,9 +107,12 @@ public struct Settings: Sendable, Equatable, Codable {
 }
 
 extension Settings {
+    /// The names the choices are stored under, which are fixed for the life of the format.
     enum CodingKeys: String, CodingKey {
         case engines
         case profile
+        case cleaning
+        case destinations
         case hotkey
         case hotkeyActivation
         case clipboardHotkey
@@ -134,37 +122,29 @@ extension Settings {
         case minimisesWhileDictating
         case playsSoundWhenRecordingStarts
         case opensAtLogin
+        case installsUpdatesAutomatically
         case appearance
         case transcriptRetentionDays
         case clipboardRetentionDays
+        case suggestions
     }
 
-    /// Decodes field by field, defaulting anything missing or unreadable.
-    ///
-    /// Synthesised decoding is all-or-nothing: one field a newer build added, or one a
-    /// hand-edited preferences file mangled, and the user loses every other choice they
-    /// ever made. Settings are worth less than the confidence that they survive, so a
-    /// field that cannot be read is simply the field the user never changed.
-    ///
-    /// The same forgiveness runs the other way. A key this build no longer has a case
-    /// for — `recordingRetentionDays`, which set the retention of audio Uttrflow never
-    /// wrote to disk — is one keyed decoding is never asked for, so a blob an older
-    /// build left behind still yields every choice that does still mean something.
+    /// Decodes field by field, defaulting anything missing or unreadable. See `Docs/settings-decoding.md`.
     public init(from decoder: any Decoder) throws {
         guard let container = try? decoder.container(keyedBy: CodingKeys.self) else {
             self = .default
             return
         }
         let fallback = Settings.default
-        // Resolved before the call rather than inside it because the clipboard shortcut
-        // is only valid relative to this one, and the argument order of an initialiser
-        // is not a place to hide a dependency between two of its arguments.
+        // Resolved first because the clipboard shortcut is only valid relative to this one.
         let dictation = Settings.shortcut(
             container.value(forKey: .hotkey, default: fallback.hotkey)
         )
         self.init(
             engines: container.value(forKey: .engines, default: fallback.engines),
             profile: container.value(forKey: .profile, default: fallback.profile),
+            cleaning: container.value(forKey: .cleaning, default: fallback.cleaning),
+            destinations: container.value(forKey: .destinations, default: fallback.destinations),
             hotkey: dictation,
             hotkeyActivation: container.value(
                 forKey: .hotkeyActivation, default: fallback.hotkeyActivation
@@ -192,6 +172,10 @@ extension Settings {
                 default: fallback.playsSoundWhenRecordingStarts
             ),
             opensAtLogin: container.value(forKey: .opensAtLogin, default: fallback.opensAtLogin),
+            installsUpdatesAutomatically: container.value(
+                forKey: .installsUpdatesAutomatically,
+                default: fallback.installsUpdatesAutomatically
+            ),
             appearance: container.value(forKey: .appearance, default: fallback.appearance),
             transcriptRetentionDays: Settings.retention(
                 container.value(
@@ -202,39 +186,22 @@ extension Settings {
                 container.value(
                     forKey: .clipboardRetentionDays, default: fallback.clipboardRetentionDays
                 )
-            )
+            ),
+            suggestions: container.value(forKey: .suggestions, default: fallback.suggestions)
         )
     }
 
-    /// A retention of zero or less would wipe the user's history the instant the app
-    /// launched, so a value that says so is treated as a corrupt one.
+    /// The stored retention, or the default when it is zero or less and would wipe the history at once.
     static func retention(_ days: Int) -> Int {
         days > 0 ? days : defaultRetentionDays
     }
 
-    /// A shortcut macOS cannot deliver leaves the user with nothing to press, and until
-    /// there is a screen for choosing another, nothing they can do about it either —
-    /// the only way back is deleting the preferences file from a terminal. So a stored
-    /// shortcut that cannot work is treated as a corrupt one, exactly as a retention of
-    /// zero is, rather than being handed on to be refused at registration.
-    ///
-    /// Decoding cleanly is not the same as being usable: `{"keyCode": 49, "modifiers":
-    /// []}` is a perfectly good ``HotkeyBinding`` and a shortcut that never fires.
+    /// The dictation shortcut, or Option+Space when macOS could never deliver it.
     static func shortcut(_ binding: HotkeyBinding) -> HotkeyBinding {
         binding.isDeliverable ? binding : .optionSpace
     }
 
-    /// The clipboard shortcut, or nothing when it cannot be honoured.
-    ///
-    /// Answers `nil` in the two cases where registering it would do harm rather than
-    /// nothing: a combination macOS will not deliver, and the combination already
-    /// spoken for by `dictation`. The second is the one worth naming — Carbon accepts
-    /// both registrations of a single combination and then fires both, so a collision
-    /// left in place starts a dictation *and* opens the panel on one keypress.
-    ///
-    /// It does not substitute a different key. A shortcut the user never chose, chosen
-    /// for them because the one they did choose clashed, is a key they will press by
-    /// accident somewhere else.
+    /// The clipboard shortcut, or nothing when macOS cannot deliver it or `dictation` owns it.
     static func clipboardShortcut(
         _ binding: HotkeyBinding?, alongside dictation: HotkeyBinding
     ) -> HotkeyBinding? {
@@ -243,35 +210,18 @@ extension Settings {
     }
 }
 
+/// Reads one settings field at a time, so one unreadable value costs the user only that value.
 extension KeyedDecodingContainer where Key == Settings.CodingKeys {
     /// Reads one field, answering with `fallback` when it is absent or unreadable.
-    ///
-    /// `try?` flattens the two ways a field can fail to arrive into the one `nil` that
-    /// matters here: either way, the user never expressed a preference this build can
-    /// act on, so the default is the honest answer.
     fileprivate func value<T: Decodable>(forKey key: Key, default fallback: T) -> T {
         (try? decodeIfPresent(T.self, forKey: key)) ?? fallback
     }
 
-    /// Reads a field whose absence and whose emptiness mean different things.
-    ///
-    /// ``value(forKey:default:)`` cannot be used for one: `decodeIfPresent` answers the
-    /// same `nil` whether the key was missing or written as an explicit `null`, so a
-    /// setting the user had deliberately switched off would come back as the default on
-    /// the next launch — the shortcut they turned off returning by itself.
-    ///
-    /// The three cases are kept apart deliberately. Absent is "never chosen", and takes
-    /// the default. `null` is a choice, and is honoured. Present-but-unreadable is
-    /// neither, and takes the default for the reason ``init(from:)`` gives: a field
-    /// nothing can read is a field the user never expressed a preference in.
+    /// Reads a field where absent and `null` mean different things. See `Docs/settings-decoding.md`.
     fileprivate func optionalValue<T: Decodable>(forKey key: Key, default fallback: T?) -> T? {
         guard contains(key) else { return fallback }
         do {
-            // MEASURED FOOTGUN: `try?` flattens nested optionals, so
-            // `try? decodeIfPresent(...)` collapses "it threw" and "it decoded a null"
-            // into the one `nil` this method exists to tell apart — and does it
-            // silently, with the right type and no warning. The error is caught by hand
-            // for that reason.
+            // Caught by hand because `try?` would flatten "it threw" and "it decoded a null" into one `nil`.
             return try decodeIfPresent(T.self, forKey: key)
         } catch {
             return fallback
@@ -279,14 +229,11 @@ extension KeyedDecodingContainer where Key == Settings.CodingKeys {
     }
 }
 
-/// Reads and writes the user's choices.
-///
-/// Neither call can fail. Losing the app to an unreadable preferences file is worse
-/// than starting from the defaults, so ``load()`` answers with them rather than
-/// throwing, and every caller is spared a `catch` that has only one sensible body.
+/// Reads and writes the user's choices; neither call fails, because the defaults always answer.
 public protocol SettingsStore: Sendable {
     /// The stored settings, or the defaults when there are none to be had.
     func load() -> Settings
 
+    /// Replaces everything stored with `settings`.
     func save(_ settings: Settings)
 }

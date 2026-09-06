@@ -1,3 +1,4 @@
+// Tests how corrections are spliced, reported and scored.
 import Foundation
 import Testing
 
@@ -31,9 +32,7 @@ struct ApplyingCorrectionsTests {
         #expect(result.corrections.count == 1)
     }
 
-    /// The reason this splices by character range rather than rejoining words: a
-    /// dictated code block that comes back on one line is a defect this product has
-    /// already shipped once.
+    /// Splicing by character range is what keeps a dictated code block off one line.
     @Test("Keeps every newline, indent and double space exactly where it was")
     func keepsTheWhitespace() {
         let spoken = "func  main() {\n    print s q l\n}"
@@ -56,8 +55,7 @@ struct ApplyingCorrectionsTests {
         #expect(result.corrections.map(\.wrote) == ["Uttrflow", "Claude"])
     }
 
-    /// A replacement can be a different number of words from what it replaces, which is
-    /// why the whole set is applied in one pass against the original ranges.
+    /// A replacement can differ in word count, so the whole set applies against the original ranges.
     @Test("Survives a replacement that is a different length to what it replaced")
     func survivesALengthChange() {
         let result = DictationCorrection.applying(
@@ -78,9 +76,7 @@ struct ApplyingCorrectionsTests {
         #expect(result.corrections.isEmpty)
     }
 
-    /// The engine cannot produce a range past the end of the utterance, but it reaches
-    /// this through a protocol, and a bad range must cost a correction rather than a
-    /// dictation.
+    /// A bad range reaches this through a protocol and must cost a correction rather than a dictation.
     @Test(
         "Drops a range the transcript does not have",
         arguments: [4..<6, 9..<10, -1..<1, 2..<2])
@@ -93,9 +89,7 @@ struct ApplyingCorrectionsTests {
         #expect(result.corrections.isEmpty)
     }
 
-    /// Two changes wanting the same word is a question with no right answer. The engine
-    /// resolves it before proposing; if one slipped through, the first wins and the
-    /// second is dropped rather than written over the top of it.
+    /// Two changes wanting the same word: the first wins and the second is dropped, never written over it.
     @Test("Drops a change that overlaps one already taken")
     func dropsAnOverlap() {
         let result = DictationCorrection.applying(
@@ -109,8 +103,7 @@ struct ApplyingCorrectionsTests {
         #expect(result.corrections.count == 1)
     }
 
-    /// The other half of "nothing is applied silently": a change offered for undo that
-    /// was never made would be as dishonest as one made and never shown.
+    /// A change offered for undo that never happened would be as dishonest as one made and never shown.
     @Test("Reports only the changes that actually landed")
     func reportsOnlyWhatLanded() {
         let result = DictationCorrection.applying(
@@ -161,8 +154,7 @@ struct AppliedChangesTests {
 
 @Suite("What the recogniser is willing to score")
 struct ScoredWordTests {
-    /// The finding this whole seam exists to record. `Transcription` carries no
-    /// confidence, so no word is eligible for correction and none is invented.
+    /// `Transcription` carries no confidence, so no word is eligible for correction and none is invented.
     @Test("No transcription this app can produce carries a per-word score")
     func nothingIsScoredToday() {
         #expect(Transcription.fixture().scoredWords == nil)
@@ -177,10 +169,7 @@ struct ScoredWordTests {
 
 @Suite("A pipeline wired to nothing")
 struct NoTextChangesTests {
-    /// The default for all three seams, so that a pipeline built without a dictionary,
-    /// snippets or anywhere to learn behaves exactly as it did before any of them.
-    /// Exercised through the existentials the pipeline holds, because that is the only
-    /// shape in which this type is ever used.
+    /// Exercised through the existentials the pipeline holds, the only shape this type is used in.
     @Test("Proposes nothing, expands nothing and counts nothing")
     func changesNothing() async throws {
         let corrector: any WordCorrecting = NoTextChanges()

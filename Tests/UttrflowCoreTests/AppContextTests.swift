@@ -1,3 +1,5 @@
+// Tests for AppContext.
+
 import Testing
 
 @testable import UttrflowCore
@@ -16,6 +18,8 @@ struct AppContextTests {
         #expect(!AppContext(bundleIdentifier: "com.example").isEmpty)
         #expect(!AppContext(documentName: "notes.md").isEmpty)
         #expect(!AppContext(selectedText: "hello").isEmpty)
+        #expect(!AppContext(precedingText: "").isEmpty, "an empty field is still something learnt")
+        #expect(!AppContext(followingText: "later").isEmpty)
     }
 
     @Test("keeps every field it was given")
@@ -31,5 +35,14 @@ struct AppContextTests {
         #expect(context.bundleIdentifier == "com.microsoft.VSCode")
         #expect(context.documentName == "main.py")
         #expect(context.selectedText == "def main():")
+        #expect(context.precedingText == nil)
+        #expect(context.followingText == nil)
+    }
+
+    @Test("carries the text either side of the caret when a reader supplies it")
+    func retainsCaretText() {
+        let context = AppContext(applicationName: "Notes", precedingText: "before ", followingText: " after")
+        #expect(context.precedingText == "before ")
+        #expect(context.followingText == " after")
     }
 }

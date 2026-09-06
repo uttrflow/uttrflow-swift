@@ -1,3 +1,5 @@
+// Tests for the learning rules and the sighting tally.
+
 import UttrflowCore
 import UttrflowTestSupport
 import Testing
@@ -6,8 +8,7 @@ import Testing
 
 @Suite("Words a general model already knows")
 struct GeneralVocabularyTests {
-    /// The rule the whole feature is gated on. A dictionary that learns "the" has spent
-    /// a prompt slot and an index bucket on a word no recogniser has ever got wrong.
+    /// The rule the feature is gated on: learning "the" spends a slot on a word no recogniser gets wrong.
     @Test(
         "Refuses ordinary English",
         arguments: [
@@ -18,9 +19,7 @@ struct GeneralVocabularyTests {
         #expect(!GeneralVocabulary.isWorthLearning(word))
     }
 
-    /// The other half of the same rule, and the half an English-only filter would miss.
-    /// Uttrflow does Hinglish; a filter that found every romanised Hindi word novel would
-    /// fill the dictionary with the words the recogniser is best at.
+    /// The half an English-only filter would miss; Uttrflow does Hinglish.
     @Test(
         "Refuses ordinary romanised Hinglish",
         arguments: ["nahi", "bilkul", "matlab", "theek", "yaar", "kaam", "kitna", "chahiye"])
@@ -28,8 +27,7 @@ struct GeneralVocabularyTests {
         #expect(!GeneralVocabulary.isWorthLearning(word))
     }
 
-    /// And the words the dictionary exists for, which must still get through — including
-    /// a Hinglish one, because refusing common Hindi must not become refusing Hindi.
+    /// The words the dictionary exists for must still get through, a Hinglish one included.
     @Test(
         "Keeps the words a general model has never heard",
         arguments: [
@@ -49,20 +47,49 @@ struct GeneralVocabularyTests {
         #expect(!GeneralVocabulary.isWorthLearning("...."))
     }
 
-    /// A word is the same word however it was capitalised, and a title is full of
-    /// capitals.
+    /// A word is the same word however it is capitalised, and a title is full of capitals.
     @Test("Reads a word the same whatever its case")
     func caseDoesNotMatter() {
         #expect(!GeneralVocabulary.isWorthLearning("Meeting"))
         #expect(!GeneralVocabulary.isWorthLearning("TOMORROW"))
         #expect(GeneralVocabulary.knows("The"))
     }
+
+    @Test("Offers the homophone a recogniser confuses an ordinary word with")
+    func offersAHomophone() {
+        #expect(GeneralVocabulary.wordsSounding(like: "there").contains("their"))
+        #expect(GeneralVocabulary.wordsSounding(like: "their").contains("there"))
+    }
+
+    /// A common word that merely rhymes is a real word and no reading of anything, so the opening must match too.
+    @Test("Offers nothing for a word whose only matches open differently")
+    func refusesARhyme() {
+        #expect(GeneralVocabulary.wordsSounding(like: "cash").isEmpty)
+        #expect(GeneralVocabulary.wordsSounding(like: "reader").isEmpty)
+    }
+
+    @Test("Never offers the word it was asked about, whatever its case")
+    func neverOffersItself() {
+        #expect(!GeneralVocabulary.wordsSounding(like: "There").contains("there"))
+    }
+
+    @Test("Offers nothing for a word no ordinary word sounds like")
+    func offersNothingForAStranger() {
+        #expect(GeneralVocabulary.wordsSounding(like: "asyncpg").isEmpty)
+        #expect(GeneralVocabulary.wordsSounding(like: "").isEmpty)
+    }
+
+    @Test("Offers no more than the cap, so one sound cannot fill a prompt line")
+    func capsWhatItOffers() {
+        for word in ["there", "note", "kar", "hai"] {
+            #expect(GeneralVocabulary.wordsSounding(like: word).count <= GeneralVocabulary.maximumPerSound)
+        }
+    }
 }
 
 @Suite("Terms that were on screen and were said")
 struct SeenAndSaidTests {
-    /// The case the whole path exists for: the screen spells it closed up, the speaker
-    /// says it open, and the recogniser has no way to know they are the same thing.
+    /// The case the path exists for: spelt closed on screen, said open by the speaker.
     @Test("Finds a camel-cased term a speaker said as two words")
     func findsTheClosedUpSpelling() {
         let found = LearnableWords.seenAndSaid(
@@ -71,8 +98,7 @@ struct SeenAndSaidTests {
         #expect(found == ["PaymentSheet"])
     }
 
-    /// The name of the app is on screen for every dictation made in it, so counting it
-    /// would "corroborate" it within three sentences of opening the app.
+    /// The app's name is on screen for every dictation in it and would corroborate itself at once.
     @Test("Never reads the application's own name")
     func ignoresTheApplicationName() {
         let found = LearnableWords.seenAndSaid(
@@ -81,8 +107,7 @@ struct SeenAndSaidTests {
         #expect(found.isEmpty)
     }
 
-    /// The sharp one. A selection is not context — it is the text this dictation is
-    /// about to overwrite, so every word in it is a word the user is deleting.
+    /// A selection is the text this dictation is about to overwrite, not context.
     @Test("Never reads the selection, which is the text being replaced")
     func ignoresTheSelection() {
         let found = LearnableWords.seenAndSaid(
@@ -119,8 +144,7 @@ struct SeenAndSaidTests {
         #expect(LearnableWords.seenAndSaid(heard: "", seeing: .fixture(documentName: "pgvector")).isEmpty)
     }
 
-    /// A title that says the word twice is one sighting, not two, or a window called
-    /// "pgvector — pgvector" would learn itself in a single dictation.
+    /// A title that says the word twice is one sighting, or a window could learn itself in one dictation.
     @Test("Counts a term once however often the title repeats it")
     func dedupesTheTitle() {
         let found = LearnableWords.seenAndSaid(
@@ -131,8 +155,7 @@ struct SeenAndSaidTests {
 
 @Suite("A dictation made over a selection")
 struct CorrectedWordTests {
-    /// The user highlighted the wrong spelling, said the word again, and let the new
-    /// spelling stand. Nobody but them could have told us that.
+    /// The user highlighted the wrong spelling, said the word again, and let the new spelling stand.
     @Test("Learns the spelling that replaced a homophone of itself")
     func learnsTheReplacement() {
         #expect(LearnableWords.corrected(over: "utter flow", wrote: "Uttrflow") == "Uttrflow")
@@ -157,8 +180,7 @@ struct CorrectedWordTests {
         #expect(LearnableWords.corrected(over: "kubectl", wrote: "pgvector") == nil)
     }
 
-    /// Two phrases sharing a word are two phrases. The sound of the whole selection has
-    /// to match the sound of the whole replacement.
+    /// Two phrases sharing a word are two phrases; whole sound against whole sound.
     @Test("Refuses two phrases that merely share a word")
     func refusesASharedWord() {
         #expect(LearnableWords.corrected(over: "Uttrflow build", wrote: "Uttrflow ship") == nil)
@@ -171,8 +193,7 @@ struct CorrectedWordTests {
         #expect(LearnableWords.corrected(over: "uttrflow", wrote: "Uttrflow") == nil)
     }
 
-    /// The disaster this condition exists to prevent: "there" and "their" are one sound,
-    /// and an ordinary English word in the index can break a sentence that was right.
+    /// "there" and "their" are one sound; an ordinary word in the index breaks a sentence that was right.
     @Test("Refuses an ordinary English homophone")
     func refusesAnOrdinaryHomophone() {
         #expect(LearnableWords.corrected(over: "there", wrote: "their") == nil)
@@ -190,8 +211,7 @@ struct CorrectedWordTests {
         #expect(LearnableWords.corrected(over: "   ", wrote: "Uttrflow") == nil)
     }
 
-    /// A run of letters that makes no sound cannot be filed under one, so it could never
-    /// be found again — ``PhoneticCode/keys`` is empty and the index would drop it.
+    /// A run of letters that makes no sound has no key, so it could never be found again.
     @Test("Refuses a replacement that makes no sound at all")
     func refusesASilentReplacement() {
         #expect(DoubleMetaphone.code(for: "hhh").isSilent)
@@ -209,8 +229,7 @@ struct SightingLedgerTests {
         #expect(ledger.record(["pgvector"]) == ["pgvector"])
     }
 
-    /// The spelling first seen wins, so that a term counted over three dictations cannot
-    /// come out spelt whichever way the last one happened to see it.
+    /// The spelling first seen wins, so three dictations cannot leave the term spelt the last way seen.
     @Test("Keeps the spelling it first saw")
     func keepsTheFirstSpelling() {
         var ledger = SightingLedger()
@@ -219,8 +238,7 @@ struct SightingLedgerTests {
         #expect(ledger.record(["PGVECTOR"]) == ["PgVector"])
     }
 
-    /// A term that has just been learnt must leave the tally, or the next sighting would
-    /// learn it a second time.
+    /// A term just learnt must leave the tally, or the next sighting learns it twice.
     @Test("Forgets a term the moment it is kept")
     func stopsCountingWhatItKept() {
         var ledger = SightingLedger()
@@ -236,8 +254,7 @@ struct SightingLedgerTests {
         #expect(ledger.record(["pgvector", "Valkey"]) == ["pgvector"])
     }
 
-    /// Half-counted evidence is still the app's inference about the user, and the reset
-    /// that throws away learnt words must throw this away too.
+    /// Half-counted evidence is the app's inference about the user, and the reset throws it away too.
     @Test("Throws the whole tally away when asked")
     func forgetsEverything() {
         var ledger = SightingLedger()
@@ -247,8 +264,7 @@ struct SightingLedgerTests {
         #expect(ledger.record(["pgvector"]).isEmpty)
     }
 
-    /// A tally that grew with everything the user ever glanced at would be a leak made
-    /// of their window titles.
+    /// A tally that grew with everything glanced at would be a leak made of window titles.
     @Test("Stays inside its bound, dropping the weakest evidence first")
     func prunesToTheBound() {
         var ledger = SightingLedger()

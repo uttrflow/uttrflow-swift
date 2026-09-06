@@ -1,33 +1,24 @@
+// The Account page: who is signed in, what the plan allows, and the page for working without an account.
 public import Foundation
 public import UttrflowAccount
 
 /// Who is signed in, as the page draws them.
 public struct AccountIdentity: Sendable, Equatable {
-    /// One or two letters for the circle. Derived from the name, or the email when
-    /// there is no name — never a stock silhouette, which tells the user nothing about
-    /// which of their accounts this is.
-    ///
-    /// Still derived when there is a picture, and not as a placeholder: the picture is
-    /// fetched over a network that may be off, from a provider that may be slow, and the
-    /// circle has to say whose account this is in the meantime.
+    /// One or two letters for the circle, from the name or the email; drawn even while a picture loads.
     public let initials: String
 
-    /// The picture the provider has, once it has been fetched. `nil` for an account with
-    /// none, for a fetch that has not finished, and for one that failed — three
-    /// situations the page deliberately draws identically, because the answer to all
-    /// three is the initials it already has.
+    /// The provider's picture once fetched; `nil` for none, not yet, and failed, which all draw the initials.
     public let picture: Data?
+    /// The name shown beside the circle.
     public let name: String
     /// Absent when the provider gave none, which is allowed.
     public let emailAddress: String?
-    /// "Google", "GitHub", "Apple" — or "This Mac", for somebody working without an
-    /// Uttrflow account.
+    /// "Google", "GitHub", "Apple" — or "This Mac" for somebody working without an Uttrflow account.
     public let provider: String
-    /// Which provider signed this person in, or `nil` when nobody did — a
-    /// ``LocalAccount`` has no provider, because there was no third party involved in
-    /// somebody deciding to use their own Mac.
+    /// Which provider signed this person in, or `nil` for a ``LocalAccount``, which has no third party.
     public let providerID: SignInProvider?
 
+    /// Builds an identity; the picture is optional.
     public init(
         initials: String, name: String, emailAddress: String?, provider: String,
         providerID: SignInProvider?, picture: Data? = nil
@@ -43,14 +34,19 @@ public struct AccountIdentity: Sendable, Equatable {
 
 /// One line in the account card.
 public struct AccountDetail: Sendable, Equatable, Identifiable {
+    /// The row's heading.
     public let label: String
     /// What the row says. Absent on a row whose whole content is its action.
     public let value: String?
+    /// The sentence under the value.
     public let explanation: String?
+    /// The button on the row, when it has one.
     public let action: MainAction?
 
+    /// The label, which is unique within the card.
     public var id: String { label }
 
+    /// Builds a row; everything but the label is optional.
     public init(
         label: String, value: String? = nil, explanation: String? = nil, action: MainAction? = nil
     ) {
@@ -65,21 +61,16 @@ public struct AccountDetail: Sendable, Equatable, Identifiable {
 public struct AccountPageSnapshot: Sendable, Equatable {
     /// The session on this Mac. Absent when nobody has signed in.
     public let entitlement: Entitlement?
-    /// The choice to work without an account, when somebody made it. Only ever consulted
-    /// when ``entitlement`` is absent: a real session is the better answer to every
-    /// question this page asks, and one that could be overruled by an unsigned value
-    /// would be no session at all.
+    /// The choice to work without an account; consulted only when ``entitlement`` is absent.
     public let local: LocalAccount?
-    /// The signed-in person's picture, when the app has it. Bytes rather than an address,
-    /// because the one place allowed to reach the network is `UttrflowAccount` and this
-    /// module draws pages.
+    /// The signed-in person's picture as bytes, since only `UttrflowAccount` may reach the network.
     public let picture: Data?
-    /// What Uttrflow may currently do, which is not the same question as who is signed
-    /// in: an entitlement can be present and aged out, and the difference is the whole
-    /// reason ``DictationAccess`` has four cases rather than two.
+    /// What Uttrflow may currently do, which differs from who is signed in once an entitlement ages out.
     public let access: DictationAccess
+    /// The clock the page is drawn against.
     public let now: Date
 
+    /// Builds a snapshot; the picture and the local account are optional.
     public init(
         entitlement: Entitlement?, access: DictationAccess, now: Date, picture: Data? = nil,
         local: LocalAccount? = nil
@@ -94,16 +85,22 @@ public struct AccountPageSnapshot: Sendable, Equatable {
 
 /// What the account page shows.
 public struct AccountPagePresentation: Sendable, Equatable {
+    /// The title and caption across the top.
     public let chrome: MainPageChrome
     /// Absent exactly when ``emptyState`` is set.
     public let identity: AccountIdentity?
+    /// The rows of the account card.
     public let details: [AccountDetail]
     /// A quiet note when the subscription could not be re-checked. Never a door.
     public let notice: MainCallout?
+    /// The promise about what stays on this Mac.
     public let callout: MainCallout
+    /// The invitation to sign in, when nobody has.
     public let emptyState: MainEmptyState?
+    /// The line under the page.
     public let footnote: String?
 
+    /// Builds the page from its parts.
     public init(
         chrome: MainPageChrome,
         identity: AccountIdentity?,
@@ -123,43 +120,31 @@ public struct AccountPagePresentation: Sendable, Equatable {
     }
 }
 
-/// Turns the session into the page that explains what having one does, and — more
-/// usefully — what it does not.
-///
-/// The reassurance is the page. An account on a product whose promise is that nothing
-/// leaves your Mac invites exactly one question, and the answer has to be on the screen
-/// rather than in a support article.
+/// Turns the session into the page that says what having an account does, and what it does not.
 public enum AccountPagePresenter {
-    /// The promise, in the words the privacy screen uses.
-    /// Deliberately does not say "recordings".
-    ///
-    /// It used to, and that contradicted the onboarding screen — "Audio is processed on
-    /// this Mac and discarded the moment it becomes text" — and the product's own
-    /// architecture. There is no recording to leave anywhere: naming one here told the
-    /// user this app keeps their audio, on the single screen whose job is to reassure
-    /// them about what it keeps.
+    /// The heading, the same over every form of the page.
+    static let chrome = MainPageChrome(
+        title: "Account", caption: "Who you are signed in as, and what you are paying for.")
+
+    /// The promise in the privacy screen's words; it never says "recordings", since none is kept.
     public static let localDataPromise = """
         The account is an identity and nothing more. Your transcripts, Dictionary, \
         Corrections and Snippets are files on this Mac — signing out leaves every one of them \
         exactly where it is. Audio is never one of them: it is discarded as it becomes text.
         """
 
+    /// Draws the Account page from a snapshot.
     public static func page(
         for snapshot: AccountPageSnapshot, locale: Locale = .autoupdatingCurrent
     ) -> AccountPagePresentation {
         let callout = MainCallout(symbolName: "lock", tone: .good, message: localDataPromise)
         guard let entitlement = snapshot.entitlement else {
-            // Somebody who chose this Mac over an account gets a page about the account
-            // they have, not the empty state for the one they do not. The empty state is
-            // an invitation, and repeating an invitation somebody has already answered is
-            // how a product tells a user it was not listening.
+            // Somebody who chose this Mac gets a page about that account, not an invitation to another.
             if let local = snapshot.local {
                 return page(for: local, callout: callout, locale: locale)
             }
             return AccountPagePresentation(
-                chrome: MainPageChrome(
-                    title: "Account",
-                    caption: "Who you are signed in as, and what you are paying for."),
+                chrome: chrome,
                 identity: nil,
                 details: [],
                 notice: nil,
@@ -176,9 +161,7 @@ public enum AccountPagePresenter {
         }
 
         return AccountPagePresentation(
-            chrome: MainPageChrome(
-                title: "Account",
-                caption: "Who you are signed in as, and what you are paying for."),
+            chrome: chrome,
             identity: identity(for: entitlement.account, picture: snapshot.picture),
             details: details(for: entitlement),
             notice: notice(for: snapshot.access),
@@ -192,20 +175,13 @@ public enum AccountPagePresenter {
 
     // MARK: - Working without an account
 
-    /// The page for somebody using this Mac rather than an Uttrflow account.
-    ///
-    /// Drawn as an account rather than as a warning, because it is one: the person made a
-    /// choice and the page's job is to say what that choice means and how to change it,
-    /// not to nag them about it. The one thing it must not do is imply a subscription —
-    /// there is no plan row here, because there is no plan.
+    /// The page for somebody using this Mac, drawn as an account rather than a warning, with no plan row.
     static func page(
         for local: LocalAccount, callout: MainCallout, locale: Locale
     ) -> AccountPagePresentation {
         let name = local.name ?? "This Mac"
         return AccountPagePresentation(
-            chrome: MainPageChrome(
-                title: "Account",
-                caption: "Who you are signed in as, and what you are paying for."),
+            chrome: chrome,
             identity: AccountIdentity(
                 initials: initials(of: local.name),
                 name: name,
@@ -256,16 +232,14 @@ public enum AccountPagePresenter {
 
     // MARK: - Who
 
-    /// Public because two windows draw the same person: the Account page, and the foot of
-    /// the Settings rail. Deriving the initials twice is how they would come to differ.
+    /// Public because the Account page and the Settings rail draw the same person from one derivation.
     public static func identity(for account: Account, picture: Data? = nil) -> AccountIdentity {
         let name = account.displayName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let email = account.emailAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
         let shown = [name, email].compactMap(\.self).first { !$0.isEmpty }
         return AccountIdentity(
             initials: initials(of: shown),
-            // The identifier is the last resort rather than "Unknown": an opaque string
-            // at least belongs to the right account, where a placeholder belongs to none.
+            // The identifier rather than "Unknown": an opaque string at least belongs to the right account.
             name: shown ?? account.identifier,
             emailAddress: name == nil || (email?.isEmpty ?? true) ? nil : email,
             provider: title(for: account.provider),
@@ -273,12 +247,7 @@ public enum AccountPagePresenter {
             picture: picture)
     }
 
-    /// The first letter of each of the first two words.
-    ///
-    /// One word gives one letter rather than two of its characters: "PR" for Prince
-    /// looks like a company, where "P" plainly reads as a person's initial. An email
-    /// address is one word by this definition, which is what we want — "n.d" is not
-    /// initials and "@" is not a letter.
+    /// The first letter of the first two words; one word gives one letter, and an email is one word.
     static func initials(of name: String?) -> String {
         guard let name, !name.isEmpty else { return "?" }
         let words = name.split(whereSeparator: \.isWhitespace).filter { $0.first?.isLetter == true }
@@ -287,9 +256,7 @@ public enum AccountPagePresenter {
         return String(letters).uppercased()
     }
 
-    /// The providers' own names for themselves, capitalisation included — "GitHub" is
-    /// not "Github", and getting a company's name wrong on the screen that names it is
-    /// the sort of detail that costs trust for free.
+    /// The providers' own names for themselves, capitalisation included: "GitHub", not "Github".
     public static func title(for provider: SignInProvider) -> String {
         switch provider {
         case .google: "Google"
@@ -300,13 +267,7 @@ public enum AccountPagePresenter {
 
     // MARK: - What that allows
 
-    /// Plan and sign-out, and deliberately nothing else.
-    ///
-    /// The artboard also shows "Signed in since". ``Entitlement`` records only when it
-    /// expires, not when it was issued, so the date would have to be invented or
-    /// back-computed from an expiry whose length is the backend's business. It is left
-    /// out until something records it, by the same rule that keeps "time saved" off
-    /// Insights.
+    /// Plan and sign-out only; "signed in since" waits until something records an issue date.
     static func details(for entitlement: Entitlement) -> [AccountDetail] {
         [
             AccountDetail(
@@ -322,6 +283,7 @@ public enum AccountPagePresenter {
         ]
     }
 
+    /// The plan's name.
     public static func title(for plan: Plan) -> String {
         switch plan {
         case .free: "Free"
@@ -329,6 +291,7 @@ public enum AccountPagePresenter {
         }
     }
 
+    /// What the plan allows, in a sentence.
     static func explanation(for plan: Plan) -> String {
         switch plan {
         case .free: "Unlimited dictation on this Mac. Nothing to pay, nothing metered."
@@ -338,12 +301,10 @@ public enum AccountPagePresenter {
 
     // MARK: - When the subscription could not be checked
 
-    /// A note, never a door. Both aged-out states permit a dictation, so neither may be
-    /// drawn as something the user has to resolve before carrying on.
+    /// A note, never a door: both aged-out states permit dictation, so neither blocks the user.
     static func notice(for access: DictationAccess) -> MainCallout? {
         switch access {
-        // Nothing to say in either: one is a current subscription, and the other is a
-        // page that already explains itself from top to bottom.
+        // Nothing to say: one is a current subscription, the other a page that explains itself.
         case .allowed, .allowedOnThisMac, .refused:
             nil
         case .allowedAwaitingNetwork:

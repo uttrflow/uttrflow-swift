@@ -1,3 +1,4 @@
+// A fake microphone source and synthetic audio for the audio tests.
 import AVFoundation
 import Synchronization
 
@@ -52,8 +53,7 @@ enum SyntheticAudio {
     )
         -> AVAudioFormat?
     {
-        // The convenience initialiser only knows mono and stereo layouts; anything
-        // wider — a 4-input audio interface, say — needs an explicit one.
+        // The convenience initialiser only knows mono and stereo; anything wider needs an explicit layout.
         guard channels > 2 else {
             return AVAudioFormat(
                 commonFormat: .pcmFormatFloat32,
@@ -84,8 +84,7 @@ enum SyntheticAudio {
         return buffer
     }
 
-    /// A sine wave, for checking that resampling preserves a signal rather than
-    /// merely producing the right number of samples.
+    /// A sine wave, for checking that resampling preserves a signal and not only the sample count.
     static func tone(
         frequency: Double, frames: AVAudioFrameCount, format: AVAudioFormat, amplitude: Float = 0.5
     ) -> AVAudioPCMBuffer? {

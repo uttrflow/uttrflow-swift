@@ -1,11 +1,12 @@
+// The Dictionary page: the words table and its inline editor.
+
 import UttrflowUX
 import SwiftUI
 
 /// The words Uttrflow knows and a general model does not.
 struct DictionaryPageView: View {
     let presentation: DictionaryPresentation
-    /// What is being typed into the inline editor. Held by the window rather than here
-    /// so the fields survive the page being redrawn under them.
+    /// What is being typed into the inline editor, held by the window so it survives a redraw.
     @Binding var draft: DictionaryDraft
     var onIntent: (MainIntent) -> Void
 
@@ -48,17 +49,16 @@ struct DictionaryPageView: View {
     }
 }
 
-/// One word.
-///
-/// A retired row is dimmed — but only the parts of it that describe the word. The
-/// control that un-retires it keeps its full contrast, because a way out that is harder
-/// to see than the problem is not a way out.
+/// One word; a retired row is dimmed except for the control that un-retires it.
 struct DictionaryRowView: View {
     let row: DictionaryRow
     let columns: [MainColumn]
     var onIntent: (MainIntent) -> Void
 
     @State private var isHovered = false
+
+    /// Dimmed for a retired word.
+    private var descriptionOpacity: Double { row.isRetired ? 0.45 : 1 }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -68,7 +68,7 @@ struct DictionaryRowView: View {
                 Spacer(minLength: 0)
             }
             .frame(width: columns[0].width, alignment: .leading)
-            .opacity(row.isRetired ? 0.45 : 1)
+            .opacity(descriptionOpacity)
 
             quiet(row.pronunciation, width: columns[1].width)
             quiet(row.origin, width: columns[2].width)
@@ -77,12 +77,12 @@ struct DictionaryRowView: View {
             Text(row.timesUsed)
                 .monospacedDigit()
                 .frame(width: columns[4].width, alignment: .trailing)
-                .opacity(row.isRetired ? 0.45 : 1)
+                .opacity(descriptionOpacity)
             Text(row.timesUndone)
                 .monospacedDigit()
                 .foregroundStyle(row.undoneIsConcerning ? Color.dockRecording : .secondary)
                 .frame(width: columns[5].width, alignment: .trailing)
-                .opacity(row.isRetired ? 0.45 : 1)
+                .opacity(descriptionOpacity)
 
             HStack(spacing: 5) {
                 Spacer(minLength: 0)
@@ -103,12 +103,7 @@ struct DictionaryRowView: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Restore is drawn at rest for a retired word; everything else waits for the
-    /// pointer, so a table of thirty words is a table and not a wall of buttons.
-    ///
-    /// *Drawn*, not *built*. Every action is in the row whatever the pointer is doing —
-    /// filtering them out made Delete unreachable by keyboard and invisible to VoiceOver,
-    /// and made the row change shape as the pointer crossed it.
+    /// Restore is drawn at rest for a retired word; the rest wait for the pointer but are always built.
     private func isDrawnAtRest(_ action: MainAction) -> Bool {
         row.isRetired && !action.isDestructive
     }
@@ -117,14 +112,11 @@ struct DictionaryRowView: View {
         Text(text)
             .foregroundStyle(.secondary)
             .frame(width: width, alignment: .leading)
-            .opacity(row.isRetired ? 0.45 : 1)
+            .opacity(descriptionOpacity)
     }
 }
 
-/// The inline editor, in the row where the word will end up.
-///
-/// Deliberately shaped like ``SnippetEditorView``: the two pages ask for two fields and
-/// a Save, and a user who has added a snippet should not have to learn a second form.
+/// The inline editor, shaped like `SnippetEditorView` so the two forms are one to learn.
 struct DictionaryEditorView: View {
     let editor: DictionaryEditor
     @Binding var draft: DictionaryDraft
@@ -133,7 +125,7 @@ struct DictionaryEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 10) {
-                label(editor.wordLabel)
+                MainEditorLabel(text: editor.wordLabel)
                 TextField("", text: word)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
@@ -141,7 +133,7 @@ struct DictionaryEditorView: View {
                 Spacer(minLength: 0)
             }
             HStack(spacing: 10) {
-                label(editor.pronunciationLabel)
+                MainEditorLabel(text: editor.pronunciationLabel)
                 TextField("", text: pronunciation)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
@@ -150,19 +142,9 @@ struct DictionaryEditorView: View {
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
-            HStack(spacing: 8) {
-                // The reason it cannot be saved, beside the button that cannot save it.
-                // A disabled button with no explanation is a bug the user cannot report.
-                if let problem = editor.problem {
-                    Text(problem)
-                        .font(.system(size: MainMetrics.footnoteSize))
-                        .foregroundStyle(Color.dockWarning)
-                }
-                Spacer(minLength: 0)
-                MainActionButton(action: editor.cancel, onIntent: onIntent)
-                MainActionButton(action: save, isProminent: true, onIntent: onIntent)
-                    .disabled(!editor.canSave)
-            }
+            MainEditorFooter(
+                problem: editor.problem, cancel: editor.cancel, save: save,
+                canSave: editor.canSave, onIntent: onIntent)
         }
         .padding(.horizontal, MainMetrics.rowPadding)
         .padding(.vertical, 11)
@@ -171,8 +153,7 @@ struct DictionaryEditorView: View {
         .overlay(alignment: .top) { MainDivider() }
     }
 
-    /// Rebuilt from what is currently in the fields rather than from the presentation,
-    /// which was drawn a keystroke ago.
+    /// Rebuilt from what is in the fields now, not from the presentation drawn a keystroke ago.
     private var save: MainAction {
         MainAction(
             title: editor.save.title,
@@ -189,12 +170,5 @@ struct DictionaryEditorView: View {
         Binding(
             get: { draft.pronunciation },
             set: { draft = DictionaryDraft(word: draft.word, pronunciation: $0) })
-    }
-
-    private func label(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: MainMetrics.footnoteSize))
-            .foregroundStyle(.secondary)
-            .frame(width: 88, alignment: .leading)
     }
 }

@@ -1,23 +1,26 @@
-public import struct Foundation.Date
-public import func Foundation.log
-public import func Foundation.pow
+import struct Foundation.Date
+import func Foundation.log
+import func Foundation.pow
 
 /// Scores a candidate by how much evidence stands behind it, never by whether it is correct.
-public enum Frecency {
+enum Frecency {
     /// How long a single use takes to lose half its weight.
-    public static let halfLifeInDays = 21.0
+    static let halfLifeInDays = 21.0
 
-    /// What an entry counts for when it was taken from us rather than typed, so we do not learn from ourselves.
-    public static let selfSourcedWeight = 0.25
+    /// What an entry counts for when we offered it rather than the user typing it, so it cannot feed itself.
+    static let selfSourcedWeight = 0.25
 
-    /// How much a perfect acceptance record can lift a candidate.
-    public static let acceptanceLift = 0.6
+    /// How much a perfect acceptance record lifts a candidate, and how much an entirely refused one lowers it.
+    static let acceptanceLift = 0.6
+
+    /// The least the acceptance factor may fall to, so refusal lowers a line without ever erasing it.
+    static let acceptanceFloor = 0.1
 
     /// What the environment is worth on its own, being true but not necessarily wanted.
-    public static let environmentWeight = 1.0
+    static let environmentWeight = 1.0
 
     /// The score of one candidate at a moment in time.
-    public static func score(_ candidate: Candidate, now: Date) -> Double {
+    static func score(_ candidate: Candidate, now: Date) -> Double {
         guard let evidence = candidate.evidence else { return environmentWeight / distancePenalty(candidate) }
         let uses = effectiveCount(evidence)
         guard uses > 0 else { return 0 }
@@ -39,11 +42,12 @@ public enum Frecency {
         return pow(2, -days / halfLifeInDays)
     }
 
-    /// How the candidate has fared when it was offered, neutral until it has been offered.
+    /// How the candidate has fared when offered: 1 until it has been, then within [1 - lift, 1 + lift], never below the floor.
     static func acceptance(_ evidence: Entry) -> Double {
         let offered = evidence.accepted + evidence.rejected
         guard offered > 0 else { return 1 }
-        return 1 + acceptanceLift * (Double(evidence.accepted) / Double(offered))
+        let balance = Double(evidence.accepted - evidence.rejected) / Double(offered)
+        return max(1 + acceptanceLift * balance, acceptanceFloor)
     }
 
     /// How much a fuzzy match is worth against an exact one, since a typo means less certainty.

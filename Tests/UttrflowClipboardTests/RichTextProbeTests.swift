@@ -1,13 +1,10 @@
+// Tests that the rich-text converter leaves code alone.
+
 import Testing
 
 @testable import UttrflowClipboard
 
-/// Written from outside the converter, against the case it would be worst to get wrong.
-///
-/// A browser reads `Array<String>` as a tag and is right to. Here that would eat a type
-/// parameter on the way into an editor — a clip silently arriving as `Array` instead of
-/// `Array<String>` is the kind of corruption somebody pastes into production without
-/// reading. These exist to prove the converter leaves code alone.
+/// Written from outside the converter against the worst case: eating `Array<String>` as a tag.
 @Suite("What the rich-text converter must not eat")
 struct RichTextProbeTests {
     @Test(
@@ -28,8 +25,7 @@ struct RichTextProbeTests {
         #expect(RichTextPlainForm.plainText(fromHTML: text) == text)
     }
 
-    /// The other half of the bargain: returning the input untouched would also pass every
-    /// test above.
+    /// Returning the input untouched would also pass every test above.
     @Test("but real markup is still flattened")
     func markupIsStillHandled() {
         let html = "<h1>Title</h1><ul><li>one</li><li>two</li></ul><p>See <b>this</b>.</p>"
@@ -67,8 +63,7 @@ struct RichTextProbeTests {
         #expect(!plain.contains("</"))
     }
 
-    /// Never `https://x (https://x)` — the duplicate is what makes people stop trusting a
-    /// paste.
+    /// Never `https://x (https://x)`.
     @Test("a link whose words are its address is not printed twice")
     func noDoubledLinks() {
         let same = RichTextPlainForm.plainText(
@@ -81,8 +76,7 @@ struct RichTextProbeTests {
         #expect(named.contains("example.com"), "the address is the part a plain target loses")
     }
 
-    /// A non-breaking space looks like a space, is not one, and breaks shell commands and
-    /// compilers — the exact surprise this conversion exists to prevent.
+    /// A non-breaking space looks like a space and breaks shell commands and compilers.
     @Test("entities decode, and a non-breaking space becomes an ordinary one")
     func entitiesDecode() {
         #expect(RichTextPlainForm.plainText(fromHTML: "a &amp;&amp; b") == "a && b")

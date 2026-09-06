@@ -1,3 +1,5 @@
+// Polls the clipboard and reports new copies, ignoring Uttrflow's own announced writes.
+
 public import struct Foundation.Data
 public import struct Foundation.Date
 

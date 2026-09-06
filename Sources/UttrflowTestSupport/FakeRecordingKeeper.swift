@@ -1,3 +1,4 @@
+// A RecordingKeeper that keeps recordings in memory.
 public import UttrflowCore
 public import struct Foundation.Date
 public import struct Foundation.UUID

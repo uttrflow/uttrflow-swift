@@ -1,10 +1,10 @@
+// The `transcribe` command: runs a recording through a recogniser.
 import ArgumentParser
 import Foundation
 import UttrflowAI
 import UttrflowAudio
 import UttrflowCore
 import UttrflowEval
-import UttrflowPermissions
 import UttrflowSpeech
 
 /// Records or reads audio, then transcribes it.
@@ -43,17 +43,13 @@ struct Transcribe: AsyncParsableCommand {
         }
     }
 
-    // Biasing changes what the recogniser hears, so it has to be reachable from here:
-    // the only honest way to tell whether a word made it into the prompt is to say the
-    // word and look at the transcript.
+    // Biasing changes what the recogniser hears, so saying a word and reading the transcript is the test.
     @Option(
         name: .long,
         help: "Words to bias the recogniser towards, comma separated.")
     var bias: String?
 
-    // Correction only touches a word the recogniser was unsure of, so the scores are
-    // the one thing that decides whether it can ever fire. Printing them is how you
-    // find out, rather than inferring it from whether a correction happened.
+    // The scores decide whether correction can ever fire, so they are printed rather than inferred.
     @Flag(name: .long, help: "Print what the recogniser thought of each word.")
     var confidence = false
 
@@ -69,7 +65,7 @@ struct Transcribe: AsyncParsableCommand {
         }
 
         let audio = try await obtainAudio()
-        guard !audio.isEmpty else { throw CleanExit.message("Nothing was captured.") }
+        guard !audio.isEmpty else { throw CleanExit.message("No audio captured.") }
 
         let biasWords =
             bias?.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter {
@@ -154,12 +150,7 @@ struct Transcribe: AsyncParsableCommand {
             return try AudioFileReader.read(contentsOf: URL(fileURLWithPath: file))
         }
 
-        let gate = MicrophonePermissionGate()
-        var status = await gate.status()
-        if status == .notDetermined { status = await gate.request() }
-        guard status == .granted else {
-            throw CleanExit.message(PermissionError.microphoneDenied.userMessage)
-        }
+        try await requireMicrophoneAccess()
 
         let capture = AVAudioCaptureEngine(source: AVAudioEngineMicrophoneSource())
         try await capture.start()

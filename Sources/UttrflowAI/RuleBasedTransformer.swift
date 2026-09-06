@@ -1,29 +1,34 @@
 public import UttrflowCore
 
-/// The floor beneath every other transformer.
-///
-/// Deterministic, instant, and incapable of inventing anything, so it can never
-/// decline a request. Everything above it may fail or refuse; this cannot, which is
-/// what makes the pipeline unable to dead-end.
+/// The floor beneath every other transformer: the deterministic passes alone, which cannot invent or refuse.
 public struct RuleBasedTransformer: TextTransformationEngine {
+    /// Always `.rules`.
     public let kind: TransformerKind = .rules
 
-    public init() {}
+    private let pipeline: CleaningPipeline?
+    private let steps: CleaningSteps
 
-    /// Always available. It works on any language, because it only rearranges what is
-    /// already there.
+    /// A pipeline given here runs as it is; none means the standard one for each request's place and caret.
+    public init(pipeline: CleaningPipeline? = nil, steps: CleaningSteps = .default) {
+        self.pipeline = pipeline
+        self.steps = steps
+    }
+
+    /// Always available, in any language, because it only rearranges what is already there.
     public func availability(for request: TransformationRequest) async -> TransformerAvailability {
         .available
     }
 
+    /// Collapses whitespace, drops fillers, capitalises, and finishes the sentence.
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        var text = TextTidy.collapseWhitespace(request.transcription.text)
-        text = TextTidy.removeFillers(text)
-        text = TextTidy.capitalisePronounI(text)
-        text = TextTidy.capitaliseSentences(text)
-        text = TextTidy.ensureTerminalPunctuation(text)
-        return TransformationResult(text: text, producedBy: kind)
+        let formatter = DestinationFormatter.standard(for: request.situation.destination)
+        let pipeline =
+            pipeline ?? .standard(for: formatter, situation: request.situation, steps: steps)
+        let draft = pipeline.run(Draft(transcription: request.transcription))
+        return TransformationResult(
+            text: draft.text, producedBy: kind,
+            cleaning: CleaningRecord(draft: draft, ran: pipeline.ids))
     }
 }

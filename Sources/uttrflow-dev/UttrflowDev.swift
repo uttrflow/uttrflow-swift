@@ -1,16 +1,17 @@
+// The developer harness's root command.
 import ArgumentParser
 private import Foundation
 
-/// Developer harness. Gains a command per phase so every phase ends in something a
-/// person can run and judge, rather than only a passing test count.
+/// Developer harness, one command per stage, so each ends in something a person can run and judge.
 @main
 struct UttrflowDev: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "uttrflow-dev",
         abstract: "Exercise Uttrflow end to end, one phase at a time.",
         subcommands: [
-            Doctor.self, Record.self, Models.self, Transcribe.self, Clean.self, Insert.self, Context.self,
-            SignIn.self, Probe.self,
+            Doctor.self, Record.self, Models.self, Transcribe.self, Dictate.self, Clean.self, Insert.self,
+            Context.self,
+            SignIn.self, Probe.self, Machine.self,
         ]
     )
 }

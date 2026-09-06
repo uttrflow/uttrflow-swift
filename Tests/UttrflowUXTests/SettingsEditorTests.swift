@@ -14,8 +14,7 @@ private let barestMac = SettingsCapabilities(
     readySpeechEngines: [],
     readyTransformers: [SettingsEngines.floor])
 
-/// Applies a change, throwing if it was refused. Used where the change is the
-/// setting-up rather than the thing under examination.
+/// Applies a change and throws on a refusal, for changes that are setting-up rather than subject.
 private func applied(
     _ change: SettingsChange,
     to settings: Settings = .default,
@@ -24,7 +23,7 @@ private func applied(
     try SettingsEditor.apply(change, to: settings, given: capabilities)
 }
 
-/// The sentence a refused change carried, or `nil` if it was not refused.
+/// The sentence a refused change carries, or `nil` when the change is accepted.
 private func refusal(
     _ change: SettingsChange,
     to settings: Settings = .default,
@@ -62,16 +61,12 @@ struct SettingsShortcutValidationTests {
         #expect(reason?.contains("did not come from the keyboard") == true)
     }
 
-    /// The message this replaced said "Try a letter, a number or Space", which described
-    /// the wrong problem to everybody who pressed ⌃⌥: it implied something exotic had
-    /// been pressed when the combination was ordinary and simply unsupported. It is
-    /// supported now, so the sentence is back to covering only what it can mean.
+    /// The sentence covers only what it can mean: a key code no keyboard sends.
     @Test("accepts a modifier combination held on its own")
     func acceptsHeldModifierCombination() {
         // 58 is Option's own key code — what arrives when ⌃⌥ is pressed in the field.
         #expect(refusal(.shortcut(HotkeyBinding(keyCode: 58, modifiers: [.control, .option]))) == nil)
-        // And a single modifier, which is the owner of the Mac's choice to make even
-        // though it will fire on every ⌘C.
+        // And a single modifier, which is the owner's choice to make even though ⌘C fires it.
         #expect(refusal(.shortcut(HotkeyBinding(keyCode: 55, modifiers: [.command]))) == nil)
     }
 
@@ -90,9 +85,7 @@ struct SettingsShortcutValidationTests {
 
 @Suite("Retention offers only periods the store keeps")
 struct SettingsRetentionTests {
-    /// The rule is the store's, so it is the store that is asked. Restating "greater
-    /// than zero" here would be a second copy of a rule that lives in `Settings`, and
-    /// the two could then drift apart without anything noticing.
+    /// The rule lives in `Settings`, so the store is asked rather than a second copy written here.
     @Test("every offered period survives being saved and read back unchanged")
     func offeredPeriodsSurviveTheStore() throws {
         for days in SettingsRetention.offeredDays {
@@ -117,8 +110,7 @@ struct SettingsRetentionTests {
         }
     }
 
-    /// The one period there is. Audio is never written to disk, so a second period —
-    /// and a kind to tell the two apart — would configure something that never happens.
+    /// One period, because the transcript is the one thing a period can be about.
     @Test("sets the transcript period and nothing else")
     func setsTheTranscriptPeriod() throws {
         let settings = try applied(.retention(days: 30))
@@ -170,10 +162,7 @@ struct SettingsEngineFloorTests {
     func levelsMeanWhatTheySay() {
         #expect(SettingsTidyingLevel.light.preference == [SettingsEngines.floor])
         #expect(SettingsTidyingLevel.standard.preference.count > 1)
-        // The resolved preference, not the raw one: the raw list still names the local
-        // model, so that a build which links it uses it, and this build filters it out.
-        // Comparing against the raw list would assert that Settings offers an engine the
-        // binary does not contain.
+        // The resolved preference: the raw list names a local model this build filters out.
         let shipped = EngineConfiguration.default.resolvedTransformerPreference
         #expect(SettingsTidyingLevel.standard.preference == shipped)
     }
@@ -182,8 +171,7 @@ struct SettingsEngineFloorTests {
     func readsLevelBack() {
         #expect(SettingsTidyingLevel(preference: []) == .light)
         #expect(SettingsTidyingLevel(preference: [.rules]) == .light)
-        // A build without cloud support must not read a cloud-only order as "standard":
-        // there would be nothing above the floor to run.
+        // A cloud-only order in a build without cloud has nothing above the floor to run.
         #expect(SettingsTidyingLevel(preference: [.cloud, .rules]) == .light)
         #expect(SettingsTidyingLevel(preference: [.foundationModels, .rules]) == .standard)
     }
@@ -275,9 +263,9 @@ struct SettingsChangeTests {
     func everyToggleHasABacking() throws {
         for field in SettingsToggleField.allCases {
             var settings = Settings.default
-            // Cleared first: the grip switch is refused while the button is hidden,
-            // which is a dependency and not the thing under examination here.
+            // Cleared first, since both switches have a dependency that is not the subject here.
             settings.showsFloatingButton = true
+            settings.suggestions.isEnabled = true
             let off = try applied(.toggle(field, isOn: false), to: settings)
             #expect(!SettingsPresenter.value(of: field, in: off), "\(field) did not go off")
 

@@ -22,11 +22,18 @@ result rather than inserting it.
 capture → transcribe → correct → tidy → expand → insert → count, learn
 ```
 
+The first three run per piece of the recording, and most pieces are done before the key
+is released; see `Docs/early-transcription.md`. Everything from `expand` on sees the
+pieces joined.
+
 - **Correction before tidying.** A correction is argued from the sentence as it was
   *heard*. Word ranges into what the recogniser said stop meaning anything the moment
   the tidier drops a filler, and the evidence the engine weighs — this word said
   clearly elsewhere in the same breath — is evidence about the utterance, not about the
   prose it is about to become.
+- **Tidying removes and formats, never composes.** What the tidier may and may not do
+  to the words is catalogued in `Docs/cleanup.md`; the guard beneath it refuses a
+  rewrite that drops or invents.
 - **Snippets after tidying.** The matcher tolerates the punctuation the tidier adds — a
   comma inside a trigger is a speaker pausing mid-phrase — and refuses a trigger
   assembled across a full stop. Run first, it would be matching a transcript with no

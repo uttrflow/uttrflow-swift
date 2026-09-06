@@ -11,6 +11,8 @@ import UttrflowHistory
 import UttrflowInput
 import UttrflowPermissions
 import UttrflowPipeline
+import UttrflowPredict
+import UttrflowPredictStore
 import UttrflowSettings
 import UttrflowSpeech
 import UttrflowUX
@@ -63,9 +65,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private let clipboard: ClipboardStore
 
+    /// Where every local store lives, kept because tab-to-complete opens its corpus after launch.
+    private let container: URL
+
+    /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
+    private var completions: SuggestionCoordinator?
+
+    /// The local model that validates each suggestion, handed in by the entry point so tests link no MLX.
+    private let scoring: (any CandidateScoring)?
+    /// The local model that invents a suggestion where the corpus has none, handed in the same way.
+    private let generating: (any CandidateGenerating)?
+
     /// Builds the app around one folder, which a test points at a temporary one.
-    init(container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin()) {
+    init(
+        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
+        scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil
+    ) {
+        self.container = container
         self.loginItem = loginItem
+        self.scoring = scoring
+        self.generating = generating
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
         recordings = RecordingStore(directory: RecordingStore.defaultDirectory(in: container))
         dictionary = PersonalDictionaryStore(
@@ -122,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         personalisation: FilePersonalisationStore(
             dictionary: dictionary, history: history, clipboard: clipboard),
         onChange: { [weak self] settings in self?.settingsChanged(to: settings) },
-        onReset: { [weak self] _ in self?.refreshMainWindow() },
+        onReset: { [weak self] reset in self?.forget(after: reset) },
         onShortcutRecording: { [weak self] isRecording in
             self?.shortcutRecordingChanged(to: isRecording)
         })
@@ -145,6 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         wireInterface()
         startWatchingForTheShortcut()
         startWatchingTheClipboard()
+        startCompletingWhatIsTyped()
         loadSpeechModel()
         refreshAccount()
         presentOnboardingIfNeeded()
@@ -258,6 +278,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationWillTerminate(_ notification: Notification) {
         stateTask?.cancel()
         dismissalTask?.cancel()
+        completions?.stop()
+    }
+
+    /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
+    private func startCompletingWhatIsTyped() {
+        guard settings.suggestions.isEnabled, completions == nil else { return }
+        do {
+            let coordinator = try SuggestionCoordinator(
+                container: container, preferences: settings.suggestions, scoring: scoring,
+                generating: generating)
+            // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
+            coordinator.onTurnedOffEverywhere = { [weak self] in
+                self?.apply(.toggle(.suggestionsEnabled, isOn: false))
+            }
+            completions = coordinator
+            coordinator.start()
+        } catch {
+            Self.log.error("the corpus would not open: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Follows the Suggestions screen: builds the loop, takes it away, or hands it what changed.
+    private func suggestionsChanged() {
+        guard settings.suggestions.isEnabled else {
+            completions?.stop()
+            completions = nil
+            return
+        }
+        guard let completions else { return startCompletingWhatIsTyped() }
+        completions.follow(settings.suggestions)
     }
 
     /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.
@@ -267,6 +317,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     // MARK: Assembly
+
+    /// The tidier for these settings, built here alone so no caller can leave the dictionary out of it.
+    private func cleaner(for settings: Settings) -> TransformerRouter {
+        TextTransformers.router(
+            configuration: settings.engines, steps: settings.cleaning,
+            spellings: { [dictionary] in await dictionary.index() })
+    }
 
     private func buildPipeline() {
         let model = SpeechModel.default
@@ -287,7 +344,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let pipeline = DictationPipeline(
             capture: microphone,
             speech: speech,
-            cleaner: TextTransformers.router(configuration: settings.engines),
+            cleaner: cleaner(for: settings),
             context: context,
             // Announced, like every write this app makes. See `Docs/insertion.md`.
             inserter: TextInsertion.coordinator(pasteboard: announcingPasteboard),
@@ -296,6 +353,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
             vocabulary: LearnedVocabulary(dictionary: dictionary),
             metrics: diagnostics,
+            cleaningRecorder: diagnostics,
+            destinationOverrides: settings.destinations,
             recordings: recordings,
             // A retry runs with Uttrflow's own window in front, so its words can only be copied.
             clipboard: TextInsertionCoordinator(strategies: [
@@ -437,7 +496,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         let clips = await clipboard.clips(keeping: retention)
         let placement = await placement()
-        // Built fresh, so a revealed secret cannot outlive the panel it was revealed in.
+        // Built fresh, so a revealed secret cannot outlive the panel that revealed it.
         var snapshot = PanelSnapshot.opening(
             clips: clips, now: Date(), insertion: placement, resuming: resume)
         snapshot.dictation = await voice()
@@ -514,7 +573,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             closeQuickPanel()
             insertImage(clip)
         case .say(let notice):
-            // Stays open, or the sentence would be about a clip the user can no longer see.
+            // Stays open, or the sentence describes a clip the user cannot see.
             panel?.notice = notice
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             closeAfterReading()
@@ -779,7 +838,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let richText { NSPasteboard.general.setString(richText, forType: .html) }
     }
 
-    /// Long enough to read one short sentence, and no longer, since the panel is in the way.
+    /// Long enough to read one short sentence and no more, since the panel is in the way.
     private static let noticeLingers = Duration.seconds(2.5)
 
     private func closeAfterReading() {
@@ -906,9 +965,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 MenuBarRecent(title: $0.title, fullText: $0.dictation.text)
             },
             canCheckForUpdates: UpdateController.isConfigured,
-            updateProgress: updates.progress
+            updateProgress: updates.progress,
+            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled)
         )
     }
+
+    /// The menu bar's three switches; only suggestions has a stored setting behind it, so the other two hold for this launch.
+    private var menuSwitches = MenuBarFeatures()
 
     /// Carries out whatever the menu was asked for.
     private func carryOut(_ intent: MenuBarIntent) {
@@ -932,6 +995,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Task { await toggleQuickPanel() }
         case .checkForUpdates:
             updates.checkForUpdates()
+        case .setFeature(let feature, let isOn):
+            menuSwitches = menuSwitches.setting(feature, isOn: isOn)
+            if feature == .suggestions { apply(.toggle(.suggestionsEnabled, isOn: isOn)) }
+            refreshMenuBar()
         case .quit:
             NSApplication.shared.terminate(nil)
         }
@@ -940,7 +1007,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: Windows
 
     /// Opens whichever surface was asked for, so nothing else knows which class owns a window.
-    private func show(_ destination: Destination) {
+    private func show(_ destination: UttrflowUX.Destination) {
         switch destination {
         case .onboarding:
             // Not `presentOnboardingIfNeeded()`, which returns silently once the flow is finished.
@@ -996,6 +1063,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         mainWindow.update(mainContent(measurements: lastMeasurements))
     }
 
+    /// Forgets what a reset removed before redrawing, so the page cannot repaint the words it took.
+    private func forget(after reset: SettingsReset) {
+        guard reset.forgetsTheLastDictation else {
+            refreshMainWindow()
+            return
+        }
+        lastCleaning = nil
+        Task { [weak self] in
+            await self?.diagnostics.forget()
+            self?.refreshMainWindow()
+        }
+    }
+
     /// Redraws from a fresh snapshot, reading everything on one hop so the pages agree.
     private func refreshMainWindow() {
         guard mainWindow != nil else { return }
@@ -1005,6 +1085,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let self else { return }
             let measurements = await diagnostics.recorded
             lastMeasurements = measurements
+            lastCleaning = await diagnostics.lastCleaning
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
             self.kept = kept
@@ -1087,7 +1168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             diagnostics: DiagnosticsPresenter.page(
                 for: DiagnosticsSnapshot(
                     engines: settings.engines, permissions: knownPermissions,
-                    measurements: measurements)),
+                    measurements: measurements, cleaning: lastCleaning)),
             account: AccountPagePresenter.page(
                 for: AccountPageSnapshot(
                     entitlement: knownEntitlement,
@@ -1101,6 +1182,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// What one page is filtered by, asked per page because every page is rebuilt on each redraw.
     private func query(for page: MainTab) -> String { queries[page] ?? "" }
     private func scope(for page: MainTab) -> String { scopes[page] ?? "" }
+    /// What the clean-up steps did to the last dictation, read on the same hop as the timings.
+    private var lastCleaning: CleaningRecord?
     /// What the dictation pipeline last reported. See where it is written.
     private var lastDictationState: DictationState = .idle
     private var snippetEditorIsOpen = false
@@ -1357,6 +1440,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if updated.installsUpdatesAutomatically != previous.installsUpdatesAutomatically {
             updates.setInstallsAutomatically(updated.installsUpdatesAutomatically)
         }
+        // A freshly built cleaner, so the next dictation runs the choices just made.
+        if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations
+            || updated.engines != previous.engines
+        {
+            let tidier = cleaner(for: updated)
+            let overrides = updated.destinations
+            Task { [weak self] in
+                await self?.pipeline?.adopt(cleaner: tidier, destinationOverrides: overrides)
+            }
+        }
+        // The master switch on the Suggestions screen is what builds and unbuilds the loop.
+        if updated.suggestions != previous.suggestions {
+            suggestionsChanged()
+        }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))
         if settings.showsFloatingButton {
@@ -1532,7 +1629,7 @@ struct LearnedVocabulary: VocabularyLearning {
     }
 }
 
-/// A menu is built from a snapshot, so an index that has since gone must do nothing.
+/// A menu is built from a snapshot, so an index that has gone stale must do nothing.
 extension Array {
     fileprivate subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil

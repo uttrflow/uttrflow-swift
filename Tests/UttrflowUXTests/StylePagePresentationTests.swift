@@ -15,11 +15,7 @@ extension HistoryFixture {
 
 @Suite("Style: how much Uttrflow tidies")
 struct StyleTidyingTests {
-    /// The `Settings-Dictation` artboard offers Off/Light/Standard and this page offers
-    /// Light/Standard. Two is right, in code as well as on the screen: the transformer
-    /// preference always ends in a floor that can handle anything, so something always
-    /// runs and an "Off" the pipeline cannot be in would be a control that changes
-    /// nothing. This test is what stops a third option being added back.
+    /// Two options, not three: there is no "Off" the pipeline can be in. See `Docs/ux-settings-model.md`.
     @Test("there are exactly two levels of tidying, and no off")
     func twoLevels() {
         let group = HistoryFixture.style().groups[0].group
@@ -45,8 +41,7 @@ struct StyleTidyingTests {
         #expect(selected == "light")
     }
 
-    /// The same ``SettingsChange`` the settings window reports, so ``SettingsEditor``
-    /// stays the only thing that decides whether a change may happen.
+    /// The same ``SettingsChange`` the settings window reports, so ``SettingsEditor`` still decides.
     @Test("choosing a level reports the settings window's own change")
     func reportsASettingsChange() {
         guard
@@ -161,9 +156,7 @@ struct StylePageChromeTests {
         #expect(callout.message.contains("Corrections"))
     }
 
-    /// ``SettingsControl`` has six cases and this page can draw two. `StyleControlView`
-    /// draws nothing for the other four, so a third arriving here must be a failing
-    /// test rather than a row that silently disappears.
+    /// This page draws two of ``SettingsControl``, so a third arriving fails here rather than vanishing.
     @Test("the page asks only for the two controls its view can draw")
     func onlyDrawableControls() {
         for group in HistoryFixture.style().groups {
@@ -171,7 +164,8 @@ struct StylePageChromeTests {
                 switch row.control {
                 case .segmented, .tick:
                     continue
-                case .toggle, .menu, .anchorPicker, .shortcut, .removal, .action, .text:
+                case .toggle, .menu, .anchorPicker, .shortcut, .removal, .action, .text,
+                    .applicationSwitch:
                     Issue.record("the Style page asked for a control its view cannot draw")
                 }
             }

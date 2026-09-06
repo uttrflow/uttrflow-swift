@@ -1,11 +1,7 @@
+// A stored accuracy run and the gate that compares later runs against it.
 public import Foundation
 
-/// One sample's contribution to a run, kept so any slice of it can be recomputed later.
-///
-/// Errors and reference words rather than a rate. A stored rate cannot be re-aggregated
-/// — adding percentages is how a corpus average goes wrong — and storing both the rate
-/// and the counts is how the two come to disagree. From these two numbers every figure
-/// in a comparison can be derived exactly, including slices nobody thought to store.
+/// One sample's errors and reference words, kept as counts so any slice can be recomputed exactly.
 public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
     public var id: String { caseID }
     public let caseID: String
@@ -14,9 +10,7 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
     public let cohortID: String?
     public let errors: Int
     public let referenceWordCount: Int
-    /// The passage produced nothing to score. Counted separately: a run where forty
-    /// samples stopped being scorable has got worse even if every remaining rate
-    /// improved, and a comparison that only looked at rates would call that progress.
+    /// Whether the passage produced nothing to score; counted separately from the rates.
     public let isUnscorable: Bool
 
     public init(
@@ -53,24 +47,18 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
         guard referenceWordCount > 0 else { return nil }
         return Double(errors) / Double(referenceWordCount)
     }
+
+    /// The cohort to report under, naming the unattributed rather than merging them.
+    var cohortLabel: String { cohortID ?? RecordingCohort.unattributed }
 }
 
-/// What accuracy was, on a day somebody decided it was good enough to hold on to.
-///
-/// The thing that stops the product getting worse while appearing to get smarter. Every
-/// change to the recogniser, the normalisation, the model or the prompt moves some
-/// samples up and some down, and without a stored point of comparison the only available
-/// evidence is a number that looks fine on its own. Correction work in particular cannot
-/// be done without this: a dictionary entry that fixes one name and breaks four others is
-/// indistinguishable from one that works, until you can diff.
+/// A stored accuracy run that later runs are gated against. See Docs/eval-methodology.md.
 public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
     public var id: String { label }
-    /// What was measured: engine, model, whether the language was hinted. Two baselines
-    /// with different labels describe different things and must not be compared.
+    /// What was measured: engine, model, hinting; baselines with different labels are never compared.
     public let label: String
     public let recordedAt: Date
-    /// The rules the rates were measured under. A comparison across two different sets
-    /// of normalisation rules is not a comparison, and this is what lets one be refused.
+    /// The rules the rates were measured under; a comparison across different rules is refused.
     public let normalisation: [NormalisationRule]
     public let entries: [BaselineEntry]
 
@@ -80,8 +68,7 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
         self.label = label
         self.recordedAt = recordedAt
         self.normalisation = normalisation
-        // Sorted so two baselines over the same corpus are byte-identical files, which
-        // makes them diffable and reviewable in the same way as any other source.
+        // Sorted so two baselines over the same corpus are byte-identical, diffable files.
         self.entries = entries.sorted { $0.caseID < $1.caseID }
     }
 
@@ -93,15 +80,12 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
 
     // MARK: On disk
 
-    /// Written where it can be committed, unlike the results it came from.
-    ///
-    /// A baseline that lives only on the machine that produced it cannot gate anything:
-    /// the point is that somebody else's change is measured against it.
+    /// The file name under the repository, where a baseline can be committed and gate other people's changes.
     public static let defaultFileName = "accuracy-baseline.json"
 
     public func write(to url: URL) throws(EvaluationStoreError) {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.outputFormatting = .readable
         encoder.dateEncodingStrategy = .iso8601
         do {
             try FileManager.default.createDirectory(
@@ -123,20 +107,11 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
     }
 }
 
-/// How much movement counts as movement.
-///
-/// Without this a gate fires on noise. Two runs of the same model over the same audio can
-/// differ by a word, and a rule that called that a regression would be switched off
-/// within a week — which is the real failure mode of an accuracy gate, not a missed
-/// regression.
+/// How much movement counts as movement, so the gate does not fire on run-to-run noise.
 public struct RegressionTolerance: Sendable, Equatable {
     /// How far a rate may move before it is a finding, in percentage points.
     public let percentagePoints: Double
-    /// How much a slice has to rest on before it is judged at all.
-    ///
-    /// A cohort of two short samples will swing by ten points on one misheard name. It
-    /// is still reported — silence about a slice is worse than caution about it — but as
-    /// "too small to judge" rather than as a verdict.
+    /// Reference words a slice needs before it is judged; smaller slices report as "too small to judge".
     public let minimumReferenceWords: Int
 
     public init(percentagePoints: Double = 0.5, minimumReferenceWords: Int = 200) {
@@ -163,13 +138,10 @@ public struct BaselineComparison: Sendable, Equatable {
         public let label: String
         public let before: Double?
         public let after: Double?
-        /// How much the slice rests on now. Reported beside every delta, because a
-        /// three-point move over sixty words is not the same finding as the same move
-        /// over six thousand.
+        /// How many reference words the slice rests on now, reported beside every delta.
         public let referenceWordCount: Int
         public let verdict: Verdict
-        /// The slice is too small to judge, so its verdict is ``Verdict/unchanged`` by
-        /// default rather than by evidence.
+        /// Whether the slice is too small to judge, making its verdict ``Verdict/unchanged`` by default.
         public let isUnderpowered: Bool
 
         public init(
@@ -202,21 +174,16 @@ public struct BaselineComparison: Sendable, Equatable {
     /// Samples measured in both runs whose own rate got worse, worst first.
     public let regressed: [Change]
     public let improved: [Change]
-    /// Samples in the new run that the baseline never saw, and the other way round. The
-    /// corpus is meant to grow, so this is information rather than a problem — but every
-    /// figure above is computed over the samples the two runs share, and that has to be
-    /// visible or the numbers are quietly about different corpora.
+    /// Samples the baseline never saw; every figure above is computed over the shared samples only.
     public let added: [String]
     public let removed: [String]
-    /// Samples that used to produce a transcript and now produce nothing.
+    /// Samples that produce nothing to score in the new run but did in the baseline.
     public let newlyUnscorable: [String]
     public let reason: String?
 
     public var verdict: Verdict {
         if reason != nil { return .incomparable }
-        // Any judged slice going backwards is a regression, even when the headline
-        // improved. That is the entire point of not pooling: an engine that gets better
-        // at English and worse at Hinglish has not got better.
+        // Any judged slice going backwards is a regression, even when the headline improved.
         let slices = [overall] + byLanguage + byStress + byCohort
         if slices.contains(where: { $0.verdict == .worsened }) { return .worsened }
         if !newlyUnscorable.isEmpty { return .worsened }
@@ -229,13 +196,7 @@ public struct BaselineComparison: Sendable, Equatable {
 }
 
 extension AccuracyBaseline {
-    /// Compares a fresh run with this baseline.
-    ///
-    /// Computed over the samples the two have in common, with everything else reported
-    /// rather than folded in. A corpus that is meant to reach a thousand samples grows
-    /// between every pair of runs, and a gate that refused to judge whenever a sample was
-    /// added would never judge anything; a gate that quietly compared eight hundred
-    /// samples against nine hundred would be worse still.
+    /// Compares a fresh run with this baseline over the samples they share, reporting the rest.
     public func compare(
         with report: TranscriptionReport, tolerance: RegressionTolerance = .standard
     ) -> BaselineComparison {
@@ -256,12 +217,9 @@ extension AccuracyBaseline {
             byStress: Set(sharedBefore.flatMap(\.stresses)).sorted().compactMap { label in
                 slice(label, sharedBefore, sharedAfter, tolerance) { $0.stresses.contains(label) }
             },
-            byCohort: Set(sharedBefore.map { $0.cohortID ?? RecordingCohort.unattributed }).sorted()
-                .compactMap { label in
-                    slice(label, sharedBefore, sharedAfter, tolerance) {
-                        ($0.cohortID ?? RecordingCohort.unattributed) == label
-                    }
-                },
+            byCohort: Set(sharedBefore.map(\.cohortLabel)).sorted().compactMap { label in
+                slice(label, sharedBefore, sharedAfter, tolerance) { $0.cohortLabel == label }
+            },
             regressed: movedSamples(shared, before, after, tolerance, worse: true),
             improved: movedSamples(shared, before, after, tolerance, worse: false),
             added: after.keys.filter { before[$0] == nil }.sorted(),
@@ -273,11 +231,7 @@ extension AccuracyBaseline {
         )
     }
 
-    /// Why these two runs cannot be compared at all, if they cannot.
-    ///
-    /// Only two reasons, and both of them are "these numbers are not about the same
-    /// thing". Everything else — a bigger corpus, a new cohort, a sample retired — is a
-    /// difference the comparison handles rather than refuses.
+    /// Why these two runs are not about the same thing, if they are not; growth is not a reason.
     private func incomparability(with report: TranscriptionReport, shared: [String]) -> String? {
         if shared.isEmpty {
             return "the baseline and this run share no samples"
@@ -311,9 +265,7 @@ extension AccuracyBaseline {
         return change(label, matchedBefore, after.filter(matching), tolerance)
     }
 
-    /// Individual samples that moved, so a regression can be looked at rather than
-    /// argued about. Judged per sample without the word-count floor: one passage is
-    /// always a small sample, and the list is evidence rather than a verdict.
+    /// Individual samples that moved, judged without the word-count floor, as evidence not verdict.
     private func movedSamples(
         _ shared: [String], _ before: [String: BaselineEntry], _ after: [String: BaselineEntry],
         _ tolerance: RegressionTolerance, worse: Bool

@@ -50,7 +50,7 @@ struct CommitDetectorTests {
         #expect(detector.receive(.applicationDeactivated(at: start))?.reason == .applicationDeactivated)
     }
 
-    @Test("Three seconds untouched counts as finished, and two seconds does not.")
+    @Test("A pause as long as the idle interval counts as finished, and a shorter one does not.")
     func idlenessCommits() {
         var detector = CommitDetector()
         _ = typing("git push", into: &detector)
@@ -64,6 +64,35 @@ struct CommitDetectorTests {
     func idleEmptyFieldCommitsNothing() {
         var detector = CommitDetector()
         #expect(detector.receive(.tick(at: start.addingTimeInterval(600))) == nil)
+    }
+
+    @Test("A half-typed single token is not learned from an idle, so `gi` and `git` are never stored.")
+    func idleDoesNotCommitAFragment() {
+        var detector = CommitDetector()
+        _ = typing("git", into: &detector)
+        #expect(detector.receive(.tick(at: start.addingTimeInterval(600))) == nil)
+    }
+
+    @Test("A single token abandoned by Return is still committed, because ending it is explicit.")
+    func returnCommitsASingleToken() {
+        var detector = CommitDetector()
+        _ = typing("git", into: &detector)
+        #expect(detector.receive(.returnPressed(at: start.addingTimeInterval(1)))?.text == "git")
+    }
+
+    @Test("A single token abandoned by leaving the field is still committed.")
+    func focusLeavingCommitsASingleToken() {
+        var detector = CommitDetector()
+        _ = typing("gif", into: &detector)
+        #expect(detector.receive(.focusLeft(at: start.addingTimeInterval(1)))?.text == "gif")
+    }
+
+    @Test("A finished, multi-token line is learned from an idle, because it looks like a whole value.")
+    func idleCommitsACompleteLine() {
+        var detector = CommitDetector()
+        _ = typing("git status", into: &detector)
+        let commit = detector.receive(.tick(at: start.addingTimeInterval(600)))
+        #expect(commit?.text == "git status")
     }
 
     @Test("An empty field commits nothing whatever ends it.")
@@ -101,14 +130,29 @@ struct CommitDetectorTests {
         #expect(commit == Commit(text: "git push --force", supersedes: "git pu", reason: .returnPressed))
     }
 
-    @Test("Backspacing away from what was committed leaves the earlier value standing on its own.")
-    func retypingSupersedesNothing() {
+    @Test(
+        "Replacing an idle draft with something else entirely still retires the draft when the line is finished."
+    )
+    func retypingSupersedesTheIdleDraft() {
         var detector = CommitDetector()
         _ = typing("git pu", into: &detector)
         #expect(detector.receive(.tick(at: start.addingTimeInterval(60))) != nil)
         _ = detector.receive(.keystroke("make", at: start.addingTimeInterval(61)))
         let commit = detector.receive(.returnPressed(at: start.addingTimeInterval(62)))
-        #expect(commit == Commit(text: "make", supersedes: nil, reason: .returnPressed))
+        #expect(commit == Commit(text: "make", supersedes: "git pu", reason: .returnPressed))
+    }
+
+    @Test(
+        "Backspacing over an idle draft and retyping past it retires the draft rather than leaving it standing."
+    )
+    func backspacingAndRetypingSupersedesTheIdleDraft() {
+        var detector = CommitDetector()
+        _ = typing("git pu", into: &detector)
+        #expect(detector.receive(.tick(at: start.addingTimeInterval(60)))?.text == "git pu")
+        _ = detector.receive(.keystroke("git p", at: start.addingTimeInterval(61)))
+        _ = detector.receive(.keystroke("git pull", at: start.addingTimeInterval(62)))
+        let commit = detector.receive(.focusLeft(at: start.addingTimeInterval(63)))
+        #expect(commit == Commit(text: "git pull", supersedes: "git pu", reason: .focusLeft))
     }
 
     @Test("Return starts the field afresh, so the next command supersedes nothing.")

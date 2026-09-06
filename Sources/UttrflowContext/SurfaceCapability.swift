@@ -1,20 +1,11 @@
 import Foundation
 
 /// Where a suggestion can be drawn for one text field, best first.
-public enum SuggestionPlacement: String, Sendable, CaseIterable, Comparable {
-    /// Grey text on the user's own line, in the field's own font.
+public enum SuggestionPlacement: Sendable, CaseIterable {
+    /// Grey text at the caret, on the user's own line, with any alternatives listed below it.
     case inlineGhost
-    /// A capsule just below the caret, for a field that hides its styling.
-    case caretChip
-    /// A strip on the window's bottom edge, for a field that hides its caret.
+    /// The bottom-edge strip, which the probe still tallies and nothing draws in.
     case windowStrip
-
-    /// Orders the ladder so the best placement is the smallest.
-    public static func < (lhs: Self, rhs: Self) -> Bool {
-        guard let l = allCases.firstIndex(of: lhs), let r = allCases.firstIndex(of: rhs)
-        else { return false }
-        return l < r
-    }
 }
 
 /// What one text field was willing to tell Accessibility about itself.
@@ -56,11 +47,10 @@ public struct SurfaceCapability: Sendable, Equatable {
         self.readMicroseconds = readMicroseconds
     }
 
-    /// The best placement this field can support, or `nil` where nothing may be drawn.
+    /// The inline ghost when the caret can be placed, or `nil` where nothing may be drawn off the line.
     public var placement: SuggestionPlacement? {
-        guard !isSecure, reportsValue else { return nil }
-        if reportsCaretRect { return reportsTextStyle ? .inlineGhost : .caretChip }
-        return .windowStrip
+        guard !isSecure, reportsValue, reportsCaretRect else { return nil }
+        return .inlineGhost
     }
 
     /// Identifies the field across readings, so a second visit refines rather than duplicates.
@@ -82,7 +72,7 @@ public struct SurfaceCapability: Sendable, Equatable {
 
 /// The readings from one probe run, and the decision they add up to.
 public struct CapabilitySweep: Sendable, Equatable {
-    /// Below this share of fields reaching the inline ghost, the window strip is the product.
+    /// Below this share of fields reaching the inline ghost, the feature is not worth leading with.
     public static let inlineThreshold = 0.30
 
     private var byIdentity: [String: SurfaceCapability] = [:]
@@ -107,11 +97,6 @@ public struct CapabilitySweep: Sendable, Equatable {
 
     public var isEmpty: Bool { byIdentity.isEmpty }
 
-    /// How many fields each placement would be drawn in.
-    public func count(of placement: SuggestionPlacement?) -> Int {
-        readings.filter { $0.placement == placement }.count
-    }
-
     /// The share of fields that could take a suggestion at all.
     public var eligibleShare: Double {
         share { $0.placement != nil }
@@ -122,7 +107,7 @@ public struct CapabilitySweep: Sendable, Equatable {
         share { $0.placement == .inlineGhost }
     }
 
-    /// Whether the inline ghost is worth building, or the window strip is the whole product.
+    /// Whether the inline ghost reaches enough fields to be worth leading with, since it is the only surface.
     public var inlineIsWorthBuilding: Bool {
         !isEmpty && inlineShare >= Self.inlineThreshold
     }

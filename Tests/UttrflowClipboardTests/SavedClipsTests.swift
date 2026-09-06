@@ -1,23 +1,13 @@
+// Tests for the permanent file saved clips move to.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// Saving a clip — naming it, filing it into a collection, pinning it — is the user
-/// saying they will want it later. That has to mean somewhere else, not merely somewhere
-/// exempt.
-///
-/// It used to mean exempt. A saved clip sat in the same file as the history and shared
-/// its fate: measured before this was written, one damaged byte in `clipboard.v1.json`
-/// took a clip aliased `/pgprod` with it — `read()` answers an unreadable file with an
-/// empty list — and the next ordinary ⌘C wrote that emptiness down. The eviction rules
-/// had always spared it and none of that mattered, because the rules never got the
-/// chance to run.
+/// Saving a clip has to mean somewhere permanent, not merely somewhere exempt from eviction.
 @Suite("Anything saved is kept somewhere permanent")
 struct SavedClipsTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-    private func week() -> ClipRetention { ClipRetention(days: 7, now: noon) }
-
     private func clip(_ text: String, at offset: TimeInterval = 0) -> Clip {
         Clip(
             text: text, kind: .text, copiedAt: noon.addingTimeInterval(offset), source: "Notes")
@@ -58,8 +48,7 @@ struct SavedClipsTests {
         try await store.setAlias("/pgprod", of: subject.id, keeping: week())
         try await store.record(clip("something disposable", at: 60), keeping: week())
 
-        // A truncated write, a half-finished sync, a build that wrote a shape this one
-        // cannot read. All of them look the same from here.
+        // A truncated write, a half-finished sync, a build that wrote a different shape: all the same.
         try Data("{ not json".utf8).write(to: file.url)
 
         let reopened = ClipboardStore(file: file.url)
@@ -68,15 +57,13 @@ struct SavedClipsTests {
         #expect(clips.map(\.id) == [subject.id])
         #expect(clips.first?.alias == "/pgprod")
 
-        // And the damage must not become permanent on the next ordinary copy — which is
-        // exactly how the old shape lost it for good.
+        // The damage must not become permanent on the next ordinary copy.
         try await reopened.record(clip("a new copy", at: 120), keeping: week())
         let after = await ClipboardStore(file: file.url).clips(keeping: week())
         #expect(after.contains { $0.id == subject.id })
     }
 
-    /// And the other way round, because the split is only worth having if neither file can
-    /// hurt the other.
+    /// The split is only worth having if neither file can hurt the other.
     @Test("and the history survives a saved file that cannot be read")
     func survivesADamagedSavedFile() async throws {
         let file = TemporaryFile()
@@ -94,8 +81,7 @@ struct SavedClipsTests {
         #expect(clips.map(\.text) == ["history"])
     }
 
-    /// Unsaving is the user changing their mind, and it has to be a real move back — a
-    /// clip left behind in the permanent file would never age out and never be evicted.
+    /// Unsaving is a real move back, or the clip would never age out.
     @Test("taking the last tag off a clip returns it to the history")
     func unsavingMovesItBack() async throws {
         let file = TemporaryFile()
@@ -143,8 +129,7 @@ struct SavedClipsTests {
         let store = ClipboardStore(file: file.url)
         #expect(await store.clips(keeping: week()).map(\.text) == ["kept", "history"])
 
-        // The next ordinary write puts it where it belongs, and a damaged history can no
-        // longer take it.
+        // The next ordinary write puts it where it belongs, out of a damaged history's reach.
         try await store.record(clip("a new copy", at: 120), keeping: week())
         try Data("{ not json".utf8).write(to: file.url)
         let after = await ClipboardStore(file: file.url).clips(keeping: week())

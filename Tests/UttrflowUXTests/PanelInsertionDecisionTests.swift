@@ -1,14 +1,10 @@
+// Tests for whether Return will place a clip or only copy it.
 import Foundation
 import Testing
 
 @testable import UttrflowUX
 
-/// Whether Return will place a clip or only copy it.
-///
-/// The rule lives in `UttrflowUX` because it is a decision, and because the file it used
-/// to live in — `AppDelegate` — is the one place the coverage floor cannot see. That is
-/// not an incidental detail: the rule was wrong there for as long as it existed, and
-/// nothing could have caught it.
+/// The rule lives in `UttrflowUX` because it is a decision, and coverage cannot see `AppDelegate`.
 @Suite("What Return will do")
 struct PanelInsertionDecisionTests {
     @Test("with permission and another application in front, the clip goes to the caret")
@@ -24,9 +20,7 @@ struct PanelInsertionDecisionTests {
         #expect(
             PanelInsertion.decided(isAccessibilityGranted: false, isSelfFrontmost: false)
                 == .clipboardOnly(.accessibilityNotGranted))
-        // And it is the answer even when Uttrflow is also in front: the permission is the
-        // one the user can act on, and naming the other obstacle would send them to click
-        // somewhere instead of to System Settings.
+        // The permission is the one the user can act on, so it wins even when Uttrflow is also in front.
         #expect(
             PanelInsertion.decided(isAccessibilityGranted: false, isSelfFrontmost: true)
                 == .clipboardOnly(.accessibilityNotGranted))
@@ -40,17 +34,7 @@ struct PanelInsertionDecisionTests {
                 == .clipboardOnly(.uttrflowInFront))
     }
 
-    /// The bug this rule was extracted to fix, stated as the property that was violated.
-    ///
-    /// The old rule also asked whether anything was focused — the Accessibility engine's
-    /// precondition, not the paste engine's. Editors that expose no focused element take a
-    /// ⌘V perfectly well, and the same precondition had already been removed from the
-    /// engine once for exactly that reason. Here it meant the panel announced "Copied —
-    /// press ⌘V" and never called the engine that would have pasted.
-    ///
-    /// Written as an enumeration of the whole input space so that a third question added
-    /// later has to be justified against this: two facts decide it, and neither of them is
-    /// about focus.
+    /// Two facts decide it and neither is about focus; see Docs/ux-panel-insertion.md.
     @Test("nothing but permission and who is in front decides it")
     func onlyTwoQuestions() {
         var seen: [PanelInsertion] = []

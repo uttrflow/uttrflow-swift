@@ -1,7 +1,7 @@
+// Named fixtures shared by every test target.
 public import UttrflowCore
 
-// Named fixtures keep tests readable and stop every test file from re-inventing a
-// "typical" transcription or context.
+// Named fixtures, so no test file re-invents a "typical" transcription or context.
 
 extension AudioSamples {
     /// A silent buffer of a given length at the canonical rate.
@@ -34,13 +34,17 @@ extension AppContext {
         applicationName: String? = "Slack",
         bundleIdentifier: String? = "com.tinyspeck.slackmacgap",
         documentName: String? = "#engineering",
-        selectedText: String? = nil
+        selectedText: String? = nil,
+        precedingText: String? = nil,
+        followingText: String? = nil
     ) -> AppContext {
         AppContext(
             applicationName: applicationName,
             bundleIdentifier: bundleIdentifier,
             documentName: documentName,
-            selectedText: selectedText
+            selectedText: selectedText,
+            precedingText: precedingText,
+            followingText: followingText
         )
     }
 }
@@ -49,8 +53,10 @@ extension TransformationRequest {
     public static func fixture(
         transcription: Transcription = .fixture(),
         context: AppContext = .fixture(),
-        profile: UserProfile = .default
+        profile: UserProfile = .default,
+        situation: Situation? = nil
     ) -> TransformationRequest {
-        TransformationRequest(transcription: transcription, context: context, profile: profile)
+        TransformationRequest(
+            transcription: transcription, context: context, profile: profile, situation: situation)
     }
 }

@@ -1,3 +1,4 @@
+// A MetricsRecording that keeps every measurement for assertion.
 public import UttrflowCore
 
 /// A ``MetricsRecording`` that keeps every measurement for assertion.

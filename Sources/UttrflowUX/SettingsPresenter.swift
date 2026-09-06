@@ -1,4 +1,6 @@
+public import struct Foundation.Date
 import UttrflowCore
+import UttrflowPredict
 public import UttrflowSettings
 
 /// The whole window, as the view is given it.
@@ -8,19 +10,9 @@ public struct SettingsWindowPresentation: Sendable, Equatable {
     public let pane: SettingsPane
 }
 
-/// Turns the user's settings into what the Settings window draws.
-///
-/// The same pattern as `DictationPresenter`, and for the same reason: every decision
-/// about what appears, what it says and whether it can be touched is made here, where a
-/// test can read it back, rather than in a view where it can only be looked at. No
-/// string this produces names an engine, a model or a file — §16 applies to the
-/// settings screen exactly as it does to the floating button, so choosing "how much
-/// help" never becomes choosing "which implementation".
+/// Turns the user's settings into what the Settings window draws, naming no engine or file.
 public enum SettingsPresenter {
-    /// Every tab, in sidebar order.
-    ///
-    /// Driven by ``SettingsTab/allCases`` so that adding a case adds a tab. The switch
-    /// below is exhaustive, so adding one without giving it a name will not compile.
+    /// Every tab, in sidebar order, driven by ``SettingsTab/allCases`` so a new case adds a tab.
     public static func tabs() -> [SettingsTabItem] {
         SettingsTab.allCases.map { tab in
             switch tab {
@@ -30,43 +22,51 @@ public enum SettingsPresenter {
                 SettingsTabItem(tab: tab, title: "Languages", symbolName: "globe")
             case .dictation:
                 SettingsTabItem(tab: tab, title: "Dictation", symbolName: "mic")
+            case .suggestions:
+                SettingsTabItem(tab: tab, title: "Suggestions", symbolName: "text.cursor")
             case .privacy:
                 SettingsTabItem(tab: tab, title: "Privacy", symbolName: "lock")
             }
         }
     }
 
+    /// The whole window: every tab, which one is showing, and what that one draws.
     public static func window(
         showing tab: SettingsTab,
         settings: Settings,
         capabilities: SettingsCapabilities = .everything,
-        personalisation: SettingsPersonalisation = .nothing
+        personalisation: SettingsPersonalisation = .nothing,
+        at moment: Date = Date()
     ) -> SettingsWindowPresentation {
         SettingsWindowPresentation(
             tabs: tabs(),
             selected: tab,
             pane: pane(
                 for: tab, settings: settings, capabilities: capabilities,
-                personalisation: personalisation)
+                personalisation: personalisation, at: moment)
         )
     }
 
+    /// One tab, drawn from the settings and what this Mac can do.
     public static func pane(
         for tab: SettingsTab,
         settings: Settings,
         capabilities: SettingsCapabilities = .everything,
-        personalisation: SettingsPersonalisation = .nothing
+        personalisation: SettingsPersonalisation = .nothing,
+        at moment: Date = Date()
     ) -> SettingsPane {
         switch tab {
         case .general: general(settings, capabilities)
         case .languages: languages(settings, capabilities)
         case .dictation: dictation(settings, capabilities, personalisation)
+        case .suggestions: suggestions(settings, personalisation, moment)
         case .privacy: privacy(settings, personalisation)
         }
     }
 
     // MARK: - General
 
+    /// General: the floating button, the shortcut, sound, appearance, login and updating.
     private static func general(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsPane {
@@ -82,13 +82,7 @@ public enum SettingsPresenter {
                         SettingsRow(
                             id: "hotkey",
                             label: "Dictation shortcut",
-                            // Only when Fn is the shortcut, because it is the only one
-                            // macOS has its own plans for. Uttrflow watches Fn rather
-                            // than registering it — nothing can register a modifier —
-                            // and watching cannot stop the emoji picker or Apple's own
-                            // dictation opening on the same press. Saying so here is the
-                            // difference between a setting somebody adjusts once and a
-                            // shortcut that looks broken.
+                            // Only Fn, which macOS has its own plans for. See `Docs/ux-settings-model.md`.
                             explanation: settings.hotkey.heldModifier == nil
                                 ? nil
                                 : """
@@ -121,8 +115,7 @@ public enum SettingsPresenter {
                             id: "anchor",
                             label: "Position",
                             control: .anchorPicker(selected: settings.floatingButtonAnchor),
-                            // The same dependency the grip switch has, said the same way:
-                            // there is nothing to position while there is no button.
+                            // The grip switch's dependency: nothing to position while there is no button.
                             unavailability: settings.showsFloatingButton
                                 ? nil : "Turn the floating button on before choosing where it sits."
                         ),
@@ -157,17 +150,11 @@ public enum SettingsPresenter {
             callout: nil)
     }
 
-    /// Updating: which build this is, a way to ask now, and whether to be asked first.
-    ///
-    /// The group stays present in a build with no feed, showing the version and saying
-    /// why the rest cannot act, rather than vanishing. A section that disappears leaves
-    /// somebody hunting for a control they remember seeing; one that explains itself
-    /// answers the question they usually came with, which is "what version am I on?"
+    /// Updating: the version, a way to ask now, and whether to be asked first, feed or no feed.
     private static func updates(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsGroup {
-        // Both of the acting rows fail together and for one reason, so they say it the
-        // same way rather than inventing two sentences for one situation.
+        // Both acting rows fail together and for one reason, so they say it the same way.
         let noFeed = "This build has no update feed, so there is nothing to check."
 
         var rows: [SettingsRow] = []
@@ -196,6 +183,7 @@ public enum SettingsPresenter {
         return SettingsGroup(id: "updates", title: "Updates", rows: rows)
     }
 
+    /// One way of holding the shortcut, as a segmented option.
     private static func activationOption(_ activation: HotkeyActivation) -> SettingsOption {
         let title: String =
             switch activation {
@@ -208,6 +196,7 @@ public enum SettingsPresenter {
 
     // MARK: - Languages
 
+    /// Languages: which of the offered languages Uttrflow listens for.
     private static func languages(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsPane {
@@ -230,8 +219,7 @@ public enum SettingsPresenter {
                             control: .tick(
                                 isTicked: isSpoken,
                                 change: .spokenLanguage(language.code, isSpoken: !isSpoken)),
-                            // The last one cannot come off, so it says so before it is
-                            // tried rather than refusing afterwards.
+                            // The last language cannot come off, so the row says so before it is tried.
                             unavailability: isSpoken && spoken.count == 1
                                 ? "Uttrflow needs at least one language to listen for." : nil)
                     }),
@@ -264,6 +252,7 @@ public enum SettingsPresenter {
 
     // MARK: - Dictation
 
+    /// Dictation: how much is tidied, how it is transcribed, and what to forget.
     private static func dictation(
         _ settings: Settings,
         _ capabilities: SettingsCapabilities,
@@ -288,11 +277,13 @@ public enum SettingsPresenter {
                             control: .segmented(
                                 options: SettingsTranscriptionQuality.allCases.map(qualityOption),
                                 selectedID: quality.rawValue),
-                            // Off only when neither option can run, which is the one
-                            // case where moving the control could achieve nothing.
+                            // Off only when neither option can run, and moving it would achieve nothing.
                             unavailability: capabilities.readySpeechEngines.isEmpty
                                 ? "This option needs a download that has not finished yet." : nil)
                     ]),
+                SettingsDestinations.steps(settings.cleaning),
+                SettingsDestinations.places(
+                    settings.destinations, lastApp: personalisation.lastDictationApp),
                 SettingsGroup(
                     id: "learned",
                     title: "What Uttrflow has picked up",
@@ -305,13 +296,167 @@ public enum SettingsPresenter {
                     + "connection."))
     }
 
+    /// One transcription quality, as a segmented option.
     private static func qualityOption(_ quality: SettingsTranscriptionQuality) -> SettingsOption {
         SettingsOption(
             id: quality.rawValue, title: quality.title, change: .transcription(quality))
     }
 
+    // MARK: - Suggestions
+
+    /// What tab-to-complete does, where it does it, and every place it has been switched off.
+    private static func suggestions(
+        _ settings: Settings,
+        _ personalisation: SettingsPersonalisation,
+        _ moment: Date
+    ) -> SettingsPane {
+        SettingsPane(
+            tab: .suggestions,
+            title: "Suggestions",
+            banner: nil,
+            groups: [
+                SettingsGroup(
+                    id: "suggestions",
+                    title: nil,
+                    rows: [
+                        toggleRow(
+                            .suggestionsEnabled,
+                            label: "Finish what I am typing",
+                            explanation:
+                                "Uttrflow completes lines you have typed on this Mac before. "
+                                + "Off until you ask for it.",
+                            settings, .everything),
+                        toggleRow(
+                            .quietSuggestions,
+                            label: "Only suggest when it is sure",
+                            explanation: "Never offers a list to choose between.",
+                            settings, .everything),
+                        pauseRow(settings, moment),
+                    ]),
+                applicationGroup(settings, personalisation),
+            ],
+            callout: SettingsCallout(
+                symbolName: "lock",
+                message:
+                    "Completions come from what you have typed on this Mac. Nothing is uploaded, "
+                    + "and a password field is never read."))
+    }
+
+    /// The half-hour pause, which lifts itself and so is a button rather than a switch.
+    static func pauseRow(_ settings: Settings, _ moment: Date) -> SettingsRow {
+        let remaining = settings.suggestions.pauseRemaining(at: moment)
+        return SettingsRow(
+            id: "pauseSuggestions",
+            label: "Pause everywhere",
+            explanation: pauseSentence(remaining),
+            control: .action(
+                title: remaining == nil ? "Pause for 30 Minutes" : "Resume",
+                change: .pauseSuggestions(isOn: remaining == nil)),
+            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff)
+    }
+
+    /// What a running pause has left, rounded up so a pause never reads as "0 minutes left".
+    static func pauseSentence(_ remaining: Double?) -> String {
+        guard let remaining else {
+            return "Stops for half an hour, then comes back on its own."
+        }
+        let minutes = max(1, Int((remaining / 60).rounded(.up)))
+        return "Paused. Comes back on its own in \(counted(minutes, "minute", "minutes"))."
+    }
+
+    /// Every application the screen knows of, each with the switch that turns suggestions back on.
+    static func applicationGroup(
+        _ settings: Settings, _ personalisation: SettingsPersonalisation
+    ) -> SettingsGroup {
+        let preferences = settings.suggestions
+        let rows =
+            preferences
+            .knownApplications(learnedIn: personalisation.applicationsWithSuggestions)
+            .flatMap { applicationRows($0, preferences, settings, personalisation) }
+        return SettingsGroup(id: "suggestionApplications", title: "Applications", rows: rows)
+    }
+
+    /// One application: its switch, the key that accepts there, and what it has taught.
+    private static func applicationRows(
+        _ application: SuggestionApplication,
+        _ preferences: SuggestionPreferences,
+        _ settings: Settings,
+        _ personalisation: SettingsPersonalisation
+    ) -> [SettingsRow] {
+        let identifier = application.bundleIdentifier
+        let state = preferences.state(of: identifier)
+        let off = settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff
+        var rows: [SettingsRow] = [
+            SettingsRow(
+                id: "suggestionsIn.\(identifier)",
+                label: application.name,
+                explanation: applicationSentence(state),
+                control: .applicationSwitch(
+                    isOn: state.isOn,
+                    change: .suggestionsHere(application: identifier, isOn: !state.isOn)),
+                unavailability: off)
+        ]
+        if state.isOn {
+            rows.append(acceptKeyRow(application, preferences, unavailability: off))
+        }
+        if personalisation.suggestions(from: identifier) > 0 {
+            rows.append(forgetSuggestionsRow(application, personalisation))
+        }
+        return rows
+    }
+
+    /// Why an application is off, said only when the reason is not the user's own choice.
+    static func applicationSentence(_ state: SuggestionApplicationState) -> String? {
+        switch state {
+        case .on: nil
+        case .turnedOff: "You turned suggestions off here."
+        case .offByDefault:
+            "Off to begin with: its own completion already reads the whole file."
+        }
+    }
+
+    /// Which key takes a completion here, since Tab is spoken for in terminals and editors.
+    private static func acceptKeyRow(
+        _ application: SuggestionApplication,
+        _ preferences: SuggestionPreferences,
+        unavailability: String?
+    ) -> SettingsRow {
+        let identifier = application.bundleIdentifier
+        let key = preferences.acceptKeys.key(forBundleIdentifier: identifier)
+        return SettingsRow(
+            id: "suggestionAcceptKey.\(identifier)",
+            label: "Accept with",
+            explanation: key.explanation,
+            control: .menu(
+                options: AcceptKey.allCases.map { offered in
+                    SettingsOption(
+                        id: offered.rawValue, title: offered.title,
+                        change: .suggestionAcceptKey(application: identifier, key: offered))
+                },
+                selectedID: key.rawValue),
+            unavailability: unavailability)
+    }
+
+    /// The fifth level: everything one application taught, counted before it is taken.
+    private static func forgetSuggestionsRow(
+        _ application: SuggestionApplication,
+        _ personalisation: SettingsPersonalisation
+    ) -> SettingsRow {
+        let reset = SettingsReset.suggestions(inApplication: application.bundleIdentifier)
+        let learned = personalisation.suggestions(from: application.bundleIdentifier)
+        return SettingsRow(
+            id: "forgetSuggestions.\(application.bundleIdentifier)",
+            label: "Forget what it learned here",
+            explanation:
+                "Forget \(counted(learned, "completion", "completions")) from "
+                + "\(application.name). Everywhere else is untouched.",
+            control: .removal(SettingsRemoval(reset: reset, title: "Forget", confirmation: nil)),
+            unavailability: SettingsEditor.unavailability(of: reset, given: personalisation))
+    }
+
     // MARK: - Privacy
 
+    /// Privacy: the promise, the retention period, and what signing out does not take.
     private static func privacy(
         _ settings: Settings, _ personalisation: SettingsPersonalisation
     ) -> SettingsPane {
@@ -337,32 +482,12 @@ public enum SettingsPresenter {
                 message: SettingsPresenter.signingOutKeepsEverything))
     }
 
-    /// Signing out is not a reset, said where the user might otherwise assume it is.
-    ///
-    /// Everything Uttrflow holds is a file on this Mac and none of it belongs to an
-    /// account, so signing out has nothing to take. A user who believes otherwise makes
-    /// one of two mistakes and both are bad: they sign out to clear their history and it
-    /// is still there, or they avoid signing out on a shared Mac because they think it
-    /// would erase their dictionary. This says which button does which.
+    /// Says that signing out is not a reset. See `Docs/ux-settings-model.md`.
     static let signingOutKeepsEverything =
         "Signing out takes nothing away. Your history, your dictionary and these settings "
         + "are files on this Mac; resetting is the only thing that removes them."
 
-    /// The promise, written once.
-    ///
-    /// Every screen that repeats it repeats this, because a promise the user meets in
-    /// three wordings is a promise they have to work out for themselves. It says what
-    /// is true: audio is held in memory for the length of one dictation and is never
-    /// written anywhere, and the text of it is the only thing there is a period for.
-    /// It stops short of claiming Uttrflow never reaches the network, which would be a
-    /// second inaccuracy in place of the one it replaces — the speech model arrives
-    /// over one.
-    ///
-    /// It no longer claims there is no account either. There is one, and the sentence
-    /// that denied it was the same kind of over-promise as the audio claim: comfortable,
-    /// in the user's favour, and false the moment the Account page shipped. What is true
-    /// is that the text is not attached to it, which is also what makes signing out
-    /// harmless — see ``signingOutKeepsEverything``.
+    /// The privacy promise, written once for every screen. See `Docs/ux-settings-model.md`.
     static let privacyPromise =
         "\(recordingsPromise) The text is kept on this Mac and deleted automatically. We "
         + "never see it, and it is not tied to your account."
@@ -372,16 +497,7 @@ public enum SettingsPresenter {
         "Audio is deleted the moment it becomes text, and kept on this Mac for a day only "
         + "if it couldn’t be, so you can retry."
 
-    /// The one period there is: how long the text of a dictation survives.
-    ///
-    /// The pop-up offers only periods the store keeps exactly as they are given, so
-    /// there is no choice the user can make here that reopens showing something else.
-    /// Light, dark, or whatever the Mac is set to.
-    ///
-    /// Offered rather than assumed, and defaulted to light — see ``AppAppearance``. The
-    /// row sits in General beside the other things about how the app looks rather than in
-    /// a pane of its own, because it is one choice and a pane for it would be a pane
-    /// nobody opens twice.
+    /// Light, dark, or the same as the Mac, sat in General beside the rest of how the app looks.
     static func appearanceRow(_ settings: Settings) -> SettingsRow {
         SettingsRow(
             id: "appearance",
@@ -397,6 +513,7 @@ public enum SettingsPresenter {
                 selectedID: settings.appearance.rawValue))
     }
 
+    /// How long the text of a dictation survives, offering only periods the store round-trips.
     private static func retentionRow(_ settings: Settings) -> SettingsRow {
         let days = settings.transcriptRetentionDays
         return SettingsRow(
@@ -416,12 +533,7 @@ public enum SettingsPresenter {
 
     // MARK: - Forgetting
 
-    /// The third level: everything automatic goes, everything deliberate stays.
-    ///
-    /// The one that will actually be used, so it is the one that must not need a
-    /// dialogue. The count is in the row itself, above the button, which is what makes
-    /// the button safe to press without being asked to confirm: the user has already
-    /// read what it will take by the time they reach it.
+    /// Everything automatic goes and everything deliberate stays, counted in the row so it asks nothing.
     private static func forgetLearnedRow(
         _ personalisation: SettingsPersonalisation
     ) -> SettingsRow {
@@ -435,19 +547,14 @@ public enum SettingsPresenter {
                 of: .learnedWords, given: personalisation))
     }
 
-    /// What forgetting would take, counted, before it is taken.
-    ///
-    /// Both halves of the trade are named, because the reason this level exists at all
-    /// is that the words the user typed in survive it. A sentence that mentioned only
-    /// what goes would describe the reset instead, and they would not press it.
+    /// What forgetting takes and what it keeps, counted. See `Docs/ux-settings-model.md`.
     private static func forgetLearnedSentence(
         _ personalisation: SettingsPersonalisation
     ) -> String {
         let learned = counted(personalisation.learnedWords, "learned word", "learned words")
         switch (personalisation.learnedWords, personalisation.addedWords) {
         case (0, _):
-            // The row is off in this state, so this is what VoiceOver reads alongside
-            // the reason: what the button would do, rather than a count of nothing.
+            // The row is off here, so VoiceOver reads what the button would do, not a count of nothing.
             return "Words Uttrflow worked out for itself go. Words you added yourself stay."
         case (_, 0):
             return "Forget \(learned). You have not added any of your own."
@@ -456,11 +563,7 @@ public enum SettingsPresenter {
         }
     }
 
-    /// The fourth level, and the only one that asks first.
-    ///
-    /// Available even when there is nothing saved: preferences are always there to put
-    /// back, so there is no state in which this achieves nothing, and greying it out
-    /// would strand the user who has come here precisely to start again.
+    /// A fresh install, and the only level that asks first; never greyed out.
     private static func resetRow(_ personalisation: SettingsPersonalisation) -> SettingsRow {
         SettingsRow(
             id: "resetPersonalisation",
@@ -471,8 +574,7 @@ public enum SettingsPresenter {
             control: .removal(
                 SettingsRemoval(
                     reset: .everything,
-                    // The ellipsis is the platform's promise that pressing it asks
-                    // first, and it is kept: this is the one removal with a dialogue.
+                    // The ellipsis is the platform's promise that pressing it asks first.
                     title: "Reset…",
                     confirmation: resetConfirmation(personalisation))),
             unavailability: SettingsEditor.unavailability(
@@ -487,16 +589,11 @@ public enum SettingsPresenter {
             title: "Reset personalisation?",
             message: resetSentence(personalisation),
             confirmTitle: "Reset",
-            // Named here rather than assumed by the window, so that the button which
-            // does nothing is the default by decision and a test can say so.
+            // Named rather than assumed, so a test can say which button Return presses.
             cancelTitle: "Cancel")
     }
 
-    /// What a reset would take, counted.
-    ///
-    /// Built from the parts there actually are. A dialogue that offers to remove "0
-    /// transcripts" is a dialogue nobody finishes reading, and it also quietly misstates
-    /// the case: with nothing saved, a reset really is only the preferences.
+    /// What a reset takes, built only from the parts there are. See `Docs/ux-settings-model.md`.
     private static func resetSentence(_ personalisation: SettingsPersonalisation) -> String {
         let preferences = "puts every preference back to its default. It cannot be undone."
         let parts = [wordsPhrase(personalisation), transcriptsPhrase(personalisation)]
@@ -507,8 +604,7 @@ public enum SettingsPresenter {
         return "This removes \(parts.joined(separator: " and ")), and \(preferences)"
     }
 
-    /// The dictionary half, split the same way the gentler level splits it, so the user
-    /// can see what a reset takes that forgetting would have left them.
+    /// The dictionary half, split the way the gentler level splits it, or `nil` when it is empty.
     private static func wordsPhrase(_ personalisation: SettingsPersonalisation) -> String? {
         switch (personalisation.learnedWords, personalisation.addedWords) {
         case (0, 0):
@@ -518,31 +614,26 @@ public enum SettingsPresenter {
         case (let learned, 0):
             "\(counted(learned, "learned word", "learned words")) from your dictionary"
         case (let learned, let added):
-            // Bracketed rather than set off with dashes, because this phrase is joined
-            // to another one and a dash left open mid-sentence reads as a break in it.
+            // Bracketed, because this phrase is joined to another and a loose dash reads as a break.
             "\(counted(personalisation.words, "word", "words")) from your dictionary "
                 + "(\(learned) it learned, \(added) you added yourself)"
         }
     }
 
+    /// The transcript half, or `nil` when there are none saved.
     private static func transcriptsPhrase(_ personalisation: SettingsPersonalisation) -> String? {
         guard personalisation.transcripts > 0 else { return nil }
         return counted(personalisation.transcripts, "saved transcript", "saved transcripts")
     }
 
-    /// A number and the noun that agrees with it, in one place, because "1 words" is the
-    /// kind of thing that survives every review and undermines every count beside it.
+    /// A number and the noun that agrees with it, in one place, so "1 words" cannot appear.
     private static func counted(_ count: Int, _ singular: String, _ plural: String) -> String {
         "\(count) \(count == 1 ? singular : plural)"
     }
 
     // MARK: - Rows
 
-    /// Every switch, from one description of what a switch row is.
-    ///
-    /// The reason a switch is off comes from ``SettingsEditor``, which is also what
-    /// refuses the change, so a row drawn as operable and a change accepted as valid
-    /// cannot come apart.
+    /// A switch row, taking its reason for being off from the ``SettingsEditor`` that refuses it.
     private static func toggleRow(
         _ field: SettingsToggleField,
         label: String,
@@ -560,6 +651,7 @@ public enum SettingsPresenter {
                 of: field, given: capabilities, in: settings))
     }
 
+    /// Where a switch reads its state from, in the one place that knows.
     static func value(of field: SettingsToggleField, in settings: Settings) -> Bool {
         switch field {
         case .showsFloatingButton: settings.showsFloatingButton
@@ -568,6 +660,8 @@ public enum SettingsPresenter {
         case .playsSoundWhenRecordingStarts: settings.playsSoundWhenRecordingStarts
         case .opensAtLogin: settings.opensAtLogin
         case .installsUpdatesAutomatically: settings.installsUpdatesAutomatically
+        case .suggestionsEnabled: settings.suggestions.isEnabled
+        case .quietSuggestions: settings.suggestions.isQuiet
         }
     }
 }

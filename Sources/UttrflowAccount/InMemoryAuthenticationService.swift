@@ -1,3 +1,4 @@
+// A backend that is not there: a development authentication service signing with a per-process key.
 public import UttrflowCore
 public import CryptoKit
 
@@ -12,69 +13,36 @@ public import struct Foundation.UUID
 
 private import Synchronization
 
-/// A backend that is not there: enough of one to run the whole app while the real one
-/// is being written.
-///
-/// It is not a stub that returns a constant. It runs the real shape of the exchange —
-/// a challenge, a state value that must come back matching, a signed entitlement with a
-/// real expiry — and it signs with a genuine Ed25519 key so that every line of
-/// ``Ed25519EntitlementVerifier`` is exercised in development rather than first meeting
-/// a signature on the day of release.
-///
-/// The key pair is generated in this process and never written anywhere, which is why
-/// there is no keypair in this repository to leak. It also means a session cached by
-/// one run is not believed by the next, because the next run has a different key: for a
-/// development session that survives a relaunch, pass a `signingKey` your own
-/// environment supplies.
-///
-/// **The real one is ``HTTPAuthenticationService``**, which does the same four steps
-/// against a deployed backend. Which of the two a build uses is decided once, in
-/// `OnboardingAccountLayer.forThisBuild()`, by whether there is an address to reach and a
-/// public key to check what comes back. Nothing else in this module knows the difference:
-/// the cache, the gate and the verifier never learn that the backend became real.
+/// Runs the real shape of sign-in against no server, signing with a per-process Ed25519 key.
 public final class InMemoryAuthenticationService: AuthenticationService {
-    /// A month.
-    ///
-    /// Long by the standards of a session and short by the standards of a subscription,
-    /// which is what an entitlement is: the backstop that stops a cancelled
-    /// subscription running for ever, not a timer that logs anybody out.
+    /// A month: the backstop that stops a cancelled subscription running for ever, not a session timeout.
     public static let defaultLifetime: TimeInterval = 30 * 24 * 60 * 60
 
-    /// A host in the reserved `.invalid` domain, which by definition resolves nowhere.
-    ///
-    /// The app under development opens this exactly as it will open the real one, so
-    /// the code path is rehearsed; nothing answers, and nothing needs to, because this
-    /// service completes its own exchange. The real endpoint belongs to whoever deploys
-    /// the backend and compiling one in here — with the client identifier it would need
-    /// — is precisely what this module must not do.
+    /// A host in the reserved `.invalid` domain, so the app rehearses opening a page that resolves nowhere.
     public static let developmentEndpoint = safeURL("https://sign-in.invalid/uttrflow")
 
-    /// Everything that changes. A `Mutex` rather than an actor because the service is
-    /// asked questions from wherever the sign-in window happens to be running, and
-    /// nothing it does is slow enough to be worth a suspension.
+    /// Everything that changes, behind a `Mutex` because nothing done with it is slow enough for an actor.
     private struct Progress: Sendable {
+        /// The state the next ``completeSignIn(_:)`` must echo.
         var pendingState: String?
-        var nextFailure: AccountError?
-        /// The profile this service has handed out, so that re-reading it answers the
-        /// same thing twice — which is what makes it a source of truth rather than a
-        /// generator of plausible values.
+        /// The profile handed out, so re-reading answers the same thing twice.
         var issued: Profile?
     }
 
+    /// Signs every entitlement; fresh per process unless a caller keeps one.
     private let signingKey: Curve25519.Signing.PrivateKey
+    /// What every sign-in here is entitled to.
     private let plan: Plan
+    /// How long a minted entitlement lasts.
     private let lifetime: TimeInterval
+    /// The address a sign-in pretends to visit.
     private let endpoint: URL
+    /// The clock, injected so a test can move it.
     private let now: @Sendable () -> Date
+    /// The attempt in flight and the profile issued.
     private let progress = Mutex(Progress())
 
-    /// - Parameters:
-    ///   - plan: What every sign-in here is entitled to.
-    ///   - lifetime: How long a minted entitlement lasts.
-    ///   - endpoint: The address a sign-in pretends to visit.
-    ///   - signingKey: The key entitlements are signed with. A fresh one per process
-    ///     unless a caller has somewhere to keep one.
-    ///   - now: The clock. Only a test has a reason to pass one.
+    /// Every default is the development app's; only a test passes `now`, and a key only survives if kept.
     public init(
         plan: Plan = .pro,
         lifetime: TimeInterval = InMemoryAuthenticationService.defaultLifetime,
@@ -89,41 +57,22 @@ public final class InMemoryAuthenticationService: AuthenticationService {
         self.now = now
     }
 
-    /// The verifier that believes what this service signs.
-    ///
-    /// Wire the development app with this and the signature check is live rather than
-    /// switched off — an "accept everything" verifier for development is how a build
-    /// ships with no check at all.
+    /// The verifier that believes what this service signs, so the development signature check stays live.
     public var verifier: Ed25519EntitlementVerifier {
         Ed25519EntitlementVerifier(publicKey: signingKey.publicKey)
     }
 
-    /// Makes the next call fail, once.
-    ///
-    /// Sign-in failures are the ones nobody sees until a user does, because they need a
-    /// server to misbehave. This is how the interface for all three gets looked at.
-    public func failNextCall(with failure: AccountError) {
-        progress.withLock { $0.nextFailure = failure }
-    }
-
+    /// Issues a state and a page to open.
     public func beginSignIn(with provider: SignInProvider) async throws(AccountError) -> SignInChallenge {
-        try consumeScriptedFailure()
         let state = UUID().uuidString
         progress.withLock { $0.pendingState = state }
         return SignInChallenge(
             authorisationURL: authorisationURL(for: provider, state: state), state: state)
     }
 
-    /// The state check is real, not decorative. A development build that answered a
-    /// challenge it had not issued would be rehearsing a flow the release build does not
-    /// have.
+    /// Mints a profile for the attempt whose state matches; a mismatch is refused, as in the release build.
     public func completeSignIn(_ challenge: SignInChallenge) async throws(AccountError) -> Profile {
-        try consumeScriptedFailure()
-        let expected = progress.withLock { progress -> String? in
-            defer { progress.pendingState = nil }
-            return progress.pendingState
-        }
-        guard let expected, expected == challenge.state else {
+        guard let expected = progress.take(\.pendingState), expected == challenge.state else {
             throw .providerRefused(description: "that sign-in does not answer this attempt")
         }
         let profile = mint(
@@ -134,19 +83,12 @@ public final class InMemoryAuthenticationService: AuthenticationService {
         return profile
     }
 
-    /// Answers `unchanged` for a caller holding the copy this service last minted, and a
-    /// fresh one for anybody else — the same two answers the real backend gives, so the
-    /// caching path is rehearsed rather than met for the first time on release day.
-    /// No pictures. This service stands in for a backend, and the one thing it cannot
-    /// stand in for is somebody's face.
+    /// No pictures: a backend can be stood in for, somebody's face cannot.
     public func avatar(at path: String) async -> Data? { nil }
 
+    /// `unchanged` for the last minted copy, `updated` for anybody else, `noCredential` before any minting.
     public func currentProfile(ifChangedFrom cached: Profile?) async throws(AccountError) -> ProfileRefresh {
-        try consumeScriptedFailure()
-        // Nothing minted here yet, which for a service that forgets everything when the
-        // process ends is every launch after the first. That is "no credential on this
-        // Mac", not "the server ended your session", and a development build must not
-        // delete its cached profile over it any more than a release build does.
+        // Nothing minted yet is "no credential on this Mac", not a sign-out, so the cached profile survives.
         guard let issued = progress.withLock({ $0.issued }) else { return .noCredential }
         if let cached, cached.validator != nil, cached.validator == issued.validator {
             return .unchanged
@@ -156,26 +98,12 @@ public final class InMemoryAuthenticationService: AuthenticationService {
         return .updated(renewed)
     }
 
+    /// Forgets the issued profile.
     public func signOut() async {
         progress.withLock { $0.issued = nil }
     }
 
-    /// Takes the scripted failure if one is set, leaving nothing behind: a failure asked
-    /// for once must not become a service that never works again.
-    private func consumeScriptedFailure() throws(AccountError) {
-        let failure = progress.withLock { progress -> AccountError? in
-            defer { progress.nextFailure = nil }
-            return progress.nextFailure
-        }
-        if let failure { throw failure }
-    }
-
-    /// A whole profile, signed where the real one is signed and invented where the real
-    /// one is read from a database.
-    ///
-    /// The validator is a fresh value each time, which is what makes the `unchanged` path
-    /// above testable: a caller holding the previous copy is told it is current, and one
-    /// holding nothing is given a new document with a new tag.
+    /// A whole signed profile, invented where the real one is read from a database, with a fresh validator.
     private func mint(for account: Account) -> Profile {
         let entitlement = signingKey.signing(
             Entitlement(
@@ -200,24 +128,19 @@ public final class InMemoryAuthenticationService: AuthenticationService {
             validator: "\"development-\(UUID().uuidString)\"")
     }
 
+    /// The endpoint with the provider and state attached.
     private func authorisationURL(for provider: SignInProvider, state: String) -> URL {
         var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "provider", value: provider.rawValue),
             URLQueryItem(name: "state", value: state),
         ]
-        // The bare endpoint stands in if two query items somehow cannot be attached to
-        // it. They always can, and it is still a URL the app can open if they cannot.
-        var authorisation = endpoint
-        if let built = components?.url { authorisation = built }
-        return authorisation
+        // The bare endpoint stands in if two query items somehow cannot be attached to it.
+        return components?.url ?? endpoint
     }
 }
 
-/// Builds a `URL` from a literal without a force unwrap, which this package forbids.
-///
-/// The fallback treats the string as a path. It is unreachable for every literal in this
-/// module, and a nonsense URL is in any case a better outcome than a crash on launch.
+/// A `URL` from a literal without a force unwrap; the path fallback is unreachable for every literal here.
 func safeURL(_ string: String) -> URL {
     URL(string: string) ?? URL(filePath: string)
 }

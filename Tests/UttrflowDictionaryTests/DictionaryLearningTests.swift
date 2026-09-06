@@ -1,13 +1,12 @@
+// Tests for what a week of dictations teaches the dictionary.
+
 import Foundation
 import UttrflowCore
 import Testing
 
 @testable import UttrflowDictionary
 
-/// One dictation, told to the store exactly as the pipeline tells it: what the
-/// recogniser produced, what landed on screen, and what was in front of the user.
-///
-/// - Returns: The words this dictation taught the dictionary. Empty is the normal answer.
+/// One dictation told to the store as the pipeline tells it; returns the words it taught, usually none.
 @discardableResult
 private func dictate(
     into store: PersonalDictionaryStore,
@@ -28,13 +27,7 @@ private func dictate(
 
 @Suite("A week of dictations, and what the dictionary keeps")
 struct DictionaryLearningTests {
-    /// The whole feature, driven the way it will actually run: several dictations, a
-    /// screen that keeps saying the same term, and ordinary words all around it.
-    ///
-    /// Two things are being asserted at once and both matter. `pgvector` — a word no
-    /// general model has heard of, on screen and spoken every time — is learnt. Nothing
-    /// else is: not "notes", which was on screen beside it, and not "meeting notes
-    /// tomorrow", which was on screen and spoken just as often in the other window.
+    /// The whole feature driven as it will run: `pgvector` is learnt, and nothing else is.
     @Test("Learns the term that keeps coming back, and nothing else")
     func learnsWhatKeepsComingBack() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -62,14 +55,11 @@ struct DictionaryLearningTests {
         #expect(await store.allEntries().count == 1)
         #expect(entries.word == "pgvector")
         #expect(entries.origin == .observed)
-        // Nothing but the word. Not the title it was read from, and not the sentence it
-        // was said in.
+        // Nothing but the word: not the title, not the sentence.
         #expect(entries.pronunciation == nil)
     }
 
-    /// Uttrflow does Hinglish, and a filter tuned only to English would learn half of it.
-    /// The place name is the user's own; "office" is ordinary English and "bilkul theek"
-    /// is ordinary Hinglish, and a recogniser needs help with none of them.
+    /// A filter tuned only to English would learn half of Hinglish; the place name is the user's own.
     @Test("Learns a Hinglish speaker's own words and not their ordinary ones")
     func learnsHinglishWithoutTheFillers() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -82,8 +72,7 @@ struct DictionaryLearningTests {
         #expect(learnt == ["Bandra"])
     }
 
-    /// The user has deleted the word. Learning it again three dictations later is the app
-    /// arguing with the person using it, and "learn without being aggressive" rules it out.
+    /// Learning a deleted word again is the app arguing with the person using it.
     @Test("a word the user deletes is not learnt again")
     func deletingRefusesTheWord() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -95,16 +84,14 @@ struct DictionaryLearningTests {
 
         try await store.remove(learnt.id)
 
-        // The title still says it and the user still says it, so the tally would count
-        // straight back up to the threshold if a deletion only cleared it.
+        // The title and the user still say it, so a cleared tally would count straight back up.
         for _ in 1...(LearnableWords.sightingsBeforeLearning * 2) {
             try await dictate(into: store, saying: "the pgvector migration", titled: "pgvector — notes")
         }
         #expect(await store.allEntries().isEmpty)
     }
 
-    /// A reset is the user asking to start again, and starting again includes being
-    /// allowed to learn a word they once deleted.
+    /// A reset is the user asking to start again, deleted words included.
     @Test("a reset lets a deleted word be learnt again")
     func resettingLiftsTheRefusal() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -120,8 +107,7 @@ struct DictionaryLearningTests {
         #expect(await store.allEntries().map(\.word) == ["pgvector"])
     }
 
-    /// A word the user typed in and then deleted is theirs to change their mind about,
-    /// and nothing would re-learn it anyway — so deleting one must not refuse it.
+    /// A word the user typed in and then deleted is theirs to change their mind about.
     @Test("deleting a word you added yourself does not refuse it")
     func deletingAnAddedWordDoesNotRefuseIt() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -134,8 +120,7 @@ struct DictionaryLearningTests {
         #expect(await store.allEntries().map(\.word) == ["pgvector"])
     }
 
-    /// The other path, and the only one where the user is telling us rather than being
-    /// watched. One dictation is enough because they did it on purpose.
+    /// The one path where the user is telling us; one dictation is enough because it is deliberate.
     @Test("Learns a correction the first time the user makes one")
     func learnsACorrectionAtOnce() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -147,20 +132,18 @@ struct DictionaryLearningTests {
         #expect(await store.allEntries().first?.origin == .learned)
     }
 
-    /// A learnt word is no use if the next dictation cannot see it. This is the loop
-    /// closing: what one dictation taught, the one after it is conditioned on.
+    /// The loop closing: what one dictation taught, the next is conditioned on.
     @Test("Puts what it learnt in front of the recogniser next time")
     func closesTheLoop() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
         try await dictate(into: store, saying: "Uttrflow", titled: "notes", over: "utter flow")
 
-        #expect(await store.workingSet(now: epoch).contains("Uttrflow"))
+        let ranked = WorkingSet.words(from: await store.allEntries(), now: epoch)
+        #expect(ranked.contains("Uttrflow"))
         #expect(await store.index().candidates(soundingLike: "utter flow").map(\.word) == ["Uttrflow"])
     }
 
-    /// ``PersonalDictionaryStore/add(_:)`` replaces an entry spelling the same word, and
-    /// a replacement arrives with its counters at zero. Learning a word the user typed
-    /// in themselves would therefore throw away everything the app knew about it.
+    /// `add(_:)` replaces an entry with counters at zero, so a typed-in word is never overwritten.
     @Test("Never overwrites a word the user typed in")
     func leavesTheUsersOwnWordsAlone() async throws {
         let sandbox = Sandbox()
@@ -174,8 +157,7 @@ struct DictionaryLearningTests {
         #expect(await store.allEntries().map(\.origin) == [.added])
     }
 
-    /// Nearly every dictation teaches nothing, and a store that wrote a file anyway
-    /// would put a disk write on the end of every sentence the user speaks.
+    /// Nearly every dictation teaches nothing, and must not put a disk write on every sentence.
     @Test("Writes nothing when there was nothing to learn")
     func writesNothingWhenThereIsNothingToLearn() async throws {
         let sandbox = Sandbox()
@@ -198,8 +180,7 @@ struct DictionaryLearningTests {
 
     // MARK: - The reset
 
-    /// The promise the whole feature is sold under: everything Uttrflow worked out for
-    /// itself goes, and everything the user typed in stays.
+    /// The promise the feature is sold under: everything worked out goes, everything typed in stays.
     @Test("Forgets both kinds of learnt word and keeps the typed-in one")
     func theResetIsComplete() async throws {
         let sandbox = Sandbox()
@@ -215,9 +196,7 @@ struct DictionaryLearningTests {
         #expect(try await store.removeLearned().map(\.word) == ["kubectl"])
     }
 
-    /// Half-counted evidence is still the app's inference about the user. A term two
-    /// thirds of the way to being learnt, surviving the reset, would appear one
-    /// dictation after they asked Uttrflow to forget what it had worked out.
+    /// Half-counted evidence surviving the reset would learn a word one dictation later.
     @Test("Forgets the half-counted evidence too, not just the words")
     func theResetForgetsWhatWasNearlyLearnt() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)

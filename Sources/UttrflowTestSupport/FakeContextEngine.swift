@@ -1,3 +1,4 @@
+// A ContextEngine that reports whatever screen a test scripts.
 public import UttrflowCore
 
 /// A ``ContextEngine`` that returns a fixed context.
@@ -17,5 +18,17 @@ public actor FakeContextEngine: ContextEngine {
 
     public func setContext(_ context: AppContext) {
         self.context = context
+    }
+
+    /// Scripts what sits at the caret, keeping the rest of the context as it was.
+    public func setInsertionPoint(_ insertion: InsertionPoint) {
+        context = AppContext(
+            applicationName: context.applicationName,
+            bundleIdentifier: context.bundleIdentifier,
+            documentName: context.documentName,
+            selectedText: context.selectedText,
+            precedingText: insertion.precedingText,
+            followingText: insertion.followingText
+        )
     }
 }

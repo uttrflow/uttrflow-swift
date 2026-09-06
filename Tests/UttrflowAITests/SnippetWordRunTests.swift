@@ -3,6 +3,7 @@ import Testing
 
 @testable import UttrflowAI
 
+/// The word runs the expander matches against.
 @Suite("Splitting a transcript into the words that were said")
 struct SnippetWordRunTests {
     @Test(
@@ -13,13 +14,11 @@ struct SnippetWordRunTests {
             ("My address.", ["My", "address"]),
             ("Right, my address, please!", ["Right", "my", "address", "please"]),
             ("  spaced  out  ", ["spaced", "out"]),
-            // A trailing run has no separator after it to close it, which is the one
-            // case a scanner gets wrong.
+            // A trailing run has no separator to close it, the one case a scanner gets wrong.
             ("ends in a word", ["ends", "in", "a", "word"]),
             ("ends in punctuation.", ["ends", "in", "punctuation"]),
             ("v2 of the 3rd draft", ["v2", "of", "the", "3rd", "draft"]),
-            // An apostrophe separates, which is what lets the expander see that
-            // "address" here is glued to something and refuse to fire.
+            // An apostrophe separates, so the expander can see "address" here is glued and refuse to fire.
             ("address's", ["address", "s"]),
             ("don't", ["don", "t"]),
             ("pre-approve", ["pre", "approve"]),
@@ -31,8 +30,7 @@ struct SnippetWordRunTests {
         #expect(input.snippetWordRuns().map(\.text) == expected)
     }
 
-    /// The range is what lets a replacement land on the words and leave the full stop
-    /// the tidier added exactly where it was.
+    /// The range lets a replacement land on the words and leave the tidier's full stop in place.
     @Test("says where each run sits, so a replacement can be surgical")
     func rangesPointAtTheRun() {
         let text = "My address."
