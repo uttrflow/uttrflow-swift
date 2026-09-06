@@ -44,7 +44,7 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
         stop()
 
         // A session tap as well, because the global monitor is never told about Fn.
-        try? tap.start { [weak self] flags in
+        try? tap.start { [weak self] _, flags in
             // Straight through: the edge is behind a lock, and it absorbs a duplicate reading.
             self?.update(with: NSEvent.ModifierFlags(rawValue: UInt(flags)))
         }

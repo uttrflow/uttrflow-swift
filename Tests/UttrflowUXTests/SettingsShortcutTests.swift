@@ -154,49 +154,85 @@ struct SettingsShortcutRecorderTests {
         #expect(recorder.rejection == nil)
     }
 
-    /// The decision that used to live in the view, where no test could reach it.
-    @Test("a key pressed against a held modifier records the combination, not the modifier")
-    func holdThenKeyIsACombination() {
-        var recorder = SettingsShortcutRecorder(binding: .functionHold)
-        recorder.beginRecording()
-        _ = recorder.hold(keyCode: 58)
-        // Nothing is decided yet: the modifier may still turn out to be half of something.
-        #expect(recorder.isRecording)
-        #expect(recorder.binding == .functionHold)
-        let outcome = recorder.record(keyCode: 49, modifiers: [.option])
-        #expect(outcome == .recorded(.shortcut(.optionSpace)))
-        #expect(recorder.binding == .optionSpace)
-        #expect(!recorder.isRecording)
-    }
+    /// Every shape of shortcut the field has to take, which is what kept breaking one at a time.
+    @Suite("Every shape of shortcut")
+    struct Shapes {
+        /// Fn held on its own, the shipping default.
+        @Test("single Fn")
+        func singleFn() {
+            var r = SettingsShortcutRecorder(binding: .optionSpace)
+            r.beginRecording()
+            _ = r.hold(keyCode: 63, modifiers: [])
+            #expect(r.release() == .recorded(.shortcut(.functionHold)))
+            #expect(r.binding == .functionHold)
+        }
 
-    @Test("a modifier released with nothing pressed against it is the whole shortcut")
-    func holdThenReleaseIsTheModifier() {
-        var recorder = SettingsShortcutRecorder(binding: .optionSpace)
-        recorder.beginRecording()
-        _ = recorder.hold(keyCode: 63)
-        #expect(recorder.isRecording)
-        let outcome = recorder.release()
-        #expect(outcome == .recorded(.shortcut(.functionHold)))
-        #expect(recorder.binding == .functionHold)
-    }
+        /// One modifier held on its own, which is a shortcut in its own right.
+        @Test("single modifier held alone")
+        func singleModifier() {
+            var r = SettingsShortcutRecorder(binding: .functionHold)
+            r.beginRecording()
+            _ = r.hold(keyCode: 55, modifiers: [.command])
+            #expect(r.release() == .recorded(.shortcut(HotkeyBinding(keyCode: 55, modifiers: [.command]))))
+        }
 
-    @Test("a release with nothing held changes nothing")
-    func releaseWithoutHoldDoesNothing() {
-        var recorder = SettingsShortcutRecorder(binding: .optionSpace)
-        recorder.beginRecording()
-        #expect(recorder.release() == .ignored)
-        #expect(recorder.binding == .optionSpace)
-        #expect(recorder.isRecording)
-    }
+        /// One modifier and one key: the combination that could not be typed at all.
+        @Test("two keys, a modifier and a key")
+        func twoKeys() {
+            var r = SettingsShortcutRecorder(binding: .functionHold)
+            r.beginRecording()
+            _ = r.hold(keyCode: 58, modifiers: [.option])
+            #expect(r.record(keyCode: 49, modifiers: [.option]) == .recorded(.shortcut(.optionSpace)))
+            #expect(r.binding == .optionSpace)
+            // The modifier coming up afterwards must not overwrite what was just recorded.
+            #expect(r.release() == .ignored)
+            #expect(r.binding == .optionSpace)
+        }
 
-    @Test("a modifier let go after a combination was recorded does not record itself as well")
-    func releaseAfterCombinationIsQuiet() {
-        var recorder = SettingsShortcutRecorder(binding: .functionHold)
-        recorder.beginRecording()
-        _ = recorder.hold(keyCode: 58)
-        _ = recorder.record(keyCode: 49, modifiers: [.option])
-        #expect(recorder.release() == .ignored)
-        #expect(recorder.binding == .optionSpace)
+        /// Two modifiers and a key, pressed in the order a hand presses them.
+        @Test("three keys, two modifiers and a key")
+        func threeKeys() {
+            var r = SettingsShortcutRecorder(binding: .functionHold)
+            r.beginRecording()
+            _ = r.hold(keyCode: 55, modifiers: [.command])
+            _ = r.hold(keyCode: 56, modifiers: [.command, .shift])
+            let wanted = HotkeyBinding(keyCode: 0, modifiers: [.command, .shift])
+            #expect(r.record(keyCode: 0, modifiers: [.command, .shift]) == .recorded(.shortcut(wanted)))
+            #expect(r.binding == wanted)
+        }
+
+        /// Two modifiers held together and let go: the pair, not whichever was pressed last.
+        @Test("two modifiers held together, with no key against them")
+        func twoModifiersHeld() {
+            var r = SettingsShortcutRecorder(binding: .functionHold)
+            r.beginRecording()
+            _ = r.hold(keyCode: 59, modifiers: [.control])
+            _ = r.hold(keyCode: 58, modifiers: [.control, .option])
+            let wanted = HotkeyBinding(keyCode: 58, modifiers: [.control, .option])
+            #expect(r.release() == .recorded(.shortcut(wanted)))
+            #expect(r.binding == wanted)
+        }
+
+        /// Three modifiers held together, the widest hold the field allows.
+        @Test("three modifiers held together")
+        func threeModifiersHeld() {
+            var r = SettingsShortcutRecorder(binding: .functionHold)
+            r.beginRecording()
+            _ = r.hold(keyCode: 59, modifiers: [.control])
+            _ = r.hold(keyCode: 58, modifiers: [.control, .option])
+            _ = r.hold(keyCode: 56, modifiers: [.control, .option, .shift])
+            let wanted = HotkeyBinding(keyCode: 56, modifiers: [.control, .option, .shift])
+            #expect(r.release() == .recorded(.shortcut(wanted)))
+        }
+
+        @Test("a release with nothing held changes nothing")
+        func releaseWithoutHold() {
+            var r = SettingsShortcutRecorder(binding: .optionSpace)
+            r.beginRecording()
+            #expect(r.release() == .ignored)
+            #expect(r.binding == .optionSpace)
+            #expect(r.isRecording)
+        }
     }
 
     @Test("Escape on its own leaves the shortcut alone")

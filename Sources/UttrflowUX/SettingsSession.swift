@@ -71,8 +71,8 @@ public struct SettingsSession: Sendable, Equatable {
 
     /// Takes a modifier going down; nothing is earned until it is known what it belongs to.
     @discardableResult
-    public mutating func hold(keyCode: UInt16) -> Settings? {
-        settle(recorder.hold(keyCode: keyCode))
+    public mutating func hold(keyCode: UInt16, modifiers: Set<HotkeyModifier>) -> Settings? {
+        settle(recorder.hold(keyCode: keyCode, modifiers: modifiers))
     }
 
     /// Takes every modifier coming up, which settles a modifier that was held on its own.

@@ -4,10 +4,10 @@ import Synchronization
 
 /// Holds the reader across the C callback boundary, and owns the lock guarding it.
 private final class Reception: @unchecked Sendable {
-    private let reader = Mutex<(@Sendable (UInt64) -> Void)?>(nil)
+    private let reader = Mutex<(@Sendable (UInt16, UInt64) -> Void)?>(nil)
 
-    func set(_ value: (@Sendable (UInt64) -> Void)?) { reader.withLock { $0 = value } }
-    func read(_ flags: UInt64) { reader.withLock { $0 }?(flags) }
+    func set(_ value: (@Sendable (UInt16, UInt64) -> Void)?) { reader.withLock { $0 = value } }
+    func read(_ keyCode: UInt16, _ flags: UInt64) { reader.withLock { $0 }?(keyCode, flags) }
 }
 
 /// Reads modifier flags from a session tap, which reports Fn where an `NSEvent` monitor reports nothing.
@@ -18,7 +18,7 @@ public final class HeldModifierTap: Sendable {
     public init() {}
 
     /// Starts watching, or says the system refused the tap, which it does without Accessibility.
-    public func start(reader: @escaping @Sendable (UInt64) -> Void) throws(HeldModifierTapError) {
+    public func start(reader: @escaping @Sendable (UInt16, UInt64) -> Void) throws(HeldModifierTapError) {
         stop()
         reception.set(reader)
         guard let tap = RunningFlagsTap.create(reception: reception) else { throw .tapRefused }
@@ -103,6 +103,9 @@ private func heldModifierTapCallback(
 ) -> Unmanaged<CGEvent>? {
     guard let userInfo else { return Unmanaged.passUnretained(event) }
     let reception = Unmanaged<Reception>.fromOpaque(userInfo).takeUnretainedValue()
-    if type == .flagsChanged { reception.read(event.flags.rawValue) }
+    if type == .flagsChanged {
+        let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+        reception.read(keyCode, event.flags.rawValue)
+    }
     return Unmanaged.passUnretained(event)
 }

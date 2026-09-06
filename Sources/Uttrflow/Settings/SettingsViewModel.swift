@@ -60,8 +60,8 @@ final class SettingsViewModel {
     }
 
     /// A modifier going down, which the recorder holds until it knows what it is part of.
-    func hold(keyCode: UInt16) {
-        persist(session.hold(keyCode: keyCode))
+    func hold(keyCode: UInt16, modifiers: Set<HotkeyModifier>) {
+        persist(session.hold(keyCode: keyCode, modifiers: modifiers))
     }
 
     /// Every modifier coming up, which settles a modifier held on its own.

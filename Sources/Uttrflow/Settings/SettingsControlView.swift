@@ -226,14 +226,14 @@ struct SettingsShortcutField: View {
     private func startListening() {
         guard monitor == nil else { return }
         // One source for modifiers and one for keys; what either means is the recorder's to decide.
-        try? flagsTap.start { flags in
+        try? flagsTap.start { keyCode, flags in
             let held = NSEvent.ModifierFlags(rawValue: UInt(flags))
             Task { @MainActor in
                 let modifiers = SettingsShortcutField.modifiers(from: held)
                 if modifiers.isEmpty, !held.contains(.function) {
                     model.release()
                 } else {
-                    model.hold(keyCode: SettingsShortcutField.keyCode(of: held))
+                    model.hold(keyCode: keyCode, modifiers: modifiers)
                 }
             }
         }
@@ -244,16 +244,6 @@ struct SettingsShortcutField: View {
             // Swallowed: nothing pressed at this field should reach the rest of the app.
             return nil
         }
-    }
-
-    /// The key code of the modifier a set of flags is, so a held one can be stored as the key it is.
-    static func keyCode(of flags: NSEvent.ModifierFlags) -> UInt16 {
-        if flags.contains(.function) { return HotkeyBinding.functionKeyCode }
-        if flags.contains(.command) { return 55 }
-        if flags.contains(.option) { return 58 }
-        if flags.contains(.control) { return 59 }
-        if flags.contains(.shift) { return 56 }
-        return 0
     }
 
     private func stopListening() {

@@ -89,8 +89,14 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     /// Why the last attempt was refused, until the next one replaces it.
     public private(set) var rejection: String?
 
-    /// A modifier held with nothing yet pressed against it; which shortcut it is is not yet known.
-    private var pendingModifier: UInt16?
+    /// The modifiers held with nothing yet pressed against them; which shortcut they are is not yet known.
+    private var pendingModifier: PendingHold?
+
+    /// Modifiers down together, kept as the key one of them is and the set they make.
+    struct PendingHold: Sendable, Equatable {
+        let keyCode: UInt16
+        let modifiers: Set<HotkeyModifier>
+    }
 
     /// Starts from the shortcut in force; an undeliverable one is replaced by the default.
     public init(binding: HotkeyBinding) {
@@ -117,17 +123,20 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     }
 
     /// Takes a modifier going down, which is not yet an answer: it may yet be half of a combination.
-    public mutating func hold(keyCode: UInt16) -> SettingsShortcutOutcome {
+    public mutating func hold(
+        keyCode: UInt16, modifiers: Set<HotkeyModifier>
+    ) -> SettingsShortcutOutcome {
         guard isRecording else { return .ignored }
-        pendingModifier = keyCode
+        pendingModifier = PendingHold(keyCode: keyCode, modifiers: modifiers)
         return .ignored
     }
 
-    /// Takes every modifier coming up; one held with nothing pressed against it was the whole shortcut.
+    /// Takes every modifier coming up; what was held with nothing pressed against it was the shortcut.
     public mutating func release() -> SettingsShortcutOutcome {
         guard isRecording, let held = pendingModifier else { return .ignored }
         pendingModifier = nil
-        return record(keyCode: held, modifiers: [])
+        // Every modifier that was down, so ⌃⌥ held together is that pair and not whichever came last.
+        return record(keyCode: held.keyCode, modifiers: held.modifiers)
     }
 
     /// Takes a keystroke by positional key code and modifiers, and says what became of it.
