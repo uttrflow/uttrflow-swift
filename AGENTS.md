@@ -143,6 +143,85 @@ punish whoever rebased rather than whoever wrote them. It prints every rise and 
 it, so the increase appears in `comment_baseline.json`'s diff where a reviewer can see
 it. Do not reach for it to excuse your own comments.
 
+## What must never reach a tracked file — NON-NEGOTIABLE
+
+This repository is public. Everything in it is read by strangers, indexed by search
+engines, and kept forever in git history. The conversation that produces the work is
+not public, and the boundary between the two is one way.
+
+Never write any of the following into a tracked file, a commit message, a PR title or
+body, an issue, or a code comment:
+
+- **Named competitors, or their products, docs, pricing, screenshots or behaviour.**
+  Not as a citation, not as a source list, not as "how X does it", not in a design
+  rationale. If a competitor's behaviour informed a decision, describe the behaviour
+  generically — "some dictation tools rewrite for brevity" — and never say whose.
+- **Growth, marketing, positioning or business strategy.** Treating stars as a target,
+  when to announce, how attention is acquired, what to post where, how to attract
+  contributors.
+- **Anything a user said in a working session** that is not a technical requirement:
+  frustrations, comparisons, commercial reasoning, personal context.
+- **Screenshots or transcripts from another product**, in any form, including as a
+  design reference committed "temporarily".
+
+Reference material a user shares during development is for reading, not for keeping. Take
+the requirement out of it, state the requirement in the product's own words, and let the
+reference go. A design may be *informed* by something seen elsewhere and must never
+*record* that it was.
+
+History counts. A reference removed from the working tree is still in the commits that
+introduced it, and on a public repository that is still published. Say so plainly when it
+happens rather than assuming a later edit undid it.
+
+**This file is tracked, and stays tracked.** The rule above binds anybody who opens a pull
+request here, not only the person who wrote it, so it is product rather than working
+material — and a rule that lives only on one machine is invisible to a fresh clone, to a
+worktree, to a fork and to CI, which is every place the mistake actually gets made.
+
+### How it is enforced
+
+Five layers, because no single one holds. The hooks are skipped by `--no-verify`, the
+workflow is skipped by an admin merge, and the settings hook binds only agents on this
+machine — but the ways around each of them do not overlap.
+
+| Where | What it sees |
+|---|---|
+| `make verify` | the working tree, before the build, beside the PII audit |
+| `.githooks/pre-push` | every commit being pushed, to **any** branch |
+| `.githooks/commit-msg` | the message, before it is even recorded |
+| `.github/workflows/quality.yml` | the pull request's whole range, plus its title and body |
+| `.claude/settings.json` | the text of a command an agent is about to run |
+
+All five run `Scripts/disclosure_audit.py`. It reads two kinds of pattern: names and
+strategy phrases, which fail outright, and vocabulary that is usually innocent and
+occasionally the tell, which is counted against `Scripts/disclosure_baseline.json` and may
+fall but never rise. In text being written now — a message, a PR body, an added line —
+both kinds fail, because new writing has no legacy to grandfather.
+
+The terms are stored base64 for the same reason as the address constants in
+`Scripts/pii_audit.sh`, and it is not obfuscation: a plain-text list would publish, inside
+the gate, exactly what the gate exists to keep out, and would match itself on every run.
+
+```bash
+python3 Scripts/disclosure_audit.py --show-terms     # see the lists decoded
+python3 Scripts/disclosure_audit.py --history        # every commit on every ref
+make hooks                                           # install both git hooks
+```
+
+The ratchet refuses a rise, and there is one sanctioned way past it. A document that
+states the rule has to name the category it forbids — this file says "competitor" six
+times — so `--update-baseline --absorb` records a rise and prints every one of them,
+which puts it in the baseline's diff where a reviewer sees it. Reach for it when the word
+is the subject, never to make a paragraph fit.
+
+**Never weaken this gate to make a commit pass**, and never add a path exemption to get
+past it. There is exactly one exemption in the file — the evaluation corpus, from the
+phrase patterns only, because a corpus of dictated English legitimately contains "churn
+rate" — and it does not cover names. A failing gate is the gate working.
+
+`--history` is what a repository is judged on before it is made public: a tree can be
+cleaned in one commit, and history cannot be cleaned at all.
+
 ## Where this sits
 
 Four pieces: this app, `uttrflow-backend` (Go on ECS, the only thing that touches the
