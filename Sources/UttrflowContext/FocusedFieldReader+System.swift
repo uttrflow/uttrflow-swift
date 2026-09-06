@@ -87,24 +87,22 @@ public enum FocusedFieldReader {
     /// How long one Accessibility call into another application may wait, since a stalled one would otherwise wait seconds.
     static let elementTimeoutInSeconds: Float = 0.05
 
+    /// How long the turn waits for the wider walk before going on without it.
+    private static let surroundingsAllowance = Duration.milliseconds(200)
+
     /// What is on screen around the focused field, or `nil` when nothing usable is focused or the wait ran out.
-    public static func surroundings(withinMilliseconds allowance: Int = 200) async -> Surroundings? {
+    public static func surroundings() async -> Surroundings? {
         guard let app = await frontmostApp() else { return nil }
         // A read that does not answer in time is left to finish on its queue; the turn goes on without it.
-        return await Deadline.first(within: .milliseconds(allowance)) {
+        return await Deadline.first(within: surroundingsAllowance) {
             await withCheckedContinuation { continuation in
-                surroundingsQueue.async { continuation.resume(returning: surroundings(app: app)) }
+                surroundingsQueue.async { continuation.resume(returning: surroundings(of: app)) }
             }
         }
     }
 
-    /// The same read for a named application, front or not, which is how a probe shows what the model would be shown.
+    /// The same read synchronously, for an application front or not, which is what a probe shows the operator.
     public static func surroundings(of app: FrontmostApp) -> Surroundings? {
-        surroundings(app: app)
-    }
-
-    /// The same read, synchronously, which only the queue above calls with an identity read on main.
-    static func surroundings(app: FrontmostApp) -> Surroundings? {
         // A field with no window, or a window focused as a whole, has nothing around it worth a walk.
         guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier),
             let window = element(field, kAXWindowAttribute), !CFEqual(field, window)
