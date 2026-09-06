@@ -17,6 +17,13 @@
 # and the rest of `Tests/` is checked, and `teh` written anywhere outside a fixture still
 # fails the build.
 #
+# Two apostrophe-less contractions are listed as words rather than as excluded files.
+# `youre` and `theyre` are the *input* to the contraction repair — `ContractionsPass` maps
+# them to `you're` and `they're`, and `FunctionWords` and `MeaningPreservationGuard` both
+# carry the same table. Excluding those four files would stop checking their prose too, so
+# the two words are allowed everywhere instead. The cost is that a genuine `youre` in a
+# sentence now passes; the four files are word lists, and that was the cheaper loss.
+#
 # 🔴 Never pass `--locale en-us`. This repository is written in British English on purpose
 # — notarise, recognise, behaviour, licence — and the default locale accepts all of it.
 # The American locale would reject the house style as a spelling mistake.
@@ -55,3 +62,5 @@ postgress = "postgress"
 adress = "adress"
 ba = "ba"
 Iz = "Iz"
+youre = "youre"
+theyre = "theyre"
