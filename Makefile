@@ -50,6 +50,14 @@ docs-audit: ## Prove the documentation still describes this tree. Needs no build
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
 	./Scripts/pii_audit.sh
 
+.PHONY: disclosure-audit
+disclosure-audit: ## Prove nothing private to building this reached the tree. No build.
+	@python3 Scripts/disclosure_audit.py
+
+.PHONY: disclosure-history
+disclosure-history: ## Scan every commit on every ref. Run before a repo goes public.
+	@python3 Scripts/disclosure_audit.py --history
+
 # `pii-audit` first, and `offline-audit` last, for opposite reasons.
 #
 # The PII audit reads source and nothing else, so it costs two seconds. Putting it ahead
@@ -63,16 +71,23 @@ pii-audit: ## Prove no personal data is in the tree. Needs no build.
 # have run. It is in the gate rather than beside it because it had drifted for weeks
 # without anybody noticing: a check nothing runs is a check that is already wrong, and
 # this one polices the claim the whole product is sold on.
+# `disclosure-audit` sits beside `pii-audit`, at the front, for the identical reason: it
+# reads text and nothing else, so it costs two seconds, and it is the other check here
+# whose failure cannot be fixed after the fact. A competitor's name in a commit is
+# published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit docs-audit comment-audit lint build coverage offline-audit ## The whole gate: PII, docs, comments, lint, build, tests, coverage floor, offline audit.
+verify: pii-audit disclosure-audit docs-audit comment-audit lint build coverage offline-audit ## The whole gate: PII, disclosure, docs, comments, lint, build, tests, coverage floor, offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
 .PHONY: hooks
-hooks: ## Install the pre-push gate that replaced CI.
+hooks: ## Install the commit-msg and pre-push gates.
 	@git config core.hooksPath .githooks
-	@echo "pre-push gate installed. 'make verify' runs before any push to main."
-	@echo "Skip it deliberately with: git push --no-verify"
+	@echo "Hooks installed:"
+	@echo "  commit-msg  reads every commit message"
+	@echo "  pre-push    reads every commit being pushed, to any branch,"
+	@echo "              and runs 'make verify' before a push to main"
+	@echo "Skip deliberately with: git commit --no-verify / git push --no-verify"
 
 .PHONY: app
 app: ## Build and sign Uttrflow.app into dist/ for this Mac.

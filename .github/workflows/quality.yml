@@ -6,6 +6,11 @@
 #
 # Three questions, and one of them is deliberately not a gate yet:
 #
+#   disclosure what a public repository must not carry out of a private working session —
+#              competitor names, growth thinking, session talk. `make verify` runs the
+#              same script over the working tree; only a workflow can see the other half,
+#              which is the commit messages, the diff and the pull request's own title and
+#              body. None of those is a file, so no file audit will ever find them.
 #   spelling   `typos`, which is only usable with `_typos.toml` — see the essay in there
 #              about why this repository trips a spell checker 165 times without it
 #   workflows  `actionlint`, which type-checks the `${{ }}` expressions and runs
@@ -45,6 +50,52 @@ env:
   LYCHEE_SHA256: "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a"
 
 jobs:
+  # Needs no toolchain and no network, so it answers in seconds and is the cheapest check
+  # here by a wide margin. It is also the only one whose failure cannot be fixed later:
+  # everything else on this page is wrong until somebody corrects it, and this one is
+  # published the moment the push lands.
+  disclosure:
+    name: Nothing private to building this
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # fetch-depth: 0, because the range being judged is every commit in the pull
+      # request and a shallow clone does not contain the base.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: The tree
+        run: python3 Scripts/disclosure_audit.py
+
+      # Commit messages and the added side of every diff. A file audit cannot reach these
+      # and this repository has already published a competitor's name in a commit subject.
+      - name: The commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base commit for this event; the tree scan above stands alone."
+            exit 0
+          fi
+          python3 Scripts/disclosure_audit.py --range "$BASE..$HEAD"
+
+      # The title and the body are published on the pull request page and indexed by
+      # GitHub search. PR #65's body carried a competitor source list for weeks, and no
+      # gate that reads the repository would ever have seen it.
+      - name: The pull request itself
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" \
+            | python3 Scripts/disclosure_audit.py --text --label "the pull request"
+
   workflows:
     name: The workflows say what they mean
     runs-on: ubuntu-latest
