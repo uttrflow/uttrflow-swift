@@ -361,7 +361,7 @@ public enum SettingsPresenter {
         return "Paused. Comes back on its own in \(counted(minutes, "minute", "minutes"))."
     }
 
-    /// Every application the screen knows about, the shipped editors and everything switched off among them, each with the switch that turns it back on.
+    /// Every application the screen knows of, each with the switch that turns suggestions back on.
     static func applicationGroup(
         _ settings: Settings, _ personalisation: SettingsPersonalisation
     ) -> SettingsGroup {
