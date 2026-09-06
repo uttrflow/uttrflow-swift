@@ -154,6 +154,51 @@ struct SettingsShortcutRecorderTests {
         #expect(recorder.rejection == nil)
     }
 
+    /// The decision that used to live in the view, where no test could reach it.
+    @Test("a key pressed against a held modifier records the combination, not the modifier")
+    func holdThenKeyIsACombination() {
+        var recorder = SettingsShortcutRecorder(binding: .functionHold)
+        recorder.beginRecording()
+        _ = recorder.hold(keyCode: 58)
+        // Nothing is decided yet: the modifier may still turn out to be half of something.
+        #expect(recorder.isRecording)
+        #expect(recorder.binding == .functionHold)
+        let outcome = recorder.record(keyCode: 49, modifiers: [.option])
+        #expect(outcome == .recorded(.shortcut(.optionSpace)))
+        #expect(recorder.binding == .optionSpace)
+        #expect(!recorder.isRecording)
+    }
+
+    @Test("a modifier released with nothing pressed against it is the whole shortcut")
+    func holdThenReleaseIsTheModifier() {
+        var recorder = SettingsShortcutRecorder(binding: .optionSpace)
+        recorder.beginRecording()
+        _ = recorder.hold(keyCode: 63)
+        #expect(recorder.isRecording)
+        let outcome = recorder.release()
+        #expect(outcome == .recorded(.shortcut(.functionHold)))
+        #expect(recorder.binding == .functionHold)
+    }
+
+    @Test("a release with nothing held changes nothing")
+    func releaseWithoutHoldDoesNothing() {
+        var recorder = SettingsShortcutRecorder(binding: .optionSpace)
+        recorder.beginRecording()
+        #expect(recorder.release() == .ignored)
+        #expect(recorder.binding == .optionSpace)
+        #expect(recorder.isRecording)
+    }
+
+    @Test("a modifier let go after a combination was recorded does not record itself as well")
+    func releaseAfterCombinationIsQuiet() {
+        var recorder = SettingsShortcutRecorder(binding: .functionHold)
+        recorder.beginRecording()
+        _ = recorder.hold(keyCode: 58)
+        _ = recorder.record(keyCode: 49, modifiers: [.option])
+        #expect(recorder.release() == .ignored)
+        #expect(recorder.binding == .optionSpace)
+    }
+
     @Test("Escape on its own leaves the shortcut alone")
     func escapeCancels() {
         var recorder = SettingsShortcutRecorder(binding: .optionSpace)

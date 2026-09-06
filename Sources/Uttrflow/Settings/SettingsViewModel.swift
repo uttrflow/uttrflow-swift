@@ -59,6 +59,19 @@ final class SettingsViewModel {
         persist(session.apply(change))
     }
 
+    /// A modifier going down, which the recorder holds until it knows what it is part of.
+    func hold(keyCode: UInt16) {
+        persist(session.hold(keyCode: keyCode))
+    }
+
+    /// Every modifier coming up, which settles a modifier held on its own.
+    func release() {
+        persist(session.release())
+        if !session.recorder.isRecording {
+            onShortcutRecording(false)
+        }
+    }
+
     func record(keyCode: UInt16, modifiers: Set<HotkeyModifier>) {
         persist(session.record(keyCode: keyCode, modifiers: modifiers))
         // A recorded shortcut ends the recording; a refusal leaves the field listening, mid-choice.

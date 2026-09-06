@@ -89,6 +89,9 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     /// Why the last attempt was refused, until the next one replaces it.
     public private(set) var rejection: String?
 
+    /// A modifier held with nothing yet pressed against it; which shortcut it is is not yet known.
+    private var pendingModifier: UInt16?
+
     /// Starts from the shortcut in force; an undeliverable one is replaced by the default.
     public init(binding: HotkeyBinding) {
         self.binding = binding.isDeliverable ? binding : .optionSpace
@@ -103,12 +106,28 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     public mutating func beginRecording() {
         isRecording = true
         rejection = nil
+        pendingModifier = nil
     }
 
     /// Stops listening, changing nothing.
     public mutating func cancel() {
         isRecording = false
         rejection = nil
+        pendingModifier = nil
+    }
+
+    /// Takes a modifier going down, which is not yet an answer: it may yet be half of a combination.
+    public mutating func hold(keyCode: UInt16) -> SettingsShortcutOutcome {
+        guard isRecording else { return .ignored }
+        pendingModifier = keyCode
+        return .ignored
+    }
+
+    /// Takes every modifier coming up; one held with nothing pressed against it was the whole shortcut.
+    public mutating func release() -> SettingsShortcutOutcome {
+        guard isRecording, let held = pendingModifier else { return .ignored }
+        pendingModifier = nil
+        return record(keyCode: held, modifiers: [])
     }
 
     /// Takes a keystroke by positional key code and modifiers, and says what became of it.
@@ -117,6 +136,8 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
         modifiers: Set<HotkeyModifier>
     ) -> SettingsShortcutOutcome {
         guard isRecording else { return .ignored }
+        // A key pressed against a held modifier makes a combination, not the modifier alone.
+        pendingModifier = nil
 
         // Escape alone means "leave it", the platform convention; checked before validation.
         if keyCode == SettingsShortcut.escapeKeyCode, modifiers.isEmpty {

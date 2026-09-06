@@ -175,10 +175,7 @@ struct SettingsShortcutField: View {
 
     @State private var monitor: Any?
 
-    /// A modifier held with nothing yet pressed against it, waiting to see which shortcut it becomes.
-    @State private var pendingHeld: UInt16?
-
-    /// The session tap, because a local `NSEvent` monitor is never told about Fn either.
+    /// The session tap, the one source that reports every modifier, Fn included.
     @State private var flagsTap = HeldModifierTap()
 
     var body: some View {
@@ -228,46 +225,35 @@ struct SettingsShortcutField: View {
 
     private func startListening() {
         guard monitor == nil else { return }
-        // Fn reaches no `NSEvent` monitor, so the shipping default could never be recorded here.
+        // One source for modifiers and one for keys; what either means is the recorder's to decide.
         try? flagsTap.start { flags in
-            guard NSEvent.ModifierFlags(rawValue: UInt(flags)).contains(.function) else { return }
+            let held = NSEvent.ModifierFlags(rawValue: UInt(flags))
             Task { @MainActor in
-                model.record(keyCode: HotkeyBinding.functionKeyCode, modifiers: [])
-            }
-        }
-        // `.flagsChanged` too, so a modifier pressed alone is refused out loud rather than in silence.
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
-            let modifiers = SettingsShortcutField.modifiers(from: event.modifierFlags)
-
-            guard event.type == .flagsChanged else {
-                pendingHeld = nil
-                model.record(keyCode: event.keyCode, modifiers: modifiers)
-                // Swallowed: nothing pressed at this field should reach the rest of the app.
-                return nil
-            }
-
-            // Fn is a shortcut in its own right and carries none of the four modifiers named below.
-            if event.keyCode == HotkeyBinding.functionKeyCode,
-                event.modifierFlags.contains(.function)
-            {
-                pendingHeld = nil
-                model.record(keyCode: event.keyCode, modifiers: [])
-                return event
-            }
-
-            // A modifier down waits: it is a shortcut of its own only if nothing is pressed against it.
-            guard !modifiers.isEmpty else {
-                // Released with nothing pressed against it, so the modifier was the whole shortcut.
-                if let held = pendingHeld {
-                    pendingHeld = nil
-                    model.record(keyCode: held, modifiers: [])
+                let modifiers = SettingsShortcutField.modifiers(from: held)
+                if modifiers.isEmpty, !held.contains(.function) {
+                    model.release()
+                } else {
+                    model.hold(keyCode: SettingsShortcutField.keyCode(of: held))
                 }
-                return event
             }
-            pendingHeld = event.keyCode
-            // Passed on, unlike a key press: the rest of the app must not think a key is still held.
-            return event
         }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+            model.record(
+                keyCode: event.keyCode,
+                modifiers: SettingsShortcutField.modifiers(from: event.modifierFlags))
+            // Swallowed: nothing pressed at this field should reach the rest of the app.
+            return nil
+        }
+    }
+
+    /// The key code of the modifier a set of flags is, so a held one can be stored as the key it is.
+    static func keyCode(of flags: NSEvent.ModifierFlags) -> UInt16 {
+        if flags.contains(.function) { return HotkeyBinding.functionKeyCode }
+        if flags.contains(.command) { return 55 }
+        if flags.contains(.option) { return 58 }
+        if flags.contains(.control) { return 59 }
+        if flags.contains(.shift) { return 56 }
+        return 0
     }
 
     private func stopListening() {

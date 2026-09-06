@@ -79,17 +79,22 @@ struct HeldModifierEdgeTests {
 
 @Suite("Which held keys the polled state can answer for")
 struct PolledStateTests {
-    /// Fn arrives as a flags change and never shows in the polled state, so polling it reads "up".
-    @Test("does not reconcile a held Fn, which polling would report as released mid-hold")
-    func refusesToReconcileFunction() {
-        #expect(!HeldModifierMonitor.polledStateCanSee(.function))
-        #expect(!HeldModifierMonitor.polledStateCanSee([.function, .command]))
+    /// Fn arrives as a flags change and never appears in the polled state, so polling it reads "up".
+    @Test("will not reconcile a key the polled state does not report, which is how Fn cancelled itself")
+    func refusesAKeyTheStateCannotSee() {
+        #expect(!HeldModifierMonitor.polledStateReports(.function, whileHeld: []))
+        #expect(!HeldModifierMonitor.polledStateReports([.function], whileHeld: [.command]))
     }
 
-    @Test("reconciles every modifier the polled state does report")
-    func reconcilesTheRest() {
-        #expect(HeldModifierMonitor.polledStateCanSee(.command))
-        #expect(HeldModifierMonitor.polledStateCanSee(.option))
-        #expect(HeldModifierMonitor.polledStateCanSee([.control, .shift]))
+    @Test("reconciles a key the polled state does report")
+    func reconcilesAKeyTheStateReports() {
+        #expect(HeldModifierMonitor.polledStateReports(.command, whileHeld: [.command]))
+        #expect(HeldModifierMonitor.polledStateReports([.control, .shift], whileHeld: [.control, .shift]))
+        #expect(HeldModifierMonitor.polledStateReports(.option, whileHeld: [.option, .shift]))
+    }
+
+    @Test("a partly reported combination is not reconciled, since the missing half would read as up")
+    func refusesAPartlyReportedCombination() {
+        #expect(!HeldModifierMonitor.polledStateReports([.command, .function], whileHeld: [.command]))
     }
 }

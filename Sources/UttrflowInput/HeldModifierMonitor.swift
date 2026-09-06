@@ -110,15 +110,18 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
             .union(NSEvent.modifierFlags)
     }
 
-    /// Whether a held key of these flags shows up in the polled state at all; Fn does not.
-    static func polledStateCanSee(_ wanted: NSEvent.ModifierFlags) -> Bool {
-        !wanted.contains(.function)
+    /// Whether the polled state reports the key held; a source blind to it calls every hold a release.
+    static func polledStateReports(
+        _ wanted: NSEvent.ModifierFlags, whileHeld polled: NSEvent.ModifierFlags
+    ) -> Bool {
+        polled.intersection(consideredFlags).isSuperset(of: wanted)
     }
 
     /// Reads the flags directly, so a release that is never delivered is still noticed. See `Docs/stuck-recording.md`.
     private func startReconciling() {
-        // Only against a source that can see this key, or Fn reads "up" mid-hold and cancels itself.
-        guard Self.polledStateCanSee(watchedFlags.withLock { $0 }) else { return }
+        // Asked while the key is down: a source that cannot see it would call every hold a release.
+        guard Self.polledStateReports(watchedFlags.withLock { $0 }, whileHeld: Self.polledFlags())
+        else { return }
         let timer = DispatchSource.makeTimerSource(queue: .main)
         timer.schedule(
             deadline: .now() + .milliseconds(Self.reconciliationMilliseconds),
