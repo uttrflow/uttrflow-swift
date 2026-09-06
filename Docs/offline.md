@@ -237,24 +237,38 @@ In the app the same condition raises `.modelNotInstalled` — *"Speech recogniti
 to finish setting up before you can dictate."* with a `.downloadSpeechModel` action.
 No hang, no crash. Two problems with it, though:
 
-### Nothing installs the model
+### The model download path still has a gap
 
-`AppDelegate` builds a `FileSystemSpeechModelStore` and uses it only for
-`location(of:)`. It never calls `install`. `DockView` renders a **Download** button for
-`.downloadSpeechModel`, and `DockPanelController` exposes `onRecoveryAction` — but
-`AppDelegate.wireInterface()` never assigns it. The button is inert.
+The **Download** button for `.downloadSpeechModel` is no longer inert. `DockView` sends
+the recovery action through `DockPanelController`, and `AppDelegate.wireInterface()`
+assigns the handler. `AppDelegate.perform(_:)` responds by opening the Settings window
+on the **Dictation** tab.
 
-So the shipped app's answer to "no model" is a correct sentence and a button that does
-nothing. Phase 7 is where that gets wired; until it is, the model can only be installed
-from `uttrflow-dev`.
+That is useful navigation, but it is not an installer. The Dictation settings pane
+offers the speed-and-accuracy choice and other preferences; it does not call
+`SpeechModelStore.install`. The actual download lives in the onboarding setup flow:
+`OnboardingFlow` enters `.setup`, then `beginInstall()` calls the injected installer.
 
-### The startup failure is swallowed
+This matters after somebody has dismissed onboarding. **Finish Setup** now opens Settings
+→ Dictation, where the user can see the speech-recognition choice but cannot start the
+download. The model can still be installed by the first-run setup flow when that flow is
+available, or with `uttrflow-dev models install`; the recovery action itself does not
+reopen the installer. The offline promise is therefore still conditional on the model
+having been installed somewhere before dictation is attempted.
 
-`DictationPipeline.prepare()` is `try? await speech.prepare()`. On launch with no model
-the error is discarded and no state is published, so the menu bar still says "Ready".
-The user learns otherwise only after holding the key and speaking. That is a deliberate
-choice — a failure at launch is not yet the user's problem — but it means the offline
-first-run message arrives one wasted dictation late.
+### Startup now says what happened
+
+At launch, `AppDelegate.loadSpeechModel()` first asks the model store whether the default
+model is installed. If it is absent, it records `.notInstalled` and returns; it does not
+claim that the app is ready. If the files are present, it reports `.loading` while it
+awaits `DictationPipeline.prepare()`.
+
+`DictationPipeline.prepare()` now catches a failed speech-engine load, keeps `isReady`
+false, and publishes a failed state when no dictation is in progress. The app maps a
+successful preparation to `.ready` and an unsuccessful one back to `.notInstalled`, so
+the menu bar can say *"Getting ready…"* or *"Setup hasn't finished"* instead of leaving
+the user with a false *"Ready"*. A missing model is still a setup state rather than a
+startup exception, but it is no longer silently discovered only after the first keypress.
 
 ## What this does not prove
 
