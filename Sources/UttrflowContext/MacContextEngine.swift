@@ -195,22 +195,10 @@ public final class MacContextEngine: ContextEngine, Sendable {
     ///
     /// - Parameter work: The reading to attempt, which records what it gets as it goes.
     private func withinBudget(_ work: @escaping @Sendable () async -> Void) async {
-        let race = FirstPast()
-        var timer: Task<Void, Never>?
-        await withCheckedContinuation { continuation in
-            // Armed before either racer exists, or `FirstPast.finish` does nothing at all.
-            race.arm(continuation)
-            Task {
-                await work()
-                race.finish()
-            }
-            timer = Task { [clock] in
-                try? await clock.sleep(for: Self.budget)
-                race.finish()
-            }
+        _ = await Deadline.first(within: Self.budget, on: clock) {
+            await work()
+            return true
         }
-        // Cancelled so a clock that sleeps for real does not leave a task per reading.
-        timer?.cancel()
     }
 
     /// Drops what carries no information, so ``AppContext/isEmpty`` means what it says.
@@ -254,23 +242,5 @@ private final class Reading: Sendable {
 
     func record(window: FocusedWindow?) {
         state.withLock { $0.window = window }
-    }
-}
-
-/// Resumes one continuation for whichever of two racers gets there first, and ignores
-/// the loser when it eventually turns up.
-private final class FirstPast: Sendable {
-    private let held = Mutex<CheckedContinuation<Void, Never>?>(nil)
-
-    func arm(_ continuation: CheckedContinuation<Void, Never>) {
-        held.withLock { $0 = continuation }
-    }
-
-    func finish() {
-        let continuation = held.withLock { waiting in
-            defer { waiting = nil }
-            return waiting
-        }
-        continuation?.resume()
     }
 }

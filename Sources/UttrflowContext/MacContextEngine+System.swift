@@ -57,36 +57,19 @@ extension MacContextEngine {
 
         // Read separately, so an app that names its window but hides its selection —
         // Chrome, in the probe — still yields the half it was willing to give.
-        let title = element(app, kAXFocusedWindowAttribute).flatMap { string($0, kAXTitleAttribute) }
-        let field = element(app, kAXFocusedUIElementAttribute)
-        let selected = field.flatMap { string($0, kAXSelectedTextAttribute) }
+        let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute)
+            .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
+        let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute)
+        let selected = field.flatMap { SurfaceProbe.string($0, kAXSelectedTextAttribute) }
         let caret = field.flatMap { field in
             // A negative length, which an app may report for no selection, would trap as a range.
             let selection = SurfaceProbe.selectedRange(field).map { range in
                 range.location..<(range.location + max(range.length, 0))
             }
-            return CaretText.around(string(field, kAXValueAttribute), selection: selection)
+            return CaretText.around(SurfaceProbe.string(field, kAXValueAttribute), selection: selection)
         }
         return FocusedWindow(
             title: title, selectedText: selected,
             precedingText: caret?.preceding, followingText: caret?.following)
-    }
-
-    private static func element(_ owner: AXUIElement, _ attribute: String) -> AXUIElement? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXUIElementGetTypeID()
-        else { return nil }
-        // Checked by type ID immediately above. A conditional cast cannot express this:
-        // Swift treats `as?` on a Core Foundation type as always succeeding, which
-        // would silently accept a non-element.
-        return unsafeDowncast(value, to: AXUIElement.self)
-    }
-
-    private static func string(_ owner: AXUIElement, _ attribute: String) -> String? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
-        else { return nil }
-        return value as? String
     }
 }
