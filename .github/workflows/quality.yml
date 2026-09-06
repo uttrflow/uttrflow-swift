@@ -1,0 +1,122 @@
+# The checks that keep the writing honest, which `make verify` cannot do from a Mac.
+#
+# `ci.yml` compiles and tests on macOS, where a minute is expensive. Everything here is
+# text: it needs no toolchain, no simulator and no signing, so it runs on Linux in seconds
+# and never competes with the build for a runner.
+#
+# Three questions, and one of them is deliberately not a gate yet:
+#
+#   spelling   `typos`, which is only usable with `_typos.toml` — see the essay in there
+#              about why this repository trips a spell checker 165 times without it
+#   workflows  `actionlint`, which type-checks the `${{ }}` expressions and runs
+#              shellcheck over every `run:` block. Zero findings today, so it can be
+#              required from the start
+#   links      `lychee`. Five links in the tree are genuinely dead, four of them because
+#              CHANGELOG.md documents v0.2.2, v0.3.0 and v0.4.0 and no such tag has ever
+#              been pushed. A gate cannot demand the operator cut three releases, so this
+#              reports and does not block. Promote it once those tags exist.
+#
+# Tools are pinned release binaries checked against their published SHA-256, for the same
+# reason as `security.yml`: an action is somebody else's code running in this repository.
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # External links rot with nobody touching the repository, so the link check has to run
+  # on a clock rather than only when somebody opens a pull request.
+  schedule:
+    - cron: "0 9 * * 3"
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  ACTIONLINT_VERSION: "1.7.12"
+  ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+  TYPOS_VERSION: "1.50.1"
+  TYPOS_SHA256: "edf0545109aee6a22751d04ddecb97c45be47d3aa0409564fb895eeeace91b1e"
+  LYCHEE_VERSION: "0.24.2"
+  LYCHEE_SHA256: "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a"
+
+jobs:
+  workflows:
+    name: The workflows say what they mean
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 -o actionlint.tar.gz "$url"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum --check --strict
+          tar -xzf actionlint.tar.gz actionlint
+          chmod +x actionlint
+
+      # shellcheck is already on the runner, and actionlint hands it every `run:` block —
+      # 25 of them across the six workflows. An unquoted variable in a release script is
+      # the kind of thing that only shows itself on the day it matters.
+      - name: Lint
+        run: ./actionlint -color
+
+  spelling:
+    name: No typos outside the fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install typos
+        run: |
+          set -euo pipefail
+          url="https://github.com/crate-ci/typos/releases/download/v${TYPOS_VERSION}/typos-v${TYPOS_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 -o typos.tar.gz "$url"
+          echo "${TYPOS_SHA256}  typos.tar.gz" | sha256sum --check --strict
+          tar -xzf typos.tar.gz ./typos
+          chmod +x typos
+
+      # No --locale. The default accepts British spelling, which is the house style.
+      - name: Check the spelling
+        run: ./typos --format long
+
+  links:
+    name: Links still resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Reports, does not block, until CHANGELOG.md's three untagged releases exist. The
+    # job going red is still visible on the pull request; it just cannot stop a merge.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install lychee
+        run: |
+          set -euo pipefail
+          url="https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 -o lychee.tar.gz "$url"
+          echo "${LYCHEE_SHA256}  lychee.tar.gz" | sha256sum --check --strict
+          tar -xzf lychee.tar.gz --strip-components=1 lychee-x86_64-unknown-linux-gnu/lychee
+          chmod +x lychee
+
+      - name: Check the links
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ./lychee --no-progress --include-fragments --format detailed \
+            --github-token "$GITHUB_TOKEN" \
+            './*.md' './Docs/**/*.md'

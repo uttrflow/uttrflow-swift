@@ -53,9 +53,9 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.0"),
-        .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.18.0"),
+        .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "1.1.0"),
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "3.31.0"),
-        .package(url: "https://github.com/huggingface/swift-transformers", from: "1.1.0"),
+        .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.4"),
         .package(url: "https://github.com/huggingface/swift-huggingface", from: "0.1.0"),
         // Updating the app in place. A dependency rather than something written here
         // because the hard part is not fetching a file — it is replacing a *running*

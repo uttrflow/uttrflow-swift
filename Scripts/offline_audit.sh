@@ -256,9 +256,17 @@ else
             #   HuggingFace,       — swift-huggingface and its SSE helper, the download
             #   EventSource          machinery UttrflowLocalModel pulls in, the way Hub is
             #                       WhisperKit's. They fetch model files and nothing else.
+            #   ArgmaxCore        — WhisperKit 1.1.0's own core, which vendors a copy of
+            #                       swift-transformers' Hub under External/Hub. It is the
+            #                       same downloader as Hub, duplicated rather than new in
+            #                       kind, and it runs on the same trigger: `models install`
+            #                       calling WhisperKit.download. The dictation path cannot
+            #                       reach it — load() passes `download: false` — so the
+            #                       guarantee this audit exists for is untouched, and
+            #                       checks 1 to 3 above are what still prove it.
             #   Uttrflow          — the app target links the above, so it inherits the
             #                       symbol. Nothing in it opens a connection of its own.
-            ALLOWED_NETWORK_MODULES="Hub UttrflowSpeech UttrflowAccount UttrflowLocalModel HuggingFace EventSource Uttrflow"
+            ALLOWED_NETWORK_MODULES="Hub UttrflowSpeech UttrflowAccount UttrflowLocalModel HuggingFace EventSource ArgmaxCore Uttrflow"
             networking=""
             while IFS= read -r module_dir; do
                 found="$(find "$BIN_PATH/$module_dir" -name '*.o' -print0 2>/dev/null \
