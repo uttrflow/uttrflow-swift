@@ -32,13 +32,50 @@ REMOTE_NAME="${1:-origin}"
 # An all-zero local sha is a deletion, which builds nothing and is let through.
 ZERO="0000000000000000000000000000000000000000"
 gate=no
-while read -r _local_ref local_sha remote_ref _remote_sha; do
+pushed=()
+while read -r _local_ref local_sha remote_ref remote_sha; do
     [[ "$local_sha" == "$ZERO" ]] && continue
+    # A new branch has no remote counterpart, so ask what the remote does not have yet
+    # rather than replaying the whole history of the project on every first push.
+    if [[ "$remote_sha" == "$ZERO" ]]; then
+        pushed+=("$local_sha --not --remotes=$REMOTE_NAME")
+    else
+        pushed+=("$remote_sha..$local_sha")
+    fi
     if [[ "$remote_ref" == "refs/heads/main" ]]; then
         gate=yes
         gate_sha="$local_sha"
     fi
 done
+
+# ---------------------------------------------------------------------------
+# The disclosure gate runs on every ref, and it runs first
+# ---------------------------------------------------------------------------
+# `make verify` gates `main` alone because it costs five minutes, and blocking a feature
+# branch for that long teaches people to reach for --no-verify. This check costs two
+# seconds, so it can afford what the rule actually asks for: nothing private to building
+# this product lands in *any* remote branch. On a public repository a feature branch is
+# published and indexed the moment it is pushed — main is not the boundary, the remote is.
+#
+# It reads the commits being pushed, not the working tree: messages and the added side of
+# every diff, which is where this class of mistake lives and where no file audit looks.
+# A branch cut before this script existed does not carry it, and blocking that push would
+# be the hook failing rather than the branch. The commit-msg hook guards the same way.
+if ((${#pushed[@]})) && [[ -f Scripts/disclosure_audit.py ]]; then
+    printf '\n\033[1mpre-push: checking what is about to be published\033[0m\n'
+    for range in "${pushed[@]}"; do
+        # Deliberately unquoted: a new-branch range is three arguments, not one.
+        # shellcheck disable=SC2086
+        if ! python3 Scripts/disclosure_audit.py --range $range; then
+            printf '\n\033[31m  nothing was pushed\033[0m\n'
+            printf '  A commit message or an added line carries text that must not be\n'
+            printf '  published. See AGENTS.md, "What must never reach a tracked file".\n'
+            printf '  Amend or rewrite the commit — the branch has not left this machine,\n'
+            printf '  so this is still fixable. After a push it is not.\n\n'
+            exit 1
+        fi
+    done
+fi
 
 if [[ "$gate" != "yes" ]]; then
     exit 0
