@@ -65,13 +65,11 @@ What the claim buys you is specific, because a vaguer promise would be worth not
 If we take a claimed issue anyway, that is a bug in how this project is run — please say so
 on the issue, and it will be treated as one.
 
-**This exists because it has already gone wrong.** The first outside pull request this
-project ever received (#62) implemented a `good first issue` whose author had asked for it
-on the issue thirty-two minutes earlier. Nobody answered them. Twelve minutes after they
-asked, a maintainer branch opened doing the same work, and it merged and closed the issue
-while their pull request sat open and unreviewed. They had done exactly what this file asks
-for. A *good first issue* that a maintainer finishes underneath a newcomer is worse than
-never having labelled one.
+**This exists because it has already gone wrong.** An early contributor asked on an issue
+whether they could take it, got no reply, and a maintainer branch finished the same work
+before they could — closing the issue while their pull request sat open and unreviewed.
+They had done exactly what this file asks for. A *good first issue* that a maintainer
+finishes underneath a newcomer is worse than never having labelled one.
 
 ## What the code review is looking for
 
