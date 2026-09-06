@@ -79,8 +79,7 @@ public enum SettingsPresenter {
                         SettingsRow(
                             id: "hotkey",
                             label: "Dictation shortcut",
-                            // Only Fn, the one key macOS has its own plans for. See
-                            // `Docs/ux-settings-model.md`.
+                            // Only Fn, which macOS has its own plans for. See `Docs/ux-settings-model.md`.
                             explanation: settings.hotkey.heldModifier == nil
                                 ? nil
                                 : """

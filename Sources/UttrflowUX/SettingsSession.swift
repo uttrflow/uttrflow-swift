@@ -51,7 +51,7 @@ public struct SettingsSession: Sendable, Equatable {
             personalisation: personalisation, at: moment)
     }
 
-    /// Carries out a change and returns the settings to save, or records why it was refused.
+    /// Carries out a change and returns the settings to save, or records the refusal's reason.
     @discardableResult
     public mutating func apply(_ change: SettingsChange, at moment: Date = Date()) -> Settings? {
         do {
