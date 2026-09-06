@@ -10,10 +10,10 @@ import UttrflowPipeline
 enum UttrflowApp {
     static func main() {
         let application = NSApplication.shared
-        // One model both validates a remembered suggestion and invents one where there is none.
+        // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
         let model = MLXCandidateScorer(model: .gemma3)
-        Task.detached { try? await model.prepare() }
-        let delegate = AppDelegate(scoring: model, generating: model)
+        let delegate = AppDelegate(
+            scoring: model, generating: model, prepareModel: { try? await model.prepare() })
         application.delegate = delegate
         // Regular, not accessory: Uttrflow has a Dock icon and its window opens at launch.
         application.setActivationPolicy(.regular)

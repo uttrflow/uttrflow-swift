@@ -20,7 +20,7 @@ So: clone, build, run. Everything works.
 ```bash
 git clone https://github.com/uttrflow/uttrflow-swift.git
 cd uttrflow-swift
-make verify        # lint, PII audit, build, ~2,900 tests, coverage floor, offline audit
+make verify        # lint, PII audit, build, 4,000+ tests, coverage floor, offline audit
 make app           # builds and ad-hoc signs dist/Uttrflow.app
 open dist/Uttrflow.app
 ```
