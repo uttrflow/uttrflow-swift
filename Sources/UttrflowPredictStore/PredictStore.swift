@@ -176,7 +176,7 @@ public actor PredictStore: PredictionStore {
     ) throws(PredictStoreError) -> [Candidate] {
         let lowered = typed.lowercased()
         guard let upper = Self.upperBound(of: lowered) else { return [] }
-        return try rows(
+        return try readCandidates(
             Self.prefixQuery,
             {
                 $0.bind(1, id)
@@ -196,7 +196,7 @@ public actor PredictStore: PredictionStore {
         let width = FuzzyMatch.maskWidth(forQueryOfLength: needle.count, within: budget)
         let queryMask = FuzzyMatch.mask(needle)
 
-        let all = try rows(
+        let all = try readCandidates(
             """
             SELECT \(entryColumns) FROM entry
             WHERE surface_id = ? AND superseded_by IS NULL
@@ -228,12 +228,12 @@ public actor PredictStore: PredictionStore {
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         try database.transaction { () throws(PredictStoreError) in
-            try commit(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
+            try write(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
         }
     }
 
     /// The steps of a record, which stand or fall together.
-    private func commit(
+    private func write(
         _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: true) else { return }
@@ -416,7 +416,7 @@ public actor PredictStore: PredictionStore {
             })
     }
 
-    private func rows(
+    private func readCandidates(
         _ sql: String, _ bind: (OpaquePointer) -> Void, distance: Int
     ) throws(PredictStoreError) -> [Candidate] {
         try database.rows(sql, bind) { row in
@@ -433,7 +433,7 @@ public actor PredictStore: PredictionStore {
     }
 
     private func entry(surfaceIdentifier id: Int64, text: String) throws(PredictStoreError) -> Entry? {
-        try rows(
+        try readCandidates(
             """
             SELECT \(entryColumns) FROM entry
             WHERE surface_id = ? AND text = ? AND superseded_by IS NULL

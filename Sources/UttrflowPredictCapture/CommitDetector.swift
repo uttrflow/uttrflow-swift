@@ -71,11 +71,11 @@ public struct CommitDetector: Sendable, Equatable {
             lastKeystroke = moment
             return nil
         case .returnPressed:
-            return finishing(.returnPressed)
+            return finish(.returnPressed)
         case .focusLeft:
-            return finishing(.focusLeft)
+            return finish(.focusLeft)
         case .applicationDeactivated:
-            return finishing(.applicationDeactivated)
+            return finish(.applicationDeactivated)
         case .tick(let moment):
             guard let lastKeystroke,
                 moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval,
@@ -94,7 +94,7 @@ public struct CommitDetector: Sendable, Equatable {
     }
 
     /// Commits and then forgets, for the three events that end the field's life.
-    private mutating func finishing(_ reason: CommitReason) -> Commit? {
+    private mutating func finish(_ reason: CommitReason) -> Commit? {
         defer { reset() }
         return commit(reason)
     }

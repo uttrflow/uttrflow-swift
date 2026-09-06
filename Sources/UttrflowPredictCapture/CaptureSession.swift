@@ -20,7 +20,7 @@ public actor CaptureSession {
     private var preferences: CapturePreferences
     private var focused: FieldReading?
     private var detector = CommitDetector()
-    private var previous: [Surface: String] = [:]
+    private var lastRecorded: [Surface: String] = [:]
 
     public init(
         sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding
@@ -55,9 +55,9 @@ public actor CaptureSession {
             return .refused(refusal)
         }
         // The line is recorded before the acceptance is counted, so the first acceptance of a new line is not lost.
-        try await sink.record(text, in: surface, after: previous[surface], selfSourced: true, at: moment)
+        try await sink.record(text, in: surface, after: lastRecorded[surface], selfSourced: true, at: moment)
         try await sink.recordAccepted(text, in: surface)
-        previous[surface] = text
+        lastRecorded[surface] = text
         return .recorded(text)
     }
 
@@ -113,8 +113,8 @@ public actor CaptureSession {
             try await sink.supersede(superseded, with: commit.text, in: surface)
         }
         try await sink.record(
-            commit.text, in: surface, after: previous[surface], selfSourced: false, at: moment)
-        previous[surface] = commit.text
+            commit.text, in: surface, after: lastRecorded[surface], selfSourced: false, at: moment)
+        lastRecorded[surface] = commit.text
         return .recorded(commit.text)
     }
 }
