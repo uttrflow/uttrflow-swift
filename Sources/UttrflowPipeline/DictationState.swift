@@ -79,13 +79,15 @@ public enum DictationState: Sendable, Equatable {
     case recording
     case transcribing
     case tidying
+    /// The words have been handed to the app, which has not yet shown them.
+    case inserting
     case inserted(DictationOutcome)
     case failed(DictationFailure)
 
     /// Whether a new dictation can begin.
     public var isBusy: Bool {
         switch self {
-        case .recording, .transcribing, .tidying: true
+        case .recording, .transcribing, .tidying, .inserting: true
         case .idle, .inserted, .failed: false
         }
     }

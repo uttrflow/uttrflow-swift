@@ -7,17 +7,12 @@
 # Checked against the real failures first: with these two accepted, the five genuinely
 # dead links in this tree still fail.
 #
-# The browser user agent is for the same reason. Several of the competitor documentation
-# sites linked from `Docs/` serve a challenge page to anything that admits to being a bot.
+# The browser user agent is for the same reason. Several of the sites linked from `Docs/`
+# serve a challenge page to anything that admits to being a bot.
 #
 # Fragments are checked with `--include-fragments` on the command line; the key is
 # rejected here by v0.24.2. The workflow also passes `--github-token` so GitHub links go
 # through the API rather than being scraped.
-
-# `speechlive.com` is excluded for the same reason 403 and 429 are accepted: it answers in
-# under two seconds from a laptop, three times out of three, and times out from a runner
-# even at thirty seconds with three retries. A timeout there says where the build ran, not
-# whether the link is dead.
 
 max_concurrency = 4
 timeout = 30
@@ -27,4 +22,3 @@ retry_wait_time = 5
 user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 accept = ["200..=299", "403", "429"]
 exclude_path = [".build", "dist"]
-exclude = ["^https://www\\.speechlive\\.com/"]

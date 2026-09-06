@@ -260,6 +260,36 @@ struct DictationPipelineRecordingTests {
     }
 }
 
+/// The state that exists so a tick cannot be shown before the words are on screen.
+@Suite("Inserting, which is still working as far as the user is concerned")
+struct InsertingStateTests {
+    @Test("reads as work in progress rather than a result")
+    func showsProgress() {
+        let dock = DictationPresenter.dock(for: .inserting)
+
+        #expect(dock.showsProgress)
+        #expect(dock.showsWaveform == false)
+        #expect(dock.symbolName != "checkmark", "a tick here is the bug this state exists to fix")
+        #expect(dock.secondaryLine == nil, "nothing to preview until the words have landed")
+    }
+
+    @Test("holds the dictation open, so a second one cannot start over it")
+    func staysBusy() {
+        #expect(DictationState.inserting.isBusy)
+        #expect(DictationState.inserting.isListening == false)
+    }
+
+    /// One wait to the person waiting, so a second wording would only announce our own plumbing.
+    @Test("says exactly what tidying says, because it is the same wait")
+    func speaksWithOneVoice() {
+        let inserting = DictationPresenter.dock(for: .inserting)
+        let tidying = DictationPresenter.dock(for: .tidying)
+
+        #expect(inserting == tidying)
+        #expect(inserting.accessibilityLabel.lowercased().contains("paste") == false)
+    }
+}
+
 /// The floating button, for a dictation that came from a recording.
 @Suite("Failure presentation for a retried dictation")
 struct RetriedDictationPresentationTests {
