@@ -1,0 +1,31 @@
+# Vulnerabilities in Package.resolved that are known about and knowingly carried.
+#
+# An entry here is not a dismissal. It is a promise that somebody looked, decided the risk
+# was smaller than the cost of acting today, and wrote down the date by which they will
+# look again — `osv-scanner` fails the build once `ignoreUntil` passes, so the promise cannot
+# quietly become permanent.
+
+[[IgnoredVulns]]
+id = "GHSA-g3hp-f6mg-559v"
+ignoreUntil = 2026-12-01
+reason = "No fixed version exists; reaching it needs local code execution already."
+# Sparkle's installer XPC listener accepts unvalidated local connections after stage 1,
+# which lets another process on the same Mac hand it spoofed appcast data. There is no
+# fixed version — Sparkle has not shipped one — so there is nothing to upgrade to. The
+# attacker already needs code execution on the user's Mac to reach it. Reviewed again in
+# December, by which time Sparkle may have a fix worth taking.
+
+[[IgnoredVulns]]
+id = "GHSA-hg88-v3cw-3qrh"
+ignoreUntil = 2026-12-01
+reason = "Fixed in Sparkle 2.9.2; the bump is a manual signing change, owed and tracked."
+# Symlink traversal while applying a malicious binary delta. Fixed in Sparkle 2.9.2 and
+# this repository pins 2.7.2, so unlike the one above this is an upgrade that exists.
+#
+# It is not taken automatically, and `.github/dependabot.yml` ignores Sparkle for the same
+# reason: Sparkle is embedded in the app bundle and signed as part of it, so moving it is a
+# packaging change that has to be built, signed and notarised by hand rather than accepted
+# from a bot. Reaching the bug also requires serving a forged delta, which means defeating
+# the EdDSA signature on the appcast first.
+#
+# 🔴 This entry is the reminder that the manual bump is owed. See Docs/packaging.md.
