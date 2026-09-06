@@ -16,14 +16,26 @@ public struct Settings: Sendable, Equatable, Codable {
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     public var destinations: DestinationOverrides
 
-    /// The shortcut that starts a dictation.
-    public var hotkey: HotkeyBinding
+    /// Every shortcut the user has, by what it is for. See `Docs/shortcuts.md`.
+    public var shortcuts: ShortcutSet
 
-    /// Whether that shortcut is held down or pressed twice.
+    /// Whether the dictation shortcut is held down or pressed twice.
     public var hotkeyActivation: HotkeyActivation
 
-    /// The shortcut that opens the clipboard panel, or nothing. See `Docs/settings-decoding.md`.
-    public var clipboardHotkey: HotkeyBinding?
+    /// The dictation shortcut, which is ``shortcuts`` seen from the one angle most screens want.
+    public var hotkey: HotkeyBinding {
+        get { shortcuts.first(for: .dictate) ?? .functionHold }
+        set { shortcuts.replace(at: 0, with: newValue, for: .dictate) }
+    }
+
+    /// The clipboard shortcut the same way, which may be nothing at all.
+    public var clipboardHotkey: HotkeyBinding? {
+        get { shortcuts.first(for: .clipboard) }
+        set {
+            guard let newValue else { return shortcuts.remove(at: 0, from: .clipboard) }
+            shortcuts.replace(at: 0, with: newValue, for: .clipboard)
+        }
+    }
 
     /// Whether the floating button is on screen at all.
     public var showsFloatingButton: Bool
@@ -64,9 +76,8 @@ public struct Settings: Sendable, Equatable, Codable {
         profile: UserProfile = .default,
         cleaning: CleaningSteps = .default,
         destinations: DestinationOverrides = .none,
-        hotkey: HotkeyBinding = .optionSpace,
+        shortcuts: ShortcutSet = .default,
         hotkeyActivation: HotkeyActivation = .holdToTalk,
-        clipboardHotkey: HotkeyBinding? = .shiftCommandV,
         showsFloatingButton: Bool = true,
         floatingButtonAnchor: DockAnchor = .bottomRight,
         shrinksToGripWhenIdle: Bool = true,
@@ -83,9 +94,8 @@ public struct Settings: Sendable, Equatable, Codable {
         self.profile = profile
         self.cleaning = cleaning
         self.destinations = destinations
-        self.hotkey = hotkey
+        self.shortcuts = shortcuts
         self.hotkeyActivation = hotkeyActivation
-        self.clipboardHotkey = clipboardHotkey
         self.showsFloatingButton = showsFloatingButton
         self.floatingButtonAnchor = floatingButtonAnchor
         self.shrinksToGripWhenIdle = shrinksToGripWhenIdle
@@ -107,15 +117,20 @@ public struct Settings: Sendable, Equatable, Codable {
 }
 
 extension Settings {
+    /// The two fields shortcuts replaced, read once so a settings file written before them still opens.
+    enum LegacyShortcutKeys: String, CodingKey {
+        case hotkey
+        case clipboardHotkey
+    }
+
     /// The names the choices are stored under, which are fixed for the life of the format.
     enum CodingKeys: String, CodingKey {
         case engines
         case profile
         case cleaning
         case destinations
-        case hotkey
+        case shortcuts
         case hotkeyActivation
-        case clipboardHotkey
         case showsFloatingButton
         case floatingButtonAnchor
         case shrinksToGripWhenIdle
@@ -136,24 +151,14 @@ extension Settings {
             return
         }
         let fallback = Settings.default
-        // Resolved first because the clipboard shortcut is only valid relative to this one.
-        let dictation = Settings.shortcut(
-            container.value(forKey: .hotkey, default: fallback.hotkey)
-        )
         self.init(
             engines: container.value(forKey: .engines, default: fallback.engines),
             profile: container.value(forKey: .profile, default: fallback.profile),
             cleaning: container.value(forKey: .cleaning, default: fallback.cleaning),
             destinations: container.value(forKey: .destinations, default: fallback.destinations),
-            hotkey: dictation,
+            shortcuts: Settings.shortcuts(from: decoder, default: fallback.shortcuts),
             hotkeyActivation: container.value(
                 forKey: .hotkeyActivation, default: fallback.hotkeyActivation
-            ),
-            clipboardHotkey: Settings.clipboardShortcut(
-                container.optionalValue(
-                    forKey: .clipboardHotkey, default: fallback.clipboardHotkey
-                ),
-                alongside: dictation
             ),
             showsFloatingButton: container.value(
                 forKey: .showsFloatingButton, default: fallback.showsFloatingButton
@@ -201,17 +206,34 @@ extension Settings {
         binding.isDeliverable ? binding : .optionSpace
     }
 
-    /// The clipboard shortcut, or nothing when macOS cannot deliver it or `dictation` owns it.
-    static func clipboardShortcut(
-        _ binding: HotkeyBinding?, alongside dictation: HotkeyBinding
-    ) -> HotkeyBinding? {
-        guard let binding, binding.isDeliverable, binding != dictation else { return nil }
-        return binding
+    /// The shortcuts on disk, reading the two fields that came before them when they are all there is.
+    static func shortcuts(from decoder: any Decoder, default fallback: ShortcutSet) -> ShortcutSet {
+        if let container = try? decoder.container(keyedBy: CodingKeys.self),
+            let stored = try? container.decodeIfPresent(ShortcutSet.self, forKey: .shortcuts),
+            stored.isBound(.dictate)
+        {
+            return stored
+        }
+        guard let legacy = try? decoder.container(keyedBy: LegacyShortcutKeys.self) else {
+            return fallback
+        }
+        // Written before shortcuts were a set: one dictation shortcut and maybe a clipboard one.
+        let dictation = Settings.shortcut(
+            legacy.value(forKey: .hotkey, default: fallback.first(for: .dictate) ?? .optionSpace))
+        var migrated = ShortcutSet([.dictate: [dictation]])
+        // Absent means the default, `null` means switched off, and unreadable means the default.
+        let clipboard = legacy.optionalValue(
+            forKey: .clipboardHotkey, default: fallback.first(for: .clipboard))
+        // A clipboard shortcut that is the dictation one would fire both, so it is dropped.
+        if let clipboard, clipboard.isDeliverable, clipboard != dictation {
+            migrated.add(clipboard, to: .clipboard)
+        }
+        return migrated
     }
 }
 
 /// Reads one settings field at a time, so one unreadable value costs the user only that value.
-extension KeyedDecodingContainer where Key == Settings.CodingKeys {
+extension KeyedDecodingContainer {
     /// Reads one field, answering with `fallback` when it is absent or unreadable.
     fileprivate func value<T: Decodable>(forKey key: Key, default fallback: T) -> T {
         (try? decodeIfPresent(T.self, forKey: key)) ?? fallback

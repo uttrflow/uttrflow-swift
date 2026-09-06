@@ -43,8 +43,8 @@ final class SettingsViewModel {
     }
 
     /// Starts listening for a new shortcut, and stands the live one down while it does.
-    func beginRecordingShortcut() {
-        session.beginRecordingShortcut()
+    func beginRecordingShortcut(_ action: ShortcutAction) {
+        session.beginRecordingShortcut(action)
         onShortcutRecording(true)
     }
 

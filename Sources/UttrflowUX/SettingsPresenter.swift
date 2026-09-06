@@ -66,7 +66,29 @@ public enum SettingsPresenter {
 
     // MARK: - General
 
+    /// One shortcut's row, drawn the same way whichever shortcut it is.
+    private static func shortcutRow(
+        _ descriptor: ShortcutDescriptor, _ settings: Settings
+    ) -> SettingsRow {
+        let binding = settings.shortcuts.first(for: descriptor.action)
+        return SettingsRow(
+            id: "shortcut.\(descriptor.action.rawValue)",
+            label: descriptor.label,
+            // Only Fn, which macOS has its own plans for. See `Docs/ux-settings-model.md`.
+            explanation: binding?.heldModifier == nil
+                ? descriptor.explanation
+                : """
+                If pressing fn also opens Emoji or Apple's dictation, \
+                set System Settings → Keyboard → "Press 🌐 key to" to \
+                Do Nothing.
+                """,
+            control: .shortcut(
+                action: descriptor.action,
+                keys: binding.map(SettingsShortcut.keycaps(for:)) ?? []))
+    }
+
     /// General: the floating button, the shortcut, sound, appearance, login and updating.
+
     private static func general(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsPane {
@@ -78,20 +100,7 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "shortcut",
                     title: nil,
-                    rows: [
-                        SettingsRow(
-                            id: "hotkey",
-                            label: "Dictation shortcut",
-                            // Only Fn, which macOS has its own plans for. See `Docs/ux-settings-model.md`.
-                            explanation: settings.hotkey.heldModifier == nil
-                                ? nil
-                                : """
-                                If pressing fn also opens Emoji or Apple's dictation, \
-                                set System Settings → Keyboard → "Press 🌐 key to" to \
-                                Do Nothing.
-                                """,
-                            control: .shortcut(keys: SettingsShortcut.keycaps(for: settings.hotkey))
-                        ),
+                    rows: [] + ShortcutRegistry.all.map { shortcutRow($0, settings) } + [
                         SettingsRow(
                             id: "activation",
                             label: "Activation",
@@ -100,7 +109,7 @@ public enum SettingsPresenter {
                             control: .segmented(
                                 options: HotkeyActivation.allCases.map(activationOption),
                                 selectedID: settings.hotkeyActivation.rawValue)
-                        ),
+                        )
                     ]),
                 SettingsGroup(
                     id: "floatingButton",
