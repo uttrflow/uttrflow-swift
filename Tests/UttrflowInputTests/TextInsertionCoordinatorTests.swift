@@ -165,11 +165,7 @@ struct AccessibilityTextInsertionEngineTests {
         }
     }
 
-    /// The guarantee is structural, not a matter of caller discipline:
-    /// ``FocusedTextField`` offers `replaceSelection(with:)` and nothing else, so there
-    /// is no call this engine could make that reaches past the selection. The field
-    /// here has content on both sides of the selection, so a whole-field write would
-    /// show up as those surrounding words disappearing.
+    /// Structural, not caller discipline: dictation calls the write that reaches no further than the selection.
     @Test("can only ever replace the selection, never the whole field")
     func replacesOnlyTheSelection() async throws {
         let field = FakeTextField(before: "Dear ", selected: "Bob", after: ", thanks for the note.")

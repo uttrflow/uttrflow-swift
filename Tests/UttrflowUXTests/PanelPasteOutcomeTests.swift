@@ -1,23 +1,24 @@
+// Tests for what choosing a clip does when it cannot be placed, and for a write the disk refused.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// B1–B5. The specification names one outcome as forbidden outright — a panel that closes
-/// having done nothing — and these are the states that would otherwise be it.
+/// The one forbidden outcome is a panel that closes having done nothing; these are the states near it.
 @Suite("B1–B5 · what choosing a clip actually does")
 struct PanelPasteOutcomeTests {
+    /// A plain clip.
     static let clip = PanelFixture.clip("the words", minutesAgo: 1)
 
+    /// A panel over the clip with this insertion answer.
     static func panel(_ insertion: PanelInsertion) -> PanelSnapshot {
         var snapshot = PanelFixture.panel([Self.clip])
         snapshot.insertion = insertion
         return snapshot
     }
 
-    /// B1, B2 — the two that succeed are deliberately indistinguishable to the user. The
-    /// text appearing is the confirmation, so there is nothing to say.
+    /// The two that succeed are indistinguishable to the user: the text appearing is the confirmation.
     @Test("B1, B2 · when it can place the text, it places it and closes")
     func placesAndCloses() {
         let response = Self.panel(.atCaret).applying(.return)
@@ -54,12 +55,7 @@ struct PanelPasteOutcomeTests {
         #expect(notice.action?.intent == .openAccessibilitySettings)
     }
 
-    /// The forbidden outcome, written as a test. Whatever the machine's state, choosing a
-    /// clip must do something and must say what it did.
-    /// Derived from `allCases` rather than listed by hand. A hand-written list is one an
-    /// obstacle can be added without joining, and the guarantee is meant to hold for
-    /// every way insertion can fall short — including the ones added after this was
-    /// written.
+    /// The forbidden outcome as a test, over every obstacle in `allCases` so a new one cannot slip past.
     @Test(
         "choosing a clip is never silent and never a no-op",
         arguments: [PanelInsertion.atCaret]
@@ -83,8 +79,7 @@ struct PanelPasteOutcomeTests {
         }
     }
 
-    /// Calling it insertion is how "it did nothing" gets reported as a success — the exact
-    /// bug that took four rounds to find in the dictation half of this app.
+    /// Calling a copy an insertion is how "it did nothing" gets reported as a success.
     @Test("a copy is never reported as an insertion")
     func aCopyIsNotAnInsertion() {
         let effect = Self.panel(.clipboardOnly(.nothingFocused)).applying(.return).outcome.effect
@@ -92,8 +87,7 @@ struct PanelPasteOutcomeTests {
         #expect(effect != .closeAndInsert("the words", used: Self.clip.id))
     }
 
-    /// The obstacle is settled when the panel opens, so a click and Return cannot disagree
-    /// about what is about to happen.
+    /// The obstacle is settled when the panel opens, so a click and Return cannot disagree.
     @Test("a click reports the same outcome as Return")
     func clickAgreesWithReturn() {
         let panel = Self.panel(.clipboardOnly(.nothingFocused))
@@ -113,9 +107,7 @@ struct PanelWriteFailureTests {
         #expect(notice.action == nil, "there is nothing the user can press to fix a full disk")
     }
 
-    /// Every store write used to be a `try?`. Naming a clip on a full disk closed the
-    /// sheet, changed nothing, and said nothing — so the name was simply gone the next
-    /// time the user looked, with no moment in between that suggested anything happened.
+    /// A failed write must be visible: a sheet that closes and changes nothing looks like success.
     @Test("it is not dressed as the copy notices, which are not failures")
     func itLooksLikeAProblem() {
         let failure = PanelNotice.writeFailed("x")
@@ -125,9 +117,7 @@ struct PanelWriteFailureTests {
         #expect(failure.symbolName.contains("exclamationmark"))
     }
 
-    /// Each obstacle has to say something different, because the way out of each is
-    /// different: grant a permission, put a caret somewhere, or click out of Uttrflow's
-    /// own window first. One shared sentence would send people to the wrong fix.
+    /// Each obstacle has its own way out, so one shared sentence would send people to the wrong fix.
     @Test("every obstacle says something, and no two say the same thing")
     func everyObstacleSpeaksForItself() {
         let notices = PanelInsertionObstacle.allCases.map(\.notice)
@@ -139,9 +129,7 @@ struct PanelWriteFailureTests {
         #expect(Set(notices.map(\.message)).count == notices.count)
     }
 
-    /// Uttrflow's own window in front is not "nothing is focused". Somebody's cursor may
-    /// be blinking in a document behind it, and telling them nothing is focused sends
-    /// them looking for a fault that is not there.
+    /// Uttrflow's own window in front is not "nothing is focused"; a cursor may be blinking behind it.
     @Test("being in front is told apart from having nothing focused")
     func inFrontIsItsOwnThing() {
         let inFront = PanelInsertionObstacle.uttrflowInFront.notice

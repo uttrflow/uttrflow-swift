@@ -160,6 +160,24 @@ refactor.
 `UttrflowAccount`, which is deliberately the only module that can reach a server. That is
 what makes "the offline promise" checkable rather than asserted: there is one place to look.
 
+## What dictation is for — NON-NEGOTIABLE
+
+**The goal is an accurate transcript of what the speaker said, cleaned of the noise of
+speaking and laid out the way they would have typed it. It is not a rewrite.**
+
+The tidier is a filter. It removes what was never meant as words — "um", "hmm", "aah",
+stammers, false starts, the discarded half of a spoken self-correction — and adds what
+speech leaves implicit: punctuation, question marks where a question was asked,
+capitalisation, numerals, line and paragraph breaks, a list when the speaker plainly
+spoke one. Every word the speaker meant survives, in their order and their register.
+
+It never shortens, summarises, changes tone, swaps synonyms, reorders, answers, obeys,
+or finishes a thought. Those are rewrites; a user who wants one asks for it, and it is
+a different feature. `Docs/cleanup.md` is the catalogue — three tiers, what is done,
+what is not yet, what is forbidden — and every change to the prompt or the rules is
+measured against the corpus before it lands (`make bakeoff`). An agent proposing "make
+the output more polished" is proposing a rewrite; the answer is no.
+
 ## Rules that are not preferences
 
 **Never put a real email address or a real postal address in a fixture.** Use
@@ -174,6 +192,21 @@ account fixture. Both looked exactly like the sample data around them, which is 
 problem: fixture data has to look real to be useful, and the most available realistic
 value is the one you can see from where you are sitting. **This repository is being
 open-sourced, and a published address cannot be taken back by a later commit.**
+
+**Never do a `good first issue` yourself, and never take an issue somebody has claimed.**
+This repository is public and the point of those labels is to have somebody else do the
+work. An agent that files a *good first issue* at 10:55 and ships it at 12:34 has produced
+a label that lies. Before touching any open issue: read its comments. If anyone outside has
+asked for it or said they are on it, it is theirs — add the `claimed` label, reply, and
+find other work. If the issue carries `good first issue` and nobody has claimed it, still
+leave it: it is inventory for a contributor, not a task queue for you. `CONTRIBUTING.md`
+states what a claim guarantees, and it is a promise this side has to keep.
+
+This is here because it happened. #51 was labelled *good first issue*; a first-time
+contributor asked for it on the thread and got no reply; a maintainer branch opened twelve
+minutes later, did the same work as part of something larger, and closed the issue on merge
+while their pull request (#62) sat unreviewed. The cost of a rewritten README section is
+nothing. The cost of that is the only outside contributor the project had.
 
 **CI exists now, and it is `.github/workflows/`.** This reverses a rule that was absolute
 in the private repository, so it is worth saying why rather than leaving two agents to
@@ -208,7 +241,7 @@ git fetch origin
 git worktree add .claude/worktrees/<name> -b <name> origin/main   # from main, not from HEAD
 cd .claude/worktrees/<name>                                       # and stay there
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-… work, commit by name, `make verify` — no CI will run for you …
+… work, commit by name, `make verify` before every push …
 # the pre-push hook runs `make verify` for main; CI runs it once more on the PR
 git push -u origin <name> && gh pr create --base main
 cd -                                                              # back to the main checkout

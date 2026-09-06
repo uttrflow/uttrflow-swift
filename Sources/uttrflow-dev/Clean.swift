@@ -1,10 +1,10 @@
+// The `clean` command: runs clean-up on typed text.
 import ArgumentParser
 import Foundation
 import UttrflowAI
 import UttrflowCore
 
-/// Cleans up text without recording anything, so the transformation can be judged on
-/// its own. This is the loop the evaluation suite will run in bulk.
+/// Cleans up text without recording anything, so the transformation can be judged on its own.
 struct Clean: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Tidy a raw transcript, as if it had just been dictated."
@@ -16,9 +16,7 @@ struct Clean: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Force one transformer: foundationModels or rules.")
     var engine: String?
 
-    // Context changes the output, so it has to be reachable from here. Without these
-    // the only way to see what a window title does to a dictation was to run the whole
-    // bake-off, which reports a score rather than the sentence the model wrote.
+    // Context changes the output, so it has to be reachable from here without running the bake-off.
     @Option(name: .long, help: "Pretend the frontmost app is this one.")
     var app: String?
 
@@ -60,8 +58,7 @@ struct Clean: AsyncParsableCommand {
         let elapsed = start.duration(to: clock.now)
 
         print("  raw    \(raw)")
-        // Printed rather than echoed back from the flags, so what is shown is the line
-        // the model was actually given — including the case where it is given nothing.
+        // Printed from the context rather than the flags, so this is the line the model is given.
         if let described = AppContextDescriber.describe(context) {
             print("  seen   \(described)")
         }

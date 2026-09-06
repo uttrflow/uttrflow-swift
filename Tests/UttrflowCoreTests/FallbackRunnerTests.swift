@@ -1,8 +1,11 @@
+// Tests for FallbackRunner.
+
 import Synchronization
 import Testing
 
 @testable import UttrflowCore
 
+/// An error naming the candidate that threw it.
 private struct StubError: Error, Equatable {
     let candidate: Int
 }
@@ -72,8 +75,7 @@ struct FallbackRunnerTests {
     }
 }
 
-// Small readers so assertions stay legible; the product never needs to unwrap an
-// outcome this way because it switches over it exhaustively.
+/// Small readers so assertions stay legible; the product switches over an outcome exhaustively instead.
 extension FallbackOutcome {
     fileprivate var successValue: Success? {
         if case .succeeded(let value) = self { value } else { nil }

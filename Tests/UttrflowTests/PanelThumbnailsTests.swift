@@ -1,22 +1,18 @@
+// Tests for the thumbnail cache.
+
 import AppKit
 import Testing
 import UttrflowClipboard
 
 @testable import Uttrflow
 
-/// Decoding a picture is the expensive thing the panel does, and a lazy list asks for its
-/// rows again every time they come and go. What is worth testing is therefore not the
-/// decode — that is ImageIO's job — but that it happens once.
+/// Decoding a picture is the expensive thing the panel does; what is worth testing is that it happens once.
 @MainActor
 @Suite("The pictures beside a clip")
 struct PanelThumbnailsTests {
     private final class Counter { var files: [URL] = []; var sizes: [Int] = [] }
 
-    /// A picture with real pixels behind it.
-    ///
-    /// `NSImage(size:)` has no representation at all, so it weighs nothing — which is
-    /// fine for the tests about *how often* a file is read and useless for the ones about
-    /// how much is being held. A cache bounded in bytes has to be given bytes.
+    /// A picture with real pixels behind it; `NSImage(size:)` has no representation and weighs nothing.
     static func bitmap(_ edge: Int = PanelThumbnails.maxPixel) -> NSImage {
         let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: edge, pixelsHigh: edge, bitsPerSample: 8,
@@ -27,8 +23,7 @@ struct PanelThumbnailsTests {
         return image
     }
 
-    /// What one of those weighs, asked of the same function the cache uses so the two
-    /// cannot disagree about the arithmetic.
+    /// What one of those weighs, asked of the cache's own function so the two cannot disagree.
     static let thumbnailBytes = PanelThumbnails.bytes(of: bitmap())
 
     private func thumbnails(
@@ -58,8 +53,7 @@ struct PanelThumbnailsTests {
         #expect(counter.files == [file])
     }
 
-    /// A clip whose file has been deleted since — the panel has a sentence for it, and
-    /// the sentence should not cost a trip to the disk on every frame.
+    /// A clip whose file has been deleted should not cost a trip to the disk on every frame.
     @Test("remembers that a picture is gone")
     func remembersAMiss() {
         let (thumbnails, counter) = thumbnails()
@@ -69,9 +63,7 @@ struct PanelThumbnailsTests {
         #expect(counter.files.count == 1)
     }
 
-    /// Asked for at the size it is drawn rather than at the size it was taken: the point
-    /// of the change was not to hold a twelve-megabyte screenshot to show a 34-point
-    /// square of it.
+    /// Asked for at the size it is drawn, not the size of the screenshot.
     @Test("asks for the small version")
     func asksForAThumbnail() {
         let (thumbnails, counter) = thumbnails()
@@ -94,12 +86,7 @@ struct PanelThumbnailsTests {
     }
 }
 
-/// What the cache costs when it is never emptied, and what it lets go of first.
-///
-/// The bound is bytes now rather than a count of entries, so these ask for room measured
-/// in whole thumbnails — `pictures(2)` is "two will fit and a third will not", which is
-/// the same sentence the old `capacity: 2` was making and no longer a guess about what
-/// one of them weighs.
+/// What the cache costs when never emptied; room is measured in whole thumbnails.
 @MainActor
 @Suite("What the picture cache lets go of")
 struct PanelThumbnailsCapacityTests {
@@ -133,8 +120,7 @@ struct PanelThumbnailsCapacityTests {
         #expect(counter.files == [file(1), file(2), file(3), file(1)])
     }
 
-    /// Recency is about being *asked for*, not about arriving: a picture at the top of the
-    /// panel is looked at on every open, and it is the one that must not be evicted.
+    /// Recency is about being asked for, not arriving; the top of the panel is looked at on every open.
     @Test("asking again keeps a picture alive")
     func askingRefreshes() {
         let (thumbnails, counter) = thumbnails(room: 2)
@@ -159,8 +145,7 @@ struct PanelThumbnailsCapacityTests {
         #expect(thumbnails.bytesHeld > 0, "a cache that holds nothing is a decode per frame")
     }
 
-    /// A budget of nothing would forget each answer before it could be used, turning the
-    /// cache back into the decode-per-frame it exists to prevent.
+    /// A budget of nothing would forget each answer before it could be used.
     @Test("keeps at least one, whatever it is asked for")
     func neverKeepsNothing() {
         let (thumbnails, counter) = thumbnails(room: 0)
@@ -171,20 +156,14 @@ struct PanelThumbnailsCapacityTests {
         #expect(counter.files == [file(1)])
     }
 
-    /// The bound is the pictures' share of the clipboard's memory budget, and it is spent
-    /// here because here is where the pixels actually are: the files never enter the
-    /// process at full size.
-    ///
-    /// It used to be a count — two hundred — resting on "a thumbnail is about 18 KB". An
-    /// estimate times a count is a budget that is right until a denser display or a wider
-    /// row doubles each one, and then it is silently twice the budget.
+    /// The bound is the pictures' share of the clipboard budget, spent here because here are the pixels.
     @Test("its bound is the picture tier of the clipboard budget, in bytes")
     func defaultBudget() {
         #expect(PanelThumbnails.defaultBudget == ClipboardBudget.standard.images.bytes)
         #expect(ClipboardBudget.standard.claimed <= ClipboardBudget.standard.ceiling)
     }
 
-    /// The measurement the old count was guessing at, now that it can be taken.
+    /// The measurement the budget assumes, now that it can be taken.
     @Test("and a thumbnail weighs about what the budget assumed")
     func aThumbnailIsAboutEighteenKilobytes() {
         #expect(PanelThumbnailsTests.thumbnailBytes > 10_000)

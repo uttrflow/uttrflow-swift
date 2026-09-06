@@ -1,42 +1,37 @@
+// Whether the user has finished onboarding: the only thing onboarding writes down about itself.
 import Foundation
 
 public import UttrflowSettings
 
-/// Whether the user has been through first-run onboarding, remembered between launches.
-///
-/// Deliberately the only thing onboarding writes down about itself. Everything else it
-/// could remember — which permissions were granted, how far the user got — would be a
-/// claim about the system that the system is free to have changed since, and a first
-/// run that trusted such a claim would show a page saying "granted" over a permission
-/// the user had just taken away. Those are read afresh on every launch instead.
+/// Whether the user has been through onboarding; the only fact kept, since everything else is re-read.
 public protocol OnboardingRecordStore: Sendable {
+    /// Whether the user reached the last page and closed it.
     var hasFinished: Bool { get }
 
     /// Records that the user reached the last page and closed it.
     func recordFinished()
 }
 
-/// The record, kept in `UserDefaults` beside the user's settings.
-///
-/// The fact has nothing to it beyond its own presence, so presence is how it is stored:
-/// a key that exists means the user has been through onboarding, and there is no second
-/// state in which the key exists and says no. That leaves no way to write a value this
-/// build could misread, which is the whole risk a one-field preference carries.
+/// The record in `UserDefaults`; the key's presence is the fact, so there is no value to misread.
 public struct UserDefaultsOnboardingRecordStore: OnboardingRecordStore {
-    /// Versioned so that a later build wanting to walk everybody through a new step can
-    /// do it by asking a new question rather than by rewriting the answer to this one.
+    /// Versioned, so a later build can walk everybody through a new step by asking a new question.
     public static let defaultKey = "com.uttrflow.onboarding.v1"
 
+    /// Where the key lives.
     private let store: any KeyValueStore
+    /// The key whose presence is the record.
     private let key: String
 
+    /// Records in the given store under the given key.
     public init(store: any KeyValueStore = SystemUserDefaults(), key: String = defaultKey) {
         self.store = store
         self.key = key
     }
 
+    /// Whether the key is present.
     public var hasFinished: Bool { store.data(forKey: key) != nil }
 
+    /// Writes the key.
     public func recordFinished() {
         store.set(Data(), forKey: key)
     }

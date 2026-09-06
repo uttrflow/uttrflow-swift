@@ -1,3 +1,4 @@
+// Tests the recording kept for retry and its presentation.
 import Foundation
 import Synchronization
 import Testing
@@ -15,7 +16,7 @@ private struct RecordingFakeCleaner: TranscriptCleaning {
     }
 }
 
-/// A ``TextInserting`` that records what it was handed and answers as scripted.
+/// A ``TextInserting`` that records what it is handed and answers as scripted.
 private final class RecordingFakeInserter: TextInserting, Sendable {
     private struct State: Sendable {
         var outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError>
@@ -89,7 +90,7 @@ struct DictationPipelineRecordingTests {
         let state = await dictate(makePipeline(recordings: recordings))
 
         #expect(state.outcome != nil)
-        #expect(state.outcome?.fromRecording == false)
+        #expect(state.outcome?.isFromRecording == false)
         #expect(await recordings.discarded == [recording.id])
     }
 
@@ -202,7 +203,7 @@ struct DictationPipelineRecordingTests {
         let outcome = try #require(await pipeline.currentState.outcome)
         #expect(outcome.text == said)
         #expect(outcome.method == .clipboard)
-        #expect(outcome.fromRecording)
+        #expect(outcome.isFromRecording)
         #expect(outcome.spokenFor == audio.duration)
         #expect(outcome.insertedInto == nil)
         #expect(clipboard.received == [said])

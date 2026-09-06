@@ -44,6 +44,16 @@ struct CaptureGateTests {
         #expect(CaptureGate.refusal(toRecord: "y", from: field(), given: allowed) == .tooShort)
     }
 
+    @Test("A destructive command is refused, so it can never be stored to complete later.")
+    func destructiveCommandIsRefused() {
+        #expect(
+            CaptureGate.refusal(toRecord: "rm -rf build", from: field(), given: allowed)
+                == .destructive)
+        #expect(
+            CaptureGate.refusal(toRecord: "git push --force", from: field(), given: allowed)
+                == .destructive)
+    }
+
     @Test("A credential is refused by the same rules the clipboard hides one with.")
     func secretsAreRefused() {
         let secrets = [

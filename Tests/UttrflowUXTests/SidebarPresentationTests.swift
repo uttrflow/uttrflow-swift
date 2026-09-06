@@ -1,3 +1,4 @@
+// Tests for the sidebar: row order, selection, the corrections badge, and the product name.
 import Foundation
 import UttrflowSettings
 import Testing
@@ -5,6 +6,7 @@ import Testing
 @testable import UttrflowUX
 
 extension HistoryFixture {
+    /// The sidebar over these inputs.
     static func sidebar(
         selection: SidebarDestination = .page(.dictation),
         entries: [HistoryEntry] = [],
@@ -22,8 +24,7 @@ extension HistoryFixture {
 
 @Suite("The sidebar's ten destinations")
 struct SidebarOrderTests {
-    /// The order the design puts them in, pinned. Settings sits ninth even though it is
-    /// not a page, and tidying the list would rearrange the window.
+    /// The design's order, pinned: Settings sits ninth though it is not a page.
     @Test("the rows are in the designed order")
     func order() {
         #expect(
@@ -57,11 +58,7 @@ struct SidebarOrderTests {
         #expect(items.filter(\.isSelected).map(\.title) == ["Insights"])
     }
 
-    /// Settings is a window rather than a page, and the rail is the main window's own
-    /// navigation. Lighting its row said the reader was somewhere they were not: the row
-    /// stayed lit for as long as the Settings window existed anywhere on the desktop,
-    /// including behind the main window, so Home could be open with Settings highlighted
-    /// beside it.
+    /// Settings is a window, not a page, so lighting its row would say the reader is somewhere they are not.
     @Test("the Settings row never lights, whichever tab that window is on")
     func settingsNeverLights() {
         for tab in SettingsTab.allCases {

@@ -4,8 +4,14 @@ import Testing
 
 @testable import UttrflowAI
 
+extension SnippetExpansion {
+    /// Whether anything fired.
+    var didExpand: Bool { !applied.isEmpty }
+}
+
 // MARK: - Fixtures
 
+/// The expansion the standard "my address" snippet carries.
 private let address = "Flat 402, Example Residences, Sample Road, Bengaluru 560001"
 
 /// The snippets the design's list shows, plus the two that overlap.
@@ -18,6 +24,7 @@ private func standardExpander() -> SnippetExpander {
     ])
 }
 
+/// The expander's matching, ordering, quoting and reporting.
 @Suite("Expanding what the user actually said")
 struct SnippetExpanderTests {
 
@@ -76,8 +83,7 @@ struct SnippetExpanderTests {
         #expect(expander.expand("Share the meeting link for today.").text == "Share the LONG.")
     }
 
-    /// The order the snippets arrive in must not decide anything, or the same words
-    /// would expand differently after a save reordered the file.
+    /// Snippet order must not decide anything, or a save that reorders the file changes expansions.
     @Test("the answer does not depend on what order the snippets were in")
     func orderOfSnippetsDoesNotMatter() {
         let snippets = [
@@ -93,8 +99,7 @@ struct SnippetExpanderTests {
         #expect(forwards == "Share the LONG, Adobe a pull request.")
     }
 
-    /// One trigger, two snippets, is a question with no right answer. The store refuses
-    /// to create it; a hand-edited file could, and the matcher must still be a function.
+    /// The store refuses duplicate triggers; a hand-edited file can hold them, and the matcher stays pure.
     @Test("a duplicated trigger in a hand-edited file resolves the same way every time")
     func duplicateTriggersAreDecidedOnce() {
         let first = makeSnippet(trigger: "pr", expansion: "first")
@@ -155,8 +160,7 @@ struct SnippetExpanderTests {
         #expect(result.applied.count == 1)
     }
 
-    /// Two snippets pointing at each other is the case a depth counter would have had
-    /// to catch. A single pass over the original has nothing to catch.
+    /// Two snippets naming each other is what a depth counter would guard; a single pass needs none.
     @Test("two snippets that name each other expand once each")
     func mutualReferenceTerminates() {
         let expander = SnippetExpander(snippets: [

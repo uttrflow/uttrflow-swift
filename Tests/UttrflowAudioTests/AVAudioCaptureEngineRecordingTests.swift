@@ -1,3 +1,4 @@
+// Tests that the capture engine keeps a recording on disk while capturing.
 import Foundation
 import Testing
 

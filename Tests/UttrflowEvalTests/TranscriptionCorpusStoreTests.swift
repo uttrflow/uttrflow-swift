@@ -1,11 +1,10 @@
+// Tests the recorded corpus store and the JSON record store against real directories.
 import Foundation
 import Testing
 
 @testable import UttrflowEval
 
-/// Tested against real temporary directories rather than a substitute file system: what
-/// these types actually have to survive is a half-finished reading session on somebody's
-/// disk, and a fake would agree with whatever this code happened to do.
+/// Tested against real temporary directories, since a fake would agree with whatever this code did.
 @Suite("Recorded corpus store")
 struct TranscriptionCorpusStoreTests {
     private func temporaryDirectory() -> URL {
@@ -62,9 +61,7 @@ struct TranscriptionCorpusStoreTests {
         #expect(try store.drifted(from: [passage("one")]).isEmpty)
     }
 
-    /// Corpus order, so the report reads down the page the way the session ran — and
-    /// anything no longer in the corpus is kept and put last rather than dropped,
-    /// because a person still read it aloud.
+    /// Anything the corpus has dropped is kept and put last, because a person still read it aloud.
     @Test("returns recordings in corpus order, retired passages last")
     func ordering() throws {
         let directory = temporaryDirectory()
@@ -77,8 +74,7 @@ struct TranscriptionCorpusStoreTests {
         #expect(try store.all(ordering: corpus).map(\.id) == ["one", "two", "retired"])
     }
 
-    /// The recording is the truth about what was said; an edited passage is a prompt to
-    /// re-record, not something to repair silently.
+    /// The recording is the truth about what was said; an edited passage is a prompt to re-record.
     @Test("notices a passage that was edited after it was read")
     func drift() throws {
         let directory = temporaryDirectory()
@@ -137,8 +133,7 @@ struct JSONRecordStoreTests {
         #expect(!store.contains("two"))
     }
 
-    /// Records are written atomically, so a file that will not decode has been edited or
-    /// truncated. Skipping it would present half a corpus as a whole one.
+    /// Records are written atomically, so a file that will not decode has been edited or truncated.
     @Test("raises a file it cannot decode instead of skipping it")
     func corruptRecord() throws {
         let directory = temporaryDirectory()

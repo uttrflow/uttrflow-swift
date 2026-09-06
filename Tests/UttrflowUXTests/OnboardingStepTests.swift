@@ -1,20 +1,15 @@
+// Tests for the steps as the rail beside the page draws them.
 import Testing
 
 @testable import UttrflowUX
 
-/// The seven steps as the rail beside the page draws them.
-///
-/// The rail is SwiftUI and is not covered, so what it reads — the order, the names, and
-/// the fact that the position it highlights indexes into that order — is tested here
-/// instead. The rail's one arithmetic act is `steps[position - 1]`, and everything below
-/// exists so that it cannot be reached with a position that has no step.
+/// The rail is SwiftUI and uncovered, so its order, names and `steps[position - 1]` are tested here.
 struct OnboardingStepTests {
     @Test("names every step as a noun the rail can be scanned for")
     func everyStepHasARailTitle() {
         for step in OnboardingStep.allCases {
             #expect(!step.railTitle.isEmpty)
-            // A rail title is a name, not the page's own sentence: no full stops, and
-            // short enough for the rail's width at 12.5 points.
+            // A rail title is a name, not the page's sentence: no full stops, and short enough for the rail.
             #expect(!step.railTitle.contains("."))
             #expect(step.railTitle.count <= 18)
         }
@@ -37,8 +32,7 @@ struct OnboardingStepTests {
         #expect(Set(OnboardingStep.inOrder) == Set(OnboardingStep.allCases))
     }
 
-    /// The rail highlights `inOrder[position - 1]`, so a position that did not index its
-    /// own step would light the wrong row — or, at one past the end, crash the window.
+    /// The rail highlights `inOrder[position - 1]`, so a wrong position lights the wrong row or crashes.
     @Test("puts each step at its own position in the list")
     func positionIndexesIntoTheList() {
         for step in OnboardingStep.allCases {

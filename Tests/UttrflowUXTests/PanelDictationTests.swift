@@ -1,14 +1,14 @@
+// Tests for the panel's microphone: what it says when it can dictate and when it cannot.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// I1, I6, I7. The microphone in this panel shipped as a control that did nothing: its
-/// action re-sent the search it already had, under the label "Dictate a search". These
-/// exist so that whatever it says about itself is true.
+/// Whatever the microphone says about itself has to be true.
 @Suite("I1, I6, I7 · the panel's microphone")
-struct PanelMicrophoneTests {
+struct PanelDictationTests {
+    /// The microphone as drawn for a state.
     static func mic(_ state: PanelDictation) -> PanelMicrophone {
         var snapshot = PanelFixture.panel()
         snapshot.dictation = state
@@ -33,8 +33,7 @@ struct PanelMicrophoneTests {
         #expect(mic.status?.contains("microphone") == true)
     }
 
-    /// The clipboard is unaffected while the model downloads, and saying which half is
-    /// not ready is the difference between one control waiting and the panel being broken.
+    /// The clipboard is unaffected while the model downloads, and saying which half waits matters.
     @Test("I7 · while the model downloads it is off, and says so specifically")
     func modelNotReady() {
         let mic = Self.mic(.unavailable(.modelNotReady(percent: 42)))
@@ -52,8 +51,7 @@ struct PanelMicrophoneTests {
         #expect(mic.status?.isEmpty == false)
     }
 
-    /// A dimmed control with no reason beside it is one people press twice and then
-    /// distrust, so every unavailable state owes an explanation.
+    /// A dimmed control with no reason beside it gets pressed twice and distrusted, so each state explains.
     @Test(
         "every state that cannot dictate says why",
         arguments: [
@@ -69,8 +67,7 @@ struct PanelMicrophoneTests {
         #expect(!state.canStart)
     }
 
-    /// The panel cannot start a dictation by itself — the pipeline belongs to the app —
-    /// so this is an intent and never a key.
+    /// The panel cannot start a dictation itself, since the pipeline is the app's, so this is an intent.
     @Test("dictating is an intent, not a keystroke the panel answers")
     func dictateIsAnIntent() {
         #expect(PanelIntent.dictate.key == nil)

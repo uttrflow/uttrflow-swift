@@ -2,16 +2,79 @@
 
 [![CI](https://github.com/uttrflow/uttrflow-swift/actions/workflows/ci.yml/badge.svg)](https://github.com/uttrflow/uttrflow-swift/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/uttrflow/uttrflow-swift/actions/workflows/codeql.yml/badge.svg)](https://github.com/uttrflow/uttrflow-swift/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/uttrflow/uttrflow-swift/badge)](https://scorecard.dev/viewer/?uri=github.com/uttrflow/uttrflow-swift)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 [![Download](https://img.shields.io/badge/download-latest-brightgreen.svg)](https://github.com/uttrflow/releases/releases/latest/download/Uttrflow.dmg)
 
-A native macOS clipboard manager with dictation built in. Everything you copy is a
-keystroke away, and you can speak into any application instead of typing — entirely on
-your own machine.
+**A native macOS clipboard manager with dictation built in.** Everything you copy is a
+keystroke away, and you can speak into any application instead of typing. Speech becomes
+text on your own Mac; nothing you copy or say leaves it.
+
+<p align="center">
+  <img src="Docs/media/clipboard-panel.png" width="420"
+       alt="The Uttrflow clipboard panel: a search field, kind filters for text, links, code and images, and a list of recent clips. Code rows carry a language chip, a colour row shows its hex value, and a row that looks like a secret is masked with dots.">
+</p>
+
+<p align="center"><sub>⇧⌘V opens it over whatever you are typing in. ↑↓ to choose, ⏎ to paste, Esc to close. The masked row is a token; it stays masked until you ask.</sub></p>
+
+## Install
+
+Apple Silicon Mac, macOS 26 or later.
+
+```bash
+brew install --cask uttrflow/tap/uttrflow
+```
+
+Or download [`Uttrflow.dmg`](https://github.com/uttrflow/releases/releases/latest/download/Uttrflow.dmg)
+and drag it to Applications. Either way the app updates itself from then on.
+
+The build is not yet notarised by Apple, so the first launch is refused with *"Uttrflow is
+damaged and can't be opened"*. It is not damaged; macOS says that about any download it has
+not seen a signature for. Clear the quarantine flag once and it opens:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Uttrflow.app
+```
+
+Homebrew quarantines what it downloads too, so the command is needed after either install.
+
+## Use
+
+- **⇧⌘V** opens the clipboard over whatever you are typing in. Type to filter, or type an
+  alias you gave a clip. ↑↓ to choose, ⏎ to paste where the caret already was, **⌘⏎** to
+  paste as plain text however it was copied, Esc to close. The window underneath never loses
+  focus.
+- **Hold ⌥Space** and talk. Let go, and the words land at the cursor in the app you were
+  already in. The floating button at the screen edge shows the microphone level while you
+  hold it, and the shortcut can be changed in Settings.
+- **Dictionary.** A name the recogniser keeps getting wrong is fixed once; matching is by
+  sound, so spellings you have not seen yet are caught too.
+
+The first dictation asks for the microphone, and typing into another app needs
+Accessibility. The clipboard needs neither to open.
+
+## What it does
+
+**The clipboard** records text, links, code, colours, images and file paths, and works out
+which is which rather than asking. Code gets a language chip, can be re-indented, and can
+be run through a formatter you already have installed — the diff is shown first, and the
+result is compared token for token with what went in and discarded if it differs. Clips can
+be pinned, filed into folders (⌘2 upwards), renamed and deleted. Anything that looks like a
+secret is masked at a fixed width that does not reveal its length, and gets no tooltip.
+
+**Dictation** is push-to-talk and on-device. Recognition runs through WhisperKit or Apple's
+speech recogniser, then a clean-up stage turns what was said into what was meant: fillers
+go, punctuation arrives, and the words in your dictionary are spelled your way. Each engine
+declines what it cannot handle, so a language Apple's model does not cover is routed to one
+that does.
+
+**Works offline.** Sign in needs a network exactly once. After that every launch, every
+dictation and every paste works with Wi-Fi off — proven by a sandbox that fails any test
+touching the network.
 
 ## It runs without an account, and without anything of ours
 
-Worth saying first, because it is the question every reader of a client repository has:
+Worth saying early, because it is the question every reader of a client repository has:
 **you do not need an account, an API key, or access to any server we run.**
 
 Dictation is on-device. The clipboard, history, dictionary and snippets live in Application
@@ -40,12 +103,15 @@ Or download the latest .dmg installer:
 
 - Apple Silicon Mac, macOS 26 or later
 - Xcode 26.6 or later (supplies the toolchain; the build itself is SwiftPM)
+## Building it
 
-## Getting started
+Xcode 26.6 or later supplies the toolchain; the build itself is SwiftPM.
 
 ```bash
-make verify   # lint, build, test, coverage gate — run this before every push
-make help     # list all targets
+make verify     # lint, PII audit, build, ~2,900 tests, coverage floor, offline audit
+make app        # builds and ad-hoc signs dist/Uttrflow.app
+open dist/Uttrflow.app
+make help       # every target
 ```
 
 Optionally, to make the sign-in buttons look like the shipping app:
@@ -57,6 +123,12 @@ Optionally, to make the sign-in buttons look like the shipping app:
 That fetches Google's mark from Google. It is not in this repository — it is their
 trademark, not ours — and nothing needs it: without it the button carries its wording
 alone, exactly as the GitHub button does in every build.
+
+`make app` signs ad-hoc, which is enough to run here and to keep the permission grants
+across rebuilds, but Gatekeeper will refuse the bundle on a Mac that did not build it.
+**To put a build on another Mac, or to release one, see [`Docs/releasing.md`](Docs/releasing.md).**
+`Docs/packaging.md` explains why the app is built with `xcodebuild` rather than
+`swift build`.
 
 ## How the code is arranged
 
@@ -91,51 +163,12 @@ Sources/
   uttrflow-bakeoff     Scores every clean-up engine against the corpus.
 ```
 
-## Building the app
+Each capability is defined once, as a protocol in `UttrflowCore`, and implemented in
+its own module. Nothing above the protocol layer — not the pipeline, not a view —
+refers to a concrete engine. [`Docs/`](Docs/) has a page per subsystem, from
+[insertion](Docs/insertion.md) and its traps to [how accuracy is measured](Docs/measuring-accuracy.md).
 
-```bash
-make app        # builds and signs dist/Uttrflow.app
-open dist/Uttrflow.app
-```
-
-Uttrflow has no Dock tile — it is a menu-bar app — so look for the microphone in the menu
-bar. **⇧⌘V** opens the clipboard, **⌥Space** starts a dictation, and both are in that
-menu. It asks for the microphone the first time you dictate, and for Accessibility before
-it can type into another app; the clipboard needs neither to open.
-
-`make app` signs ad-hoc, which is enough to run here and to keep those two permission
-grants across rebuilds, but Gatekeeper will refuse the bundle on a Mac that did not build
-it.
-
-**To put a build on another Mac, or to release one, see [`Docs/releasing.md`](Docs/releasing.md).**
-It covers the version, the build, notarisation and publishing, and it is the only correct
-description of that path — there is no CI, and `make hooks` installs the gate that replaced
-it.
-
-`Docs/packaging.md` explains why the app is built with `xcodebuild` rather than
-`swift build`: SwiftPM bakes an absolute path into the resource-bundle accessor and puts
-the bundles somewhere macOS will not let a signed app carry them.
-
-## The clipboard
-
-**⇧⌘V**, then ↓ a couple of times, then Return. The clip goes in where the caret already
-was — the panel takes the keyboard without its application ever becoming frontmost, so
-the window underneath never loses the caret. Clicking a row does exactly the same thing.
-Esc closes it. It opens in the top-right corner, and stays wherever you drag it.
-
-Typing filters as you go, and the same field takes an alias: name a clip `pgprod` once
-and typing that finds it, whether or not you put a slash in front. Rows can be pinned,
-filed into folders (⌘2 upwards), renamed and deleted, and ⌘⏎ pastes a clip as plain text
-however it was copied.
-
-What a clip *is* is detected rather than declared — text, a link, code, something that
-looks like a secret, a colour, an image, a file path — and the row offers what that kind
-deserves. Code gets a language chip, can be re-indented, and can be run through a
-formatter you already have installed. Nothing is formatted automatically: you are shown
-the diff first, and what the formatter returns is compared token-for-token with what went
-in and thrown away if it does not match.
-
-## Trying it
+## Trying the pipeline from a terminal
 
 ```bash
 swift run uttrflow-dev doctor                 # permissions and audio hardware
@@ -148,13 +181,9 @@ swift run uttrflow-dev clean "um so i think the the deployment is uh still runni
 swift run uttrflow-dev insert "Hello from Uttrflow."   # needs Accessibility access
 ```
 
-`record` asks for microphone access the first time. Run from a terminal, the
-permission belongs to the terminal app rather than to Uttrflow — real first-run
-behaviour can only be checked once the app bundle exists.
-
-Each capability is defined once, as a protocol in `UttrflowCore`, and implemented in
-its own module. Nothing above the protocol layer — not the pipeline, not a view —
-refers to a concrete engine.
+`record` asks for microphone access the first time. Run from a terminal, the permission
+belongs to the terminal app rather than to Uttrflow — real first-run behaviour can only
+be checked once the app bundle exists.
 
 ## Choosing engines
 
@@ -170,13 +199,11 @@ EngineConfiguration(
 Clean-up engines are tried in order, and the first one that reports itself able to
 handle the request wins. An engine that cannot cope with the spoken language steps
 aside rather than producing bad output — which is how Hindi is routed away from
-Apple's model, whose 23 supported locales do not include it.
+Apple's model, whose 23 supported locales do not include it. The preference list must
+always end in `.rules`, which can handle anything, so the pipeline can never dead-end.
 
-The preference list must always end in `.rules`, which can handle anything, so the
-pipeline can never dead-end.
-
-`.cloud` is compiled in only when `UTTRFLOW_CLOUD` is defined. V1 ships without it,
-so the shipping binary contains no network path.
+`.cloud` is compiled in only when `UTTRFLOW_CLOUD` is defined. The shipping binary
+contains no network path.
 
 ## Two build paths
 
@@ -184,8 +211,8 @@ so the shipping binary contains no network path.
 everyday path, and the pre-push hook needs nothing else.
 
 Two things go through `xcodebuild` instead. The app, because of the resource-bundle
-problem described above. And `UttrflowLocalModel` with `uttrflow-bakeoff`, because they link
-MLX, whose Metal shaders SwiftPM's command line cannot compile:
+problem described in `Docs/packaging.md`. And `UttrflowLocalModel` with `uttrflow-bakeoff`,
+because they link MLX, whose Metal shaders SwiftPM's command line cannot compile:
 
 ```bash
 xcodebuild -downloadComponent MetalToolchain   # once, ~690 MB, only for the bake-off
@@ -200,13 +227,19 @@ tools, the tests, the pre-push gate — and `make app` — never need the Metal 
 - 95% line coverage per module, enforced by `Scripts/coverage.sh` and the pre-push gate
 - Swift 6 language mode, strict concurrency, warnings as errors
 - No force unwraps, no force try, no implicitly unwrapped optionals (lint-enforced)
+- A PII audit runs first in `make verify`, so no real name, address or credential can be
+  committed by accident
 
 ## Privacy
 
-Dictation happens entirely on your Mac. **Audio is never written to disk at all** — it
-becomes text and is gone. The text is kept locally so you can copy or re-insert it, and
-deleted after its retention window. Your dictionary, your history and your settings are
-files on this Mac; signing out does not remove them, and only Reset does.
+Dictation happens entirely on your Mac. **Audio is kept on this Mac for a day, and only so a
+failed dictation can be retried**: every recording is written beside the buffer the
+recogniser reads and deleted the moment the words land. If the words are lost — the
+recogniser fails, or the app dies mid-dictation — the recording stays for a day and sits at
+the top of the Dictation page with a Retry. Nothing about it leaves the Mac. See
+[`Docs/recordings.md`](Docs/recordings.md). The text is kept locally so you can copy or
+re-insert it, and deleted after its retention window. Your dictionary, your history and
+your settings are files on this Mac; signing out does not remove them, and only Reset does.
 
 **A clipboard manager records everything you copy, and this one is no exception.** Text,
 links, code and images all go into `~/Library/Application Support/Uttrflow` — plain JSON
@@ -239,18 +272,20 @@ per minute, language mix, which stage failed, latency percentiles — and it is 
 choose not to send your words, it is that the type that gets encoded has no field capable
 of holding text at any depth, and a test walks it and fails on anything `String`-shaped.
 Audio, transcripts, dictionary contents, window titles and application names have nowhere
-to go.
-
-There is no opt-out switch, because there is nothing yet to opt out of. Before anything is
-ever sent there will be one, and a way to read exactly what was sent.
+to go. There is no opt-out switch, because there is nothing yet to opt out of. Before
+anything is ever sent there will be one, and a way to read exactly what was sent.
 
 The app is not hermetic and does not claim to be: it downloads a speech model on first run,
-roughly 646 MB, and signs you in once. After that it dictates with no network at all — as
-proven by a sandbox that kills any process touching one. A cloud clean-up engine exists
-behind the `UTTRFLOW_CLOUD` compilation flag and is **not** in the shipping binary, and the
-evaluation corpus is not a library product so it cannot be imported into the app.
+roughly 646 MB, and signs you in once. After that it dictates with no network at all. A
+cloud clean-up engine exists behind the `UTTRFLOW_CLOUD` compilation flag and is **not** in
+the shipping binary, and the evaluation corpus is not a library product so it cannot be
+imported into the app.
 
 ## Contributing
+
+Issues labelled [good first issue](https://github.com/uttrflow/uttrflow-swift/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+are small, self-contained, and checked to be real before they are filed. Questions and
+ideas go in [Discussions](https://github.com/uttrflow/uttrflow-swift/discussions).
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how a change gets in, and what review looks for
 - [`RELEASING.md`](RELEASING.md) — how a release is cut, and why there is no staging branch

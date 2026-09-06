@@ -41,7 +41,7 @@ public actor SnippetStore {
     ///   test has a reason to pass one.
     /// - Returns: The file the snippets are read from and written to.
     public static func defaultFile(in directory: URL = .applicationSupportDirectory) -> URL {
-        directory.appending(path: "Uttrflow/snippets.v1.json", directoryHint: .notDirectory)
+        LocalStore.file("snippets.v1.json", in: directory)
     }
 
     // MARK: - Reading

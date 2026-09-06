@@ -1,11 +1,11 @@
+// Tests for file-path detection.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// K5. A path is a shape almost anything can wear, so the tests that matter are the ones
-/// about what it must *not* take: a date, a fraction, a regular expression and a shell
-/// command all read as paths to a detector that only looks for slashes.
+/// A path is a shape almost anything can wear, so the tests that matter are about what it must not take.
 @Suite("K5 · a file or folder path")
 struct PathShapeTests {
     @Test(
@@ -24,8 +24,7 @@ struct PathShapeTests {
         #expect(ClipKindDetector.kind(of: text) == .filePath)
     }
 
-    /// Each of these is something people copy all day that a slash-hunting detector would
-    /// claim. A folder icon on a date is worse than no icon on a path.
+    /// Things people copy all day that a slash-hunting detector would claim.
     @Test(
         "things that merely contain a slash",
         arguments: [
@@ -44,8 +43,7 @@ struct PathShapeTests {
         #expect(ClipKindDetector.kind(of: text) != .filePath)
     }
 
-    /// Where paths and shell commands become the same shape. One space is a folder name;
-    /// a flag, or a second space, is a verb with things after it.
+    /// One space is a folder name; a flag, or a second space, is a command.
     @Test("one space is a folder name, an argument is a command")
     func spacesAreJudged() {
         #expect(ClipKindDetector.kind(of: "~/Desktop/My Notes.txt") == .filePath)
@@ -59,23 +57,19 @@ struct PathShapeTests {
         #expect(ClipKindDetector.kind(of: "/usr/bin\n/usr/local/bin") != .filePath)
     }
 
-    /// Measured, not assumed: `file://` is neither. `LinkShape` is http/https by design,
-    /// and calling it a path would put a folder icon on a string no terminal accepts —
-    /// what the clip holds is the URL, not the path inside it.
+    /// `file://` is neither a link nor a path; what the clip holds is the URL.
     @Test("a file URL is not claimed as a path")
     func fileURLsAreNotPaths() {
         #expect(ClipKindDetector.kind(of: "file:///Users/naveen/notes.txt") == .text)
     }
 
-    /// A credential is masked whatever else it looks like, and some of them are shaped
-    /// exactly like a path.
+    /// A credential is masked whatever else it looks like.
     @Test("a secret is still a secret")
     func secretsWin() {
         #expect(ClipKindDetector.kind(of: "postgres://user:pw@host:5432/db") != .filePath)
     }
 
-    /// Read character by character, like code — a mistyped path fails in a way that looks
-    /// like a missing file rather than like a typo.
+    /// Read character by character, like code, because a mistyped path fails like a missing file.
     @Test("a path is set in a monospaced face")
     func pathsAreMonospaced() {
         #expect(ClipKindDetector.kind(of: "/usr/local/bin") == .filePath)

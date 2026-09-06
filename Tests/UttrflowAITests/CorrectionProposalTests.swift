@@ -7,10 +7,10 @@ import Testing
 /// What a proposal has to carry, and the promise that it can always be taken back.
 @Suite("WordCorrection")
 struct CorrectionProposalTests {
+    /// The engine under test.
     private let engine = WordCorrectionEngine()
 
-    /// The Corrections page reads these, so they are part of the product rather than
-    /// debugging text. Each must say something a person could check for themselves.
+    /// The Corrections page shows these, so each must say something a person can check.
     @Test("every reason has a label a user could act on", arguments: CorrectionReason.allCases)
     func reasonsAreLegible(reason: CorrectionReason) {
         #expect(!reason.summary.isEmpty)
@@ -25,8 +25,7 @@ struct CorrectionProposalTests {
         #expect(CorrectionReason.heardAsSeveralWords.summary == "Heard as several words")
     }
 
-    /// A reason survives a round trip through the dictation record, which is where the
-    /// Corrections page reads it from a day later.
+    /// A reason survives the dictation record, where the Corrections page reads it a day later.
     @Test("a reason keeps its meaning through storage", arguments: CorrectionReason.allCases)
     func reasonsRoundTripThroughStorage(reason: CorrectionReason) throws {
         let encoded = try JSONEncoder().encode(reason)
@@ -35,8 +34,7 @@ struct CorrectionProposalTests {
 
     // MARK: Undo
 
-    /// The promise, on a real proposal from the real engine: apply it, then take it back,
-    /// and be exactly where you started.
+    /// Apply a real proposal, take it back, and be exactly where you started.
     @Test("a correction can always be undone")
     func correctionsRoundTrip() {
         let utterance = CorrectionFixtures.spoken(
@@ -51,9 +49,7 @@ struct CorrectionProposalTests {
         #expect(WordCorrection.reverting(proposals, from: corrected) == heard)
     }
 
-    /// Several corrections at once, one shrinking the sentence and one growing it, because
-    /// the undo has to find where each replacement actually landed rather than where it
-    /// was proposed.
+    /// One correction shrinks the sentence and one grows it, so undo must find where each landed.
     @Test("several corrections of different lengths all come back")
     func severalCorrectionsRoundTrip() {
         let heard = ["open", "the", "s", "q", "l", "file", "and", "the", "paymentsheet", "view"]
@@ -67,8 +63,7 @@ struct CorrectionProposalTests {
         #expect(WordCorrection.reverting(corrections, from: corrected) == heard)
     }
 
-    /// Corrections handed over out of order must still land in the right places — the
-    /// engine sorts them, but nothing in the type stops a caller from not doing.
+    /// The engine sorts corrections, but nothing in the type stops a caller passing them unsorted.
     @Test("the order corrections arrive in does not matter")
     func orderOfApplicationDoesNotMatter() {
         let heard = ["the", "s", "q", "l", "and", "x", "m", "l", "notes"]
@@ -89,8 +84,7 @@ struct CorrectionProposalTests {
         #expect(WordCorrection.reverting([], from: heard) == heard)
     }
 
-    /// Every proposal names the entry behind it, which is what lets an undo be counted
-    /// against the word that caused it rather than merely discarded.
+    /// The entry is named so an undo can be counted against the word that caused it.
     @Test("a proposal names the entry that has to answer for it")
     func proposalsNameTheirEntry() throws {
         let utterance = CorrectionFixtures.spoken(
@@ -101,6 +95,7 @@ struct CorrectionProposalTests {
         #expect(proposals.map(\.entryID) == [entry.id])
     }
 
+    /// A stray-letters correction over `range`.
     private static func correction(
         heard: String, replacement: String, over range: Range<Int>
     ) -> WordCorrection {

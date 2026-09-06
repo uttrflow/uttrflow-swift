@@ -61,14 +61,16 @@ set -euo pipefail
 # Modes
 # ---------------------------------------------------------------------------
 #   local        (default) ad-hoc, no hardened runtime. Runs here, keeps TCC grants.
+#   development  local, under its own identifier, so it runs beside the installed app
+#                and keeps its own Application Support folder. See Docs/development-build.md.
 #   rehearsal    hardened runtime, still ad-hoc. Exercises the runtime with no
 #                certificate, because the expensive half of "does the hardened runtime
 #                break anything" needs no Developer ID to answer.
 #   distribution Developer ID + hardened runtime + secure timestamp. Notarisable.
 MODE="${1:-local}"
 case "$MODE" in
-    local | rehearsal | distribution) ;;
-    *) echo "error: unknown mode '$MODE'. Expected local, rehearsal or distribution." >&2
+    local | development | rehearsal | distribution) ;;
+    *) echo "error: unknown mode '$MODE'. Expected local, development, rehearsal or distribution." >&2
        exit 1 ;;
 esac
 
@@ -101,7 +103,6 @@ PRODUCTS_DIR="$DERIVED_DATA/Build/Products/$CONFIGURATION"
 SOURCE_PLIST="Resources/Uttrflow-Info.plist"
 ENTITLEMENTS="Resources/Uttrflow.entitlements"
 ICON="Design/uttrflow.icns"
-APP="dist/$PRODUCT.app"
 
 fail() {
     echo "error: $*" >&2
@@ -123,6 +124,30 @@ BUNDLE_ID="$(plist_value CFBundleIdentifier "$SOURCE_PLIST")" \
     || fail "$SOURCE_PLIST has no CFBundleIdentifier"
 EXECUTABLE="$(plist_value CFBundleExecutable "$SOURCE_PLIST")" \
     || fail "$SOURCE_PLIST has no CFBundleExecutable"
+
+# The development build is the shipping Info.plist with three keys changed, rather than a
+# second plist to keep in step with it. A distinct identifier is the whole mechanism: it
+# gives the build its own defaults domain, its own Application Support folder — see
+# `LocalStore` — its own Keychain items and its own TCC grants, so it runs beside the
+# installed app instead of replacing it. The update feed goes with it, because a
+# development build that installed the release would replace itself with the release.
+APP_NAME="$PRODUCT"
+if [[ "$MODE" == "development" ]]; then
+    APP_NAME="Uttrflow-Dev"
+    DEVELOPMENT_PLIST="$(mktemp -t uttrflow-development-info)"
+    cp "$SOURCE_PLIST" "$DEVELOPMENT_PLIST"
+    plutil -replace CFBundleIdentifier -string "$BUNDLE_ID.dev" "$DEVELOPMENT_PLIST" >/dev/null \
+        || fail "could not give the development build its own identifier"
+    plutil -replace CFBundleName -string "Uttrflow Dev" "$DEVELOPMENT_PLIST" >/dev/null \
+        || fail "could not name the development build"
+    plutil -remove SUFeedURL "$DEVELOPMENT_PLIST" >/dev/null 2>&1 || true
+    plutil -remove SUPublicEDKey "$DEVELOPMENT_PLIST" >/dev/null 2>&1 || true
+    plutil -remove SUEnableAutomaticChecks "$DEVELOPMENT_PLIST" >/dev/null 2>&1 || true
+    SOURCE_PLIST="$DEVELOPMENT_PLIST"
+    BUNDLE_ID="$(plist_value CFBundleIdentifier "$SOURCE_PLIST")" \
+        || fail "the development Info.plist lost its CFBundleIdentifier"
+fi
+APP="dist/$APP_NAME.app"
 
 # ---------------------------------------------------------------------------
 # Build
@@ -624,9 +649,14 @@ fi
 #    bakes no such path, and this asserts that it stays that way.
 #    As in step 4, `|| true` keeps a clean result — grep matching nothing — from
 #    looking like a failed pipeline to `set -o pipefail`.
+# A third-party C++ dependency (MLX) bakes its own source path via `__FILE__` into an
+# assert string under the SwiftPM checkouts directory. That is a harmless debug literal,
+# not a resource-bundle lookup, and it is outside our control, so paths under `checkouts/`
+# are ignored; our own fallback, which is what this guards, is never under there.
 LEAKED_PATHS="$(
     strings -a "$APP/Contents/MacOS/$EXECUTABLE" \
         | { grep -F "$PACKAGE_ROOT" || true; } \
+        | { grep -vF "/checkouts/" || true; } \
         | LC_ALL=C sort -u \
         | head -5
 )"

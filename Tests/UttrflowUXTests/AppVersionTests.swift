@@ -1,14 +1,10 @@
+// Tests for the version string the sidebar shows.
 import Foundation
 import Testing
 
 @testable import UttrflowUX
 
-/// Which build the sidebar says this is.
-///
-/// Small, and worth pinning anyway: the string here is the one a person reads out when
-/// something has gone wrong, and every wrong form of it costs somebody a round trip —
-/// a blank where a version should be, a version with no build to tell two of them apart,
-/// or the word "unknown" presented as though it were a version.
+/// Which build the sidebar says this is, pinned because every wrong form costs somebody a round trip.
 @Suite("The version in the sidebar")
 struct AppVersionTests {
     @Test("says the version and the build where there is room for both")
@@ -16,23 +12,19 @@ struct AppVersionTests {
         #expect(AppVersion(short: "0.2.0", build: "3").full == "0.2.0 (3)")
     }
 
-    /// The rail is forty-four points wide. "0.2.0" fits there and "0.2.0 (3)" does not,
-    /// so the short form has to stand alone and mean something.
+    /// The rail is forty-four points wide, so the short form has to stand alone and mean something.
     @Test("the short form is the version alone")
     func shortStandsAlone() {
         #expect(AppVersion(short: "0.2.0", build: "3").short == "0.2.0")
     }
 
-    /// A bundle that has a version and no build number is not a bundle this project
-    /// ships — `bundle.sh` refuses one — but the parentheses must not appear empty if it
-    /// ever happens.
+    /// A version with no build number is not one this project ships, but the parentheses must not be empty.
     @Test("drops the parentheses when there is no build number")
     func noBuildMeansNoBrackets() {
         #expect(AppVersion(short: "0.2.0", build: "").full == "0.2.0")
     }
 
-    /// Nothing, rather than "unknown". The sidebar draws the version only when there is
-    /// one, so an unreadable bundle costs a missing line and not a misleading one.
+    /// Nothing rather than "unknown": an unreadable bundle costs a missing line, not a misleading one.
     @Test("an unknown version is empty and says so")
     func unknownIsEmpty() {
         #expect(!AppVersion.unknown.isKnown)
@@ -46,8 +38,7 @@ struct AppVersionTests {
         #expect(AppVersion(short: "0.2.0", build: "3").isKnown)
     }
 
-    /// The sidebar is drawn from the presentation and nothing else, so the version has
-    /// to survive the trip through it.
+    /// The sidebar is drawn from the presentation alone, so the version has to survive the trip.
     @Test("reaches the sidebar from the snapshot")
     func thePresenterCarriesIt() {
         let snapshot = SidebarSnapshot(

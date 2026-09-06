@@ -4,6 +4,7 @@ import Testing
 import UttrflowTestSupport
 
 @testable import UttrflowCore
+import UttrflowPredict
 @testable import UttrflowSettings
 
 /// A key-value store in memory: the settings store's real behaviour is what is under
@@ -74,6 +75,18 @@ struct SettingsTests {
         )
 
         #expect(restored == settings)
+    }
+
+    /// The flag was absent from `CodingKeys`, so switching it off lasted only until the next launch.
+    @Test("keeps automatic updates switched off across a save and a load")
+    func automaticUpdatesStayOff() throws {
+        let settings = Settings(installsUpdatesAutomatically: false)
+
+        let restored = try JSONDecoder().decode(
+            Settings.self, from: JSONEncoder().encode(settings)
+        )
+
+        #expect(!restored.installsUpdatesAutomatically)
     }
 
     /// The upgrade case: a user who has been running the app for a year opens a build
@@ -459,5 +472,50 @@ struct SystemUserDefaultsTests {
     @Test("falls back to the app's own domain when no suite is named")
     func standardDomain() {
         #expect(SystemUserDefaults().data(forKey: "com.uttrflow.absent.\(UUID().uuidString)") == nil)
+    }
+}
+
+// MARK: - Tab-to-complete
+
+@Suite("Suggestions inside the settings")
+struct SettingsSuggestionsTests {
+    @Test("ships tab-to-complete off, and off in the four editors")
+    func shipsOff() {
+        #expect(!Settings.default.suggestions.isEnabled)
+        for editor in SuggestionApplications.offByDefault {
+            #expect(
+                Settings.default.suggestions.state(of: editor.bundleIdentifier) == .offByDefault)
+        }
+    }
+
+    @Test("keeps every suggestion choice through an encode and a decode")
+    func roundTrip() throws {
+        let paused = Date(timeIntervalSince1970: 1_700_000_000)
+        var settings = Settings.default
+        settings.suggestions = SuggestionPreferences(
+            isEnabled: true,
+            turnedOff: ["com.apple.notes"],
+            turnedOn: ["com.apple.dt.xcode"],
+            chosenAcceptKeys: ["com.apple.dt.xcode": .rightArrow],
+            isQuiet: true,
+            pausedUntil: paused)
+
+        let store = UserDefaultsSettingsStore(store: InMemoryKeyValueStore())
+        store.save(settings)
+        #expect(store.load().suggestions == settings.suggestions)
+    }
+
+    @Test("treats a blob written before suggestions existed as a user who never chose")
+    func anOlderBlobDefaults() throws {
+        let settings = try decode(#"{"opensAtLogin": false}"#)
+        #expect(settings.suggestions == .default)
+        #expect(!settings.opensAtLogin)
+    }
+
+    @Test("keeps every other choice when the suggestions field cannot be read")
+    func anUnreadableFieldDefaults() throws {
+        let settings = try decode(#"{"opensAtLogin": false, "suggestions": "on"}"#)
+        #expect(settings.suggestions == .default)
+        #expect(!settings.opensAtLogin)
     }
 }

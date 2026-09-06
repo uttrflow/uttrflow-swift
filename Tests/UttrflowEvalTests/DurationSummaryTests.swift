@@ -1,3 +1,4 @@
+// Tests the end-to-end duration summary.
 import UttrflowCore
 import Testing
 
@@ -19,9 +20,7 @@ struct DurationSummaryTests {
         #expect(summary?.failures == 0)
     }
 
-    /// The whole reason this delegates rather than sorting again: with an even number of
-    /// samples ``StageLatency`` takes the upper of the two, and an end-to-end row that
-    /// averaged them instead would disagree with the stage rows beneath it.
+    /// ``StageLatency`` takes the upper of two middle samples, and the end-to-end row must agree with it.
     @Test("an even number of samples ties the same way StageLatency does")
     func tieBreaksLikeStageLatency() {
         let durations: [Duration] = [.seconds(1), .seconds(2)]
@@ -33,8 +32,7 @@ struct DurationSummaryTests {
         #expect(DurationSummary.over(durations)?.typical == .seconds(2))
     }
 
-    /// A journey can be fast because it gave up, so how many failed travels with the
-    /// timings rather than being inferred from them.
+    /// A journey can be fast because it gave up, so the failure count travels with the timings.
     @Test("failures are carried, not inferred")
     func failuresAreCarried() {
         #expect(DurationSummary.over([.seconds(1)], failures: 1)?.failures == 1)

@@ -2,25 +2,13 @@ import Testing
 
 @testable import UttrflowAI
 
-/// The held-back set: sentences that are already right.
-///
-/// This is the test the feature is for. Every sentence below is correct as it stands and
-/// full of the sort of word that tempts a correction engine — real technical vocabulary,
-/// real names, and ordinary English that happens to sound exactly like something in the
-/// user's dictionary. The recogniser is made to doubt every word of every one of them, so
-/// condition one never saves us and condition two frequently fires.
-///
-/// **The passing score is zero changes.** Not "few", not "mostly harmless". A dictation
-/// tool that rewrites good sentences is worse than one that corrects nothing, and this
-/// suite is the only thing standing between the two.
+/// Correct sentences, every word doubted; passing is zero changes. See Docs/ai-correction-thresholds.md.
 @Suite("Correction restraint")
 struct CorrectionRestraintTests {
+    /// The engine under test.
     private let engine = WordCorrectionEngine()
 
-    /// Correct sentences, each carrying at least one word a general model would not
-    /// expect. The collisions with the fixture dictionary are on purpose: "clawed" against
-    /// `Claude`, "sonnet" against `Sonnet`, "kestrel" against `Kestrel`, "maven" against
-    /// `Maven`, "quay" against a name, and so on.
+    /// Correct sentences whose words collide with the fixture dictionary on purpose: "clawed", "sonnet".
     static let alreadyCorrect = [
         "The bear clawed the bark off a young tree",
         "She wrote a sonnet about the harbour at dawn",
@@ -61,9 +49,7 @@ struct CorrectionRestraintTests {
         #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
-    /// The same corpus, dictated into a document that already contains it — the ordinary
-    /// case of correcting a draft you are looking at. Every heard word now has the
-    /// on-screen signal too, and the arithmetic has to cancel rather than compound.
+    /// The same corpus on screen: every heard word gains that signal too, so the arithmetic must cancel.
     @Test("changes nothing when the correct sentence is on screen", arguments: alreadyCorrect)
     func leavesCorrectSentencesAloneOnScreen(sentence: String) {
         let proposals = engine.proposals(
@@ -73,9 +59,7 @@ struct CorrectionRestraintTests {
         #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
-    /// The hostile case, and the one a margin of one would fail. Every word of the
-    /// dictionary is on the screen, so every candidate the index offers has the strongest
-    /// signal there is behind it. The sentences are still right, and still must not move.
+    /// The whole dictionary on screen gives every candidate the strongest signal; a margin of one would fail.
     @Test(
         "changes nothing even with the whole dictionary on screen", arguments: alreadyCorrect)
     func leavesCorrectSentencesAloneAgainstAHostileScreen(sentence: String) {
@@ -86,16 +70,7 @@ struct CorrectionRestraintTests {
         #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
-    /// Guards the corpus itself.
-    ///
-    /// Zero changes is only an achievement if the engine was tempted. If a future edit to
-    /// the fixture dictionary or to the phonetics quietly stopped these sentences matching
-    /// anything, the three tests above would still pass and would be measuring nothing.
-    /// This asserts that condition two — a dictionary entry sounds like something in the
-    /// sentence — fires on at least fifteen of them, so their silence is restraint rather
-    /// than coincidence. Seventeen do today: "clawed" and "clod" both find `Claude`,
-    /// "sickle" finds `SQL`, "nickel" finds `Nikhil`, "smell" finds `XML`, "readies" finds
-    /// `Redis`, "griffin" finds `Grafana`, and the two-word run "air well" finds `URL`.
+    /// Fifteen sentences must tempt the dictionary, or the three tests above measure nothing.
     @Test("the held-back sentences really do tempt the dictionary")
     func corpusIsTempting() {
         let tempted = Self.alreadyCorrect.filter { sentence in

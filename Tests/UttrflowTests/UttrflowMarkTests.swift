@@ -1,22 +1,15 @@
+// Tests for the mark's geometry.
+
 import Foundation
 import SwiftUI
 import Testing
 
 @testable import Uttrflow
 
-/// The mark is drawn, so how it *looks* is not testable here. What is, and what would go
-/// wrong silently, is its geometry: the mark is the one shape that appears at 16 points in
-/// the menu bar and at 1024 in the Dock, and every one of those sizes is this path scaled.
-/// A mark that drifts off its own proportions, loses the difference between its two stems,
-/// or grows past the box the clear-space rule is measured from is a bug that ships as a
-/// slightly wrong logo everywhere at once.
+/// The mark's geometry is testable: one path scaled from 16 points to 1024, so drift ships everywhere.
 @Suite("The mark's geometry")
 struct UttrflowMarkTests {
-    /// The bounds of what is actually drawn.
-    ///
-    /// Not `path(in:).boundingRect`: the path is a centreline, so its box is a whole
-    /// stroke narrower and shorter than the mark — and it is the stroked box that the
-    /// proportions and the clear-space rule are stated in.
+    /// The bounds of what is drawn: the stroked box, not the centreline path's.
     private func drawn(_ mark: UttrflowMark, in rect: CGRect) -> CGRect {
         let scale = min(
             rect.width / UttrflowMark.gridBox.width,
@@ -36,8 +29,7 @@ struct UttrflowMarkTests {
         drawn(mark, in: CGRect(x: 0, y: 0, width: side, height: side))
     }
 
-    /// 62:72 is the drawn box, not the 100×100 grid it is authored on. Anything that reads
-    /// the grid as the shape puts the mark in a square and leaves it swimming.
+    /// 62:72 is the drawn box, not the 100×100 grid; reading the grid as the shape leaves the mark swimming.
     @Test("keeps the drawn box at its own proportions, not the grid's")
     func aspectRatio() {
         let box = drawn(UttrflowMark())
@@ -46,8 +38,7 @@ struct UttrflowMarkTests {
         #expect(abs(UttrflowMark.aspectRatio - 62.0 / 72.0) < 0.000_001)
     }
 
-    /// The whole idea of the mark: a *u* whose stems are different heights, so it reads as
-    /// a waveform as well as a letter. Equal stems would just be a horseshoe.
+    /// A *u* whose stems differ in height reads as a waveform as well as a letter.
     @Test("draws the right stem taller than the left")
     func stemsDiffer() {
         let mark = UttrflowMark()
@@ -56,8 +47,7 @@ struct UttrflowMarkTests {
         #expect(mark.leftTop - mark.rightTop >= 12, "too close and the difference stops reading")
     }
 
-    /// Scaling happens on the shorter side, so the mark keeps its shape in a frame of any
-    /// proportion rather than stretching to fill it.
+    /// Scaling happens on the shorter side, so the mark keeps its shape in any frame.
     @Test("never stretches to fill a frame that is the wrong shape")
     func doesNotStretch() {
         let wide = drawn(UttrflowMark(), in: CGRect(x: 0, y: 0, width: 900, height: 300))
@@ -67,9 +57,7 @@ struct UttrflowMarkTests {
         #expect(abs(tall.width / tall.height - UttrflowMark.aspectRatio) < 0.005)
     }
 
-    /// The stroke is half the story: the path is a centreline, and the round cap adds half
-    /// a stroke width beyond every end. Clear space is measured from one stroke width, so a
-    /// weight that stops tracking the height silently changes the spacing rule too.
+    /// The round cap adds half a stroke beyond every end, and clear space is measured in strokes.
     @Test("scales the stroke with the height")
     func strokeTracksHeight() {
         #expect(abs(UttrflowMark.lineWidth(forHeight: 72) - 14) < 0.000_001)
@@ -77,9 +65,7 @@ struct UttrflowMarkTests {
         #expect(abs(UttrflowMark.lineWidth(forHeight: 16) - 16 / 72 * 14) < 0.000_001)
     }
 
-    /// The animated listening state moves the stem tops. It must not move them so far that
-    /// the round cap leaves the box the icon is exported from, where it is sliced flat —
-    /// which is exactly what the first version of that animation did.
+    /// A raised stem must not leave the box the icon is exported from, where it is sliced flat.
     @Test("keeps a raised stem inside the drawn box")
     func raisedStemStaysInside() {
         let resting = drawn(UttrflowMark())
@@ -91,8 +77,7 @@ struct UttrflowMarkTests {
         #expect(drawn(UttrflowMark(leftTop: 21, rightTop: 17)).minY < resting.minY - 0.5)
     }
 
-    /// `animatableData` is what lets SwiftUI interpolate the stems. Reading a value back
-    /// that does not match what was written would animate to the wrong pose.
+    /// `animatableData` must read back what was written, or SwiftUI animates to the wrong pose.
     @Test("round-trips both stems through the animatable pair")
     func animatableRoundTrip() {
         var mark = UttrflowMark()

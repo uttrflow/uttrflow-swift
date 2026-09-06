@@ -1,10 +1,10 @@
+// Tests for the formatter round-trip guard and the formatter allowlist.
+
 import Testing
 
 @testable import UttrflowClipboard
 
-/// The gate that makes formatting affordable. Two halves: it must let a formatter do the
-/// things formatters legitimately do, and it must catch the three failures the
-/// specification names — a dropped line, a changed string literal, a normalised number.
+/// The gate that makes formatting affordable: allow what formatters do, catch the three named failures.
 @Suite("D6, D7 · the round-trip guard")
 struct FormatterGuardTests {
     // MARK: What a formatter is allowed to do
@@ -95,8 +95,7 @@ struct FormatterGuardTests {
         #expect(!FormatterGuard.isFaithful("let a = 1\nlet b = 2", to: "let a = 1"))
     }
 
-    /// Truncation is what a formatter does when it fails halfway, and it is the failure
-    /// that looks most like success.
+    /// Truncation is what a formatter does when it fails halfway, and it looks most like success.
     @Test("output cut short is caught")
     func truncated() {
         let before = "func a() {\n    doTheThing()\n    andTheOther()\n}"
@@ -104,15 +103,13 @@ struct FormatterGuardTests {
         #expect(!FormatterGuard.isFaithful("func a() {\n    doTheThing()", to: before))
     }
 
-    /// A formatter returning nothing at all is the clearest failure there is, and must not
-    /// read as "the code is now empty".
+    /// Empty output is the clearest failure and must not read as "the code is now empty".
     @Test("empty output against real input is caught")
     func emptied() {
         #expect(!FormatterGuard.isFaithful("", to: "let a = 1"))
     }
 
-    /// Words inside a string are content, so changing the punctuation around them is not
-    /// a change — but changing the words is.
+    /// Words inside a string are content; the punctuation around them is not.
     @Test("punctuation inside a string may move; the words may not")
     func stringContents() {
         #expect(FormatterGuard.isFaithful("print(\"a, b\")", to: "print(\"a , b\")"))
@@ -127,28 +124,20 @@ struct KnownFormatterTests {
     func languagesResolve() {
         for formatter in KnownFormatter.allCases {
             for language in formatter.languages {
-                #expect(KnownFormatter.forLanguage(language) != nil, "\(language)")
+                #expect(KnownFormatter(for: language) != nil, "\(language)")
             }
         }
     }
 
-    /// An allowlist, not a search. The alternative is executing whatever happens to be on
-    /// PATH under a familiar name, and this feature hands it everything the user is about
-    /// to paste into production.
+    /// An allowlist, not a search of `PATH`.
     @Test("a language with no trusted formatter has none, rather than a guess")
     func noGuessing() {
-        #expect(KnownFormatter.forLanguage(.shell) == nil)
-        #expect(KnownFormatter.forLanguage(.sql) == nil)
-        #expect(KnownFormatter.forLanguage(.java) == nil)
+        #expect(KnownFormatter(for: .shell) == nil)
+        #expect(KnownFormatter(for: .sql) == nil)
+        #expect(KnownFormatter(for: .java) == nil)
     }
 
-    /// The code being formatted is the user's and may contain anything at all. On a
-    /// command line that becomes a command, so it goes in on standard input and every
-    /// argument is a constant written here.
-    ///
-    /// Pinned exactly rather than by shape: "looks like a flag" would have accepted
-    /// `rustfmt`'s `stdout`, and would go on accepting anything that happened to start
-    /// with a dash. Naming them means adding one is a deliberate edit to this list.
+    /// Every argument is a constant named here, so none can carry the clip; adding one is a deliberate edit.
     @Test("every argument is a constant, so none can carry the clip")
     func argumentsAreConstants() {
         let expected: [KnownFormatter: [String]] = [
@@ -164,16 +153,14 @@ struct KnownFormatterTests {
         }
     }
 
-    /// A search of `PATH` would execute whatever a shell plugin or a project's `.envrc`
-    /// had prepended to it, on everything the user is about to paste.
+    /// A search of `PATH` would execute whatever a shell plugin prepended to it.
     @Test("formatters are looked for in fixed directories, never on PATH")
     func fixedDirectories() {
         #expect(!SystemCodeFormatter.directories.isEmpty)
         #expect(SystemCodeFormatter.directories.allSatisfy { $0.hasPrefix("/") })
     }
 
-    /// This runs while somebody is waiting on a paste, and a program that has hung must
-    /// not take the panel with it.
+    /// A hung formatter must not take the panel with it.
     @Test("a formatter is given a bounded time to answer")
     func bounded() {
         #expect(KnownFormatter.timeout > 0)

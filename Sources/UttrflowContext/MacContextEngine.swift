@@ -26,10 +26,19 @@ public struct FrontmostApplication: Sendable, Equatable {
 public struct FocusedWindow: Sendable, Equatable {
     public let title: String?
     public let selectedText: String?
+    /// Text before the caret, already cut to ``InsertionPoint/precedingLimit``; `nil` when the field will not say.
+    public let precedingText: String?
+    /// Text after the selection, already cut to ``InsertionPoint/followingLimit``; `nil` when the field will not say.
+    public let followingText: String?
 
-    public init(title: String? = nil, selectedText: String? = nil) {
+    public init(
+        title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
+        followingText: String? = nil
+    ) {
         self.title = title
         self.selectedText = selectedText
+        self.precedingText = precedingText
+        self.followingText = followingText
     }
 }
 
@@ -143,7 +152,10 @@ public final class MacContextEngine: ContextEngine, Sendable {
             applicationName: Self.meaningful(gathered.application?.name),
             bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
             documentName: Self.meaningful(gathered.window?.title),
-            selectedText: Self.meaningful(gathered.window?.selectedText).map(Self.truncated)
+            selectedText: Self.meaningful(gathered.window?.selectedText).map(Self.truncated),
+            // Kept verbatim: an empty field is the start of the text, not nothing learnt.
+            precedingText: gathered.window?.precedingText,
+            followingText: gathered.window?.followingText
         )
     }
 

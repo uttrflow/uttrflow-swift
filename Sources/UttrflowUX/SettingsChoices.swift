@@ -1,4 +1,5 @@
 public import UttrflowCore
+public import UttrflowPredict
 
 // MARK: - Tidying
 
@@ -169,4 +170,26 @@ extension SettingsLanguage {
         SettingsLanguage(code: .english, name: "English", endonym: nil),
         SettingsLanguage(code: .hindi, name: "Hindi", endonym: "हिन्दी"),
     ]
+}
+
+// MARK: - Accepting a suggestion
+
+extension AcceptKey {
+    /// What the key is called on screen, spelled as a keyboard is rather than as a symbol.
+    public var title: String {
+        switch self {
+        case .tab: "Tab"
+        case .rightArrow: "Right arrow"
+        case .optionTab: "Option-Tab"
+        }
+    }
+
+    /// Why this key rather than Tab, said only where it is not the obvious answer.
+    public var explanation: String? {
+        switch self {
+        case .tab: nil
+        case .rightArrow: "Leaves Tab to the shell's own completion."
+        case .optionTab: "Leaves Tab to indent, and to the editor's own completion."
+        }
+    }
 }

@@ -1,12 +1,9 @@
+// The Diagnostics page: timings, engines, permissions and storage.
+
 import UttrflowUX
 import SwiftUI
 
-/// The diagnostics page: how long things took, what is running, and what is in the way.
-///
-/// Every number here came out of ``DiagnosticsPresenter``, which will not produce one it
-/// did not measure. That is why this file contains no placeholder and no default: there
-/// is nothing to fall back to, because a stage nothing measured has no number — it is
-/// listed by name as never run instead.
+/// The diagnostics page: how long things took, what is running, and what is in the way; no placeholders.
 struct DiagnosticsPageView: View {
     let presentation: DiagnosticsPresentation
     var onIntent: (MainIntent) -> Void = { _ in }
@@ -21,16 +18,8 @@ struct DiagnosticsPageView: View {
                 MainSectionLabel(text: "Time from letting go of the key to text on screen")
                 headline(latency)
                 VStack(spacing: 0) {
-                    ForEach(Array(latency.stages.enumerated()), id: \.element.id) {
-                        index, stage in
-                        if index > 0 {
-                            MainDivider()
-                        }
-                        stageRow(stage)
-                    }
-                    // Below the stages that were timed, and in the page's grey
-                    // "not known" style rather than with a number: a stage nothing
-                    // has run is a fact about the journey, not a fast one.
+                    MainDividedRows(rows: latency.stages) { stageRow($0) }
+                    // Below the timed stages, in the grey "not known" style: a stage nothing ran is a fact.
                     ForEach(latency.unmeasured) { row in
                         MainDivider()
                         factRow(row)
@@ -101,20 +90,19 @@ struct DiagnosticsPageView: View {
             """)
     }
 
-    /// The stages keep the order the journey runs in, so the colours are taken in the
-    /// same order and one stage cannot swap colours between the bar and the list.
+    /// Colours taken in the journey's order, so a stage cannot swap colours between the bar and the list.
     private func colour(for stage: DiagnosticsStageRow) -> Color {
         switch stage.stage {
         case .capture: .dockAccentTint
         case .transcription: .dockAccentLight
         case .correction: .dockAccent
-        case .transformation: .dockSecondary
+        case .transformation: .dockActive
         case .expansion: .dockAccentWash
         case .insertion: .dockSuccess
         }
     }
 
-    /// The verdict, above the facts it was drawn from.
+    /// The verdict, above the facts it is drawn from.
     private var summary: some View {
         let summary = presentation.summary
         let tint: Color = summary.needsAttention ? .dockWarning : .dockSuccess
@@ -135,8 +123,7 @@ struct DiagnosticsPageView: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            // The all-clear is drawn as a plain panel: an amber banner has to be the
-            // only coloured thing on the page for the eye to go to it.
+            // The all-clear is a plain panel, so an amber banner is the only coloured thing on the page.
             summary.needsAttention ? Color.dockWarning.opacity(0.10) : Color.mainCard,
             in: .rect(cornerRadius: MainMetrics.cardRadius)
         )
@@ -155,12 +142,7 @@ struct DiagnosticsPageView: View {
             VStack(alignment: .leading, spacing: 7) {
                 MainSectionLabel(text: title)
                 VStack(spacing: 0) {
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                        if index > 0 {
-                            MainDivider()
-                        }
-                        factRow(row)
-                    }
+                    MainDividedRows(rows: rows) { factRow($0) }
                 }
             }
         }
@@ -186,8 +168,7 @@ struct DiagnosticsPageView: View {
         .accessibilityLabel("\(row.title): \(row.detail)")
     }
 
-    /// Grey for unknown, deliberately: a state nobody has checked must not be drawn in
-    /// the same colour as one that has been checked and is fine.
+    /// Grey for unknown, so a state nobody has checked never looks like one checked and fine.
     private func colour(for state: DiagnosticsState) -> Color {
         switch state {
         case .good: .dockSuccess

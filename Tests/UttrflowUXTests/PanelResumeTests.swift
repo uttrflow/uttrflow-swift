@@ -1,20 +1,23 @@
+// Tests for reopening the panel after an accidental dismissal.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// A3 and A7 — this panel is dismissed constantly and by design, so an accidental
-/// dismissal must not cost the user their place or the alias they were halfway through.
+/// The panel is dismissed constantly by design, so an accident must not cost the user their place.
 @Suite("A3, A7 · reopening after an accident")
 struct PanelResumeTests {
+    /// Two filed clips and one loose one.
     static let clips = [
         PanelFixture.clip("one", minutesAgo: 1, category: "Work"),
         PanelFixture.clip("two", minutesAgo: 2, category: "Work"),
         PanelFixture.clip("three", minutesAgo: 3),
     ]
+    /// The fixed clock.
     static let now = PanelFixture.now
 
+    /// A resume point closed this many seconds ago.
     static func resume(
         category: String? = "Work", selection: Clip.ID? = nil, sheet: PanelSheet? = nil,
         secondsAgo: TimeInterval = 3
@@ -50,8 +53,7 @@ struct PanelResumeTests {
         #expect(panel.sheet == sheet)
     }
 
-    /// A panel that remembered for an hour would open in a collection the user had
-    /// forgotten choosing — the same disorientation, in the other direction.
+    /// A panel that remembered for an hour would open in a collection the user had forgotten choosing.
     @Test("but only for as long as a dismissal counts as an accident")
     func theWindowExpires() {
         let panel = PanelSnapshot.opening(
@@ -69,8 +71,7 @@ struct PanelResumeTests {
         #expect(panel.query.isEmpty)
     }
 
-    /// Restoring a collection whose last clip has aged out would open the panel on an
-    /// empty list under a chip for nothing.
+    /// Restoring a collection whose last clip has aged out would open on an empty list under a chip.
     @Test("a collection that no longer exists is not restored")
     func vanishedCollection() {
         let panel = PanelSnapshot.opening(
@@ -88,8 +89,7 @@ struct PanelResumeTests {
         #expect(panel.sheet == nil)
     }
 
-    /// The room may have changed between the dismissal and the reopening, and the whole
-    /// reason a secret is masked is that the panel gets opened in front of other people.
+    /// The room may have changed between dismissal and reopening, so a revealed secret is masked again.
     @Test("a secret revealed before the dismissal is masked again")
     func revealsDoNotSurvive() {
         let secret = PanelFixture.clip("sk-live-abcdef", kind: .secret, minutesAgo: 1)
@@ -100,8 +100,7 @@ struct PanelResumeTests {
         #expect(PanelPresenter.present(panel).rows[0].isMasked)
     }
 
-    /// Resuming is about where the user was, not what they were looking for. A search
-    /// left in the field would filter the list on the next open with no memory of why.
+    /// Resuming is about where the user was, not what they were looking for, so the query is dropped.
     @Test("the search field always starts empty")
     func searchDoesNotSurvive() {
         let panel = PanelSnapshot.opening(

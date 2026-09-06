@@ -1,4 +1,5 @@
 public import UttrflowCore
+public import UttrflowPredict
 
 /// Where the floating button parks itself.
 ///
@@ -79,6 +80,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// on it at all.
     public var clipboardRetentionDays: Int
 
+    /// Everything the user has decided about tab-to-complete.
+    public var suggestions: SuggestionPreferences
+
     public init(
         engines: EngineConfiguration = .default,
         profile: UserProfile = .default,
@@ -94,7 +98,8 @@ public struct Settings: Sendable, Equatable, Codable {
         installsUpdatesAutomatically: Bool = true,
         appearance: AppAppearance = .dark,
         transcriptRetentionDays: Int = Settings.defaultRetentionDays,
-        clipboardRetentionDays: Int = Settings.defaultRetentionDays
+        clipboardRetentionDays: Int = Settings.defaultRetentionDays,
+        suggestions: SuggestionPreferences = .default
     ) {
         self.engines = engines
         self.profile = profile
@@ -111,6 +116,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.appearance = appearance
         self.transcriptRetentionDays = transcriptRetentionDays
         self.clipboardRetentionDays = clipboardRetentionDays
+        self.suggestions = suggestions
     }
 
     /// A week: long enough to find yesterday's dictation, short enough that a user who
@@ -134,9 +140,11 @@ extension Settings {
         case minimisesWhileDictating
         case playsSoundWhenRecordingStarts
         case opensAtLogin
+        case installsUpdatesAutomatically
         case appearance
         case transcriptRetentionDays
         case clipboardRetentionDays
+        case suggestions
     }
 
     /// Decodes field by field, defaulting anything missing or unreadable.
@@ -192,6 +200,10 @@ extension Settings {
                 default: fallback.playsSoundWhenRecordingStarts
             ),
             opensAtLogin: container.value(forKey: .opensAtLogin, default: fallback.opensAtLogin),
+            installsUpdatesAutomatically: container.value(
+                forKey: .installsUpdatesAutomatically,
+                default: fallback.installsUpdatesAutomatically
+            ),
             appearance: container.value(forKey: .appearance, default: fallback.appearance),
             transcriptRetentionDays: Settings.retention(
                 container.value(
@@ -202,7 +214,8 @@ extension Settings {
                 container.value(
                     forKey: .clipboardRetentionDays, default: fallback.clipboardRetentionDays
                 )
-            )
+            ),
+            suggestions: container.value(forKey: .suggestions, default: fallback.suggestions)
         )
     }
 

@@ -1,3 +1,5 @@
+// Tests for the dictionary store and its error.
+
 import Foundation
 import UttrflowCore
 import Testing
@@ -8,8 +10,7 @@ import Testing
 struct PersonalDictionaryStoreTests {
     // MARK: Where it lives
 
-    /// Its own file, beside the history and not inside it: a user who clears their
-    /// history must not thereby forget how to spell their colleagues' names.
+    /// Its own file beside the history, so clearing the history does not forget colleagues' names.
     @Test("keeps its own versioned file under Application Support")
     func defaultFile() {
         let root = URL(fileURLWithPath: "/tmp/support")
@@ -38,8 +39,7 @@ struct PersonalDictionaryStoreTests {
         #expect(try await store.add(word("kubectl", from: .added)).count == 2)
     }
 
-    /// Two rows spelling the same word is a bug the user can see in a settings list. The
-    /// newcomer's spelling wins, because it is the one they just asked for.
+    /// Two rows spelling the same word is a visible bug; the newcomer's spelling wins.
     @Test("replaces a word rather than listing it twice")
     func addingReplaces() async throws {
         let sandbox = Sandbox()
@@ -76,8 +76,7 @@ struct PersonalDictionaryStoreTests {
         #expect(try await store.remove(UUID()).count == 1)
     }
 
-    /// Reaches the disk inside the call rather than at the next write: a user who clears
-    /// their dictionary and then quits must not find it still there.
+    /// Reaches the disk inside the call, so a user who clears and quits does not find it still there.
     @Test("leaves nothing on disk when everything is forgotten")
     func removeEverything() async throws {
         let sandbox = Sandbox()
@@ -90,10 +89,7 @@ struct PersonalDictionaryStoreTests {
         #expect(FileManager.default.fileExists(atPath: sandbox.file.path(percentEncoded: false)) == false)
     }
 
-    /// **The operation the rest of the design is insured by.** A dictionary that learns
-    /// can learn the wrong thing, and the honest answer is to throw the inferences away —
-    /// but throwing away the words the user typed in at the same time would make the fix
-    /// cost more than the fault.
+    /// The operation the design is insured by: inferences go, typed-in words stay.
     @Test("throws away everything it worked out and keeps everything it was taught")
     func removeLearned() async throws {
         let sandbox = Sandbox()
@@ -107,8 +103,7 @@ struct PersonalDictionaryStoreTests {
         #expect(sandbox.onDisk()?.map(\.word) == ["Nikhil", "kubectl"])
     }
 
-    /// The user hand-taught nothing, so the reset leaves nothing — and leaves no file
-    /// either.
+    /// The user hand-taught nothing, so the reset leaves nothing, and no file either.
     @Test("leaves nothing behind when everything was learned")
     func removeLearnedCanEmptyTheFile() async throws {
         let sandbox = Sandbox()
@@ -140,9 +135,7 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.allEntries().first?.pronunciation == "utter-flow")
     }
 
-    /// An empty string would index the word under no sound at all: it would never be
-    /// found, and nothing would say why. `soundsLike` falls back to the spelling only
-    /// when the pronunciation is absent.
+    /// A blank pronunciation is stored as absent, or the word would be indexed under no sound at all.
     @Test("a blank pronunciation is stored as absent, not as an empty string")
     func addingWithoutAPronunciation() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -154,10 +147,7 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.index().candidates(soundingLike: "utterflow").map(\.word) == ["Uttrflow"])
     }
 
-    /// The page refuses a duplicate from the list it last drew, and that list can now go
-    /// stale while the editor is open: a dictation finishing in another app can teach the
-    /// dictionary a word between the page being drawn and Save being pressed. Replacing
-    /// it would reset everything known about the word that was already there.
+    /// The page's list can go stale while the editor is open, and replacing would reset what is known.
     @Test("refuses a word the dictionary already holds rather than replacing it")
     func addingADuplicate() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -195,8 +185,7 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.allEntries().first?.timesUsed == 2)
     }
 
-    /// The caller is holding a list that no longer matches the disk, and should be told
-    /// so rather than quietly succeeding.
+    /// The caller holds a list that has drifted from the disk, and is told so.
     @Test("says nothing was counted when the word is not there")
     func countingAnUnknownWord() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -204,8 +193,7 @@ struct PersonalDictionaryStoreTests {
         #expect(try await store.recordRevert(of: UUID()) == nil)
     }
 
-    /// The moment an entry retires is visible to whoever caused it, rather than having
-    /// to be inferred from a lookup that has quietly stopped returning it.
+    /// Retirement is visible to whoever caused it, not inferred from a lookup that went quiet.
     @Test("shows an entry retiring itself at the moment it happens")
     func retirementIsVisible() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -217,8 +205,7 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.index().candidates(soundingLike: "wrong").isEmpty)
     }
 
-    /// The way out of retirement, and the reason the button says "Restore" rather than
-    /// "Try again": one further mistake must not undo it.
+    /// Restore gives a clean slate, so one further mistake does not retire the word again.
     @Test("gives a retired word a clean slate rather than one undo below the line")
     func restoring() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -235,8 +222,7 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.index().candidates(soundingLike: "wrong").map(\.word) == ["Wrong"])
     }
 
-    /// How often a word has been applied is a fact the user has not disputed, and it
-    /// carries the three-use grace period that stops one bad day retiring a good word.
+    /// The use count is a fact the user has not disputed, and carries the three-use grace period.
     @Test("restoring keeps the use count")
     func restoringKeepsUses() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -260,9 +246,7 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.index().candidates(soundingLike: "clawed").map(\.word) == ["Claude"])
     }
 
-    /// The index is on the hot path, so it is built once and kept — but a write has to
-    /// throw it away, or the next dictation is conditioned on a dictionary that no longer
-    /// exists.
+    /// The index is built once and kept, but a write must throw it away.
     @Test("rebuilds the index after a write and not before one")
     func indexIsCachedUntilSomethingChanges() async throws {
         let store = PersonalDictionaryStore(file: Sandbox().file)
@@ -298,8 +282,7 @@ struct PersonalDictionaryStoreTests {
         #expect(await PersonalDictionaryStore(file: Sandbox().file).allEntries().isEmpty)
     }
 
-    /// Absent, truncated, hand-edited, or written by a build that knew a different shape
-    /// — to a user those all mean the same thing, which is that the app should open.
+    /// Absent, truncated or hand-edited all mean the same thing to a user: the app should open.
     @Test("degrades a mangled file to an empty dictionary and writes over it")
     func corruptFile() async throws {
         let sandbox = Sandbox()
@@ -313,8 +296,7 @@ struct PersonalDictionaryStoreTests {
 
     // MARK: A disk that says no
 
-    /// Forced by putting an ordinary file where the store expects its folder, which is
-    /// the cheapest real "the filesystem refused" there is.
+    /// An ordinary file where the store expects its folder is the cheapest real refusal there is.
     private func blockedSandbox() throws -> Sandbox {
         let sandbox = Sandbox()
         try FileManager.default.createDirectory(at: sandbox.root, withIntermediateDirectories: true)
@@ -333,8 +315,7 @@ struct PersonalDictionaryStoreTests {
 
     @Test("reports a reset the disk refuses too")
     func resetFailureThrows() async throws {
-        // Something has to be there for its removal to be attempted at all, so the store
-        // is pointed at a file that exists and is then made undeletable.
+        // Something must exist for its removal to be attempted, so the file is made undeletable.
         let sandbox = try blockedSandbox()
         let path = sandbox.folder.path(percentEncoded: false)
         let store = PersonalDictionaryStore(file: sandbox.folder)
@@ -346,8 +327,7 @@ struct PersonalDictionaryStoreTests {
         }
     }
 
-    /// A reset with nothing to reset is success, not a failure — there is no file to
-    /// refuse to delete.
+    /// A reset with nothing to reset is success; there is no file to refuse to delete.
     @Test("treats clearing an empty dictionary as done")
     func clearingNothing() async throws {
         try await PersonalDictionaryStore(file: Sandbox().file).removeEverything()
@@ -356,8 +336,7 @@ struct PersonalDictionaryStoreTests {
 
 @Suite("What the user is told when the dictionary cannot be saved")
 struct DictionaryStoreErrorTests {
-    /// Plain language, no engine names, no implementation detail — the contract every
-    /// Uttrflow failure meets.
+    /// Plain language with no engine names, the contract every Uttrflow failure meets.
     @Test("explains itself without naming anything inside the app")
     func message() {
         #expect(
@@ -365,8 +344,7 @@ struct DictionaryStoreErrorTests {
                 == "Your dictionary could not be updated on this Mac.")
     }
 
-    /// A refusal is not a disk failure, and must not be dressed as one: telling somebody
-    /// their Mac would not take the change would send them looking in the wrong place.
+    /// A refusal is not a disk failure and must not be dressed as one.
     @Test("a word with no spelling is not reported as the disk refusing")
     func refusalReadsAsARefusal() {
         #expect(DictionaryStoreError.wordIsEmpty.userMessage == "Type the word before saving it.")
@@ -376,8 +354,7 @@ struct DictionaryStoreErrorTests {
                 == "That word is already in your dictionary.")
     }
 
-    /// Nothing offered: every recovery Uttrflow knows is something the user can do, and
-    /// none of them changes whether the disk accepts a write.
+    /// Nothing offered, because no recovery the user can perform changes whether the disk accepts a write.
     @Test("offers no recovery it cannot actually perform")
     func recovery() {
         #expect(DictionaryStoreError.couldNotWrite.recovery == nil)
@@ -392,8 +369,7 @@ struct DictionaryStoreErrorTests {
         #expect(DictionaryStoreError.wordAlreadyKnown.severity == .informational)
     }
 
-    /// Chained the way ``FailureCatalogue`` requires, so that registering it there is the
-    /// one line the catalogue's own documentation promises it would be.
+    /// Chained the way `FailureCatalogue` requires, so registering it there is one line.
     @Test("is ready for the failure catalogue")
     func catalogued() {
         #expect(

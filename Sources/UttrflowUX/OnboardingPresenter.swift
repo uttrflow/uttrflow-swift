@@ -1,14 +1,10 @@
+// Turns onboarding state into the page the window draws, plus permission wording and keycaps.
 internal import UttrflowAccount
 public import UttrflowCore
 
-/// Turns where the user is into what the window draws.
-///
-/// Pure, and deliberately separate from any view, for the same reason the dictation
-/// presenter is: the wording of a page, the buttons on it and the sentence VoiceOver
-/// reads all have to agree, and one place deciding is what makes that impossible to get
-/// wrong. It is also the only place the approved designs are written down, so a page
-/// cannot quietly drift away from the one that was signed off.
+/// Turns where the user is into what the window draws; the one place the approved designs live.
 public enum OnboardingPresenter {
+    /// The page for a state, with the shortcut drawn on the last one.
     public static func page(for state: OnboardingState, hotkey: HotkeyBinding) -> OnboardingPage {
         switch state.step {
         case .signIn: signIn(state)
@@ -22,10 +18,7 @@ public enum OnboardingPresenter {
 
     // MARK: Pages
 
-    /// What the whole product costs the user in exchange for the one online step.
-    ///
-    /// Said on the sign-in page and nowhere else, because this is the only page where a
-    /// person is entitled to wonder whether the offline promise is real.
+    /// What the one online step costs, said only on the sign-in page.
     private static let onlyThisStepNeedsTheInternet = OnboardingNote(
         symbolName: "globe",
         text: """
@@ -42,12 +35,7 @@ public enum OnboardingPresenter {
             """,
         tone: .warning)
 
-    /// The sign-in page, in its four forms.
-    ///
-    /// There is no way past it and nothing here pretends otherwise: no "continue without
-    /// an account", no skip worded as something else. Signing in is required to dictate,
-    /// and a page that hinted at a way round a requirement would be lying about the
-    /// product to make one screen feel kinder.
+    /// The sign-in page in its four forms: offering, unreachable, signing in, and entering a code.
     private static func signIn(_ state: OnboardingState) -> OnboardingPage {
         let signIn = state.detail.signIn
         return page(
@@ -66,13 +54,7 @@ public enum OnboardingPresenter {
         )
     }
 
-    /// Why this Mac is being asked for a code, said only on the page that shows one.
-    ///
-    /// Handing the user straight back from the browser is the ordinary way in and the one
-    /// this app tries first; the code is what happens when it cannot listen for that
-    /// hand-back — over SSH, in a container, or behind security software that will not let
-    /// an application open a port. Without this sentence the page reads as a second,
-    /// stranger product deciding to be awkward.
+    /// Why this Mac is being asked for a code: it cannot listen for the browser's hand-back.
     private static let theCodeIsTheFallback = OnboardingNote(
         symbolName: "arrow.uturn.down",
         text: """
@@ -80,6 +62,7 @@ public enum OnboardingPresenter {
             let it listen for that, so the code does the same job.
             """)
 
+    /// The banner for a sign-in state.
     private static func note(for signIn: OnboardingSignInState) -> OnboardingNote {
         switch signIn {
         case .unreachable: noConnection
@@ -88,6 +71,7 @@ public enum OnboardingPresenter {
         }
     }
 
+    /// The sentence under the sign-in title.
     private static func subtitle(for signIn: OnboardingSignInState) -> String {
         switch signIn {
         case .offering, .unreachable:
@@ -96,23 +80,14 @@ public enum OnboardingPresenter {
             account. It needs to know which one is yours.
             """
         case .signingIn(let provider):
-            "Finish signing in with \(name(of: provider)) in your browser."
-        // The code is the instruction, so the sentence says what to do with it rather
-        // than repeating it. A person reading "enter ABCD-EFGH" while ABCD-EFGH sits
-        // underneath has been told the same thing twice and shown it once.
-        //
-        // It also says the browser is already open, because it is: this state opens the
-        // verification page just as the ordinary path opens the provider's. Somebody who
-        // is shown a code with no mention of a window that has just appeared in front of
-        // them goes looking for one to type it into.
+            "Finish signing in with \(AccountPagePresenter.title(for: provider)) in your browser."
+        // The code is the instruction, so the sentence says what to do with it and that the browser is open.
         case .enterCode(let provider, _):
             """
             Your browser is open. Type this code there to finish signing in with \
-            \(name(of: provider)).
+            \(AccountPagePresenter.title(for: provider)).
             """
-        // The provider's own words, which are the only ones that can say what went
-        // wrong. The three buttons come back live underneath, because another attempt
-        // or another provider is the whole of the remedy.
+        // The provider's own words; the buttons come back live, since another attempt is the remedy.
         case .refused(let message):
             message
         }
@@ -124,45 +99,25 @@ public enum OnboardingPresenter {
         return code
     }
 
-    /// The way past this page for somebody who cannot sign in, or will not.
-    ///
-    /// Plain rather than prominent, and second: an account is what the product wants and
-    /// the providers stay the loudest thing on the page. But it is on the page from the
-    /// start rather than only after a failure, because a person behind a captive portal
-    /// or a proxy that eats OAuth has no way of discovering an escape hatch that only
-    /// appears once they have watched something fail.
+    /// The way past this page without an account, plain and second, and present from the start.
     private static let workOnThisMac = OnboardingButton.plain(
         "Continue on this Mac", .continueOnThisMac)
 
+    /// The buttons under the providers.
     private static func buttons(for signIn: OnboardingSignInState) -> [OnboardingButton] {
         switch signIn {
-        // The providers are the controls. A second row of verbs beside three buttons
-        // that already say what they do would only be somewhere else to look — with the
-        // one exception of the way past the page, which is not something a provider
-        // button says.
+        // The providers are the controls; the only other verb is the way past the page.
         case .offering, .refused:
             [workOnThisMac]
         case .unreachable:
             [.prominent("Try Again", .recover(.retry)), workOnThisMac]
-        // Waiting on a browser window that may never come back. Giving up has to stay
-        // possible or the page is a trap.
+        // Waiting on a browser that may never come back, so giving up stays possible.
         case .signingIn, .enterCode:
             [.plain("Cancel", .cancelSignIn)]
         }
     }
 
-    /// A provider by name, for a sentence rather than for its own button.
-    ///
-    /// ``SignInProvider/buttonTitle`` is the wording each provider requires on a button
-    /// and reads as nonsense inside a sentence, so the two are kept apart.
-    private static func name(of provider: SignInProvider) -> String {
-        switch provider {
-        case .google: "Google"
-        case .gitHub: "GitHub"
-        case .apple: "Apple"
-        }
-    }
-
+    /// The pitch page.
     private static func welcome(_ state: OnboardingState) -> OnboardingPage {
         page(
             state,
@@ -178,20 +133,7 @@ public enum OnboardingPresenter {
         )
     }
 
-    /// Both permission pages, from one shape.
-    ///
-    /// They differ only in their wording, so they are one function rather than two that
-    /// could grow apart. Which buttons appear follows the *status*, never the permission:
-    /// macOS will only ever prompt for something it has not been asked about, so a denied
-    /// permission needs a page that sends the user to the settings pane rather than one
-    /// that offers a prompt which will not appear.
-    ///
-    /// **Neither page can be passed over.** Uttrflow cannot hear without the microphone
-    /// and cannot type without Accessibility, and an onboarding that waved either through
-    /// delivered somebody to a menu bar icon that does nothing when they hold the key.
-    /// The one exception is a permission a device policy has taken off the table: there
-    /// is nothing for that user to press, and a page with nothing to press is a trap
-    /// rather than a requirement.
+    /// Both permission pages from one shape; the buttons follow the status, and neither page can be skipped.
     private static func permission(
         _ kind: PermissionKind, _ state: OnboardingState
     ) -> OnboardingPage {
@@ -209,12 +151,7 @@ public enum OnboardingPresenter {
         )
     }
 
-    /// What is not possible until this is granted, said once the user has met the
-    /// question — and on the page that is waiting on System Settings, where it is the
-    /// only thing explaining why they were sent there.
-    ///
-    /// Not shown before the user has been asked. A page that leads with what will go
-    /// wrong is arguing before anybody has disagreed.
+    /// What is not possible until this is granted, shown only once the user has been asked.
     private static func note(
         for detail: OnboardingDetail, asking wording: PermissionWording
     ) -> OnboardingNote? {
@@ -232,22 +169,13 @@ public enum OnboardingPresenter {
             Wi-Fi off, on a plane, anywhere.
             """)
 
+    /// The download page: in progress, failed, or already done.
     private static func setup(_ state: OnboardingState) -> OnboardingPage {
         switch state.detail {
         case .installing(let fraction):
-            page(
-                state,
-                symbolName: "arrow.down.circle",
-                emphasis: .neutral,
-                title: "Setting things up",
-                subtitle: "A one-time download, then you can start talking.",
-                note: staysOnThisMac,
-                progress: fraction,
-                buttons: [
-                    .plain("Cancel", .cancelInstall),
-                    .disabled("Continue"),
-                ]
-            )
+            settingUp(
+                state, progress: fraction,
+                buttons: [.plain("Cancel", .cancelInstall), .disabled("Continue")])
         case .installFailed(let message):
             page(
                 state,
@@ -261,27 +189,29 @@ public enum OnboardingPresenter {
                     .prominent("Try Again", .recover(.downloadSpeechModel)),
                 ]
             )
-        // The page has nothing left to wait for, which is only reachable by arriving
-        // here with the model already on disk. Letting the user past is the only
-        // honest thing left to offer.
+        // Nothing left to wait for: the model is already on disk, so the user is let past.
         default:
-            page(
-                state,
-                symbolName: "arrow.down.circle",
-                emphasis: .neutral,
-                title: "Setting things up",
-                subtitle: "A one-time download, then you can start talking.",
-                note: staysOnThisMac,
-                buttons: [.prominent("Continue", .advance)]
-            )
+            settingUp(state, progress: nil, buttons: [.prominent("Continue", .advance)])
         }
     }
 
-    /// The last page, which says what the user actually ended up with.
-    ///
-    /// Four endings rather than one, because three of them are not "all set" and
-    /// saying so anyway would be the first thing Uttrflow ever lied about. Each one that
-    /// can still be fixed offers the way to fix it beside the way out.
+    /// The download page, mid-download or with the model already on disk; only progress and buttons differ.
+    private static func settingUp(
+        _ state: OnboardingState, progress: Double?, buttons: [OnboardingButton]
+    ) -> OnboardingPage {
+        page(
+            state,
+            symbolName: "arrow.down.circle",
+            emphasis: .neutral,
+            title: "Setting things up",
+            subtitle: "A one-time download, then you can start talking.",
+            note: staysOnThisMac,
+            progress: progress,
+            buttons: buttons
+        )
+    }
+
+    /// The last page, which says what the user ended up with, in four endings rather than one.
     private static func ready(_ state: OnboardingState, hotkey: HotkeyBinding) -> OnboardingPage {
         switch state.detail.readiness ?? .ready {
         case .ready:
@@ -352,6 +282,7 @@ public enum OnboardingPresenter {
 
     // MARK: Permission pieces
 
+    /// The sentence under a permission page's title.
     private static func subtitle(
         for detail: OnboardingDetail, asking wording: PermissionWording
     ) -> String {
@@ -365,9 +296,7 @@ public enum OnboardingPresenter {
         }
     }
 
-    /// One answer on every form of these two pages, and it is always the answer that
-    /// grants the permission. There is deliberately no second button: the page is a
-    /// requirement, and a quiet way past a requirement is a way of not having one.
+    /// One answer on every form of these pages, always the one that grants the permission.
     private static func buttons(
         for detail: OnboardingDetail, asking kind: PermissionKind
     ) -> [OnboardingButton] {
@@ -378,24 +307,20 @@ public enum OnboardingPresenter {
         case .permission(.denied):
             return [.prominent("Open System Settings", pane)]
         case .awaitingSystemSettings:
-            // Still true however many times the user comes back without having changed
-            // anything: look again. The settings pane stays reachable beside it, because
-            // somebody who closed the wrong window needs a way back to the right one.
+            // Look again, with the settings pane still reachable beside it.
             return [.plain("Open System Settings", pane), .prominent("Check Again", .recover(.retry))]
         case .permission(.restricted):
-            // A device policy has decided this, and no button on this page can undo it.
-            // Going on is the only thing left that is true.
+            // A device policy has decided this, so going on is the only thing left that is true.
             return [.prominent("Continue Without It", .advance)]
         default:
-            // Granted, or somehow no longer asking for anything.
+            // Granted, or nothing left to ask for.
             return [.prominent("Continue", .advance)]
         }
     }
 
     // MARK: Assembly
 
-    /// Fills in everything a page has in common, so a page above says only what makes
-    /// it different from the others.
+    /// Fills in everything a page has in common, so each page says only what makes it different.
     private static func page(
         _ state: OnboardingState,
         symbolName: String?,
@@ -426,9 +351,7 @@ public enum OnboardingPresenter {
             fineprint: fineprint,
             position: state.step.position,
             stepCount: OnboardingStep.count,
-            // Spoken as one sentence: a screen reader announcing a page has to say
-            // what it is and what it wants without the user hunting for the second
-            // half of it.
+            // Spoken as one sentence, so a screen reader says what the page is and what it wants.
             accessibilityLabel: "\(title). \(subtitle)"
         )
     }
@@ -436,23 +359,22 @@ public enum OnboardingPresenter {
 
 // MARK: - Wording
 
-/// Everything that differs between the two permission pages.
-///
-/// Held as data rather than as branches inside the presenter so that adding a third
-/// permission is a row here, not a third copy of a page.
+/// Everything that differs between the two permission pages, as data so a third is a row here.
 private struct PermissionWording {
+    /// The SF Symbol on the page.
     let symbolName: String
+    /// The heading.
     let title: String
+    /// The sentence under it.
     let subtitle: String
+    /// The paragraph explaining why.
     let body: String
+    /// The button that asks macOS.
     let allow: String
-    /// What Uttrflow cannot do until this is granted.
-    ///
-    /// Was `cost` — what *skipping* it cost — from when both of these could be skipped.
-    /// Neither can now, so the note is no longer a trade being offered; it is the reason
-    /// the page will not move until the switch is on.
+    /// What Uttrflow cannot do until this is granted: the reason the page will not move on.
     let blocked: OnboardingNote
 
+    /// The wording for a permission.
     static func of(_ kind: PermissionKind) -> PermissionWording {
         switch kind {
         case .microphone: microphone
@@ -460,6 +382,7 @@ private struct PermissionWording {
         }
     }
 
+    /// The microphone page's words.
     private static let microphone = PermissionWording(
         symbolName: "mic",
         title: "Let Uttrflow hear you",
@@ -472,6 +395,7 @@ private struct PermissionWording {
             tone: .warning)
     )
 
+    /// The Accessibility page's words.
     private static let accessibility = PermissionWording(
         symbolName: "accessibility",
         title: "Let Uttrflow type for you",
@@ -497,29 +421,15 @@ private struct PermissionWording {
 enum OnboardingKeys {
     /// Modifiers in the order macOS draws them, then the key itself.
     static func of(_ binding: HotkeyBinding) -> [String] {
-        let modifiers: [HotkeyModifier] = [.control, .option, .shift, .command]
-        return modifiers.filter(binding.modifiers.contains).map(symbol(for:))
-            + [name(for: binding.keyCode)]
+        SettingsShortcut.modifierCaps(for: binding) + [name(for: binding.keyCode)]
     }
 
-    private static func symbol(for modifier: HotkeyModifier) -> String {
-        switch modifier {
-        case .control: "⌃"
-        case .option: "⌥"
-        case .shift: "⇧"
-        case .command: "⌘"
-        }
-    }
-
-    /// The keys a shortcut is realistically bound to, named as the keyboard names them.
-    ///
-    /// Deliberately short: a hardware key code only becomes a letter through the
-    /// current layout, and printing the wrong letter on the last page of onboarding
-    /// would be worse than printing the code, which at least cannot mislead.
+    /// The keys a shortcut is realistically bound to; a key code becomes a letter only through the layout.
     private static let names: [UInt16: String] = [
         36: "Return", 48: "Tab", 49: "Space", 51: "Delete", 53: "Escape",
     ]
 
+    /// The key's name, or its code when the name is unknown.
     private static func name(for keyCode: UInt16) -> String {
         names[keyCode] ?? "Key \(keyCode)"
     }

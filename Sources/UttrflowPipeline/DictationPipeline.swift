@@ -1,3 +1,4 @@
+// The whole product in one actor: from the key going down to the text landing.
 public import UttrflowCore
 public import struct Foundation.UUID
 
@@ -213,14 +214,11 @@ public actor DictationPipeline {
         earlyPieces = []
         earlyCut = 0
         await capture.cancel()
-        if let openRecording {
-            self.openRecording = nil
-            await recordings.discard(openRecording)
-        }
+        await discardOpenRecording()
         transition(to: .idle)
     }
 
-    /// Whether the dictation that started at `mine` has since been abandoned, by it or by a later cancel.
+    /// Whether the dictation that started at `mine` is abandoned, by itself or by a later cancel.
     private func wasCancelled(_ mine: Int) -> Bool {
         guard let cancelledGeneration else { return false }
         return mine <= cancelledGeneration
@@ -283,7 +281,7 @@ public actor DictationPipeline {
         }
     }
 
-    /// The screen as it was while the key was held, read once for every early piece.
+    /// The screen while the key is held, read once for every early piece.
     private func earlyContextRead() async -> AppContext {
         if let earlyContext { return earlyContext }
         let read = await readContext()
@@ -360,7 +358,7 @@ public actor DictationPipeline {
             await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
-        // Every piece was done while recording, and the screen it was read against still applies.
+        // Every piece is done while recording, and the screen it is read against still applies.
         if state == .transcribing { transition(to: .tidying) }
         let whole = Piece.joining(pieces)
 
@@ -377,7 +375,7 @@ public actor DictationPipeline {
         let changes = AppliedChanges(
             corrections: whole.corrected.corrections, snippets: expanded.snippets,
             // The unrewritten sentence, which is the space the corrections' word ranges index.
-            spokenWords: whole.heard.text.spokenWordCount)
+            spokenWords: whole.heard.text.spokenWords.count)
         guard
             await insert(
                 expanded.text, cleanedBy: whole.cleaned.producedBy, changes: changes,
@@ -472,8 +470,11 @@ public actor DictationPipeline {
         _ transcription: Transcription, saying text: String, seeing appContext: AppContext,
         recording metrics: any MetricsRecording
     ) async -> TransformationResult {
+        // Every piece of a dictation is tidied against the one screen read, so all see one situation.
         let request = TransformationRequest(
-            transcription: transcription.saying(text), context: appContext, profile: profile)
+            transcription: transcription.saying(text), context: appContext, profile: profile,
+            situation: SituationResolver.resolve(from: appContext))
+        let untidied = TransformationResult(text: text, producedBy: .rules)
 
         do {
             let tidied = try await metrics.measuring(.transformation, clock: clock) {
@@ -482,9 +483,9 @@ public actor DictationPipeline {
                 }
             }
             // A language model that never answers costs the tidying, never the words.
-            return tidied ?? TransformationResult(text: text, producedBy: .rules)
+            return tidied ?? untidied
         } catch {
-            return TransformationResult(text: text, producedBy: .rules)
+            return untidied
         }
     }
 
@@ -523,10 +524,7 @@ public actor DictationPipeline {
                     description: "the application did not respond")
             }
             // The words landed, so the audio has done its job.
-            if let openRecording {
-                self.openRecording = nil
-                await recordings.discard(openRecording)
-            }
+            await discardOpenRecording()
             transition(
                 to: .inserted(
                     DictationOutcome(
@@ -556,6 +554,13 @@ public actor DictationPipeline {
             }
         }
         transition(to: .failed(failure))
+    }
+
+    /// Deletes the kept audio of the dictation under way, if there is one.
+    private func discardOpenRecording() async {
+        guard let openRecording else { return }
+        self.openRecording = nil
+        await recordings.discard(openRecording)
     }
 
     /// Tells the stores what this dictation used, once the words are safely on screen.
@@ -603,7 +608,7 @@ extension DictationPipeline.Piece {
         var producedBy = first.cleaned.producedBy
         for piece in pieces {
             corrections += piece.corrected.corrections.map { $0.shifted(by: wordsBefore) }
-            wordsBefore += piece.heard.text.spokenWordCount
+            wordsBefore += piece.heard.text.spokenWords.count
             heardText.append(piece.heard.text)
             correctedText.append(piece.corrected.text)
             cleanedText.append(piece.cleaned.text)
@@ -636,9 +641,6 @@ extension DictationCorrection {
 extension String {
     /// Nothing but whitespace, the emptiness ``Transcription/isBlank`` means.
     fileprivate var isBlank: Bool { allSatisfy(\.isWhitespace) }
-
-    /// How many words were spoken, counted the way the corrections' ranges count them.
-    fileprivate var spokenWordCount: Int { split(whereSeparator: \.isWhitespace).count }
 }
 
 extension Transcription {

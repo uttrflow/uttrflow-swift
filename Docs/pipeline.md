@@ -31,6 +31,9 @@ pieces joined.
   the tidier drops a filler, and the evidence the engine weighs — this word said
   clearly elsewhere in the same breath — is evidence about the utterance, not about the
   prose it is about to become.
+- **Tidying removes and formats, never composes.** What the tidier may and may not do
+  to the words is catalogued in `Docs/cleanup.md`; the guard beneath it refuses a
+  rewrite that drops or invents.
 - **Snippets after tidying.** The matcher tolerates the punctuation the tidier adds — a
   comma inside a trigger is a speaker pausing mid-phrase — and refuses a trigger
   assembled across a full stop. Run first, it would be matching a transcript with no

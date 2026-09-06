@@ -1,10 +1,9 @@
+// The Corrections page: every word changed today and the way back.
+
 import UttrflowUX
 import SwiftUI
 
-/// Every word Uttrflow changed today, and why.
-///
-/// The page the whole product is accountable through. Nothing here is summarised or
-/// abbreviated in the drawing either: if a sentence is long, the row grows.
+/// Every word Uttrflow changed today and why; nothing is abbreviated, so a long row grows.
 struct CorrectionsPageView: View {
     let presentation: CorrectionsPresentation
     var onIntent: (MainIntent) -> Void
@@ -67,8 +66,7 @@ struct CorrectionRowView: View {
             Image(systemName: "arrow.right")
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
-            // Struck through when it has been put back, because the word on screen is
-            // the one that was heard.
+            // Struck through once put back, because the word on screen is the one that was heard.
             Text(row.wrote)
                 .fontWeight(row.isUndone ? .regular : .semibold)
                 .foregroundStyle(row.isUndone ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))

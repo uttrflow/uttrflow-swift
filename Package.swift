@@ -84,7 +84,9 @@ let package = Package(
         // boundary; the recogniser-specific files behind it are kept trivially small.
         .target(
             name: "UttrflowSpeech",
-            dependencies: ["UttrflowDictionary", "UttrflowCore", .product(name: "WhisperKit", package: "WhisperKit")],
+            dependencies: [
+                "UttrflowDictionary", "UttrflowCore", .product(name: "WhisperKit", package: "WhisperKit"),
+            ],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -102,7 +104,7 @@ let package = Package(
         .target(
             name: "UttrflowLocalModel",
             dependencies: [
-                "UttrflowAI", "UttrflowCore",
+                "UttrflowAI", "UttrflowCore", "UttrflowPredict",
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
@@ -112,10 +114,11 @@ let package = Package(
             swiftSettings: mlxSwiftSettings
         ),
 
-        // Getting finished text into whatever the user is typing in.
+        // Getting finished text into whatever the user is typing in, and taking the keys
+        // that accept a suggestion before the application beneath sees them.
         .target(
             name: "UttrflowInput",
-            dependencies: ["UttrflowCore"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -129,7 +132,7 @@ let package = Package(
         // What the user has chosen, kept between launches.
         .target(
             name: "UttrflowSettings",
-            dependencies: ["UttrflowCore"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -188,7 +191,7 @@ let package = Package(
             name: "UttrflowUX",
             dependencies: [
                 "UttrflowAccount", "UttrflowClipboard", "UttrflowCore", "UttrflowDictionary",
-                "UttrflowHistory",
+                "UttrflowHistory", "UttrflowPredict",
                 "UttrflowSettings",
             ],
             swiftSettings: sharedSwiftSettings
@@ -197,7 +200,7 @@ let package = Package(
         // What the user is looking at, so terms can be got right.
         .target(
             name: "UttrflowContext",
-            dependencies: ["UttrflowCore"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -210,16 +213,18 @@ let package = Package(
         // The corpus on disk. The app's only SQL, over the system's own libsqlite3.
         .target(
             name: "UttrflowPredictStore",
-            dependencies: ["UttrflowPredict"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
-        // Noticing what the user finished entering, and measuring what would have been
-        // suggested without drawing any of it. Depends on UttrflowClipboard for the one
-        // thing it must not reimplement: the rules that recognise a credential.
+        // Noticing what the user finished entering and recording it, through the refusals
+        // that keep secrets and other people's text out. Depends on UttrflowClipboard for the
+        // one thing it must not reimplement: the rules that recognise a credential.
         .target(
             name: "UttrflowPredictCapture",
-            dependencies: ["UttrflowClipboard", "UttrflowPredict", "UttrflowPredictStore"],
+            dependencies: [
+                "UttrflowClipboard", "UttrflowCore", "UttrflowPredict", "UttrflowPredictStore",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -251,7 +256,7 @@ let package = Package(
             dependencies: [
                 "UttrflowAccount",
                 "UttrflowCore", "UttrflowAI", "UttrflowAudio", "UttrflowContext", "UttrflowEval",
-                "UttrflowInput", "UttrflowPermissions",
+                "UttrflowInput", "UttrflowPermissions", "UttrflowPipeline", "UttrflowPredict",
                 "UttrflowSpeech",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
@@ -276,8 +281,9 @@ let package = Package(
             dependencies: [
                 "UttrflowAI", "UttrflowAudio", "UttrflowContext", "UttrflowCore", "UttrflowInput",
                 "UttrflowAccount", "UttrflowClipboard", "UttrflowDictionary",
-                "UttrflowHistory", "UttrflowPermissions", "UttrflowPipeline", "UttrflowSettings",
-                "UttrflowSpeech", "UttrflowUX",
+                "UttrflowHistory", "UttrflowLocalModel", "UttrflowPermissions", "UttrflowPipeline",
+                "UttrflowPredict", "UttrflowPredictCapture", "UttrflowPredictStore",
+                "UttrflowSettings", "UttrflowSpeech", "UttrflowUX",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             // The mark, for the panel and the menu bar slot. The bare monogram rather
@@ -333,7 +339,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowSettingsTests",
-            dependencies: ["UttrflowSettings", "UttrflowTestSupport"],
+            dependencies: ["UttrflowPredict", "UttrflowSettings", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -358,7 +364,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowUXTests",
-            dependencies: ["UttrflowUX", "UttrflowTestSupport"],
+            dependencies: ["UttrflowPredict", "UttrflowUX", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -368,7 +374,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowInputTests",
-            dependencies: ["UttrflowInput", "UttrflowTestSupport"],
+            dependencies: ["UttrflowInput", "UttrflowPredict", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -388,7 +394,9 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowPredictCaptureTests",
-            dependencies: ["UttrflowPredict", "UttrflowPredictCapture"],
+            dependencies: [
+                "UttrflowContext", "UttrflowPredict", "UttrflowPredictCapture", "UttrflowPredictStore",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

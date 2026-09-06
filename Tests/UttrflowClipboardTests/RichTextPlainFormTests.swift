@@ -1,20 +1,15 @@
+// Tests for the plain-text form of a rich clip.
+
 import Testing
 
 @testable import UttrflowClipboard
 
-/// What a formatted clip becomes on its way into somewhere that cannot show formatting.
-///
-/// The fixtures are written the way the editors people keep notes in actually write
-/// them — Apple Notes labels the list, GitHub puts a real `<input>` in the item, TipTap
-/// uses a data attribute — because a degradation rule tested against invented markup is a
-/// rule that has not been tested.
+/// What a formatted clip becomes in a target with no formatting, tested against real editors' markup.
 @Suite("What a plain target receives")
 struct RichTextPlainFormTests {
     // MARK: - Headings
 
-    /// Weight is gone and nothing is put in its place. A `#` would be as wrong as a `**`:
-    /// the user did not type it, and in a commit message they would have to delete it.
-    /// The blank line does the work instead, being whitespace rather than punctuation.
+    /// Weight is gone and nothing replaces it; a `#` would be as wrong as a `**`.
     @Test("keeps a heading's words and drops its weight")
     func heading() {
         let out = RichTextPlainForm.plainText(fromHTML: "<h1>Shopping</h1><p>Before Friday.</p>")
@@ -35,8 +30,7 @@ struct RichTextPlainFormTests {
 
     // MARK: - Emphasis
 
-    /// The rule the whole feature is named for, in its smallest form. Asterisks would be
-    /// noise a person did not type, so bold arrives as words.
+    /// The rule the feature is named for: bold arrives as words, never asterisks.
     @Test(
         "gives emphasis back as plain words",
         arguments: [
@@ -109,9 +103,7 @@ struct RichTextPlainFormTests {
 
     // MARK: - Checklists
 
-    /// Apple Notes labels the list and the item; GitHub labels neither and puts a real
-    /// `<input>` inside; TipTap and ProseMirror use data attributes. The clip comes from
-    /// whichever one the user happened to be in, so all three are read.
+    /// Notes labels the list and the item, GitHub puts a real `<input>` inside, TipTap uses data attributes.
     @Test(
         "turns a checklist into boxes",
         arguments: [
@@ -133,16 +125,14 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == "[x] Passport\n[ ] Adapter")
     }
 
-    /// `unchecked` contains `checked`, and a substring test would tick every box in an
-    /// untouched list.
+    /// `unchecked` contains `checked`, and a substring test would tick every box.
     @Test("does not read unchecked as checked")
     func uncheckedIsNotChecked() {
         let out = RichTextPlainForm.plainText(fromHTML: #"<ul><li class="unchecked">Pack</li></ul>"#)
         #expect(out == "[ ] Pack")
     }
 
-    /// Apple Notes labels the list; an item inside it that says nothing about itself is
-    /// still a box, and an empty one.
+    /// An item inside a labelled list that says nothing about itself is still an empty box.
     @Test("takes an item's box from the list when the item is silent")
     func checklistWithoutItemClasses() {
         let html = #"<ul class="checklist"><li>Pack</li><li>Print tickets</li></ul>"#
@@ -180,8 +170,7 @@ struct RichTextPlainFormTests {
 
     // MARK: - Links
 
-    /// The url is kept because a plain target cannot hide it behind a word: dropping it
-    /// loses the only part of the link carrying information.
+    /// The url is kept because a plain target cannot hide it behind a word.
     @Test("keeps a link's destination beside its text")
     func linkWithText() {
         let html = #"<p>See <a href="https://example.com/docs">the docs</a>.</p>"#
@@ -190,8 +179,7 @@ struct RichTextPlainFormTests {
                 == "See the docs (https://example.com/docs).")
     }
 
-    /// The absurdity that makes people stop trusting a paste. A notes app that linkifies
-    /// a pasted url produces exactly this markup, so it is the common case, not the odd one.
+    /// A notes app that linkifies a pasted url produces exactly this markup, so it is the common case.
     @Test(
         "never repeats a url that is already the link text",
         arguments: [
@@ -215,8 +203,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == "https://example.com/a")
     }
 
-    /// An address that means nothing once the page around it is gone is not worth the
-    /// brackets: a `#section` anchor, a relative path, a handler.
+    /// An address that means nothing once the page is gone is not worth the brackets.
     @Test(
         "drops a destination nobody could follow",
         arguments: [
@@ -239,8 +226,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: bare) == "sam@example.com")
     }
 
-    /// Link text is collected before it is decided what to do with it, so the spacing
-    /// rules have to hold inside the collection too.
+    /// Link text is collected before it is decided what to do with it, so spacing rules hold inside too.
     @Test("keeps the spacing inside link text that carries its own formatting")
     func linkAroundInlineMarkup() {
         let split = #"<p><a href="https://example.com/x"><b>the</b> <i>docs</i></a></p>"#
@@ -286,8 +272,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == "one\ntwo\nthree\nfour")
     }
 
-    /// Nesting is how blank lines pile up: a `</p></div></section>` asks for three breaks
-    /// and must produce one.
+    /// Nesting is how blank lines pile up: `</p></div></section>` asks for three breaks and gets one.
     @Test("never piles up blank lines")
     func noPiledBreaks() {
         #expect(RichTextPlainForm.plainText(fromHTML: "<p>a</p><br><br><br><p>b</p>") == "a\nb")
@@ -306,8 +291,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: "<p>a</p><hr><p>b</p>") == "a\n\nb")
     }
 
-    /// Pretty-printed HTML puts a newline and an indent between every tag. None of that
-    /// is content, and treating it as content would double-space the whole paste.
+    /// Pretty-printed HTML puts a newline and an indent between every tag, and none of it is content.
     @Test("does not turn source indentation into line breaks")
     func prettyPrintedSource() {
         let html = """
@@ -323,8 +307,7 @@ struct RichTextPlainFormTests {
 
     // MARK: - Code
 
-    /// Code is whitespace. A snippet that arrives with its indentation collapsed is a
-    /// snippet that has to be retyped.
+    /// Code is whitespace; a snippet with its indentation collapsed has to be retyped.
     @Test("preserves a code block exactly, indentation and all")
     func preformatted() {
         let html = """
@@ -343,16 +326,14 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == "Run ls -la now.")
     }
 
-    /// The one newline directly after `<pre>` is the source document's own formatting;
-    /// HTML has always ignored it, and keeping it would open the paste with a blank line.
+    /// The newline directly after `<pre>` is the source document's own formatting.
     @Test("drops the newline a source puts straight after the pre tag")
     func preLeadingNewline() {
         #expect(RichTextPlainForm.plainText(fromHTML: "<p>x</p><pre>\nbody\n</pre>") == "x\nbody")
         #expect(RichTextPlainForm.plainText(fromHTML: "<pre>\r\nbody</pre>") == "body")
     }
 
-    /// A snippet almost always ends in a newline of its own, and the block after it asks
-    /// for a break as well. Two requests, one line: the newline already written counts.
+    /// A snippet's own trailing newline and the next block's break are two requests for one line.
     @Test("does not leave a blank line after a code block")
     func preTrailingNewline() {
         #expect(RichTextPlainForm.plainText(fromHTML: "<pre>body\n</pre><p>next</p>") == "body\nnext")
@@ -390,17 +371,14 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
     }
 
-    /// The case that catches every decoder written as a loop over its own output.
-    /// `&amp;amp;` is the escaped form of the literal text `&amp;`, and a second pass
-    /// would silently unescape what the author deliberately escaped.
+    /// `&amp;amp;` is the escaped form of `&amp;`, and a second pass would silently unescape it.
     @Test("decodes an escaped entity exactly once")
     func doubleEscapedEntity() {
         #expect(RichTextPlainForm.plainText(fromHTML: "<p>&amp;amp;</p>") == "&amp;")
         #expect(RichTextPlainForm.plainText(fromHTML: "<p>&amp;lt;br&amp;gt;</p>") == "&lt;br&gt;")
     }
 
-    /// An unrecognised reference is somebody's text: `AT&T` is a company, and `&foo;` is
-    /// whatever the author meant by it.
+    /// An unrecognised reference is somebody's text: `AT&T` is a company.
     @Test(
         "leaves what is not an entity alone",
         arguments: [
@@ -415,8 +393,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
     }
 
-    /// A NUL or a bell character has no plain-text form and does real damage in a
-    /// terminal, so it decodes to nothing.
+    /// A NUL or a bell has no plain-text form and does real damage in a terminal.
     @Test("drops a control character somebody encoded")
     func controlCharacters() {
         #expect(RichTextPlainForm.plainText(fromHTML: "<p>a&#0;b&#7;c</p>") == "abc")
@@ -429,8 +406,7 @@ struct RichTextPlainFormTests {
 
     // MARK: - What must never be pasted
 
-    /// A stylesheet or a script in a paste is worse than useless: it is somebody's whole
-    /// afternoon spent deleting it out of a commit message.
+    /// A stylesheet or a script in a paste is somebody's afternoon spent deleting it.
     @Test("drops scripts and stylesheets entirely")
     func scriptsAndStyles() {
         let html = """
@@ -452,14 +428,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == "Visible")
     }
 
-    /// Word's own tags, and every custom element nobody could enumerate, are stripped
-    /// like any other unknown inline tag once the document around them is recognisably
-    /// HTML — which an end tag alone is enough to establish.
-    ///
-    /// The last line is the one input this file deliberately hands back as it came. A
-    /// clip that is nothing but a single unrecognised open tag is likelier to be
-    /// somebody's `Array<String>` than somebody's Word fragment, and losing a word of
-    /// their code is the worse of the two mistakes.
+    /// Word's tags and custom elements are stripped once the document is plainly HTML; a lone one is kept.
     @Test("strips a tag no standard knows")
     func nonStandardTags() {
         let word = "<o:p>word's own tag</o:p><p>and a real one</p>"
@@ -475,8 +444,7 @@ struct RichTextPlainFormTests {
 
     // MARK: - Malformed input
 
-    /// Unclosed tags, stray brackets, tags that close nothing. None of it may crash, and
-    /// none of it may swallow the words after it.
+    /// Unclosed tags, stray brackets, tags that close nothing: none may crash or swallow the words after it.
     @Test(
         "keeps the words in malformed markup",
         arguments: [
@@ -495,8 +463,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
     }
 
-    /// Prose that happens to contain a comparison is prose. The space after the `<` is
-    /// what settles it, and a `>` is never special outside a tag.
+    /// Prose containing a comparison is prose; the space after the `<` settles it.
     @Test(
         "reads a comparison in prose as prose",
         arguments: [
@@ -510,9 +477,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: text) == text)
     }
 
-    /// A browser would read `Array<String>` as a tag and be right to; here that would
-    /// lose a type parameter on the way into an editor. Input naming no HTML element is
-    /// not HTML.
+    /// A browser would read `Array<String>` as a tag; here that would lose a type parameter.
     @Test(
         "does not eat code that is shaped like markup",
         arguments: [
@@ -534,8 +499,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: "   \n\t ") == "   \n\t ")
     }
 
-    /// Text with no markup in it is not reflowed at all. Its blank lines are the
-    /// author's own, and HTML's whitespace model would eat them.
+    /// Text with no markup is not reflowed at all; its blank lines are the author's own.
     @Test(
         "hands plain text back unchanged",
         arguments: [
@@ -551,8 +515,7 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: text) == text)
     }
 
-    /// A clip can be a whole document somebody selected with ⌘A. Nothing here may be
-    /// quadratic in its length.
+    /// A clip can be a whole document selected with ⌘A, so nothing here may be quadratic.
     @Test("handles an enormous clip")
     func enormousInput() {
         let items = (1...20_000).map { "<li>item number \($0) &amp; more</li>" }.joined()
@@ -572,12 +535,7 @@ struct RichTextPlainFormTests {
 
     // MARK: - The rule, made mechanical
 
-    /// "Never HTML tags in a code editor", checked rather than argued.
-    ///
-    /// Every fixture in the corpus is markup, and none of them escapes a tag-shaped
-    /// string — an escaped `&lt;b&gt;` is legitimate text and must survive, so it is
-    /// tested separately and kept out of here, where it would be indistinguishable from
-    /// a leak.
+    /// "Never HTML tags in a code editor", checked rather than argued, over every fixture.
     @Test("leaves no tag anywhere in the output", arguments: Self.corpus)
     func noTagSurvives(_ html: String) {
         let out = RichTextPlainForm.plainText(fromHTML: html)
@@ -592,12 +550,7 @@ struct RichTextPlainFormTests {
         #expect(!out.contains("_"))
     }
 
-    /// Truncating markup at every offset is how a fuzzer would find the input that
-    /// crashes this, so it is done here instead.
-    ///
-    /// Checked against the looser rule, because a document cut through the middle of a
-    /// tag ends in a `<` that is no longer a tag, and text is exactly what that should
-    /// become. What must never get through is a whole one.
+    /// Every prefix of every fixture, which is how a fuzzer would find a crash; a cut tag may leave a `<`.
     @Test("survives every prefix of every fixture", arguments: Self.corpus)
     func everyPrefix(_ html: String) {
         for length in 0...html.count {
@@ -606,8 +559,7 @@ struct RichTextPlainFormTests {
         }
     }
 
-    /// One note of each kind the product promises to carry, written the way the editor
-    /// that produces it writes it.
+    /// One note of each kind the product promises to carry, written the way its editor writes it.
     static let corpus: [String] = [
         "",
         "<p></p>",
@@ -641,11 +593,7 @@ struct RichTextPlainFormTests {
     ]
 }
 
-/// Whether anything in the output still looks like a tag: a `<` followed by something
-/// that could open a tag name, or by a slash or a bang.
-///
-/// Deliberately looser than the parser, because the question here is not "would a browser
-/// call this a tag" but "would a person reading a commit message call this a tag".
+/// Whether anything in the output still looks like a tag to a person reading a commit message.
 private func containsTagConstruct(_ text: String) -> Bool {
     let scalars = Array(text.unicodeScalars)
     for index in scalars.indices where scalars[index] == "<" {

@@ -1,9 +1,7 @@
+// One clean-up case: an utterance, its context and what should come out.
 public import UttrflowCore
 
-/// What the product should do with one utterance.
-///
-/// `expected` is a reference, not the only right answer — several phrasings can be
-/// correct — so scoring measures closeness rather than equality.
+/// What the product should do with one utterance; `expected` is a reference, not the only right answer.
 public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
     public enum Category: String, Sendable, Equatable, CaseIterable, Codable {
         /// Everyday speech: fillers, false starts, missing punctuation.
@@ -26,16 +24,18 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
     public let spoken: String
     /// A good result.
     public let expected: String
-    /// Words that must appear in the output whatever else changes — names, numbers,
-    /// technical terms. Losing one of these is a failure no score should forgive.
+    /// Words that must appear in the output whatever else changes; losing one is unforgivable.
     public let mustKeep: [String]
-    /// What the user was looking at. The point of a context case is that the same
-    /// words should come out differently depending on this.
+    /// What the user was looking at, which should change what the same words come out as.
     public let context: AppContext
-    /// Words that must NOT appear. A context case often fails by inventing something
-    /// the context suggested but the speaker never said — `DESC` in a SQL editor, a
-    /// function body in a code editor.
+    /// Words that must not appear, such as `DESC` the context suggested but the speaker never said.
     public let mustNotAdd: [String]
+    /// The kind of place the words go, which picks the formatter the engine works under.
+    public let destination: Destination
+    /// Exactly how the output must begin, case and all, for a case about its first word.
+    public let mustBeginWith: String?
+    /// Exactly how the output must end, for a case about its final mark.
+    public let mustEndWith: String?
 
     public init(
         id: String,
@@ -45,7 +45,10 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         expected: String,
         mustKeep: [String] = [],
         context: AppContext = .unknown,
-        mustNotAdd: [String] = []
+        mustNotAdd: [String] = [],
+        destination: Destination = .plain,
+        mustBeginWith: String? = nil,
+        mustEndWith: String? = nil
     ) {
         self.id = id
         self.category = category
@@ -55,5 +58,22 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         self.mustKeep = mustKeep
         self.context = context
         self.mustNotAdd = mustNotAdd
+        self.destination = destination
+        self.mustBeginWith = mustBeginWith
+        self.mustEndWith = mustEndWith
+    }
+
+    /// The situation the case is dictated in: its own destination, never the classifier's guess.
+    public var situation: Situation {
+        Situation(app: context, insertion: context.insertionPoint, destination: destination)
+    }
+
+    /// The request an engine is handed for this case; withholding the screen withholds the situation too.
+    public func transformationRequest(withholdingContext: Bool = false) -> TransformationRequest {
+        TransformationRequest(
+            transcription: Transcription(text: spoken, detectedLanguage: DetectedLanguage(code: language)),
+            context: withholdingContext ? .unknown : context,
+            situation: withholdingContext ? .unknown : situation
+        )
     }
 }

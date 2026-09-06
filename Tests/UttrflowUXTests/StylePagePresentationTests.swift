@@ -161,9 +161,9 @@ struct StylePageChromeTests {
         #expect(callout.message.contains("Corrections"))
     }
 
-    /// ``SettingsControl`` has six cases and this page can draw two. `StyleControlView`
-    /// draws nothing for the other four, so a third arriving here must be a failing
-    /// test rather than a row that silently disappears.
+    /// ``SettingsControl`` is a closed set and this page can draw two of it.
+    /// `StyleControlView` draws nothing for the rest, so a third arriving here must be a
+    /// failing test rather than a row that silently disappears.
     @Test("the page asks only for the two controls its view can draw")
     func onlyDrawableControls() {
         for group in HistoryFixture.style().groups {
@@ -171,7 +171,8 @@ struct StylePageChromeTests {
                 switch row.control {
                 case .segmented, .tick:
                     continue
-                case .toggle, .menu, .anchorPicker, .shortcut, .removal, .action, .text:
+                case .toggle, .menu, .anchorPicker, .shortcut, .removal, .action, .text,
+                    .applicationSwitch:
                     Issue.record("the Style page asked for a control its view cannot draw")
                 }
             }

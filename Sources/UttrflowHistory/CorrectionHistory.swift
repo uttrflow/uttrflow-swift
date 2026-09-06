@@ -1,30 +1,27 @@
+// What the Corrections page draws: one change joined to its dictation, a scope, and the list of them.
 public import struct Foundation.Date
 public import struct Foundation.UUID
 
-/// One change Uttrflow made, and the dictation it was made in.
-///
-/// The join of a ``RecordedCorrection`` with the ``DictationRecord`` that holds it, done
-/// once here rather than at each page: the change knows what was swapped, the record
-/// knows when it happened and where the words went, and every page that lists changes
-/// wants both. Nothing on it can undo anything — the range and the entry to blame stay
-/// on the stored value, because a page has no business with either.
-///
-/// Not `Codable`, unlike the value it is drawn from. Nothing writes this shape down, and
-/// a persistence conformance on a projection is an invitation to write the projection
-/// instead of the record.
+/// One change joined to its dictation, for pages to draw; not `Codable`, so nothing writes the projection.
 public struct Correction: Sendable, Equatable, Identifiable {
+    /// The stored change's own identifier.
     public let id: UUID
-    /// The dictation this happened in, so the row can say where and the badge on that
-    /// dictation can lead back here.
+    /// The dictation this happened in, so the row can say where and the badge can lead back here.
     public let dictation: UUID
+    /// What the recogniser produced.
     public let heard: String
+    /// What was written in its place.
     public let wrote: String
+    /// Why the word was changed.
     public let reason: CorrectionReason
+    /// When the dictation happened.
     public let when: Date
+    /// The application the dictation went into, when known.
     public let applicationName: String?
     /// Whether the user has already put it back.
     public let isUndone: Bool
 
+    /// Builds the projection field by field.
     public init(
         id: UUID = UUID(),
         dictation: UUID,
@@ -56,10 +53,14 @@ public struct Correction: Sendable, Equatable, Identifiable {
 
 /// Which changes are being listed.
 public enum CorrectionsScope: String, Sendable, Equatable, CaseIterable {
+    /// Every change.
     case all
+    /// Changes still applied.
     case applied
+    /// Changes the user put back.
     case undone
 
+    /// What the pop-up calls the scope.
     public var title: String {
         switch self {
         case .all: "All changes"
@@ -68,11 +69,7 @@ public enum CorrectionsScope: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// The changes this scope lists.
-    ///
-    /// On the scope rather than on whatever is doing the listing, because the store and
-    /// the page both narrow the same list and two implementations of "still applied" is
-    /// two chances for the pop-up to disagree with the rows under it.
+    /// The changes this scope lists; kept here so the store and the page cannot narrow the list differently.
     public func matching(_ corrections: [Correction]) -> [Correction] {
         switch self {
         case .all: corrections
@@ -82,22 +79,12 @@ public enum CorrectionsScope: String, Sendable, Equatable, CaseIterable {
     }
 }
 
-/// Every change Uttrflow made across a run of dictations, and whether that is all of them.
-///
-/// A value over records already in hand rather than only a method on the store, because
-/// the window that draws these has just read the history to list the dictations
-/// themselves: making it ask again would be a second file read for something already
-/// answered, and a second answer that could differ from the first.
+/// Every change across records already in hand, so the window does not read the history file a second time.
 public struct CorrectionHistory: Sendable {
-    /// Newest dictation first, and within one dictation in the order the words were
-    /// spoken — which is the order they read in the sentence, and the only order a
-    /// single utterance has.
+    /// Newest dictation first, and within one dictation in the order the words were spoken.
     public let corrections: [Correction]
 
-    /// - Parameters:
-    ///   - records: The dictations to read, newest first — the order they come out of
-    ///     ``DictationHistoryStore`` in, and the order the changes keep.
-    ///   - scope: Which of them to list.
+    /// Lists the changes in `records` (newest first, as the store returns them) that fall inside `scope`.
     public init(of records: [DictationRecord], in scope: CorrectionsScope = .all) {
         corrections = scope.matching(
             records.flatMap { record in

@@ -1,15 +1,8 @@
+// The menu bar, built in code.
+
 import AppKit
 
-/// The menu bar at the top of the screen.
-///
-/// Needed the moment Uttrflow became a normal windowed app rather than an accessory. An
-/// app with a Dock icon and no main menu is not merely unpolished: **macOS routes ⌘C,
-/// ⌘V, ⌘A and ⌘Z through the Edit menu**, so without one every text field in the product
-/// silently stops accepting the shortcuts everybody uses. Quit and Close go the same way.
-///
-/// Built rather than loaded from a nib, for the reason the rest of the interface is:
-/// there is no `.xib` in this repository and a hand-maintained one would be a second
-/// place the product is described.
+/// The menu bar; without an Edit menu, macOS routes ⌘C, ⌘V, ⌘A and ⌘Z nowhere.
 enum MainMenu {
     /// The whole menu bar, ready to install.
     static func build(applicationNamed name: String = "Uttrflow") -> NSMenu {
@@ -22,8 +15,7 @@ enum MainMenu {
         return bar
     }
 
-    /// The application menu. Its title is ignored by macOS, which always draws the app's
-    /// own name here, but the items are ours.
+    /// The application menu; macOS draws the app's own name as its title.
     static func application(named name: String) -> NSMenu {
         let menu = NSMenu(title: name)
         menu.addItem(
@@ -51,8 +43,7 @@ enum MainMenu {
         return menu
     }
 
-    /// The one menu that is not decoration. Every item here is a keystroke people use
-    /// without looking, and a text field whose ⌘V does nothing reads as a broken app.
+    /// The Edit menu, whose every item is a keystroke people use without looking.
     static var edit: NSMenu {
         let menu = NSMenu(title: "Edit")
         menu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
@@ -67,12 +58,7 @@ enum MainMenu {
         return menu
     }
 
-    /// The View menu, which exists for one item.
-    ///
-    /// Its own menu rather than a line in Window, because every Mac app that has a
-    /// sidebar puts the toggle here and somebody looking for it looks here first.
-    /// &#8963;&#8984;S is the system's own shortcut for it — the one `toggleSidebar:`
-    /// carries in a split view — so it is the one already in the reader's fingers.
+    /// The View menu, which exists for the sidebar toggle at the system's own ⌃⌘S.
     static var view: NSMenu {
         let menu = NSMenu(title: "View")
         let item = menu.addItem(
@@ -91,8 +77,7 @@ enum MainMenu {
             withTitle: "Minimise", action: #selector(NSWindow.performMiniaturize(_:)),
             keyEquivalent: "m")
         menu.addItem(.separator())
-        // The same shortcut the menu bar item offers, so somebody who has closed the
-        // window has two ways back to it and neither is a secret.
+        // The same shortcut the menu bar item offers, so there are two ways back to the window.
         menu.addItem(
             withTitle: "Uttrflow", action: #selector(AppDelegate.showMainWindowFromMenu(_:)),
             keyEquivalent: "0")

@@ -1,19 +1,11 @@
+// The corpus service as request-building and answer-reading, with no socket of its own.
 public import Foundation
 
-/// The corpus service, as this harness sees it.
-///
-/// Everything here is request-building and answer-reading — no socket, no session, no
-/// retry timer. The one piece that opens a connection is the ``HTTPTransport`` handed
-/// in, which lives in the executable. That division is not tidiness: it is what lets
-/// every path below, including the ones that only happen when a backend is misconfigured
-/// at three in the morning, be exercised by a test with no network.
+/// The corpus service as request-building and answer-reading; the injected ``HTTPTransport`` owns the socket.
 public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
-    /// Where the corpus service is. No default: a measurement tool that silently pointed
-    /// at production because somebody forgot a flag is worse than one that refuses.
+    /// Where the corpus service is; no default, so a forgotten flag cannot point at production.
     private let baseURL: URL
-    /// The operator token. Sent to the backend and to nothing else — a signed URL
-    /// carries its own permission in the signature, and attaching a bearer token to it
-    /// would hand the corpus credential to whoever is serving the bucket.
+    /// The operator token, sent to the backend and never to a signed URL, whose signature is its permission.
     private let operatorToken: String?
     private let transport: any HTTPTransport
 
@@ -36,16 +28,13 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
         let grant = try decode(
             CorpusDownload.self,
             from: try await send(.init(method: .get, url: url, headers: authorised()), about: slug))
-        // Refused here rather than followed. A placeholder URL answers 501 with an
-        // explanation, and a run that downloaded a thousand of those would report a
-        // thousand unreadable recordings instead of one configuration problem.
+        // Refused rather than followed: a placeholder answers 501, and a thousand of those read as bad audio.
         guard !grant.isPlaceholder else { throw .storageNotConfigured }
         return grant
     }
 
     public func audio(at url: String) async throws(CorpusError) -> Data {
-        guard let signed = URL(string: url) else { throw .malformed("not a URL: \(url)") }
-        return try await send(.init(method: .get, url: signed)).body
+        try await send(.init(method: .get, url: try signedURL(url))).body
     }
 
     // MARK: Writing
@@ -68,21 +57,15 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
     }
 
     public func upload(_ audio: Data, to upload: CorpusUpload) async throws(CorpusError) {
-        guard let signed = URL(string: upload.url) else {
-            throw .malformed("not a URL: \(upload.url)")
-        }
-        // No bearer token and no `Content-Length`: the signature is the permission, and
-        // the transport sets the length from the body it is given.
+        let signed = try signedURL(upload.url)
+        // No bearer token or `Content-Length`: the signature is the permission and the transport sets length.
         _ = try await send(
             .init(method: .put, url: signed, headers: ["Content-Type": "audio/wav"], body: audio))
     }
 
     // MARK: Talking
 
-    /// The body the registration endpoint takes.
-    ///
-    /// Its own type rather than encoding a ``CorpusSample``: the row's `id` is the
-    /// backend's to issue, and a client that posted one would be inventing a primary key.
+    /// The body the registration endpoint takes; the row's `id` is the backend's to issue.
     private struct SampleRegistration: Encodable {
         let slug: String
         let s3Key: String
@@ -111,22 +94,25 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
         }
     }
 
+    /// A signed URL as the service wrote it, refused as malformed when it is not one.
+    private func signedURL(_ string: String) throws(CorpusError) -> URL {
+        guard let url = URL(string: string) else { throw .malformed("not a URL: \(string)") }
+        return url
+    }
+
     private func authorised() -> [String: String] {
         operatorToken.map { ["Authorization": "Bearer \($0)"] } ?? [:]
     }
 
     private func endpoint(_ path: String, query: [URLQueryItem] = []) -> URL {
-        // `appending(path:)` on a base with no trailing slash keeps the whole base, which
-        // is what a service mounted under a prefix needs. `URL(string:relativeTo:)` would
-        // instead throw the last path component away.
+        // `appending(path:)` keeps a prefix-mounted base whole; `URL(string:relativeTo:)` would drop it.
         var url = baseURL.appending(path: path)
         if !query.isEmpty { url = url.appending(queryItems: query) }
         return url
     }
 
     private func queryItems(for query: CorpusQuery) -> [URLQueryItem] {
-        // Assembled in a fixed order so two identical queries produce one cache key and
-        // one readable line in a log.
+        // Assembled in a fixed order so identical queries produce one cache key and one log line.
         var items: [URLQueryItem] = []
         if let language = query.language { items.append(.init(name: "language", value: language)) }
         if let stress = query.stress { items.append(.init(name: "stress", value: stress)) }
@@ -136,14 +122,7 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
         return items
     }
 
-    /// Performs a request and turns anything but a 2xx into a ``CorpusError``.
-    ///
-    /// - Parameters:
-    ///   - request: What to ask for.
-    ///   - slug: The sample the request is about, so a 404 can name it. The URL cannot:
-    ///     the not-found path ends in `/download`.
-    /// - Returns: The service's answer, which is a success.
-    /// - Throws: A ``CorpusError`` describing what the operator has to do about it.
+    /// Performs a request and turns anything but a 2xx into a ``CorpusError`` naming `slug`.
     private func send(
         _ request: HTTPRequest, about slug: String? = nil
     ) async throws(CorpusError) -> HTTPResponse {
@@ -157,12 +136,7 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
         return response
     }
 
-    /// Turns a status and a body into something the operator can act on.
-    ///
-    /// The backend's own errors carry a machine-readable `error` field, and Fastify's
-    /// default 404 does not name one of ours. That is the difference between "this
-    /// sample does not exist" and "this backend does not have the endpoint yet", which
-    /// are the same status code and completely different problems.
+    /// Turns a status and body into a ``CorpusError``; a 404 without our `error` field means no endpoint.
     private func failure(_ response: HTTPResponse, request: HTTPRequest, slug: String?) -> CorpusError {
         let code = errorCode(in: response.body)
         switch response.status {

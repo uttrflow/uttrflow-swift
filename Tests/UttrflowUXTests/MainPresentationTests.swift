@@ -1,3 +1,4 @@
+// Tests for the main window's shared vocabulary: recoveries, obstructions, pages, and formatting.
 import Foundation
 import UttrflowCore
 import Testing
@@ -11,8 +12,7 @@ struct MainPresentationTests {
         #expect(MainPresenter.windowTitle == "Uttrflow")
     }
 
-    /// Every recovery a failure can offer has a verb here. A missing one would leave a
-    /// button with no title on whichever page happened to hit that failure.
+    /// Every recovery has a verb here, or a page hitting that failure would draw a button with no title.
     @Test("every recovery action has a button title")
     func everyRecoveryHasATitle() {
         let every: [RecoveryAction] =
@@ -77,8 +77,7 @@ struct MainCompactFormattingTests {
         #expect(MainFormatting.compact(1_200_000, locale: locale) == "1.2M")
     }
 
-    /// Rounded down, never to nearest. `12.4K` from 12,499 is a floor the user can trust;
-    /// `12.5K` would be a number of words they never actually said.
+    /// Rounded down, never to nearest: `12.4K` from 12,499 is a floor the user can trust.
     @Test("never rounds up to a figure that was not reached")
     func roundsDown() {
         #expect(MainFormatting.compact(12_499, locale: locale) == "12.4K")
@@ -96,9 +95,7 @@ struct MainCompactFormattingTests {
 
 @Suite("The pages of the main window")
 struct MainPageTests {
-    /// The order is the sidebar's, minus Settings — which is a window rather than a
-    /// page. Pinned because the sidebar reads it and a tidy into alphabetical order
-    /// would silently rearrange the window.
+    /// The sidebar's order minus Settings, pinned so an alphabetical tidy cannot rearrange the window.
     @Test("the pages are in sidebar order")
     func order() {
         #expect(
@@ -109,8 +106,7 @@ struct MainPageTests {
             ])
     }
 
-    /// Stored, so a rename of the case must not change what a saved window position
-    /// means.
+    /// Stored, so a rename of the case must not change what a saved window position means.
     @Test("each page has a stable stored name")
     func rawValues() {
         #expect(MainTab.dictation.rawValue == "dictation")
@@ -128,8 +124,7 @@ struct MainObstructionTests {
                 == nil)
     }
 
-    /// Absent is not the same as refused. A permission nobody has asked about yet must
-    /// not be reported as withheld.
+    /// Absent is not refused: a permission nobody has asked about must not be reported as withheld.
     @Test("a permission that has not been checked is not an obstruction")
     func unknownIsSilent() {
         #expect(MainPresenter.obstruction(in: [:]) == nil)
@@ -151,8 +146,7 @@ struct MainObstructionTests {
         #expect(blocked?.action?.intent == .recover(.openSystemSettings(.accessibility)))
     }
 
-    /// A device policy is not something the user can undo, so there is no button to
-    /// pretend otherwise with.
+    /// A device policy is not something the user can undo, so there is no button to pretend otherwise.
     @Test("a restricted microphone offers nothing to press")
     func restrictedOffersNothing() {
         let blocked = MainPresenter.obstruction(in: [.microphone: .restricted])
@@ -160,8 +154,7 @@ struct MainObstructionTests {
         #expect(blocked?.action == nil)
     }
 
-    /// The microphone comes first because nothing can be heard without it, so a Mac
-    /// missing both is given one thing to fix rather than two.
+    /// The microphone comes first, so a Mac missing both is given one thing to fix rather than two.
     @Test("only the first thing in the way is reported")
     func onlyTheFirst() {
         let blocked = MainPresenter.obstruction(
@@ -195,8 +188,7 @@ struct MainFormattingTests {
         #expect(MainFormatting.seconds(.milliseconds(2)) == "under 0.01s")
     }
 
-    /// A person is timed in whole seconds. Hundredths matter when the app is being
-    /// measured and are noise when a speaker is.
+    /// A person is timed in whole seconds; hundredths are noise when a speaker is measured.
     @Test("how long somebody talked is whole seconds")
     func spoken() {
         #expect(MainFormatting.spoken(.milliseconds(11_400)) == "11s")
@@ -221,8 +213,7 @@ struct MainFormattingTests {
         #expect(MainFormatting.count(7, "day", "days") == "7 days")
     }
 
-    /// One definition of a word, so a row and a total cannot disagree about the length
-    /// of the same sentence.
+    /// One definition of a word, so a row and a total cannot disagree about the same sentence.
     @Test("words are whitespace-separated runs")
     func words() {
         #expect(MainFormatting.words(in: "hello there  friend") == 3)

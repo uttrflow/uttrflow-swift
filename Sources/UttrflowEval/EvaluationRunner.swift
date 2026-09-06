@@ -1,18 +1,14 @@
+// Runs the clean-up corpus through one transformer.
 import Foundation
 
 /// What an engine did with one case.
 public enum EvaluationOutcome: Sendable, Equatable {
     case produced(String)
-    /// The engine reported it could not handle this case — a language it does not
-    /// know, most often. Not a failure.
+    /// The engine reports it cannot handle this case, most often a language it does not know; not a failure.
     case declined
 }
 
-/// Runs the corpus through one transformer and measures what happened.
-///
-/// Knows nothing about which transformer it is running, so the same measurement
-/// applies to Apple's model, a local one, and the deterministic floor — which is the
-/// only way their numbers can be compared honestly.
+/// Runs the corpus through one transformer it knows nothing about, so engines compare honestly.
 public struct EvaluationRunner: Sendable {
     private let cases: [EvaluationCase]
 
@@ -20,14 +16,7 @@ public struct EvaluationRunner: Sendable {
         self.cases = cases
     }
 
-    /// - Parameters:
-    ///   - label: How this run is named in the report.
-    ///   - onCase: Called before each case, for progress.
-    ///   - transform: Cleans one utterance, or reports that the engine cannot handle
-    ///     it. Throwing is recorded as a failed case rather than abandoning the run —
-    ///     a model that breaks on a third of the corpus should score badly, not go
-    ///     unmeasured.
-    /// - Returns: Scores, timings and peak memory for the whole corpus.
+    /// Scores every case under `label`; a throw from `transform` is a failed case, not an abandoned run.
     public func run(
         label: String,
         onCase: (@Sendable (EvaluationCase) -> Void)? = nil,

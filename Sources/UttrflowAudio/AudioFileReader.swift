@@ -1,12 +1,9 @@
+// Reads an audio file into canonical samples, so a file looks like microphone audio.
 public import Foundation
 public import UttrflowCore
 private import AVFoundation
 
-/// Reads an audio file into canonical samples.
-///
-/// Needed to transcribe something already recorded, and to run the evaluation corpus.
-/// Reuses ``AudioResampler``, so a file in any format arrives in exactly the same
-/// shape as live microphone audio — the pipeline cannot tell them apart.
+/// Reads an audio file into canonical samples through ``AudioResampler``, so it looks like microphone audio.
 public enum AudioFileReader {
     public static func read(contentsOf url: URL) throws(AudioCaptureError) -> AudioSamples {
         let file: AVAudioFile
@@ -22,8 +19,7 @@ public enum AudioFileReader {
         }
         guard file.length > 0 else { return .empty }
 
-        // Read in windows rather than one allocation, so a long recording does not
-        // need to fit in memory twice.
+        // Read in windows, so a long recording does not need to fit in memory twice.
         let windowFrames: AVAudioFrameCount = 16_384
         var samples: [Float] = []
         samples.reserveCapacity(Int(file.length))

@@ -1,6 +1,7 @@
+// A TextInsertionEngine that records what it is asked to insert.
 public import UttrflowCore
 
-/// A ``TextInsertionEngine`` that records what it was asked to insert.
+/// A ``TextInsertionEngine`` that records what it is asked to insert.
 public actor FakeTextInsertionEngine: TextInsertionEngine {
     public let method: TextInsertionMethod
     public let insertedText = CallLog<String>()

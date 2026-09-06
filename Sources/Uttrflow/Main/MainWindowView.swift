@@ -1,11 +1,9 @@
+// The main window's chrome: sidebar, strip, page header and page switch.
+
 import UttrflowUX
 import SwiftUI
 
-/// The main window: a sidebar, a toolbar, and whichever page is selected.
-///
-/// The chrome is here and only here. Each page draws its own content and nothing else,
-/// so nine pages cannot end up with nine subtly different headings — and everything they
-/// draw arrives already decided, from ``UttrflowUX``.
+/// The main window: a sidebar, a toolbar, and whichever page is selected; the chrome lives here only.
 struct MainWindowView: View {
     @Bindable var model: MainWindowModel
     var onIntent: (MainIntent) -> Void = { _ in }
@@ -22,34 +20,22 @@ struct MainWindowView: View {
             ) { destination in
                 switch destination {
                 case .page(let page):
-                    // Through the app, not straight into the model. Setting `model.page`
-                    // alone swapped the pane and left the sidebar's highlight — and its
-                    // "corrections today" badge — drawn from a presentation nothing had
-                    // rebuilt, so the blue pill stayed on the page you had left until
-                    // some unrelated event redrew the window.
+                    // Through the app, so the sidebar's highlight and badge are rebuilt with the page.
                     onIntent(.show(page))
                 case .settings(let tab):
-                    // The one row that does not change the pane: Settings is a window of
-                    // its own, and the app owns every window.
+                    // Settings is a window of its own, and the app owns every window.
                     onIntent(.go(.settings(tab)))
                 }
             }
             pane
         }
-        // The one animation in the window. The sidebar's width moves the page beside it,
-        // and a page that jumps sideways reads as a redraw rather than as a drawer.
+        // The one animation in the window: the sidebar's width moves the page beside it.
         .animation(.snappy(duration: 0.22), value: model.isSidebarExpanded)
         .background(Color.mainBackground)
         .foregroundStyle(Color.mainText, Color.mainMuted, Color.mainDim)
-        // Every system control in this window — the segmented pickers, the toggles, the
-        // focus rings — is drawn in the accent colour, and the system's is the stock
-        // macOS blue. One tint at the root rather than a modifier per control, so a
-        // control added later cannot arrive blue.
+        // One tint at the root, so a control added later cannot arrive in the stock blue.
         .tint(Color.dockAccent)
-        // The title bar is transparent and the content is full-size, but SwiftUI still
-        // reserves a safe area for it — which left a band of empty window above the
-        // stage that no view owned. The rail keeps its own inset for the traffic lights,
-        // which is the only thing that band was ever protecting.
+        // SwiftUI still reserves a safe area for the transparent title bar; the rail keeps its own inset.
         .ignoresSafeArea(.container, edges: .top)
     }
 
@@ -68,33 +54,23 @@ struct MainWindowView: View {
                     onSearch: onSearch, onScope: onScope)
             }
             page
-                // Home draws its own stage from edge to edge; every other page is a
-                // document and wants a margin.
+                // Home draws its stage edge to edge; every other page is a document and wants a margin.
                 .padding(.horizontal, model.page == .home ? 0 : MainMetrics.contentPadding)
                 .padding(.top, model.page == .home ? 0 : 18)
                 .padding(.bottom, model.page == .home ? 0 : 14)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        // The field holds what is being typed, so it cannot be redrawn from the
-        // presentation on every keystroke without fighting the cursor. It can be put
-        // back in step when the page changes, which is the only moment the two can
-        // legitimately differ: each page has its own query, and a field still showing
-        // the last page's word would filter this one by it.
+        // The field holds what is being typed, so it is only put back in step when the page changes.
         .onChange(of: model.page) { _, _ in
             model.searchQuery = chrome.search?.query ?? ""
         }
     }
 
-    /// The chrome of whichever page is showing.
-    ///
-    /// A `switch` rather than a protocol the presentations conform to: nine returns of
-    /// one stored property is less machinery than an existential, and it fails to
-    /// compile the day a tenth page is added, which is the point.
+    /// The chrome of whichever page is showing; a `switch`, so a tenth page fails to compile until handled.
     private var chrome: MainPageChrome {
         let content = model.content
         return switch model.page {
-        // Home draws its own greeting, so the toolbar above it stays empty rather than
-        // repeating the page's name back at the reader.
+        // Home draws its own greeting, so the toolbar above it stays empty.
         case .home: MainPageChrome(title: "")
         case .dictation: content.dictation.chrome
         case .history:
@@ -153,12 +129,7 @@ struct MainWindowView: View {
         }
     }
 
-    /// Wraps an editor's binding so that typing into it also asks the app to re-present
-    /// the page.
-    ///
-    /// Without this the editor is drawn from the draft as it was when it opened: Save
-    /// stays disabled however much is typed, because the presenter is still looking at
-    /// an empty field and still has a reason to refuse it.
+    /// Wraps an editor's binding so typing into it also asks the app to re-present the page.
     private func reporting<Draft>(_ binding: Binding<Draft>) -> Binding<Draft> {
         Binding(
             get: { binding.wrappedValue },
@@ -168,13 +139,7 @@ struct MainWindowView: View {
     }
 }
 
-/// The strip across the top of the window: the traffic lights sit over the rail at one
-/// end of it, and the account chip at the other.
-///
-/// Forty points of nothing in between, all but one control. It is the one band that is
-/// the same on every page, so putting anything *page-specific* in it would make the
-/// window's own chrome move about as you navigate — and the sidebar toggle is not page
-/// specific. It is the window talking about itself, which is what this band is for.
+/// The strip across the top: traffic lights over the rail at one end, the account chip at the other.
 struct MainWindowStrip: View {
     let account: HomeAccount
     var isSidebarExpanded: Bool = false
@@ -191,11 +156,7 @@ struct MainWindowStrip: View {
         .frame(height: MainMetrics.toolbarHeight)
     }
 
-    /// The one control in the band, and the only way to the sidebar's names with a mouse.
-    ///
-    /// Its symbol says which way it goes rather than what it is: the leading half of the
-    /// square fills when the sidebar is showing, which is the same language every other
-    /// Mac app uses for the same button.
+    /// The one control in the band; its symbol says which way it goes, as every Mac app's does.
     private var sidebarToggle: some View {
         Button(action: onToggleSidebar) {
             Image(systemName: isSidebarExpanded ? "sidebar.leading" : "sidebar.left")
@@ -210,11 +171,7 @@ struct MainWindowStrip: View {
     }
 }
 
-/// The band each page opens with: what it is, what it is for, and its own one control.
-///
-/// The kicker above the title is the page's name in mono capitals — the same word, said
-/// quietly, so the eye lands on the band before it reads it. It costs nothing to derive
-/// and it is what makes nine pages read as one app rather than nine documents.
+/// The band each page opens with: a mono kicker, the title, the caption, and the page's own control.
 struct OrbitPageHeader: View {
     let chrome: MainPageChrome
     @Binding var query: String
@@ -228,7 +185,7 @@ struct OrbitPageHeader: View {
                 Text(chrome.title.uppercased())
                     .font(.system(size: MainMetrics.footnoteSize, weight: .medium))
                     .tracking(1.6)
-                    .foregroundStyle(Color.dockSecondary)
+                    .foregroundStyle(Color.dockActive)
                 Text(chrome.title)
                     .font(.system(size: 29, weight: .bold))
                 if let caption = chrome.caption {
@@ -237,8 +194,7 @@ struct OrbitPageHeader: View {
                         .foregroundStyle(Color.mainMuted)
                 }
             }
-            // One element: a screen reader should hear the page's name once, not its
-            // name, then its name again, then a sentence.
+            // One element, so a screen reader hears the page's name once.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel([chrome.title, chrome.caption].compactMap(\.self).joined(separator: ". "))
             .accessibilityAddTraits(.isHeader)
@@ -283,8 +239,7 @@ struct MainSearchControl: View {
     }
 }
 
-/// The pop-up that names what the page is showing — and, where there is a choice,
-/// offers the others.
+/// The pop-up that names what the page is showing and, where there is a choice, offers the others.
 struct MainScopeControl: View {
     let scope: MainScope
     var onScope: (String) -> Void
@@ -308,8 +263,7 @@ struct MainScopeControl: View {
         }
     }
 
-    /// Reads the selection out of the presentation and writes changes straight back to
-    /// the app, so the control never holds an opinion of its own about what is selected.
+    /// Reads the selection from the presentation and writes changes straight back to the app.
     private var selection: Binding<String> {
         Binding(
             get: { scope.options.first(where: \.isSelected)?.id ?? "" },

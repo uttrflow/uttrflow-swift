@@ -1,24 +1,16 @@
+// The bars of the ring under the greeting, as values and as a shape.
+
 import SwiftUI
 
 /// One bar of the ring: where it sits, how far it reaches, and which voice it is in.
-///
-/// A value rather than a drawing detail so the arrangement can be checked without a
-/// window: that the bars are evenly spaced, that none of them escape the ring, and that
-/// the lit ones stay a minority of the whole.
 struct OrbitTick: Equatable, Sendable {
-    /// Clockwise from twelve o'clock, in turns rather than radians — 0 is the top, 0.5 is
-    /// the bottom — because every use of it here is "one bar of n".
+    /// Clockwise from twelve o'clock, in turns: 0 is the top, 0.5 the bottom.
     let turn: Double
     /// How far out this bar reaches, from 0 at the ring's inner edge to 1 at its outer.
     let reach: Double
     let voice: OrbitVoice
 
-    /// The heights the ring is made of.
-    ///
-    /// Fixed, and for the same reason the hero's wave is: a ring built from
-    /// `Double.random` would be a different ring on every redraw, and this page redraws on
-    /// every keystroke in the search field. A background that reshuffles as you type is a
-    /// background you have to look away from.
+    /// The heights the ring is made of, fixed so the ring does not reshuffle on every redraw.
     private static let reaches: [Double] = [
         0.22, 0.46, 0.68, 0.34, 0.82, 0.52, 0.30, 0.64, 0.92, 0.44, 0.72, 0.28,
         0.56, 0.86, 0.38, 0.62, 0.24, 0.50, 0.76, 0.32, 0.58, 0.88, 0.26, 0.48,
@@ -34,9 +26,7 @@ struct OrbitTick: Equatable, Sendable {
         }
     }
 
-    /// One lit bar in three, alternating teal and purple. Any denser and the ring reads
-    /// as a solid colour wheel; any sparser and the accents look like a mistake in the
-    /// drawing.
+    /// One lit bar in three, alternating the two accents; denser reads as a colour wheel.
     private static func voice(at index: Int) -> OrbitVoice {
         switch index % 6 {
         case 2: .primary
@@ -46,8 +36,7 @@ struct OrbitTick: Equatable, Sendable {
     }
 }
 
-/// Which colour a bar is drawn in. Named for the job rather than the hue, so a change of
-/// palette does not turn `teal` into a lie.
+/// Which colour a bar is drawn in, named for the job rather than the hue.
 enum OrbitVoice: Equatable, Sendable {
     case primary
     case secondary

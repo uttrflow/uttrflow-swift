@@ -1,3 +1,4 @@
+// Tests for the Account page: the Mac account, identity, details, notices, and the signed-out page.
 import Foundation
 import UttrflowAccount
 import Testing
@@ -5,6 +6,7 @@ import Testing
 @testable import UttrflowUX
 
 extension HistoryFixture {
+    /// An account with a fixed identifier; the name and address default to invented ones.
     static func account(
         name: String? = "Naveen Bhatt",
         email: String? = "nadia.d@example.com",
@@ -14,6 +16,7 @@ extension HistoryFixture {
             identifier: "account-1", displayName: name, emailAddress: email, provider: provider)
     }
 
+    /// The Account page over these inputs.
     static func accountPage(
         account: Account? = HistoryFixture.account(),
         plan: Plan = .free,
@@ -42,8 +45,7 @@ extension HistoryFixture {
 
 @Suite("Account: working on this Mac")
 struct MacAccountPageTests {
-    /// The empty state is an invitation. Repeating it to somebody who has already
-    /// answered it is the app telling them it was not listening.
+    /// Repeating the invitation to somebody who has already answered it is the app not listening.
     @Test("draws an account rather than the invitation to make one")
     func drawnAsAnAccount() {
         let page = HistoryFixture.macAccountPage()
@@ -55,8 +57,7 @@ struct MacAccountPageTests {
         #expect(page.identity?.emailAddress == nil, "no provider means no address to show")
     }
 
-    /// The one thing this page must never imply. There is no subscription behind it, so
-    /// there is no plan row and nothing that could be read as one.
+    /// There is no subscription behind a Mac account, so nothing may read as a plan.
     @Test("claims no plan, because there is none")
     func noPlanIsClaimed() {
         let page = HistoryFixture.macAccountPage()
@@ -85,8 +86,7 @@ struct MacAccountPageTests {
                 == AccountPagePresenter.since(HistoryFixture.now, locale: HistoryFixture.locale))
     }
 
-    /// A Mac that will not say whose it is still gets a page, with a monogram that does
-    /// not pretend to be anybody's initials.
+    /// A Mac that will not say whose it is still gets a page, with a monogram that claims nobody.
     @Test("draws a Mac with no owner's name on it")
     func noName() {
         let page = HistoryFixture.macAccountPage(name: nil)
@@ -94,8 +94,7 @@ struct MacAccountPageTests {
         #expect(page.identity?.initials == "?")
     }
 
-    /// The signed value wins, every time. A page that could be talked out of a session by
-    /// an unsigned one would be no session at all.
+    /// The signed value wins every time; an unsigned one must not talk the page out of a session.
     @Test("a real account is drawn even when a Mac account is also present")
     func realAccountWins() {
         let page = HistoryFixture.accountPage(
@@ -105,9 +104,7 @@ struct MacAccountPageTests {
         #expect(page.details.contains { $0.label == "Plan" })
     }
 
-    /// Every other state that permits a dictation carries a note explaining itself. This
-    /// one is a page that explains itself from top to bottom, so a banner would be the
-    /// same sentence twice.
+    /// This page explains itself from top to bottom, so a banner would be the same sentence twice.
     @Test("carries no notice, because the page is the explanation")
     func noNotice() {
         #expect(HistoryFixture.macAccountPage().notice == nil)
@@ -134,8 +131,7 @@ struct AccountIdentityTests {
         #expect(AccountPagePresenter.initials(of: "Prince") == "P")
     }
 
-    /// "a.d" is not initials and "@" is not a letter, so an address contributes one
-    /// letter rather than two pieces of punctuation.
+    /// "a.d" is not initials and "@" is not a letter, so an address contributes one letter.
     @Test("an address contributes only its first letter")
     func initialsFromAnAddress() {
         #expect(AccountPagePresenter.initials(of: "nadia.d@example.com") == "N")
@@ -154,8 +150,7 @@ struct AccountIdentityTests {
         #expect(identity?.emailAddress == nil)
     }
 
-    /// An opaque identifier at least belongs to the right account, where a placeholder
-    /// belongs to none.
+    /// An opaque identifier belongs to the right account, where a placeholder belongs to none.
     @Test("an account with neither name nor address is named by its identifier")
     func neither() {
         let identity = HistoryFixture.accountPage(
@@ -165,8 +160,7 @@ struct AccountIdentityTests {
         #expect(identity?.initials == "?")
     }
 
-    /// A provider may hand over a name and no address at all, and the card must not
-    /// then draw an empty second line under the name.
+    /// A provider may hand over a name and no address, and the card must not draw an empty line.
     @Test("a name with no address shows the name alone")
     func nameWithoutAnAddress() {
         let identity = HistoryFixture.accountPage(
@@ -208,9 +202,7 @@ struct AccountDetailsTests {
         #expect(page.details[0].id == "Plan")
     }
 
-    /// The artboard also shows "Signed in since". ``Entitlement`` records only when it
-    /// expires, so the date would have to be invented — the same rule that keeps "time
-    /// saved" off Insights keeps it off here.
+    /// ``Entitlement`` records only when it expires, so an issue date would have to be invented.
     @Test("nothing is shown that the entitlement does not record")
     func noInventedDate() {
         #expect(!HistoryFixture.accountPage().details.contains { $0.label == "Signed in since" })
@@ -226,8 +218,7 @@ struct AccountDetailsTests {
         }
     }
 
-    /// The question an account on this product invites, answered on the screen rather
-    /// than in a support article.
+    /// The question an account on this product invites, answered on the screen, not a support article.
     @Test("the page says what signing out does not do")
     func promise() {
         let page = HistoryFixture.accountPage()
@@ -261,8 +252,7 @@ struct AccountNoticeTests {
         #expect(notice?.message.contains("Dictation carries on either way") == true)
     }
 
-    /// Nobody signed in draws the empty state, where the invitation already is; a
-    /// second one above it would be two ways to do one thing.
+    /// Nobody signed in draws the empty state, where the invitation already is; a notice would repeat it.
     @Test("refused draws no notice, because the empty state is the whole page")
     func refused() {
         #expect(HistoryFixture.accountPage(account: nil, access: .refused).notice == nil)
@@ -281,8 +271,7 @@ struct AccountEmptyTests {
         #expect(page.emptyState?.action?.intent == .signIn)
     }
 
-    /// The promise about local data is on the page whether or not anybody is signed in:
-    /// it is most worth reading by somebody deciding whether to sign in at all.
+    /// The promise about local data is most worth reading by somebody deciding whether to sign in.
     @Test("the promise is made to somebody who has not signed in yet")
     func promiseIsAlwaysThere() {
         let page = HistoryFixture.accountPage(account: nil, access: .refused)
@@ -295,8 +284,7 @@ struct AccountEmptyTests {
         #expect(HistoryFixture.accountPage().emptyState == nil)
     }
 
-    /// The picture and the letters are not alternatives the page chooses between: the
-    /// letters are always worked out, because the picture arrives late, or never.
+    /// The letters are always worked out, because the picture arrives late, or never.
     @Test("keeps the initials whether or not there is a picture to draw over them")
     func theInitialsSurviveThePicture() {
         let bytes = Data([0x89, 0x50, 0x4E, 0x47])

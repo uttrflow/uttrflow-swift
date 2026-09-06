@@ -1,4 +1,6 @@
+public import struct Foundation.Date
 import UttrflowCore
+import UttrflowPredict
 public import UttrflowSettings
 
 /// Why a change was refused, in the words the user is shown.
@@ -30,6 +32,7 @@ public enum SettingsEditor {
     ///   - change: What the user asked for.
     ///   - settings: What they have now.
     ///   - capabilities: What this Mac can do.
+    ///   - moment: Now, which only the half-hour pause is measured from.
     /// - Returns: The settings to save.
     /// - Throws: ``SettingsRejection`` when the change cannot be honoured, carrying the
     ///   sentence to put in front of the user. The settings passed in are untouched, so
@@ -37,7 +40,8 @@ public enum SettingsEditor {
     public static func apply(
         _ change: SettingsChange,
         to settings: Settings,
-        given capabilities: SettingsCapabilities = .everything
+        given capabilities: SettingsCapabilities = .everything,
+        at moment: Date = Date()
     ) throws(SettingsRejection) -> Settings {
         var updated = settings
         switch change {
@@ -62,6 +66,15 @@ public enum SettingsEditor {
             updated.appearance = appearance
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
+        case .suggestionsHere(let application, let isOn):
+            try requireSuggestionsAreOn(in: settings)
+            updated.suggestions.set(application, isOn: isOn)
+        case .suggestionAcceptKey(let application, let key):
+            try requireSuggestionsAreOn(in: settings)
+            updated.suggestions.setAcceptKey(key, in: application)
+        case .pauseSuggestions(let isOn):
+            try requireSuggestionsAreOn(in: settings)
+            updated.suggestions.setPaused(isOn, at: moment)
         case .checkForUpdatesNow:
             // Changes nothing, and says so here rather than being absent.
             //
@@ -97,7 +110,18 @@ public enum SettingsEditor {
         case .playsSoundWhenRecordingStarts: settings.playsSoundWhenRecordingStarts = isOn
         case .opensAtLogin: settings.opensAtLogin = isOn
         case .installsUpdatesAutomatically: settings.installsUpdatesAutomatically = isOn
+        case .suggestionsEnabled: settings.suggestions.isEnabled = isOn
+        case .quietSuggestions: settings.suggestions.isQuiet = isOn
         }
+    }
+
+    /// The one sentence every suggestion control that depends on the master switch is refused with.
+    static let suggestionsAreOff = "Turn suggestions on before choosing how they behave."
+
+    /// Refuses a suggestion control while the feature is off, rather than accepting a change nothing would act on.
+    private static func requireSuggestionsAreOn(in settings: Settings) throws(SettingsRejection) {
+        guard !settings.suggestions.isEnabled else { return }
+        throw SettingsRejection(reason: suggestionsAreOff)
     }
 
     /// Why a switch cannot be turned on, or `nil` when it can.
@@ -126,7 +150,10 @@ public enum SettingsEditor {
             capabilities.canCheckForUpdates
                 ? nil
                 : "This build has no update feed, so there is nothing for it to install."
-
+        case .suggestionsEnabled:
+            nil
+        case .quietSuggestions:
+            settings.suggestions.isEnabled ? nil : suggestionsAreOff
         }
     }
 
@@ -258,6 +285,10 @@ public enum SettingsEditor {
             // back, so there is no state in which pressing it achieves nothing — and a
             // greyed reset is a dead end for the one user who most wants one.
             nil
+        case .suggestions(let application):
+            personalisation.suggestions(from: application) > 0
+                ? nil
+                : "Uttrflow has not picked up anything in \(SuggestionApplications.name(of: application)) yet."
         }
     }
 
@@ -268,7 +299,7 @@ public enum SettingsEditor {
     /// which is the one thing they needed to find out.
     static func reason(forFailed reset: SettingsReset) -> String {
         switch reset {
-        case .learnedWords:
+        case .learnedWords, .suggestions:
             "Uttrflow could not write to the disk, so nothing was forgotten. Try again."
         case .everything:
             "Uttrflow could not write to the disk, so some of this may still be here. Try again."

@@ -1,3 +1,5 @@
+// Tests for SpeechWindowing.
+
 import Foundation
 import Testing
 
@@ -70,12 +72,24 @@ struct SpeechWindowingTests {
         #expect(abs(Take.seconds(cut) - 7.5) < 0.05)
     }
 
-    @Test("cuts at the recogniser's own window when nobody pauses")
-    func hardCutAtMaximum() throws {
-        let audio = Take.speech(32)
+    @Test("cuts at the quietest moment of the second half when nobody pauses")
+    func hardCutAtQuietestMoment() throws {
+        var audio = Take.speech(32)
+        // A dip in a single frame, the kind that sits between two words.
+        let dip = Int(22.5 * Double(Take.rate))
+        for index in dip..<(dip + Take.rate / 50) { audio[index] *= 0.2 }
         let cut = try #require(windowing.nextCut(in: audio, sampleRate: Take.rate, from: 0))
-        #expect(cut == 30 * Take.rate)
+        #expect(abs(Take.seconds(cut) - 22.5) < 0.03)
         #expect(windowing.nextCut(in: Take.speech(29), sampleRate: Take.rate, from: 0) == nil)
+    }
+
+    @Test("a hard cut never comes before the comfortable length")
+    func hardCutStaysLate() throws {
+        var audio = Take.speech(31)
+        let dip = Int(8 * Double(Take.rate))
+        for index in dip..<(dip + Take.rate / 50) { audio[index] *= 0.2 }
+        let cut = try #require(windowing.nextCut(in: audio, sampleRate: Take.rate, from: 0))
+        #expect(Take.seconds(cut) >= 15)
     }
 
     @Test("measures from where the last window ended")

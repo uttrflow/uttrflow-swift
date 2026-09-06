@@ -1,26 +1,9 @@
+// The profile document: the server's copy of the account, replaced whole and never edited on this Mac.
 public import struct Foundation.Date
 
-/// Everything the backend knows about the person using this Mac, as of a moment it names.
-///
-/// The rule this type exists to make structural:
-///
-///   **the server is the source of truth; this is a copy of it, and the copy is never
-///   edited.**
-///
-/// Nothing in the app writes a field here and expects it to mean anything. A change is
-/// made by asking the server to make it and re-reading the answer, which is the only way
-/// a Mac, a phone and a website can be looking at the same account and agree about it.
-/// That is also why the type is a single value rather than a set of stored properties
-/// scattered across the app: a snapshot can be replaced wholesale, and a scattering
-/// cannot.
-///
-/// It is cached on disk so the second launch needs no network — but the cache is a
-/// convenience, not an authority, and everything in it except ``entitlement`` is
-/// unsigned. Anything that decides what somebody may *do* reads the entitlement, which
-/// carries the backend's signature; anything that merely draws a screen may read the
-/// rest.
+/// The backend's answer about this person, replaced whole and never edited here. See `Docs/entitlements.md`.
 public struct Profile: Sendable, Equatable, Codable {
-    /// Who this is. The same shape the entitlement carries, so the two can be compared.
+    /// Who this is, in the same shape the entitlement carries so the two can be compared.
     public let account: Account
 
     /// What they are paying for, and what that allows.
@@ -29,25 +12,16 @@ public struct Profile: Sendable, Equatable, Codable {
     /// Every machine signed into this account, most recently seen first.
     public let devices: [Device]
 
-    /// The signed statement. The only part of this document that decides anything.
+    /// The signed statement, and the only part of this document that decides anything.
     public let entitlement: Entitlement
 
-    /// When the **server** produced this document.
-    ///
-    /// Not when the app received it. A device clock can be wrong by years — a Mac
-    /// restored from a backup routinely is — and a copy stamped from a wrong clock either
-    /// looks fresh for ever or is discarded on every launch. The server's clock is the one
-    /// both ends can agree about, so it is the one written down.
+    /// When the server produced this document, by the server's clock; a device clock can be years out.
     public let fetchedAt: Date
 
-    /// The cache validator the server issued with this document, if it is still known.
-    ///
-    /// Sent back as `If-None-Match` on the next read, which is what makes re-reading the
-    /// truth on every launch cost a header rather than a signature. Optional because a
-    /// document can outlive knowledge of its validator — an older cache, a response that
-    /// carried no `ETag` — and a missing one costs a full response, never correctness.
+    /// The `ETag` the server issued, sent back as `If-None-Match`; `nil` costs a full response, nothing more.
     public let validator: String?
 
+    /// Assembles a document as the server produced it.
     public init(
         account: Account,
         subscription: Subscription,
@@ -64,58 +38,41 @@ public struct Profile: Sendable, Equatable, Codable {
         self.validator = validator
     }
 
-    /// The same document, remembering the validator the response carried.
-    ///
-    /// A copy rather than a mutable property because everything else about a profile
-    /// arrived from the server together and must stay together; the validator is the one
-    /// part that comes from a header rather than the body.
+    /// The same document with the validator the response's header carried.
     public func remembering(validator: String?) -> Profile {
         Profile(
             account: account, subscription: subscription, devices: devices,
             entitlement: entitlement, fetchedAt: fetchedAt, validator: validator)
     }
 
-    /// Whether this document describes the account the entitlement was signed for.
-    ///
-    /// The account and nothing else. The plan beside it is **not** covered, so a free
-    /// entitlement inside a document claiming Pro passes this and verifies perfectly.
-    /// What stops that mattering is that the unsigned half decides nothing — see
-    /// `Docs/entitlements.md`, and `UnsignedHalfTests`, which is where that is checked
-    /// rather than asserted.
+    /// Whether the entitlement names this document's account; not the plan. See `Docs/entitlements.md`.
     public var isInternallyConsistent: Bool {
         entitlement.account.identifier == account.identifier
     }
 
-    /// The device this Mac is, as the server knows it. `nil` before the first read, and
-    /// for a client that never registered one.
+    /// The device this Mac is, as the server knows it; `nil` before the first read or with none registered.
     public var currentDevice: Device? {
         devices.first(where: \.isCurrent)
     }
 
-    /// The date on the wire that the app reads as a date, and every other as a string.
-    ///
-    /// Deliberately narrow: only ``fetchedAt`` and the timestamps below are ISO-8601
-    /// strings, while ``Entitlement/expiresAt`` is a number, because it is signed and its
-    /// shape is dictated by what Swift's synthesised `Codable` emits. One document with
-    /// two date encodings cannot be decoded by one `dateDecodingStrategy`, so this type
-    /// converts the strings itself and leaves the number alone.
+    /// The wire keys; `fetchedAt` is an ISO-8601 string, while the entitlement's signed expiry is a number.
     private enum CodingKeys: String, CodingKey {
         case account, subscription, devices, entitlement, fetchedAt, validator
     }
 
+    /// Decodes the document, converting the timestamp string itself.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         account = try container.decode(Account.self, forKey: .account)
         subscription = try container.decode(Subscription.self, forKey: .subscription)
-        // A device the app cannot read is dropped rather than fatal: a newer server that
-        // has learned a platform this build has never heard of must not cost somebody
-        // their account page.
+        // An unknown platform decodes as ``Platform/unrecognised``, so a newer server costs nobody a page.
         devices = try container.decode([Device].self, forKey: .devices)
         entitlement = try container.decode(Entitlement.self, forKey: .entitlement)
         fetchedAt = try Timestamp.decode(from: container, forKey: .fetchedAt)
         validator = try container.decodeIfPresent(String.self, forKey: .validator)
     }
 
+    /// Encodes the document with the timestamp as a string.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(account, forKey: .account)
@@ -128,23 +85,21 @@ public struct Profile: Sendable, Equatable, Codable {
 }
 
 extension Profile {
-    /// What the subscription allows. Numbers rather than sentences, so the app can compare
-    /// them; `nil` means unlimited, which is a different statement from zero.
+    /// What the subscription allows, as numbers; `nil` means unlimited, which differs from zero.
     public struct Limits: Sendable, Equatable, Codable {
+        /// Minutes of dictation a month, or `nil` for unlimited.
         public let monthlyMinutes: Int?
+        /// Custom dictionary entries, or `nil` for unlimited.
         public let customDictionaryEntries: Int?
 
+        /// Both limits, `nil` for unlimited.
         public init(monthlyMinutes: Int?, customDictionaryEntries: Int?) {
             self.monthlyMinutes = monthlyMinutes
             self.customDictionaryEntries = customDictionaryEntries
         }
     }
 
-    /// Where a subscription stands.
-    ///
-    /// Kept apart from ``Plan`` because the two answer different questions: the plan is
-    /// what somebody bought, the status is whether the payment for it worked, and the app
-    /// needs both to say anything useful about a card that has expired.
+    /// Whether the payment for the plan worked; kept apart from ``Plan``, which is what was bought.
     public enum Status: String, Sendable, Equatable, CaseIterable, Codable {
         case active
         case pastDue = "past_due"
@@ -152,26 +107,24 @@ extension Profile {
         case expired
     }
 
+    /// What is billed for, and what is in force.
     public struct Subscription: Sendable, Equatable, Codable {
         /// The plan being billed for.
         public let plan: Plan
 
+        /// Whether the payment worked.
         public let status: Status
 
         /// When the paid period ends. `nil` on free, which does not end.
         public let currentPeriodEnd: Date?
 
-        /// The plan to *behave* as though somebody is on, which is not always the one
-        /// they are billed for: a cancelled subscription is still Pro until the period it
-        /// paid for runs out. Computed by the server so that three clients cannot each
-        /// have a slightly different idea of when Pro stops.
-        ///
-        /// Displayed, never enforced. What may actually be done is decided by the signed
-        /// ``Entitlement``.
+        /// The plan to behave as though somebody is on, computed by the server; displayed, never enforced.
         public let effectivePlan: Plan
 
+        /// What the plan allows.
         public let limits: Limits
 
+        /// Assembles a subscription as the server produced it.
         public init(
             plan: Plan, status: Status, currentPeriodEnd: Date?, effectivePlan: Plan,
             limits: Limits
@@ -183,10 +136,12 @@ extension Profile {
             self.limits = limits
         }
 
+        /// The wire keys.
         private enum CodingKeys: String, CodingKey {
             case plan, status, currentPeriodEnd, effectivePlan, limits
         }
 
+        /// Decodes, converting `currentPeriodEnd` from a string.
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             plan = try container.decode(Plan.self, forKey: .plan)
@@ -196,6 +151,7 @@ extension Profile {
             limits = try container.decode(Limits.self, forKey: .limits)
         }
 
+        /// Encodes with `currentPeriodEnd` as a string.
         public func encode(to encoder: any Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(plan, forKey: .plan)
@@ -209,16 +165,20 @@ extension Profile {
 
     /// One installation of the app, on one machine.
     public struct Device: Sendable, Equatable, Codable {
+        /// The server's identifier for the installation.
         public let identifier: String
+        /// Which kind of machine.
         public let platform: Platform
         /// What the person will recognise it by. Theirs to change, so never parsed.
         public let name: String
+        /// The build last seen from it, if reported.
         public let appVersion: String?
+        /// When it last spoke to the server.
         public let lastSeenAt: Date
-        /// Marked by the server, so the app is not left matching a name it chose itself
-        /// against a list of three similar ones.
+        /// Marked by the server, so the app never matches a name it chose itself against a list of three.
         public let isCurrent: Bool
 
+        /// Assembles a device as the server produced it.
         public init(
             identifier: String, platform: Platform, name: String, appVersion: String?,
             lastSeenAt: Date, isCurrent: Bool
@@ -231,10 +191,12 @@ extension Profile {
             self.isCurrent = isCurrent
         }
 
+        /// The wire keys.
         private enum CodingKeys: String, CodingKey {
             case identifier, platform, name, appVersion, lastSeenAt, isCurrent
         }
 
+        /// Decodes, converting `lastSeenAt` from a string.
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             identifier = try container.decode(String.self, forKey: .identifier)
@@ -245,6 +207,7 @@ extension Profile {
             isCurrent = try container.decode(Bool.self, forKey: .isCurrent)
         }
 
+        /// Encodes with `lastSeenAt` as a string.
         public func encode(to encoder: any Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(identifier, forKey: .identifier)
@@ -256,12 +219,7 @@ extension Profile {
         }
     }
 
-    /// The kind of machine a device is.
-    ///
-    /// ``unrecognised`` is the important case. This app will one day be older than the
-    /// service it talks to, and a phone signing in from a platform added after this build
-    /// shipped must cost the user an unfamiliar icon in a list — not a decoding failure
-    /// that takes the whole account page with it.
+    /// The kind of machine a device is; an unknown wire value decodes as ``unrecognised``, not as a failure.
     public enum Platform: String, Sendable, Equatable, CaseIterable, Codable {
         case macOS = "macos"
         case iOS = "ios"
@@ -272,6 +230,7 @@ extension Profile {
         case linux
         case unrecognised
 
+        /// Decodes any platform this build has not heard of as ``unrecognised``.
         public init(from decoder: any Decoder) throws {
             let raw = try decoder.singleValueContainer().decode(String.self)
             self = Platform(rawValue: raw) ?? .unrecognised

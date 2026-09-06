@@ -1,3 +1,4 @@
+// Tests mapping raw recogniser output into a Transcription.
 import Testing
 
 @testable import UttrflowCore
@@ -14,8 +15,7 @@ struct RawTranscriptMappingTests {
         #expect(mapped.audioDuration == .seconds(3))
     }
 
-    /// Whisper emits these routinely on quiet recordings. Typing them into the user's
-    /// document would be worse than typing nothing.
+    /// Whisper emits these routinely on quiet recordings, and typing them would be worse than nothing.
     @Test(
         "strips the markers recognisers emit for things that are not speech",
         arguments: [

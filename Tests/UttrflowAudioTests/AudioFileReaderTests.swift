@@ -1,3 +1,4 @@
+// Tests reading audio files into canonical samples.
 import Foundation
 import Testing
 
@@ -17,8 +18,7 @@ struct AudioFileReaderTests {
         deinit { try? FileManager.default.removeItem(at: directory) }
     }
 
-    /// The encoder and the reader are the two halves of the evaluation corpus, so
-    /// they are tested against each other rather than separately.
+    /// The encoder and the reader are the two halves of the corpus, so they are tested against each other.
     @Test("reads back what the encoder wrote")
     func roundTrip() throws {
         let sandbox = Sandbox()

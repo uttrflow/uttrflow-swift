@@ -1,32 +1,11 @@
+// Tells a view whether its window can be seen, so animations pause off screen.
+
 import AppKit
 import SwiftUI
 
-/// Tells a view whether the window it is in can actually be seen.
-///
-/// Written for one specific bug, and the shape of it is the bug's. `TimelineView(.animation)`
-/// asks to be redrawn every display refresh and keeps asking for as long as the view
-/// exists — it does not stop when the window is behind another one, minimised, hidden,
-/// or on a Space nobody is looking at. Uttrflow opens its window at login and is meant to
-/// be left open, so an animation on that window is an animation that runs all day: the
-/// home page's demonstration was measured holding a whole core busy from the moment the
-/// app launched, for as long as it stayed running.
-///
-/// macOS already knows the answer and publishes it as `NSWindow.occlusionState`. Nothing
-/// in SwiftUI surfaces it, so this reaches back through an `NSView` to find the window
-/// and watches the two notifications that can change it:
-///
-/// - `NSWindow.didChangeOcclusionStateNotification` — covered, uncovered, minimised, or
-///   moved to another Space.
-/// - `NSApplication.didHideNotification` / `didUnhideNotification` — ⌘H, which does
-///   *not* always move the window's own occlusion state, and which is exactly how
-///   somebody puts this app away without closing it.
-///
-/// Deliberately errs towards visible: a window it cannot find is reported as on screen.
-/// Being wrong that way costs the frames it was going to draw anyway, and being wrong
-/// the other way freezes an animation somebody is looking at.
+/// Tells a view whether its window can be seen, from `NSWindow.occlusionState`. See Docs/app-main-window.md.
 extension View {
-    /// Calls `onChange` with whether this view's window is on screen, now and whenever it
-    /// changes.
+    /// Calls `onChange` with whether this view's window is on screen, now and whenever it changes.
     func onWindowVisibilityChange(_ onChange: @escaping (Bool) -> Void) -> some View {
         background(WindowVisibilityReporter(onChange: onChange).allowsHitTesting(false))
     }
@@ -49,13 +28,10 @@ private struct WindowVisibilityReporter: NSViewRepresentable {
 
 private final class VisibilityReportingView: NSView {
     var onChange: ((Bool) -> Void)?
-    /// The last answer given, so an occlusion change that does not change the answer —
-    /// and macOS sends several — does not restart an animation that is already running.
-    private var reported: Bool?
+    /// The last answer given, so repeated occlusion notices do not restart a running animation.
+    private var lastReported: Bool?
 
-    /// Subscribed here rather than at construction because a view has no window until it
-    /// is placed in one, and the first answer has to be given once there is something to
-    /// answer about.
+    /// Subscribes here because a view has no window until it is placed in one.
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         let centre = NotificationCenter.default
@@ -73,8 +49,7 @@ private final class VisibilityReportingView: NSView {
         recheck()
     }
 
-    /// Stops the animation while this view is out of the hierarchy at all — which is what
-    /// switching to another page in the sidebar does.
+    /// Stops the animation while this view is out of the hierarchy, as switching pages does.
     override func viewDidHide() {
         super.viewDidHide()
         report(false)
@@ -91,8 +66,8 @@ private final class VisibilityReportingView: NSView {
     }
 
     private func report(_ isVisible: Bool) {
-        guard reported != isVisible else { return }
-        reported = isVisible
+        guard lastReported != isVisible else { return }
+        lastReported = isVisible
         onChange?(isVisible)
     }
 

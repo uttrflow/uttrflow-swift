@@ -1,3 +1,4 @@
+// The shared history fixture, and tests for the History page: grouping, retention, search, empties.
 import Foundation
 import UttrflowHistory
 import UttrflowSettings
@@ -5,30 +6,24 @@ import Testing
 
 @testable import UttrflowUX
 
-/// A fixed clock and a fixed region, so a test cannot pass in one time zone and fail in
-/// another — or start failing at midnight.
+/// A fixed clock and a fixed region, so a test cannot pass in one time zone and fail in another.
 enum HistoryFixture {
+    /// A fixed region.
     static let locale = Locale(identifier: "en_GB")
 
+    /// A Gregorian calendar pinned to GMT.
     static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = locale
-        // The one time zone in which "today" and "yesterday" mean the same thing to every
-        // machine that runs the suite.
+        // The one time zone in which "today" and "yesterday" mean the same thing on every machine.
         calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
         return calendar
     }
 
-    /// Mid-afternoon on 15 June 2025, chosen so that subtracting hours in a test stays
-    /// inside the same day and the day names below are stable.
+    /// Mid-afternoon on 15 June 2025, so subtracting hours stays inside the same day.
     static let now = Date(timeIntervalSince1970: 1_750_000_800)
 
-    /// One kept dictation.
-    ///
-    /// `changes` defaults to an empty record — *measured, and nothing was changed* —
-    /// because that is what an ordinary dictation looks like. Pass `nil` for one written
-    /// before changes were kept, which is a different fact and must stay out of the
-    /// accuracy arithmetic.
+    /// One kept dictation; `changes` defaults to measured-and-unchanged, and `nil` means never measured.
     static func entry(
         _ text: String = "Hello there",
         minutesAgo: Int = 0,
@@ -49,6 +44,7 @@ enum HistoryFixture {
             isFlagged: isFlagged)
     }
 
+    /// A snapshot over these entries at the fixed clock.
     static func snapshot(
         entries: [HistoryEntry],
         query: String = "",
@@ -60,6 +56,7 @@ enum HistoryFixture {
             keepsRecordings: keepsRecordings, now: now)
     }
 
+    /// The History page over these entries.
     static func page(
         entries: [HistoryEntry],
         query: String = "",
@@ -103,9 +100,7 @@ struct HistoryPresentationTests {
         #expect(title?.contains("June") == true)
     }
 
-    /// The store orders by arrival rather than by timestamp, and this must not undo that.
-    /// Merging as days are met is also what stops a clock that moved producing two
-    /// sections both called "Today".
+    /// The store orders by arrival, and merging days as met stops a moved clock making two "Today"s.
     @Test("the order the store gave is kept, and a day appears once")
     func keepsArrivalOrderAndMergesDays() {
         let page = HistoryFixture.page(entries: [
@@ -133,8 +128,7 @@ struct HistoryPresentationTests {
         #expect(page.days.first?.rows.first?.application == nil)
     }
 
-    /// Measured against the snapshot's clock, not the machine's, or the row would
-    /// disagree with the retention the rest of the page is reasoned from.
+    /// Measured against the snapshot's clock, or the row would disagree with retention.
     @Test("how long ago is measured against the snapshot's clock")
     func relativeTimeUsesTheSnapshotClock() {
         let page = HistoryFixture.page(entries: [HistoryFixture.entry(minutesAgo: 2)])
@@ -152,8 +146,7 @@ struct HistoryPresentationTests {
 
 @Suite("History keeps the promise about retention")
 struct HistoryRetentionTests {
-    /// The promise is that a dictation older than the window is gone. A page that would
-    /// happily draw one can break the promise on the store's behalf.
+    /// A page that would draw a dictation older than the window can break the promise for the store.
     @Test("anything older than the window is not shown")
     func dropsExpiredEntries() {
         let page = HistoryFixture.page(entries: [
@@ -193,21 +186,13 @@ struct HistoryRetentionTests {
                 == "Kept on this Mac for 7 days, then deleted. A recording stays only until its words land.")
     }
 
-    /// Somebody checking what the app holds about them should not have to dictate
-    /// something first in order to find out.
+    /// Somebody checking what the app holds should not have to dictate first to find out.
     @Test("the notice is there even when the list is empty")
     func noticeSurvivesAnEmptyList() {
         #expect(!HistoryFixture.page(entries: []).retentionNotice.sentence.isEmpty)
     }
 
-    /// The boundary itself, because "seven days" has to mean something exact to a user
-    /// who reads it as a promise.
-    ///
-    /// Exactly seven days old is **gone**: its seven days are up. The page used to keep
-    /// it — an inclusive comparison here against the store's exclusive one — so a record
-    /// the store had already deleted was still being drawn. Where the two could differ,
-    /// the promise decides: erring towards deleting keeps a claim the user was shown,
-    /// and erring towards keeping breaks it.
+    /// Exactly seven days old is gone: where page and store could differ, the promise decides.
     @Test("a dictation whose days are up is gone, on the boundary and past it")
     func retentionBoundary() {
         let entries = [
@@ -220,8 +205,7 @@ struct HistoryRetentionTests {
         #expect(kept.map(\.text) == ["Still inside"])
     }
 
-    /// The page and the store must not be able to drift apart again: this asserts they
-    /// give the same answer, rather than asserting the page's answer in isolation.
+    /// The page and the store must give the same answer, so this asserts agreement, not the page alone.
     @Test("the page agrees with the store about what has been deleted")
     func retentionAgreesWithTheStore() {
         for daysAgo in [0, 1, 6, 7, 8, 30] {
@@ -257,10 +241,7 @@ struct HistorySearchTests {
         #expect(page.days.flatMap(\.rows).map(\.text) == ["Lunch plans"])
     }
 
-    /// Dictation produces accented words the user will type unaccented when looking for
-    /// them again.
-    /// An entry that never reached an app has no name to search, and must not stop the
-    /// search reaching the entries that do.
+    /// An entry that never reached an app has no name to search, and must not block the others.
     @Test("an entry with no app name is searched for its text alone")
     func searchesEntriesWithoutAnApplication() {
         let page = HistoryFixture.page(
@@ -326,8 +307,7 @@ struct HistoryEmptyTests {
 
 @Suite("Which app a dictation went to")
 struct HistoryApplicationTests {
-    /// The name is what the row is labelled with; the identifier is what its icon is
-    /// looked up by, and only the identifier cannot answer with the wrong app.
+    /// The name labels the row; the identifier looks up the icon, and only it cannot answer wrongly.
     @Test("carries the identifier the dictation recorded")
     func carriesTheIdentifier() throws {
         let entry = HistoryFixture.entry(
@@ -339,8 +319,7 @@ struct HistoryApplicationTests {
         #expect(application.identifier == "com.anthropic.claudefordesktop")
     }
 
-    /// Every dictation recorded before identifiers were kept. The row still knows where
-    /// it went; the icon lookup falls back to the name.
+    /// A dictation recorded without an identifier still knows where it went; the icon uses the name.
     @Test("has no identifier for a dictation recorded before they were kept")
     func withoutAnIdentifier() throws {
         let application = try #require(
@@ -349,8 +328,7 @@ struct HistoryApplicationTests {
         #expect(application.identifier == nil)
     }
 
-    /// Blank rather than absent is the shape a hand-edited history file takes. An empty
-    /// string would be asked of LaunchServices on every redraw and answer nothing.
+    /// Blank is the shape a hand-edited file takes, and an empty string would be asked of LaunchServices.
     @Test("treats a blank identifier as none")
     func blankIdentifier() throws {
         let entry = HistoryFixture.entry(application: "Mail", applicationIdentifier: "   ")

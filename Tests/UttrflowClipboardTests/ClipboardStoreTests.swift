@@ -1,30 +1,12 @@
+// Tests for the clipboard store.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// A temporary file, gone when the test that made it is.
-struct TemporaryFile: ~Copyable {
-    let url: URL
-
-    init(named name: String = UUID().uuidString) {
-        url = URL.temporaryDirectory
-            .appending(path: "UttrflowClipboardTests/\(UUID().uuidString)/\(name)")
-    }
-
-    deinit {
-        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
-    }
-}
-
 @Suite("Everything the user has copied")
 struct ClipboardStoreTests {
-    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-
-    private func week(from now: Date? = nil) -> ClipRetention {
-        ClipRetention(days: 7, now: now ?? noon)
-    }
-
     private func clip(
         _ text: String, at offset: TimeInterval = 0, alias: String? = nil,
         category: String? = nil, pinned: Bool = false
@@ -48,8 +30,7 @@ struct ClipboardStoreTests {
         #expect(await store.clips(keeping: week()).map(\.text) == ["second", "first"])
     }
 
-    /// Arrival order, not clock order. The timestamp belongs to the caller, so a Mac
-    /// whose clock jumped must not be able to shuffle what the user is shown.
+    /// Arrival order, not clock order, so a Mac whose clock jumped cannot shuffle the list.
     @Test("orders by arrival, not by the timestamp it was handed")
     func arrivalOrder() async throws {
         let file = TemporaryFile()
@@ -70,8 +51,7 @@ struct ClipboardStoreTests {
         #expect(await reopened.clips(keeping: week()).map(\.text) == ["kept"])
     }
 
-    /// An unreadable file must cost the user their clipboard and not their app: the
-    /// panel still opens, on nothing.
+    /// An unreadable file costs the user their clipboard, not their app.
     @Test("opens on nothing when the file has been mangled")
     func corruption() async throws {
         let file = TemporaryFile()
@@ -91,8 +71,7 @@ struct ClipboardStoreTests {
         #expect(await ClipboardStore(file: file.url).clips(keeping: week()).isEmpty)
     }
 
-    /// The one write that can genuinely fail: a path that cannot be created because
-    /// something that is not a directory is in the way.
+    /// The one write that can genuinely fail: a path blocked by something that is not a directory.
     @Test("reports a disk that refuses the write")
     func writeFailure() async throws {
         let blocker = TemporaryFile(named: "blocker")
@@ -132,8 +111,7 @@ struct ClipboardStoreTests {
 
     // MARK: - Deduplication
 
-    /// The rule that stops the list becoming useless: copying the same thing twice is
-    /// one row, moved to the top, not two rows saying the same thing.
+    /// Copying the same thing twice is one row moved to the top, not two rows.
     @Test("moves a repeated copy to the top instead of adding a row")
     func deduplication() async throws {
         let file = TemporaryFile()
@@ -149,8 +127,7 @@ struct ClipboardStoreTests {
         #expect(clips[0].copiedAt == noon.addingTimeInterval(120))
     }
 
-    /// The worst version of getting deduplication wrong: copying a value again quietly
-    /// strips the name the user gave it. Everything deliberate has to survive.
+    /// Copying a value again must not strip the name the user gave it.
     @Test("keeps the alias, category and pin when the same thing is copied again")
     func deduplicationKeepsWhatWasDeliberate() async throws {
         let file = TemporaryFile()
@@ -191,9 +168,7 @@ struct ClipboardStoreTests {
         #expect(await store.clips(keeping: week(from: fortnight)).isEmpty)
     }
 
-    /// The promise is about elapsed time, and time passes while the app sits idle — so
-    /// the window has to be applied on the way out as well as on the way in, and the
-    /// disk has to be caught up when it is.
+    /// The window applies on the way out as well as in, and the disk is caught up when it does.
     @Test("tidies the disk when a read finds something too old")
     func readingTidiesTheDisk() async throws {
         let file = TemporaryFile()
@@ -205,8 +180,7 @@ struct ClipboardStoreTests {
         #expect(FileManager.default.fileExists(atPath: file.url.path(percentEncoded: false)) == false)
     }
 
-    /// The worst thing this app could do. A clip somebody named, filed or pinned does
-    /// not age out, however long the window was and however long ago they saved it.
+    /// A clip somebody named, filed or pinned never ages out, however old.
     @Test(
         "never ages out a clip the user kept",
         arguments: [
@@ -222,8 +196,7 @@ struct ClipboardStoreTests {
         #expect(clips.map(\.text) == [kept.text])
     }
 
-    /// Zero days is an honest setting for somebody who wants the panel and not the
-    /// record — and even then, what they kept deliberately stays.
+    /// Zero days is honest for somebody who wants the panel and not the record; kept clips still stay.
     @Test("keeps no history at all when the window is zero, and keeps what was kept")
     func zeroDayWindow() async throws {
         let file = TemporaryFile()
@@ -248,8 +221,7 @@ struct ClipboardStoreTests {
         #expect(await store.clips(keeping: week()).map(\.text) == ["clip 5", "clip 4", "clip 3"])
     }
 
-    /// The cap is a bound on the write, not on what the user asked to keep. A hundred
-    /// pinned clips must not push the most recent copy out of a list of ten.
+    /// The cap bounds the write, not what the user asked to keep.
     @Test("never counts a kept clip against the cap")
     func keptClipsAreNotCapped() async throws {
         let file = TemporaryFile()
@@ -265,11 +237,7 @@ struct ClipboardStoreTests {
         #expect(clips.filter { !$0.isKept }.map(\.text) == ["history 2", "history 1"])
     }
 
-    /// A negative capacity is a caller's mistake, and a store that keeps no history is a
-    /// far better outcome than a `prefix` that traps.
-    /// `ClipboardTier` clamps rather than trusting, so a nonsense number keeps no history
-    /// instead of trapping — and what the user deliberately kept survives it, because
-    /// nothing the user kept is subject to a tier at all.
+    /// A nonsense capacity keeps no history rather than trapping, and kept clips survive it.
     @Test("keeps no history rather than crashing on a nonsense capacity")
     func negativeCapacity() async throws {
         let file = TemporaryFile()
@@ -315,11 +283,7 @@ struct ClipboardStoreTests {
         #expect(try await store.setCategory(nil, of: subject.id, keeping: week())[0].category == nil)
     }
 
-    /// D4 and D6 rebuild the clip rather than mutate it, and every field left out of that
-    /// rebuild quietly reverts to its default. ``Clip/timesCopied`` defaults to one, so a
-    /// clip reached for thirty times used to come back from a re-indent looking untouched
-    /// — and the budget evicts by that count, fewest copies first, which made tidying a
-    /// favourite the way to lose it.
+    /// Rebuilding a clip on edit must keep `timesCopied`, or the budget evicts a tidied favourite first.
     @Test("tidying a clip keeps the count of how often it was copied")
     func editsKeepTheCount() async throws {
         let file = TemporaryFile()
@@ -335,9 +299,7 @@ struct ClipboardStoreTests {
         #expect(noted[0].timesCopied == 3)
     }
 
-    /// The same rebuild, and the same failure one field along: a clip that lost its
-    /// picture would draw as an empty row, and the file it named would be swept up as an
-    /// orphan on the next pass — the bytes gone, not just the reference.
+    /// The same rebuild one field along: a clip that lost its picture would be swept as an orphan.
     @Test("and keeps the picture it is a picture of")
     func editsKeepThePicture() async throws {
         let file = TemporaryFile()
@@ -351,8 +313,7 @@ struct ClipboardStoreTests {
         #expect(try await store.setText("alt text", of: shot.id, keeping: week())[0].image != nil)
     }
 
-    /// Un-naming makes a clip history again from that moment, which is the user saying
-    /// they no longer need it — so the window applies to it there and then.
+    /// Un-naming makes a clip history again from that moment, so the window applies at once.
     @Test("lets an unnamed clip fall back under the window")
     func unKeepingRestoresTheWindow() async throws {
         let file = TemporaryFile()
@@ -365,8 +326,7 @@ struct ClipboardStoreTests {
         #expect(clips.isEmpty)
     }
 
-    /// An identifier that is not there is not an error. The caller wanted it changed, or
-    /// gone, and afterwards it is neither present nor changed.
+    /// An identifier that is not there is not an error; afterwards it is neither present nor changed.
     @Test("shrugs at an identifier it has never seen")
     func unknownIdentifier() async throws {
         let file = TemporaryFile()
@@ -390,12 +350,7 @@ struct ClipboardStoreTests {
         #expect(try await store.delete(doomed.id, keeping: week()).map(\.text) == ["keep me"])
     }
 
-    /// "Clear Clipboard" has to mean it, pins included, and it has to reach the disk
-    /// before the user quits.
-    /// "Clear clipboard" means the record of what you have copied. It used to mean the
-    /// aliases and pins as well — `save([])` wrote an empty list, and an empty list is
-    /// empty of everything — which took the clips somebody would be most upset to lose and
-    /// was least expecting this button to touch.
+    /// "Clear Clipboard" clears the record of what was copied, reaches the disk, and keeps what was saved.
     @Test("forgets the history and leaves nothing of it on disk, but keeps what was saved")
     func deletingEverything() async throws {
         let file = TemporaryFile()
@@ -414,8 +369,7 @@ struct ClipboardStoreTests {
         #expect(await ClipboardStore(file: file.url).clips(keeping: week()).map(\.text) == ["pinned"])
     }
 
-    /// Emptying an already-empty store is not a failure, and must not become one just
-    /// because there was no file to remove.
+    /// Emptying an already-empty store is not a failure.
     @Test("is happy to forget nothing")
     func deletingNothing() async throws {
         let file = TemporaryFile()
@@ -424,9 +378,7 @@ struct ClipboardStoreTests {
 
     // MARK: - Speed
 
-    /// Fetching is on the hot path of every ⇧⌘V, so it must not touch the disk once the
-    /// store has been read once. Proved by deleting the file underneath a loaded store:
-    /// anything that went back to disk would answer with nothing.
+    /// Fetching is on the ⇧⌘V path and must not touch the disk once read; proved by deleting the file.
     @Test("answers a fetch from memory rather than from the disk")
     func fetchingDoesNoDiskWork() async throws {
         let file = TemporaryFile()
@@ -438,9 +390,7 @@ struct ClipboardStoreTests {
         #expect(await store.clips(keeping: week()).map(\.text) == ["in memory"])
     }
 
-    /// The cache exists so a repeated fetch is free. An empty store has to be cached
-    /// too, or the one case with nothing to show would be the one that reads the disk on
-    /// every single panel open.
+    /// An empty store is cached too, or the case with nothing to show reads the disk on every open.
     @Test("caches an empty clipboard as well as a full one")
     func emptinessIsCachedToo() async throws {
         let file = TemporaryFile()
@@ -471,9 +421,7 @@ struct ClipRetentionDictationTests {
         let file = TemporaryFile()
         let store = ClipboardStore(file: file.url)
 
-        // Somebody who asked for transcripts to be kept for one day, on a Mac whose
-        // clipboard window is a fortnight. Before this, their words stayed for the
-        // fortnight — in a file the Privacy pane never mentioned.
+        // Transcripts kept for one day on a Mac whose clipboard window is a fortnight.
         let now = Date()
         let retention = ClipRetention(days: 14, now: now, dictationDays: 1)
         let twoDaysAgo = now.addingTimeInterval(-2 * 86_400)

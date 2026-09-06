@@ -11,6 +11,8 @@ import UttrflowHistory
 import UttrflowInput
 import UttrflowPermissions
 import UttrflowPipeline
+import UttrflowPredict
+import UttrflowPredictStore
 import UttrflowSettings
 import UttrflowSpeech
 import UttrflowUX
@@ -63,9 +65,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private let clipboard: ClipboardStore
 
+    /// Where every local store lives, kept because tab-to-complete opens its corpus after launch.
+    private let container: URL
+
+    /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
+    private var completions: SuggestionCoordinator?
+
+    /// The local model that validates each suggestion, handed in by the entry point so tests link no MLX.
+    private let scoring: (any CandidateScoring)?
+    /// The local model that invents a suggestion where the corpus has none, handed in the same way.
+    private let generating: (any CandidateGenerating)?
+
     /// Builds the app around one folder, which a test points at a temporary one.
-    init(container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin()) {
+    init(
+        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
+        scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil
+    ) {
+        self.container = container
         self.loginItem = loginItem
+        self.scoring = scoring
+        self.generating = generating
         history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: container))
         recordings = RecordingStore(directory: RecordingStore.defaultDirectory(in: container))
         dictionary = PersonalDictionaryStore(
@@ -145,6 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         wireInterface()
         startWatchingForTheShortcut()
         startWatchingTheClipboard()
+        startCompletingWhatIsTyped()
         loadSpeechModel()
         refreshAccount()
         presentOnboardingIfNeeded()
@@ -258,6 +278,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationWillTerminate(_ notification: Notification) {
         stateTask?.cancel()
         dismissalTask?.cancel()
+        completions?.stop()
+    }
+
+    /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
+    private func startCompletingWhatIsTyped() {
+        guard settings.suggestions.isEnabled, completions == nil else { return }
+        do {
+            let coordinator = try SuggestionCoordinator(
+                container: container, preferences: settings.suggestions, scoring: scoring,
+                generating: generating)
+            // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
+            coordinator.onTurnedOffEverywhere = { [weak self] in
+                self?.apply(.toggle(.suggestionsEnabled, isOn: false))
+            }
+            completions = coordinator
+            coordinator.start()
+        } catch {
+            Self.log.error("the corpus would not open: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Follows the Suggestions screen: builds the loop, takes it away, or hands it what changed.
+    private func suggestionsChanged() {
+        guard settings.suggestions.isEnabled else {
+            completions?.stop()
+            completions = nil
+            return
+        }
+        guard let completions else { return startCompletingWhatIsTyped() }
+        completions.follow(settings.suggestions)
     }
 
     /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.
@@ -906,9 +956,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 MenuBarRecent(title: $0.title, fullText: $0.dictation.text)
             },
             canCheckForUpdates: UpdateController.isConfigured,
-            updateProgress: updates.progress
+            updateProgress: updates.progress,
+            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled)
         )
     }
+
+    /// The menu bar's three switches; only suggestions has a stored setting behind it, so the other two hold for this launch.
+    private var menuSwitches = MenuBarFeatures()
 
     /// Carries out whatever the menu was asked for.
     private func carryOut(_ intent: MenuBarIntent) {
@@ -932,6 +986,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Task { await toggleQuickPanel() }
         case .checkForUpdates:
             updates.checkForUpdates()
+        case .setFeature(let feature, let isOn):
+            menuSwitches = menuSwitches.setting(feature, isOn: isOn)
+            if feature == .suggestions { apply(.toggle(.suggestionsEnabled, isOn: isOn)) }
+            refreshMenuBar()
         case .quit:
             NSApplication.shared.terminate(nil)
         }
@@ -940,7 +998,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: Windows
 
     /// Opens whichever surface was asked for, so nothing else knows which class owns a window.
-    private func show(_ destination: Destination) {
+    private func show(_ destination: UttrflowUX.Destination) {
         switch destination {
         case .onboarding:
             // Not `presentOnboardingIfNeeded()`, which returns silently once the flow is finished.
@@ -1356,6 +1414,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // As above: a switch that drew itself and changed nothing.
         if updated.installsUpdatesAutomatically != previous.installsUpdatesAutomatically {
             updates.setInstallsAutomatically(updated.installsUpdatesAutomatically)
+        }
+        // The master switch on the Suggestions screen is what builds and unbuilds the loop.
+        if updated.suggestions != previous.suggestions {
+            suggestionsChanged()
         }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))

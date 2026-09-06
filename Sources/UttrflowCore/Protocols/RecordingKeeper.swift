@@ -1,3 +1,5 @@
+// The keeper that holds a dictation's audio for retry, and the keeper that holds none.
+
 public import struct Foundation.Date
 public import struct Foundation.UUID
 
@@ -18,6 +20,7 @@ public protocol RecordingKeeper: Sendable {
 
 /// A keeper that keeps nothing, for callers that have no disk to write to.
 public struct RecordingsNotKept: RecordingKeeper {
+    /// A keeper with nothing to set up.
     public init() {}
 
     public func current() async -> KeptRecording? { nil }

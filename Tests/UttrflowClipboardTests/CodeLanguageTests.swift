@@ -1,3 +1,5 @@
+// Tests for language detection.
+
 import Testing
 
 @testable import UttrflowClipboard
@@ -6,9 +8,7 @@ import Testing
 struct CodeLanguageTests {
     // MARK: - Nothing to go on
 
-    /// `nil` is the default answer, and these are the shapes that have to reach it. Prose
-    /// with braces is the one the product was told about; the rest are the ways a clip can
-    /// be too small to be sure about.
+    /// `nil` is the default answer, and these are the shapes that have to reach it.
     @Test(
         "says nothing when there is nothing to say",
         arguments: [
@@ -31,9 +31,7 @@ struct CodeLanguageTests {
 
     // MARK: - Swift against TypeScript
 
-    /// The confusion that actually happens. Both have `let`, `import`, a function keyword
-    /// and `:` annotations, so each of these is written the way the language is really
-    /// written rather than in the overlap.
+    /// The confusion that actually happens, written the way each language is really written.
     @Test("calls Swift Swift")
     func swiftCode() {
         let text = """
@@ -64,8 +62,7 @@ struct CodeLanguageTests {
         #expect(CodeLanguage.detect(text) == .typescript)
     }
 
-    /// A `guard`, an interpolation and a trailing closure, with no braces-and-semicolons
-    /// house style to lean on.
+    /// A `guard`, an interpolation and a trailing closure, with no house style to lean on.
     @Test("calls a Swift extension Swift")
     func swiftExtension() {
         let text = """
@@ -81,8 +78,7 @@ struct CodeLanguageTests {
 
     // MARK: - Python against Ruby
 
-    /// One character — the colon after `def` — is most of the difference, so both halves
-    /// are tested with the same function written twice.
+    /// The colon after `def` is most of the difference, so the same function is written twice.
     @Test("calls Python Python")
     func pythonCode() {
         let text = """
@@ -140,8 +136,7 @@ struct CodeLanguageTests {
                 """) == .json)
     }
 
-    /// An object literal with unquoted keys is not JSON, and on its own it is not enough
-    /// to be anything else either.
+    /// An object literal with unquoted keys is not JSON, and alone is not enough to be anything else.
     @Test("does not call a bare object literal JSON")
     func bareObjectLiteral() {
         #expect(CodeLanguage.detect("{ name: \"uttrflow\", retries: 3 }") == nil)
@@ -173,8 +168,7 @@ struct CodeLanguageTests {
 
     // MARK: - SQL
 
-    /// Case is not evidence of anything: the same query is written three ways here and has
-    /// to come out the same each time.
+    /// Case is not evidence: the same query three ways must come out the same.
     @Test(
         "calls SQL SQL whatever the case",
         arguments: [
@@ -196,8 +190,7 @@ struct CodeLanguageTests {
         #expect(CodeLanguage.detect(text) == .sql)
     }
 
-    /// `select` and `from` are ordinary English words, and a sentence made of them is a
-    /// sentence. Articles are the giveaway: a query has none.
+    /// `select` and `from` are ordinary English; articles are the giveaway.
     @Test(
         "does not call an English sentence SQL",
         arguments: [
@@ -222,14 +215,13 @@ struct CodeLanguageTests {
         #expect(CodeLanguage.detect("#!/usr/bin/env swift\nprint(\"hi\")\n") == .swift)
     }
 
-    /// An interpreter we have no chip for falls through rather than being forced into the
-    /// nearest one.
+    /// An interpreter with no chip falls through rather than being forced into the nearest one.
     @Test("does not force an unknown interpreter into a language")
     func unknownShebang() {
         #expect(CodeLanguage.detect("#!/usr/bin/env perl\nmy $x = 1;\n") == nil)
     }
 
-    /// Most copied shell has no shebang, because it was copied out of the middle of a file.
+    /// Most copied shell has no shebang, having been copied out of the middle of a file.
     @Test("calls a shell script shell without a shebang")
     func shellWithoutShebang() {
         let text = """
@@ -258,9 +250,7 @@ struct CodeLanguageTests {
 
     // MARK: - Markdown
 
-    /// The fence says what a *region* is written in, and the clip is not the region. It is
-    /// also the one piece of evidence that is simply asserted rather than observed — often
-    /// absent, often wrong — so a fenced clip gets no label at all.
+    /// A fence says what a region is in, not the clip, and is asserted rather than observed.
     @Test("does not take a fence at its word")
     func fencedBlock() {
         let markdown = """
@@ -288,8 +278,7 @@ struct CodeLanguageTests {
 
     // MARK: - Two languages at once
 
-    /// HTML with a script in it is HTML. The document is the thing that was copied; the
-    /// script is a region inside it, exactly as a fenced block is a region inside a README.
+    /// HTML with a script in it is HTML; the script is a region inside the document.
     @Test("calls a page with inline script HTML")
     func htmlWithInlineScript() {
         let text = """
@@ -386,9 +375,7 @@ struct CodeLanguageTests {
 
     // MARK: - Size
 
-    /// A minified bundle is one enormous line. Only the first few thousand characters are
-    /// read, which is both what keeps ⌘C instant and enough to answer: a minified file
-    /// repeats itself, so reading further changes nothing.
+    /// A minified bundle is one enormous line, and only the first few thousand characters are read.
     @Test("reads a long minified line without choking on it")
     func minifiedLine() {
         let chunk = "function n\(0)(e){return e.map(function(r){return r*2})}"
@@ -411,8 +398,7 @@ struct CodeLanguageTests {
 
     // MARK: - Chips
 
-    /// Only the three names anybody abbreviates get abbreviated; the rest are already as
-    /// short as they are going to get.
+    /// Only the three names anybody abbreviates get abbreviated.
     @Test("abbreviates only the names that are habitually abbreviated")
     func chips() {
         #expect(CodeLanguage.javascript.chip == "js")
@@ -425,8 +411,7 @@ struct CodeLanguageTests {
         }
     }
 
-    /// The raw values are written to disk with every clip, so changing one silently
-    /// reclassifies history. Pinned here so that renaming a case has to be deliberate.
+    /// The raw values are written to disk with every clip, so renaming a case must be deliberate.
     @Test("keeps its raw values stable")
     func rawValues() {
         #expect(CodeLanguage.allCases.count == 13)

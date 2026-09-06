@@ -1,40 +1,51 @@
+// Shared fixtures for the account tests: in-memory storage, a credulous verifier, and signed entitlements.
+
 import CryptoKit
 import Foundation
 import Synchronization
 
 @testable import UttrflowAccount
 
-/// Bytes in memory, so a store's real behaviour is tested without a defaults domain,
-/// a suite name, or anything that outlives the test.
+/// Bytes in memory, so a store is tested without a defaults domain or anything that outlives the test.
 final class MemoryStorage: SessionStorage {
+    /// The bytes, by key.
     private let contents = Mutex<[String: Data]>([:])
 
+    /// Starts holding `initial`.
     init(_ initial: [String: Data] = [:]) {
         contents.withLock { $0 = initial }
     }
 
     var keys: Set<String> { contents.withLock { Set($0.keys) } }
 
+    /// The bytes under `key`.
     func data(forKey key: String) -> Data? {
         contents.withLock { $0[key] }
     }
 
+    /// Stores `data` under `key`, or removes the key when `nil`.
     func set(_ data: Data?, forKey key: String) {
         contents.withLock { $0[key] = data }
     }
 }
 
-/// A verifier that believes anything, for the one test that needs a store to keep
-/// something the signature would have refused.
+/// Unwraps the refresh outcome for a test.
+extension ProfileRefresh {
+    /// The newer copy, when there is one.
+    var updatedProfile: Profile? {
+        guard case .updated(let profile) = self else { return nil }
+        return profile
+    }
+}
+
+/// A verifier that believes anything, for a test that needs a store to keep what the signature refuses.
 struct CredulousVerifier: EntitlementVerifying {
     func isAuthentic(_ entitlement: Entitlement) -> Bool { true }
 }
 
-/// One backend, one impostor, and entitlements signed by either.
-///
-/// The keys are generated per run rather than checked in, for the same reason the
-/// module has no keypair in it.
+/// One backend, one impostor, and entitlements signed by either; keys are made per run, never checked in.
 enum Fixture {
+    /// The fixed instant every fixture is dated from.
     static let noon = Date(timeIntervalSince1970: 1_700_000_000)
 
     /// The key the tests pretend the backend holds.
@@ -47,19 +58,14 @@ enum Fixture {
         Ed25519EntitlementVerifier(publicKey: backend.publicKey)
     }
 
+    /// An account for `identifier` at `provider`, with a fixed name and email.
     static func account(_ identifier: String = "u_1", provider: SignInProvider = .google) -> Account {
         Account(
             identifier: identifier, displayName: "Naveen", emailAddress: "n@example.com",
             provider: provider)
     }
 
-    /// - Parameters:
-    ///   - expiring: Seconds from ``noon`` at which the entitlement runs out. Negative
-    ///     for one that already has.
-    ///   - plan: What it entitles its holder to.
-    ///   - account: Who it belongs to.
-    ///   - key: Whose key signs it. Anything but ``backend`` must not be believed.
-    /// - Returns: A fully signed entitlement.
+    /// An entitlement signed by `key`, expiring `expiring` seconds after ``noon`` (negative: already gone).
     static func entitlement(
         expiring: TimeInterval, plan: Plan = .pro,
         account: Account = Fixture.account(),
@@ -71,11 +77,7 @@ enum Fixture {
                 signature: ""))
     }
 
-    /// A whole profile wrapped around `entitlement`.
-    ///
-    /// The unsigned half is filled in consistently with the signed one — same account,
-    /// same plan — because a profile whose two halves disagree is refused by the cache,
-    /// and a fixture that produced one would fail every test for the wrong reason.
+    /// A profile around `entitlement` whose unsigned half agrees with it, so the cache does not refuse it.
     static func profile(
         for entitlement: Entitlement,
         validator: String? = "\"fixture\"",
@@ -94,6 +96,7 @@ enum Fixture {
             validator: validator)
     }
 
+    /// A device row for the profile's list.
     static func device(
         identifier: String = "d_1", platform: Profile.Platform = .macOS,
         name: String = "Naveen's MacBook Pro", isCurrent: Bool = true
@@ -103,15 +106,12 @@ enum Fixture {
             lastSeenAt: noon, isCurrent: isCurrent)
     }
 
-    /// A cache already holding `entitlement`, as a Mac on its second launch would be.
-    ///
-    /// Two functions rather than one overloaded on an optional: `cacheHolding(nil)` would
-    /// otherwise be ambiguous, and the ambiguity would be reported at every call site that
-    /// tests the signed-out case.
+    /// A cache holding `entitlement`, as a second launch's would; not an overload, so `nil` is unambiguous.
     static func cacheHolding(_ entitlement: Entitlement?) -> UserDefaultsProfileCache {
         cacheHolding(profile: entitlement.map { profile(for: $0) })
     }
 
+    /// A cache already holding `profile`, or empty for `nil`.
     static func cacheHolding(profile: Profile?) -> UserDefaultsProfileCache {
         let storage = MemoryStorage()
         let cache = UserDefaultsProfileCache(storage: storage, verifier: verifier)
