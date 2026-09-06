@@ -27,6 +27,12 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// ⇧⌘V, the clipboard panel's default; it shadows "paste without formatting". See `Docs/core-hotkeys.md`.
     public static let shiftCommandV = HotkeyBinding(keyCode: 9, modifiers: [.shift, .command])
 
+    /// ⌃⌘V, which puts the last dictation at the caret without going near the clipboard.
+    public static let controlCommandV = HotkeyBinding(keyCode: 9, modifiers: [.control, .command])
+
+    /// ⌃⌘C, the one shortcut whose whole job is to write the clipboard.
+    public static let controlCommandC = HotkeyBinding(keyCode: 8, modifiers: [.control, .command])
+
     /// Hold Fn to dictate; a held binding, watched through flag changes rather than registered as a hot key.
     public static let functionHold = HotkeyBinding(keyCode: functionKeyCode, modifiers: [])
 

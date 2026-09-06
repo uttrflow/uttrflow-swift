@@ -17,6 +17,8 @@ public struct ShortcutSet: Sendable, Equatable {
     public static let `default` = ShortcutSet([
         .dictate: [.optionSpace],
         .clipboard: [.shiftCommandV],
+        .pasteLastTranscript: [.controlCommandV],
+        .copyLastTranscript: [.controlCommandC],
     ])
 
     /// Every binding for one action, which is empty when the user has bound none.

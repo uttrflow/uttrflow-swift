@@ -220,13 +220,17 @@ extension Settings {
         // Written before shortcuts were a set: one dictation shortcut and maybe a clipboard one.
         let dictation = Settings.shortcut(
             legacy.value(forKey: .hotkey, default: fallback.first(for: .dictate) ?? .optionSpace))
-        var migrated = ShortcutSet([.dictate: [dictation]])
+        // Starts from the defaults, so upgrading brings the shortcuts this build added.
+        var migrated = fallback
+        migrated.replace(at: 0, with: dictation, for: .dictate)
         // Absent means the default, `null` means switched off, and unreadable means the default.
         let clipboard = legacy.optionalValue(
             forKey: .clipboardHotkey, default: fallback.first(for: .clipboard))
         // A clipboard shortcut that is the dictation one would fire both, so it is dropped.
         if let clipboard, clipboard.isDeliverable, clipboard != dictation {
-            migrated.add(clipboard, to: .clipboard)
+            migrated.replace(at: 0, with: clipboard, for: .clipboard)
+        } else {
+            migrated.remove(at: 0, from: .clipboard)
         }
         return migrated
     }

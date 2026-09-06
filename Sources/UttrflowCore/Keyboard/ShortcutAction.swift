@@ -6,4 +6,8 @@ public enum ShortcutAction: String, Sendable, Equatable, CaseIterable, Codable {
     case dictate
     /// Open the clipboard panel.
     case clipboard
+    /// Put the last thing dictated at the caret again.
+    case pasteLastTranscript
+    /// Put the last thing dictated on the clipboard.
+    case copyLastTranscript
 }
