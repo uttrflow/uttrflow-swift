@@ -9,8 +9,8 @@ meant survives, in the order they said it, in the register they said it in.
 This document is the catalogue of what that cleaning consists of, sorted by how sure the
 tidier must be before it acts. It was compiled on 5 September 2026 from three places:
 what the shipping prompt and `TextTidy` already do, what the evaluation corpus fails on,
-and what Wispr Flow, Superwhisper, MacWhisper, Apple's dictation and Dragon do — so the
-obvious cases are not missed. Sources are at the end.
+and what dictation tools in general are expected to handle — so the obvious cases are
+not missed.
 
 ## The one rule above the others
 
@@ -18,9 +18,9 @@ obvious cases are not missed. Sources are at the end.
 not meant as words (fillers, stammers, false starts, a self-correction's discarded half)
 and may add only punctuation and layout. It may not shorten for brevity, change tone,
 substitute synonyms, reorder clauses, answer a question, follow an instruction, or
-finish a thought. Wispr Flow's "High" formatting level rewrites for brevity; Superwhisper
-and MacWhisper let a prompt reshape the text into an email or a summary. Uttrflow does
-none of that on the dictation path. A user who wants a rewrite asks for one, and that is
+finish a thought. Some dictation tools offer a setting that rewrites for brevity, or let
+a prompt reshape the text into an email or a summary. Uttrflow does none of that on the
+dictation path. A user who wants a rewrite asks for one, and that is
 a different feature with a different name.
 
 `MeaningPreservationGuard` is the mechanical form of this rule: a rewrite that drops most
@@ -73,7 +73,7 @@ them. When the signal is missing or could be read two ways, the words stay.
 | Sentence boundaries from pauses and shape | pause plus a new clause that stands alone | "the build passed everything looks good ship it" → "The build passed. Everything looks good. Ship it." | ✅ prompt; rules only cap the first word |
 | Commas from pauses and conjunctions | a short pause before "but", "so", "and then", a vocative | "thanks marcy i'll pick up…" → "Thanks Marcy, I'll pick up…" | ✅ prompt |
 | Spoken punctuation names | "comma", "full stop"/"period", "question mark", "exclamation mark"/"point", "colon", "semicolon", "open quote … close quote", "hyphen", "dash" | "add milk comma eggs comma and bread" → "add milk, eggs, and bread" | ✅ `SpokenPunctuationPass`. The mark goes on the word before it (a quote opens on the word after; a hyphen joins both sides). Left as a word when it is first, when the word before it is a determiner or a verb of placing ("a", "the", "this", "my", "put", "add", "insert", "with", "no"…), or when "of" follows ("a long period of time"). "Period", "comma" and "dash" are nouns too, and a modifier hides the determiner that says so, so the lookback reaches three words for a determiner proper — "during the trial period", "the 100 metre dash" — stopping at any word that is itself a mark's name, which is what keeps "did you finish the trial period question mark" ending in a question mark. A verb of placing counts only immediately before the word, so "add milk comma eggs" still takes its comma, and a hyphen, which joins the two words around it rather than heading a phrase, reads only one word back. "full stop" and "period" are used only where the text closes — as the last word, or before "new line"/"new paragraph"/"bullet point" or "close quote" — so "the trial period ended last week" keeps its word and "ship it period" ends with a stop; a mid-sentence "period" stays a word and the model places the stop from the pause. "hyphen" and "dash" are the mirror: used only where the text does not close, since both need a word to follow |
-| Layout words | "new line", "new paragraph"/"blank line", "bullet point"/"next point" | a newline, a blank line, a list item | ✅ `LayoutWordsPass`, with the same mention guard as spoken punctuation, reading one word back only (a layout phrase heads no noun phrase, so "the update new paragraph" is not a mention), and only between two words — a trailing "new line" stays words. A model's answer is read the same way: a line opening with `-`, `•` or `*` and a space is a list item, so each item takes a capital and no stop. "number one … number two" is still ❌ |
+| Layout words | "new line", "new paragraph"/"blank line", "bullet point"/"next point", "number one" … "number two" | a newline, a blank line, a list item, a numbered item | ✅ `LayoutWordsPass`, with the same mention guard as spoken punctuation, reading one word back only (a layout phrase heads no noun phrase, so "the update new paragraph" is not a mention), and only between two words — a trailing "new line" stays words. A model's answer is read the same way: a line opening with `-`, `•` or `*` and a space is a list item, so each item takes a capital and no stop. "number one … number two" is ✅ too, and is the one phrase whose mark the word after it decides rather than the table: the number is read by `NumberWords`, the same table `NumberFormsPass` sits on, so "number twenty one" opens item 21 and "number two thirty" is not taken for the time 2:30. Nothing is numbered from zero, so "number zero" stays words. A numbered item is a list item on the same terms as a bulleted one — a capital and no stop. The mention guard carries the whole weight of telling an item from a designator, and one word of lookback is not always enough for it: "the number one problem" and "my number one priority" are left alone, but "flight number 447 is delayed" is not, and a lead-in is what separates them. |
 | Lists from spoken sequence | "first … second … third", "one … two … three", "point one …" over several clauses | a numbered or bulleted list, one item per clause | ✅ `PieceJoiner`, over the pieces a long dictation is cut into (`Docs/early-transcription.md`), since only their seams show the sequence. The items run from the piece that opens with "first" or "one" — "number one", "point two", "item three", "step four" too — to the last piece, each carrying the next number of the same kind, ordinals and cardinals never mixed. Two items at least, and each of them a clause: two words or more after the sequence word, not opening on a determiner. The sequence word goes, the item takes a capital, a `- ` and no stop. Everything short of that stays prose — a lone "first", a run that stops before the last piece ("first… second… and then the other thing"), a run that does not start at one, an item that only names a thing ("first, the milk"). Where the formatter has no `.lists` — messaging, spreadsheet, code, SQL — the words stay prose whatever they count |
 | Paragraph breaks | a long dictation with a clear topic shift after a pause, or a spoken "next", "also", "second thing" at the head of a new run | the joined pieces of a long dictation get blank lines between topics | ✅ `PieceJoiner`. A piece boundary is a pause the speaker made, so when the next piece opens on a topic — an ordinal ("second thing", "third"), or "also", "next", "okay so", "another thing", "one more thing", "moving on", "finally", "anyway", "additionally", "furthermore", "lastly" — and the formatter's layout has `.paragraphs`, the join is a blank line instead of a space. Otherwise a space. Never inside a list, never where a restatement swallowed the opening, and never in a cell, whose `.singleLine` keeps the whole dictation on one line |
 | Code identifiers from spoken words | the screen is a code editor and the words name something on it | "warm up all" → "warmUpAll"; "set user prefs" → "setUserPrefs" | ✅ `ScreenCandidates` offers the identifier by name when the recogniser was unsure of the run, so the model is choosing between two spellings rather than being asked to notice one; spelling only, never SQL from prose |
@@ -271,16 +271,3 @@ takes a freshly built cleaner and the overrides as they now stand. The next dict
 literally: a dictation under way keeps the cleaner and the overrides it began with, so a
 step switched off while the user is speaking cannot treat the second half of what they say
 differently from the first.
-
-## Sources
-
-- Wispr Flow help centre: [Smart Formatting & Backtrack](https://docs.wisprflow.ai/articles/5373093536-how-do-i-use-smart-formatting-and-backtrack),
-  [Flow Styles](https://docs.wisprflow.ai/articles/2368263928-how-to-setup-flow-styles),
-  [the dictionary](https://docs.wisprflow.ai/articles/4052411709-teach-flow-your-words-with-the-dictionary),
-  and the [features page](https://wisprflow.ai/features).
-- Superwhisper: [modes and the Aqua Voice comparison](https://superwhisper.com/vs/aqua-voice).
-- MacWhisper: [the dictation feature](https://docs.macwhisper.com/article/14-how-to-use-the-dictation-feature)
-  and a widely shared [clean-up prompt](https://gist.github.com/briansunter/432e1db8746d0146623b7e4c744d9a0c).
-- Apple: [dictation commands on Mac](https://support.apple.com/guide/mac-help/use-dictation-mh40584/11.0/mac/11.0),
-  and a [command list](https://www.parakeety.com/resources/how-to-dictate-punctuation-on-mac).
-- Dragon: [voice command list](https://www.speechlive.com/gb/resources/blog/dragon-voice-commands/).

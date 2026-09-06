@@ -1,0 +1,18 @@
+---
+description: What must never reach a tracked file, a commit or a pull request
+alwaysApply: true
+---
+
+This repository is public. The working session that produces the work is not, and the
+boundary is one way. Never write a named competitor or their products, docs, pricing or
+behaviour; growth, marketing or business strategy; or anything said in a session that is
+not a technical requirement — into a tracked file, a commit message, a pull request, an
+issue or a code comment.
+
+Reference material shared during development is for reading, not for keeping. Take the
+requirement out of it, state the requirement in the product's own words, and let the
+reference go.
+
+The full rule, and everything else that governs work here, is in `AGENTS.md`. Read it.
+`python3 Scripts/disclosure_audit.py` enforces this and runs in `make verify`, in the
+pre-push and commit-msg hooks, and on every pull request.

@@ -74,12 +74,20 @@ public struct Draft: Sendable, Equatable {
         /// Whether the word is a line break, a paragraph break or a bullet rather than something said.
         public var isLayoutMark: Bool { text.hasPrefix("\n") || text == Draft.bullet }
 
-        /// Whether the word is the bullet that opens a list item.
-        public var isListMark: Bool { text.hasSuffix(Draft.bullet) }
+        /// Whether the word opens a list item, with a bullet or with a number; neither takes a full stop.
+        public var isListMark: Bool {
+            let mark = text.drop(while: \.isNewline)
+            if mark.hasSuffix(Draft.bullet) { return true }
+            guard mark.hasSuffix(Draft.numberStop) else { return false }
+            let digits = mark.dropLast(Draft.numberStop.count)
+            return !digits.isEmpty && digits.allSatisfy(\.isNumber)
+        }
     }
 
     /// The dash and space a list item begins with, after the line break that starts it.
     public static let bullet = "- "
+    /// What a numbered item begins with once its digits are past: "1. ", "2. ".
+    public static let numberStop = ". "
     /// The tokens a line may open with to be read as a list item.
     private static let bulletTokens: Set<Substring> = ["-", "•", "*"]
 
