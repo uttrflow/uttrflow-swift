@@ -1,15 +1,7 @@
 import UttrflowUX
 import SwiftUI
 
-/// How much Uttrflow tidies, and which languages it listens for.
-///
-/// The two cards are ``SettingsGroup``s built by ``StylePagePresenter``, and a change
-/// made here is the same ``SettingsChange`` the settings window reports, applied by the
-/// same ``SettingsEditor``. So the *decisions* are shared even though the drawing is
-/// not: `SettingsGroupView` takes a `SettingsViewModel`, which belongs to the settings
-/// window and which this window has no business owning. Giving that view a
-/// `(SettingsChange) -> Void` instead would let both windows draw one row — it is a
-/// one-line change to a file this work does not own, and it is in the report.
+/// How much Uttrflow tidies and which languages it listens for, deciding it the settings window's way.
 struct StylePageView: View {
     let presentation: StylePagePresentation
     var onIntent: (MainIntent) -> Void
@@ -92,12 +84,7 @@ struct StyleRowView: View {
     }
 }
 
-/// Whatever a row asked for, drawn.
-///
-/// Only the two controls this page can ask for. ``SettingsControl`` is a closed set and
-/// every other case belongs to a screen that is not this one;
-/// `StylePagePresenterTests` holds the presenter to the two, so a third arriving here is
-/// a failing test rather than a row that silently draws nothing.
+/// The two controls this page can ask for; a presenter test refuses the presenter any other.
 struct StyleControlView: View {
     let control: SettingsControl
     var onIntent: (MainIntent) -> Void
@@ -124,9 +111,7 @@ struct StyleControlView: View {
             .buttonStyle(.plain)
             .accessibilityAddTraits(isTicked ? [.isSelected] : [])
 
-        // Style is a two-choice page: none of these appear on it. Listed rather than
-        // caught by a `default` so that adding a control to Style means deciding here
-        // how it is drawn, which is what the note above this type is about.
+        // Listed rather than caught by a `default`, so a new control on Style must be drawn here.
         case .toggle, .menu, .anchorPicker, .shortcut, .removal, .action, .text,
             .applicationSwitch:
             EmptyView()

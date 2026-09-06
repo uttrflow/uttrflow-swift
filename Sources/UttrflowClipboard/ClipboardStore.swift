@@ -24,7 +24,7 @@ public actor ClipboardStore {
     private let budget: ClipboardBudget
 
     /// What the saved file is known to hold, which the migration off one file makes differ from memory.
-    private var persistedSaved: [Clip]?
+    private var savedOnDisk: [Clip]?
 
     /// The history and the saved clips as one list, or `nil` before the files have been read.
     private var wholeList: [Clip]?
@@ -395,7 +395,7 @@ public actor ClipboardStore {
         if let wholeList { return wholeList }
         // A clipboard written before the split keeps its saved clips in the history file.
         let fromSavedFile = read(savedFile)
-        persistedSaved = fromSavedFile
+        savedOnDisk = fromSavedFile
         let stored = fromSavedFile + read(file)
         let list = Self.interleaving(
             saved: stored.filter(\.isKept), history: stored.filter { !$0.isKept })
@@ -443,7 +443,7 @@ public actor ClipboardStore {
     /// Writes the list to memory and then to disk, filing each clip by what ``Clip/isKept`` says.
     private func save(_ clips: [Clip]) throws(ClipboardStoreError) {
         let before = Set(loaded().compactMap(\.image?.file))
-        let wasSaved = persistedSaved ?? []
+        let wasSaved = savedOnDisk ?? []
         let nowSaved = clips.filter(\.isKept)
         let nowHistory = clips.filter { !$0.isKept }
 
@@ -454,7 +454,7 @@ public actor ClipboardStore {
         // Only when it has changed: nearly every write is a ⌘C that belongs in the history alone.
         if nowSaved != wasSaved {
             try persist(nowSaved, to: savedFile)
-            persistedSaved = nowSaved
+            savedOnDisk = nowSaved
         }
         try persist(nowHistory, to: file)
 
