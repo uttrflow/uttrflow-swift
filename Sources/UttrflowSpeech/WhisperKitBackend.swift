@@ -157,11 +157,12 @@ private final class LoadedKit: @unchecked Sendable {
 /// Holds the end token shut while the decoder is fed a conditioning prompt. See Docs/speech-engines.md.
 private final class PromptPrefillGuard: LogitsFiltering {
     private let forcedPrefillLength: Int
-    private let endTokenIndex: [[NSNumber]]
+    /// One index path into the logits, `[batch, sequence, token]`, as `fill(indexes:with:)` takes them.
+    private let endTokenIndex: [[Int]]
 
     init(forcedPrefillLength: Int, endToken: Int) {
         self.forcedPrefillLength = forcedPrefillLength
-        self.endTokenIndex = [[0, 0, endToken as NSNumber]]
+        self.endTokenIndex = [[0, 0, endToken]]
     }
 
     func filterLogits(_ logits: MLMultiArray, withTokens tokens: [Int]) -> MLMultiArray {
