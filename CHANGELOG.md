@@ -20,6 +20,16 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **Every shortcut can be changed, and there are four of them.** Settings lists each one
+  with its own keys: the dictation shortcut, the clipboard panel — which could be stored
+  but never changed until now — and two new ones, `⌃⌘V` to put the last thing you
+  dictated back at the caret and `⌃⌘C` to put it on the clipboard. Pasting takes the same
+  route a dictation takes, so putting a transcript back does not cost you what was on
+  your clipboard; copying is the one place the clipboard is written on purpose. Binding
+  a shortcut to keys another one already holds is refused, and says which one holds them.
+- **Double-tap the dictation key to keep talking without holding it.** Two quick taps
+  leave the microphone open; two more close it. It is the same key you already dictate
+  with rather than a second shortcut to learn, and a single stray tap does nothing.
 - **A word the recogniser half-heard is offered the readings it could be, and the model
   picks the one that fits.** Three sources answer at once, in under two milliseconds for
   a whole dictation: your own dictionary, the words on screen — the window title, the
@@ -201,6 +211,19 @@ Each released version is a git tag and a build at
   given it a place of its own.
 - **An email whose subject mentioned Google Docs was written as a document.** What an app
   is now beats what its window happens to be called.
+- **A shortcut recorded with two keys could end up watching for a third.** Letting go of
+  one modifier while another was still held stored the key code of the one that left
+  beside the modifiers that stayed, so a shortcut set to `⌥` fired on `⌘`, and `fn` — set
+  deliberately — did nothing at all. The keyboard now reads whether a key went down or up
+  rather than inferring it, a binding whose keys and modifiers disagree cannot be stored,
+  and one already saved repairs itself when the app opens. Caps Lock is refused with it:
+  it sets no modifier at all, so nothing could ever see it held.
+- **A dictation interrupted by changing the shortcut could leave the microphone open.**
+  The release owed for a hold in progress was thrown away a moment before it was sent.
+- **Removing a filler left the comma that bracketed it** — "we should, uh, ship" came out
+  as "we should, ship".
+- **Changing the clipboard shortcut took effect only after a relaunch.**
+
 ## [0.4.0] — 2026-09-01
 
 ### Changed
