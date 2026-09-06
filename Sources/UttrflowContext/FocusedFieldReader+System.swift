@@ -180,7 +180,7 @@ public enum FocusedFieldReader {
     /// The title of the window the field sits in, which is what names one conversation, note or thread apart from another.
     private static func windowTitle(of field: AXUIElement) -> String? {
         guard let window = element(field, kAXWindowAttribute) else { return nil }
-        return string(window, kAXTitleAttribute)
+        return SurfaceProbe.string(window, kAXTitleAttribute)
     }
 
     /// The window's rectangle, which is what the strip stands on when no caret can be read.

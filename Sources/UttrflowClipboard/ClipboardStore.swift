@@ -444,8 +444,7 @@ public actor ClipboardStore {
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
         wholeList = clips
 
-        // The permanent file first, so a disk that refuses leaves the collection whole and history stale.
-        // Only when it has changed: nearly every write is a ⌘C that belongs in the history alone.
+        // The permanent file first and only when it changed, so a refusing disk leaves the collection whole.
         if nowSaved != wasSaved {
             try persist(nowSaved, to: savedFile)
             savedOnDisk = nowSaved

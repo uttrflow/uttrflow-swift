@@ -63,8 +63,7 @@ struct StyleRowView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                // Why the row is off, in the row. A control drawn grey with no reason
-                // beside it teaches the user the app is broken.
+                // Why the row is off, beside it: a grey control with no reason reads as a broken app.
                 if let unavailability = row.unavailability {
                     Text(unavailability)
                         .font(.system(size: MainMetrics.subheadSize))
