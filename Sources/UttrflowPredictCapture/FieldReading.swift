@@ -19,6 +19,7 @@ public struct FieldReading: Sendable, Equatable {
     /// The document the field sits in: a page address in a browser, a directory in a terminal.
     public let document: String?
 
+    /// A reading of a field, of which only the application and the role are always published.
     public init(
         bundleIdentifier: String, role: String, subrole: String? = nil, identifier: String? = nil,
         placeholder: String? = nil, accessibilityDescription: String? = nil, document: String? = nil
@@ -33,6 +34,7 @@ public struct FieldReading: Sendable, Equatable {
     }
 }
 
+/// What the corpus asks of a reading: whether it is secret, and which surface it names.
 extension FieldReading {
     /// Whether the field hides what is typed, from its role, its subrole, or a name that betrays a password.
     public var isSecure: Bool {

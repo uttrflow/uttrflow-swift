@@ -51,7 +51,7 @@ public actor PredictStore: PredictionStore {
 
     // MARK: - Reading
 
-    /// What the user might be finishing, drawn from every folder in this app they have typed it, not walled off by one.
+    /// What the user might be finishing, drawn from every folder of this field rather than only this one.
     public func candidates(
         for surface: Surface, matching typed: String
     ) throws(PredictStoreError) -> [Candidate] {
@@ -66,7 +66,7 @@ public actor PredictStore: PredictionStore {
         return merged(fuzzy)
     }
 
-    /// The lines this person most recently entered in this field, each once: those written in this very document first, since a name or a greeting belongs to one conversation, then the rest of the field newest first.
+    /// The lines this person recently entered in this field, each once, the ones from this document first.
     public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
         let ids = try surfaceIdentifiers(of: surface)
         guard !ids.isEmpty, limit > 0 else { return [] }
@@ -81,7 +81,7 @@ public actor PredictStore: PredictionStore {
         ) { $0.text(0) }
     }
 
-    /// The recency read over this many surfaces of one field, which `entry_recent` exists to serve; the surface bound after them is the document being written in, whose lines lead.
+    /// The recency read `entry_recent` serves; the surface bound last of all is the document in hand.
     static func recentQuery(surfaces: Int) -> String {
         // Every placeholder is numbered, since one numbered among anonymous ones shifts the rest.
         let placeholders = (1...surfaces).map { "?\($0)" }.joined(separator: ", ")
@@ -104,7 +104,7 @@ public actor PredictStore: PredictionStore {
         ) { Int64($0.integer(0)) }
     }
 
-    /// Folds the same text learned in several places into one candidate, its counts summed so it ranks by real use.
+    /// Folds the same text learned in several places into one candidate, with its counts summed.
     private func merged(_ candidates: [Candidate]) -> [Candidate] {
         var byText: [String: Candidate] = [:]
         var order: [String] = []
@@ -162,7 +162,7 @@ public actor PredictStore: PredictionStore {
         return candidates
     }
 
-    /// The range scan the whole design rests on, over the lowercased text so it ignores case yet keeps the index.
+    /// The range scan the design rests on, over the lowercased text so case is ignored and the index kept.
     static let prefixQuery = """
         SELECT \(entryColumns) FROM entry
         WHERE surface_id = ? AND text_lower >= ? AND text_lower < ? AND superseded_by IS NULL
@@ -305,12 +305,12 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// Forgets everything, which is the reset in Settings.
+    /// Forgets every surface, and with it every entry and succession they hold.
     public func forgetEverything() throws(PredictStoreError) {
         try database.execute("DELETE FROM surface")
     }
 
-    /// How many entries are held, for the tests and the diagnostics page.
+    /// How many entries the corpus holds across every surface.
     public func entryCount() throws(PredictStoreError) -> Int {
         try database.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) }.first ?? 0
     }
@@ -396,7 +396,7 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// Keeps a surface within its cap, dropping superseded entries first and then those with the least behind them.
+    /// Keeps a surface within its cap, dropping superseded entries first and then the weakest.
     private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
         let held = try database.rows(
             "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
@@ -415,6 +415,7 @@ public actor PredictStore: PredictionStore {
             })
     }
 
+    /// Reads a query returning the entry columns as candidates, each at the given edit distance.
     private func readCandidates(
         _ sql: String, _ bind: (OpaquePointer) -> Void, distance: Int
     ) throws(PredictStoreError) -> [Candidate] {
@@ -431,6 +432,7 @@ public actor PredictStore: PredictionStore {
         }
     }
 
+    /// The evidence behind one entry, or nothing where it is unknown or has been retired.
     private func entry(surfaceIdentifier id: Int64, text: String) throws(PredictStoreError) -> Entry? {
         try readCandidates(
             """

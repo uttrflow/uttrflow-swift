@@ -46,7 +46,7 @@ struct RecentLinesTests {
         let store = try store(corpus)
         try await store.record("see you there", in: chat, at: moment)
         try await store.record("can we move it to 8?", in: otherRoom, at: moment.addingTimeInterval(60))
-        // A greeting to one person is not how this person opens every conversation, so this room's lines lead.
+        // A greeting to one person does not open every conversation, so this room's lines lead.
         #expect(try await store.recent(in: chat, limit: 6) == ["see you there", "can we move it to 8?"])
         #expect(try await store.recent(in: otherRoom, limit: 6) == ["can we move it to 8?", "see you there"])
     }
