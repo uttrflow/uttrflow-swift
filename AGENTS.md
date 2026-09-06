@@ -297,12 +297,19 @@ Downloads go to the public **uttrflow/releases** repository. Source repositories
 private. The published asset is `Uttrflow.dmg` with **no version in the name** — that is
 what makes the `/releases/latest/download/` URL permanent.
 
-**Every publish is a full release, signed or not**, so `/releases/latest/download/`
-always resolves to the newest build and the download button never has to change. Unsigned
-builds take a `-test.<sha>` tag so the bare `v<version>` tag stays free for the notarised
-release of that version. `latest.json` records `gatekeeper`, and the site shows or hides
-the `xattr` instruction from that field — publishing a notarised image is the whole
-migration.
+**The tag names the release, and notarisation has nothing to do with it.** A run
+triggered by a pushed tag publishes under exactly that tag — `release.yml` has already
+checked it against the plist — and a hand-run publish uses `v<version>` from the plist.
+Signed or not, the release is a full release, so `/releases/latest/download/` resolves to
+the newest build and the download button never has to change.
+
+**A tag with anything after the version is a prerelease**: `v0.4.0-rc.1` publishes as one,
+GitHub keeps it out of `/latest/`, and `publish.sh` leaves `latest.json` and `appcast.xml`
+untouched so neither the site nor the updater offers it. That is the soak. `v0.4.0`
+releases it.
+
+`latest.json` records `gatekeeper`, and the site shows or hides the `xattr` instruction
+from that field — publishing a notarised image is the whole migration.
 
 ## Tooling traps, each of which cost real time
 
