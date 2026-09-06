@@ -152,6 +152,7 @@ extension Settings {
         case minimisesWhileDictating
         case playsSoundWhenRecordingStarts
         case opensAtLogin
+        case installsUpdatesAutomatically
         case appearance
         case transcriptRetentionDays
         case clipboardRetentionDays
@@ -213,6 +214,10 @@ extension Settings {
                 default: fallback.playsSoundWhenRecordingStarts
             ),
             opensAtLogin: container.value(forKey: .opensAtLogin, default: fallback.opensAtLogin),
+            installsUpdatesAutomatically: container.value(
+                forKey: .installsUpdatesAutomatically,
+                default: fallback.installsUpdatesAutomatically
+            ),
             appearance: container.value(forKey: .appearance, default: fallback.appearance),
             transcriptRetentionDays: Settings.retention(
                 container.value(

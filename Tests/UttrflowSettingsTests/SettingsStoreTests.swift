@@ -109,6 +109,18 @@ struct SettingsTests {
         #expect(restored == settings)
     }
 
+    /// The flag was absent from `CodingKeys`, so switching it off lasted only until the next launch.
+    @Test("keeps automatic updates switched off across a save and a load")
+    func automaticUpdatesStayOff() throws {
+        let settings = Settings(installsUpdatesAutomatically: false)
+
+        let restored = try JSONDecoder().decode(
+            Settings.self, from: JSONEncoder().encode(settings)
+        )
+
+        #expect(!restored.installsUpdatesAutomatically)
+    }
+
     /// The upgrade case: a user who has been running the app for a year opens a build
     /// that added settings, and must find the ones they chose still chosen.
     @Test("keeps what an older build wrote and defaults what it never knew")
