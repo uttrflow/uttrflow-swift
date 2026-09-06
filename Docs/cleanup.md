@@ -68,7 +68,7 @@ them. When the signal is missing or could be read two ways, the words stay.
 | Cleaning | Signal | Example | Today |
 |---|---|---|---|
 | Self-correction by trigger phrase | "no", "no sorry", "no wait", "sorry", "wait sorry", "I mean", "actually", "scratch that", "never mind" between two halves of the same shape | "at four no sorry at five" → "at five"; "coffee at 2 actually 3" → "coffee at 3" | ✅ `SelfCorrectionPass`. The discarded half is removed only when (a) the phrase after the trigger starts with the same word as a suffix of the phrase before it, that suffix being at most six words, inside the sentence, and not anchored on a subject pronoun or an interjection ("I", "we", "it", "that", "yes"…), and the half taken back holding at least one word the speaker meant rather than function words alone ("we need to wait to finish" keeps its "wait"), or (b) both sides are numbers. "Wait" alone is not a trigger — it is a verb far more often than a correction, so it is heard as one only in "no wait" and "wait sorry". Otherwise everything stays, the trigger included: "no I don't think so", "I actually enjoyed it". The same rule (`Restatement`, shared, not copied) runs once more at each piece boundary when the pieces are joined, so "let's meet at four" | "no sorry at five" becomes "Let's meet at five." — there the full stop the piece before was given is read through, being an artefact of cleaning each piece alone rather than a sentence the speaker ended |
-| Self-correction by restatement | a slot said twice over, each time with a different word after it | "as a gift as a present" → "as a present"; "on tuesday on wednesday" → "on wednesday" | ✅ prompt; ❌ rules, and deliberately so. A deterministic rule reads only the shape — a short frame of function words repeated with a different content word after each copy — and that shape is a list at least as often as it is a correction: "I'll pay for lunch for everyone", "coffee with milk with sugar", "the meeting is on Monday on Zoom" all match it, and the floor was deleting the first half of each. What separates "as a gift, as a present" from those is which of the two the speaker meant to stand, and that is semantic. So the floor now acts only on a trigger phrase (the row above) and the model is told the rest: one line of the contract and one worked example. The cost is that the rules engine alone leaves an untriggered restatement whole — words the speaker half-meant, which is the side of the line this product errs on |
+| Self-correction by restatement | a slot said twice over, each time with a different word after it | "as a gift as a present" → "as a present"; "on tuesday on wednesday" → "on wednesday" | ❌ asked of the model, which does not do it; ❌ rules, and deliberately so. A deterministic rule reads only the shape — a short frame of function words repeated with a different content word after each copy — and that shape is a list at least as often as it is a correction: "I'll pay for lunch for everyone", "coffee with milk with sugar", "the meeting is on Monday on Zoom" all match it, and the floor was deleting the first half of each. What separates "as a gift, as a present" from those is which of the two the speaker meant to stand, and that is semantic. So the floor now acts only on a trigger phrase (the row above) and the model is asked for the rest: one line of the contract and one worked example. **Measured 2026-09-06: the model does not comply.** "I wanted to buy a record as a gift as a present" and "let's meet on tuesday on wednesday afternoon" both come back whole. So this cleaning is asked for and delivered by nothing; the words stay, which is the side of the line this product errs on, but nothing here works yet |
 | Question mark from a question | interrogative shape, a rising tag ("right?", "isn't it?"), or a spoken "question mark" | "can you review the PR" → "Can you review the PR?" | ✅ prompt; ❌ rules. Note Hindi "क्या …" questions |
 | Sentence boundaries from pauses and shape | pause plus a new clause that stands alone | "the build passed everything looks good ship it" → "The build passed. Everything looks good. Ship it." | ✅ prompt; rules only cap the first word |
 | Commas from pauses and conjunctions | a short pause before "but", "so", "and then", a vocative | "thanks marcy i'll pick up…" → "Thanks Marcy, I'll pick up…" | ✅ prompt |
@@ -114,14 +114,22 @@ The two cases that defeated every engine, Apple's included — the spoken self-c
 the passes do them before any model is asked. Spoken punctuation, layout words, times,
 percentages and ports each have a corpus case and a pass, and the four cases that name
 a destination pass through the same passes under that destination's formatter
-(`RulesCorpusTests` names every case the rules must pass). The three cases where the
-screen has to decide a spelling — `editor-identifier-casing`,
-`code-editor-identifier-from-screen`, `sql-editor-identifier-from-screen` — are the
-model's alone and are now handed the identifier by name rather than being left to
-notice it, along with the two `doubtful-word-…` cases and their pair. Sequence lists and
+(`RulesCorpusTests` names every case the rules must pass). The cases where the screen has to decide a
+spelling are the model's alone and are now handed the identifier by name rather than
+being left to notice it — which fixed `editor-identifier-casing` and
+`code-editor-identifier-from-screen`, and did not fix the rest. Sequence lists and
 paragraph breaks still have no case, so the first step for each is a case, not a prompt
 line. `Docs/bakeoff.md` explains why: a prompt line that is not
 measured is a guess, and two of the last three guesses made the output worse.
+
+**Seven cases fail on the shipping configuration, measured 2026-09-06 and left failing
+rather than papered over.** `sql-editor-identifier-from-screen`,
+`editor-selected-identifier` and `slack-name-spelling` — spellings the screen shows and
+the model still will not take. `spreadsheet-number-in-cell` — the model writes `12000`
+where the passes wrote `12,000`. `message-question-keeps-its-mark` and `plural-slip` —
+the model drops a question mark and will not pluralise "two more developer", and no
+prompt wording tried has moved either. `sql-editor-totals`. Each is a case that failed
+honestly; none is a rule waiting to be written.
 
 ## Where the words are going
 
