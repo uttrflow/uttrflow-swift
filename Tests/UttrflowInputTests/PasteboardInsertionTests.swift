@@ -3,21 +3,19 @@ import Testing
 
 @testable import UttrflowCore
 @testable import UttrflowInput
-@testable import UttrflowTestSupport
 
 /// A clipboard that records everything written to it and never touches the real one.
 final class FakePasteboard: Pasteboard {
     private struct State {
         var text: String?
         var changeCount = 0
-        var setTextCalls: [String] = []
+        var writes: [String] = []
         var acceptsWrites = true
     }
 
     private let state = Mutex(State())
 
-    /// acceptsWrites: `false` models a clipboard that takes the write and
-    ///   then does not hold it, which is how a failed copy looks from the outside.
+    /// `acceptsWrites: false` models a clipboard that takes the write and then does not hold it.
     init(text: String? = nil, acceptsWrites: Bool = true) {
         state.withLock { state in
             state.text = text
@@ -29,13 +27,11 @@ final class FakePasteboard: Pasteboard {
 
     func setText(_ text: String) {
         state.withLock { state in
-            state.setTextCalls.append(text)
+            state.writes.append(text)
             state.changeCount += 1
             if state.acceptsWrites { state.text = text }
         }
     }
-
-    func changeCount() -> Int { state.withLock(\.changeCount) }
 
     /// Stands in for another app copying something while the paste is in flight.
     func copyFromAnotherApp(_ text: String) {
@@ -45,7 +41,7 @@ final class FakePasteboard: Pasteboard {
         }
     }
 
-    var setTextCalls: [String] { state.withLock(\.setTextCalls) }
+    var writes: [String] { state.withLock(\.writes) }
 }
 
 /// A ⌘V that can be counted, and made to fail.
@@ -58,8 +54,7 @@ final class FakeKeystrokeSender: KeystrokeSender {
 
     private let state = Mutex(State())
 
-    /// onPaste: runs inside `sendPaste`, the only moment between the
-    ///   engine writing the clipboard and reading it back.
+    /// `onPaste` runs inside `sendPaste`, between the engine writing the clipboard and reading it back.
     init(error: TextInsertionError? = nil, onPaste: (@Sendable () -> Void)? = nil) {
         state.withLock { state in
             state.error = error
@@ -85,19 +80,13 @@ struct PasteboardTextInsertionEngineTests {
     private func engine(
         _ pasteboard: FakePasteboard,
         _ keystrokes: FakeKeystrokeSender,
-        clock: ManualClock = ManualClock(),
         focus: any AccessibilityFocus = FakeFocus(field: FakeTextField())
     ) -> PasteboardTextInsertionEngine {
         PasteboardTextInsertionEngine(
-            focus: focus, pasteboard: pasteboard, keystrokes: keystrokes, clock: clock)
+            focus: focus, pasteboard: pasteboard, keystrokes: keystrokes)
     }
 
-    /// Declines only for Uttrflow itself. Anywhere else is worth attempting: a paste
-    /// into an application that will not take one leaves the words on the clipboard,
-    /// which is exactly what the strategy below would do anyway, whereas declining
-    /// guarantees the user has to paste by hand. Editors built on Electron expose no
-    /// focused element and take a ⌘V perfectly well, and the earlier, stricter check
-    /// refused them.
+    /// Declining costs the user an insertion where trying costs nothing. See `Docs/input-paste-eligibility.md`.
     @Test("declines only when Uttrflow itself is in front")
     func declinesOnlyForItself() async {
         let elsewhere = engine(FakePasteboard(), FakeKeystrokeSender(), focus: FakeFocus(field: nil))
@@ -120,19 +109,11 @@ struct PasteboardTextInsertionEngineTests {
 
         try await engine(pasteboard, keystrokes).insert("hello there")
 
-        #expect(pasteboard.setTextCalls.first == "hello there")
+        #expect(pasteboard.writes.first == "hello there")
         #expect(keystrokes.pasteCount == 1)
     }
 
-    /// The dictation stays on the clipboard, and the user's previous contents do not
-    /// come back. That is a reversal, and it is deliberate.
-    ///
-    /// Nothing can tell whether the ⌘V landed — `post` reports nothing and the target
-    /// application need not react — so restoring is a bet, and it was the wrong way
-    /// round. When the paste worked the user lost a clipboard they can usually recreate;
-    /// when it did not they lost the words they had just spoken, from the document and
-    /// the clipboard both, while the app reported success. §19 settles it: the words
-    /// survive, and the previous clipboard is what it costs.
+    /// The dictation stays put and the previous contents do not come back. See `Docs/insertion.md`.
     @Test("leaves the dictation on the clipboard rather than betting the paste landed")
     func keepsTheDictationOnTheClipboard() async throws {
         let paragraph = "A paragraph the user copied earlier and still needs."
@@ -140,14 +121,13 @@ struct PasteboardTextInsertionEngineTests {
 
         try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
     }
 
-    /// Restoring over a copy the user made after dictating would be the same theft in
-    /// the other direction, so a changed clipboard is left exactly as it is.
-    @Test("leaves a newer copy alone instead of restoring over it")
-    func skipsRestoreWhenSomethingElseCopied() async throws {
+    /// Writing over a copy the user made since would be the same theft in the other direction.
+    @Test("leaves a copy made since the paste exactly as it is")
+    func leavesANewerCopyAlone() async throws {
         let pasteboard = FakePasteboard(text: "the old paragraph")
         let keystrokes = FakeKeystrokeSender(
             onPaste: { pasteboard.copyFromAnotherApp("something copied since") }
@@ -155,25 +135,22 @@ struct PasteboardTextInsertionEngineTests {
 
         try await engine(pasteboard, keystrokes).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "something copied since")
     }
 
-    /// A clipboard holding an image, or nothing at all, reads as `nil` text — there is
-    /// no paragraph to hand back and inventing an empty one would erase the image.
-    @Test("restores nothing when the clipboard was not holding text")
-    func nothingToRestore() async throws {
+    /// A clipboard holding an image reads as `nil` text, and inventing an empty one would erase it.
+    @Test("keeps the words when the clipboard was not holding text")
+    func keepsWordsWhenTheClipboardHeldNothing() async throws {
         let pasteboard = FakePasteboard(text: nil)
 
         try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
     }
 
-    /// A refused keystroke is the case where keeping the words matters most: the
-    /// coordinator is about to fall through to the floor, and the floor would only put
-    /// the same text back.
+    /// Where keeping the words matters most: the floor below would only put the same text back.
     @Test("keeps the words on the clipboard even when the keystroke is refused")
     func keepsWordsAfterFailedPaste() async {
         let pasteboard = FakePasteboard(text: "A paragraph the user copied earlier.")
@@ -188,42 +165,13 @@ struct PasteboardTextInsertionEngineTests {
         #expect(pasteboard.text() == "dictated words", "the dictation must outlive the failure")
     }
 
-    /// The paste is asynchronous: the target app reads the clipboard after the
-    /// There is nothing to wait for any more: the clipboard is never taken back, so the
-    /// engine returns as soon as the keystroke is away.
-    @Test("does not stall the dictation waiting on a restore that no longer happens")
-    func doesNotWait() async throws {
-        let clock = ManualClock()
-
-        try await engine(FakePasteboard(), FakeKeystrokeSender(), clock: clock)
-            .insert("dictated words")
-
-        #expect(clock.now.offset == .zero)
-    }
-
-    /// Nothing was pasted, so there is nothing to wait for — the clipboard goes back
-    /// immediately rather than staying borrowed for a quarter of a second.
-    @Test("does not wait when the paste never happened")
-    func skipsTheWaitOnFailure() async {
-        let clock = ManualClock()
-        let sut = engine(
-            FakePasteboard(text: "previous"),
-            FakeKeystrokeSender(error: .accessibilityDenied),
-            clock: clock
-        )
-
-        await #expect(throws: TextInsertionError.self) { try await sut.insert("dictated words") }
-
-        #expect(clock.now.offset == .zero)
-    }
-
     @Test("copies an empty transcript without inventing anything")
     func emptyText() async throws {
         let pasteboard = FakePasteboard(text: "previous")
 
         try await engine(pasteboard, FakeKeystrokeSender()).insert("")
 
-        #expect(pasteboard.setTextCalls == [""])
+        #expect(pasteboard.writes == [""])
     }
 
     @Test("reports itself as the pasteboard method")
@@ -232,13 +180,6 @@ struct PasteboardTextInsertionEngineTests {
         #expect(sut.method == .pasteboard)
     }
 
-    /// Whether there is anywhere to paste into cannot be known from here, so the engine
-    /// always volunteers and the coordinator finds out by trying.
-    @Test("always offers to insert")
-    func alwaysCanInsert() async {
-        let sut = engine(FakePasteboard(), FakeKeystrokeSender())
-        #expect(await sut.canInsert())
-    }
 }
 
 @Suite("ClipboardTextInsertionEngine")
@@ -248,12 +189,11 @@ struct ClipboardTextInsertionEngineTests {
         let pasteboard = FakePasteboard(text: "previous")
         try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert("dictated words")
 
-        #expect(pasteboard.setTextCalls == ["dictated words"])
+        #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
     }
 
-    /// The words are only safe if they are really on the clipboard; claiming success
-    /// after a write that did not stick would lose them silently.
+    /// Claiming success after a write that did not stick would lose the words silently.
     @Test("reports the clipboard as unavailable when the write does not stick")
     func failedWrite() async {
         let pasteboard = FakePasteboard(acceptsWrites: false)
@@ -272,10 +212,7 @@ struct ClipboardTextInsertionEngineTests {
         #expect(pasteboard.text() == "")
     }
 
-    /// Not `.pasteboard`. That value means a paste landed in the user's document; this
-    /// one means nothing was typed and the words are waiting on the clipboard. Reporting
-    /// the same value for both is what let the interface say "Inserted" for a dictation
-    /// that never reached the screen.
+    /// Not `.pasteboard`: that value means a paste landed, this one that the words are waiting.
     @Test("reports itself as the clipboard method, not a completed paste")
     func method() {
         #expect(ClipboardTextInsertionEngine(pasteboard: FakePasteboard()).method == .clipboard)

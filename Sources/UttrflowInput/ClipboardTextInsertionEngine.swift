@@ -1,16 +1,8 @@
 public import UttrflowCore
 
-/// The last resort: leave the text on the clipboard and say so.
-///
-/// Not really insertion, and deliberately not pretending to be — it reports
-/// ``TextInsertionMethod/clipboard`` and succeeds, so the words are never lost even
-/// when nothing on screen will take them.
-///
-/// It used to report ``TextInsertionMethod/pasteboard``, the same value a successful
-/// paste returns, which left the interface unable to tell the two apart: it said
-/// "Inserted" for a dictation that had gone nowhere near the user's document. The
-/// separate case is what lets the caller say where the words actually are.
+/// The last resort: leaves the text on the clipboard and says so, so the words are never lost.
 public struct ClipboardTextInsertionEngine: TextInsertionEngine {
+    /// Not `.pasteboard`: this says the words are waiting, where that says a paste landed.
     public let method: TextInsertionMethod = .clipboard
 
     private let pasteboard: any Pasteboard

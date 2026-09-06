@@ -64,12 +64,13 @@ public struct Surroundings: Sendable, Equatable {
         // Each ancestor's other children are one ring further out, so the message list beside a compose box comes first.
         while let parent = tree.parent(of: child), !walk.isExhausted {
             let siblings = tree.children(of: parent)
-            let at = siblings.firstIndex(of: child) ?? siblings.count
+            let position = siblings.firstIndex(of: child) ?? siblings.count
             // Both sides are read nearest first, so what the caps cut is the farthest, then put back in reading order.
             var before: [String] = []
-            walk.gather(siblings[..<at].reversed(), .backward, into: &before)
+            walk.gather(siblings[..<position].reversed(), .backward, into: &before)
             var after: [String] = []
-            walk.gather(siblings.suffix(from: min(at + 1, siblings.count)), .forward, into: &after)
+            walk.gather(
+                siblings.suffix(from: min(position + 1, siblings.count)), .forward, into: &after)
             let ring = before.reversed() + after
             if !ring.isEmpty { levels.append(ring) }
             child = parent

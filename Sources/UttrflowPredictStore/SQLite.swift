@@ -1,3 +1,4 @@
+// The SQLite layer the corpus sits on: what can go wrong, one open database, and the bindings.
 private import Foundation
 import SQLite3
 
@@ -14,11 +15,13 @@ public enum PredictStoreError: Error, Equatable {
 }
 
 /// Tells SQLite to copy a bound string, since Swift may free it before the step runs.
-let copyBoundText = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+private let copyBoundText = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 /// One open database, owned by whichever actor created it and never shared.
 final class Database {
-    let handle: OpaquePointer
+    /// The open connection every statement runs against.
+    private let handle: OpaquePointer
+    /// The statements compiled so far, kept by their SQL because these run on every keystroke.
     private var cached: [String: OpaquePointer] = [:]
 
     /// Opens or creates the database, reporting corruption as itself so it can be replaced.
@@ -118,6 +121,7 @@ final class Database {
     /// The row id the last insert produced, for a caller that needs to point at it.
     var lastInsertedIdentifier: Int64 { sqlite3_last_insert_rowid(handle) }
 
+    /// What SQLite says went wrong with the last statement on this connection.
     private func lastMessage() -> String { String(cString: sqlite3_errmsg(handle)) }
 
     /// Whether a result code means the file itself is unusable rather than the query wrong.
@@ -128,23 +132,29 @@ final class Database {
 
 /// Binding helpers, named so a call site reads as what it puts where.
 extension OpaquePointer {
+    /// Puts a string at this one-based placeholder, copied so Swift may free the original.
     func bind(_ index: Int32, _ value: String) {
         sqlite3_bind_text(self, index, value, -1, copyBoundText)
     }
 
+    /// Puts a whole number at this one-based placeholder.
     func bind(_ index: Int32, _ value: Int64) {
         sqlite3_bind_int64(self, index, value)
     }
 
+    /// Puts a fractional number at this one-based placeholder.
     func bind(_ index: Int32, _ value: Double) {
         sqlite3_bind_double(self, index, value)
     }
 
+    /// The text in this zero-based column, empty where the column holds nothing.
     func text(_ column: Int32) -> String {
         sqlite3_column_text(self, column).map { String(cString: $0) } ?? ""
     }
 
+    /// The whole number in this zero-based column.
     func integer(_ column: Int32) -> Int { Int(sqlite3_column_int64(self, column)) }
 
+    /// The fractional number in this zero-based column.
     func double(_ column: Int32) -> Double { sqlite3_column_double(self, column) }
 }

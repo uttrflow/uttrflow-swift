@@ -193,21 +193,6 @@ problem: fixture data has to look real to be useful, and the most available real
 value is the one you can see from where you are sitting. **This repository is being
 open-sourced, and a published address cannot be taken back by a later commit.**
 
-**Never do a `good first issue` yourself, and never take an issue somebody has claimed.**
-This repository is public and the point of those labels is to have somebody else do the
-work. An agent that files a *good first issue* at 10:55 and ships it at 12:34 has produced
-a label that lies. Before touching any open issue: read its comments. If anyone outside has
-asked for it or said they are on it, it is theirs — add the `claimed` label, reply, and
-find other work. If the issue carries `good first issue` and nobody has claimed it, still
-leave it: it is inventory for a contributor, not a task queue for you. `CONTRIBUTING.md`
-states what a claim guarantees, and it is a promise this side has to keep.
-
-This is here because it happened. #51 was labelled *good first issue*; a first-time
-contributor asked for it on the thread and got no reply; a maintainer branch opened twelve
-minutes later, did the same work as part of something larger, and closed the issue on merge
-while their pull request (#62) sat unreviewed. The cost of a rewritten README section is
-nothing. The cost of that is the only outside contributor the project had.
-
 **CI exists now, and it is `.github/workflows/`.** This reverses a rule that was absolute
 in the private repository, so it is worth saying why rather than leaving two agents to
 argue about it. The old rule was: never add a workflow, because macOS runners bill at ten
@@ -267,6 +252,9 @@ push, not a rebase onto it, not a tag, not a docs commit that seems too small to
 A ruleset blocks it at the server, so this is a description of what will happen rather
 than a request. If you find yourself with a commit on `main`, stop and say so rather
 than tidying it away.
+
+**Commit messages carry no `Co-Authored-By` trailer.** Not for an agent, not for a tool.
+The message says what the change does; who typed it is what `git log` already records.
 
 **Merging is not reviewing.** Nobody else read the change, so the pull request is where
 you write down what you would have wanted a reviewer to know: what was measured, what

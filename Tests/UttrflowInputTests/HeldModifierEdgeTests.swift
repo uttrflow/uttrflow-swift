@@ -3,11 +3,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowInput
 
-/// Turning flag changes into a press and a release.
-///
-/// Both rules here fail invisibly. Yielding on every flag change starts a dictation
-/// inside a dictation; forgetting the release owed by an interrupted hold leaves the
-/// microphone open with nothing on screen saying so.
+/// Turning flag changes into a press and a release. See `Docs/stuck-recording.md`.
 @Suite("Holding a modifier")
 struct HeldModifierEdgeTests {
     @Test("the first change to down is a press")
@@ -17,8 +13,7 @@ struct HeldModifierEdgeTests {
         #expect(edge.isDown)
     }
 
-    /// macOS sends several flag changes for one press — the flags say what they *are*,
-    /// not what changed. Each extra one used to be another press.
+    /// macOS sends several flag changes for one press: the flags say what they are, not what changed.
     @Test("repeats of the same state are not events")
     func repeatsAreNotEvents() {
         var edge = HeldModifierEdge()
@@ -53,8 +48,7 @@ struct HeldModifierEdgeTests {
         }
     }
 
-    /// The one that keeps the microphone from being left open: the shortcut is changed,
-    /// or watching stops, while somebody is still holding the key.
+    /// The one that keeps the microphone from being left open when watching stops mid-hold.
     @Test("stopping while the key is held still owes a release")
     func stoppingMidHoldReleases() {
         var edge = HeldModifierEdge()
@@ -73,8 +67,7 @@ struct HeldModifierEdgeTests {
         #expect(edge.stopped() == nil)
     }
 
-    /// Stopping is not a release the *key* made, so the next press has to start clean:
-    /// a stop that left the edge thinking the key was still down would swallow it.
+    /// A stop is not a release the key made, so the next press has to start from nothing held.
     @Test("a press after a stop is still a press")
     func pressAfterStopIsAPress() {
         var edge = HeldModifierEdge()

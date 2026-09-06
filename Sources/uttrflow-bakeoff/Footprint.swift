@@ -7,12 +7,7 @@ import UttrflowEval
 import UttrflowLocalModel
 import UttrflowSpeech
 
-/// Measures what the product actually costs a Mac.
-///
-/// §20 of the requirements asks for idle memory, the speech model loaded, the language
-/// model working, and both at once. The last is the number that decides whether this
-/// runs on a 16 GB machine, and it is the only one that cannot be inferred from the
-/// others — so it is measured rather than added up.
+/// Measures idle memory, each model loaded, and both at once. See `Docs/bakeoff-method.md`.
 struct Footprint: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Report disk and memory cost, with both models loaded."

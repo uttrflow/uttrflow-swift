@@ -24,9 +24,9 @@ public enum ShellHistory {
                 continue
             }
             continued = ""
-            if let command = usable(joined) { commands.append(command) }
+            if let command = command(in: joined) { commands.append(command) }
         }
-        if let command = usable(continued) { commands.append(command) }
+        if let command = command(in: continued) { commands.append(command) }
         return Array(commands.suffix(limit))
     }
 
@@ -43,7 +43,7 @@ public enum ShellHistory {
     }
 
     /// Whether a line is a command worth keeping, once it has been trimmed.
-    private static func usable(_ line: String) -> String? {
+    private static func command(in line: String) -> String? {
         let command = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard command.count >= CaptureGate.minimumLength, !CaptureGate.looksLikeSecret(command)
         else { return nil }

@@ -26,16 +26,12 @@ public enum CompositionProbe {
         guard AXIsProcessTrusted(),
             let field = SurfaceProbe.focusedField(of: app.processIdentifier)
         else { return .unanswered }
+        return markedText(of: field)
+    }
 
-        var value: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(field, markedRangeAttribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXValueGetTypeID()
-        else { return .unanswered }
-
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        var range = CFRange()
-        guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range)
+    /// What one field says about its marked text, an unanswered read being no evidence either way.
+    static func markedText(of field: AXUIElement) -> MarkedText {
+        guard let range: CFRange = SurfaceProbe.value(field, markedRangeAttribute, .cfRange)
         else { return .unanswered }
         return range.length > 0 ? .present : .absent
     }

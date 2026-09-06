@@ -9,6 +9,7 @@ public struct SuggestionQuery: Sendable, Equatable {
     /// Which turn asked, so an answer arriving after the user moved on is dropped.
     public let generation: Int
 
+    /// One question for the store, stamped with the turn that asked it.
     public init(surface: Surface, typed: String, generation: Int) {
         self.surface = surface
         self.typed = typed
@@ -27,6 +28,7 @@ public struct VerificationRequest: Sendable, Equatable {
     /// Which turn asked, so a verdict arriving after the user typed on is dropped.
     public let generation: Int
 
+    /// One question for the gates, stamped with the turn that asked it.
     public init(surface: Surface, typed: String, candidates: [Candidate], generation: Int) {
         self.surface = surface
         self.typed = typed
@@ -37,11 +39,14 @@ public struct VerificationRequest: Sendable, Equatable {
 
 /// What to draw and what the tap must swallow, decided together so the two cannot disagree.
 public struct SuggestionUpdate: Sendable, Equatable {
+    /// What the surface draws.
     public let suggestion: Suggestion
+    /// What the tap swallows while that is drawn.
     public let armed: ArmedKeys
     /// Why nothing is on offer, present exactly when `suggestion.accepting` is nil.
     public let silence: Quieting.Reason?
 
+    /// What to draw, what to arm, and why nothing is on offer when nothing is.
     public init(suggestion: Suggestion, armed: ArmedKeys, silence: Quieting.Reason?) {
         self.suggestion = suggestion
         self.armed = armed
@@ -72,10 +77,12 @@ public enum SuggestionResolution: Sendable, Equatable {
 
 /// One turn: what to do next, and what the user typed past on the way here.
 public struct SuggestionTurn: Sendable, Equatable {
+    /// What the loop needs next.
     public let step: SuggestionStep
     /// The suggestion just typed past, which the corpus counts against it.
     public let rejected: String?
 
+    /// What to do next, and what the user typed past on the way here.
     public init(step: SuggestionStep, rejected: String? = nil) {
         self.step = step
         self.rejected = rejected
@@ -121,18 +128,23 @@ public struct SuggestionSession: Sendable, Equatable {
     /// How many suggestions have been typed past in this field.
     public private(set) var rejectionsHere = 0
 
-    /// What the field held when it was last read, which is what an accepted suggestion continues.
+    /// The line as of the last read, which is what an accepted suggestion continues.
     public private(set) var typed = ""
 
+    /// Whether ⎋ has left only the dot in this field.
     private var isMinimised = false
+    /// The key this application accepts with, told to the session each turn.
     private var acceptKey = AcceptKey.tab
     /// Whether only a completion this session is sure of may be drawn, never a list to choose from.
     private var isQuiet = false
+    /// The moment an answer still in flight is being judged against.
     private var pending: PredictionContext?
+    /// Which turn is current, so an answer to any earlier one is dropped.
     private var generation = 0
     /// Whether what is on screen was invented by the model rather than remembered, which decides what typing past it means.
     private var shownIsGenerated = false
 
+    /// A session following nothing, with the feature on and nothing drawn.
     public init() {}
 
     /// Takes one moment in one field and answers with what to do about it.
@@ -178,7 +190,7 @@ public struct SuggestionSession: Sendable, Equatable {
         _ candidates: [Candidate], for query: SuggestionQuery, now: Date, elapsedMilliseconds: Int
     ) -> SuggestionResolution? {
         guard query.generation == generation, query.surface == surface, let pending else { return nil }
-        // A slow read or a slow query has already cost the user the moment it was answering.
+        // A slow read has already cost the user the moment it answers about.
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return .settled(settle(.silent, silence: .overBudget))
         }
@@ -203,7 +215,7 @@ public struct SuggestionSession: Sendable, Equatable {
         guard request.generation == generation, request.surface == surface, let pending else {
             return nil
         }
-        // A verdict reached after the moment it was judging has already cost the user that moment.
+        // A verdict reached after the moment it judges has already cost the user that moment.
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }

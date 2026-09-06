@@ -3,10 +3,7 @@ import UttrflowCore
 import UttrflowEval
 import UttrflowSpeech
 
-/// Draws a ``PerformanceReport`` as the table `Docs/performance.md` quotes.
-///
-/// Only formatting. Every figure below is read off the report — nothing is derived here,
-/// so a number in the document and the same number in a test come from one place.
+/// Draws a ``PerformanceReport`` as the table `Docs/performance.md` quotes, deriving nothing.
 struct ProfilePrinter {
     let report: PerformanceReport
     let model: SpeechModel
@@ -77,14 +74,7 @@ struct ProfilePrinter {
         }
     }
 
-    /// What a dictation costs the processor, as opposed to how long it makes somebody
-    /// wait.
-    ///
-    /// The two are different questions and a table of seconds answers only the first. A
-    /// dictation that finishes in 3.6 seconds having held four cores busy has spent
-    /// fourteen processor-seconds, and it is that figure — not the 3.6 — that decides
-    /// whether the fans come on, what the battery does, and how the same work behaves on
-    /// a Mac with four cores instead of twelve.
+    /// What a dictation costs the processor, not how long somebody waits. See `Docs/bakeoff-method.md`.
     private func processor() {
         let utterances = report.utterances.filter { $0.cpu != nil }
         guard !utterances.isEmpty else {
@@ -117,9 +107,7 @@ struct ProfilePrinter {
             print("\nThe whole run")
             row("processor time", seconds(whole.cpuSeconds) + " s" + cores(whole))
             row("wall clock", seconds(whole.wallSeconds) + " s")
-            // Printed so the arithmetic can be checked against a chip anybody can look
-            // up. A figure nothing like this Mac's real clock means the counters and the
-            // times disagree, and that every instruction count above is suspect.
+            // A figure nothing like this Mac's real clock means every count above it is suspect.
             if let clock = whole.gigahertz {
                 let ipc = whole.instructionsPerCycle.map { String(format: "%.2f", $0) } ?? "—"
                 row("implied clock", String(format: "%.2f GHz", clock) + " · \(ipc) instr/cycle")
@@ -224,8 +212,7 @@ struct ProfilePrinter {
 
     private func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
 
-    /// Installed RAM, in the units the machine is sold in — a 48 GB Mac holds
-    /// 51.5 decimal gigabytes, and printing that invites an argument about the wrong thing.
+    /// Installed RAM in the units the machine is sold in, since a 48 GB Mac holds 51.5 decimal GB.
     private func gibibytes(_ bytes: Int64) -> String {
         String(format: "%.0f GB", Double(bytes) / 1_073_741_824)
     }

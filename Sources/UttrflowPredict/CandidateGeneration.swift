@@ -19,6 +19,7 @@ public struct GenerationSituation: Sendable, Equatable {
     /// The whole words the next word must be one of, as the machine lists them; empty when the word may be anything.
     public let choices: [String]
 
+    /// The moment as the field reports it, everything but the application optional.
     public init(
         application: String, field: String? = nil, document: String? = nil, preceding: String? = nil,
         windowTitle: String? = nil, surroundings: String? = nil, recentLines: [String] = [],
@@ -59,6 +60,7 @@ public protocol CandidateGenerating: Sendable {
         -> [String]
 }
 
+/// What a generator that offers one line at a time need not implement.
 extension CandidateGenerating {
     /// A generator that offers one line only has no alternatives, which the list then simply never opens on.
     public func alternatives(
@@ -79,6 +81,7 @@ public struct GenerationPass: Sendable {
     /// What `completions(for:in:)` would have answered from the same pass.
     public let completions: [String]
 
+    /// One pass as the generator wrote it, beside what the parser made of it.
     public init(text: String, stopReason: String, completions: [String]) {
         self.text = text
         self.stopReason = stopReason

@@ -2,8 +2,11 @@ import UttrflowCore
 
 /// Cuts a field's value into the text either side of the selection, within the limits `InsertionPoint` keeps.
 enum CaretText {
+    /// The two sides of a caret, each already cut to what a prompt may carry.
     struct Sides: Equatable, Sendable {
+        /// The text before the selection, ending at the caret.
         let preceding: String
+        /// The text after the selection, starting at its end.
         let following: String
     }
 

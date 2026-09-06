@@ -5,6 +5,9 @@ public import struct Foundation.Date
 public import class Foundation.FileManager
 public import struct Foundation.URL
 
+/// The evidence a candidate is built from, named once so the queries that read it cannot drift apart.
+private let entryColumns = "text, count, accepted, rejected, self_sourced, last_used"
+
 /// The corpus on disk: what the user has entered where, and what usually follows what.
 public actor PredictStore: PredictionStore {
     /// How many entries one surface may hold before the weakest are evicted.
@@ -13,13 +16,12 @@ public actor PredictStore: PredictionStore {
     /// How many candidates a query returns, which is more than any list shows.
     static let candidateLimit = 16
 
-    private let path: String
+    /// The open file every read and write goes through.
     private var database: Database
 
     /// Opens the corpus, replacing a file that is not a database at all and refusing one from a newer build.
     public init(path: String) throws(PredictStoreError) {
-        self.path = path
-        self.database = try Self.opened(at: path)
+        database = try Self.opened(at: path)
     }
 
     /// Where the corpus lives, beside the clipboard and the history, versioned in its name.
@@ -49,7 +51,7 @@ public actor PredictStore: PredictionStore {
 
     // MARK: - Reading
 
-    /// What the user might be finishing, drawn from every folder in this app they have typed it, not walled off by one.
+    /// What the user might be finishing, drawn from every folder of this field rather than only this one.
     public func candidates(
         for surface: Surface, matching typed: String
     ) throws(PredictStoreError) -> [Candidate] {
@@ -64,7 +66,7 @@ public actor PredictStore: PredictionStore {
         return merged(fuzzy)
     }
 
-    /// The lines this person most recently entered in this field, each once: those written in this very document first, since a name or a greeting belongs to one conversation, then the rest of the field newest first.
+    /// The lines this person recently entered in this field, each once, the ones from this document first.
     public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
         let ids = try surfaceIdentifiers(of: surface)
         guard !ids.isEmpty, limit > 0 else { return [] }
@@ -79,7 +81,7 @@ public actor PredictStore: PredictionStore {
         ) { $0.text(0) }
     }
 
-    /// The recency read over this many surfaces of one field, which `entry_recent` exists to serve; the surface bound after them is the document being written in, whose lines lead.
+    /// The recency read `entry_recent` serves; the surface bound last of all is the document in hand.
     static func recentQuery(surfaces: Int) -> String {
         // Every placeholder is numbered, since one numbered among anonymous ones shifts the rest.
         let placeholders = (1...surfaces).map { "?\($0)" }.joined(separator: ", ")
@@ -102,7 +104,7 @@ public actor PredictStore: PredictionStore {
         ) { Int64($0.integer(0)) }
     }
 
-    /// Folds the same text learned in several places into one candidate, its counts summed so it ranks by real use.
+    /// Folds the same text learned in several places into one candidate, with its counts summed.
     private func merged(_ candidates: [Candidate]) -> [Candidate] {
         var byText: [String: Candidate] = [:]
         var order: [String] = []
@@ -160,9 +162,9 @@ public actor PredictStore: PredictionStore {
         return candidates
     }
 
-    /// The range scan the whole design rests on, over the lowercased text so it ignores case yet keeps the index.
+    /// The range scan the design rests on, over the lowercased text so case is ignored and the index kept.
     static let prefixQuery = """
-        SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
+        SELECT \(entryColumns) FROM entry
         WHERE surface_id = ? AND text_lower >= ? AND text_lower < ? AND superseded_by IS NULL
         ORDER BY count DESC LIMIT ?
         """
@@ -173,7 +175,7 @@ public actor PredictStore: PredictionStore {
     ) throws(PredictStoreError) -> [Candidate] {
         let lowered = typed.lowercased()
         guard let upper = Self.upperBound(of: lowered) else { return [] }
-        return try rows(
+        return try readCandidates(
             Self.prefixQuery,
             {
                 $0.bind(1, id)
@@ -193,9 +195,9 @@ public actor PredictStore: PredictionStore {
         let width = FuzzyMatch.maskWidth(forQueryOfLength: needle.count, within: budget)
         let queryMask = FuzzyMatch.mask(needle)
 
-        let all = try rows(
+        let all = try readCandidates(
             """
-            SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
+            SELECT \(entryColumns) FROM entry
             WHERE surface_id = ? AND superseded_by IS NULL
             """, { $0.bind(1, id) }, distance: 0)
 
@@ -225,12 +227,12 @@ public actor PredictStore: PredictionStore {
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         try database.transaction { () throws(PredictStoreError) in
-            try commit(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
+            try write(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
         }
     }
 
     /// The steps of a record, which stand or fall together.
-    private func commit(
+    private func write(
         _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: true) else { return }
@@ -271,12 +273,12 @@ public actor PredictStore: PredictionStore {
 
     /// Notes that a suggestion was taken, which is evidence and also a discount.
     public func recordAccepted(_ text: String, in surface: Surface) throws(PredictStoreError) {
-        try count("accepted", text, surface)
+        try increment(.accepted, forText: text, in: surface)
     }
 
     /// Notes that a suggestion was shown and typed past, which is the user saying no.
     public func recordRejected(_ text: String, in surface: Surface) throws(PredictStoreError) {
-        try count("rejected", text, surface)
+        try increment(.rejected, forText: text, in: surface)
     }
 
     /// Marks an entry wrong and points at what replaces it, so it is never proposed again.
@@ -284,13 +286,7 @@ public actor PredictStore: PredictionStore {
         _ text: String, with replacement: String, in surface: Surface
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: false) else { return }
-        try database.run(
-            "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
-            {
-                $0.bind(1, replacement)
-                $0.bind(2, id)
-                $0.bind(3, text)
-            })
+        try markSuperseded(text, by: replacement, surfaceIdentifier: id)
     }
 
     // MARK: - Forgetting
@@ -309,12 +305,12 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// Forgets everything, which is the reset in Settings.
+    /// Forgets every surface, and with it every entry and succession they hold.
     public func forgetEverything() throws(PredictStoreError) {
         try database.execute("DELETE FROM surface")
     }
 
-    /// How many entries are held, for the tests and the diagnostics page.
+    /// How many entries the corpus holds across every surface.
     public func entryCount() throws(PredictStoreError) -> Int {
         try database.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) }.first ?? 0
     }
@@ -363,29 +359,44 @@ public actor PredictStore: PredictionStore {
             }
         ) { $0.text(0) }
         for fragment in fragments {
-            try database.run(
-                "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
-                {
-                    $0.bind(1, text)
-                    $0.bind(2, id)
-                    $0.bind(3, fragment)
-                })
+            try markSuperseded(fragment, by: text, surfaceIdentifier: id)
         }
+    }
+
+    /// Points one entry at what replaces it, which is how a correction and a fragment are both retired.
+    private func markSuperseded(
+        _ text: String, by replacement: String, surfaceIdentifier id: Int64
+    ) throws(PredictStoreError) {
+        try database.run(
+            "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
+            {
+                $0.bind(1, replacement)
+                $0.bind(2, id)
+                $0.bind(3, text)
+            })
     }
 
     // MARK: - Plumbing
 
-    private func count(_ column: String, _ text: String, _ surface: Surface) throws(PredictStoreError) {
+    /// A tally an offer moves, closed so nothing a caller supplied can reach the statement.
+    private enum Tally: String {
+        case accepted
+        case rejected
+    }
+
+    /// Adds one to a tally against an entry, doing nothing where the field was never typed in.
+    private func increment(
+        _ tally: Tally, forText text: String, in surface: Surface
+    ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: false) else { return }
-        // The column is one of two literals chosen here, never anything a caller supplied.
-        let sql = "UPDATE entry SET \(column) = \(column) + 1 WHERE surface_id = ? AND text = ?"
-        try database.run(sql) {
+        let column = tally.rawValue
+        try database.run("UPDATE entry SET \(column) = \(column) + 1 WHERE surface_id = ? AND text = ?") {
             $0.bind(1, id)
             $0.bind(2, text)
         }
     }
 
-    /// Keeps a surface within its cap, dropping superseded entries first and then those with the least behind them.
+    /// Keeps a surface within its cap, dropping superseded entries first and then the weakest.
     private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
         let held = try database.rows(
             "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
@@ -404,7 +415,8 @@ public actor PredictStore: PredictionStore {
             })
     }
 
-    private func rows(
+    /// Reads a query returning the entry columns as candidates, each at the given edit distance.
+    private func readCandidates(
         _ sql: String, _ bind: (OpaquePointer) -> Void, distance: Int
     ) throws(PredictStoreError) -> [Candidate] {
         try database.rows(sql, bind) { row in
@@ -420,10 +432,11 @@ public actor PredictStore: PredictionStore {
         }
     }
 
+    /// The evidence behind one entry, or nothing where it is unknown or has been retired.
     private func entry(surfaceIdentifier id: Int64, text: String) throws(PredictStoreError) -> Entry? {
-        try rows(
+        try readCandidates(
             """
-            SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
+            SELECT \(entryColumns) FROM entry
             WHERE surface_id = ? AND text = ? AND superseded_by IS NULL
             """,
             {

@@ -85,6 +85,24 @@ carrying a dictionary between Macs, and a subscription to bill.
 
 So a clone builds, tests and runs, complete. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Install
+
+To install via Homebrew:
+
+```bash
+  brew install --cask uttrflow/tap/uttrflow
+```
+
+Or download the latest .dmg installer:
+
+```bash
+  https://img.shields.io/badge/download-latest-brightgreen.svg
+```
+
+## Requirements
+
+- Apple Silicon Mac, macOS 26 or later
+- Xcode 26.6 or later (supplies the toolchain; the build itself is SwiftPM)
 ## Building it
 
 Xcode 26.6 or later supplies the toolchain; the build itself is SwiftPM.

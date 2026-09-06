@@ -23,7 +23,7 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
     }
 
     /// The exact flags this binding is a hold of, stored rather than recomputed per event.
-    private let watched = Mutex<NSEvent.ModifierFlags>([])
+    private let watchedFlags = Mutex<NSEvent.ModifierFlags>([])
 
     /// The timer comparing the real key state against what events have reported.
     private let reconciliation = Mutex<(any DispatchSourceTimer)?>(nil)
@@ -31,7 +31,7 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
     @MainActor
     public func start(binding: HotkeyBinding) throws(HotkeyError) {
         guard binding.heldModifier != nil else { throw .shortcutUnavailable }
-        watched.withLock { $0 = Self.flags(for: binding) }
+        watchedFlags.withLock { $0 = Self.flags(for: binding) }
 
         // The global half needs the same Accessibility grant the typing does.
         guard AXIsProcessTrusted() else { throw .observationNotPermitted }
@@ -68,7 +68,7 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
     }
 
     /// Every flag this monitor considers, so an unnamed flag is not counted as a difference.
-    private static let considered: NSEvent.ModifierFlags = [
+    private static let consideredFlags: NSEvent.ModifierFlags = [
         .command, .option, .control, .shift, .function,
     ]
 
@@ -78,8 +78,8 @@ public final class HeldModifierMonitor: HotkeyMonitoring {
 
     /// Feeds one reading of the flags to the edge, matching by equality so ⌃⌥ is not ⌃⌥⌘.
     private func update(with flags: NSEvent.ModifierFlags) {
-        let wanted = watched.withLock { $0 }
-        let present = flags.intersection(Self.considered)
+        let wanted = watchedFlags.withLock { $0 }
+        let present = flags.intersection(Self.consideredFlags)
         let isDownNow = !wanted.isEmpty && present == wanted
         let happened = state.withLock { $0.edge.flagsChanged(isDownNow: isDownNow) }
         guard let happened else { return }

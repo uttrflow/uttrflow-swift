@@ -138,7 +138,8 @@ struct DictionaryLearningTests {
         let store = PersonalDictionaryStore(file: Sandbox().file)
         try await dictate(into: store, saying: "Uttrflow", titled: "notes", over: "utter flow")
 
-        #expect(await store.workingSet(now: epoch).contains("Uttrflow"))
+        let ranked = WorkingSet.words(from: await store.allEntries(), now: epoch)
+        #expect(ranked.contains("Uttrflow"))
         #expect(await store.index().candidates(soundingLike: "utter flow").map(\.word) == ["Uttrflow"])
     }
 
