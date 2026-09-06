@@ -10,30 +10,34 @@
 # quite bugs yet, and on a codebase this size the extra noise is manageable.
 name: CodeQL
 
+# Weekly, and by hand. Not on pull requests and not on pushes, and the reason is capacity
+# rather than a view about static analysis.
+#
+# Swift is the one language CodeQL cannot analyse without a build, and it ships no arm64
+# macOS bundle, so the build it watches runs under Rosetta: about forty minutes, of which
+# the analysis itself is under two. That job competes with `ci.yml` for the five concurrent
+# macOS runners a free plan allows — the only macOS capacity this repository has — and two
+# of them per pull request is more than the pool can deliver. `make verify` was queueing for
+# over an hour behind analyses of commits nobody was waiting on.
+#
+# A weekly run keeps what this is actually good at. Its findings are properties of a whole
+# call path, which do not appear and disappear commit by commit, and the case a pull-request
+# trigger cannot catch at all is a query added to CodeQL after the code was written, finding
+# something that was always wrong and never flagged. That wants a clock, not a diff.
 on:
-  pull_request:
-  push:
-    branches: [main]
   schedule:
-    # Wednesday, early. A weekly run catches the case that matters most and that a
-    # pull-request trigger cannot: a query added to CodeQL after the code was written,
-    # finding something that was always wrong and never flagged.
+    # Wednesday, early.
     - cron: "0 6 * * 3"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-# A second push to a pull request makes the first analysis unreadable — nobody looks at
-# alerts for a commit that no longer exists — so the two ran side by side for the better
-# part of an hour each and the second finished later for it. Cancel the superseded one.
-#
-# Only for pull requests. A push to `main` and the weekly cron each analyse a commit whose
-# alerts become the repository's baseline, so none of those may be dropped; keying their
-# group on the commit gives every one of them a group of its own, which means they neither
-# cancel nor queue behind each other.
+# One analysis at a time. A second is either the weekly run overlapping a manual one or a
+# hand on the button twice, and neither wants two forty-minute macOS jobs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   analyse:
@@ -122,6 +126,16 @@ jobs:
           # Required once autobuild is replaced: without it the action runs its own build
           # as well, and the saving disappears into a build that happens twice.
           build-mode: manual
+          # Building our own target compiles our dependencies too, and the extractor
+          # watches all of it, so without this every alert CodeQL has ever filed against
+          # this repository but one was against vendored source in `.build/checkouts` —
+          # eleven path-traversal reports in a Hugging Face client we do not write, do not
+          # ship a fork of, and cannot patch. An alert nobody can act on trains people to
+          # ignore the list it is in. Dependencies are covered by the vulnerability
+          # scanning in `security.yml`, which reads advisories rather than code.
+          config: |
+            paths-ignore:
+              - .build/**
 
       # An explicit build rather than autobuild, and the reason is what it *stops*
       # building. Autobuild builds the whole package; three of the four executables are
@@ -140,11 +154,21 @@ jobs:
       # above has already done this work, so any resolution *here* is a bug — and the way
       # that bug presented last time was not an error but half an hour of silence. The
       # flag turns it into an immediate failure that names its own cause.
+      # `uttrflow-dev` is here despite being a developer tool, and it is the exception the
+      # paragraph above earns. The only true positive CodeQL has ever filed against our own
+      # code was in it — an account's email address reaching a `print`, `swift/cleartext-
+      # logging` — and it closed as "fixed" when this step stopped building the file. The
+      # line is still there. A tool that runs on a Mac somebody is signed in on handles the
+      # same credentials the app does; leaving it out means the analysis cannot see the one
+      # place it has ever been right. The other two stay out: `uttrflow-eval` reads the
+      # corpus through `UttrflowEval`, which is built below, and `uttrflow-bakeoff` links
+      # MLX and is the most expensive thing in the manifest.
       - name: Build the shipping code
         run: |
           set -euo pipefail
           swift build --force-resolved-versions --target Uttrflow 2>&1 | tee build.log
           swift build --force-resolved-versions --target UttrflowEval 2>&1 | tee -a build.log
+          swift build --force-resolved-versions --target uttrflow-dev 2>&1 | tee -a build.log
 
       # The guard.
       #

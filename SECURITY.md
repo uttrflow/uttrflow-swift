@@ -57,7 +57,7 @@ So you know what has already been looked at before you spend time on it:
 | Check | When | What it is for |
 |---|---|---|
 | `make verify` | Every PR, every push to `main`, every release tag | Lint, PII audit, full build, 4,000+ tests, 95% per-module coverage floor, offline audit |
-| **CodeQL** (`security-and-quality`) | Every PR, weekly | Static analysis of Swift for security defects — the whole-call-path kind a reviewer misses |
+| **CodeQL** (`security-and-quality`) | Weekly | Static analysis of Swift for security defects — the whole-call-path kind a reviewer misses. Weekly rather than per-PR: Swift analysis needs a build CodeQL runs under Rosetta, and two forty-minute macOS jobs a pull request is more than five concurrent runners can deliver |
 | **Dependency review** | Every PR | Refuses a new dependency with a known vulnerability, or a licence we cannot ship |
 | **Dependabot** | Weekly | Updates actions and Swift packages as pull requests, which go through the same gate as anything else |
 | **Secret scanning + push protection** | Every push | Blocks a push containing something credential-shaped, before it is public |
