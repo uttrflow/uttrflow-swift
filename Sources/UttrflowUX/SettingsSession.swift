@@ -69,6 +69,17 @@ public struct SettingsSession: Sendable, Equatable {
         return settings
     }
 
+    /// Says why the shortcut cannot be changed right now, which the field shows in place of a key.
+    public mutating func rejectShortcut(_ reason: String) {
+        rejection = reason
+    }
+
+    /// Takes one keystroke and applies whatever it earned.
+    @discardableResult
+    public mutating func receive(_ stroke: KeyStroke) -> Settings? {
+        settle(recorder.receive(stroke))
+    }
+
     /// Takes a modifier going down; nothing is earned until it is known what it belongs to.
     @discardableResult
     public mutating func hold(keyCode: UInt16, modifiers: Set<HotkeyModifier>) -> Settings? {

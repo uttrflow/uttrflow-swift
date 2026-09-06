@@ -173,10 +173,10 @@ struct SettingsShortcutField: View {
     let keys: [String]
     let model: SettingsViewModel
 
-    @State private var monitor: Any?
+    @State private var listening = false
 
-    /// The session tap, the one source that reports every modifier, Fn included.
-    @State private var flagsTap = HeldModifierTap()
+    /// The one keyboard source, which reports every key including Fn.
+    @State private var keyboard = SystemKeyboard()
 
     var body: some View {
         HStack(spacing: 8) {
@@ -224,32 +224,21 @@ struct SettingsShortcutField: View {
     }
 
     private func startListening() {
-        guard monitor == nil else { return }
-        // One source for modifiers and one for keys; what either means is the recorder's to decide.
-        try? flagsTap.start { keyCode, flags in
-            let held = NSEvent.ModifierFlags(rawValue: UInt(flags))
-            Task { @MainActor in
-                let modifiers = SettingsShortcutField.modifiers(from: held)
-                if modifiers.isEmpty, !held.contains(.function) {
-                    model.release()
-                } else {
-                    model.hold(keyCode: keyCode, modifiers: modifiers)
-                }
+        guard !listening else { return }
+        listening = true
+        // One source, and the recorder decides what each stroke means. Nothing here judges a key.
+        do {
+            try keyboard.start { stroke in
+                Task { @MainActor in model.receive(stroke) }
             }
-        }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
-            model.record(
-                keyCode: event.keyCode,
-                modifiers: SettingsShortcutField.modifiers(from: event.modifierFlags))
-            // Swallowed: nothing pressed at this field should reach the rest of the app.
-            return nil
+        } catch {
+            model.shortcutSourceRefused()
         }
     }
 
     private func stopListening() {
-        flagsTap.stop()
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
+        keyboard.stop()
+        listening = false
     }
 
     /// Cocoa's flags reduced to the four the product recognises; the rest is window-server noise.

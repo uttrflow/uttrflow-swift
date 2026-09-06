@@ -57,6 +57,17 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// The largest 7-bit virtual key code; anything above it is not from a keyboard.
     static let highestKeyCode: UInt16 = 0x7F
 
+    /// The modifier a key code names, or nil when the key is not a modifier at all.
+    public static func modifier(ofKeyCode keyCode: UInt16) -> HotkeyModifier? {
+        switch keyCode {
+        case 54, 55: .command
+        case 56, 60: .shift
+        case 58, 61: .option
+        case 59, 62: .control
+        default: nil
+        }
+    }
+
     /// The key codes that only modify another key, Caps Lock and Fn included; a binding on one is a hold.
     public static let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
 }

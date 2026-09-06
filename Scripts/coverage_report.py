@@ -63,18 +63,14 @@ EXCLUDED_FILES = {
         "it holds — which keys are armed, and what each one means — is KeyRouting, which "
         "is tested"
     ),
-    "UttrflowInput/HeldModifierTap.swift": (
-        "creates a CGEventTap for flag changes, which needs Accessibility and a window "
-        "server; it decides nothing — it reads the flags and hands them on, and what is "
-        "made of them is HeldModifierEdge, which is tested"
-    ),
-    "UttrflowInput/HeldModifierMonitor.swift": (
-        "watches a session tap and NSEvent's flag monitors, which need a window server; "
-        "the two rules it used to hold are HeldModifierEdge, which is tested"
+    "UttrflowInput/SystemKeyboard.swift": (
+        "creates the one CGEventTap, which needs Accessibility and a window server; it "
+        "decides nothing — it reads an event into a KeyStroke and hands it on, and what is "
+        "made of one is HotkeyRecogniser, which is tested against every shape of binding"
     ),
     "UttrflowInput/ActivationMonitor.swift": (
-        "picks one of the two monitors above and forwards its stream; both are excluded "
-        "for needing a window server, so there is nothing here a test could reach"
+        "wires the keyboard source to the recogniser; the source needs a window server and "
+        "the recogniser is tested directly, so there is nothing here a test could reach"
     ),
     "UttrflowClipboard/CodeFormatting+System.swift": "spawns another program and pipes bytes through it",
     "UttrflowPredict/EnvironmentReading+System.swift": (

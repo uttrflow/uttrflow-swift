@@ -154,6 +154,91 @@ struct SettingsShortcutRecorderTests {
         #expect(recorder.rejection == nil)
     }
 
+    /// Driven the way the field drives it: whole keystrokes, not hand-picked calls.
+    @Suite("Every shape, as keystrokes")
+    struct Strokes {
+        private func held(_ mods: Set<HotkeyModifier>, fn: Bool = false, key: UInt16 = 0) -> KeyStroke {
+            KeyStroke(keyCode: key, modifiers: mods, isFunctionDown: fn, phase: .modifiersChanged)
+        }
+        private func down(_ key: UInt16, _ mods: Set<HotkeyModifier>) -> KeyStroke {
+            KeyStroke(keyCode: key, modifiers: mods, phase: .down)
+        }
+        private func recorder() -> SettingsShortcutRecorder {
+            var r = SettingsShortcutRecorder(binding: .optionSpace)
+            r.beginRecording()
+            return r
+        }
+
+        @Test("single Fn")
+        func singleFn() {
+            var r = recorder()
+            _ = r.receive(held([], fn: true, key: 63))
+            _ = r.receive(held([]))
+            #expect(r.binding == .functionHold)
+        }
+
+        @Test("single modifier held alone")
+        func singleModifier() {
+            var r = recorder()
+            _ = r.receive(held([.command], key: 55))
+            _ = r.receive(held([]))
+            #expect(r.binding == HotkeyBinding(keyCode: 55, modifiers: [.command]))
+        }
+
+        @Test("two keys, a modifier and a key")
+        func twoKeys() {
+            var r = recorder()
+            _ = r.receive(held([.option], key: 58))
+            _ = r.receive(down(49, [.option]))
+            #expect(r.binding == .optionSpace)
+            // The modifier let go afterwards must not overwrite what was recorded.
+            _ = r.receive(held([]))
+            #expect(r.binding == .optionSpace)
+        }
+
+        @Test("three keys, two modifiers and a key")
+        func threeKeys() {
+            var r = recorder()
+            _ = r.receive(held([.command], key: 55))
+            _ = r.receive(held([.command, .shift], key: 56))
+            _ = r.receive(down(0, [.command, .shift]))
+            #expect(r.binding == HotkeyBinding(keyCode: 0, modifiers: [.command, .shift]))
+        }
+
+        @Test("two modifiers held together, with no key against them")
+        func twoModifiers() {
+            var r = recorder()
+            _ = r.receive(held([.control], key: 59))
+            _ = r.receive(held([.control, .option], key: 58))
+            _ = r.receive(held([]))
+            #expect(r.binding == HotkeyBinding(keyCode: 58, modifiers: [.control, .option]))
+        }
+
+        @Test("three modifiers held together")
+        func threeModifiers() {
+            var r = recorder()
+            _ = r.receive(held([.control], key: 59))
+            _ = r.receive(held([.control, .option], key: 58))
+            _ = r.receive(held([.control, .option, .shift], key: 56))
+            _ = r.receive(held([]))
+            #expect(r.binding == HotkeyBinding(keyCode: 56, modifiers: [.control, .option, .shift]))
+        }
+
+        @Test("a key coming up is not a shortcut")
+        func keyUpIsQuiet() {
+            var r = recorder()
+            #expect(r.receive(KeyStroke(keyCode: 49, phase: .up)) == .ignored)
+            #expect(r.isRecording)
+        }
+
+        @Test("nothing is taken before the field is listening")
+        func quietUntilRecording() {
+            var r = SettingsShortcutRecorder(binding: .optionSpace)
+            #expect(r.receive(held([], fn: true, key: 63)) == .ignored)
+            #expect(r.binding == .optionSpace)
+        }
+    }
+
     /// Every shape of shortcut the field has to take, which is what kept breaking one at a time.
     @Suite("Every shape of shortcut")
     struct Shapes {

@@ -59,6 +59,19 @@ final class SettingsViewModel {
         persist(session.apply(change))
     }
 
+    /// One keystroke, which the recorder reads; this type decides nothing about keys.
+    func receive(_ stroke: KeyStroke) {
+        persist(session.receive(stroke))
+        if !session.recorder.isRecording {
+            onShortcutRecording(false)
+        }
+    }
+
+    /// Says the keyboard could not be watched, which is what a refused tap means to the user.
+    func shortcutSourceRefused() {
+        session.rejectShortcut("Uttrflow needs Accessibility to read the keyboard.")
+    }
+
     /// A modifier going down, which the recorder holds until it knows what it is part of.
     func hold(keyCode: UInt16, modifiers: Set<HotkeyModifier>) {
         persist(session.hold(keyCode: keyCode, modifiers: modifiers))

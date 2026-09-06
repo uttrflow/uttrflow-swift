@@ -76,25 +76,3 @@ struct HeldModifierEdgeTests {
         #expect(edge.flagsChanged(isDownNow: true) == .pressed)
     }
 }
-
-@Suite("Which held keys the polled state can answer for")
-struct PolledStateTests {
-    /// Fn arrives as a flags change and never appears in the polled state, so polling it reads "up".
-    @Test("will not reconcile a key the polled state does not report, which is how Fn cancelled itself")
-    func refusesAKeyTheStateCannotSee() {
-        #expect(!HeldModifierMonitor.polledStateReports(.function, whileHeld: []))
-        #expect(!HeldModifierMonitor.polledStateReports([.function], whileHeld: [.command]))
-    }
-
-    @Test("reconciles a key the polled state does report")
-    func reconcilesAKeyTheStateReports() {
-        #expect(HeldModifierMonitor.polledStateReports(.command, whileHeld: [.command]))
-        #expect(HeldModifierMonitor.polledStateReports([.control, .shift], whileHeld: [.control, .shift]))
-        #expect(HeldModifierMonitor.polledStateReports(.option, whileHeld: [.option, .shift]))
-    }
-
-    @Test("a partly reported combination is not reconciled, since the missing half would read as up")
-    func refusesAPartlyReportedCombination() {
-        #expect(!HeldModifierMonitor.polledStateReports([.command, .function], whileHeld: [.command]))
-    }
-}

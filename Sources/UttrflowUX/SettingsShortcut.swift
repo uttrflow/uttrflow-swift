@@ -122,6 +122,22 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
         pendingModifier = nil
     }
 
+    /// Takes one keystroke and says what became of it; the only entry point a screen needs.
+    public mutating func receive(_ stroke: KeyStroke) -> SettingsShortcutOutcome {
+        guard isRecording else { return .ignored }
+        switch stroke.phase {
+        case .down:
+            return record(keyCode: stroke.keyCode, modifiers: stroke.modifiers)
+        case .up:
+            return .ignored
+        case .modifiersChanged:
+            if stroke.isEmptyHold { return release() }
+            return hold(
+                keyCode: stroke.isFunctionDown ? HotkeyBinding.functionKeyCode : stroke.keyCode,
+                modifiers: stroke.modifiers)
+        }
+    }
+
     /// Takes a modifier going down, which is not yet an answer: it may yet be half of a combination.
     public mutating func hold(
         keyCode: UInt16, modifiers: Set<HotkeyModifier>
