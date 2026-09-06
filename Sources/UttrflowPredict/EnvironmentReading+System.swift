@@ -33,9 +33,6 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     /// The names a Makefile goes by, in the order make itself tries them.
     static let makefiles = ["GNUmakefile", "makefile", "Makefile"]
 
-    /// The package managers whose `run` verb takes the project's scripts, and whose own verbs those scripts join.
-    static let scriptRunners: Set<String> = ["npm", "yarn", "pnpm", "bun"]
-
     public init() {}
 
     public func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
@@ -130,7 +127,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
             .first.map(MakefileTargets.names(in:))
         case let runner where runner.hasSuffix(" run"):
             return scripts(in: directory)
-        case let runner where Self.scriptRunners.contains(runner):
+        case let runner where CommandGrammar.scriptRunners.contains(runner):
             guard let listed = await helpCommands(of: runner, in: directory) else { return nil }
             return listed + (scripts(in: directory) ?? [])
         default:

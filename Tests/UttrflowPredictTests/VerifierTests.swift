@@ -3,42 +3,6 @@ import Testing
 
 @testable import UttrflowPredict
 
-/// A model that says what a test tells it to, and counts how often it is asked.
-actor ScriptedScoring: CandidateScoring {
-    private let score: Double?
-    private let loaded: Bool
-    private let delay: Duration?
-    private(set) var asked = 0
-
-    init(_ score: Double?, loaded: Bool = true, delay: Duration? = nil) {
-        self.score = score
-        self.loaded = loaded
-        self.delay = delay
-    }
-
-    var isReady: Bool { loaded }
-
-    func logLikelihood(of candidate: String, following context: String) async -> Double? {
-        asked += 1
-        if let delay { try? await Task.sleep(for: delay) }
-        return score
-    }
-}
-
-/// A store that only remembers being told a candidate was wrong.
-actor RecordingSupersession: SupersessionRecording {
-    private(set) var recorded: [String] = []
-    private(set) var rejected: [String] = []
-
-    func recordSupersession(of text: String, by replacement: String, in surface: Surface) {
-        recorded.append("\(text) → \(replacement)")
-    }
-
-    func recordRejection(of text: String, in surface: Surface) {
-        rejected.append(text)
-    }
-}
-
 /// A score the model is certain about, which is well above the floor.
 let liked = Verification.plausibilityFloor + 1
 
@@ -294,29 +258,31 @@ struct VerifierCaseTests {
     }
 }
 
-/// The model's lines a machine that has already answered lets stand.
-private func standing(
-    _ completions: [String], after typed: String, machine: [EnvironmentKind: [String]],
-    in surface: Surface = terminal
-) async -> [String] {
+/// A verifier over a machine that has already answered about every kind the test gave it.
+private func asked(
+    _ machine: [EnvironmentKind: [String]], in surface: Surface = terminal
+) async -> Verifier {
     let index = EnvironmentIndex(reader: StubEnvironment(machine))
     if let directory = EnvironmentSource.workingDirectory(of: surface) {
         for kind in machine.keys { _ = await index.values(of: kind, in: directory, now: moment) }
         await index.settle()
     }
-    return await Verifier(index: index).standing(completions, after: typed, in: surface, now: moment)
+    return Verifier(index: index)
+}
+
+/// The model's lines a machine that has already answered lets stand.
+private func standing(
+    _ completions: [String], after typed: String, machine: [EnvironmentKind: [String]],
+    in surface: Surface = terminal
+) async -> [String] {
+    await asked(machine, in: surface).standing(completions, after: typed, in: surface, now: moment)
 }
 
 /// What the machine says the next word may be, on a machine that has already answered.
 private func options(
     for typed: String, machine: [EnvironmentKind: [String]], in surface: Surface = terminal
 ) async -> ArgumentOptions {
-    let index = EnvironmentIndex(reader: StubEnvironment(machine))
-    if let directory = EnvironmentSource.workingDirectory(of: surface) {
-        for kind in machine.keys { _ = await index.values(of: kind, in: directory, now: moment) }
-        await index.settle()
-    }
-    return await Verifier(index: index).options(for: typed, in: surface, now: moment)
+    await asked(machine, in: surface).options(for: typed, in: surface, now: moment)
 }
 
 @Suite("What the next word may be")

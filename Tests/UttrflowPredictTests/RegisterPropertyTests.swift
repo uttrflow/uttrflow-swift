@@ -65,7 +65,7 @@ struct RegisterFacts: Sendable, CustomTestStringConvertible {
     var testDescription: String { "seed \(seed)" }
 }
 
-private let moments = (0..<400).map(RegisterCase.init)
+private let samples = (0..<400).map(RegisterCase.init)
 private let facts = (0..<300).map(RegisterFacts.init)
 
 /// Whether a value sits in the middle of the values: at most half are below it and at most half above.
@@ -76,9 +76,9 @@ private func isMedian(_ value: Int, of values: [Int]) -> Bool {
 
 @Suite("Reading the register off random moments")
 struct RegisterPropertyTests {
-    @Test("The token budget always sits inside the range, whatever the register.", arguments: moments)
-    func theBudgetStaysInRange(moment: RegisterCase) {
-        let register = Register.infer(from: moment.situation, typed: moment.typed)
+    @Test("The token budget always sits inside the range, whatever the register.", arguments: samples)
+    func theBudgetStaysInRange(sample: RegisterCase) {
+        let register = Register.infer(from: sample.situation, typed: sample.typed)
         #expect(Register.tokenRange.contains(register.maxTokens))
         // A reply is always given a whole message's room, whatever this person's typical line.
         let floor = register.isConversational ? Register.replyTokens : 0
@@ -93,11 +93,11 @@ struct RegisterPropertyTests {
 
     @Test(
         "The typical length is a median of the person's lines, else of the screen's turns in a conversation.",
-        arguments: moments)
-    func typicalLengthIsAMedian(moment: RegisterCase) {
-        let register = Register.infer(from: moment.situation, typed: moment.typed)
-        let own = moment.situation.recentLines.map(\.count)
-        let screen = Register.lines(of: moment.situation.surroundings).map(\.count)
+        arguments: samples)
+    func typicalLengthIsAMedian(sample: RegisterCase) {
+        let register = Register.infer(from: sample.situation, typed: sample.typed)
+        let own = sample.situation.recentLines.map(\.count)
+        let screen = Register.lines(of: sample.situation.surroundings).map(\.count)
         if !own.isEmpty {
             #expect(register.typicalLength.map { isMedian($0, of: own) } == true)
         } else if register.isConversational {
@@ -108,10 +108,10 @@ struct RegisterPropertyTests {
     }
 
     @Test(
-        "A screen is a conversation when it has enough lines and most of them are short.", arguments: moments)
-    func conversationsAreShortTurns(moment: RegisterCase) {
-        let register = Register.infer(from: moment.situation, typed: moment.typed)
-        let lines = (moment.situation.surroundings ?? "").split(whereSeparator: \.isNewline).filter {
+        "A screen is a conversation when it has enough lines and most of them are short.", arguments: samples)
+    func conversationsAreShortTurns(sample: RegisterCase) {
+        let register = Register.infer(from: sample.situation, typed: sample.typed)
+        let lines = (sample.situation.surroundings ?? "").split(whereSeparator: \.isNewline).filter {
             $0.contains { !$0.isWhitespace }
         }
         let short = lines.filter { $0.count < Register.conversationLineLength }.count
@@ -122,11 +122,11 @@ struct RegisterPropertyTests {
 
     @Test(
         "The symbol share is a share, computed over the text before, the line, and the person's lines.",
-        arguments: moments)
-    func symbolShareIsAShare(moment: RegisterCase) {
-        let register = Register.infer(from: moment.situation, typed: moment.typed)
+        arguments: samples)
+    func symbolShareIsAShare(sample: RegisterCase) {
+        let register = Register.infer(from: sample.situation, typed: sample.typed)
         #expect((0.0...1.0).contains(register.symbolShare))
-        let visible = ([moment.situation.preceding ?? "", moment.typed] + moment.situation.recentLines)
+        let visible = ([sample.situation.preceding ?? "", sample.typed] + sample.situation.recentLines)
             .joined()
             .filter { !$0.isWhitespace }
         let symbols = visible.filter { !$0.isLetter && !$0.isNumber }.count
@@ -136,10 +136,10 @@ struct RegisterPropertyTests {
 
     @Test(
         "Sentence case is read off the person's lines alone, and is unknown until they have written some.",
-        arguments: moments)
-    func sentenceCaseComesFromTheirLines(moment: RegisterCase) {
-        let register = Register.infer(from: moment.situation, typed: moment.typed)
-        let own = moment.situation.recentLines
+        arguments: samples)
+    func sentenceCaseComesFromTheirLines(sample: RegisterCase) {
+        let register = Register.infer(from: sample.situation, typed: sample.typed)
+        let own = sample.situation.recentLines
         guard !own.isEmpty else {
             #expect(register.usesSentenceCase == nil)
             return

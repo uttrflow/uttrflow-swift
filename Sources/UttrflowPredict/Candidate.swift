@@ -33,12 +33,13 @@ public struct Candidate: Sendable, Equatable {
 }
 
 /// A candidate with the score that decided its place.
-public struct ScoredCandidate: Sendable, Equatable {
-    public let candidate: Candidate
+struct ScoredCandidate: Sendable, Equatable {
+    let candidate: Candidate
     /// The raw score, which says how much evidence there is.
-    public let score: Double
+    let score: Double
     /// The score as a share of every candidate's, which says how it compares.
-    public let share: Double
+    let share: Double
 
-    public var text: String { candidate.text }
+    /// The whole line the candidate stands for.
+    var text: String { candidate.text }
 }

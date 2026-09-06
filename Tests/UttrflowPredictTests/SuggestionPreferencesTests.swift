@@ -3,21 +3,18 @@ import Testing
 
 @testable import UttrflowPredict
 
-/// A moment to measure the half-hour pause from, so no test depends on when it ran.
-private let noon = Date(timeIntervalSince1970: 1_700_000_000)
-
 @Suite("What the user has decided about tab-to-complete")
 struct SuggestionPreferencesTests {
     @Test("Draws nothing until it is asked for, which is what off by default means.")
     func offByDefault() {
         #expect(!SuggestionPreferences.default.isEnabled)
-        #expect(!SuggestionPreferences.default.isEnabled(in: "com.apple.Notes", at: noon))
+        #expect(!SuggestionPreferences.default.isEnabled(in: "com.apple.Notes", at: moment))
     }
 
     @Test("Runs in an ordinary application the moment the feature is switched on.")
     func onEverywhereElse() {
         let preferences = SuggestionPreferences(isEnabled: true)
-        #expect(preferences.isEnabled(in: "com.apple.Notes", at: noon))
+        #expect(preferences.isEnabled(in: "com.apple.Notes", at: moment))
         #expect(preferences.state(of: "com.apple.Notes") == .on)
     }
 
@@ -30,7 +27,7 @@ struct SuggestionPreferencesTests {
     func editorsShipOff(bundleIdentifier: String) {
         let preferences = SuggestionPreferences(isEnabled: true)
         #expect(preferences.state(of: bundleIdentifier) == .offByDefault)
-        #expect(!preferences.isEnabled(in: bundleIdentifier, at: noon))
+        #expect(!preferences.isEnabled(in: bundleIdentifier, at: moment))
     }
 
     @Test("An editor the user asks for comes back on, and stays on.")
@@ -38,7 +35,7 @@ struct SuggestionPreferencesTests {
         var preferences = SuggestionPreferences(isEnabled: true)
         preferences.set("com.apple.dt.Xcode", isOn: true)
         #expect(preferences.state(of: "com.apple.dt.Xcode") == .on)
-        #expect(preferences.isEnabled(in: "com.apple.dt.Xcode", at: noon))
+        #expect(preferences.isEnabled(in: "com.apple.dt.Xcode", at: moment))
     }
 
     @Test("Switching an application off says so, and switching it back on undoes exactly that.")
@@ -66,7 +63,7 @@ struct SuggestionPreferencesTests {
         var preferences = SuggestionPreferences(isEnabled: true)
         preferences.set("com.apple.Notes", isOn: true)
         preferences.isEnabled = false
-        #expect(!preferences.isEnabled(in: "com.apple.Notes", at: noon))
+        #expect(!preferences.isEnabled(in: "com.apple.Notes", at: moment))
         #expect(preferences.state(of: "com.apple.Notes") == .on)
     }
 }
@@ -76,52 +73,52 @@ struct SuggestionPauseTests {
     @Test("Lasts half an hour from the moment it was started.")
     func lastsHalfAnHour() {
         var preferences = SuggestionPreferences(isEnabled: true)
-        preferences.setPaused(true, at: noon)
-        #expect(preferences.pausedUntil == noon.addingTimeInterval(30 * 60))
+        preferences.setPaused(true, at: moment)
+        #expect(preferences.pausedUntil == moment.addingTimeInterval(30 * 60))
     }
 
     @Test("Silences every application while it runs, whatever each of them says.")
     func silencesEverywhere() {
         var preferences = SuggestionPreferences(isEnabled: true)
         preferences.set("com.apple.Notes", isOn: true)
-        preferences.setPaused(true, at: noon)
-        #expect(!preferences.isEnabled(in: "com.apple.Notes", at: noon.addingTimeInterval(60)))
+        preferences.setPaused(true, at: moment)
+        #expect(!preferences.isEnabled(in: "com.apple.Notes", at: moment.addingTimeInterval(60)))
     }
 
     @Test("Lifts itself at the half hour, so it cannot be forgotten in the off position.")
     func expiresOnItsOwn() {
         var preferences = SuggestionPreferences(isEnabled: true)
-        preferences.setPaused(true, at: noon)
-        #expect(preferences.isPaused(at: noon.addingTimeInterval(29 * 60)))
-        #expect(!preferences.isPaused(at: noon.addingTimeInterval(30 * 60)))
-        #expect(preferences.isEnabled(in: "com.apple.Notes", at: noon.addingTimeInterval(30 * 60)))
+        preferences.setPaused(true, at: moment)
+        #expect(preferences.isPaused(at: moment.addingTimeInterval(29 * 60)))
+        #expect(!preferences.isPaused(at: moment.addingTimeInterval(30 * 60)))
+        #expect(preferences.isEnabled(in: "com.apple.Notes", at: moment.addingTimeInterval(30 * 60)))
     }
 
     @Test("Expires against the moment it is asked about, never against when it was started.")
     func expiryIsAgainstTheGivenMoment() {
         var preferences = SuggestionPreferences(isEnabled: true)
-        preferences.setPaused(true, at: noon)
-        #expect(preferences.isPaused(at: noon))
-        #expect(!preferences.isPaused(at: noon.addingTimeInterval(3 * 3_600)))
+        preferences.setPaused(true, at: moment)
+        #expect(preferences.isPaused(at: moment))
+        #expect(!preferences.isPaused(at: moment.addingTimeInterval(3 * 3_600)))
     }
 
     @Test("Says how much is left while it runs, and nothing once it has run out.")
     func reportsWhatIsLeft() throws {
         var preferences = SuggestionPreferences(isEnabled: true)
-        #expect(preferences.pauseRemaining(at: noon) == nil)
-        preferences.setPaused(true, at: noon)
-        let left = try #require(preferences.pauseRemaining(at: noon.addingTimeInterval(10 * 60)))
+        #expect(preferences.pauseRemaining(at: moment) == nil)
+        preferences.setPaused(true, at: moment)
+        let left = try #require(preferences.pauseRemaining(at: moment.addingTimeInterval(10 * 60)))
         #expect(abs(left - 20 * 60) < 0.001)
-        #expect(preferences.pauseRemaining(at: noon.addingTimeInterval(30 * 60)) == nil)
+        #expect(preferences.pauseRemaining(at: moment.addingTimeInterval(30 * 60)) == nil)
     }
 
     @Test("Can be lifted before it runs out, which leaves no deadline behind.")
     func canBeLiftedEarly() {
         var preferences = SuggestionPreferences(isEnabled: true)
-        preferences.setPaused(true, at: noon)
-        preferences.setPaused(false, at: noon.addingTimeInterval(60))
+        preferences.setPaused(true, at: moment)
+        preferences.setPaused(false, at: moment.addingTimeInterval(60))
         #expect(preferences.pausedUntil == nil)
-        #expect(!preferences.isPaused(at: noon.addingTimeInterval(60)))
+        #expect(!preferences.isPaused(at: moment.addingTimeInterval(60)))
     }
 }
 

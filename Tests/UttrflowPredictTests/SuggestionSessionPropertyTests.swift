@@ -91,7 +91,8 @@ private struct Script {
         }
     }
 
-    private mutating func moment() -> PredictionContext {
+    /// One moment in the field, with every fact the gates read drawn at random.
+    private mutating func randomContext() -> PredictionContext {
         PredictionContext(
             typed: typed, caretAtLineEnd: random.chance(0.9), hasSelection: random.chance(0.05),
             isComposing: random.chance(0.05), isSecure: random.chance(0.03), isProse: random.chance(0.3),
@@ -99,7 +100,7 @@ private struct Script {
     }
 
     private mutating func turn() {
-        let context = moment()
+        let context = randomContext()
         let before = session.rejectionsHere
         let shownBefore = session.suggestion.accepting
         let generatedBefore = shownGenerated
@@ -154,7 +155,7 @@ private struct Script {
         let before = session.suggestion
         let elapsed = random.chance(0.05) ? budget + 1 : Int.random(in: 0...budget, using: &random)
         let candidates = stored(for: query.typed)
-        switch session.resolve(candidates, for: query, now: now, elapsedMilliseconds: elapsed) {
+        switch session.resolve(candidates, for: query, now: moment, elapsedMilliseconds: elapsed) {
         case nil:
             Issue.record("a live query must be answered")
         case .settled(let update):
@@ -166,7 +167,9 @@ private struct Script {
             #expect(request.candidates.count <= SuggestionSession.verifiedDepth)
             #expect(request.candidates.allSatisfy { candidates.contains($0) })
             let verified = request.candidates.filter { _ in random.chance(0.7) }
-            guard let update = session.resolve(verified, for: request, now: now, elapsedMilliseconds: elapsed)
+            guard
+                let update = session.resolve(
+                    verified, for: request, now: moment, elapsedMilliseconds: elapsed)
             else {
                 Issue.record("a live verification must be answered")
                 return
@@ -288,7 +291,7 @@ private struct Script {
     private mutating func probeStale() {
         guard let query = stale.randomElement(using: &random) else { return }
         #expect(
-            session.resolve(stored(for: query.typed), for: query, now: now, elapsedMilliseconds: 0) == nil)
+            session.resolve(stored(for: query.typed), for: query, now: moment, elapsedMilliseconds: 0) == nil)
         #expect(session.resolveGenerated([query.typed + "x"], for: query, elapsedMilliseconds: 0) == nil)
         #expect(session.expandGenerated([query.typed + "y"], for: query) == nil)
     }
@@ -377,59 +380,6 @@ struct SuggestionSessionPropertyTests {
                 _ = session.turn(in: field, at: PredictionContext(typed: ""))
                 #expect(session.rejectionsHere == 0)
             }
-        }
-    }
-}
-
-/// One moment built from a seed, with every gate's input drawn at random.
-struct QuietingCase: Sendable, CustomTestStringConvertible {
-    let seed: Int
-    let context: PredictionContext
-
-    init(seed: Int) {
-        var random = Seeded(seed: seed)
-        self.seed = seed
-        context = PredictionContext(
-            typed: random.pick(["", "git c", "hello"]), caretAtLineEnd: random.chance(0.7),
-            hasSelection: random.chance(0.2), isComposing: random.chance(0.3), isSecure: random.chance(0.2),
-            isProse: random.chance(0.5),
-            millisecondsSinceKeystroke: random.pick([0, 200, 399, 400, 401, 5_000]),
-            isEnabledHere: random.chance(0.8), isMinimised: random.chance(0.2),
-            rejectionsThisSession: Int.random(in: 0...5, using: &random))
-    }
-
-    var testDescription: String { "seed \(seed)" }
-}
-
-@Suite("The quieting rules over random moments")
-struct QuietingPropertyTests {
-    @Test(
-        "The reason is the first rule that fires, in order, and composition is never one of them.",
-        arguments: (0..<300).map(QuietingCase.init))
-    func reasonIsTheFirstRule(moment: QuietingCase) {
-        let context = moment.context
-        let expected: Quieting.Reason? =
-            if !context.isEnabledHere {
-                .turnedOffHere
-            } else if context.isSecure {
-                .secureField
-            } else if context.hasSelection {
-                .textSelected
-            } else if !context.caretAtLineEnd {
-                .caretInsideText
-            } else if context.rejectionsThisSession >= Quieting.rejectionsBeforeSilence {
-                .rejectedTooOften
-            } else if context.isProse,
-                context.millisecondsSinceKeystroke < Quieting.proseHesitationInMilliseconds
-            {
-                .writingFluently
-            } else {
-                nil
-            }
-        #expect(Quieting.reason(context) == expected)
-        #expect(Quieting.refuses(context) == (expected != nil))
-        if expected != nil {
-            #expect(PredictionEngine.suggestion(from: stored(for: "git c"), in: context, now: now) == .silent)
         }
     }
 }

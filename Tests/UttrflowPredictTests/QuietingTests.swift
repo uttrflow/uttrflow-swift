@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import UttrflowPredict
@@ -57,51 +58,6 @@ struct QuietingTests {
         #expect(Quieting.reason(paused) == nil)
     }
 
-    @Test("Two rejections is patience; the third is the user saying no.")
-    func rejectionsAreCounted() {
-        #expect(Quieting.reason(PredictionContext(typed: "x", rejectionsThisSession: 2)) == nil)
-        #expect(Quieting.refuses(PredictionContext(typed: "x", rejectionsThisSession: 3)))
-    }
-}
-
-@Suite("What a set of candidates agrees on")
-struct CommonPrefixTests {
-    @Test("Nothing agrees on nothing.")
-    func empty() {
-        #expect(CommonPrefix.of([]).isEmpty)
-    }
-
-    @Test("One string agrees with itself entirely.")
-    func single() {
-        #expect(CommonPrefix.of(["git commit"]) == "git commit")
-    }
-
-    @Test("Three commands agree on the part that is safe to insert.")
-    func agreement() {
-        let shared = CommonPrefix.of(["git commit -m", "git commit --amend", "git commit -a"])
-        #expect(shared == "git commit -")
-    }
-
-    @Test("Candidates that share nothing agree on nothing.")
-    func disagreement() {
-        #expect(CommonPrefix.of(["alpha", "beta"]).isEmpty)
-    }
-
-    @Test("One string being a prefix of another is the whole agreement.")
-    func containment() {
-        #expect(CommonPrefix.of(["git", "git commit"]) == "git")
-    }
-
-    @Test("An empty string among them leaves nothing agreed.")
-    func emptyMember() {
-        #expect(CommonPrefix.of(["git commit", ""]).isEmpty)
-    }
-
-    @Test("Agreement is by character, so a shared emoji is not cut in half.")
-    func unicode() {
-        #expect(CommonPrefix.of(["🙂 ship it", "🙂 ship out"]) == "🙂 ship ")
-    }
-
     @Test("A field with no place to draw is quiet for that reason, before anything about its text is asked.")
     func nowhereToDrawIsAReason() {
         #expect(
@@ -112,5 +68,65 @@ struct CommonPrefixTests {
         #expect(
             Quieting.reason(PredictionContext(typed: "x", isSecure: true, canDraw: false)) == .secureField)
         #expect(Quieting.reason(PredictionContext(typed: "x", canDraw: true)) == nil)
+    }
+
+    @Test("Two rejections is patience; the third is the user saying no.")
+    func rejectionsAreCounted() {
+        #expect(Quieting.reason(PredictionContext(typed: "x", rejectionsThisSession: 2)) == nil)
+        #expect(Quieting.refuses(PredictionContext(typed: "x", rejectionsThisSession: 3)))
+    }
+}
+
+/// One moment built from a seed, with every gate's input drawn at random.
+struct QuietingCase: Sendable, CustomTestStringConvertible {
+    let seed: Int
+    let context: PredictionContext
+
+    init(seed: Int) {
+        var random = Seeded(seed: seed)
+        self.seed = seed
+        context = PredictionContext(
+            typed: random.pick(["", "git c", "hello"]), caretAtLineEnd: random.chance(0.7),
+            hasSelection: random.chance(0.2), isComposing: random.chance(0.3), isSecure: random.chance(0.2),
+            isProse: random.chance(0.5),
+            millisecondsSinceKeystroke: random.pick([0, 200, 399, 400, 401, 5_000]),
+            isEnabledHere: random.chance(0.8), isMinimised: random.chance(0.2),
+            rejectionsThisSession: Int.random(in: 0...5, using: &random))
+    }
+
+    var testDescription: String { "seed \(seed)" }
+}
+
+@Suite("The quieting rules over random moments")
+struct QuietingPropertyTests {
+    @Test(
+        "The reason is the first rule that fires, in order, and composition is never one of them.",
+        arguments: (0..<300).map(QuietingCase.init))
+    func reasonIsTheFirstRule(sample: QuietingCase) {
+        let context = sample.context
+        let expected: Quieting.Reason? =
+            if !context.isEnabledHere {
+                .turnedOffHere
+            } else if context.isSecure {
+                .secureField
+            } else if context.hasSelection {
+                .textSelected
+            } else if !context.caretAtLineEnd {
+                .caretInsideText
+            } else if context.rejectionsThisSession >= Quieting.rejectionsBeforeSilence {
+                .rejectedTooOften
+            } else if context.isProse,
+                context.millisecondsSinceKeystroke < Quieting.proseHesitationInMilliseconds
+            {
+                .writingFluently
+            } else {
+                nil
+            }
+        #expect(Quieting.reason(context) == expected)
+        #expect(Quieting.refuses(context) == (expected != nil))
+        if expected != nil {
+            let strong = [remembered("git commit -m", count: 40)]
+            #expect(PredictionEngine.suggestion(from: strong, in: context, now: moment) == .silent)
+        }
     }
 }

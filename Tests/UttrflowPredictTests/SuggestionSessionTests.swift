@@ -35,16 +35,16 @@ func draw(
     context: PredictionContext? = nil, elapsed: Int = 0, in surface: Surface = field,
     acceptKey: AcceptKey = .tab, isQuiet: Bool = false
 ) throws -> SuggestionUpdate? {
-    let moment = context ?? PredictionContext(typed: typed)
-    let turn = session.turn(in: surface, at: moment, acceptKey: acceptKey, isQuiet: isQuiet)
+    let context = context ?? PredictionContext(typed: typed)
+    let turn = session.turn(in: surface, at: context, acceptKey: acceptKey, isQuiet: isQuiet)
     if let update = settled(turn) { return update }
     let asked = try query(turn)
-    switch session.resolve(candidates, for: asked, now: now, elapsedMilliseconds: elapsed) {
+    switch session.resolve(candidates, for: asked, now: moment, elapsedMilliseconds: elapsed) {
     case .settled(let update):
         return update
     case .verify(let request):
         return session.resolve(
-            request.candidates, for: request, now: now, elapsedMilliseconds: elapsed)
+            request.candidates, for: request, now: moment, elapsedMilliseconds: elapsed)
     case nil:
         return nil
     }
@@ -106,9 +106,9 @@ struct SuggestionSessionTests {
         arguments: [true, false])
     func quietingRefusesFirst(secure: Bool) {
         var session = SuggestionSession()
-        let moment = PredictionContext(typed: "git c", hasSelection: !secure, isSecure: secure)
+        let context = PredictionContext(typed: "git c", hasSelection: !secure, isSecure: secure)
         #expect(
-            settled(session.turn(in: field, at: moment))
+            settled(session.turn(in: field, at: context))
                 == .quiet(because: secure ? .secureField : .textSelected))
     }
 
@@ -119,9 +119,9 @@ struct SuggestionSessionTests {
             (PredictionContext(typed: "x", isProse: true, millisecondsSinceKeystroke: 100), .writingFluently),
             (PredictionContext(typed: "x", caretAtLineEnd: false, hasSelection: true), .textSelected),
         ])
-    func eachRuleNamesItself(moment: PredictionContext, expected: Quieting.Reason) {
+    func eachRuleNamesItself(context: PredictionContext, expected: Quieting.Reason) {
         var session = SuggestionSession()
-        #expect(settled(session.turn(in: field, at: moment)) == .quiet(because: expected))
+        #expect(settled(session.turn(in: field, at: context)) == .quiet(because: expected))
     }
 
     @Test("A slow turn draws nothing, because it is answering a moment that has passed.")
@@ -137,13 +137,14 @@ struct SuggestionSessionTests {
         var session = SuggestionSession()
         let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
         guard
-            case .verify(let request) = session.resolve(lone(), for: asked, now: now, elapsedMilliseconds: 0)
+            case .verify(let request) = session.resolve(
+                lone(), for: asked, now: moment, elapsedMilliseconds: 0)
         else {
             Issue.record("a strong candidate should have gone to the gates")
             return
         }
         let late = session.resolve(
-            request.candidates, for: request, now: now,
+            request.candidates, for: request, now: moment,
             elapsedMilliseconds: SuggestionSession.turnBudgetInMilliseconds + 1)
         #expect(late == .quiet(because: .overBudget))
     }
@@ -153,13 +154,14 @@ struct SuggestionSessionTests {
         var session = SuggestionSession()
         let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
         guard
-            case .verify(let request) = session.resolve(lone(), for: asked, now: now, elapsedMilliseconds: 0)
+            case .verify(let request) = session.resolve(
+                lone(), for: asked, now: moment, elapsedMilliseconds: 0)
         else {
             Issue.record("a strong candidate should have gone to the gates")
             return
         }
         #expect(
-            session.resolve([], for: request, now: now, elapsedMilliseconds: 0)
+            session.resolve([], for: request, now: moment, elapsedMilliseconds: 0)
                 == .quiet(because: .nothingOffered))
     }
 
@@ -197,7 +199,7 @@ struct SuggestionSessionTests {
         var session = SuggestionSession()
         let first = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
         _ = session.turn(in: field, at: PredictionContext(typed: "git co"))
-        #expect(session.resolve(lone(), for: first, now: now, elapsedMilliseconds: 0) == nil)
+        #expect(session.resolve(lone(), for: first, now: moment, elapsedMilliseconds: 0) == nil)
     }
 
     @Test("An answer for a field the user has left is dropped.")
@@ -205,7 +207,7 @@ struct SuggestionSessionTests {
         var session = SuggestionSession()
         let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
         _ = session.turn(in: other, at: PredictionContext(typed: "git c"))
-        #expect(session.resolve(lone(), for: asked, now: now, elapsedMilliseconds: 0) == nil)
+        #expect(session.resolve(lone(), for: asked, now: moment, elapsedMilliseconds: 0) == nil)
     }
 }
 
@@ -416,7 +418,7 @@ struct SuggestionRoutingTests {
         _ = try draw(&session, typing: "git c")
         let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
         _ = session.route(KeyStroke(.tab))
-        #expect(session.resolve(lone(), for: asked, now: now, elapsedMilliseconds: 0) == nil)
+        #expect(session.resolve(lone(), for: asked, now: moment, elapsedMilliseconds: 0) == nil)
     }
 
     @Test("A key nothing has claimed changes nothing.")
