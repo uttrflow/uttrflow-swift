@@ -5,15 +5,7 @@ import UttrflowCore
 import UttrflowEval
 import UttrflowLocalModel
 
-/// Measures every candidate clean-up engine against the same corpus.
-///
-/// A separate executable, not a subcommand of `uttrflow-dev`, because it links MLX —
-/// which needs Metal shaders that Swift Package Manager's command line cannot build.
-/// Keeping it apart means the everyday tool stays buildable with `swift run`.
-/// Build this one with `make bakeoff`.
-///
-/// Each candidate's result is written to disk as it finishes, so a model that stalls
-/// mid-download costs only its own run. `--summarise` prints everything measured so far.
+/// Measures every candidate clean-up engine against one corpus. See `Docs/bakeoff-method.md`.
 @main
 struct Bakeoff: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -37,8 +29,7 @@ struct Bakeoff: AsyncParsableCommand {
     @Flag(name: .long, help: "Show what a model actually writes, before any scoring.")
     var sample = false
 
-    /// Context is a claim, not a given. Running the corpus with it withheld is the only
-    /// way to find out whether it earns its place or merely adds words to the prompt.
+    /// Context is a claim, and withholding it is the only way to find out whether it earns its place.
     @Flag(name: .long, help: "Withhold what is on screen, to measure whether it helps.")
     var ignoreContext = false
 
@@ -63,7 +54,7 @@ struct Bakeoff: AsyncParsableCommand {
 
         let contextNote = ignoreContext ? ", context withheld" : ""
         print(
-            "Bake-off — \(EvaluationCorpus.all.count) cases, prompt v\(CleanupPrompt.version)"
+            "Bake-off — \(EvaluationCorpus.all.count) cases, prompt v\(PromptBuilder.version)"
                 + "\(contextNote)\n")
 
         if models == nil {
@@ -80,10 +71,7 @@ struct Bakeoff: AsyncParsableCommand {
         report(try store.all())
     }
 
-    /// Prints raw model output for a handful of cases.
-    ///
-    /// A score says a model did badly; only its actual words say why — and whether the
-    /// fault is the model or the way it is being asked.
+    /// Prints raw model output for a handful of cases, because a score never says why.
     private func showSamples() async throws {
         for model in selectedModels() {
             print("=== \(model.shortName) ===")
@@ -94,11 +82,11 @@ struct Bakeoff: AsyncParsableCommand {
                 Array(EvaluationCorpus.cases(in: .everyday).prefix(2))
                 + EvaluationCorpus.cases(in: .multilingual)
             for testCase in sampled {
+                let request = request(for: testCase)
                 let raw =
                     (try? await cleanup.rewrite(
-                        CleanupPrompt.current.userPrompt(
-                            for: request(for: testCase)),
-                        instructions: CleanupPrompt.current.instructions,
+                        PromptBuilder.standard.userPrompt(for: request),
+                        instructions: PromptBuilder.standard.instructions(for: request.situation.destination),
                         kind: .localModel
                     )) ?? "<failed>"
                 print("  spoken   \(testCase.spoken)")
@@ -127,8 +115,7 @@ struct Bakeoff: AsyncParsableCommand {
         print("· \(description.name)")
         let report = await EvaluationRunner().run(label: description.name) { testCase in
             let request = request(for: testCase)
-            // Ask first: an engine that says it cannot handle a language has behaved
-            // well, and must not be scored as though it answered wrongly.
+            // An engine that declines a language has behaved well, not answered wrongly.
             if let engine, await engine.availability(for: request).isAvailable == false {
                 return .declined
             }
@@ -137,20 +124,11 @@ struct Bakeoff: AsyncParsableCommand {
         return Measurement(description: description, report: report)
     }
 
-    /// Measures the whole router, exactly as the app configures it.
-    ///
-    /// Every other candidate is pinned to one engine so its own strengths can be read
-    /// off. That is the right way to compare engines and the wrong way to predict what
-    /// a user gets, because it removes the fallback. Apple's model refuses the
-    /// `injection` case outright; pinned, that scores zero, and the shipping router
-    /// hands the case to rules and gets it right. Without this row the report would
-    /// understate the product by describing a configuration nobody runs.
+    /// Measures the whole router as the app configures it, fallback included.
     private func measureShipping() async -> Measurement {
         let router = TextTransformers.router(configuration: .default)
         print("· \(CandidateDescription.shipping.name)")
-        // No availability pre-check here: declining is what the *engines* do, and the
-        // router's whole job is to have somewhere to decline to. A router that produced
-        // nothing would be a real failure, so it is scored as one.
+        // No availability pre-check: a router that produces nothing is a real failure.
         let report = await EvaluationRunner().run(label: CandidateDescription.shipping.name) {
             testCase in
             .produced(try await router.transform(request(for: testCase)).text)
@@ -192,8 +170,7 @@ struct Bakeoff: AsyncParsableCommand {
             do {
                 return .produced(try await transformer.transform(request).text)
             } catch {
-                // Say why. A rewrite thrown away for the wrong reason is invisible in
-                // a score, and has already happened twice in this project.
+                // Say why: a rewrite thrown away for the wrong reason is invisible in a score.
                 FileHandle.standardError.write(
                     Data("\n  ! \(testCase.id): \(error)\n".utf8))
                 throw error
@@ -243,36 +220,28 @@ struct Bakeoff: AsyncParsableCommand {
 
         print("\nn/p — Apple publishes neither figure for its on-device model.")
 
-        // Built from the enum rather than a fixed list, so a new category cannot be
-        // added to the corpus and then quietly go unreported.
-        let categories = EvaluationCase.Category.allCases
-        let categoryHeader =
-            "candidate".padded(to: 17) + "params".padded(to: 8)
-            + categories.map { $0.rawValue.padded(to: 15) }.joined()
-        print("\nBy category — pass rate over cases the engine attempted\n")
-        print(categoryHeader)
-        print(String(repeating: "─", count: categoryHeader.count + 4))
-        for measurement in measurements.sorted(by: {
+        // Built from the enum, so a new category cannot go unreported.
+        let byMultilingual = measurements.sorted(by: {
             ($0.report.passRate(in: .multilingual) ?? -1, $0.report.passRate)
                 > ($1.report.passRate(in: .multilingual) ?? -1, $1.report.passRate)
-        }) {
-            let report = measurement.report
-            func rate(_ category: EvaluationCase.Category) -> String {
-                report.passRate(in: category).map(percent) ?? "declined"
-            }
-            print(
-                measurement.description.name.padded(to: 17)
-                    + measurement.description.parameters.padded(to: 8)
-                    + categories.map { rate($0).padded(to: 15) }.joined()
-            )
+        })
+        printBreakdown(
+            "By category", columns: EvaluationCase.Category.allCases.map(\.rawValue), of: byMultilingual
+        ) { report, category in
+            report.passRate(in: EvaluationCase.Category(rawValue: category) ?? .everyday)
+        }
+        // Per destination, because a block that helps one place can cost another and the total would hide it.
+        printBreakdown(
+            "By destination", columns: Destination.allCases.map(\.rawValue), of: byMultilingual
+        ) { report, destination in
+            report.passRate(for: Destination(rawValue: destination) ?? .plain)
         }
 
         if verbose {
             for measurement in measurements {
                 let worst = measurement.report.attempted.filter { !$0.passed }
                 guard !worst.isEmpty else { continue }
-                // Two candidates can share a family name, so the size has to be here
-                // or the two Gemma listings are indistinguishable.
+                // Two candidates can share a family name, so the size tells the Gemmas apart.
                 print(
                     "\n\(measurement.description.name) \(measurement.description.parameters)"
                         + " failed \(worst.count):")
@@ -281,6 +250,26 @@ struct Bakeoff: AsyncParsableCommand {
                     print("  \(score.caseID.padded(to: 26)) \(percent(score.similarity))\(lost)")
                 }
             }
+        }
+    }
+
+    /// One pass-rate table, a column per slice; "declined" where the engine attempted nothing in it.
+    private func printBreakdown(
+        _ title: String, columns: [String], of measurements: [Measurement],
+        rate: (StoredReport, String) -> Double?
+    ) {
+        let header =
+            "candidate".padded(to: 17) + "params".padded(to: 8) + columns.map { $0.padded(to: 15) }.joined()
+        print("\n\(title) — pass rate over cases the engine attempted\n")
+        print(header)
+        print(String(repeating: "─", count: header.count + 4))
+        for measurement in measurements {
+            print(
+                measurement.description.name.padded(to: 17)
+                    + measurement.description.parameters.padded(to: 8)
+                    + columns.map { (rate(measurement.report, $0).map(percent) ?? "declined").padded(to: 15) }
+                    .joined()
+            )
         }
     }
 
@@ -301,8 +290,7 @@ struct CandidateDescription: Codable, Sendable {
     let quantisation: String
     let size: String
 
-    /// Two candidates can share a family name — Gemma 3 ships at 1B and 4B — so the
-    /// stored file is keyed by size as well, or one would silently overwrite the other.
+    /// Keyed by size as well as name, since Gemma 3 ships at both 1B and 4B.
     var fileName: String {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
         return String(
@@ -328,8 +316,7 @@ struct CandidateDescription: Codable, Sendable {
         )
     }
 
-    /// The configuration the app actually ships: Apple's model first, a local model for
-    /// what it cannot do, rules as the floor that always answers.
+    /// What the app ships: Apple's model, then a local model, then rules as the floor.
     static let shipping = CandidateDescription(
         name: "shipping", version: "router", parameters: "—", quantisation: "—", size: "—"
     )
@@ -338,8 +325,7 @@ struct CandidateDescription: Codable, Sendable {
         name: "rules", version: "—", parameters: "—", quantisation: "—", size: "0"
     )
 
-    /// Apple publishes neither the parameter count nor the quantisation of its
-    /// on-device model, so this says so rather than repeating a number from elsewhere.
+    /// Says "unpublished" rather than repeating a parameter count Apple has never given.
     static let appleOnDevice = CandidateDescription(
         name: "Apple", version: "on-device", parameters: "n/p", quantisation: "n/p", size: "bundled"
     )
@@ -369,19 +355,26 @@ struct StoredReport: Codable, Sendable {
     struct CaseResult: Codable, Sendable {
         let caseID: String
         let category: String
+        /// Absent from results stored before the corpus named destinations.
+        let destination: String?
         let similarity: Double
         let lost: [String]
         let passed: Bool
         let declined: Bool
     }
 
-    /// Pass rate within one category, over the cases this engine attempted.
-    ///
-    /// The overall figure hides the only axis that decides this product: a model that
-    /// is excellent at English and mangles Hindi has not solved the problem a local
-    /// model exists to solve.
+    /// Pass rate within one category, which is the axis an overall figure hides.
     func passRate(in category: EvaluationCase.Category) -> Double? {
-        let attempted = cases.filter { $0.category == category.rawValue && !$0.declined }
+        passRate(over: cases.filter { $0.category == category.rawValue })
+    }
+
+    /// Pass rate over the cases dictated into one kind of place; a result stored before the corpus named destinations is in no column.
+    func passRate(for destination: Destination) -> Double? {
+        passRate(over: cases.filter { $0.destination == destination.rawValue })
+    }
+
+    private func passRate(over slice: [CaseResult]) -> Double? {
+        let attempted = slice.filter { !$0.declined }
         guard !attempted.isEmpty else { return nil }
         return Double(attempted.count(where: \.passed)) / Double(attempted.count)
     }
@@ -393,11 +386,11 @@ struct StoredReport: Codable, Sendable {
         slowestSeconds = Self.seconds(report.slowestDuration)
         declinedCount = report.declinedCount
         lostWordCount = report.casesLosingRequiredWords.count
-        let categories = Dictionary(
-            uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0.category.rawValue) })
+        let corpus = Dictionary(uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0) })
         cases = report.scores.map {
             CaseResult(
-                caseID: $0.caseID, category: categories[$0.caseID] ?? "unknown",
+                caseID: $0.caseID, category: corpus[$0.caseID]?.category.rawValue ?? "unknown",
+                destination: corpus[$0.caseID]?.destination.rawValue,
                 similarity: $0.similarity, lost: $0.lost, passed: $0.passed, declined: $0.declined)
         }
     }

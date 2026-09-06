@@ -4,9 +4,7 @@ import Testing
 @testable import UttrflowContext
 @testable import UttrflowCore
 
-/// A one-shot signal, so two concurrent steps can be put in an exact order without
-/// sleeping. Every timing rule in this suite is proved this way rather than against the
-/// wall clock, which would make it both slow and flaky.
+/// A one-shot signal, which is how two concurrent steps are put in an exact order without sleeping.
 private actor Gate {
     private var isOpen = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
@@ -24,9 +22,7 @@ private actor Gate {
     }
 }
 
-/// A clock whose sleep returns only once its gate is opened, so a test decides exactly
-/// when the engine's budget expires — or, by never opening it, proves that the budget
-/// is not what ended the reading.
+/// A clock whose sleep returns only once its gate is opened, so a test says when the budget expires.
 private struct GatedClock: Clock {
     let gate = Gate()
 
@@ -52,8 +48,7 @@ private let uttrflow = FrontmostApplication(
     processIdentifier: 900
 )
 
-/// The clock never fires unless a test opens its gate, so nothing here depends on how
-/// long anything actually takes.
+/// An engine on a gated clock, so nothing here depends on how long anything actually takes.
 private func makeEngine(
     frontmost: @escaping @Sendable () async -> FrontmostApplication?,
     window: @escaping @Sendable (FrontmostApplication) async -> FocusedWindow? = { _ in nil },
@@ -174,8 +169,7 @@ struct MacContextEngineTests {
         #expect(context.selectedText == nil)
     }
 
-    /// Chrome, in the probe against the running desktop: it named its window and
-    /// answered `kAXErrorNoValue` for the selection.
+    /// Chrome answers this way; see `Docs/context-accessibility.md`.
     @Test("keeps a window title whose selection the application refused")
     func titleWithoutSelection() async {
         let window = FocusedWindow(title: "Vast.ai | Console", selectedText: nil)
@@ -222,8 +216,7 @@ struct MacContextEngineTests {
         )
 
         async let reading = engine.currentContext()
-        // The read is now provably stuck, with the identity already banked. Expiring
-        // the budget from here is what makes the race deterministic.
+        // The read is provably stuck with the identity banked, so expiring the budget here is exact.
         await started.wait()
         await clock.gate.open()
         let context = await reading
@@ -258,8 +251,7 @@ struct MacContextEngineTests {
 
     @Test("returns as soon as the reading is done, without waiting out the budget")
     func doesNotWaitOutTheBudgetOnASuccessfulRead() async {
-        // The clock's gate is never opened, so the only way this test can finish at all
-        // is by the reading itself ending the wait.
+        // The clock's gate is never opened, so only the reading itself can end the wait.
         let window = FocusedWindow(title: "revenue.sql — billing")
         let context = await makeEngine(frontmost: slack, window: window).currentContext()
 
@@ -287,8 +279,7 @@ struct MacContextEngineTests {
         let context = await reading
         #expect(context.documentName == nil)
 
-        // The loser of the race now arrives. It must not resume the continuation a
-        // second time, which would trap.
+        // The loser now arrives, and must not resume the continuation a second time, which would trap.
         await release.open()
         let next = await engine.currentContext()
         #expect(next.applicationName == "Slack")
@@ -300,9 +291,7 @@ struct MacContextEngineTests {
         #expect(MacContextEngine.budget < .milliseconds(200))
     }
 
-    /// `AXUIElementSetMessagingTimeout` reads zero as "use the global default", so a
-    /// sub-second budget that rounded to zero would silently leave the Accessibility
-    /// calls uncapped.
+    /// A budget that rounded to zero would uncap the read; see `Docs/context-budget.md`.
     @Test("expresses the budget in seconds without rounding it away")
     func budgetSurvivesConversionToSeconds() {
         #expect(MacContextEngine.budgetInSeconds > 0)

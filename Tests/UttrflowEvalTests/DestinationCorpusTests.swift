@@ -51,11 +51,13 @@ struct DestinationCorpusTests {
         #expect(request.transcription.text == "on my way")
     }
 
-    /// The deterministic floor is what these cases are first measured against, and it has to pass them.
-    @Test("the rules engine passes every case that names its destination")
+    /// The deterministic floor is what these cases are first measured against, and it has to pass all but the model's own.
+    @Test("the rules engine passes every case that names its destination and is not the model's alone")
     func rulesPassDestinationCases() async throws {
-        let cases = EvaluationCorpus.cases(in: .contextual).filter { $0.destination != .plain }
-        #expect(cases.count >= 4)
+        let cases = EvaluationCorpus.cases(in: .contextual).filter {
+            $0.destination != .plain && !RulesCorpusTests.modelOnly.contains($0.id)
+        }
+        #expect(cases.count >= 15)
         for testCase in cases {
             let result = try await RuleBasedTransformer().transform(testCase.transformationRequest())
             let score = Scorer.score(result.text, against: testCase)

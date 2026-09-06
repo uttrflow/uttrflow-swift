@@ -20,6 +20,36 @@ Each released version is a git tag and a build at
   the numbers, measured before and after on the real pipeline.
 
 ### Added
+- **A word the recogniser half-heard is offered the readings it could be, and the model
+  picks the one that fits.** Three sources answer at once, in under two milliseconds for
+  a whole dictation: your own dictionary, the words on screen — the window title, the
+  selection and the text either side of the caret — and ordinary words that sound alike.
+  So "the crash is in payment sheet" comes out as "PaymentSheet" over a window called
+  `PaymentSheet.swift` and stays two words in a chat, and "clear the cash" becomes
+  "clear the cache" over `Cache.swift`. The readings go into the same model call the
+  tidying already makes, never a second one, and the guard refuses a rewrite that wrote
+  a word nobody offered. Nothing fires unless the recogniser actually reported how sure
+  it was, word by word. `Docs/cleanup.md` has the rule.
+- **You can see what the clean-up did, and switch parts of it off.** Diagnostics now lists
+  what each clean-up step changed in the last dictation, by word — "Filler words: removed
+  3: um, uh, um" — so a word that went missing can be accounted for rather than guessed
+  at; a step that is switched off is named as off, because that is why a word you expected
+  to go is still there. It stays on this Mac, and the Copy Diagnostics report counts the
+  words rather than quoting them. Settings → Dictation offers the nine deterministic
+  steps with a switch each, all on to begin with, and lets you tell Uttrflow what kind of
+  place an app really is when the built-in table has it wrong — every override you make is
+  listed there with a button that puts it back. All three take effect on your next
+  dictation rather than at the next launch.
+- **Grammar slips are repaired where the place calls for it.** "there is three", "he
+  don't", "we have went", "a apple", a tense that drifts mid-sentence — the model may
+  fix these in a document, an email or plain text, and leaves them alone in a message,
+  a cell, code or SQL. The bound keeps it a cleaning rather than a rewrite: a fix
+  changes only the form of a word the speaker said, or adds or removes an article or a
+  preposition, never which words. Dialect is not a slip — "gonna", "ain't", "me and
+  him" and a double negative go out as spoken. The guard enforces the bound
+  mechanically (every content word of the draft must survive; at most three small
+  words may change per sentence), the deterministic floor never repairs grammar, and a
+  new `grammar` corpus category measures repair against overreach per destination.
 - **The tidier knows where the words are going.** The context read now takes the text
   either side of the caret from the focused field, and the app is classified as a
   document, spreadsheet, SQL editor, code editor, messaging app, email client or plain
@@ -30,6 +60,37 @@ Each released version is a git tag and a build at
   Telegram, Discord, Messages or Teams ends without a full stop, as does a spreadsheet
   cell or a line in a code editor. Apps that do not report their field, Electron ones
   among them, keep today's capital. `Docs/cleanup.md` has the rules.
+- **The tidier's rules now do every cleaning that needs no model, before any model is
+  asked.** Ten small passes run in order over the words — fillers, stammers, a phrase
+  said twice, a spoken self-correction ("at four no sorry at five" → "at five"), spoken
+  punctuation ("milk comma eggs" → "milk, eggs", but "put a comma there" stays, and
+  "period" is a full stop only at the end, so "the trial period ended" keeps its word), "new
+  line" and "new paragraph", numbers ("sixteen point two" → "16.2", "two thirty pm" →
+  "2:30 pm", "five percent" → "5%", "port eight thousand eighty" → "port 8080"), spacing,
+  capitals and the final full stop — and each records what it did to every word. The
+  language model is handed the result, so it cannot rewrite around a filler it no longer
+  sees, and its answer is judged against the words the rules kept. `Docs/cleanup.md` has
+  the rules; ten corpus cases were added to measure them.
+- **The tidier's model is told about the place, not just the words.** Its instructions
+  are now three layers: a contract that is the same everywhere (the goal, what may be
+  removed, what may never be changed, and that a window title is only ever a spelling),
+  a short block of style rules and worked examples for the kind of place the words are
+  going — a chat message ends without a full stop but a question keeps its mark, a
+  spreadsheet cell is one line with numerals, a code editor keeps line breaks and takes
+  identifiers from the screen, a SQL editor keeps prose as prose, an email is sentences
+  and paragraphs — and, when the caret sits mid-sentence, the text just before it, so the
+  dictation continues the sentence rather than starting a new one. Every place is shown
+  the same nine worked examples — the bake-off showed that taking them away made the
+  model passive — and its own only where its layout or final stop differs, so the
+  instructions for any place are at most a tenth longer than the single prompt they
+  replace. The model is warmed for the place the moment the key goes down, and the
+  bake-off now scores each place on its own. Fifteen corpus cases were added so every
+  place has at least three. Where the model repeats the text before the caret at the
+  head of its answer, that echo is taken back; a list it writes with dashes is laid out
+  with a capital on each item and no stop; in a document, an email, a message or plain
+  text every paragraph and the last sentence end with a full stop whatever line breaks
+  the text holds, while code and SQL keep theirs and a cell is one line; and a number the
+  model writes without its thousands separator is no longer refused as invented.
 - **A dictation that fails can be retried from its audio.** Every recording is written to
   this Mac while the key is held, beside the buffer the recogniser reads, and deleted the
   moment the words land. When the words are lost — the recogniser fails, or the app dies
@@ -37,6 +98,111 @@ Each released version is a git tag and a build at
   with a Retry, which runs it through the same stages and copies the result. The floating
   button's failure state gains a Retry that opens that page. Nothing leaves the Mac; the
   privacy wording in Settings, onboarding and History now says exactly this.
+- **A long dictation is laid out where its pieces meet.** Each piece of a long dictation
+  is cleaned on its own, so three things can only be decided at the seams, and a new
+  `PieceJoiner` decides them. A spoken sequence over consecutive pieces — "first… second…
+  third", "one… two…", "number one…" — becomes a list where the place takes one (a
+  document, an email): two items at least, each of them a clause, the sequence unbroken
+  to the end of the dictation, the sequence word dropped and the item given a bullet. A
+  chat, a cell, code and SQL keep the prose. A piece that opens on a new topic — "also",
+  "next", "okay so", "another thing", "moving on", an ordinal — starts a new paragraph
+  where the place has paragraphs, and never inside a list or in a spreadsheet cell. And a
+  correction the speaker made across the pause — "let's meet at four" | "no sorry at
+  five" — now drops the half they replaced, by the same rule the self-correction pass
+  uses inside one piece.
+
+### Fixed
+- **The tidier deleted words the speaker said.** A sentence holding the word "wait"
+  opened a search for a correction, and the search would settle on an ordinary small word
+  as the point the two halves met — so "grab a coffee and wait a moment" came out as
+  "Grab a moment." and "we need to wait to finish the review" lost its "wait". "Wait" is
+  now heard as a correction only in "no wait" and "wait sorry", and a half taken back has
+  to hold a word the speaker meant rather than small words alone.
+- **The verb "dash" became an em-dash.** "We should dash off a quick note" is punctuation
+  nobody asked for; "dash" and "hyphen" now stay words when a particle follows them — off,
+  out, over, up, down, back, away, through, in, to, into, across.
+- **English doubles lost a word.** "I had had enough", "the thing that that person said"
+  and "bye bye for now" were read as stammers. The doubles the language itself makes —
+  "had had", "that that", "bye bye", "no no", "so so" — are kept; "we we" and "the the"
+  still go.
+- **A phrase said twice over lost half of itself.** "I'll pay for lunch for everyone"
+  came out as "I'll pay for everyone", "coffee with milk with sugar" as "Coffee with
+  sugar", and "the meeting is on Monday on Zoom" as "The meeting is on Zoom". The rule
+  that did it read a repeated frame of small words as a correction the speaker made
+  without saying so — but that shape is a list at least as often, and which of the two
+  halves was meant to stand is a question about meaning, not about shape. The rule is
+  gone from the deterministic floor, inside a piece and across a pause both; a correction
+  the speaker announced — "no sorry", "I mean", "actually" — is still taken back, and the
+  model is now told to drop the earlier of two goes at the same slot.
+- **A repeated number word was read as a stammer.** "extension four four two" became
+  "Extension 42" and "port eight zero zero zero" became "Port 80". A number word is never
+  a stammer now, because each copy of it is a digit of one value.
+- **"mm" was removed as a hesitation sound.** It is millimetres, and "MM" is millions, so
+  "the gap is three mm" lost its unit. "mmm" is still a hesitation.
+- **The nouns "period", "comma" and "dash" turned into punctuation.** "During the trial
+  period" became "During the trial", "I love the Victorian period" lost its noun, and
+  "the 100 metre dash was close" became "the 100 metre — was close". The check for a word
+  being talked about rather than dictated looked only one word back, so any modifier hid
+  the determiner in front of it; it now reaches three words, stopping at a mark's own
+  name so "did you finish the trial period question mark" still ends in a question mark.
+- **An acronym was read as a contraction.** "Reset the user ID" became "Reset the user
+  I'd", and "an IM" became "an I'm". A capital past the first letter now says the word is
+  an acronym.
+- **Part of a number phrase was written as a numeral.** "About a hundred and fifty users"
+  became "About a hundred and 50 users" — and when the model wrote the sentence correctly
+  the guard threw the good answer away, so the mangled floor text was what the user got.
+  A phrase whose scale the parser cannot read whole is now left whole.
+- **A sentence started after "p.m."** "Call me at five p.m. tomorrow" became "Call me at
+  5 p.m. Tomorrow." A word carrying a stop inside itself — "p.m.", "a.m.", "e.g." — no
+  longer ends a sentence.
+- **A rewrite could drop a negation and be accepted.** "not" and the "n't" forms count as
+  small words, so "I do not think we should ship" becoming "I think we should ship"
+  passed every check the guard made — the worst edit it could let through. Negation is
+  now counted on both sides, and a rewrite holding less of it is refused.
+- **A good rewrite was thrown away over a word the caret echo had taken back.** The pass
+  that removes the model's repetition of the text before the caret runs before the guard,
+  so a word inside that repetition looked to the guard like a word the model had lost.
+  The echo now counts as written.
+- **Reset left the last dictation's words on the Diagnostics page.** "Reset everything"
+  emptied the dictionary, the transcripts, the clipboard and every preference, and the
+  clean-up section went on naming the words of the dictation before it. It is cleared with
+  the transcripts now.
+- **Switching a clean-up step off stopped your own spellings informing a half-heard word**
+  until the next launch. The tidier is rebuilt in one place now, and that place hands it
+  the dictionary.
+- **An app you told Uttrflow to treat as somewhere else was treated that way only for a
+  short dictation.** A long one, cut into pieces at your pauses, was laid out for the app
+  the built-in table names instead.
+- **Pressing the key, giving up and pressing it again could send the second dictation to
+  the first one's app.** The screen read for a dictation you abandoned is now dropped with
+  it.
+- **A setting changed while you were speaking changed that dictation halfway through.**
+  Clean-up steps and per-app places now take effect on the next dictation, as they say.
+- **One correction from your dictionary silenced the half-heard-word readings for the rest
+  of the sentence.** Every other word keeps the score the recogniser gave it, so "clear the
+  cash in payment sheet" can have both its dictionary spelling and its doubtful word.
+- **One unreadable entry threw away every app you had told Uttrflow about.** An entry this
+  build has no word for now costs only itself.
+- **Diagnostics named clean-up steps by their internal names**, listed a different set of
+  them depending on how the dictation had been tidied, and ran a long row off the edge of
+  the page. It lists the steps you are offered, the same ones either way, and quotes the
+  first few words with a count of the rest.
+- **A step's work vanished from Diagnostics when a later step touched the same word.**
+  "dont" → "don't" → "Don't" was credited only to the last of them; both are named now.
+- **An app you dictate into was listed twice** under "Where your words go" once you had
+  given it a place of its own.
+- **An email whose subject mentioned Google Docs was written as a document.** What an app
+  is now beats what its window happens to be called.
+
+### Added
+- **Contractions are repaired without a model.** "dont", "cant", "youre", "thats" and
+  their kind get their apostrophe back deterministically, so a dictation the model
+  declines — Hindi, a refusal, a timeout — no longer keeps them broken. Only the words
+  that are a contraction and nothing else: "Ill" and "Id" are repaired where the capital
+  says the speaker meant "I", and "its", "wed" and "were" are left as they were said.
+- **Numbers follow the place they are going.** A spreadsheet, a SQL editor and a code
+  editor now write every number as a numeral, "one of them" → "1 of them"; a document, an
+  email, a message and plain text keep ten and up, as before.
 
 ## [0.4.0] — 2026-09-01
 

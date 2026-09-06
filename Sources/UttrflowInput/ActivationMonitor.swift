@@ -2,21 +2,7 @@ import Synchronization
 
 public import UttrflowCore
 
-/// Watches for whatever the user chose, whichever mechanism that needs.
-///
-/// Two mechanisms, because macOS offers no one way to do both. A combination is
-/// *registered* with the window server, which then delivers it. A held modifier cannot
-/// be: `RegisterEventHotKey` accepts a modifier on its own and then never fires it, so Fn
-/// has to be *watched* instead. See ``CarbonHotkeyMonitor`` and ``HeldModifierMonitor``.
-///
-/// Callers should not have to know that. ``DictationController`` is handed one monitor
-/// and asks it to start a binding; which of the two answers is this type's business, and
-/// changing the shortcut from ⌥Space to Fn is the same call it always was.
-///
-/// A fresh underlying monitor per `start`, deliberately. An `AsyncStream` has one
-/// consumer: reusing an instance would mean iterating a stream a cancelled task had
-/// already been reading, and events arriving during the changeover would go to whichever
-/// iteration won. Monitors are cheap; ambiguity about where a keypress went is not.
+/// Watches for the chosen shortcut through whichever monitor delivers it. See `Docs/shortcuts.md`.
 public final class ActivationMonitor: HotkeyMonitoring {
     public let events: AsyncStream<HotkeyEvent>
     private let continuation: AsyncStream<HotkeyEvent>.Continuation
@@ -35,6 +21,7 @@ public final class ActivationMonitor: HotkeyMonitoring {
     public func start(binding: HotkeyBinding) throws(HotkeyError) {
         stop()
 
+        // A fresh monitor each time: an `AsyncStream` has one consumer to iterate.
         let monitor: any HotkeyMonitoring =
             binding.heldModifier != nil ? HeldModifierMonitor() : CarbonHotkeyMonitor()
         // Before the forwarding task, so a monitor that refuses leaves nothing behind.
@@ -62,8 +49,7 @@ private struct Current {
     var forwarding: Task<Void, Never>?
 
     mutating func tearDown() {
-        // The monitor first: it is what produces events, and stopping it is what lets a
-        // held key report the release the pipeline is waiting for.
+        // The monitor first: stopping it is what lets a held key report the release owed.
         monitor?.stop()
         forwarding?.cancel()
         monitor = nil

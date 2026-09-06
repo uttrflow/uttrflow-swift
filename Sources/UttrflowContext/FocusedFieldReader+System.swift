@@ -8,8 +8,11 @@ private import Synchronization
 
 /// The frontmost application's identity, taken on the main thread where `NSWorkspace` is safe to read.
 public struct FrontmostApp: Sendable {
+    /// Addresses the app for the Accessibility read.
     public let processIdentifier: Int32
+    /// The app's bundle identifier, which every capability table is keyed by.
     public let bundleIdentifier: String
+    /// The app as the user knows it, cleaned of the marks some applications pad it with.
     public let name: String
 
     public init(processIdentifier: Int32, bundleIdentifier: String, name: String) {
@@ -70,7 +73,7 @@ public enum FocusedFieldReader {
         // Identity is taken on the main actor first, because the blocking read below may not touch `NSWorkspace`.
         guard let app = await frontmostApp() else { return nil }
         // A field that stops answering costs the turn half a second at most; the read finishes on its queue regardless.
-        return await Deadline.first(withinMilliseconds: 500) {
+        return await Deadline.first(within: .milliseconds(500)) {
             await withCheckedContinuation { continuation in
                 queue.async { continuation.resume(returning: snapshot(app: app)) }
             }
@@ -84,24 +87,22 @@ public enum FocusedFieldReader {
     /// How long one Accessibility call into another application may wait, since a stalled one would otherwise wait seconds.
     static let elementTimeoutInSeconds: Float = 0.05
 
+    /// How long the turn waits for the wider walk before going on without it.
+    private static let surroundingsAllowance = Duration.milliseconds(200)
+
     /// What is on screen around the focused field, or `nil` when nothing usable is focused or the wait ran out.
-    public static func surroundings(withinMilliseconds allowance: Int = 200) async -> Surroundings? {
+    public static func surroundings() async -> Surroundings? {
         guard let app = await frontmostApp() else { return nil }
         // A read that does not answer in time is left to finish on its queue; the turn goes on without it.
-        return await Deadline.first(withinMilliseconds: allowance) {
+        return await Deadline.first(within: surroundingsAllowance) {
             await withCheckedContinuation { continuation in
-                surroundingsQueue.async { continuation.resume(returning: surroundings(app: app)) }
+                surroundingsQueue.async { continuation.resume(returning: surroundings(of: app)) }
             }
         }
     }
 
-    /// The same read for a named application, front or not, which is how a probe shows what the model would be shown.
+    /// The same read synchronously, for an application front or not, which is what a probe shows the operator.
     public static func surroundings(of app: FrontmostApp) -> Surroundings? {
-        surroundings(app: app)
-    }
-
-    /// The same read, synchronously, which only the queue above calls with an identity read on main.
-    static func surroundings(app: FrontmostApp) -> Surroundings? {
         // A field with no window, or a window focused as a whole, has nothing around it worth a walk.
         guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier),
             let window = element(field, kAXWindowAttribute), !CFEqual(field, window)
@@ -119,19 +120,19 @@ public enum FocusedFieldReader {
         else { return nil }
         // Every question to the field gives up quickly, so a field that stops answering costs a moment, not the loop.
         _ = AXUIElementSetMessagingTimeout(field, elementTimeoutInSeconds)
-        guard let role = string(field, kAXRoleAttribute) else { return nil }
+        guard let role = SurfaceProbe.string(field, kAXRoleAttribute) else { return nil }
 
-        let subrole = string(field, kAXSubroleAttribute)
-        let identifier = string(field, kAXIdentifierAttribute)
-        let placeholder = string(field, kAXPlaceholderValueAttribute)
-        let description = string(field, kAXDescriptionAttribute)
+        let subrole = SurfaceProbe.string(field, kAXSubroleAttribute)
+        let identifier = SurfaceProbe.string(field, kAXIdentifierAttribute)
+        let placeholder = SurfaceProbe.string(field, kAXPlaceholderValueAttribute)
+        let description = SurfaceProbe.string(field, kAXDescriptionAttribute)
         // Decided before the value is fetched, so a declared secure field's contents are never read at all.
         let declaredSecure = SecureField.isDeclaredSecure(
             role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
             description: description)
-        let value = declaredSecure ? nil : string(field, kAXValueAttribute)
+        let value = declaredSecure ? nil : SurfaceProbe.string(field, kAXValueAttribute)
         let secure = declaredSecure || (value.map(SecureField.looksMasked) ?? false)
-        let range: CFRange? = axValue(field, kAXSelectedTextRangeAttribute, .cfRange)
+        let range = SurfaceProbe.selectedRange(field)
         let style = range.flatMap { typeStyle(field, at: $0) }
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
 
@@ -152,18 +153,11 @@ public enum FocusedFieldReader {
             fontFamily: style?.family,
             isSecure: secure,
             isComposing: Composition.isComposing(
-                markedText: markedText(field), inputSource: CompositionProbe.inputSourceKind()),
+                markedText: CompositionProbe.markedText(of: field),
+                inputSource: CompositionProbe.inputSourceKind()),
             readMicroseconds: Int((DispatchTime.now().uptimeNanoseconds - started) / 1000),
             windowTitle: windowTitle(of: field)
         )
-    }
-
-    /// What this field says about an input method's marked text. See `Docs/predict-ime.md`.
-    private static func markedText(_ field: AXUIElement) -> MarkedText {
-        guard let range: CFRange = axValue(field, "AXTextInputMarkedRange", .cfRange) else {
-            return .unanswered
-        }
-        return range.length > 0 ? .present : .absent
     }
 
     /// Accessibility measures from the top of the primary screen; AppKit measures from the bottom.
@@ -171,24 +165,29 @@ public enum FocusedFieldReader {
         SuggestionGeometry.fromAccessibility(rect, primaryScreenMaxY: primaryScreenMaxY)
     }
 
+    /// An attribute that is an element, under the same short timeout the field itself answers under.
+    private static func element(_ owner: AXUIElement, _ attribute: String) -> AXUIElement? {
+        SurfaceProbe.element(owner, attribute, timeoutInSeconds: elementTimeoutInSeconds)
+    }
+
     /// The page or the directory the field belongs to, which the window publishes when the field does not.
     private static func document(of field: AXUIElement) -> String? {
-        if let own = string(field, kAXDocumentAttribute) { return own }
+        if let own = SurfaceProbe.string(field, kAXDocumentAttribute) { return own }
         guard let window = element(field, kAXWindowAttribute) else { return nil }
-        return string(window, kAXDocumentAttribute)
+        return SurfaceProbe.string(window, kAXDocumentAttribute)
     }
 
     /// The title of the window the field sits in, which is what names one conversation, note or thread apart from another.
     private static func windowTitle(of field: AXUIElement) -> String? {
         guard let window = element(field, kAXWindowAttribute) else { return nil }
-        return string(window, kAXTitleAttribute)
+        return SurfaceProbe.string(window, kAXTitleAttribute)
     }
 
     /// The window's rectangle, which is what the strip stands on when no caret can be read.
     private static func windowFrame(of field: AXUIElement) -> CGRect? {
         guard let window = element(field, kAXWindowAttribute),
-            let origin: CGPoint = axValue(window, kAXPositionAttribute, .cgPoint),
-            let size: CGSize = axValue(window, kAXSizeAttribute, .cgSize)
+            let origin: CGPoint = SurfaceProbe.value(window, kAXPositionAttribute, .cgPoint),
+            let size: CGSize = SurfaceProbe.value(window, kAXSizeAttribute, .cgSize)
         else { return nil }
         return CGRect(origin: origin, size: size)
     }
@@ -196,20 +195,21 @@ public enum FocusedFieldReader {
     /// The caret's screen rectangle, read off the glyph beside it because its own zero-length bounds lies.
     private static func caret(_ field: AXUIElement, at range: CFRange) -> CGRect? {
         // A real selection, unlike a caret, reports its own bounds honestly.
-        if range.length > 0, let rect = bounds(field, range), rect.height > 0 { return rect }
+        if range.length > 0, let rect = SurfaceProbe.bounds(field, at: range), rect.height > 0 { return rect }
         let location = range.location
         // The caret sits at the trailing edge of the glyph before it, which is what typing just moved past.
-        if location > 0, let before = bounds(field, CFRange(location: location - 1, length: 1)),
+        if location > 0,
+            let before = SurfaceProbe.bounds(field, at: CFRange(location: location - 1, length: 1)),
             before.height > 0
         {
             return CGRect(x: before.maxX, y: before.minY, width: 0, height: before.height)
         }
         // At the very start there is no glyph before, so the caret takes the leading edge of the one after.
-        if let at = bounds(field, CFRange(location: location, length: 1)), at.height > 0 {
+        if let at = SurfaceProbe.bounds(field, at: CFRange(location: location, length: 1)), at.height > 0 {
             return CGRect(x: at.minX, y: at.minY, width: 0, height: at.height)
         }
         // An empty line has no glyph beside the caret, so its own bounds is all there is.
-        if let rect = bounds(field, range), rect.height > 0 { return rect }
+        if let rect = SurfaceProbe.bounds(field, at: range), rect.height > 0 { return rect }
         // A web field answers glyph bounds with a zero-size rectangle, but its selection's text-marker range still has a place on screen.
         if let rect = markerBounds(field), rect.height > 0 {
             return CGRect(x: rect.minX, y: rect.minY, width: 0, height: rect.height)
@@ -221,21 +221,11 @@ public enum FocusedFieldReader {
         return nil
     }
 
-    /// The screen rectangle Accessibility reports for one text range, or nothing when it will not say.
-    private static func bounds(_ field: AXUIElement, _ range: CFRange) -> CGRect? {
-        guard let answer = parameterized(field, kAXBoundsForRangeParameterizedAttribute, range),
-            CFGetTypeID(answer) == AXValueGetTypeID()
-        else { return nil }
-        var rect = CGRect.zero
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        guard AXValueGetValue(unsafeDowncast(answer, to: AXValue.self), .cgRect, &rect), !rect.isNull
-        else { return nil }
-        return rect
-    }
-
     /// What a field says about its own type, either half of which it may leave out.
     struct TypeStyle: Sendable, Equatable {
+        /// The type size in points, so the ghost matches the line it sits on.
         let size: CGFloat?
+        /// The font family, so the ghost is set in the face the line is.
         let family: String?
     }
 
@@ -302,8 +292,8 @@ public enum FocusedFieldReader {
 
         /// Where the element is, or nothing when it reports no position or no size.
         var frame: CGRect? {
-            guard let origin: CGPoint = unwrap(self[kAXPositionAttribute], .cgPoint),
-                let size: CGSize = unwrap(self[kAXSizeAttribute], .cgSize)
+            guard let origin: CGPoint = SurfaceProbe.unwrap(self[kAXPositionAttribute], .cgPoint),
+                let size: CGSize = SurfaceProbe.unwrap(self[kAXSizeAttribute], .cgSize)
             else { return nil }
             return CGRect(origin: origin, size: size)
         }
@@ -340,7 +330,7 @@ public enum FocusedFieldReader {
         let widened =
             range.length > 0 ? range : CFRange(location: max(range.location - 1, 0), length: 1)
         guard
-            let answer = parameterized(
+            let answer = SurfaceProbe.parameterized(
                 field, kAXAttributedStringForRangeParameterizedAttribute, widened),
             CFGetTypeID(answer) == CFAttributedStringGetTypeID()
         else { return nil }
@@ -380,29 +370,6 @@ public enum FocusedFieldReader {
     private static let axFontSizeKey = "AXFontSize"
     private static let axFontFamilyKey = "AXFontFamily"
 
-    /// One `AXValue` attribute, unwrapped into the Core Graphics type it stands for.
-    private static func axValue<T>(
-        _ owner: AXUIElement, _ attribute: String, _ kind: AXValueType
-    ) -> T? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success else {
-            return nil
-        }
-        return unwrap(value, kind)
-    }
-
-    /// One `AXValue`, already fetched, unwrapped into the Core Graphics type it stands for.
-    private static func unwrap<T>(_ value: AnyObject?, _ kind: AXValueType) -> T? {
-        guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        let unwrapped = UnsafeMutablePointer<T>.allocate(capacity: 1)
-        defer { unwrapped.deallocate() }
-        guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), kind, unwrapped) else {
-            return nil
-        }
-        return unwrapped.pointee
-    }
-
     /// The screen rectangle of the selection's text-marker range, which web content answers where it answers nothing for a character range.
     private static func markerBounds(_ field: AXUIElement) -> CGRect? {
         var marker: AnyObject?
@@ -424,35 +391,4 @@ public enum FocusedFieldReader {
         return rect
     }
 
-    private static func parameterized(
-        _ field: AXUIElement, _ attribute: String, _ range: CFRange
-    ) -> AnyObject? {
-        var range = range
-        guard let parameter = AXValueCreate(.cfRange, &range) else { return nil }
-        var answer: AnyObject?
-        guard
-            AXUIElementCopyParameterizedAttributeValue(
-                field, attribute as CFString, parameter, &answer) == .success
-        else { return nil }
-        return answer
-    }
-
-    private static func element(_ owner: AXUIElement, _ attribute: String) -> AXUIElement? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXUIElementGetTypeID()
-        else { return nil }
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        let element = unsafeDowncast(value, to: AXUIElement.self)
-        // A window or parent reached from the field answers under the same short timeout as the field itself.
-        _ = AXUIElementSetMessagingTimeout(element, elementTimeoutInSeconds)
-        return element
-    }
-
-    private static func string(_ owner: AXUIElement, _ attribute: String) -> String? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
-        else { return nil }
-        return value as? String
-    }
 }

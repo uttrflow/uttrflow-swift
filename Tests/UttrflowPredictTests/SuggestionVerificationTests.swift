@@ -20,7 +20,7 @@ private func requested(
     }
     guard
         case .verify(let request) = session.resolve(
-            candidates, for: query, now: now, elapsedMilliseconds: 0)
+            candidates, for: query, now: moment, elapsedMilliseconds: 0)
     else {
         Issue.record("expected the gates to be asked")
         throw CancellationError()
@@ -39,7 +39,7 @@ private func drawVerified(
         machine, on: candidates[0].text, scoring: scoring, supersession: supersession)
     let allowed = await verifier.verified(
         request.candidates, in: request.surface, typed: request.typed, now: moment)
-    return session.resolve(allowed, for: request, now: now, elapsedMilliseconds: elapsed)
+    return session.resolve(allowed, for: request, now: moment, elapsedMilliseconds: elapsed)
 }
 
 @Suite("Verifying what is about to be drawn")
@@ -122,7 +122,7 @@ struct SuggestionVerificationTests {
             return
         }
         #expect(
-            session.resolve([], for: query, now: now, elapsedMilliseconds: 0)
+            session.resolve([], for: query, now: moment, elapsedMilliseconds: 0)
                 == .settled(.quiet(because: .nothingOffered)))
     }
 
@@ -172,7 +172,8 @@ struct SuggestionVerificationBudgetTests {
         var session = SuggestionSession()
         let request = try requested(&session, typing: "git c", candidates: [habit("git commit")])
         _ = session.turn(in: terminal, at: PredictionContext(typed: "git co"))
-        #expect(session.resolve([habit("git commit")], for: request, now: now, elapsedMilliseconds: 0) == nil)
+        #expect(
+            session.resolve([habit("git commit")], for: request, now: moment, elapsedMilliseconds: 0) == nil)
     }
 
     @Test("A verdict for a field the user has left is dropped rather than drawn.")
@@ -182,6 +183,7 @@ struct SuggestionVerificationBudgetTests {
         _ = session.turn(
             in: Surface(bundleIdentifier: "com.example.notes", role: "AXTextArea"),
             at: PredictionContext(typed: "git c"))
-        #expect(session.resolve([habit("git commit")], for: request, now: now, elapsedMilliseconds: 0) == nil)
+        #expect(
+            session.resolve([habit("git commit")], for: request, now: moment, elapsedMilliseconds: 0) == nil)
     }
 }

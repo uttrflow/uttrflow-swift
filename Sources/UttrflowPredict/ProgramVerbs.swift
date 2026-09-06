@@ -1,9 +1,9 @@
 import Foundation
 
 /// Reads the targets a Makefile declares, which is what `make` takes.
-public enum MakefileTargets {
+enum MakefileTargets {
     /// Every target the text declares, in order, without the special ones, pattern rules or variables.
-    public static func names(in makefile: String) -> [String] {
+    static func names(in makefile: String) -> [String] {
         var names: [String] = []
         var seen: Set<String> = []
         for line in makefile.split(separator: "\n") {
@@ -24,9 +24,9 @@ public enum MakefileTargets {
 }
 
 /// Reads the scripts a `package.json` declares, which is what `npm run` and its kin take.
-public enum PackageScripts {
+enum PackageScripts {
     /// Every script name the manifest declares, sorted; absent when the manifest is not JSON.
-    public static func names(in manifest: String) -> [String]? {
+    static func names(in manifest: String) -> [String]? {
         guard let parsed = try? JSONSerialization.jsonObject(with: Data(manifest.utf8)),
             let object = parsed as? [String: Any]
         else { return nil }
@@ -36,9 +36,9 @@ public enum PackageScripts {
 }
 
 /// Reads the verbs a program lists in its own help, which is how docker, kubectl and gh advertise them.
-public enum HelpCommands {
+enum HelpCommands {
     /// Every command name the help text lists: an indented name set off from its description or alone, a bare name on its own line, or the names of an indented comma-separated list.
-    public static func names(in help: String) -> [String] {
+    static func names(in help: String) -> [String] {
         var names: [String] = []
         var seen: Set<String> = []
         for raw in help.split(separator: "\n") {

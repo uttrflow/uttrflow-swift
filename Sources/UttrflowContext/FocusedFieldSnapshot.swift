@@ -121,7 +121,7 @@ extension FocusedFieldSnapshot {
     }
 
     /// The text with leading spaces and tabs removed, which is what makes the query match a trimmed entry.
-    static func droppingLeadingWhitespace(_ text: String) -> String {
+    private static func droppingLeadingWhitespace(_ text: String) -> String {
         String(text.drop { $0 == " " || $0 == "\t" })
     }
 
@@ -170,10 +170,10 @@ extension FocusedFieldSnapshot {
 
 extension FocusedFieldSnapshot {
     /// The widest a field may be and still be the caret itself: editors that draw their own text park a one-pixel input field there.
-    public static let caretFieldWidth: CGFloat = 3
+    private static let caretFieldWidth: CGFloat = 3
 
     /// The heights a text caret can have, so a hidden one-pixel field is told from a collapsed or a page-tall one.
-    public static let caretHeights: ClosedRange<CGFloat> = 8...80
+    private static let caretHeights: ClosedRange<CGFloat> = 8...80
 
     /// Whether a field's frame is the shape of a caret rather than of a field, which is how an editor that renders its own text places its input field.
     public static func isCaretShaped(_ frame: CGRect) -> Bool {
@@ -181,7 +181,7 @@ extension FocusedFieldSnapshot {
     }
 
     /// The roles a person types into, which is what a focused element must be before it is taken for the field.
-    public static let textEntryRoles: Set<String> = [
+    private static let textEntryRoles: Set<String> = [
         "AXTextArea", "AXTextField", "AXComboBox", "AXSearchField", "AXWebArea",
     ]
 

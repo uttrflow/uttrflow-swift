@@ -7,22 +7,26 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
 
     /// The model that rewrites.
     private let model: any CleanupModel
-    /// The instructions and the wrapping every request gets.
-    private let prompt: CleanupPrompt
-    /// Rejects a rewrite that changed the meaning.
+    private let prompts: PromptBuilder
     private let meaningGuard: MeaningPreservationGuard
+    private let pipeline: CleaningPipeline
+    private let doubtful: DoubtfulWords
 
-    /// Pairs a model with a prompt and a guard; the defaults are the shipping ones.
+    /// `pipeline` runs before the model and should leave casing and the full stop for afterwards.
     public init(
         kind: TransformerKind,
         model: any CleanupModel,
-        prompt: CleanupPrompt = .current,
-        meaningGuard: MeaningPreservationGuard = MeaningPreservationGuard()
+        prompts: PromptBuilder = .standard,
+        meaningGuard: MeaningPreservationGuard = MeaningPreservationGuard(),
+        pipeline: CleaningPipeline = .beforeModel,
+        doubtful: DoubtfulWords = .standard
     ) {
         self.kind = kind
         self.model = model
-        self.prompt = prompt
+        self.prompts = prompts
         self.meaningGuard = meaningGuard
+        self.pipeline = pipeline
+        self.doubtful = doubtful
     }
 
     /// Passes the model's own verdict on the spoken language straight through.
@@ -30,33 +34,48 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         await model.availability(for: request.effectiveLanguage)
     }
 
-    /// Hands the model the instructions every request carries, ahead of the request.
-    public func warm() async {
-        await model.warm(instructions: prompt.instructions)
+    /// Hands the model the instructions for where the words are going, plain text's when that is not known.
+    public func warm(for situation: Situation?) async {
+        await model.warm(instructions: prompts.instructions(for: situation?.destination ?? .plain))
     }
 
     /// Rewrites, unwraps and tidies, then throws `outputRejected` when the meaning guard refuses.
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        let spoken = request.transcription.text
+        // The passes go first, so fillers and self-corrections are gone before the model can rewrite them.
+        let draft = pipeline.run(Draft(transcription: request.transcription))
+        let spoken = draft.text
+        // The sources answer in milliseconds and run beside each other, so the readings cost the call nothing.
+        let readings = await doubtful.spans(in: draft, for: request.situation)
         let rewritten = try await model.rewrite(
-            prompt.userPrompt(for: request), instructions: prompt.instructions, kind: kind
+            prompts.userPrompt(for: request, spoken: spoken, doubtful: readings),
+            instructions: prompts.instructions(for: request.situation.destination), kind: kind
         )
 
-        // Models echo the worked examples' label around the answer, so it is unwrapped before judging.
+        // Models echo the shape of the worked examples, so the answer is unwrapped before it is judged.
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
         let formatter = DestinationFormatter.standard(for: request.situation.destination)
-        let cased = FirstWordRule.apply(
-            TextTidy.collapseSpacing(unwrapped), heard: spoken, policy: formatter.firstWord,
-            state: request.situation.insertion.sentenceState, onScreen: request.situation.app.textOnScreen)
-        let finished = TerminalStopRule.apply(cased, policy: formatter.terminalStop)
+        let finishing = CleaningPipeline.afterModel(
+            for: formatter, situation: request.situation, heard: request.transcription.text)
+        let polished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped)))
+        let finished = polished.text
 
-        // A rejection is not a product failure: the router moves on to the next engine.
-        if case .rejected(let reason) = meaningGuard.verdict(original: spoken, rewritten: finished) {
+        // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
+        if case .rejected(let reason) = meaningGuard.verdict(
+            draft: draft, rewritten: finished, offering: readings, echoed: Self.echo(in: polished))
+        {
             throw .outputRejected(reason: reason)
         }
 
-        return TransformationResult(text: finished, producedBy: kind)
+        return TransformationResult(
+            text: finished, producedBy: kind,
+            cleaning: CleaningRecord(draft: draft, ran: pipeline.ids))
+    }
+
+    /// The caret's echo the finishing pipeline took back, which the model did answer with and the guard must see.
+    private static func echo(in draft: Draft) -> String {
+        draft.words.filter { $0.state == .removed(by: CaretEchoPass.id) }.map(\.text)
+            .joined(separator: " ")
     }
 }

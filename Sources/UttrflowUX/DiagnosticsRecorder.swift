@@ -2,7 +2,7 @@
 public import UttrflowCore
 
 /// Keeps the stage timings the diagnostics page reports, in memory only, so nothing is written to disk.
-public actor DiagnosticsRecorder: MetricsRecording {
+public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
     /// Six stages at a hundred dictations, computed from ``PipelineStage`` so a new stage cannot shorten it.
     public static let defaultCapacity = PipelineStage.allCases.count * 100
 
@@ -29,5 +29,17 @@ public actor DiagnosticsRecorder: MetricsRecording {
     /// Oldest first, which is the order they were measured in.
     public var recorded: [StageMeasurement] {
         measurements
+    }
+
+    /// What the clean-up steps did to the last dictation; keeping every one would be a transcript of the day.
+    public private(set) var lastCleaning: CleaningRecord?
+
+    public func record(_ record: CleaningRecord) async {
+        lastCleaning = record
+    }
+
+    /// Drops the last dictation's words, so a reset leaves none of them on the diagnostics page.
+    public func forget() {
+        lastCleaning = nil
     }
 }

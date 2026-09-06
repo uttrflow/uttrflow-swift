@@ -15,6 +15,7 @@ public struct Register: Sendable, Equatable {
     /// Whether the field is a search box, whose next word is what this person has looked for before or nothing at all.
     public let isSearchField: Bool
 
+    /// The facts as a caller already holds them, for a register that is not inferred.
     public init(
         isMultiline: Bool, typicalLength: Int?, isConversational: Bool, symbolShare: Double,
         usesSentenceCase: Bool?, writesAddresses: Bool = false, isSearchField: Bool = false

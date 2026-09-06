@@ -2,13 +2,18 @@ public import struct Foundation.Date
 
 /// Runs the gates in order, remembers what they decided, and never makes a keystroke wait.
 public actor Verifier {
+    /// What this machine says it has, which is the gate nothing below may overrule.
     private let index: EnvironmentIndex
+    /// The model that judges a candidate's likelihood, absent where there is none.
     private let scoring: (any CandidateScoring)?
+    /// The store told when a candidate is wrong for good, absent where nothing is listening.
     private let supersession: (any SupersessionRecording)?
     /// How long the model has to judge one keystroke's candidates, held so a test need not wait it out.
     private let budgetInMilliseconds: Int
+    /// The verdicts already reached, so most keystrokes cost nothing at all.
     private var cache = VerdictCache()
 
+    /// A verifier over one machine, with a model and a store only where there are any.
     public init(
         index: EnvironmentIndex, scoring: (any CandidateScoring)? = nil,
         supersession: (any SupersessionRecording)? = nil,
@@ -123,7 +128,7 @@ public actor Verifier {
         }
     }
 
-    /// What the next word may be, from the machine: anything, one of the values here that begin as it was typed, or nothing.
+    /// What the next word may be, from the machine: anything, one of the values here that begin the way it does, or nothing.
     public func options(for typed: String, in surface: Surface, now: Date) async -> ArgumentOptions {
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return .open }
         let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
