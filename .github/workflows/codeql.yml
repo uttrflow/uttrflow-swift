@@ -52,7 +52,7 @@ jobs:
     # the same machine. Every swiftc this job runs is translated.
     #
     # That is the whole of the 5x. `ci.yml` builds the entire package, MLX included, then
-    # runs 2,922 tests and a coverage floor, in under nine minutes on the same runner
+    # runs 4,000+ tests and a coverage floor, in under nine minutes on the same runner
     # class, natively. This job builds strictly less and takes forty.
     #
     # So the cap was not catching a trend anybody here can reverse. It was firing on the

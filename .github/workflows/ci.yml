@@ -65,7 +65,7 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
-      # `make verify` is lint, the PII audit, a full build, 2,900+ tests, the 95% per-module
+      # `make verify` is lint, the PII audit, a full build, 4,000+ tests, the 95% per-module
       # coverage floor, and the offline audit. It is the same command the pre-push hook runs
       # locally, deliberately: a contributor who runs it before pushing sees exactly what
       # this will see, and there is no class of failure that only CI can find.

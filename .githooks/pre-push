@@ -9,7 +9,7 @@
 #
 # A public repository does not pay for standard runners, so CI is back and this is no longer
 # the last line of defence. It is kept because it is still the fastest one. Below is
-# what .github/workflows/ci.yml did: `make verify`, which is lint, a full build, 2,640
+# what .github/workflows/ci.yml did: `make verify`, which is lint, a full build, 4,000+
 # tests and the coverage floor.
 #
 # This is no longer the only gate. CI runs `make verify` on every pull request, and a
