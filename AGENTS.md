@@ -253,6 +253,9 @@ A ruleset blocks it at the server, so this is a description of what will happen 
 than a request. If you find yourself with a commit on `main`, stop and say so rather
 than tidying it away.
 
+**Commit messages carry no `Co-Authored-By` trailer.** Not for an agent, not for a tool.
+The message says what the change does; who typed it is what `git log` already records.
+
 **Merging is not reviewing.** Nobody else read the change, so the pull request is where
 you write down what you would have wanted a reviewer to know: what was measured, what
 was assumed, and what you are least sure of. A merge that ends the conversation is worse
