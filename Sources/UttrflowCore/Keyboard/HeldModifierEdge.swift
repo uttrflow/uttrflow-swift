@@ -1,5 +1,3 @@
-public import UttrflowCore
-
 /// Turns "the flags say the key is down" into a press and a release. See `Docs/stuck-recording.md`.
 public struct HeldModifierEdge: Sendable, Equatable {
     /// Whether the key is currently held, as far as this has been told.

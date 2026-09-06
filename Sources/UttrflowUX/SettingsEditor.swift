@@ -150,6 +150,10 @@ public enum SettingsEditor {
             return SettingsRejection(
                 reason: "Hold ⌘, ⌥, ⌃ or ⇧ as well, or the shortcut would fire while you type.")
         }
+        if !binding.isCoherent {
+            return SettingsRejection(
+                reason: "That combination did not register cleanly. Press and hold it again.")
+        }
         if !binding.isDeliverable {
             // Reached only by a key code no keyboard sends; modifier-only combinations are fine.
             return SettingsRejection(
