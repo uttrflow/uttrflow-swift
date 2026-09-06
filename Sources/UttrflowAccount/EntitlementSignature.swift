@@ -1,3 +1,4 @@
+// Signing and verifying entitlements with Ed25519.
 public import CryptoKit
 
 public import struct Foundation.Data
@@ -27,6 +28,7 @@ extension Entitlement {
 
 /// Decides whether an entitlement came from the backend, as a seam a forgery can be tested through.
 public protocol EntitlementVerifying: Sendable {
+    /// Whether the signature verifies against the backend's key.
     func isAuthentic(_ entitlement: Entitlement) -> Bool
 }
 
@@ -44,6 +46,7 @@ public struct Ed25519EntitlementVerifier: EntitlementVerifying {
     /// The key, or `nil` for bytes that are not one — a build that runs and believes nothing.
     private let publicKey: Curve25519.Signing.PublicKey?
 
+    /// Verifies against a key already parsed.
     public init(publicKey: Curve25519.Signing.PublicKey) {
         self.publicKey = publicKey
     }
@@ -56,6 +59,7 @@ public struct Ed25519EntitlementVerifier: EntitlementVerifying {
     /// Whether a key is configured, which is what decides between the real backend and the development one.
     public var isConfigured: Bool { publicKey != nil }
 
+    /// Verifies the base64 signature over ``Entitlement/signedPayload``.
     public func isAuthentic(_ entitlement: Entitlement) -> Bool {
         guard let publicKey, let signature = Data(base64Encoded: entitlement.signature) else {
             return false

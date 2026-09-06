@@ -1,20 +1,13 @@
 public import UttrflowCore
 
-/// Picks the transformer that will actually clean up a given utterance.
-///
-/// Not a transformer itself: it chooses one. Engines are tried in the order the
-/// configuration lists them, and an engine that cannot handle the request — most often
-/// because it does not know the spoken language — steps aside rather than producing
-/// bad output. That is the whole of how Hindi is routed away from Apple's model, and
-/// it is data rather than an `if` statement anywhere.
+/// Tries engines in preference order, stepping around any that decline; so Hindi skips Apple's model.
 public struct TransformerRouter: TranscriptCleaning {
+    /// Every transformer this build contains.
     private let engines: [any TextTransformationEngine]
+    /// The kinds to try, in order.
     private let preference: [TransformerKind]
 
-    /// - Parameters:
-    ///   - engines: Every transformer this build contains.
-    ///   - preference: Kinds to try, in order. Should end in one that can never
-    ///     decline, so the router cannot run out of options.
+    /// Keeps the engines and the kinds to try; the preference should end in one that never declines.
     public init(engines: [any TextTransformationEngine], preference: [TransformerKind]) {
         self.engines = engines
         self.preference = preference
@@ -26,12 +19,14 @@ public struct TransformerRouter: TranscriptCleaning {
     }
 
     /// The engines that will be tried, in order.
-    public var route: [TransformerKind] {
-        preference.filter { kind in engines.contains { $0.kind == kind } }
+    public var route: [TransformerKind] { orderedEngines.map(\.kind) }
+
+    /// The preference list resolved to the engines this build has, in order.
+    private var orderedEngines: [any TextTransformationEngine] {
+        preference.compactMap { kind in engines.first { $0.kind == kind } }
     }
 
-    /// Satisfies ``TranscriptCleaning`` so the pipeline can depend on the idea of
-    /// cleaning rather than on how an engine gets chosen.
+    /// Satisfies ``TranscriptCleaning``, so the pipeline depends on cleaning rather than on engine choice.
     public func clean(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
@@ -45,12 +40,11 @@ public struct TransformerRouter: TranscriptCleaning {
         }
     }
 
+    /// The result of the first engine on the route that is available and succeeds, or `noCapableTransformer`.
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        let ordered = preference.compactMap { kind in engines.first { $0.kind == kind } }
-
-        let outcome = await FallbackRunner.firstSuccess(among: ordered) { engine in
+        let outcome = await FallbackRunner.firstSuccess(among: orderedEngines) { engine in
             guard await engine.availability(for: request).isAvailable else {
                 throw TransformationError.noCapableTransformer
             }

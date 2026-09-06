@@ -1,13 +1,12 @@
+// Tests for the window's palette.
+
 import AppKit
 import SwiftUI
 import Testing
 
 @testable import Uttrflow
 
-/// Colours are drawn, so most of what they do cannot be tested here. Two things can, and
-/// both are the kind of mistake that ships: a hex unpacked into the wrong channel, and a
-/// dynamic colour that answers with the wrong appearance's value. Either one is invisible
-/// in the code and obvious on screen, which is the wrong way round.
+/// Two testable mistakes: a hex unpacked into the wrong channel, and a dynamic colour resolving wrongly.
 @MainActor
 @Suite("The window's palette")
 struct OrbitPaletteTests {
@@ -61,8 +60,7 @@ struct OrbitPaletteTests {
         #expect(abs(light[3] - 0.05) < 0.01)
     }
 
-    /// `name == .darkAqua` would answer this wrongly: somebody running the high-contrast
-    /// dark appearance would get the light palette on a dark desktop.
+    /// `name == .darkAqua` would give the high-contrast dark appearance the light palette.
     @Test("counts the accessibility dark appearances as dark")
     func accessibilityDarkIsDark() {
         #expect(NSAppearance(named: .darkAqua)?.isDark == true)
@@ -71,9 +69,7 @@ struct OrbitPaletteTests {
         #expect(NSAppearance(named: .accessibilityHighContrastAqua)?.isDark == false)
     }
 
-    /// The rail sinks into the window and the card lifts off it. Stated as a test because
-    /// the three greys are within a few points of each other, and a pair swapped in the
-    /// table would look like a rendering bug rather than a typo.
+    /// The three greys are within a few points, and a swapped pair would look like a rendering bug.
     @Test("the rail is darker than the page, and a card lighter")
     func surfacesStack() {
         func luminance(_ colour: Color) -> CGFloat {

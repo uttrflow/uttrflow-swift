@@ -1,31 +1,22 @@
+// The panel's microphone: why it cannot be used, and what it says about itself.
 import Foundation
 
 /// Why the panel's microphone cannot be used.
 public enum PanelDictationObstacle: Sendable, Equatable {
-    /// I6 — macOS has not been asked, or was told no.
+    /// macOS has not been asked, or said no.
     case microphoneNotGranted
-    /// I7 — the speech model is still arriving.
-    ///
-    /// Its own case, and not merely "unavailable", because the clipboard is unaffected:
-    /// saying which of the two halves is not ready is the difference between "one control
-    /// is still downloading" and "this panel is broken".
+    /// The speech model is still arriving; its own case, since the clipboard half is unaffected.
     case modelNotReady(percent: Int?)
 }
 
-/// Whether the panel's microphone can start a dictation.
-///
-/// Deliberately not a progress state. Pressing it starts the same dictation ⌥Space starts,
-/// and the panel closes: the words go to the caret, and *listening*, *transcribing* and
-/// "didn't catch that" are already shown on the floating dock, which is built for exactly
-/// that and stays visible over whatever the user is typing into.
-///
-/// A second live transcript inside a panel that has to close before the words can be
-/// inserted would be two places reporting one dictation, and the one that could not finish
-/// the job would be the more prominent of them.
+/// Whether the microphone can start a dictation; not a progress state, since the dock shows that.
 public enum PanelDictation: Sendable, Equatable {
+    /// Pressing it starts a dictation.
     case ready
+    /// Pressing it does nothing, for this reason.
     case unavailable(PanelDictationObstacle)
 
+    /// Whether pressing it does anything.
     public var canStart: Bool {
         if case .ready = self { return true }
         return false
@@ -34,15 +25,16 @@ public enum PanelDictation: Sendable, Equatable {
 
 /// The microphone, ready to draw.
 public struct PanelMicrophone: Sendable, Equatable {
+    /// The SF Symbol on the button.
     public let symbolName: String
-    /// What a screen reader says. Always states what will happen, or why nothing will —
-    /// never just "Microphone".
+    /// What a screen reader says: what will happen, or why nothing will, never just "Microphone".
     public let label: String
+    /// Whether it can be pressed.
     public let isEnabled: Bool
-    /// Shown beside it when it cannot be used, because a dimmed button with no reason is
-    /// a button the user presses twice and then distrusts.
+    /// Shown beside it when it cannot be used, since a dimmed button with no reason gets pressed twice.
     public let status: String?
 
+    /// Builds the microphone from its parts.
     public init(symbolName: String, label: String, isEnabled: Bool, status: String?) {
         self.symbolName = symbolName
         self.label = label
@@ -52,7 +44,7 @@ public struct PanelMicrophone: Sendable, Equatable {
 }
 
 extension PanelPresenter {
-    /// I1, I6, I7.
+    /// The microphone as drawn for a state.
     public static func microphone(for state: PanelDictation) -> PanelMicrophone {
         switch state {
         case .ready:

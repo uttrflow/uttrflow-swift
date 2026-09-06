@@ -1,13 +1,16 @@
+// Shortcuts as keycaps, and the recorder that takes a new one without ever accepting a dead one.
 public import UttrflowCore
 
 /// How a shortcut is drawn on keycaps.
 public enum SettingsShortcut {
-    /// One cap per key, modifiers first, in the order macOS draws them.
-    ///
-    /// A fixed order rather than the set's own: `Set` has none, so two Macs showing the
-    /// same shortcut could otherwise label it differently.
+    /// One cap per key, modifiers first in the order macOS draws them, since a `Set` has no order.
     public static func keycaps(for binding: HotkeyBinding) -> [String] {
-        modifierOrder.filter(binding.modifiers.contains).map(symbol(for:)) + [name(of: binding.keyCode)]
+        modifierCaps(for: binding) + [name(of: binding.keyCode)]
+    }
+
+    /// The modifier caps alone, in the order macOS draws them.
+    static func modifierCaps(for binding: HotkeyBinding) -> [String] {
+        modifierOrder.filter(binding.modifiers.contains).map(symbol(for:))
     }
 
     /// Modifiers as one run of glyphs, for places too narrow for separate caps.
@@ -18,6 +21,7 @@ public enum SettingsShortcut {
     /// Apple's order: control, option, shift, command, reading left to right.
     private static let modifierOrder: [HotkeyModifier] = [.control, .option, .shift, .command]
 
+    /// The glyph for a modifier.
     private static func symbol(for modifier: HotkeyModifier) -> String {
         switch modifier {
         case .control: "⌃"
@@ -27,15 +31,7 @@ public enum SettingsShortcut {
         }
     }
 
-    /// What the key is called.
-    ///
-    /// Key codes are positional, so these are the names of the positions on an ANSI
-    /// keyboard. A pure module cannot ask the window server what the current layout has
-    /// printed on that key, so on an AZERTY Mac the letter caps read as the QWERTY
-    /// letter in the same place — wrong about the label, never about which key. Anything
-    /// unnamed is shown as its code rather than blank, so a shortcut recorded on
-    /// hardware this table has never heard of is still something the user can see and
-    /// replace.
+    /// The key's name by ANSI position, or its code; on a non-QWERTY layout the letter is QWERTY's.
     static func name(of keyCode: UInt16) -> String {
         keyNames[keyCode] ?? "Key \(keyCode)"
     }
@@ -43,6 +39,7 @@ public enum SettingsShortcut {
     /// Escape on its own, which cancels recording rather than becoming a shortcut.
     static let escapeKeyCode: UInt16 = 53
 
+    /// Names by ANSI key position.
     private static let keyNames: [UInt16: String] = [
         0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
         11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 31: "O", 32: "U",
@@ -52,8 +49,7 @@ public enum SettingsShortcut {
         24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\", 43: ",", 44: "/",
         47: ".", 50: "`",
         36: "Return", 48: "Tab", 49: "Space", 51: "Delete", 53: "Escape",
-        // Held rather than combined: the one key on a Mac that types nothing and
-        // modifies nothing on its own, which is what makes holding it a usable trigger.
+        // Held rather than combined: the one key that types nothing and modifies nothing on its own.
         63: "fn",
         64: "F17", 65: "Decimal", 67: "Multiply", 69: "Plus", 71: "Clear", 75: "Divide",
         76: "Enter", 78: "Minus", 79: "F18", 80: "F19", 81: "Equals",
@@ -80,18 +76,7 @@ public enum SettingsShortcutOutcome: Sendable, Equatable {
     case cancelled
 }
 
-/// The shortcut field, while the user is changing it.
-///
-/// A value rather than a screen: the whole of "what has been pressed, what is in force,
-/// and what to say about the last attempt" is decided here, so the field itself only
-/// draws what it is given and reports what was typed.
-///
-/// The rule that matters is that ``binding`` never becomes something macOS would not
-/// deliver. A shortcut that does nothing is not a cosmetic fault — it leaves the user
-/// with no way to dictate, and on a menu-bar app, an awkward route back to this screen
-/// to undo it. So a refused combination changes nothing at all and recording stays
-/// open, which puts the user one keystroke from a shortcut that works rather than one
-/// undo from it.
+/// The shortcut field while the user changes it; ``binding`` never becomes one macOS would not deliver.
 public struct SettingsShortcutRecorder: Sendable, Equatable {
     /// The shortcut in force. Only ever a deliverable one.
     public private(set) var binding: HotkeyBinding
@@ -100,10 +85,7 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     /// Why the last attempt was refused, until the next one replaces it.
     public private(set) var rejection: String?
 
-    /// - Parameter binding: The shortcut in force. An undeliverable one — from an older
-    ///   build, or a hand-edited preferences file — is replaced by the default, because
-    ///   showing the user a shortcut that cannot work is how they come to believe the
-    ///   app is broken rather than the setting.
+    /// Starts from the shortcut in force; an undeliverable one is replaced by the default.
     public init(binding: HotkeyBinding) {
         self.binding = binding.isDeliverable ? binding : .optionSpace
     }
@@ -113,32 +95,26 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
         isRecording ? "Press the new shortcut" : SettingsShortcut.compact(binding)
     }
 
+    /// Starts listening for a keystroke.
     public mutating func beginRecording() {
         isRecording = true
         rejection = nil
     }
 
+    /// Stops listening, changing nothing.
     public mutating func cancel() {
         isRecording = false
         rejection = nil
     }
 
-    /// Takes a keystroke and says what became of it.
-    ///
-    /// - Parameters:
-    ///   - keyCode: The hardware key code, which is positional and so survives a
-    ///     non-QWERTY layout.
-    ///   - modifiers: The modifiers held down with it.
-    /// - Returns: What happened, including the change to save when one was earned.
+    /// Takes a keystroke by positional key code and modifiers, and says what became of it.
     public mutating func record(
         keyCode: UInt16,
         modifiers: Set<HotkeyModifier>
     ) -> SettingsShortcutOutcome {
         guard isRecording else { return .ignored }
 
-        // Escape alone means "leave it as it was", the convention every shortcut field
-        // on the platform follows. Checked before validation, or it would be reported
-        // as a shortcut with no modifier rather than as the way out.
+        // Escape alone means "leave it", the platform convention; checked before validation.
         if keyCode == SettingsShortcut.escapeKeyCode, modifiers.isEmpty {
             cancel()
             return .cancelled

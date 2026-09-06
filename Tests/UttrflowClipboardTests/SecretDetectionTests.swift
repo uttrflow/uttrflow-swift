@@ -1,12 +1,10 @@
+// Tests for credential detection.
+
 import Testing
 
 @testable import UttrflowClipboard
 
-/// The one detection rule with a cost attached to being wrong.
-///
-/// Every credential below is invented — the shapes are real, the values are not — but
-/// they are shaped exactly as the issuers shape them, because a rule tested against
-/// made-up shapes is a rule that has not been tested.
+/// The one detection rule with a cost attached to being wrong; every credential below is invented.
 @Suite("What must not be legible on a shared screen")
 struct SecretDetectionTests {
     @Test(
@@ -24,8 +22,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) == .secret)
     }
 
-    /// A URL with a port, or with a username and no password, is still just a URL. This
-    /// is the boundary the connection-string rule is drawn around.
+    /// A URL with a port, or a username and no password, is still just a URL.
     @Test(
         "leaves a URL that carries no password alone",
         arguments: [
@@ -37,19 +34,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) == .link)
     }
 
-    /// Two of these are assembled rather than written out, and only two.
-    ///
-    /// Every string here is invented — that is the point of the suite, and none of them
-    /// opens anything. But GitHub's push protection matches on shape, not on whether a
-    /// token is real, and these fixtures match by construction: their entire job is to
-    /// satisfy the patterns in ``SecretShapes``. Written as literals, the GitLab and
-    /// Shopify ones make this repository unpushable without clicking "allow" on a
-    /// false-positive form — and so does every fork, for every contributor, for ever.
-    ///
-    /// The detector is fed exactly the same characters either way; only the bytes on
-    /// disk differ. The rest are left as literals because the scanner does not object to
-    /// them: AWS publishes `AKIAIOSFODNN7EXAMPLE` as its own example, and the others
-    /// carry checks that an invented value fails.
+    /// Assembled rather than written out, because GitHub's push protection matches these shapes as-is.
     private static let gitLabToken = "glpat-" + "x7Kd9Pq2LmRt4Vw8Nz1C"
     private static let shopifyToken = "shpat_" + "a1b2c3d4e5f6a7b8" + "c9d0e1f2a3b4c5d6"
 
@@ -74,8 +59,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) == .secret)
     }
 
-    /// The prefix on its own is prose about keys, not a key. The minimum lengths in the
-    /// rules exist so that writing about this feature does not set off the feature.
+    /// The prefix on its own is prose about keys, not a key.
     @Test(
         "does not mask talk about keys",
         arguments: ["sk-", "our sk- keys rotate monthly", "AKIA", "ghp_ tokens are legacy now"])
@@ -122,8 +106,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) == .secret)
     }
 
-    /// A whole environment file is caught by any one of its lines, which is the reason
-    /// that rule is anchored to a line ending rather than to the end of the text.
+    /// A whole environment file is caught by any one of its lines.
     @Test("masks an environment file pasted whole")
     func environmentFile() {
         let env = """
@@ -135,9 +118,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: env) == .secret)
     }
 
-    /// Naming a secret is not the same as giving one. A type annotation, a placeholder
-    /// and a prompt all mention a password and none of them is one — and masking every
-    /// model in a codebase that has a password field would be noise, not protection.
+    /// Naming a secret is not giving one: a type annotation, a placeholder and a prompt are not secrets.
     @Test(
         "does not mask a mention of a secret with nothing behind it",
         arguments: [
@@ -164,9 +145,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) == .secret)
     }
 
-    /// The statistical rule is the loosest one here, so its gates matter. A short token,
-    /// one with no digit in it, one with a full stop in it, one that opens like a path,
-    /// and a whole paragraph are all left alone.
+    /// The statistical rule is the loosest one, so its gates matter.
     @Test(
         "does not reach for the entropy rule where it has no business",
         arguments: [
@@ -182,9 +161,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) != .secret)
     }
 
-    /// A multi-line clip is a document, and documents legitimately carry digests. A diff
-    /// with a commit hash in it is code, not a credential — masking the whole file to
-    /// hide one hash would hide far more than it protected.
+    /// A multi-line clip is a document, and documents legitimately carry digests.
     @Test("does not mask a document because one line of it looks random")
     func documentsWithDigests() {
         let diff = """
@@ -195,8 +172,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: diff) == .code)
     }
 
-    /// Ordinary writing is never a secret, however long it is. This is the population
-    /// the whole file is trying not to touch.
+    /// Ordinary writing is never a secret, however long.
     @Test(
         "leaves ordinary things alone",
         arguments: [
@@ -211,8 +187,7 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) != .secret)
     }
 
-    /// Secret is asked first, and this is why: each of these is genuinely also something
-    /// else, and being right about the something else would put a credential on screen.
+    /// Secret is asked first because each of these is also something else.
     @Test("wins over every other kind when a clip is both")
     func secretWinsTies() {
         #expect(ClipKindDetector.kind(of: "postgres://admin:hunter2@db.example.com/app") == .secret)

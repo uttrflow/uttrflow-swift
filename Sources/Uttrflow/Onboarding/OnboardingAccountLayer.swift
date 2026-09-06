@@ -1,22 +1,14 @@
+// The backend, profile cache and local-account store, paired.
+
 import Foundation
 import UttrflowAccount
 import UttrflowUX
 
-/// The backend, and the cache that believes what it signs.
-///
-/// One value rather than two independent defaults, because the two have to agree. A
-/// profile cache carrying the release public key refuses every entitlement the development
-/// service mints, and the user meets that as a sign-in that fails with a signature error
-/// nobody can act on. Pairing them here makes the disagreement unrepresentable.
+/// The backend and the cache that believes what it signs, paired so the two cannot disagree about the key.
 struct OnboardingAccountLayer {
     let authentication: any AuthenticationService
     let profiles: any ProfileCache
-    /// Where the choice to work without an account is kept.
-    ///
-    /// Paired with the other two rather than made where it is needed, for the same reason
-    /// they are paired: three windows read it — onboarding writes it, the main window
-    /// draws from it, and the gate decides on it — and three separate stores would be
-    /// three answers to one question.
+    /// Where the choice to work without an account is kept; one store, read by three windows.
     let local: any LocalAccountStore
 
     /// Re-reads the profile from the server and caches whatever comes back.
@@ -24,17 +16,10 @@ struct OnboardingAccountLayer {
         AccountRefresh(service: authentication, profiles: profiles)
     }
 
-    /// The Info.plist key naming the backend. Absent in a development build, which is
-    /// what makes a development build one.
+    /// The Info.plist key naming the backend; absent in a development build.
     static let endpointKey = "UttrflowBackendURL"
 
-    /// Whichever backend this build is equipped to talk to.
-    ///
-    /// Two things must be true before the real one is used: an address to reach it at, and
-    /// a public key to check what it signs. Either one alone produces a build that can
-    /// sign somebody in and then refuse the entitlement it was handed, which is the most
-    /// confusing failure this module can produce — so the choice is made once, here, and
-    /// the development service is the answer whenever the pair is incomplete.
+    /// The real backend only when both its address and its public key are present; otherwise development.
     static func forThisBuild(bundle: Bundle = .main) -> OnboardingAccountLayer {
         let configured = (bundle.object(forInfoDictionaryKey: endpointKey) as? String)
             .flatMap(URL.init(string:))
@@ -56,14 +41,7 @@ struct OnboardingAccountLayer {
             local: UserDefaultsLocalAccountStore())
     }
 
-    /// What the app runs on until a backend has been deployed and a key compiled in.
-    ///
-    /// The signature check is live, not switched off: the development service holds a real
-    /// Ed25519 key and the cache checks against its public half, so the verifying path is
-    /// exercised every time somebody signs in rather than meeting its first signature on
-    /// release day. The key is generated per process, so a profile cached by one run is not
-    /// believed by the next — correct for development, and exactly what the real backend's
-    /// stable key fixes.
+    /// The in-memory service with a per-process Ed25519 key, so the signature check runs in development too.
     static func development() -> OnboardingAccountLayer {
         let service = InMemoryAuthenticationService()
         return OnboardingAccountLayer(

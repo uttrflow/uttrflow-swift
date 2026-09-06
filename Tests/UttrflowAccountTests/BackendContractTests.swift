@@ -3,40 +3,31 @@ import Testing
 
 @testable import UttrflowAccount
 
-/// Checks the app against the real fixture the backend emits.
-///
-/// This suite exists because the two sides once disagreed in silence. The service signed
-/// six fields with a millisecond expiry while the app verified four with a second expiry,
-/// so no entitlement it ever issued could have verified — and every test on both sides
-/// passed, because each was checking its own idea of the contract against itself. Only
-/// running one side's verifier over the other side's bytes finds that.
+/// Runs the app's verifier over bytes the backend signs; each side's own tests cannot see a disagreement.
 @Suite(
     "The contract with uttrflow-backend",
     .enabled(if: BackendCheckout.isPresent, BackendCheckout.absenceReason))
 struct BackendContractTests {
+    /// The fixture file's shape.
     private struct Fixture: Decodable {
+        /// One signed entitlement and the verdict the backend expects for it.
         struct Case: Decodable {
+            /// The case's label.
             let name: String
+            /// `"valid"`, or the reason it is not.
             let expectation: String
+            /// The entitlement under test.
             let entitlement: Entitlement
         }
+        /// The key that signed every valid case.
         let publicKeyBase64: String
+        /// The signed payload's lines, for the valid case.
         let canonicalForm: [String]
+        /// Every case, valid and not.
         let cases: [Case]
     }
 
-    /// The fixture, or an error naming what is wrong with it.
-    ///
-    /// The suite as a whole is skipped when there is no backend at all — that is the
-    /// `.enabled(if:)` above, and it is reported. So by the time this runs the checkout
-    /// exists, and a missing or unreadable fixture inside it is a real failure rather than
-    /// another reason to go quiet.
-    ///
-    /// That distinction is the entire point. This used to return `nil` for both "no
-    /// sibling checkout" and "the path is wrong", which made a dead suite and a skipped
-    /// one identical — and it had already sat dead for days once, behind a hardcoded home
-    /// directory. ``BackendCheckout`` finds the checkout by searching upward rather than
-    /// counting `..`, because counting was wrong from every worktree.
+    /// The fixture, or an error: no backend is a skip, but no fixture beside a present backend is a failure.
     private func loadFixture() throws -> Fixture {
         let path = try #require(
             BackendCheckout.fixture("entitlements.json"),

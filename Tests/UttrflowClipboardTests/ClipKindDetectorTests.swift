@@ -1,11 +1,12 @@
+// Tests for what a copied string is.
+
 import Testing
 
 @testable import UttrflowClipboard
 
 @Suite("What a copied thing turns out to be")
 struct ClipKindDetectorTests {
-    /// Most things are prose, and prose is the answer that costs nothing when it is
-    /// wrong. Each of these is a near-miss for one of the other kinds.
+    /// Most things are prose, the answer that costs nothing when wrong; each of these is a near-miss.
     @Test(
         "calls ordinary writing text",
         arguments: [
@@ -24,16 +25,14 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .text)
     }
 
-    /// Nothing at all is still text: there is no kind for "empty", and the store refuses
-    /// to record one anyway.
+    /// Nothing at all is still text; the store refuses to record one anyway.
     @Test("calls nothing text")
     func empty() {
         #expect(ClipKindDetector.kind(of: "") == .text)
         #expect(ClipKindDetector.kind(of: "   \n\t ") == .text)
     }
 
-    /// Surrounding whitespace is a copying accident, never a kind. The clip keeps its
-    /// original text; only the detection sees it trimmed.
+    /// Surrounding whitespace is a copying accident, never a kind.
     @Test("ignores whitespace around the edges")
     func trimming() {
         #expect(ClipKindDetector.kind(of: "  https://example.com \n") == .link)
@@ -60,8 +59,7 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .link)
     }
 
-    /// The three near-misses the product was told about, plus the two that come up in
-    /// practice: a scheme-less host and a link with prose attached.
+    /// The three near-misses the product names, plus a scheme-less host and a link with prose attached.
     @Test(
         "does not call these links",
         arguments: [
@@ -100,8 +98,7 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .colour)
     }
 
-    /// Five and seven hex digits are not a notation anyone uses, and a bare word after a
-    /// hash is a tag rather than a colour.
+    /// Five and seven hex digits are no notation, and a bare word after a hash is a tag.
     @Test(
         "does not call these colours",
         arguments: [
@@ -112,10 +109,7 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) != .colour)
     }
 
-    /// The whole clip has to be the colour. A colour with anything else around it is a
-    /// sentence about a colour or a line of source, and both of those are clips people
-    /// keep — the swatch would be beside the wrong thing, and in the CSS case the row
-    /// would lose the monospaced face it needs more.
+    /// The whole clip has to be the colour; a sentence about one is a sentence, and CSS is code.
     @Test(
         "does not call a clip that merely contains a colour one",
         arguments: [
@@ -129,8 +123,7 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) != .colour)
     }
 
-    /// Three hex letters are also three ordinary words, and six are `facade`. The `#` is
-    /// what keeps a swatch off them, and this is the test that says so out loud.
+    /// Three hex letters are also three ordinary words, and the `#` is what keeps a swatch off them.
     @Test(
         "requires the hash",
         arguments: ["fff", "ffffff", "dad", "bed", "ace", "fade", "added", "decade", "facade"])
@@ -138,19 +131,14 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .text)
     }
 
-    /// A component out of range is a typo or a slider read in the wrong units, not a
-    /// change of kind. It stays a colour and ``ClipKindDetector/colour(in:)`` clamps it —
-    /// which is what a browser does with the same string.
+    /// A component out of range is a typo, not a change of kind; `colour(in:)` clamps it.
     @Test("still calls an out-of-range colour a colour")
     func outOfRange() {
         #expect(ClipKindDetector.kind(of: "rgb(300, 0, 0)") == .colour)
         #expect(ClipKindDetector.kind(of: "hsl(400, 200%, 50%)") == .colour)
     }
 
-    /// Colour is asked after ``ClipKind/secret`` and before ``ClipKind/link`` and
-    /// ``ClipKind/code``, and each of those boundaries is a real string rather than a
-    /// hypothetical one. A URL fragment is the case that pushed colour below link, and a
-    /// bracketed call is the case that pushed it above code.
+    /// Colour is asked after secret and before link and code, and each boundary is a real string.
     @Test("gives way to a secret and to a link, and takes precedence over code")
     func colourPrecedence() {
         // `#fff` after a URL is part of the address, and the address is the clip.
@@ -184,8 +172,7 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .code)
     }
 
-    /// The case the brief called out: one line, no punctuation of any kind, and still
-    /// unmistakably something to be set in a monospaced face.
+    /// One line, no punctuation, and still unmistakably something to set in a monospaced face.
     @Test(
         "calls a one-line shell command code",
         arguments: [
@@ -203,8 +190,7 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .code)
     }
 
-    /// Prose that happens to carry a brace, a semicolon or a keyword is not code. One
-    /// signal is never enough, which is the rule this exists to hold in place.
+    /// Prose with a brace, a semicolon or a keyword is not code; one signal is never enough.
     @Test(
         "does not call prose code",
         arguments: [

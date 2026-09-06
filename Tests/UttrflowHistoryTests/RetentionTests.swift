@@ -4,8 +4,10 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowHistory
 
+/// The retention value and the store's presentable failure.
 @Suite("The window, and what the store can refuse")
 struct RetentionTests {
+    /// A fixed instant.
     private let noon = Date(timeIntervalSince1970: 1_700_000_000)
 
     @Test("carries the window and the moment it is measured from")
@@ -17,8 +19,7 @@ struct RetentionTests {
         #expect(retention != Retention(days: 30, now: noon))
     }
 
-    /// A failure the user cannot act on must still say something they can understand,
-    /// and must not overstate what it cost them.
+    /// A failure the user cannot act on must still read plainly and not overstate what it cost them.
     @Test("a refused write explains itself without offering a button that would not help")
     func failureIsPresentable() {
         let failure = HistoryStoreError.couldNotWrite

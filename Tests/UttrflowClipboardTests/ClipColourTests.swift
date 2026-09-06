@@ -1,13 +1,12 @@
+// Tests for reading a colour clip's value.
+
 import Testing
 
 @testable import UttrflowClipboard
 
 @Suite("Which colour a colour clip is")
 struct ClipColourTests {
-    /// A tenth of a byte. Hex arrives as exact ratios and comes back bit-identical, but
-    /// HSL goes through a division by thirty and a remainder, so `hsl(320, 100%, 50%)`
-    /// misses `#ff00aa` by a few ulps. Any error a swatch could show is thousands of
-    /// times larger than this.
+    /// A tenth of a byte: HSL goes through a division by thirty, so it misses hex by a few ulps.
     private static let tolerance = 1.0 / 2550
 
     private func expect(
@@ -30,9 +29,7 @@ struct ClipColourTests {
 
     // MARK: - Hex
 
-    /// The shorthand doubles its digits rather than padding them, which is the one way
-    /// a hex reader is usually wrong: `#f0a` is `#ff00aa`, and `#f000a0` is a different
-    /// and slightly darker colour.
+    /// The shorthand doubles its digits rather than padding them: `#f0a` is `#ff00aa`.
     @Test("reads hex")
     func hex() {
         expect("#fff", is: ClipColour(red: 1, green: 1, blue: 1, alpha: 1))
@@ -43,9 +40,7 @@ struct ClipColourTests {
         expect("#808080", is: ClipColour(red: 128 / 255, green: 128 / 255, blue: 128 / 255, alpha: 1))
     }
 
-    /// Eight digits is how a design tool writes a colour that is partly see-through, and
-    /// the alpha is the byte a swatch gets wrong most visibly — an opaque swatch where a
-    /// nearly invisible one was meant looks like the wrong colour, not the wrong alpha.
+    /// Eight digits is how a tool writes a partly see-through colour, and the alpha is the visible mistake.
     @Test("reads the alpha out of four- and eight-digit hex")
     func hexAlpha() {
         expect("#ffffffff", is: ClipColour(red: 1, green: 1, blue: 1, alpha: 1))
@@ -69,8 +64,7 @@ struct ClipColourTests {
         expect("rgb(0% 100% 100%)", is: ClipColour(red: 0, green: 1, blue: 1, alpha: 1))
     }
 
-    /// The two spellings are the same colour, so they had better read as the same
-    /// numbers. Design tools have moved to the second; the clipboard still carries both.
+    /// The two spellings are the same colour; tools have moved to the second, the clipboard carries both.
     @Test("reads the modern slash-separated spelling the same as the legacy one")
     func modernSyntax() {
         expect("rgb(0 128 255 / 0.5)", is: ClipColour(red: 0, green: 128 / 255, blue: 1, alpha: 0.5))
@@ -78,8 +72,7 @@ struct ClipColourTests {
         expect("hsl(120 100% 50% / 0.25)", is: ClipColour(red: 0, green: 1, blue: 0, alpha: 0.25))
     }
 
-    /// `rgba()` with three components and `rgb()` with four are both legal CSS and mean
-    /// what they look like. Reading the trailing `a` as a promise would reject them.
+    /// `rgba()` with three components and `rgb()` with four are both legal CSS.
     @Test("does not hold the function to its own name")
     func interchangeableNames() {
         expect("rgba(0, 128, 255)", is: ClipColour(red: 0, green: 128 / 255, blue: 1, alpha: 1))
@@ -97,14 +90,11 @@ struct ClipColourTests {
         expect("hsl(0, 0%, 50%)", is: ClipColour(red: 0.5, green: 0.5, blue: 0.5, alpha: 1))
         expect("hsla(120deg, 100%, 50%, 0.25)", is: ClipColour(red: 0, green: 1, blue: 0, alpha: 0.25))
         expect("HSL(120DEG, 100%, 50%)", is: ClipColour(red: 0, green: 1, blue: 0, alpha: 1))
-        // CSS wants the percent signs on saturation and lightness. Enough tools drop
-        // them that reading a bare number as a percentage is worth more than being
-        // strict about a notation nobody would write meaning anything else.
+        // Enough tools drop the percent signs that a bare number reads as a percentage.
         expect("hsl(120, 100, 50)", is: ClipColour(red: 0, green: 1, blue: 0, alpha: 1))
     }
 
-    /// The same hue by three names, which is what makes the wrap worth doing rather than
-    /// rejecting: a tool that subtracts from a hue produces the negative form on its own.
+    /// The same hue by three names; a tool that subtracts from a hue produces the negative form.
     @Test("wraps the hue into one turn")
     func hueWrapping() {
         let magenta = ClipColour(red: 1, green: 0, blue: 170 / 255, alpha: 1)
@@ -117,12 +107,7 @@ struct ClipColourTests {
 
     // MARK: - Out of range
 
-    /// The decision `rgb(300, 0, 0)` forces, pinned: it is a colour, and it is red.
-    ///
-    /// Clamping is what a browser does with the same string, and it keeps the kind of a
-    /// clip a question about how it is written rather than about arithmetic. A slider
-    /// read in the wrong units is still a colour somebody is working on, and a red
-    /// swatch tells them more than the row going quietly back to being prose.
+    /// `rgb(300, 0, 0)` is a colour and it is red, as a browser reads it.
     @Test("clamps rather than rejects")
     func clamping() {
         expect("rgb(300, 0, 0)", is: ClipColour(red: 1, green: 0, blue: 0, alpha: 1))
@@ -133,8 +118,7 @@ struct ClipColourTests {
         #expect(ClipKindDetector.kind(of: "rgb(300, 0, 0)") == .colour)
     }
 
-    /// Not-a-number clamps to a confident, arbitrary colour, which is the one kind of
-    /// wrong answer a swatch cannot show as wrong. So it is refused instead.
+    /// Not-a-number would clamp to a confident, arbitrary colour, so it is refused.
     @Test(
         "refuses a component that is not a finite number",
         arguments: ["rgb(nan, 0, 0)", "rgb(inf, 0, 0)", "hsl(inf, 100%, 50%)", "rgba(0,0,0,nan)"])
@@ -144,8 +128,7 @@ struct ClipColourTests {
 
     // MARK: - Whitespace
 
-    /// A copy that caught a trailing newline is a copying accident, never a different
-    /// colour. The clip keeps its original text; only the reading sees it trimmed.
+    /// A trailing newline is a copying accident, never a different colour.
     @Test("ignores whitespace around the edges")
     func trimming() {
         expect("  #ff00aa \n", is: ClipColour(red: 1, green: 0, blue: 170 / 255, alpha: 1))
@@ -155,9 +138,7 @@ struct ClipColourTests {
 
     // MARK: - Nothing to draw
 
-    /// Bare hex has no hash and so has no colour. Every one of these is a word made of
-    /// hex digits, and a swatch beside `facade` would be noticed long before a missing
-    /// one beside `fff`.
+    /// Bare hex has no hash and no colour; a swatch beside `facade` would be noticed at once.
     @Test(
         "reads no colour out of a word that happens to be hex",
         arguments: ["fff", "ffffff", "dad", "bed", "ace", "add", "fee", "decade", "facade", "deeded"])
@@ -196,10 +177,7 @@ struct ClipColourTests {
         #expect(ClipKindDetector.colour(in: text) == nil)
     }
 
-    /// The perceptual notations are colours — the row says so — and this deliberately
-    /// has no answer for them. Converting `oklch` needs real colour-space arithmetic,
-    /// and a swatch that is confidently the wrong red would be worse than none. If that
-    /// ever changes, this test is the one that fails.
+    /// The perceptual notations are colours with no swatch, because a wrong red is worse than none.
     @Test(
         "has no value for the notations it does not convert",
         arguments: [
@@ -213,10 +191,7 @@ struct ClipColourTests {
 
     // MARK: - The two questions agree
 
-    /// The one direction that must never drift. The reader is allowed to be narrower
-    /// than the detector — that is the whole point of ``perceptual()`` above — but a
-    /// clip it can read a colour out of and the panel files as prose would show a swatch
-    /// on a row that is not a colour row.
+    /// The reader may be narrower than the detector, but never wider.
     @Test(
         "reads a colour only out of clips the panel calls colours",
         arguments: [
@@ -229,8 +204,7 @@ struct ClipColourTests {
         #expect(ClipKindDetector.kind(of: text) == .colour)
     }
 
-    /// Two colours are the same colour when their four numbers are, and not otherwise —
-    /// the view compares them to decide whether a swatch needs redrawing.
+    /// Two colours are the same when their four numbers are, which decides whether a swatch redraws.
     @Test("compares by value")
     func equality() {
         #expect(ClipKindDetector.colour(in: "#ff00aa") == ClipKindDetector.colour(in: "#f0a"))

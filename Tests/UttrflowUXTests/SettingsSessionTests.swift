@@ -1,3 +1,4 @@
+// Tests for an editing session over the settings window.
 import UttrflowCore
 import UttrflowSettings
 import Testing
@@ -118,8 +119,7 @@ struct SettingsSessionTests {
     @Test("repairs a stored shortcut that could never have been delivered")
     func repairsAnUnusableStoredShortcut() {
         var stored = Settings.default
-        // 0x80 is past the 7-bit virtual key range. It used to be ⌥ on its own, which is
-        // a perfectly good hold now that any modifier combination can be one.
+        // 0x80 is past the 7-bit virtual key range, so no modifier combination can rescue it.
         stored.hotkey = HotkeyBinding(keyCode: 0x80, modifiers: [.option])
         let session = SettingsSession(settings: stored)
         #expect(session.recorder.binding == .optionSpace)

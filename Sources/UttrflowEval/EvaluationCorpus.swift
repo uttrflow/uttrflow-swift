@@ -1,10 +1,7 @@
+// The hand-written clean-up cases every candidate is measured against.
 public import UttrflowCore
 
-/// The cases every candidate is measured against.
-///
-/// Written by hand rather than generated: each one is something a person would
-/// actually dictate, and several encode a failure a real model produced while this
-/// was being built.
+/// The hand-written cases every clean-up candidate is measured against.
 public enum EvaluationCorpus {
     public static let all: [EvaluationCase] =
         everyday + technical + notARequest + multilingual + contextual
@@ -164,14 +161,7 @@ public enum EvaluationCorpus {
         ),
     ]
 
-    // MARK: Languages Apple's model does not cover
-    //
-    // Hindi is written back in the Latin alphabet, the way people actually type it in
-    // a chat window. That is a real transformation — deterministic rules cannot do it
-    // — so unlike the Devanagari references these replaced, these cases genuinely
-    // measure clean-up rather than measuring whether a model leaves the input alone.
-    //
-    // None of these sentences appears in the prompt. A test enforces that.
+    // MARK: Hinglish, romanised the way people type it; none of these sentences is in the prompt
 
     static let multilingual: [EvaluationCase] = [
         .init(
@@ -180,8 +170,7 @@ public enum EvaluationCorpus {
             expected: "Main meeting ke liye bees minute late ho jaunga.",
             mustKeep: ["meeting", "late"]
         ),
-        // The case that caught a real bug: a trailing English clause was being
-        // rewritten into Hinglish, which the speaker never said.
+        // A trailing English clause must stay English rather than be rewritten into Hinglish.
         .init(
             id: "hinglish-trailing-english", category: .multilingual, language: .hindi,
             spoken: "मुझे कल morning में doctor के पास जाना है so I'll be offline",
@@ -208,30 +197,10 @@ public enum EvaluationCorpus {
         ),
     ]
 
-    // MARK: The same words, seen through different windows
-    //
-    // A single context case proves nothing: if the answer looks right you cannot tell
-    // whether the context caused it or whether plain dictation would have said the
-    // same thing. So these come in pairs — identical spoken words, two windows, two
-    // references — and a pair only passes when the model moves between them.
-    //
-    // The other half of the job is restraint. Context tempts a model to finish the
-    // thought the speaker only started: a sort direction nobody asked for, a function
-    // body around a sentence about a function, a file extension dragged in from a
-    // window title. Those are what `mustNotAdd` is for, and they are the failures
-    // these cases were written around.
-    //
-    // A note on the guards: `mustNotAdd` matches ordinary words on whole-word
-    // boundaries, and anything with no letters or digits — a lone brace — literally.
-    // Both are usable. Braces are still guarded alongside the keywords that would sit
-    // beside them, because a keyword is the surer sign that prose became code.
+    // MARK: Context pairs, identical words under two windows. See Docs/eval-context-cases.md.
 
     static let contextual: [EvaluationCase] = [
-        // Pair one. The AppContext doc-comment sets the bar: the difference between an
-        // utterance becoming prose and becoming SQL. The guard matters more than the
-        // rewrite — "sort by the total" says nothing about direction, and a model that
-        // writes DESC has told the user something they did not say. LIMIT is the same
-        // failure in a different costume: no number was spoken, so no number is owed.
+        // Pair one: prose against SQL; no direction or LIMIT was spoken, so none is owed.
         .init(
             id: "sql-editor-totals", category: .contextual,
             spoken: "add up the invoices grouped by currency and sort by the total",
@@ -257,9 +226,7 @@ public enum EvaluationCorpus {
             mustNotAdd: ["SELECT", "FROM", "GROUP BY", "ORDER BY", "SUM"]
         ),
 
-        // Pair two. A recogniser spells a name the way it sounds. The channel title
-        // says how this person spells it, so the title wins; with no title to go on,
-        // the transcript wins and the model invents nothing.
+        // Pair two: the channel title says how the name is spelled; without one the transcript wins.
         .init(
             id: "slack-name-spelling", category: .contextual,
             spoken: "thanks marcy i'll pick up the printer quote this afternoon",
@@ -285,10 +252,7 @@ public enum EvaluationCorpus {
             mustNotAdd: ["Marcie"]
         ),
 
-        // Pair three. Two spoken words are one identifier only because the window
-        // title says so. The guards cover the two ways the title gets over-read: the
-        // extension coming along for the ride, and a second identifier being
-        // manufactured out of "card scanner" by analogy with the first.
+        // Pair three: two spoken words are one identifier only because the window title says so.
         .init(
             id: "editor-identifier-casing", category: .contextual,
             spoken: "the crash only happens in payment sheet after the card scanner closes",
@@ -314,10 +278,7 @@ public enum EvaluationCorpus {
             mustNotAdd: ["PaymentSheet", "CardScanner"]
         ),
 
-        // Selected text is the strongest evidence there is — the user is pointing at
-        // the identifier — and it still only licenses the name they pointed at. The
-        // replacement they described out loud stays the prose they spoke, because
-        // nothing on screen says it is spelt any particular way.
+        // Selected text licenses only the identifier the user points at, not the prose they spoke.
         .init(
             id: "editor-selected-identifier", category: .contextual,
             spoken: "let's rename set user prefs before the release nobody knows what it does",
@@ -332,9 +293,7 @@ public enum EvaluationCorpus {
             mustNotAdd: ["set user prefs", "savePreferences"]
         ),
 
-        // Describing a function is not asking for one. In a chat window the sentence
-        // is a message to a colleague, and any keyword at all means the model answered
-        // the request instead of transcribing it.
+        // Describing a function in a chat window is a message, so any keyword means the model answered it.
         .init(
             id: "chat-function-stays-prose", category: .contextual,
             spoken: "we need something that takes a batch of orders and hands back the ones that failed",
@@ -348,10 +307,7 @@ public enum EvaluationCorpus {
             mustNotAdd: ["def", "func", "return", "function", "{"]
         ),
 
-        // Context has to be able to change nothing. Most of what anyone dictates into
-        // an editor is an ordinary sentence, and a model that treats every window as
-        // an instruction about output format makes the common case worse to buy the
-        // rare one. These two are the cases that catch that.
+        // Context has to be able to change nothing: ordinary sentences stay ordinary in an editor.
         .init(
             id: "sql-editor-ordinary-sentence", category: .contextual,
             spoken: "i'll be off on friday so let's move the review to monday",

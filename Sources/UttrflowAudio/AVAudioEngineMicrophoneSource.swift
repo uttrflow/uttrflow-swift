@@ -1,3 +1,4 @@
+// Delivers converted microphone samples from an AVAudioEngine input tap.
 private import AVFoundation
 private import Foundation
 public import UttrflowCore

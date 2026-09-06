@@ -2,6 +2,7 @@ import Testing
 
 @testable import UttrflowAI
 
+/// Every deterministic repair in `TextTidy`.
 @Suite("TextTidy")
 struct TextTidyTests {
     @Test(
@@ -19,9 +20,14 @@ struct TextTidyTests {
         #expect(TextTidy.collapseWhitespace(input) == expected)
     }
 
-    /// A recogniser's line breaks are an artefact of how it chunked the audio, so the
-    /// transcript path is right to flatten them. A language model's are not: dictated
-    /// code comes back as several lines and must stay that way.
+    @Test("text is read as lower-cased runs of letters and digits")
+    func words() {
+        #expect(TextTidy.words("PaymentSheet.swift") == ["paymentsheet", "swift"])
+        #expect(TextTidy.words("set-user-prefs!") == ["set", "user", "prefs"])
+        #expect(TextTidy.words("—:—").isEmpty)
+    }
+
+    /// A recogniser's line breaks are chunking artefacts; a model's are meant, as with dictated code.
     @Test(
         "keeps the line breaks a model meant, while still tidying the spacing",
         arguments: [
@@ -38,9 +44,7 @@ struct TextTidyTests {
         #expect(TextTidy.collapseSpacing(input) == expected)
     }
 
-    /// The guard in `ensureTerminalPunctuation` exists for exactly this, and was
-    /// unreachable from the generative path because the newlines were destroyed one
-    /// call earlier. This is that path, in order.
+    /// The generative path in order, so the newline guard in `ensureTerminalPunctuation` stays reachable.
     @Test("dictated code keeps its shape and gains no stray full stop")
     func dictatedCodeSurvivesTheGenerativePath() {
         let modelAnswer = "def add(a, b):\n    return a + b"
@@ -64,8 +68,7 @@ struct TextTidyTests {
         #expect(TextTidy.removeFillers(input) == expected)
     }
 
-    /// These are ordinary words far more often than they are filler; removing them
-    /// changes what the speaker said.
+    /// Ordinary words far more often than filler; removing them changes what the speaker said.
     @Test(
         "keeps words that only sometimes act as filler",
         arguments: [
@@ -144,8 +147,7 @@ struct TextTidyTests {
         #expect(TextTidy.ensureTerminalPunctuation(input) == input)
     }
 
-    /// A full stop after code would be wrong, and dictating code is a use this
-    /// product intends to serve.
+    /// A full stop after code is wrong, and dictating code is a use this product serves.
     @Test(
         "does not finish something that looks like code",
         arguments: [

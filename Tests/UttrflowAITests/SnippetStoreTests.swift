@@ -6,18 +6,18 @@ import Testing
 
 // MARK: - Fixtures
 
-/// A directory of its own per test, removed with the test. Real files, because the
-/// store's whole job is what happens on disk and a substitute would test the substitute.
+/// A per-test directory with real files, because the store's job is what happens on disk.
 private struct Sandbox: ~Copyable {
+    /// The directory removed with the test.
     let root: URL
 
+    /// Picks a fresh temporary directory.
     init() {
         root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appending(path: "uttrflow-snippets-\(UUID().uuidString)")
     }
 
-    /// The folder the store is expected to make for itself. Deliberately absent to
-    /// begin with.
+    /// The folder the store makes for itself; absent to begin with.
     var folder: URL { root.appending(path: "Uttrflow") }
 
     /// The path the store is pointed at.
@@ -29,13 +29,13 @@ private struct Sandbox: ~Copyable {
         return try? JSONDecoder().decode([Snippet].self, from: data)
     }
 
-    /// Puts bytes where the store will look, so a test can hand it a file it did not
-    /// write: a list from an older build, or a mangled one.
+    /// Puts bytes where the store looks, so a test can hand it a file from an older build or a mangled one.
     func seed(_ data: Data) throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try data.write(to: file)
     }
 
+    /// Seeds an encoded snippet list.
     func seed(_ snippets: [Snippet]) throws {
         try seed(try JSONEncoder().encode(snippets))
     }
@@ -53,6 +53,7 @@ private func blockedSandbox() throws -> Sandbox {
 
 // MARK: - Tests
 
+/// The snippet store against real files.
 @Suite("Snippets, as they are kept")
 struct SnippetStoreTests {
 
@@ -64,8 +65,7 @@ struct SnippetStoreTests {
         #expect(file.path(percentEncoded: false) == "/somewhere/Uttrflow/snippets.v1.json")
     }
 
-    /// Beside the history and the dictionary, never inside either: a user who clears
-    /// what they dictated must not thereby lose what they wrote.
+    /// Beside the history and the dictionary, so clearing what was dictated cannot lose what was written.
     @Test("do not share a file with anything else")
     func separateFromTheOtherStores() {
         let container = URL(fileURLWithPath: "/somewhere")
@@ -82,14 +82,12 @@ struct SnippetStoreTests {
             created: snippetEpoch)
 
         #expect(kept.map(\.trigger) == ["my address"])
-        // Verbatim: a snippet that ends in a newline is a snippet that ends in a newline,
-        // and trimming the expansion would be Uttrflow editing the user's own writing.
+        // Verbatim: trimming the expansion would be Uttrflow editing the user's own writing.
         #expect(kept.map(\.expansion) == ["Flat 402\nLondon"])
         #expect(kept.map(\.created) == [snippetEpoch])
     }
 
-    /// Everything the user did not type survives the edit. Losing any of it would make a
-    /// two-year-old snippet look new and reset what had been counted about it.
+    /// Losing the identity, the date or the counts would make an old snippet look new.
     @Test("editing keeps the identity, the date it was created and what has been counted")
     func editingKeepsWhatWasNotTyped() async throws {
         let store = SnippetStore(file: Sandbox().file)
@@ -110,8 +108,7 @@ struct SnippetStoreTests {
         #expect(kept[0].lastUsed == original.lastUsed)
     }
 
-    /// The row was deleted underneath the open editor. Refusing would lose what the user
-    /// had just typed, which is a worse answer than keeping it as a new snippet.
+    /// The row was deleted under the open editor; refusing would lose what the user typed.
     @Test("editing a snippet that is no longer there keeps what was typed, as a new one")
     func editingSomethingDeletedUnderneath() async throws {
         let store = SnippetStore(file: Sandbox().file)
@@ -155,8 +152,7 @@ struct SnippetStoreTests {
         #expect(sandbox.onDisk() == [snippet])
     }
 
-    /// The list on screen is edited in place, so a row that jumps somewhere else the
-    /// moment you save it is a row you then have to hunt for.
+    /// The list is edited in place, so a row that jumps on save has to be hunted for.
     @Test("editing a snippet replaces it where it was, rather than moving it to the end")
     func editingKeepsThePosition() async throws {
         let sandbox = Sandbox()
@@ -186,8 +182,7 @@ struct SnippetStoreTests {
 
     // MARK: Saying no
 
-    /// A trigger with no words would match at every position; the editor must be told,
-    /// not quietly given a row that does nothing.
+    /// A wordless trigger would match at every position, so the editor is told rather than given a dead row.
     @Test("refuses a trigger there is no way to say", arguments: ["", "   ", "???"])
     func refusesAnUnsayableTrigger(trigger: String) async {
         let sandbox = Sandbox()
@@ -206,8 +201,7 @@ struct SnippetStoreTests {
         }
     }
 
-    /// Two snippets answering to one trigger is a question with no right answer, and
-    /// the wrong place to discover it is halfway through a dictation.
+    /// Two snippets answering one trigger has no right answer; mid-dictation is the wrong place to learn it.
     @Test("refuses a trigger another snippet already answers to")
     func refusesADuplicateTrigger() async throws {
         let sandbox = Sandbox()
@@ -259,8 +253,7 @@ struct SnippetStoreTests {
         #expect(try await store.delete(UUID()) == [snippet])
     }
 
-    /// Clearing leaves nothing of the user's on disk at all, which is what the button
-    /// says on the tin.
+    /// Clearing leaves nothing of the user's on disk, as the button says.
     @Test("clearing removes the file rather than writing an empty one")
     func clearing() async throws {
         let sandbox = Sandbox()
@@ -320,8 +313,7 @@ struct SnippetStoreTests {
         #expect(try await store.recordUse(of: [UUID()], at: snippetEpoch) == [snippet])
     }
 
-    /// A dictation in which nothing fired must not rewrite the file, or every dictation
-    /// would cost a write for no reason.
+    /// A dictation in which nothing fired must not cost a write.
     @Test("a dictation with no expansions in it does not touch the disk")
     func countingNothingDoesNotWrite() async throws {
         let sandbox = try blockedSandbox()
@@ -422,6 +414,7 @@ struct SnippetStoreTests {
 
 // MARK: - What the user is told
 
+/// The user-facing text and severity of every store failure.
 @Suite("What a snippet store failure says")
 struct SnippetStoreErrorTests {
     @Test("every case explains itself in a complete sentence, with no jargon in it")
@@ -440,8 +433,7 @@ struct SnippetStoreErrorTests {
         #expect(SnippetStoreError.firstCase == .couldNotWrite)
     }
 
-    /// A disk that refused costs a shortcut; a trigger the editor got wrong costs
-    /// nothing at all, and must not be announced as though something broke.
+    /// A refused disk costs a shortcut; a trigger the editor got wrong costs nothing and is not a fault.
     @Test("only the disk refusing counts as something going wrong")
     func severities() {
         #expect(SnippetStoreError.couldNotWrite.severity == .degraded)

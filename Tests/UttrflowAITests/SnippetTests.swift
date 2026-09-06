@@ -4,10 +4,10 @@ import Testing
 
 @testable import UttrflowAI
 
-/// A fixed instant, shared by every snippet test. Nothing in this feature reads the
-/// real clock, so a slow machine cannot change a result.
+/// A fixed instant shared by every snippet test; nothing in this feature reads the real clock.
 let snippetEpoch = Date(timeIntervalSince1970: 1_700_000_000)
 
+/// A snippet's derived words, usability, use counting and encoding.
 @Suite("A snippet, as it is stored")
 struct SnippetTests {
     @Test(
@@ -16,8 +16,7 @@ struct SnippetTests {
             ("my address", ["my", "address"]),
             ("My Address", ["my", "address"]),
             ("  my   address  ", ["my", "address"]),
-            // Everything the user typed that speech cannot produce is dropped, or the
-            // trigger in the list would not be the trigger the product has.
+            // Everything typed that speech cannot produce is dropped, so the listed trigger is the real one.
             ("my address:", ["my", "address"]),
             (";addr", ["addr"]),
             ("sign-off", ["sign", "off"]),
@@ -67,8 +66,7 @@ struct SnippetTests {
         #expect(makeSnippet(trigger: "sign off").timesUsed == 0)
     }
 
-    /// The file is the only copy, so a field that does not survive the round trip is a
-    /// field the user loses on quit.
+    /// The file is the only copy, so a field that does not survive the round trip is lost on quit.
     @Test("survives being written down and read back")
     func codableRoundTrip() throws {
         let snippet = makeSnippet(trigger: "standup", expansion: "Yesterday:\nToday:\nBlockers:")
@@ -81,6 +79,7 @@ struct SnippetTests {
 
 // MARK: - Fixtures
 
+/// A snippet with defaults for everything but the trigger.
 func makeSnippet(
     id: UUID = UUID(), trigger: String, expansion: String = "the text", created: Date = snippetEpoch
 ) -> Snippet {

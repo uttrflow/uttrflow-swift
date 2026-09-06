@@ -1,3 +1,4 @@
+// The `doctor` command: checks permissions and setup.
 import ArgumentParser
 private import AVFoundation
 private import Foundation
@@ -17,11 +18,7 @@ struct Doctor: AsyncParsableCommand {
         let status = await MicrophonePermissionGate().status()
         print("  Microphone permission   \(describe(status))")
 
-        // Insertion is the half of the product that fails silently, and it fails in two
-        // distinct ways that look identical from outside: nothing is focused at all, or
-        // something is focused but will not report its selection. The first sends the
-        // words to the clipboard; the second used to as well. Reporting them apart is
-        // the difference between a diagnosis and a shrug.
+        // Nothing focused and a focused field that hides its selection look identical from outside.
         let accessibility = await AccessibilityPermissionGate().status()
         print("  Accessibility           \(describe(accessibility))")
         let focus = AXAccessibilityFocus()

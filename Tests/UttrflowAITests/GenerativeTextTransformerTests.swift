@@ -4,8 +4,10 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowTestSupport
 
+/// The generative transformer over a scripted model.
 @Suite("GenerativeTextTransformer")
 struct GenerativeTextTransformerTests {
+    /// A request for `text` spoken in `language`.
     private func request(_ text: String, language: LanguageCode? = .english) -> TransformationRequest {
         TransformationRequest(transcription: .fixture(text: text, language: language))
     }
@@ -54,8 +56,7 @@ struct GenerativeTextTransformerTests {
         #expect(result == TransformationResult(text: "Hello there.", producedBy: .foundationModels))
     }
 
-    /// The model leaves output ragged even when told not to, so a deterministic pass
-    /// finishes it.
+    /// The model leaves output ragged even when told not to, so a deterministic pass finishes it.
     @Test(
         "finishes what the model left ragged",
         arguments: [
@@ -163,10 +164,13 @@ struct GenerativeTextTransformerTests {
     }
 }
 
+/// The floor transformer.
 @Suite("RuleBasedTransformer")
 struct RuleBasedTransformerTests {
+    /// The transformer under test.
     private let sut = RuleBasedTransformer()
 
+    /// A request for `text` spoken in `language`.
     private func request(_ text: String, language: LanguageCode? = .english) -> TransformationRequest {
         TransformationRequest(transcription: .fixture(text: text, language: language))
     }

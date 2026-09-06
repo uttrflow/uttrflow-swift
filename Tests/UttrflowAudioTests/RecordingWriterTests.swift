@@ -1,3 +1,4 @@
+// Tests the streaming WAV writer.
 import Foundation
 import Testing
 

@@ -1,28 +1,31 @@
-/// One timed span of recognised speech.
-/// One word, and how sure the recogniser was of it.
+// What a speech engine hands back: words, timed segments and the transcription that holds them.
+
+/// One word, and how sure the recogniser is of it.
 public struct TranscribedWord: Sendable, Equatable {
+    /// The word as recognised.
     public let text: String
-    /// 0 to 1. The reason this travels: correction only touches a word the recogniser
-    /// was unsure about, and nothing else in the transcript can answer that.
+    /// 0 to 1; travels because correction only touches a word the recogniser is unsure about.
     public let confidence: Double
 
+    /// A word with its confidence.
     public init(text: String, confidence: Double) {
         self.text = text
         self.confidence = confidence
     }
 }
 
+/// One timed span of recognised speech.
 public struct TranscriptionSegment: Sendable, Equatable {
+    /// The text of the span.
     public let text: String
+    /// Where the span begins in the audio.
     public let start: Duration
+    /// Where the span ends in the audio.
     public let end: Duration
-    /// The words inside, when the recogniser reports them.
-    ///
-    /// Absent means "not reported", never "all confident". A caller that treats the two
-    /// alike turns silence into certainty, which is exactly the mistake that would make
-    /// correction rewrite good sentences.
+    /// The words inside when the recogniser reports them; empty means "not reported", never "all confident".
     public let words: [TranscribedWord]
 
+    /// A segment, with words only when the engine supplies them.
     public init(
         text: String, start: Duration, end: Duration, words: [TranscribedWord] = []
     ) {
@@ -44,6 +47,7 @@ public struct Transcription: Sendable, Equatable {
     /// Length of the audio that produced this transcription.
     public let audioDuration: Duration
 
+    /// A transcription; everything but the text is optional.
     public init(
         text: String,
         detectedLanguage: DetectedLanguage? = nil,

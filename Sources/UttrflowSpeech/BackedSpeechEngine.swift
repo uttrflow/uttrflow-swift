@@ -1,3 +1,4 @@
+// The SpeechEngine the product uses, applying its rules over any TranscriptionBackend.
 public import UttrflowCore
 
 /// The one speech engine: every rule that outlives a choice of recogniser lives here.

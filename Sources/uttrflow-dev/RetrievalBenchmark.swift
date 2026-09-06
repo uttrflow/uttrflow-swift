@@ -1,3 +1,4 @@
+// Times retrieval over the personal dictionary.
 private import Foundation
 private import SQLite3
 

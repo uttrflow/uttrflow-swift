@@ -1,10 +1,11 @@
+// Tests when recording cues play, in silence.
 import Synchronization
 import Testing
 
 @testable import UttrflowAudio
 @testable import UttrflowCore
 
-/// A ``SoundPlayer`` that makes no sound and remembers everything it was asked for.
+/// A ``SoundPlayer`` that makes no sound and remembers everything it is asked for.
 private final class SpyPlayer: SoundPlayer {
     private struct State {
         var requested: [SystemSound] = []
@@ -45,7 +46,7 @@ private final class MinimalPlayer: SoundPlayer {
 }
 
 /// A "sounds off" setting the user can flip mid-recording.
-private final class Setting: Sendable {
+private final class SoundsSetting: Sendable {
     private let enabled: Mutex<Bool>
 
     init(_ enabled: Bool) {
@@ -188,7 +189,7 @@ struct SoundPlayingRecordingCueTests {
     @Test("does not answer a start the user never heard")
     func turnedOnMidRecording() {
         let player = SpyPlayer()
-        let setting = Setting(false)
+        let setting = SoundsSetting(false)
         let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: setting.reader)
 
         cue.playStart()
@@ -201,7 +202,7 @@ struct SoundPlayingRecordingCueTests {
     @Test("honours sounds being turned off part-way through a recording")
     func turnedOffMidRecording() {
         let player = SpyPlayer()
-        let setting = Setting(true)
+        let setting = SoundsSetting(true)
         let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: setting.reader)
 
         cue.playStart()
@@ -214,7 +215,7 @@ struct SoundPlayingRecordingCueTests {
     @Test("does not owe a stop cue to the next recording")
     func suppressedStopDoesNotCarryOver() {
         let player = SpyPlayer()
-        let setting = Setting(true)
+        let setting = SoundsSetting(true)
         let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: setting.reader)
 
         cue.playStart()
@@ -284,23 +285,6 @@ struct SoundPlayingRecordingCueTests {
     }
 }
 
-@Suite("SilentRecordingCue")
-struct SilentRecordingCueTests {
-    @Test("makes no sound, in either direction, in any order")
-    func saysNothing() {
-        let cue = SilentRecordingCue()
-
-        cue.playStart()
-        cue.playStop()
-        cue.playStop()
-        cue.playStart()
-
-        // Nothing to assert but the absence of a player to assert against: the type
-        // holds no machinery, which is the point of preferring it to a disabled cue.
-        #expect(Bool(true))
-    }
-}
-
 @Suite("RecordingCue boundary")
 struct RecordingCueBoundaryTests {
     /// Stands in for ``DictationController``, which is written against Core's protocol.
@@ -315,11 +299,6 @@ struct RecordingCueBoundaryTests {
         drive(SoundPlayingRecordingCue(player: player))
 
         #expect(player.requested == [.tink, .morse])
-    }
-
-    @Test("the silent cue satisfies it too")
-    func silentSatisfiesCoreProtocol() {
-        drive(SilentRecordingCue())
     }
 
     @Test("a player that ignores warming still works")

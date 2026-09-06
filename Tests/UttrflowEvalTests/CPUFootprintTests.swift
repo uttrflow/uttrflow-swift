@@ -1,3 +1,4 @@
+// Tests processor readings, costs and per-utterance figures.
 import Testing
 
 @testable import UttrflowEval
@@ -17,17 +18,13 @@ struct CPUFootprintTests {
             Issue.record("the kernel would not report processor time")
             return
         }
-        // A process that has run at all has spent user time; system time is allowed to be
-        // zero on a very short-lived one, so it is bounded rather than required.
+        // System time may be zero on a very short-lived process, so it is bounded rather than required.
         #expect(reading.userSeconds > 0)
         #expect(reading.systemSeconds >= 0)
         #expect(reading.cpuSeconds == reading.userSeconds + reading.systemSeconds)
     }
 
-    /// The bug this file exists to have caught once: `proc_pid_rusage` reports a stale
-    /// `ri_user_time` for the calling process, and a profiler built on it under-reports
-    /// by two orders of magnitude while looking perfectly healthy. The times must come
-    /// from `task_info`, and this is what says so.
+    /// `proc_pid_rusage` reports a stale `ri_user_time` for the calling process. See Docs/eval-profiling.md.
     @Test("Processor time keeps up with work actually done")
     func timesAreNotStale() {
         guard let before = CPUFootprint.reading() else {
@@ -41,9 +38,7 @@ struct CPUFootprintTests {
             Issue.record("the kernel stopped reporting processor time")
             return
         }
-        // Deliberately loose. The assertion is "this moved at all, by something of the
-        // right order", not "this burn took exactly so long" — which would be an
-        // assertion about how busy the machine running the tests happens to be.
+        // Deliberately loose: "moved by the right order", not "took exactly so long" on a busy machine.
         #expect(after.cpuSeconds - before.cpuSeconds > 0.001)
     }
 
@@ -65,9 +60,7 @@ struct CPUFootprintTests {
             "done"
         }
         #expect(value == "done")
-        // Both readings come from the same stub, so every difference is zero — which is
-        // the point: it proves the subtraction happened rather than the totals leaking
-        // through as though they were a cost.
+        // Both readings come from one stub, so every difference is zero: the subtraction happened.
         #expect(cost?.cpuSeconds == 0)
         #expect(cost?.cycles == 0)
     }
@@ -151,9 +144,7 @@ struct CPUCostTests {
         #expect(CPUCost.between(reading(user: 1, system: 0), nil, wallSeconds: 1) == nil)
     }
 
-    /// Counters only rise, so a smaller second reading means the two did not come from
-    /// one uninterrupted run. Unsigned subtraction would report the wrap as though it
-    /// were nineteen quintillion cycles of work.
+    /// Unsigned subtraction would report the wrap as nineteen quintillion cycles of work.
     @Test("A counter that went backwards is dropped, not wrapped")
     func wentBackwards() {
         let cost = CPUCost.between(
@@ -178,8 +169,7 @@ struct CPUCostTests {
         #expect(total?.instructions == 60)
     }
 
-    /// A total that silently dropped the missing piece would read as a complete figure
-    /// and be short by however many pieces had no counters.
+    /// A total that dropped the missing piece would read as complete and be short.
     @Test("A counter missing from one piece makes the total absent")
     func partialCounters() {
         let total = CPUCost.total(of: [

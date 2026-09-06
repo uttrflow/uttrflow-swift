@@ -1,19 +1,21 @@
+// Tests for renaming a collection and for deleting one that holds clips.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// G5 — a collection is a shelf, not part of a clip's identity, and renaming the shelf
-/// must not touch what is on it.
+/// A collection is a shelf, not part of a clip's identity, so renaming the shelf leaves the clips alone.
 @Suite("G5 · renaming a collection")
 struct PanelRenameCategoryTests {
+    /// Two clips in Work, one of them named, and one in Servers.
     static let clips = [
         PanelFixture.clip("one", minutesAgo: 1, alias: "first", category: "Work"),
         PanelFixture.clip("two", minutesAgo: 2, category: "Work"),
         PanelFixture.clip("three", minutesAgo: 3, category: "Servers"),
     ]
 
+    /// The rename sheet over Work with this draft typed.
     static func panel(_ draft: String) -> PanelResponse {
         PanelFixture.panel(clips).applying([.renameCategory("Work"), .draft(draft)])
     }
@@ -32,8 +34,7 @@ struct PanelRenameCategoryTests {
         #expect(response.outcome == .change(.renameCategory(from: "Work", to: "Projects")))
     }
 
-    /// Renaming a collection looks like the kind of thing that might take the names inside
-    /// it too, so the sheet says out loud that it does not.
+    /// Renaming a collection looks like it might rename the clips inside, so the sheet says it does not.
     @Test("the sheet promises the clips keep their own names")
     func aliasesAreSafe() {
         let sheet = PanelPresenter.present(Self.panel("Projects").state).sheet
@@ -58,8 +59,7 @@ struct PanelRenameCategoryTests {
         #expect(Self.panel("   ").state.applying(.return).outcome == .open)
     }
 
-    /// Otherwise the open tab would sit over a collection that no longer answers to that
-    /// name until the next redraw.
+    /// Otherwise the open tab would sit over a collection that has stopped answering to that name.
     @Test("the open tab follows the rename")
     func theOpenTabFollows() {
         var panel = PanelFixture.panel(Self.clips)
@@ -71,10 +71,10 @@ struct PanelRenameCategoryTests {
     }
 }
 
-/// G6 — never silently orphaned. Deleting an empty collection and deleting one holding
-/// forty clips are different acts, and only one of them needs thinking about.
+/// Never silently orphaned: deleting an empty collection and one holding forty clips differ.
 @Suite("G6 · deleting a collection that holds clips")
 struct PanelDeleteCategoryTests {
+    /// Two clips in Work and one loose.
     static let clips = [
         PanelFixture.clip("one", minutesAgo: 1, category: "Work"),
         PanelFixture.clip("two", minutesAgo: 2, category: "Work"),
@@ -135,8 +135,7 @@ struct PanelDeleteCategoryTests {
         #expect(deleted.state.category == nil)
     }
 
-    /// These two sheets are about a collection rather than a clip, and saying so with an
-    /// invented identity would make every caller's "does the subject still exist" false.
+    /// These sheets are about a collection, and an invented clip identity would break every "still exists".
     @Test("a sheet about a collection names no clip")
     func subjectIsTheCollection() {
         let sheet = PanelSheet.deletingCategory("Work", keepingClips: true)

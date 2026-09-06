@@ -1,3 +1,4 @@
+// Tests the on-disk recording store.
 import Foundation
 import Testing
 

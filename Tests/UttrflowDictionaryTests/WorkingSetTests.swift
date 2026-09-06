@@ -1,3 +1,5 @@
+// Tests for the working set.
+
 import Foundation
 import UttrflowCore
 import Testing
@@ -17,8 +19,7 @@ struct WorkingSetTests {
         #expect(words == ["Nikhil"])
     }
 
-    /// A budget is a budget. The prompt shares a few hundred tokens with everything else
-    /// that wants to condition the decoder.
+    /// The prompt shares a few hundred tokens with everything else that conditions the decoder.
     @Test("never returns more than the budget allows")
     func respectsTheBudget() {
         let entries = (0..<200).map { word("Word\($0)", used: $0) }
@@ -27,8 +28,7 @@ struct WorkingSetTests {
         #expect(WorkingSet.words(from: entries, limit: 0, now: epoch).isEmpty)
     }
 
-    /// Frequency counts the uses that stuck. A word applied constantly and undone almost
-    /// as often has earned nothing.
+    /// Frequency counts the uses that stuck.
     @Test("prefers the words the user keeps over the words the user undoes")
     func frequency() {
         let kept = word("Kept", from: .added, used: 9, daysAgo: 10)
@@ -55,17 +55,14 @@ struct WorkingSetTests {
         #expect(WorkingSet.value(of: month, now: epoch, wanted: []) == 0.5)
     }
 
-    /// A machine whose clock has slipped backwards must not make its dictionary
-    /// infinitely valuable.
+    /// A clock that slipped backwards must not make the dictionary infinitely valuable.
     @Test("treats a word stamped in the future as merely new")
     func futureDates() {
         let future = word("Future", from: .added, daysAgo: -400)
         #expect(WorkingSet.value(of: future, now: epoch, wanted: []) == 1)
     }
 
-    /// Dictating into `PaymentSheet.swift` should pull `PaymentSheet` up the list. The
-    /// match goes through the same phonetics as everything else, so a document titled
-    /// with a mis-spelling still counts.
+    /// Dictating into `PaymentSheet.swift` pulls `PaymentSheet` up, through the same phonetics as speech.
     @Test("favours the words the app being dictated into is showing")
     func affinityWithTheFrontmostApp() {
         let relevant = word("PaymentSheet", from: .added, daysAgo: 200)
@@ -87,8 +84,7 @@ struct WorkingSetTests {
                 == ["Nikhil"])
     }
 
-    /// Selected text is part of what is on screen, and often the most specific part of
-    /// it — a name the user has highlighted is a name they are about to say.
+    /// Selected text is on screen too, and often the most specific part of it.
     @Test("reads the selection as well as the app and the document")
     func affinityReadsTheSelection() {
         let selection = AppContext(selectedText: "cube cattle")
@@ -98,8 +94,7 @@ struct WorkingSetTests {
                 > WorkingSet.affinityWeight)
     }
 
-    /// Conditioning a decoder towards a word the user keeps undoing would be teaching it
-    /// the mistake it is there to prevent.
+    /// Conditioning a decoder towards a word the user keeps undoing would teach it the mistake.
     @Test("never conditions the recogniser with a word that has retired itself")
     func retiredWordsAreExcluded() {
         let retired = word("Wrong", from: .learned, used: 20, reverted: 19)
@@ -107,8 +102,7 @@ struct WorkingSetTests {
         #expect(WorkingSet.words(from: [retired], now: epoch).isEmpty)
     }
 
-    /// Two words worth exactly the same must come back in the same order every run, and
-    /// in the same order the index would have chosen.
+    /// Equal words come back in the same order every run, and in the index's order.
     @Test("breaks a tie the same way the index does")
     func tiesAreBrokenLikeTheIndex() {
         let alpha = word("Alpha", from: .added, used: 4, daysAgo: 3)

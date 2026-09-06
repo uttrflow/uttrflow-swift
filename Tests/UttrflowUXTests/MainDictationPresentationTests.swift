@@ -1,3 +1,4 @@
+// Tests for the Dictation page: rows, the changes badge, flags, the rail figures, and empty states.
 import Foundation
 import UttrflowCore
 import UttrflowHistory
@@ -18,10 +19,7 @@ extension HistoryFixture {
             applicationName: application, spokenFor: .seconds(seconds), changes: changes)
     }
 
-    /// One change, in the terms the accuracy figure counts changes in: which of the
-    /// words the user *said* it covered. The words themselves are decoration here — the
-    /// arithmetic reads the range — but they are spelt out so a failure reads like the
-    /// dictation it came from.
+    /// One change, in the terms the accuracy figure counts: which of the words the user said it covered.
     static func change(
         _ heard: String, _ wrote: String, over spoken: Range<Int>
     ) -> RecordedCorrection {
@@ -30,10 +28,7 @@ extension HistoryFixture {
             reason: .heardAsStrayLetters, heardConfidence: 0.3)
     }
 
-    /// A dictation whose utterance was counted: `text` is what was written, `spokenWords`
-    /// is how many words were actually said, and `changes` are the changes made on the
-    /// way between the two. The two counts differ on purpose — that is the whole subject
-    /// of the accuracy figure.
+    /// A dictation whose utterance was counted; `text` and `spokenWords` differ on purpose.
     static func measured(
         _ text: String, spokenWords: Int, changes: [RecordedCorrection] = [],
         daysAgo: Int = 0
@@ -43,6 +38,7 @@ extension HistoryFixture {
             changes: RecordedChanges(corrections: changes, spokenWords: spokenWords))
     }
 
+    /// The Dictation page over these inputs, with the fixed clock and region.
     static func dictation(
         permissions: [PermissionKind: PermissionStatus] = [
             .microphone: .granted, .accessibility: .granted,
@@ -76,8 +72,7 @@ struct DictationPageTests {
         #expect(page.chrome.title == "Dictation")
     }
 
-    /// The one rule that keeps this a page about what just happened rather than a
-    /// second history with a different sort order.
+    /// The one rule that keeps this a page about what just happened rather than a second history.
     @Test("anything older than today belongs to History")
     func todayOnly() {
         let page = HistoryFixture.dictation(entries: [
@@ -100,8 +95,7 @@ struct DictationPageTests {
         #expect(page.rows.first?.detail == "11s · 5 words")
     }
 
-    /// A duration invented for a dictation nobody timed would make the pace figure a
-    /// fiction, so the row simply says less.
+    /// A duration invented for an untimed dictation would make the pace figure a fiction.
     @Test("an untimed dictation reports only its words")
     func detailWithoutTiming() {
         let page = HistoryFixture.dictation(entries: [HistoryFixture.entry("two words")])
@@ -185,10 +179,7 @@ struct DictationChangesTests {
         #expect(page.rows[0].changes == nil)
     }
 
-    /// Nothing keeps a record of what was changed yet. Until something does, a badge
-    /// would be an assertion nobody checked.
-    /// A dictation written before changes were kept shows no badge, even where a
-    /// correction elsewhere claims to belong to it.
+    /// A dictation that kept no record shows no badge, even where a correction elsewhere claims it.
     @Test("a dictation that kept no record shows no badge")
     func withoutARecord() {
         let entry = HistoryFixture.entry(changes: nil)
@@ -200,8 +191,7 @@ struct DictationChangesTests {
 
 @Suite("Saying a dictation came out wrong")
 struct DictationFlagTests {
-    /// A button whose label never changes gives no way to tell a flag that was recorded
-    /// from one that was not.
+    /// A button whose label never changes gives no way to tell a recorded flag from one that was not.
     @Test("the button says what it will do and shows what it has done")
     func flagReadsItsState() {
         let plain = HistoryFixture.dictation(entries: [HistoryFixture.entry()])
@@ -224,11 +214,7 @@ struct DictationFlagTests {
 
 @Suite("The figures beside today's dictations")
 struct DictationFiguresTests {
-    /// The rule the whole rail is built on: there is no "time saved" tile, because it
-    /// would need a guess at how fast the user types.
-    /// The rule the whole rail is built on: there is no "time saved" tile, because it
-    /// would need a guess at how fast the user types. Words and the streak are counts of
-    /// things that happened; pace and accuracy need something measured.
+    /// No "time saved" tile: words and streak are counts, pace and accuracy need something measured.
     @Test("nothing is reported that has not been measured")
     func noInventedFigures() {
         let page = HistoryFixture.dictation(
@@ -248,9 +234,7 @@ struct DictationFiguresTests {
         #expect(figure?.comment == "5 of them today")
     }
 
-    /// The figure a person opening the app looks at first, and the one whose wording has
-    /// to be careful: the history keeps a retention window and no more, so this can never
-    /// be called a lifetime total.
+    /// The history keeps a retention window and no more, so this can never be called a lifetime total.
     @Test("the headline figure never claims to be a lifetime total")
     func neverClaimsALifetime() {
         let page = HistoryFixture.dictation(entries: [HistoryFixture.entry("one two")])
@@ -273,9 +257,7 @@ struct DictationFiguresTests {
         let page = HistoryFixture.dictation(entries: [
             HistoryFixture.entry("today"), HistoryFixture.entry("yesterday", daysAgo: 1),
             HistoryFixture.entry("the day before", daysAgo: 2),
-            // A gap, so the run stops here rather than counting everything kept. Five
-            // days rather than seven: seven is the default retention window, and an entry
-            // on the boundary is deleted rather than kept.
+            // A gap so the run stops here; five days, not seven, since seven is the retention window.
             HistoryFixture.entry("before that", daysAgo: 5),
         ])
         let figure = page.figures.first { $0.caption == "Day streak" }
@@ -283,9 +265,7 @@ struct DictationFiguresTests {
         #expect(figure?.comment == "days in a row")
     }
 
-    /// Counted from the most recent day, not from today. Somebody who dictated every day
-    /// for a fortnight and has not yet opened their laptop this morning has a fortnight's
-    /// streak, not a broken one — it breaks when a whole day passes with nothing in it.
+    /// Counted from the most recent day, not today, so a quiet morning does not break the streak.
     @Test("a morning with nothing in it yet does not break the streak")
     func streakSurvivesAQuietMorning() {
         let page = HistoryFixture.dictation(entries: [
@@ -295,8 +275,7 @@ struct DictationFiguresTests {
         #expect(page.figures.first { $0.caption == "Day streak" }?.value == "2")
     }
 
-    /// A run that reaches the oldest thing kept is a floor and not a measurement: the day
-    /// before it may well have had a dictation that has since been deleted.
+    /// A run reaching the oldest thing kept is a floor, since older days may have been deleted.
     @Test("a streak that reaches the edge of what is kept says so")
     func streakAtTheEdge() {
         let page = HistoryFixture.dictation(entries: [
@@ -307,8 +286,7 @@ struct DictationFiguresTests {
         #expect(figure?.comment == "at least — anything older has been deleted")
     }
 
-    /// One day is not a streak, and calling it one is the sort of flattery that makes
-    /// every other number on the page less believable.
+    /// One day is not a streak, and calling it one makes every other number less believable.
     @Test("a single day is not called a streak")
     func oneDayIsNotAStreak() {
         let page = HistoryFixture.dictation(entries: [HistoryFixture.entry("today")])
@@ -318,8 +296,7 @@ struct DictationFiguresTests {
 
     @Test("pace is pooled across everything that was timed")
     func pace() {
-        // Sixty words in sixty seconds, in two unequal dictations: pooling gives 60,
-        // where averaging the two rates would not.
+        // Sixty words in sixty seconds across two unequal dictations: pooling gives 60, averaging would not.
         let page = HistoryFixture.dictation(entries: [
             HistoryFixture.timed(String(repeating: "word ", count: 50), seconds: 30),
             HistoryFixture.timed(String(repeating: "word ", count: 10), seconds: 30),
@@ -345,8 +322,7 @@ struct DictationFiguresTests {
                 == "your usual pace is 30")
     }
 
-    /// A comparison against nothing is not a comparison, so it is left off rather than
-    /// filled in with today's own figure.
+    /// A comparison against nothing is not a comparison, so it is left off rather than filled in.
     @Test("a first day has nothing to compare against and says nothing")
     func noComparisonOnTheFirstDay() {
         let page = HistoryFixture.dictation(entries: [
@@ -355,11 +331,7 @@ struct DictationFiguresTests {
         #expect(page.figures.first { $0.caption == "Words per minute" }?.comment == nil)
     }
 
-    /// The case the figure used to get exactly backwards. The user said five words; the
-    /// dictionary wrote one word over three of them, correctly. Two of the five are
-    /// theirs untouched, so the figure is 40% — and it used to be **0%**, because the
-    /// denominator counted the three words of the finished text while the subtrahend
-    /// counted the three words that were heard.
+    /// Five words said, one written over three of them correctly: two survive untouched, so 40%.
     @Test("a change that writes one word over three does not make the dictation 0% accurate")
     func accuracy() {
         let page = HistoryFixture.dictation(entries: [
@@ -374,10 +346,7 @@ struct DictationFiguresTests {
         #expect(figure?.comment == "Words that came out exactly as you said them.")
     }
 
-    /// The same, twice over. This is where the old `max(_:0)` was doing its work: the
-    /// subtraction had gone negative — six heard words taken from a three-word text —
-    /// and the clamp turned that disagreement into a plausible-looking zero instead of
-    /// letting it show.
+    /// Two changes whose ranges sum past the text length must still count the word between them.
     @Test("two such changes leave the word between them counted")
     func accuracyWithSeveralChanges() {
         let page = HistoryFixture.dictation(entries: [
@@ -388,20 +357,15 @@ struct DictationFiguresTests {
                     HistoryFixture.change("j son", "JSON", over: 4..<6),
                 ])
         ])
-        // One of the six words said — "and" — came out as it was said.
+        // One of the six words said — "and" — survives untouched.
         #expect(page.figures.first { $0.caption == "Accuracy" }?.value == "16.7%")
     }
 
-    /// The error ran the other way too, and nobody would have noticed: a snippet writing
-    /// nine words over two inflates the denominator, so the figure *rose* because the
-    /// user typed less. Snippets are not counted at all now — the trigger words were
-    /// heard correctly, and charging a user's own shorthand against the recogniser makes
-    /// no sense in either direction.
+    /// Snippets are not counted: the trigger words were heard correctly, so they cannot inflate the figure.
     @Test("a snippet expanding two words into nine does not inflate the figure")
     func accuracyIgnoresSnippets() {
         let entry = HistoryFixture.entry(
-            // "my address then s q l": the snippet wrote nine words over the first two,
-            // and the dictionary wrote "SQL" over the last three.
+            // The snippet writes nine words over the first two, and "SQL" replaces the last three.
             "Flat 2, 14 Rowan Street, Hackney, London E8 3PQ then SQL",
             changes: RecordedChanges(
                 corrections: [HistoryFixture.change("s q l", "SQL", over: 3..<6)],
@@ -412,8 +376,7 @@ struct DictationFiguresTests {
                 ],
                 spokenWords: 6))
 
-        // Three of the six words said came out as they were said. The old arithmetic
-        // divided by the eleven written words and reported 72.7%.
+        // Three of the six words said came out as said; dividing by the eleven written would give 72.7%.
         #expect(
             HistoryFixture.dictation(entries: [entry])
                 .figures.first { $0.caption == "Accuracy" }?.value == "50.0%")
@@ -447,11 +410,7 @@ struct DictationFiguresTests {
         #expect(!page.figures.contains { $0.caption == "Accuracy" })
     }
 
-    /// A dictation from a build that kept its changes but never counted the utterance
-    /// has no denominator, and there is no way back to one from what was kept: three
-    /// passes stand between the words said and the words written. It leaves the sample
-    /// rather than borrowing the written count, which is the mistake this figure was
-    /// making in the first place.
+    /// Changes kept without the utterance counted have no denominator, so they leave the sample.
     @Test("changes recorded without the utterance being counted give no accuracy figure")
     func accuracyNeedsTheUtterance() {
         let page = HistoryFixture.dictation(entries: [
@@ -460,9 +419,7 @@ struct DictationFiguresTests {
         #expect(!page.figures.contains { $0.caption == "Accuracy" })
     }
 
-    /// The reason the gate is on the record: one unmeasured dictation used to hide the
-    /// figure for the whole retention window. Now it is left out of the sample and the
-    /// ones that were measured still answer.
+    /// An unmeasured dictation leaves the sample instead of hiding the figure for the measured ones.
     @Test("one unmeasured dictation does not hide the figure for the measured ones")
     func accuracyIgnoresTheUnmeasured() {
         let page = HistoryFixture.dictation(entries: [
@@ -471,8 +428,7 @@ struct DictationFiguresTests {
                 changes: [HistoryFixture.change("one", "One", over: 0..<1)]),
             HistoryFixture.entry("salvaged", changes: nil),
         ])
-        // Three of the measured dictation's four spoken words survived. The salvaged
-        // one's single word is in neither the numerator nor the denominator.
+        // Three of the measured dictation's four spoken words survive; the salvaged one is in neither half.
         #expect(page.figures.first { $0.caption == "Accuracy" }?.value == "75.0%")
     }
 
@@ -482,11 +438,7 @@ struct DictationFiguresTests {
         #expect(DictationPresenter.accuracy(of: [HistoryFixture.measured("", spokenWords: 0)]) == nil)
     }
 
-    /// There is no `max(_:0)` under the subtraction any more, and this is what stands in
-    /// its place: the changed words are counted as positions *inside* the utterance, so
-    /// a stored range reaching past the end costs the words it really covers and no
-    /// more. A file claiming three changed words in a one-word dictation reports that
-    /// none of it survived — not that less than none did.
+    /// Changed words are counted as positions inside the utterance, so a wide range cannot take more.
     @Test("a stored change wider than the utterance cannot take more words than were said")
     func accuracyCannotGoBelowNothing() {
         let page = HistoryFixture.dictation(entries: [
@@ -525,8 +477,7 @@ struct DictationEmptyTests {
                 .hasPrefix("Press ⌥Space") == true)
     }
 
-    /// So the pane is never blank, and never blank with a number that could be read as
-    /// today's.
+    /// The pane is never blank, and never blank with a number that could be read as today's.
     @Test("yesterday's figures stand in for today's")
     func yesterdaysChips() {
         let empty = HistoryFixture.dictation(entries: [
@@ -549,8 +500,7 @@ struct DictationEmptyTests {
         #expect(empty?.chips.last?.value == "75.0%")
     }
 
-    /// A week ago is not yesterday. A total from further back under today's heading is
-    /// the sort of number a user reads as today's and is never corrected about.
+    /// A total from further back under today's heading is read as today's and never corrected.
     @Test("only yesterday counts as yesterday")
     func onlyYesterday() {
         let empty = HistoryFixture.dictation(entries: [

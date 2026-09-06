@@ -1,17 +1,20 @@
+// Tests for EntitlementGate: who may dictate, and that an expired entitlement never locks anybody out.
+
 import Foundation
 import UttrflowCore
 import Testing
 
 @testable import UttrflowAccount
 
+/// The answers of ``EntitlementGate/access`` over signed-in, signed-out and local-account states.
 @Suite("May this person dictate?")
 struct EntitlementGateTests {
+    /// A gate over a cache holding `entitlement`, or nothing.
     private func gate(holding entitlement: Entitlement?) -> EntitlementGate {
         EntitlementGate(profiles: Fixture.cacheHolding(entitlement))
     }
 
-    /// Rule 1. The first launch is the only one that needs a server, and until it has
-    /// had one there is nothing to dictate with.
+    /// Rule 1: the first launch is the only one that needs a server.
     @Test("refuses when nobody has ever signed in")
     func neverSignedIn() {
         let access = gate(holding: nil).access(at: Fixture.noon, networkIsReachable: true)
@@ -19,15 +22,13 @@ struct EntitlementGateTests {
         #expect(access.permitsDictation == false)
     }
 
-    /// A first launch with no network is still a first launch: the answer is the same
-    /// refusal, and it is ``AccountError/serverUnreachable`` that explains it.
+    /// A first launch offline is still a first launch; ``AccountError/serverUnreachable`` explains it.
     @Test("refuses on a first launch whether or not there is a network")
     func neverSignedInOffline() {
         #expect(gate(holding: nil).access(at: Fixture.noon, networkIsReachable: false) == .refused)
     }
 
-    /// Rule 2. Nothing on this path reaches a server, so the answer cannot depend on
-    /// whether one is reachable.
+    /// Rule 2: nothing on this path reaches a server, so the answer cannot depend on one.
     @Test("allows a current entitlement with no network anywhere in sight")
     func signedInAndCurrent() {
         let gate = gate(holding: Fixture.entitlement(expiring: 86_400))
@@ -35,8 +36,7 @@ struct EntitlementGateTests {
         #expect(gate.access(at: Fixture.noon, networkIsReachable: true) == .allowed)
     }
 
-    /// Rule 3, second half. There is a connection, so the renewal is worth attempting
-    /// and the user is worth asking — but the answer still permits the dictation.
+    /// Rule 3, second half: with a network the user is asked to sign in again, and still dictates.
     @Test("asks an expired user to sign in again when there is a network, and lets them speak")
     func expiredWithNetwork() {
         let access = gate(holding: Fixture.entitlement(expiring: -1))
@@ -45,15 +45,12 @@ struct EntitlementGateTests {
         #expect(access.permitsDictation)
     }
 
-    /// A cached entitlement is believed on its signature, so one signed by anybody else
-    /// is not a session at all. This is the state that makes the offline promise safe
-    /// to keep rather than merely convenient.
+    /// A cached entitlement is believed on its signature alone, so one signed by anybody else is no session.
     @Test("refuses an entitlement somebody else signed")
     func forgedEntitlement() {
         let forgery = Fixture.entitlement(expiring: 86_400, signedBy: Fixture.impostor)
         let storage = MemoryStorage()
-        // Saved past the verifier deliberately: this is a file edited behind the app's
-        // back, which is the only way a forgery ever reaches the disk.
+        // Saved past the verifier on purpose: a forgery reaches the disk only by editing the file by hand.
         let credulous = UserDefaultsProfileCache(storage: storage, verifier: CredulousVerifier())
         try? credulous.save(Fixture.profile(for: forgery))
 
@@ -62,9 +59,7 @@ struct EntitlementGateTests {
         #expect(gate.access(at: Fixture.noon, networkIsReachable: false) == .refused)
     }
 
-    /// Expiry is a backstop against a cancelled subscription, not a clock the app runs
-    /// down. Being current is the *only* thing that separates ``DictationAccess/allowed``
-    /// from the two that follow it.
+    /// Being current is the only thing that separates ``DictationAccess/allowed`` from the two after it.
     @Test("treats the instant of expiry as expired and the instant before as current")
     func boundary() {
         #expect(
@@ -76,22 +71,10 @@ struct EntitlementGateTests {
     }
 }
 
-/// The rule this whole module exists to get right.
-///
-/// If any test in this file is failing, do not adjust it to match the code. The
-/// behaviour it describes is the product's most important promise, and the failure
-/// means somebody has taken it away.
+/// The product's most important promise; fix the code, never these tests. See Docs/entitlements.md.
 @Suite("An expired entitlement degrades; it never locks")
 struct ExpiredEntitlementNeverLocksTests {
-    /// Rule 3. Somebody on a plane, whose subscription lapsed while they were in the
-    /// air, must still be able to speak.
-    ///
-    /// The one that matters. Holding a person's own words hostage to an authentication
-    /// server they cannot reach is the worst failure this product could have — worse
-    /// than a wrong transcript, worse than a crash, because it is the app deciding it
-    /// knows better than the user about words the user already said. A gate that
-    /// returned ``DictationAccess/refused`` here would look tidier and would be a
-    /// betrayal of the only claim Uttrflow makes.
+    /// Rule 3: somebody on a plane whose subscription lapsed in the air must still be able to speak.
     @Test("permits dictation when the entitlement has expired and there is no network")
     func expiredAndOfflineStillDictates() {
         let store = Fixture.cacheHolding(Fixture.entitlement(expiring: -1))
@@ -101,15 +84,10 @@ struct ExpiredEntitlementNeverLocksTests {
         #expect(access == .allowedAwaitingNetwork)
         #expect(
             access.permitsDictation,
-            """
-            An expired entitlement with no network must still permit dictation. \
-            Read the suite comment above before changing this.
-            """)
+            "an expired entitlement with no network must still permit dictation; see Docs/entitlements.md")
     }
 
-    /// However long ago it lapsed. A cut-off measured in days is still a cut-off, and
-    /// the point at which the product starts refusing is the point at which it stops
-    /// being a thing that runs on your own machine.
+    /// A cut-off measured in days is still a cut-off.
     @Test("permits dictation however long ago the entitlement expired", arguments: [1, 30, 365, 3_650])
     func expiryAgeIsIrrelevant(daysAgo: Int) {
         let store = Fixture.cacheHolding(
@@ -119,8 +97,7 @@ struct ExpiredEntitlementNeverLocksTests {
         #expect(access.permitsDictation, "an entitlement \(daysAgo) days stale locked the user out")
     }
 
-    /// Neither does the plan. A lapsed free account and a lapsed paid one have both
-    /// already been let in once, and neither is a reason to keep somebody's words.
+    /// A lapsed free account and a lapsed paid one are both already let in once.
     @Test("permits dictation on any plan", arguments: Plan.allCases)
     func planIsIrrelevant(plan: Plan) {
         let store = Fixture.cacheHolding(Fixture.entitlement(expiring: -86_400, plan: plan))
@@ -131,8 +108,7 @@ struct ExpiredEntitlementNeverLocksTests {
 
     // MARK: Rule 5 — a person who cannot sign in is not locked out
 
-    /// The whole point of ``LocalAccount``: the one page in the product that needs a
-    /// network has a way through it that needs nothing.
+    /// The point of ``LocalAccount``: the one page that needs a network has a way through that needs nothing.
     @Test("allows somebody who chose this Mac over an account, network or no network")
     func chosenThisMac() {
         let gate = EntitlementGate(
@@ -145,8 +121,7 @@ struct ExpiredEntitlementNeverLocksTests {
         }
     }
 
-    /// A store that is present and empty is not a local account, and must answer exactly
-    /// as no store at all does. Otherwise merely wiring one in would sign everybody in.
+    /// A present, empty store answers exactly as no store does, or wiring one in would sign everybody in.
     @Test("a local store nobody has written to still refuses")
     func localStoreButNoLocalAccount() {
         let gate = EntitlementGate(
@@ -154,8 +129,7 @@ struct ExpiredEntitlementNeverLocksTests {
         #expect(gate.access(at: Fixture.noon, networkIsReachable: true) == .refused)
     }
 
-    /// The unsigned value never overrules the signed one. If it could, a local account
-    /// would be a way to talk an expired subscription into looking current.
+    /// The unsigned value never overrules the signed one, or a local account could revive a lapsed plan.
     @Test("the entitlement decides even when a local account is also present")
     func entitlementBeatsTheLocalAccount() {
         let local = InMemoryLocalAccountStore(LocalAccount(name: "Naveen", since: Fixture.noon))
@@ -170,8 +144,7 @@ struct ExpiredEntitlementNeverLocksTests {
             ).access(at: Fixture.noon, networkIsReachable: true) == .allowedPendingSignIn)
     }
 
-    /// The guard against a sixth state quietly joining the refusing side, and against
-    /// either aged-out state being "tidied" into the first one.
+    /// Guards against a sixth state joining the refusing side, or an aged-out state tidied into `.refused`.
     @Test("stops a dictation in exactly one of its five states, and that state is being signed out")
     func exactlyOneAnswerRefuses() {
         let refusing = DictationAccess.allCases.filter { !$0.permitsDictation }

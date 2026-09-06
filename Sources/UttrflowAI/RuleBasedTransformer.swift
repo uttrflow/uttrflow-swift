@@ -1,21 +1,19 @@
 public import UttrflowCore
 
-/// The floor beneath every other transformer.
-///
-/// Deterministic, instant, and incapable of inventing anything, so it can never
-/// decline a request. Everything above it may fail or refuse; this cannot, which is
-/// what makes the pipeline unable to dead-end.
+/// The floor beneath every other transformer: deterministic, instant, and unable to decline or invent.
 public struct RuleBasedTransformer: TextTransformationEngine {
+    /// Always `.rules`.
     public let kind: TransformerKind = .rules
 
+    /// Makes the floor; it holds no state.
     public init() {}
 
-    /// Always available. It works on any language, because it only rearranges what is
-    /// already there.
+    /// Always available, in any language, because it only rearranges what is already there.
     public func availability(for request: TransformationRequest) async -> TransformerAvailability {
         .available
     }
 
+    /// Collapses whitespace, drops fillers, capitalises, and finishes the sentence.
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {

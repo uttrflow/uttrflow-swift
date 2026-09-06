@@ -1,31 +1,28 @@
 #if UTTRFLOW_CLOUD
+    // A hosted cleanup model and its JSON bodies, compiled in only under UTTRFLOW_CLOUD.
 
     public import Foundation
     public import UttrflowCore
 
-    /// A hosted language model.
-    ///
-    /// Compiled in only when `UTTRFLOW_CLOUD` is defined, which V1 does not do — the
-    /// shipping binary contains no network path at all, and the requirements are
-    /// explicit that it must not. Enabling it later is this flag plus a base URL, not a
-    /// redesign, because it reuses ``GenerativeTextTransformer`` and therefore inherits
-    /// the same prompt and the same meaning checks as the on-device model.
-    ///
-    /// Audio never reaches it. Only text and, later, context — which is the privacy
-    /// principle the requirements set out for any hosted stage.
+    /// A hosted model, compiled in only under `UTTRFLOW_CLOUD`; it receives text and context, never audio.
     public struct HTTPCleanupModel: CleanupModel {
+        /// Where the cleanup call is posted.
         private let endpoint: URL
+        /// The session the call goes through.
         private let session: URLSession
 
+        /// Points the model at a service.
         public init(endpoint: URL, session: URLSession = .shared) {
             self.endpoint = endpoint
             self.session = session
         }
 
+        /// Always available; the service handles any language.
         public func availability(for language: LanguageCode?) async -> TransformerAvailability {
             .available
         }
 
+        /// Posts the instructions and text as JSON and returns the reply's text.
         public func rewrite(
             _ text: String, instructions: String, kind: TransformerKind
         ) async throws(TransformationError) -> String {
@@ -50,12 +47,17 @@
         }
     }
 
+    /// The request body.
     private struct CleanupCall: Encodable {
+        /// The system instructions.
         let instructions: String
+        /// The text to rewrite.
         let text: String
     }
 
+    /// The response body.
     private struct CleanupReply: Decodable {
+        /// The rewritten text.
         let text: String
     }
 

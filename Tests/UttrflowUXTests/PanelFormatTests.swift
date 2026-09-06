@@ -1,17 +1,20 @@
+// Tests for formatting a clip: when it is offered, that the app runs it, and the diff sheet.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// D5, D6, D8. A formatter rewrites code the user did not ask it to touch, so almost all
-/// of this is about when it is *not* offered and what has to happen before it is kept.
+/// A formatter rewrites code nobody asked it to touch, so most of this is about when it is not offered.
 @Suite("D5, D6, D8 · formatting a clip")
 struct PanelFormatTests {
+    /// A Swift clip with a confident language.
     static let swiftCode = Clip(
         text: "func a(){\nlet x=1\n}", kind: .code, copiedAt: PanelFixture.now, language: .swift)
+    /// Words, which no formatter touches.
     static let prose = PanelFixture.clip("just some words", minutesAgo: 1)
 
+    /// A panel over these clips with these formatters installed.
     static func panel(
         installed: Set<CodeLanguage> = [.swift], clips: [Clip] = [swiftCode]
     )
@@ -22,6 +25,7 @@ struct PanelFormatTests {
         return snapshot
     }
 
+    /// The first row's action titles.
     static func actions(_ snapshot: PanelSnapshot) -> [String] {
         PanelPresenter.present(snapshot).rows[0].actions.map(\.title)
     }
@@ -34,8 +38,7 @@ struct PanelFormatTests {
         #expect(!Self.actions(Self.panel(installed: [.python])).contains("Format"))
     }
 
-    /// A clip whose language was never confidently detected has no formatter to pick, and
-    /// guessing one would run the wrong program over somebody's code.
+    /// A clip with no confident language has no formatter, and guessing would run the wrong program.
     @Test("never offered on a clip with no confident language")
     func neverWithoutALanguage() {
         let unknown = Clip(text: "x = 1", kind: .code, copiedAt: PanelFixture.now, language: nil)
@@ -48,25 +51,13 @@ struct PanelFormatTests {
         #expect(!Self.actions(Self.panel(clips: [Self.prose])).contains("Format"))
     }
 
-    /// The model runs nothing. Another program is the app's business, and a panel that
-    /// spawned processes could not be tested without one.
-    /// This is where the dead button hid. The old test asked the model what `.format`
-    /// did to it and was satisfied by "nothing" — which is exactly what the bug looked
-    /// like. Both the panel view and the app hand an intent to the model whenever the
-    /// intent has a key, so a key on `.format` meant the request reached the one place
-    /// that cannot run a formatter and stopped there. Pressing the wand did nothing at
-    /// all, and the diff sheet was unreachable in a shipped build.
-    ///
-    /// The question worth asking is therefore not what the model does with it, but
-    /// whether the model is asked at all.
+    /// The model runs nothing; a key on `.format` would send the request where it cannot run and stop there.
     @Test("D5 · formatting is the app's to run, so it carries no key")
     func formattingIsNotTheModelsToAnswer() {
         #expect(PanelIntent.format(Self.swiftCode.id).key == nil)
     }
 
-    /// The neighbours, so the line between the two groups is drawn rather than implied.
-    /// Re-indenting really is the model's own work — it rewrites text with no help from
-    /// outside — and it must keep its key.
+    /// Re-indenting is the model's own work, so it keeps its key; the line between the two is drawn here.
     @Test("re-indenting, which needs nothing outside, does carry one")
     func reindentingIsTheModelsOwn() {
         #expect(PanelIntent.reindent(Self.swiftCode.id).key == .reindent(Self.swiftCode.id))
@@ -74,22 +65,20 @@ struct PanelFormatTests {
 
     // MARK: D6 — nothing is kept without being shown
 
+    /// The formatting sheet over the Swift clip.
     static func sheet(_ formatted: String) -> PanelSheetPresentation? {
         var snapshot = Self.panel()
         snapshot.sheet = .formatting(Self.swiftCode.id, formatted: formatted)
         return PanelPresenter.present(snapshot).sheet
     }
 
-    /// Seen on screen: an empty, focused text box sat above the diff, because the view
-    /// drew a field for every sheet except the delete confirmation. A sheet that asks
-    /// "format this code?" has nothing for anyone to type.
+    /// A sheet that asks "format this code?" has nothing for anyone to type.
     @Test("D6 · the formatting sheet has nothing to type into")
     func nothingToTypeIntoAFormattingSheet() {
         #expect(Self.sheet("func a() {\n    let x = 1\n}")?.takesTyping == false)
     }
 
-    /// The other side of the same rule, so it says which sheets a field belongs to
-    /// rather than only which one it does not.
+    /// The other side of the rule, saying which sheets a field belongs to.
     @Test("and naming a clip still does")
     func namingTakesTyping() {
         var snapshot = Self.panel()
@@ -108,15 +97,13 @@ struct PanelFormatTests {
         #expect(sheet?.confirmTitle == "Keep it")
     }
 
-    /// A diff of nothing is not a decision, and offering one would ask the user to approve
-    /// a change that does not exist.
+    /// A diff of nothing is not a decision, so there is nothing to keep.
     @Test("a formatter that changed nothing offers nothing to keep")
     func nothingToKeep() {
         #expect(Self.sheet(Self.swiftCode.text)?.isConfirmEnabled == false)
     }
 
-    /// The result is carried on the sheet rather than recomputed on accept: running the
-    /// formatter twice could answer differently, and the user agreed to *this* answer.
+    /// The result is carried on the sheet, since running the formatter twice could answer differently.
     @Test("keeping it writes exactly what was shown")
     func keepsWhatWasShown() {
         let formatted = "func a() {\n    let x = 1\n}"
@@ -141,8 +128,7 @@ struct PanelFormatTests {
 
     // MARK: D8
 
-    /// D8 — both reachable. ⌘ already means "exactly what was copied" everywhere else in
-    /// the panel, so formatting needed no second gesture for it.
+    /// ⌘ means "exactly what was copied" everywhere in the panel, so formatting needs no second gesture.
     @Test("D8 · ⌘ still pastes exactly what was copied")
     func commandPastesTheOriginal() {
         let effect = Self.panel().applying(.returnPlain).outcome.effect

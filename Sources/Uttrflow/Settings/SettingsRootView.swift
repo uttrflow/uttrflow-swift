@@ -1,11 +1,9 @@
+// The Settings window's rail, tab list and sizes.
+
 import UttrflowUX
 import SwiftUI
 
-/// The Settings window: a sidebar, and the tab it has selected.
-///
-/// The view has no opinion about what a tab contains, which tabs exist, or whether a
-/// control can be touched. All of that arrives as a ``SettingsWindowPresentation``, so
-/// a fifth tab needs no change here at all.
+/// The Settings window: a rail and the tab it has selected, all from `SettingsWindowPresentation`.
 struct SettingsRootView: View {
     @Bindable var model: SettingsViewModel
 
@@ -27,22 +25,13 @@ struct SettingsRootView: View {
             minWidth: SettingsMetrics.windowWidth, minHeight: SettingsMetrics.windowHeight,
             alignment: .topLeading
         )
-        // The same palette as the main window: this is the same app, and a settings
-        // window drawn on the system's greys beside a window drawn on the design's
-        // reads as somebody else's dialogue.
+        // The same palette as the main window, so this is visibly the same app.
         .background(Color.mainBackground)
         .foregroundStyle(Color.mainText, Color.mainMuted, Color.mainDim)
         .tint(Color.dockAccent)
     }
 
-    /// The four sections, down the left, on the accent.
-    ///
-    /// This was a strip of tabs across the top, and before that a plain sidebar. The
-    /// tabs were the right answer while this window was drawn on the system's greys: a
-    /// hundred and eighty-eight points of neutral rail to name four things is a poor
-    /// trade. The rail earns its width now that it is the same rail first-run wears —
-    /// it carries the identity, which the strip could only ever have tinted, and the two
-    /// windows stop looking like two applications.
+    /// The four sections down the left, on the same rail first-run wears.
     private func rail(_ presentation: SettingsWindowPresentation) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 9) {
@@ -71,14 +60,7 @@ struct SettingsRootView: View {
         .background(RailGround())
     }
 
-    /// Who this window is about, at the foot of the rail.
-    ///
-    /// Not a control: pressing it does nothing, and it deliberately offers nothing to
-    /// press. Everything an account can be *done to* — signing out, changing the name,
-    /// forgetting a device — is on the Account page in the main window, and a second
-    /// place to do half of it is how the two come to disagree. This is here to answer
-    /// the question a settings window should not make somebody leave to ask: whose
-    /// settings are these?
+    /// Who this window is about, at the foot of the rail; not a control, because Account owns every action.
     private func account(_ identity: AccountIdentity) -> some View {
         HStack(spacing: 9) {
             AvatarView(identity: identity, size: 28)

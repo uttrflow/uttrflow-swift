@@ -1,3 +1,4 @@
+// Tests for notes from the panel: promoting a plain clip, and ticking a checklist box.
 import Foundation
 import UttrflowClipboard
 import Testing
@@ -7,7 +8,9 @@ import Testing
 /// E5, E6 — a note's second representation, and the two things the panel can do to it.
 @Suite("E5, E6 · notes from the panel")
 struct PanelNoteTests {
+    /// A plain clip.
     static let plain = PanelFixture.clip("three things to do", minutesAgo: 1)
+    /// A two-item checklist, one item done.
     static let note = Clip(
         text: "milk\nbread", kind: .text, copiedAt: PanelFixture.now,
         richText: """
@@ -15,6 +18,7 @@ struct PanelNoteTests {
             <li class="task-list-item"><input type="checkbox" checked> bread</li></ul>
             """)
 
+    /// The row for one clip.
     static func row(_ clip: Clip) -> PanelRow {
         PanelPresenter.present(PanelFixture.panel([clip])).rows[0]
     }
@@ -27,15 +31,13 @@ struct PanelNoteTests {
         #expect(!Self.row(Self.note).actions.map(\.title).contains("Make a note"))
     }
 
-    /// The one way this action could destroy something: promoting a second time would
-    /// replace what the user has written with a fresh copy of its own plain text.
+    /// Promoting twice would replace what the user wrote with a fresh copy of its own plain text.
     @Test("promoting a clip that is already a note does nothing")
     func neverPromotesTwice() {
         #expect(PanelFixture.panel([Self.note]).applying(.makeNote(Self.note.id)).outcome == .open)
     }
 
-    /// E6's "the original plain text stays recoverable" is a consequence of never deriving
-    /// one form from the other, not a feature anyone has to remember.
+    /// The plain text stays recoverable because neither form is ever derived from the other.
     @Test("promoting leaves the plain text exactly as it was")
     func plainSurvives() {
         let response = PanelFixture.panel([Self.plain]).applying(.makeNote(Self.plain.id))
@@ -50,8 +52,7 @@ struct PanelNoteTests {
         #expect(Self.plain.text == "three things to do")
     }
 
-    /// Deliberately not Markdown. A clip containing `# 3 things` is a note *about* three
-    /// things, and guessing it is a heading rewrites the user's words on promotion.
+    /// Not Markdown: "# 3 things" is a note about three things, and guessing a heading rewrites it.
     @Test("promotion interprets nothing, and escapes what would become markup")
     func promotionDoesNotGuess() {
         let hashed = PanelFixture.clip("# 3 things & <b>one</b>", minutesAgo: 1)
@@ -80,8 +81,7 @@ struct PanelNoteTests {
 
     // MARK: E5
 
-    /// A checklist is the one kind of note whose state is the interesting part, and a
-    /// one-line summary of its first item says nothing about how far along it is.
+    /// A checklist's state is the interesting part, and a first-item summary says nothing about it.
     @Test("a row shows how much of a checklist is done")
     func rowShowsProgress() {
         #expect(Self.row(Self.note).checklist == "1 of 2")

@@ -1,9 +1,10 @@
+// Tests for the formatter diff.
+
 import Testing
 
 @testable import UttrflowClipboard
 
-/// D6 — a formatter is a program the user did not write running over code they did, so
-/// "here is what it wants to do" is the difference between a tool and a surprise.
+/// A formatter is a program the user did not write running over code they did.
 @Suite("D6 · what the formatter wants to change")
 struct TextDiffTests {
     @Test("identical text has nothing to show")
@@ -24,9 +25,7 @@ struct TextDiffTests {
         #expect(lines.count { $0.kind == .same } == 1)
     }
 
-    /// The reason this is a longest-common-subsequence diff rather than a positional
-    /// comparison. Inserting one line at the top shifts every line after it, and a naïve
-    /// diff reports the whole file as changed — useless for deciding whether to accept.
+    /// A longest-common-subsequence diff, because an inserted line must not report the whole file as changed.
     @Test("inserting a line does not report every line after it as changed")
     func insertionDoesNotCascade() {
         let before = "one\ntwo\nthree\nfour"
@@ -44,8 +43,7 @@ struct TextDiffTests {
         #expect(lines.first { $0.kind == .removed }?.text == "two")
     }
 
-    /// Long runs of untouched code are what make a diff unreadable in a narrow panel, and
-    /// they are also the part nobody is deciding about.
+    /// Long runs of untouched code make a diff unreadable and are not what anybody decides about.
     @Test("only the changed parts are offered, with context around them")
     func interestingIsShort() {
         let before = (1...40).map { "line \($0)" }.joined(separator: "\n")
@@ -75,8 +73,7 @@ struct TextDiffTests {
         #expect(TextDiff.changedLines(from: "a", to: "") == 2)
     }
 
-    /// Reindenting is the commonest thing a formatter does, and every touched line shows
-    /// as a pair — which is why the count leads rather than the lines themselves.
+    /// Reindenting shows every touched line as a pair, which is why the count leads.
     @Test("reindentation shows as a pair per line, and is counted honestly")
     func reindent() {
         let before = "func a() {\nlet x = 1\n}"

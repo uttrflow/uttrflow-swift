@@ -1,3 +1,4 @@
+// Tests for the Snippets page: rows, search, the inline editor, and the empty page.
 import Foundation
 import UttrflowCore
 import Testing
@@ -5,6 +6,7 @@ import Testing
 @testable import UttrflowUX
 
 extension HistoryFixture {
+    /// One snippet, used a dozen times, last used today by default.
     static func snippet(
         _ trigger: String = "my address",
         text: String = "Flat 402, Example Residences, Bengaluru",
@@ -17,6 +19,7 @@ extension HistoryFixture {
             lastUsed: lastUsedDaysAgo.map { now.addingTimeInterval(Double(-$0) * 86_400) })
     }
 
+    /// The Snippets page over these inputs.
     static func snippets(
         _ snippets: [Snippet] = [], draft: SnippetDraft? = nil, query: String = ""
     ) -> SnippetsPresentation {
@@ -51,16 +54,14 @@ struct SnippetsPageTests {
         #expect(row.actions.map(\.intent) == [.editSnippet(snippet.id), .forgetSnippet(snippet.id)])
     }
 
-    /// A snippet nobody has used is worth spotting, so it says so rather than leaving
-    /// the cell blank.
+    /// A snippet nobody has used is worth spotting, so it says so rather than leaving the cell blank.
     @Test("a snippet that has never fired says never")
     func neverUsed() {
         let row = HistoryFixture.snippets([HistoryFixture.snippet(lastUsedDaysAgo: nil)]).rows[0]
         #expect(row.lastUsed == "Never")
     }
 
-    /// Spoken triggers arrive with whatever spacing the recogniser felt like, so
-    /// comparing them raw would make one snippet look like two.
+    /// Spoken triggers arrive with any spacing, so comparing them raw would make one snippet look like two.
     @Test("a trigger is matched on its words, not its spacing")
     func matchKey() {
         #expect(
@@ -136,8 +137,7 @@ struct SnippetsEditorTests {
                 .problem == "A snippet needs something to type.")
     }
 
-    /// Two snippets answering to one phrase means one of them silently never fires, and
-    /// the user has no way to find out which.
+    /// Two snippets answering to one phrase means one silently never fires, with no way to tell which.
     @Test("a trigger somebody already has is refused before it is saved")
     func duplicate() {
         let existing = HistoryFixture.snippet("my address")
@@ -159,8 +159,7 @@ struct SnippetsEditorTests {
         #expect(editor?.canSave == true)
     }
 
-    /// An empty state under an open editor would be telling the user off for the thing
-    /// they are doing.
+    /// An empty state under an open editor would be telling the user off for the thing they are doing.
     @Test("an open editor replaces the empty state")
     func editorInsteadOfEmpty() {
         let page = HistoryFixture.snippets([], draft: SnippetDraft())

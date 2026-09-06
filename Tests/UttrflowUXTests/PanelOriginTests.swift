@@ -1,18 +1,14 @@
+// Tests for the two arrival tabs: what the user copied, what Uttrflow made, and the search across both.
 import Foundation
 import Testing
 import UttrflowClipboard
 
 @testable import UttrflowUX
 
-/// The two lists, on the panel side.
-///
-/// History used to be everything, and everything included every finished dictation — one
-/// every minute or two against a ⌘C whenever a ⌘C happens. The dictations were therefore
-/// always the newest rows and always at the top, and the clipboard the panel exists to be
-/// was underneath them. These tests are the arrangement that fixes it: two tabs, each in
-/// its own arrival order, and a search that still reaches both.
+/// Two tabs each in arrival order, so dictations never bury the clipboard, and a search reaches both.
 @Suite("The clipboard, and the tab beside it")
 struct PanelOriginTests {
+    /// Two dictations and two copies, interleaved by age.
     static let clips = [
         PanelFixture.clip("said just now", minutesAgo: 1, origin: .uttrflow),
         PanelFixture.clip("copied a while back", minutesAgo: 20),
@@ -20,6 +16,7 @@ struct PanelOriginTests {
         PanelFixture.clip("copied yesterday", minutesAgo: 900),
     ]
 
+    /// The summaries a scope shows over these clips.
     static func rows(
         _ scope: PanelScope, clips: [Clip] = PanelOriginTests.clips, query: String = ""
     ) -> [String] {
@@ -39,9 +36,7 @@ struct PanelOriginTests {
         #expect(Self.rows(.uttrflow) == ["said just now", "said earlier"])
     }
 
-    /// Which is the property the split exists for, said as the thing that used to fail:
-    /// a dictation a second ago cannot displace a copy from twenty minutes ago, because
-    /// they are no longer in the same order.
+    /// A dictation a second ago cannot displace a copy from twenty minutes ago; they are in separate orders.
     @Test("a fresh dictation never takes the top of History")
     func aDictationCannotTakeTheTop() {
         let after = Self.rows(
@@ -51,9 +46,7 @@ struct PanelOriginTests {
         #expect(after.first == "copied a while back")
     }
 
-    /// A different axis, the same argument the kind filter and the bar already make:
-    /// these two tabs are about what the user *did* with a clip, so where it came from
-    /// has no business narrowing them.
+    /// These two tabs are about what the user did with a clip, so its origin does not narrow them.
     @Test("Pinned and Collections hold both, because they are about what you kept")
     func keepingSpansBothLists() {
         let kept = [
@@ -67,9 +60,7 @@ struct PanelOriginTests {
         #expect(Self.rows(.collections, clips: kept) == ["filed dictation", "filed copy"])
     }
 
-    /// The failure this nearly shipped as. History no longer means everything, so a
-    /// search that fell back to it would have been blind to every dictation — and the tab
-    /// built so that dictations are not buried would have made them unfindable instead.
+    /// A search that fell back to History would be blind to every dictation.
     @Test("a search reaches both lists, whichever tab is open")
     func searchingSpansBothLists() {
         #expect(Self.rows(.history, query: "said") == ["said just now", "said earlier"])
@@ -89,9 +80,7 @@ struct PanelOriginTests {
         #expect(empty?.message.contains("Dictate something") == true)
     }
 
-    /// True rather than alarming: the clipboard has clips in it, and not one of them was
-    /// copied. The sentence a full-of-dictations History gets is the one an empty
-    /// clipboard gets, because in the only sense History speaks about, it is empty.
+    /// True rather than alarming: in the only sense History speaks about, it is empty.
     @Test("a History with only dictations behind it says nothing was copied")
     func emptyHistoryOverDictations() {
         var snapshot = PanelFixture.panel([
@@ -116,9 +105,7 @@ struct PanelOriginTests {
         #expect(empty?.message == "Nothing Uttrflow has made is code.")
     }
 
-    /// The sentence this table was corrected for once before, arriving on a new axis: the
-    /// shared arm said "Nothing in db — nothing you have copied is filed here", and on
-    /// this tab every clause of it is false.
+    /// On this tab every clause of the shared "nothing you have copied is filed here" would be false.
     @Test("an empty Uttrflow tab inside a collection names both, and blames neither wrongly")
     func theUttrflowTabInsideACollection() {
         var snapshot = PanelFixture.panel(
@@ -134,8 +121,7 @@ struct PanelOriginTests {
         #expect(empty?.message == "Nothing filed in db came from Uttrflow.")
     }
 
-    /// A search spans both lists by design, so its empty sentence must not claim to have
-    /// looked only at what was copied.
+    /// A search spans both lists, so its empty sentence must not claim to have looked at copies only.
     @Test("a fruitless search does not say it only looked at what you copied")
     func theSearchSentenceCoversBothLists() {
         let snapshot = PanelFixture.panel(
@@ -148,9 +134,7 @@ struct PanelOriginTests {
 
     // MARK: - Coming back to where you were
 
-    /// The panel is dismissed constantly and by design. While History admitted
-    /// everything, reopening on History still showed the remembered clip whatever tab it
-    /// was found under; now it does not, and the aim would silently move to the top row.
+    /// History does not show a dictation, so reopening must come back to the tab that does.
     @Test("reopening comes back to the tab you were on, with your clip still selected")
     func resumingKeepsTheTab() {
         let dictation = PanelFixture.clip("said just now", minutesAgo: 1, origin: .uttrflow)
@@ -166,8 +150,7 @@ struct PanelOriginTests {
         #expect(panel.results.selected?.id == dictation.id)
     }
 
-    /// And a selection the reopened tab cannot show is not restored at all, rather than
-    /// falling back to the top — which reads as the panel having moved the user's aim.
+    /// A selection the reopened tab cannot show is let go rather than moved to the top row.
     @Test("but a selection the tab cannot show is let go rather than quietly moved")
     func resumingDropsASelectionTheTabHides() {
         let dictation = PanelFixture.clip("said just now", minutesAgo: 1, origin: .uttrflow)

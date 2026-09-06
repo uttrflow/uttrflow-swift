@@ -1,3 +1,4 @@
+// Tests the transcription runner and its metrics recorder.
 import Foundation
 import UttrflowCore
 import Synchronization
@@ -36,8 +37,7 @@ struct TranscriptionRunnerTests {
         #expect(report.failureCounts.isEmpty)
     }
 
-    /// The reason a long unattended run is survivable: each score is handed over the
-    /// moment it exists, so the caller can put it on disk before the next passage starts.
+    /// Each score is handed over the moment it exists, so a long unattended run is survivable.
     @Test("hands over each score as it finishes")
     func reportsProgress() async {
         let seen = Mutex<[String]>([])
@@ -123,8 +123,7 @@ struct TranscriptionRunnerTests {
         #expect(report.latencies.map(\.stage) == [.transcription])
     }
 
-    /// A stage nothing measured is named as unmeasured rather than shown as zero: this
-    /// harness reads audio off disk, so capture never happens here at all.
+    /// This harness reads audio off disk, so capture is named as unmeasured rather than shown as zero.
     @Test("says which stages nothing measured")
     func unmeasuredStages() async {
         let report = await TranscriptionRunner().run(
@@ -201,8 +200,7 @@ struct CollectingMetricsRecorderTests {
         #expect(await recorder.drain().isEmpty)
     }
 
-    /// The reason it drains rather than accumulating: one recorder serves a whole run,
-    /// and a passage must not inherit the previous passage's timings.
+    /// One recorder serves a whole run, so it drains rather than accumulates.
     @Test("times a stage through the shared measuring helper")
     func measuresAStage() async throws {
         let recorder = CollectingMetricsRecorder()

@@ -1,19 +1,23 @@
+// The Snippets page: its rows, the inline editor, and the presenter that draws them.
 public import UttrflowCore
 public import Foundation
 
-/// A phrase you say, and the block of text you get instead.
-///
-/// One snippet, ready to draw.
+/// One snippet ready to draw: the phrase you say, and the block of text you get instead.
 public struct SnippetRow: Sendable, Equatable, Identifiable {
+    /// The snippet's identity.
     public let id: UUID
+    /// The phrase, as a pill.
     public let trigger: MainPill
+    /// What it expands to.
     public let text: String
+    /// How often it has fired, as text.
     public let timesUsed: String
-    /// "Today", "Tuesday", "12 Aug" — or "Never", because a snippet nobody has used is
-    /// worth spotting.
+    /// "Today", "Tuesday", "12 Aug" — or "Never", because an unused snippet is worth spotting.
     public let lastUsed: String
+    /// Edit and Delete.
     public let actions: [MainAction]
 
+    /// Builds a row from its parts.
     public init(
         id: UUID, trigger: MainPill, text: String, timesUsed: String, lastUsed: String,
         actions: [MainAction]
@@ -27,26 +31,31 @@ public struct SnippetRow: Sendable, Equatable, Identifiable {
     }
 }
 
-/// The snippet being written, in the row where it will end up.
-///
-/// Inline rather than a sheet: a snippet is two fields, and a modal window over two
-/// fields makes adding one feel like a chore that has to be worth it.
+/// The snippet being written, inline in the row where it will end up.
 public struct SnippetEditor: Sendable, Equatable {
     /// The snippet being changed, or `nil` when this is a new one.
     public let editing: UUID?
+    /// The trigger typed so far.
     public let trigger: String
+    /// The text typed so far.
     public let text: String
+    /// The label on the trigger field.
     public let triggerLabel: String
+    /// The label on the text field.
     public let textLabel: String
-    /// "Editing" or "New". Absent from neither, so the row is never ambiguous.
+    /// "Editing" or "New", always present so the row is never ambiguous.
     public let badge: MainPill
     /// Why this cannot be saved yet, in words. Absent when it can.
     public let problem: String?
+    /// Commits the snippet.
     public let save: MainAction
+    /// Closes the editor unchanged.
     public let cancel: MainAction
 
+    /// Whether Save is enabled.
     public var canSave: Bool { problem == nil }
 
+    /// Builds the editor from its parts.
     public init(
         editing: UUID?,
         trigger: String,
@@ -70,16 +79,16 @@ public struct SnippetEditor: Sendable, Equatable {
     }
 }
 
-/// What the user is part-way through writing.
-///
-/// Held apart from the stored snippets because a half-typed trigger is not a snippet,
-/// and letting it into the list would make an empty trigger something the matcher could
-/// one day try to match.
+/// What the user is part-way through writing, held apart from the stored snippets.
 public struct SnippetDraft: Sendable, Equatable {
+    /// The snippet being changed, or `nil` for a new one.
     public let editing: UUID?
+    /// The trigger typed so far.
     public let trigger: String
+    /// The text typed so far.
     public let text: String
 
+    /// Starts empty unless given text.
     public init(editing: UUID? = nil, trigger: String = "", text: String = "") {
         self.editing = editing
         self.trigger = trigger
@@ -89,15 +98,18 @@ public struct SnippetDraft: Sendable, Equatable {
 
 /// Everything the snippets page is drawn from.
 public struct SnippetsSnapshot: Sendable, Equatable {
+    /// In the store's order.
     public let snippets: [Snippet]
     /// Set while the inline editor is open.
     public let draft: SnippetDraft?
-    /// Why the last Save did not happen, when the store refused it. See
-    /// ``DictionarySnapshot/refusal``.
+    /// Why the last Save did not happen, when the store refused it; see ``DictionarySnapshot/refusal``.
     public let refusal: String?
+    /// What has been typed into the search field.
     public let query: String
+    /// The clock the page is drawn against.
     public let now: Date
 
+    /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
         snippets: [Snippet] = [], draft: SnippetDraft? = nil, refusal: String? = nil,
         query: String = "", now: Date
@@ -112,18 +124,22 @@ public struct SnippetsSnapshot: Sendable, Equatable {
 
 /// What the snippets page shows.
 public struct SnippetsPresentation: Sendable, Equatable {
+    /// The title, caption, search field and New button across the top.
     public let chrome: MainPageChrome
     /// "5 snippets".
     public let caption: String
+    /// The snippets that match the query.
     public let rows: [SnippetRow]
+    /// The open editor, above the rows.
     public let editor: SnippetEditor?
-    /// Set when there is nothing to list *and* nothing being written — an empty state
-    /// under an open editor would be telling the user off for the thing they are doing.
+    /// Set when there is nothing to list and nothing being written.
     public let emptyState: MainEmptyState?
     /// The worked example on the empty page: a trigger and what it types.
     public let example: SnippetExample?
+    /// The line under the rows, absent when there are none.
     public let footnote: String?
 
+    /// Builds the page from its parts.
     public init(
         chrome: MainPageChrome,
         caption: String,
@@ -145,10 +161,14 @@ public struct SnippetsPresentation: Sendable, Equatable {
 
 /// The one snippet shown to somebody who has none, so the idea lands before the form does.
 public struct SnippetExample: Sendable, Equatable {
+    /// "For example".
     public let heading: String
+    /// The trigger, as a pill.
     public let trigger: MainPill
+    /// What it types.
     public let text: String
 
+    /// Builds the example.
     public init(heading: String, trigger: MainPill, text: String) {
         self.heading = heading
         self.trigger = trigger
@@ -158,8 +178,10 @@ public struct SnippetExample: Sendable, Equatable {
 
 /// Turns stored snippets into the page that edits them.
 public enum SnippetsPresenter {
+    /// What the empty search field says.
     public static let searchPlaceholder = "Search snippets"
 
+    /// Draws the Snippets page from a snapshot.
     public static func page(
         for snapshot: SnippetsSnapshot,
         calendar: Calendar = .autoupdatingCurrent,
@@ -194,6 +216,7 @@ public enum SnippetsPresenter {
                 """)
     }
 
+    /// The address snippet shown to somebody with none.
     static let example = SnippetExample(
         heading: "For example",
         trigger: MainPill(text: "my address", tone: .accent),
@@ -201,22 +224,14 @@ public enum SnippetsPresenter {
 
     // MARK: - Searching
 
-    /// Matches the trigger and the text. The text matters because the trigger is the
-    /// half people forget — you remember the address, not what you called it.
+    /// Matches the trigger and the text, since the trigger is the half people forget.
     static func matches(_ snippets: [Snippet], query: String, locale: Locale) -> [Snippet] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return snippets }
-        return snippets.filter { snippet in
-            [snippet.trigger, snippet.expansion].contains {
-                $0.range(
-                    of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-                    locale: locale) != nil
-            }
-        }
+        SearchQuery.matches(snippets, query: query, locale: locale) { [$0.trigger, $0.expansion] }
     }
 
     // MARK: - One snippet
 
+    /// One snippet as a row with Edit and Delete.
     static func row(
         for snippet: Snippet, now: Date, calendar: Calendar, locale: Locale
     ) -> SnippetRow {
@@ -230,14 +245,13 @@ public enum SnippetsPresenter {
             } ?? "Never",
             actions: [
                 MainAction(title: "Edit", symbolName: "pencil", intent: .editSnippet(snippet.id)),
-                MainAction(
-                    title: "Delete", symbolName: "trash", intent: .forgetSnippet(snippet.id),
-                    isDestructive: true),
+                .delete(.forgetSnippet(snippet.id)),
             ])
     }
 
     // MARK: - Writing one
 
+    /// The inline editor over a draft, with the reason it cannot be saved yet.
     static func editor(for draft: SnippetDraft, in snapshot: SnippetsSnapshot) -> SnippetEditor {
         SnippetEditor(
             editing: draft.editing,
@@ -254,22 +268,16 @@ public enum SnippetsPresenter {
             cancel: MainAction(title: "Cancel", intent: .cancelSnippetEdit))
     }
 
-    /// Why a draft cannot be saved, said before the button is pressed.
-    ///
-    /// A duplicate trigger is refused rather than allowed to shadow the older snippet:
-    /// two snippets that answer to one phrase means one of them silently never fires,
-    /// and the user has no way to find out which.
+    /// Why a draft cannot be saved; a duplicate trigger is refused, since one of two would never fire.
     static func problem(with draft: SnippetDraft, in snapshot: SnippetsSnapshot) -> String? {
         let trigger = draft.trigger.trimmingCharacters(in: .whitespacesAndNewlines)
         if trigger.isEmpty { return "A snippet needs something to say." }
-        // The store's refusal wins over this page's own rules: it is the more recent
-        // fact, and it is about the attempt the user actually made.
+        // The store's refusal wins: it is the more recent fact and about the attempt the user made.
         if let refusal = snapshot.refusal { return refusal }
         if draft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return "A snippet needs something to type."
         }
-        // Compared on the matcher's own view of the trigger, so "my address" and
-        // "My address:" are recognised as the same snippet rather than saved twice.
+        // Compared on the matcher's view of the trigger, so "my address" and "My address:" are one snippet.
         let key = Snippet(trigger: trigger, expansion: " ", created: .distantPast).triggerWords
         let clash = snapshot.snippets.contains {
             $0.id != draft.editing && $0.triggerWords == key
@@ -279,13 +287,11 @@ public enum SnippetsPresenter {
 
     // MARK: - Nothing to show
 
+    /// No matches, or no snippets at all.
     static func emptyState(for snapshot: SnippetsSnapshot) -> MainEmptyState {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {
-            return MainEmptyState(
-                symbolName: "magnifyingglass",
-                title: "No matches",
-                message: "No snippet of yours mentions “\(query)”.")
+            return .noMatches("No snippet of yours mentions “\(query)”.")
         }
         return MainEmptyState(
             symbolName: "doc.on.doc",

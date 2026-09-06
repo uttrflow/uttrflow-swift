@@ -1,3 +1,4 @@
+// Reproduces shipped dictation bugs by catching the pipeline mid-stage.
 import Synchronization
 import Testing
 
@@ -5,16 +6,9 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-// MARK: - Doubles
-//
-// Every double here is private to this file and named for it, so it can sit beside the
-// doubles the other pipeline test files declare in the same test target.
+// MARK: - Doubles, private to this file and named for it
 
-/// A place a stage can be held, and released, from a test.
-///
-/// Everything in this file turns on catching the pipeline in the middle of a stage — a
-/// microphone that has not opened yet, a transcription still running — which is the one
-/// thing a fake that answers immediately can never be caught doing.
+/// A place a stage can be held and released, since a fake that answers at once cannot be caught mid-stage.
 private actor RegressionGate {
     private var isOpen = false
     private var wasReached = false
@@ -48,8 +42,7 @@ private actor RegressionGate {
     }
 }
 
-/// An ``AudioCaptureEngine`` whose `start()` can be held open for as long as a test
-/// likes, standing in for the microphone permission prompt on first launch.
+/// An ``AudioCaptureEngine`` whose `start()` holds open, standing in for the first-launch permission prompt.
 private actor RegressionCapture: AudioCaptureEngine {
     enum Call: Sendable, Equatable {
         case start
@@ -69,8 +62,7 @@ private actor RegressionCapture: AudioCaptureEngine {
 
     func start() async throws(AudioCaptureError) {
         calls.append(.start)
-        // Recorded before the wait, so a test can tell "the prompt is on screen" from
-        // "the microphone is live".
+        // Recorded before the wait, so a test can tell "prompt on screen" from "microphone live".
         if let startGate { await startGate.pass() }
         current = .recording
     }
@@ -112,8 +104,7 @@ private final class RegressionSpeech: SpeechEngine, Sendable {
     var transcriptions: Int { count.withLock { $0 } }
 }
 
-/// A ``TranscriptCleaning`` that can be held inside the tidying stage and counts what it
-/// was asked to tidy.
+/// A ``TranscriptCleaning`` that can be held inside tidying and counts its requests.
 private final class RegressionCleaner: TranscriptCleaning, Sendable {
     private let gate: RegressionGate?
     private let count = Mutex(0)
@@ -146,10 +137,7 @@ private final class RegressionInserter: TextInserting, Sendable {
     var received: [String] { log.withLock { $0 } }
 }
 
-/// A ``HotkeyMonitoring`` that watches for nothing.
-///
-/// These tests hand the controller its gestures directly through ``submit(_:)``, which
-/// is the path the floating button takes; the shortcut never comes into it.
+/// A ``HotkeyMonitoring`` that watches for nothing; gestures arrive through ``submit(_:)``.
 private final class RegressionMonitor: HotkeyMonitoring {
     private let stream: AsyncStream<HotkeyEvent>
     private let continuation: AsyncStream<HotkeyEvent>.Continuation
@@ -167,13 +155,7 @@ private final class RegressionMonitor: HotkeyMonitoring {
     var events: AsyncStream<HotkeyEvent> { stream }
 }
 
-/// A clock that moves on a little each time it is read.
-///
-/// The point of the interleaving tests is to submit a press and a release back to back
-/// with nothing in between — so there is no moment at which a test could advance a
-/// ``ManualClock`` to make the hold long enough to count as a dictation. Letting the
-/// clock move itself gives every hold a full step, and the two readings still come from
-/// the gestures themselves, in the order they were handled.
+/// A clock that moves on a step each read, so back-to-back gestures still make a full hold.
 private final class SteppingClock: Clock, Sendable {
     typealias Instant = ManualClock.Instant
 
@@ -262,10 +244,7 @@ private func makeRegressionPipeline(
     )
 }
 
-/// Waits for the dictation to reach an end, and reports how it ended.
-///
-/// Reading the stream rather than polling keeps the wait exact: it returns the moment
-/// the pipeline arrives somewhere it can rest, and never before.
+/// Waits for the dictation to reach a resting state and reports it, exactly when it arrives.
 private func endOfDictation(_ stream: AsyncStream<DictationState>) async -> DictationState? {
     for await state in stream {
         switch state {
@@ -283,13 +262,7 @@ struct DictationRegressionTests {
 
     // MARK: A press and a release that raced
 
-    /// The failure this prevents: on first launch the user holds the floating button,
-    /// speaks, and lets go — and nothing happens. The microphone stays open, the
-    /// recording indicator stays lit, and everything they said is thrown away, because
-    /// the release was handled while the permission prompt still had `start()`
-    /// suspended and returned early on a pipeline that was not listening yet. Both
-    /// gestures arrive here as two independent callbacks, exactly as the button
-    /// delivers them, with nothing awaited in between for them to queue behind.
+    /// Press and release arrive as two callbacks during the prompt. See Docs/pipeline-gestures.md.
     @Test(
         "a press and the release chasing it cannot strand the microphone open",
         .timeLimit(.minutes(1)))
@@ -301,8 +274,7 @@ struct DictationRegressionTests {
         harness.controller.submit(.pressed)
         harness.controller.submit(.released)
 
-        // The prompt is on screen: `start()` is suspended and the pipeline is not
-        // listening — the exact window the release used to slip through.
+        // The prompt is on screen: `start()` is suspended and the pipeline is not listening.
         await permissionPrompt.waitUntilReached()
         #expect(await harness.pipeline.currentState == .idle)
 
@@ -338,11 +310,7 @@ struct DictationRegressionTests {
 
     // MARK: A cancel that arrives after the recording stopped
 
-    /// The failure this prevents: the user cancels a dictation while it is being
-    /// transcribed, and moments later the words appear in their document anyway —
-    /// possibly in whatever they had switched to in the meantime. Cancelling is
-    /// promised to leave no trace, and the promise has to hold for the stages that run
-    /// after the microphone has already closed, not only while it is still open.
+    /// Cancelling leaves no trace, including in stages that run after the microphone has closed.
     @Test(
         "cancelling during transcription inserts nothing and leaves no trace",
         .timeLimit(.minutes(1)))
@@ -396,9 +364,7 @@ struct DictationRegressionTests {
         #expect(cleaner.requests == 1, "the cancel arrived while it was already tidying")
     }
 
-    /// A flag saying only "a cancel happened" would still be set when the next
-    /// dictation ran, and would throw that one away too — the user cancels once and the
-    /// app appears to stop working. The cancel has to name the dictation it abandoned.
+    /// The cancel has to name the dictation it abandons, or the next one is thrown away too.
     @Test("cancelling one dictation does not touch the next one", .timeLimit(.minutes(1)))
     func aCancelledDictationDoesNotPoisonTheNextOne() async throws {
         let transcribing = RegressionGate()

@@ -1,3 +1,5 @@
+// Tests for UserDefaultsProfileCache and SystemDefaultsStorage.
+
 import Foundation
 import UttrflowCore
 import Testing
@@ -5,22 +7,22 @@ import UttrflowTestSupport
 
 @testable import UttrflowAccount
 
+/// The cache that keeps the signed profile between launches and refuses what it cannot verify.
 @Suite("The profile, kept between launches")
 struct ProfileCacheTests {
+    /// A cache over `storage` that checks signatures with the test backend's key.
     private func cache(_ storage: MemoryStorage) -> UserDefaultsProfileCache {
         UserDefaultsProfileCache(storage: storage, verifier: Fixture.verifier)
     }
 
-    /// Rule 2, in one test: what the first launch wrote is what every launch after it
-    /// reads, with nothing asked of anybody in between.
+    /// Rule 2: what the first launch writes is what every later launch reads, with nothing asked of anybody.
     @Test("gives back exactly what was signed in")
     func roundTrip() throws {
         let storage = MemoryStorage()
         let profile = Fixture.profile(for: Fixture.entitlement(expiring: 86_400))
         try cache(storage).save(profile)
 
-        // A second cache over the same bytes, because the launch that reads is never
-        // the one that wrote.
+        // A second cache over the same bytes, because the launch that reads is never the one that wrote.
         #expect(cache(storage).load() == profile)
     }
 
@@ -29,8 +31,7 @@ struct ProfileCacheTests {
         #expect(cache(MemoryStorage()).load() == nil)
     }
 
-    /// Corrupt data degrades to signed out. Losing the session is recoverable in
-    /// seconds; losing the app to a file somebody mangled is not.
+    /// Corrupt data degrades to signed out; a mangled file must not take the app down.
     @Test("degrades to signed out rather than crashing on nonsense")
     func corruptDataIsNoSession() {
         for bytes in [Data(), Data("{".utf8), Data("null".utf8), Data([0xFF, 0xFE, 0x00])] {
@@ -39,8 +40,7 @@ struct ProfileCacheTests {
         }
     }
 
-    /// Readable JSON of the right shape, signed by the wrong person. Decoding is not
-    /// believing.
+    /// Readable JSON of the right shape, signed by the wrong person: decoding is not believing.
     @Test("degrades to signed out when the session was signed by somebody else")
     func forgedDataIsNoSession() throws {
         let storage = MemoryStorage()
@@ -52,8 +52,7 @@ struct ProfileCacheTests {
         #expect(cache(storage).load() == nil)
     }
 
-    /// Refused at the door, so the failure surfaces during the sign-in that caused it
-    /// rather than as a mysterious sign-out on the next launch.
+    /// Refused at the door, so the failure surfaces in the sign-in that caused it, not as a later sign-out.
     @Test("refuses to keep a session it cannot verify")
     func saveRejectsAForgery() {
         let storage = MemoryStorage()
@@ -65,10 +64,7 @@ struct ProfileCacheTests {
         #expect(storage.keys.isEmpty, "a session that could not be verified was written anyway")
     }
 
-    /// An entitlement that has aged out is still a session and is still returned.
-    /// Deciding what it permits belongs to ``EntitlementGate``, and a store that took
-    /// the decision by returning `nil` would lock out exactly the user this module
-    /// exists to protect.
+    /// An aged-out entitlement is still a session; what it permits is ``EntitlementGate``'s call, not this.
     @Test("returns an expired session rather than pretending there is none")
     func expiredSessionsSurviveTheStore() throws {
         let storage = MemoryStorage()
@@ -77,9 +73,7 @@ struct ProfileCacheTests {
         #expect(cache(storage).load() == expired)
     }
 
-    /// Rule 4. Signing out removes the session and nothing else — the history, the
-    /// dictionary and the settings are the user's own and are not this store's to
-    /// touch. The other keys stand in for them here because they share the domain.
+    /// Rule 4: signing out removes the session only; the other keys stand in for the user's own data.
     @Test("signing out removes the session and leaves every other thing on the Mac alone")
     func signingOutKeepsLocalData() throws {
         let neighbours = [
@@ -107,9 +101,7 @@ struct ProfileCacheTests {
         #expect(UserDefaultsProfileCache.defaultKey.hasSuffix(".v1"))
     }
 
-    /// The default verifier is the release one, which believes nothing until a real key
-    /// is compiled in. A store built without arguments must therefore fail closed too,
-    /// rather than quietly skipping the check.
+    /// The default verifier is the release one, so a store built without arguments fails closed too.
     @Test("checks signatures by default")
     func defaultsToTheReleaseVerifier() {
         let storage = MemoryStorage()
@@ -120,6 +112,7 @@ struct ProfileCacheTests {
     }
 }
 
+/// The storage that backs the cache with a real `UserDefaults` domain.
 @Suite("The app's own defaults domain")
 struct SystemDefaultsStorageTests {
     @Test("keeps a value, gives it back, and removes it")
@@ -138,9 +131,7 @@ struct SystemDefaultsStorageTests {
         }
     }
 
-    /// Without a suite name it reads the standard domain, which the app itself uses.
-    /// Only the absence of a value is asserted: writing there would be writing into the
-    /// preferences of whoever is running the tests.
+    /// Only absence is asserted: writing to the standard domain writes into the runner's own preferences.
     @Test("reads the standard domain when no suite is named")
     func standardDomain() {
         #expect(SystemDefaultsStorage().data(forKey: "com.uttrflow.absent.\(UUID().uuidString)") == nil)
