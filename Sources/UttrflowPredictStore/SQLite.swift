@@ -14,11 +14,11 @@ public enum PredictStoreError: Error, Equatable {
 }
 
 /// Tells SQLite to copy a bound string, since Swift may free it before the step runs.
-let copyBoundText = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+private let copyBoundText = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 /// One open database, owned by whichever actor created it and never shared.
 final class Database {
-    let handle: OpaquePointer
+    private let handle: OpaquePointer
     private var cached: [String: OpaquePointer] = [:]
 
     /// Opens or creates the database, reporting corruption as itself so it can be replaced.

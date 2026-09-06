@@ -5,6 +5,9 @@ public import struct Foundation.Date
 public import class Foundation.FileManager
 public import struct Foundation.URL
 
+/// The evidence a candidate is built from, named once so the queries that read it cannot drift apart.
+private let entryColumns = "text, count, accepted, rejected, self_sourced, last_used"
+
 /// The corpus on disk: what the user has entered where, and what usually follows what.
 public actor PredictStore: PredictionStore {
     /// How many entries one surface may hold before the weakest are evicted.
@@ -162,7 +165,7 @@ public actor PredictStore: PredictionStore {
 
     /// The range scan the whole design rests on, over the lowercased text so it ignores case yet keeps the index.
     static let prefixQuery = """
-        SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
+        SELECT \(entryColumns) FROM entry
         WHERE surface_id = ? AND text_lower >= ? AND text_lower < ? AND superseded_by IS NULL
         ORDER BY count DESC LIMIT ?
         """
@@ -195,7 +198,7 @@ public actor PredictStore: PredictionStore {
 
         let all = try rows(
             """
-            SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
+            SELECT \(entryColumns) FROM entry
             WHERE surface_id = ? AND superseded_by IS NULL
             """, { $0.bind(1, id) }, distance: 0)
 
@@ -271,12 +274,12 @@ public actor PredictStore: PredictionStore {
 
     /// Notes that a suggestion was taken, which is evidence and also a discount.
     public func recordAccepted(_ text: String, in surface: Surface) throws(PredictStoreError) {
-        try count("accepted", text, surface)
+        try increment(.accepted, forText: text, in: surface)
     }
 
     /// Notes that a suggestion was shown and typed past, which is the user saying no.
     public func recordRejected(_ text: String, in surface: Surface) throws(PredictStoreError) {
-        try count("rejected", text, surface)
+        try increment(.rejected, forText: text, in: surface)
     }
 
     /// Marks an entry wrong and points at what replaces it, so it is never proposed again.
@@ -284,13 +287,7 @@ public actor PredictStore: PredictionStore {
         _ text: String, with replacement: String, in surface: Surface
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: false) else { return }
-        try database.run(
-            "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
-            {
-                $0.bind(1, replacement)
-                $0.bind(2, id)
-                $0.bind(3, text)
-            })
+        try markSuperseded(text, by: replacement, surfaceIdentifier: id)
     }
 
     // MARK: - Forgetting
@@ -363,23 +360,38 @@ public actor PredictStore: PredictionStore {
             }
         ) { $0.text(0) }
         for fragment in fragments {
-            try database.run(
-                "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
-                {
-                    $0.bind(1, text)
-                    $0.bind(2, id)
-                    $0.bind(3, fragment)
-                })
+            try markSuperseded(fragment, by: text, surfaceIdentifier: id)
         }
+    }
+
+    /// Points one entry at what replaces it, which is how a correction and a fragment are both retired.
+    private func markSuperseded(
+        _ text: String, by replacement: String, surfaceIdentifier id: Int64
+    ) throws(PredictStoreError) {
+        try database.run(
+            "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
+            {
+                $0.bind(1, replacement)
+                $0.bind(2, id)
+                $0.bind(3, text)
+            })
     }
 
     // MARK: - Plumbing
 
-    private func count(_ column: String, _ text: String, _ surface: Surface) throws(PredictStoreError) {
+    /// A tally an offer moves, closed so nothing a caller supplied can reach the statement.
+    private enum Tally: String {
+        case accepted
+        case rejected
+    }
+
+    /// Adds one to a tally against an entry, doing nothing where the field was never typed in.
+    private func increment(
+        _ tally: Tally, forText text: String, in surface: Surface
+    ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: false) else { return }
-        // The column is one of two literals chosen here, never anything a caller supplied.
-        let sql = "UPDATE entry SET \(column) = \(column) + 1 WHERE surface_id = ? AND text = ?"
-        try database.run(sql) {
+        let column = tally.rawValue
+        try database.run("UPDATE entry SET \(column) = \(column) + 1 WHERE surface_id = ? AND text = ?") {
             $0.bind(1, id)
             $0.bind(2, text)
         }
@@ -423,7 +435,7 @@ public actor PredictStore: PredictionStore {
     private func entry(surfaceIdentifier id: Int64, text: String) throws(PredictStoreError) -> Entry? {
         try rows(
             """
-            SELECT text, count, accepted, rejected, self_sourced, last_used FROM entry
+            SELECT \(entryColumns) FROM entry
             WHERE surface_id = ? AND text = ? AND superseded_by IS NULL
             """,
             {

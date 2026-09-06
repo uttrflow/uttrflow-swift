@@ -4,20 +4,6 @@ import UttrflowPredict
 
 @testable import UttrflowPredictStore
 
-private struct CaseCorpus: ~Copyable {
-    let path: String
-    init(_ name: String = UUID().uuidString) {
-        path = NSTemporaryDirectory() + "uttrflow-case-\(name).sqlite"
-        remove()
-    }
-    func remove() {
-        for suffix in ["", "-wal", "-shm"] {
-            try? FileManager.default.removeItem(atPath: path + suffix)
-        }
-    }
-    deinit { remove() }
-}
-
 private let field = Surface(bundleIdentifier: "com.apple.TextEdit", role: "AXTextArea")
 private let when = Date(timeIntervalSince1970: 1_800_000_000)
 
@@ -25,8 +11,8 @@ private let when = Date(timeIntervalSince1970: 1_800_000_000)
 struct CaseMatchingTests {
     @Test("A capitalised query matches a lowercased entry, which is what auto-capitalisation causes.")
     func capitalisedQueryMatchesLowercasedEntry() async throws {
-        let corpus = CaseCorpus()
-        let store = try PredictStore(path: corpus.path)
+        let corpus = Corpus()
+        let store = try store(corpus)
         try await store.record("restart the staging database", in: field, at: when)
         let found = try await store.candidates(for: field, matching: "Restart the")
         #expect(found.map(\.text) == ["restart the staging database"])
@@ -34,8 +20,8 @@ struct CaseMatchingTests {
 
     @Test("The suggestion keeps the casing that was stored, not the casing that was typed.")
     func preservesStoredCasing() async throws {
-        let corpus = CaseCorpus()
-        let store = try PredictStore(path: corpus.path)
+        let corpus = Corpus()
+        let store = try store(corpus)
         try await store.record("GitHub Actions", in: field, at: when)
         let found = try await store.candidates(for: field, matching: "github")
         #expect(found.first?.text == "GitHub Actions")
@@ -43,8 +29,8 @@ struct CaseMatchingTests {
 
     @Test("A near-typed match is found across a case difference in the fuzzy tier too.")
     func fuzzyMatchesAcrossCase() async throws {
-        let corpus = CaseCorpus()
-        let store = try PredictStore(path: corpus.path)
+        let corpus = Corpus()
+        let store = try store(corpus)
         try await store.record("git commit -m", in: field, at: when)
         // Capitalised and transposed: only the fuzzy tier can rescue it, and only if it folds case.
         let found = try await store.candidates(for: field, matching: "Gti c")
@@ -53,7 +39,7 @@ struct CaseMatchingTests {
 
     @Test("A v1 file with no lowercased column is migrated and then matches without regard to case.")
     func migratesAnExistingVersionOneFile() async throws {
-        let corpus = CaseCorpus()
+        let corpus = Corpus()
         // Build the old v1 shape by hand: a text column, no text_lower, the index over text.
         let old = try Database(path: corpus.path)
         try old.execute("CREATE TABLE schema_version (version INTEGER NOT NULL)")
@@ -84,15 +70,15 @@ struct CaseMatchingTests {
         }
 
         // Reopening runs the migration; the capitalised query must now find the lowercased entry.
-        let store = try PredictStore(path: corpus.path)
+        let store = try store(corpus)
         let found = try await store.candidates(for: field, matching: "Restart the")
         #expect(found.map(\.text) == ["restart the staging database"])
     }
 
     @Test("The lowercased and the original casing are one entry, counted together, not two.")
     func oneEntryAcrossCasesWhenIdentical() async throws {
-        let corpus = CaseCorpus()
-        let store = try PredictStore(path: corpus.path)
+        let corpus = Corpus()
+        let store = try store(corpus)
         try await store.record("make verify", in: field, at: when)
         try await store.record("make verify", in: field, at: when)
         let found = try await store.candidates(for: field, matching: "MAKE")

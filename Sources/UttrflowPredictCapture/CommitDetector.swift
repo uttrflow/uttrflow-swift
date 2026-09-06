@@ -59,7 +59,7 @@ public struct CommitDetector: Sendable, Equatable {
     public init() {}
 
     /// Whether an idle alone may learn a line, which needs more than a bare single token still being typed.
-    static func looksComplete(_ text: String) -> Bool {
+    private static func looksComplete(_ text: String) -> Bool {
         text.contains(" ")
     }
 

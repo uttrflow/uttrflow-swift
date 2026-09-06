@@ -34,9 +34,6 @@ public struct FieldReading: Sendable, Equatable {
 }
 
 extension FieldReading {
-    /// The role and subrole a password field is published under, by the two conventions in use.
-    public static let secureRole = SecureField.secureRole
-
     /// Whether the field hides what is typed, from its role, its subrole, or a name that betrays a password.
     public var isSecure: Bool {
         SecureField.isDeclaredSecure(
