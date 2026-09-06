@@ -32,7 +32,7 @@ public enum SurfaceProbe {
     }
 
     /// Asks system-wide first and the application second, because apps answer only one. See `Docs/insertion.md`.
-    static func focusedField(of pid: pid_t) -> AXUIElement? {
+    static func focusedField(of processIdentifier: pid_t) -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         _ = AXUIElementSetMessagingTimeout(system, messagingTimeout)
         let systemWide = element(system, kAXFocusedUIElementAttribute)
@@ -40,7 +40,7 @@ public enum SurfaceProbe {
         if let field = systemWide, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) {
             return field
         }
-        let application = AXUIElementCreateApplication(pid)
+        let application = AXUIElementCreateApplication(processIdentifier)
         _ = AXUIElementSetMessagingTimeout(application, messagingTimeout)
         let own = element(application, kAXFocusedUIElementAttribute)
         if let field = own, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) { return field }

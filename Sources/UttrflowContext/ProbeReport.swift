@@ -23,8 +23,8 @@ public struct ProbeReport: Sendable {
             lines.append(
                 "| \(escape(reading.application)) | \(escape(reading.role ?? "—")) "
                     + "| \(escape(reading.locator ?? "—")) "
-                    + "| \(tick(reading.reportsValue)) | \(tick(reading.reportsCaretRect)) "
-                    + "| \(tick(reading.reportsTextStyle)) | \(tick(reading.isSecure)) "
+                    + "| \(yesOrNo(reading.reportsValue)) | \(yesOrNo(reading.reportsCaretRect)) "
+                    + "| \(yesOrNo(reading.reportsTextStyle)) | \(yesOrNo(reading.isSecure)) "
                     + "| \(reading.readMicroseconds) µs | \(name(reading.placement)) |")
         }
         return lines.joined(separator: "\n") + "\n"
@@ -50,7 +50,8 @@ public struct ProbeReport: Sendable {
         "\(Int((share * 100).rounded()))%"
     }
 
-    private func tick(_ value: Bool) -> String { value ? "yes" : "no" }
+    /// One column of the table, as the word a reader scans for.
+    private func yesOrNo(_ value: Bool) -> String { value ? "yes" : "no" }
 
     private func name(_ placement: SuggestionPlacement?) -> String {
         switch placement {

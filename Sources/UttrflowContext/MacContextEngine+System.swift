@@ -48,8 +48,8 @@ extension MacContextEngine {
 
     private static let readQueue = DispatchQueue(label: "com.uttrflow.context", qos: .userInitiated)
 
-    private static func read(_ pid: pid_t) -> FocusedWindow {
-        let app = AXUIElementCreateApplication(pid)
+    private static func read(_ processIdentifier: pid_t) -> FocusedWindow {
+        let app = AXUIElementCreateApplication(processIdentifier)
         // Caps each message so an app that never answers eventually releases this
         // thread. The engine's budget is what the dictation waits for; this is what
         // stops the abandoned read outliving it.
