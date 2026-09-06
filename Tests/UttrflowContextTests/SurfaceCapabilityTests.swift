@@ -26,19 +26,19 @@ struct PlacementTests {
         #expect(reading().placement == .inlineGhost)
     }
 
-    @Test("A field that hides its styling falls to the caret chip.")
+    @Test("A field that hides its styling still takes the inline ghost, in a defaulted font.")
     func noStyle() {
-        #expect(reading(style: false).placement == .caretChip)
+        #expect(reading(style: false).placement == .inlineGhost)
     }
 
-    @Test("A field that hides its caret falls to the window strip.")
+    @Test("A field that hides its caret gets nothing, because nothing is drawn off the caret's line.")
     func noCaret() {
-        #expect(reading(caret: false, style: false).placement == .windowStrip)
+        #expect(reading(caret: false, style: false).placement == nil)
     }
 
-    @Test("Styling without a caret is still the window strip, because there is nowhere to draw.")
+    @Test("Styling without a caret is still nothing, because there is nowhere on the line to draw.")
     func styleWithoutCaret() {
-        #expect(reading(caret: false).placement == .windowStrip)
+        #expect(reading(caret: false).placement == nil)
     }
 
     @Test("A field whose text cannot be read gets nothing, because nothing can be predicted.")
@@ -53,8 +53,7 @@ struct PlacementTests {
 
     @Test("The ladder orders best first.")
     func order() {
-        #expect(SuggestionPlacement.inlineGhost < SuggestionPlacement.caretChip)
-        #expect(SuggestionPlacement.caretChip < SuggestionPlacement.windowStrip)
+        #expect(SuggestionPlacement.inlineGhost < SuggestionPlacement.windowStrip)
     }
 }
 
@@ -104,7 +103,8 @@ struct SweepTests {
     func missingRole() {
         let sweep = CapabilitySweep([reading(role: nil, caret: false, style: false)])
         #expect(sweep.readings.count == 1)
-        #expect(sweep.count(of: .windowStrip) == 1)
+        // With no caret there is nowhere on the line to draw, so the field supports no placement.
+        #expect(sweep.count(of: nil) == 1)
     }
 
     @Test("Readings come back ordered, so two runs of the probe read alike.")
@@ -121,9 +121,11 @@ struct SweepTests {
             reading(application: "C", caret: false, style: false),
             reading(application: "D", secure: true),
         ])
-        #expect(sweep.inlineShare == 0.25)
-        #expect(sweep.eligibleShare == 0.75)
-        #expect(sweep.count(of: nil) == 1)
+        // A and B both reach the inline ghost, because a caret is all it needs.
+        #expect(sweep.inlineShare == 0.5)
+        // Only A and B can take anything: C hides its caret and D is secure, so both draw nothing.
+        #expect(sweep.eligibleShare == 0.5)
+        #expect(sweep.count(of: nil) == 2)
     }
 
     @Test("At the threshold the ghost is worth building; below it, it is not.")
@@ -167,17 +169,19 @@ struct ProbeReportTests {
         #expect(markdown.contains("a\\|b"))
     }
 
-    @Test("Enough inline fields and the report says to build the ladder.")
-    func recommendsTheLadder() {
-        #expect(ProbeReport(CapabilitySweep([reading()])).markdown().contains("Build the ladder"))
+    @Test("Enough inline fields and the report says the ghost is worth leading with.")
+    func recommendsTheGhost() {
+        #expect(
+            ProbeReport(CapabilitySweep([reading()])).markdown().contains(
+                "the only surface"))
     }
 
-    @Test("Too few and it says the strip is the product.")
-    func recommendsTheStrip() {
+    @Test("Too few and it says there is nothing to fall back on.")
+    func reportsTooFewFields() {
         let markdown = ProbeReport(
             CapabilitySweep([reading(caret: false, style: false)])
         ).markdown()
-        #expect(markdown.contains("window strip as the product"))
+        #expect(markdown.contains("no other surface to fall back on"))
     }
 
     @Test("A field that can take nothing is reported as taking nothing.")

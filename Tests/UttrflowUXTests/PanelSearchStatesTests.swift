@@ -1,13 +1,14 @@
+// Tests for search states: grouped results, the cap, match excerpts, no results, and scope.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// H1 — a list showing an alias hit, a collection hit and a content hit together, with
-/// nothing saying which is which, makes the user open rows to find out.
+/// A list mixing alias, collection and content hits without saying which makes the user open rows.
 @Suite("H1 · results, grouped by where the match was")
 struct PanelResultGroupingTests {
+    /// One clip matching by alias, one by collection, one by content.
     static let clips = [
         PanelFixture.clip("nothing to do with it", minutesAgo: 1, alias: "prod"),
         PanelFixture.clip("a clip filed away", minutesAgo: 2, category: "prod"),
@@ -27,9 +28,7 @@ struct PanelResultGroupingTests {
         #expect(PanelPresenter.present(PanelFixture.panel(Self.clips)).groups.isEmpty)
     }
 
-    /// The arrow keys walk the flat list. If the headings were assembled from a list
-    /// ordered some other way, ↓ would jump between groups in an order nobody could
-    /// predict and the third press would land where the eye had not been travelling.
+    /// The arrow keys walk the flat list, so the headings must be assembled in the same order.
     @Test("the groups, laid end to end, are exactly the list the arrows walk")
     func groupsMatchTheKeyboardOrder() {
         let page = PanelPresenter.present(PanelFixture.panel(Self.clips, query: "prod"))
@@ -47,10 +46,10 @@ struct PanelResultGroupingTests {
     }
 }
 
-/// H6 — a search matching four hundred clips by content must not bury the one that
-/// matched by the name the user gave it.
+/// A search matching four hundred clips by content must not bury the one matched by name.
 @Suite("H6 · very many results")
 struct PanelResultCapTests {
+    /// Twenty clips that all match by content.
     static let many = (1...20).map { PanelFixture.clip("prod server \($0)", minutesAgo: $0) }
 
     @Test("each kind of match is capped, and says how many it left out")
@@ -71,15 +70,13 @@ struct PanelResultCapTests {
         #expect(drawn + hidden == 20, "every match is either drawn or counted")
     }
 
-    /// Browsing is not searching. The cap exists to make a result set readable, not to
-    /// shorten the history.
+    /// Browsing is not searching: the cap makes a result set readable, not the history shorter.
     @Test("browsing is never capped")
     func browsingIsWhole() {
         #expect(PanelPresenter.present(PanelFixture.panel(Self.many)).rows.count == 20)
     }
 
-    /// The cap decides what Return can reach, so a row that is not drawn must not be
-    /// reachable by arrow key either — a paste from an invisible row arrives from nowhere.
+    /// A row the cap left out must not be reachable by arrow key, or a paste arrives from nowhere.
     @Test("the arrows cannot reach a row the cap left out")
     func hiddenRowsAreUnreachable() {
         let panel = PanelFixture.panel(Self.many, query: "prod")
@@ -93,10 +90,10 @@ struct PanelResultCapTests {
     }
 }
 
-/// H5 — a row shows its first line, which is right until the match is on line forty.
-/// Then the clip is in the list for a reason that is nowhere on screen.
+/// A row shows its first line, which is wrong when the match is on line forty.
 @Suite("H5 · a match inside long content")
 struct PanelMatchExcerptTests {
+    /// A clip whose match is on its fourth line.
     static let long = PanelFixture.clip(
         """
         # Deployment notes
@@ -123,8 +120,7 @@ struct PanelMatchExcerptTests {
         #expect(page.rows[0].summary == "# Deployment notes")
     }
 
-    /// A row is one line high. A newline inside the excerpt would either vanish or push
-    /// the row out of alignment with its neighbours.
+    /// A row is one line high, so a newline in the excerpt would vanish or break alignment.
     @Test("the excerpt is flattened to one line")
     func excerptIsOneLine() {
         let page = PanelPresenter.present(PanelFixture.panel([Self.long], query: "prodhost"))
@@ -132,8 +128,7 @@ struct PanelMatchExcerptTests {
         #expect(!page.rows[0].summary.contains("\n"))
     }
 
-    /// The excerpt would otherwise print exactly the part of the secret that was searched
-    /// for — the one thing masking exists to prevent.
+    /// The excerpt would otherwise print exactly the searched-for part of a secret.
     @Test("a masked clip is never re-cut around the match")
     func maskedClipsStayMasked() {
         let secret = PanelFixture.clip(
@@ -144,8 +139,7 @@ struct PanelMatchExcerptTests {
         #expect(!page.rows[0].summary.contains("sk-live"))
     }
 
-    /// An alias or collection hit is already named on the row, so re-cutting the text
-    /// around it would replace something useful with something already visible.
+    /// An alias or collection hit is already named on the row, so re-cutting would show nothing new.
     @Test("only a content match is re-cut")
     func onlyContentMatches() {
         let named = PanelFixture.clip("first line\nsecond line", minutesAgo: 1, alias: "notes")
@@ -155,10 +149,10 @@ struct PanelMatchExcerptTests {
     }
 }
 
-/// H3 — a fruitless search is often somebody discovering they never copied the thing they
-/// meant to, and the text they typed is usually that thing.
+/// A fruitless search is often somebody discovering they never copied the thing they meant to.
 @Suite("H3 · a search that found nothing")
 struct PanelNoResultsTests {
+    /// Nothing that matches "pgprod".
     static let clips = [PanelFixture.clip("something else entirely", minutesAgo: 1)]
 
     @Test("it names what was searched for")
@@ -177,8 +171,7 @@ struct PanelNoResultsTests {
         #expect(page.emptyAction?.title.contains("pgprod") == true)
     }
 
-    /// A button that creates a clip out of an empty search field creates nothing, and the
-    /// other empty states have nothing to keep.
+    /// Keeping an empty field would create nothing, and the other empty states have nothing to keep.
     @Test(
         "the other empty states offer nothing, because there is nothing to keep",
         arguments: [
@@ -200,11 +193,10 @@ struct PanelNoResultsTests {
     }
 }
 
-/// H7 — typing leaves the open collection behind and searches everywhere. That is right,
-/// and silent: the chips move to All, and somebody watching the list rather than the chips
-/// sees clips appear from collections they thought they had narrowed away.
+/// Typing leaves the open collection behind silently, so the panel says the scope has widened.
 @Suite("H7 · the scope of a search, said out loud")
 struct PanelSearchScopeVisibilityTests {
+    /// Two clips in different collections.
     static let clips = [
         PanelFixture.clip("one", minutesAgo: 1, category: "Work"),
         PanelFixture.clip("two", minutesAgo: 2, category: "Servers"),
@@ -219,16 +211,14 @@ struct PanelSearchScopeVisibilityTests {
         #expect(page.scope?.contains("Work") == true)
     }
 
-    /// The active chip already answers the question, and a line repeating it would be a
-    /// line of a 420-point panel spent on something already visible.
+    /// The active chip already answers the question, so browsing spends no line repeating it.
     @Test("browsing says nothing, because the chip already says it")
     func browsingIsSilent() {
         #expect(PanelPresenter.present(PanelFixture.panel(Self.clips, category: "Work")).scope == nil)
         #expect(PanelPresenter.present(PanelFixture.panel(Self.clips, query: "o")).scope == nil)
     }
 
-    /// The one thing worse than not saying which key returns you is naming the wrong one.
-    /// `esc` closes the panel; emptying the field is what goes back.
+    /// Naming the wrong key is worse than none: `esc` closes the panel, emptying the field goes back.
     @Test("it names the thing that actually returns you, not esc")
     func itNamesTheRightGesture() {
         let page = PanelPresenter.present(

@@ -2,9 +2,7 @@ public import Foundation
 public import UttrflowCore
 public import UttrflowDictionary
 
-/// Builds the transformers a build contains, and the router over them.
-///
-/// The one place that names concrete engines. Everything above it sees a router.
+/// Builds the transformers a build contains and the router over them; the one place naming concrete engines.
 public enum TextTransformers {
     /// Every transformer in this build, running the steps the user left on; `spellings` is their dictionary.
     public static func all(
@@ -30,6 +28,7 @@ public enum TextTransformers {
         return engines
     }
 
+    /// A router over every engine in this build, ordered by the configuration.
     public static func router(
         configuration: EngineConfiguration = .default, cloudEndpoint: URL? = nil,
         steps: CleaningSteps = .default, spellings: (@Sendable () async -> PhoneticIndex)? = nil

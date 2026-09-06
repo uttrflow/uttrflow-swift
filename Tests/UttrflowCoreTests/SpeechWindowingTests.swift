@@ -1,3 +1,5 @@
+// Tests for SpeechWindowing.
+
 import Foundation
 import Testing
 

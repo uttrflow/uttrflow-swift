@@ -1,51 +1,28 @@
 public import UttrflowCore
-/// Finds spoken triggers in a transcript and puts the stored text in their place.
-///
-/// Deterministic and pure — no clock, no disk, no model. It runs on the dictation path
-/// between the tidier and the insertion, where anything that can be slow or can vary
-/// between two runs of the same words would be felt immediately.
-///
-/// The whole design is one left-to-right pass over the *original* transcript, with the
-/// expansions written into a separate string that is never read back. That single
-/// choice is what makes the depth cap of one free rather than something to enforce: a
-/// snippet whose text contains its own trigger cannot re-enter, because nothing ever
-/// looks at what was written out. A recursive design would have needed a counter, and a
-/// counter is a thing that can be wrong.
+/// Replaces spoken triggers with snippet text in one pass over the original, so an expansion never re-enters.
 public struct SnippetExpander: Sendable {
-    /// The snippets that could fire, longest trigger first.
-    ///
-    /// Sorted once here rather than at each position in the transcript, because the
-    /// order is a property of the snippets and not of what was said. Taking the first
-    /// candidate that fits at a position is then exactly "the longest trigger wins".
+    /// The usable snippets, longest trigger first, so the first candidate that fits at a position wins.
     private let candidates: [Candidate]
 
-    /// - Parameter snippets: The user's snippets, in any order.
+    /// Keeps the usable snippets from `snippets`, in any order; of two sharing a trigger, the first wins.
     public init(snippets: [Snippet]) {
         var claimed: Set<[String]> = []
         var usable: [Candidate] = []
         for snippet in snippets where snippet.isUsable {
             let words = snippet.triggerWords
-            // Two snippets with one trigger is a question with no right answer, and the
-            // store refuses to create it. Should one arrive anyway — a hand-edited file
-            // — the first wins, so the matcher stays a function of its input.
+            // The store refuses two snippets with one trigger; a hand-edited file may hold them, first wins.
             guard claimed.insert(words).inserted else { continue }
             usable.append(Candidate(snippet: snippet, words: words))
         }
         candidates = usable.sorted(by: Candidate.outranks)
     }
 
-    /// Expands every trigger the transcript actually says.
-    ///
-    /// - Parameter transcript: The tidied text, as it would otherwise be inserted.
-    /// - Returns: The text to insert, and a record of every snippet that fired.
+    /// Replaces every trigger the transcript says, returning the new text and every snippet that fired.
     public func expand(_ transcript: String) -> SnippetExpansion {
-        // Most people have no snippets, and tokenising a paragraph to discover that
-        // would be a cost the feature imposes on everyone who does not use it.
+        // Most people have no snippets, so the transcript is not tokenised to discover that.
         guard !candidates.isEmpty else { return .unchanged(transcript) }
 
-        // Normalised once. The alternative — tidying the transcript again inside each
-        // snippet's quoting check — makes the pass cost grow with the snippet count for
-        // no gain, since the answer is the same string every time.
+        // Normalised once, so the quoting check does not re-tidy the transcript per snippet.
         let spoken = TextTidy.collapseWhitespace(transcript).lowercased()
         let eligible = candidates.filter { !spoken.contains($0.quoted) }
 
@@ -77,13 +54,7 @@ public struct SnippetExpander: Sendable {
 
     // MARK: - Whether a trigger really was said
 
-    /// Whether `candidate`'s trigger occupies the word runs starting at `position`.
-    ///
-    /// Three questions, and the last two are the ones that stop a near-miss. The words
-    /// have to be the same words; they have to be spoken as one phrase rather than
-    /// collected across the end of a sentence or read out of one written word; and
-    /// neither end may be glued to a word outside the match, which is what keeps
-    /// "address" out of "address's" once the apostrophe has split it into two runs.
+    /// Whether the trigger's words sit at `position` as one phrase, with neither end glued to a neighbour.
     private func fits(
         _ candidate: Candidate, at position: Int, of runs: [SnippetWordRun], in transcript: String
     ) -> Bool {
@@ -110,42 +81,24 @@ public struct SnippetExpander: Sendable {
         return true
     }
 
-    /// Everything written between two word runs. Never empty: runs are maximal, so
-    /// there is at least one character that is neither a letter nor a digit between any
-    /// two of them.
+    /// The text between two word runs; never empty, because runs are maximal.
     private static func gap(
         _ first: SnippetWordRun, _ second: SnippetWordRun, _ transcript: String
     ) -> Substring {
         transcript[first.range.upperBound..<second.range.lowerBound]
     }
 
-    /// Whether a gap is the ordinary space between two words of one spoken phrase.
-    ///
-    /// The two ways it can fail are the two ways a trigger gets found where it was not
-    /// said. It can be glue, in which case the words either side are halves of one
-    /// written word — "sign_off" is not somebody saying "sign off". Or it can end a
-    /// sentence, in which case the trigger has been assembled out of two different
-    /// thoughts — "Please sign. Off we go" does not say "sign off" either.
+    /// Whether a gap is plain spacing inside one phrase: not glue ("sign_off") and not a sentence end.
     private static func separatesWords(_ gap: Substring) -> Bool {
         !joinsWords(gap) && !gap.contains(where: endsAPhrase)
     }
 
-    /// Punctuation after which the next word belongs to a different thought.
-    ///
-    /// Commas and brackets are deliberately absent: a speaker pausing in the middle of
-    /// their own trigger, and a recogniser writing that pause down, is exactly the case
-    /// punctuation tolerance exists for.
+    /// Punctuation after which the next word starts a new thought; commas and brackets are tolerated pauses.
     private static func endsAPhrase(_ character: Character) -> Bool {
         character.isNewline || ".!?;:".contains(character)
     }
 
-    /// Characters that, with no space anywhere near them, make two runs one written
-    /// word: hyphens, underscores, apostrophes, full stops in a domain, slashes, and
-    /// the at sign in an address.
-    ///
-    /// Spelt out rather than "anything that is not a space", so that an unspaced em
-    /// dash — which separates clauses and joins nothing — does not silently stop a
-    /// legitimate trigger from firing.
+    /// Characters that make two runs one written word; listed, so an unspaced em dash still separates.
     private static let wordJoiners: Set<Character> = ["-", "_", "'", "\u{2019}", ".", "/", "@"]
 
     /// Whether the runs either side of this gap are two halves of one written word.
@@ -157,21 +110,18 @@ public struct SnippetExpander: Sendable {
 // MARK: - A snippet, prepared for matching
 
 extension SnippetExpander {
-    /// One snippet with everything the pass needs precomputed.
-    ///
-    /// Built in the initialiser and not per dictation, because none of it depends on
-    /// what was said and all of it would otherwise be redone on the hot path.
+    /// One snippet with everything the pass needs precomputed once, off the hot path.
     private struct Candidate: Sendable {
+        /// The snippet this candidate stands for.
         let snippet: Snippet
         /// The trigger's words, lower-cased.
         let words: [String]
-        /// The expansion in the same shape a transcript is reduced to, so that "is the
-        /// user already quoting this?" is one substring search.
+        /// The expansion tidied like a transcript, so "is the user quoting this?" is one substring search.
         let quoted: String
-        /// The trigger rejoined. Used only to break ties, and only so that two
-        /// equally long triggers cannot swap places between runs.
+        /// The trigger rejoined; breaks ties so two equally long triggers cannot swap places between runs.
         let key: String
 
+        /// Precomputes the quoting text and the tie-break key for one snippet.
         init(snippet: Snippet, words: [String]) {
             self.snippet = snippet
             self.words = words
@@ -179,13 +129,7 @@ extension SnippetExpander {
             key = words.joined(separator: " ")
         }
 
-        /// A total order with the longest trigger at the front.
-        ///
-        /// Word count first, because "my work address" beating "my address" is about
-        /// how much of the sentence a trigger claims and not how many letters it has.
-        /// The rest is only there to make the order total: any two candidates compare
-        /// the same way every time, so the same snippets and the same words always give
-        /// the same expansion.
+        /// A total order: most words first, then longest text, then alphabetical, so results never vary.
         static func outranks(_ first: Candidate, _ second: Candidate) -> Bool {
             if first.words.count != second.words.count {
                 return first.words.count > second.words.count

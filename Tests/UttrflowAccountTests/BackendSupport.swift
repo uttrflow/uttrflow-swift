@@ -1,26 +1,22 @@
+// Test doubles for the backend: a scripted transport, canned responses, and stub loopback listeners.
+
 import Foundation
 import Synchronization
 import UttrflowCore
 
 @testable import UttrflowAccount
 
-/// A backend that answers from a closure, and remembers what it was asked.
-///
-/// The whole of ``HTTPAuthenticationService`` is four HTTP calls and the rules it keeps
-/// between them, so a transport that a test can script is the difference between testing
-/// those rules and testing a server.
-final class StubTransport: BackendTransport, @unchecked Sendable {
-    /// - Parameters:
-    ///   - request: What was asked.
-    ///   - attempt: How many requests have already been made, so a test can answer the
-    ///     first `claim` with `404` and the third with a session.
-    /// - Returns: The answer, or `nil` for a request that never happened at all — which is
-    ///   how a missing network is spelled, and is never the same thing as a refusal.
+/// A backend that answers from a closure and remembers what it is asked.
+final class StubTransport: BackendTransport {
+    /// Answers a request, given the count before it; `nil` means no network, which is never a refusal.
     typealias Handler = @Sendable (_ request: BackendRequest, _ attempt: Int) -> BackendResponse?
 
+    /// The script every request is answered from.
     private let handler: Handler
+    /// Every request performed, in order.
     private let seen = Mutex<[BackendRequest]>([])
 
+    /// Wraps `handler`.
     init(_ handler: @escaping Handler) {
         self.handler = handler
     }
@@ -32,6 +28,7 @@ final class StubTransport: BackendTransport, @unchecked Sendable {
         requests.filter { $0.url.path().hasSuffix(suffix) }
     }
 
+    /// Records the request and answers it from the script, throwing when the script answers `nil`.
     func perform(_ request: BackendRequest) async throws(BackendUnreachable) -> BackendResponse {
         let attempt = seen.withLock { seen -> Int in
             seen.append(request)
@@ -44,20 +41,22 @@ final class StubTransport: BackendTransport, @unchecked Sendable {
     }
 }
 
+/// Canned responses in the shapes the backend sends.
 enum Stub {
+    /// The API root, a file URL so nothing reaches a network by accident.
     static let baseURL = URL(fileURLWithPath: "/").appending(path: "x")
 
     /// A JSON response, as the backend would send one.
     static func json(_ value: some Encodable, status: Int = 200, etag: String? = nil) -> BackendResponse {
         var headers = ["Content-Type": "application/json"]
-        // Deliberately not "ETag": HTTP header names are case-insensitive and a real proxy
-        // will change them, so the tests use a spelling the service must not depend on.
+        // Not "ETag": a proxy re-cases header names, so the service must not depend on the spelling.
         if let etag { headers["etag"] = etag }
         return BackendResponse(
             status: status, headers: headers,
             body: (try? JSONEncoder().encode(value)) ?? Data())
     }
 
+    /// A refusal in the backend's own error shape.
     static func problem(_ status: Int, message: String) -> BackendResponse {
         BackendResponse(
             status: status, headers: [:],
@@ -82,8 +81,7 @@ enum Stub {
         var expiresIn = 900
         var interval = 5
 
-        // The names on the wire are the RFC's, and snake_cased. Spelling them here rather
-        // than in the property names keeps the lint rule and the specification both happy.
+        // The RFC's snake_case names on the wire, so the properties can keep the lint rule's spelling.
         enum CodingKeys: String, CodingKey {
             case deviceCode = "device_code"
             case userCode = "user_code"
@@ -121,23 +119,26 @@ extension BackendRequest {
     }
 }
 
-/// A loopback listener that never binds a socket.
-///
-/// Binding a port is the one part of sign-in a test cannot exercise, and it is deliberately
-/// the only part behind this protocol: everything a test wants to say about the flow — what
-/// went in the URL, what came back, what was refused — is on the other side of it.
-final class StubLoopbackListener: LoopbackListening, @unchecked Sendable {
-    /// What the browser will bring back, or `nil` to never answer.
+/// A loopback listener that never binds a socket, the one part of sign-in a test cannot exercise.
+final class StubLoopbackListener: LoopbackListening {
+    /// What the browser brings back, or `nil` to never answer.
     private let callback: LoopbackCallback?
+    /// What `bind()` throws, or `nil` to bind successfully.
     private let bindFailure: AccountError?
+    /// How far the flow has got: bound, closed, and how often awaited.
     private let state = Mutex(Progress())
 
+    /// The listener's progress through one sign-in.
     private struct Progress {
+        /// Whether `bind()` ran.
         var bound = false
+        /// Whether `close()` ran.
         var closed = false
+        /// How many times `awaitCallback()` ran.
         var awaited = 0
     }
 
+    /// A listener answering `callback`, or failing to bind with `bindFailure`.
     init(returning callback: LoopbackCallback?, failingToBind bindFailure: AccountError? = nil) {
         self.callback = callback
         self.bindFailure = bindFailure
@@ -147,16 +148,17 @@ final class StubLoopbackListener: LoopbackListening, @unchecked Sendable {
     var wasClosed: Bool { state.withLock { $0.closed } }
     var timesAwaited: Int { state.withLock { $0.awaited } }
 
-    /// A fixed port, because the number is the operating system's business and the test's
-    /// interest is only that whatever was bound is what the backend is told.
+    /// A fixed port: the test only cares that whatever binds is what the backend is told.
     static let redirectURI = safeURL("http://127.0.0.1:49152/callback")
 
+    /// Throws `bindFailure` if set, else records the bind and returns the fixed address.
     func bind() async throws(AccountError) -> URL {
         if let bindFailure { throw bindFailure }
         state.withLock { $0.bound = true }
         return Self.redirectURI
     }
 
+    /// Returns the scripted callback, or refuses when there is none.
     func awaitCallback() async throws(AccountError) -> LoopbackCallback {
         state.withLock { $0.awaited += 1 }
         guard let callback else {
@@ -165,22 +167,22 @@ final class StubLoopbackListener: LoopbackListening, @unchecked Sendable {
         return callback
     }
 
+    /// Records the close.
     func close() async {
         state.withLock { $0.closed = true }
     }
 }
 
-/// A listener that cannot bind, which is the situation the device grant exists for.
-///
-/// A Mac whose security software refuses to let an application listen cannot be arranged in
-/// a test, so this stands in for one — and it is the only part of the end-to-end device
-/// test that is not real.
+/// A listener that cannot bind, standing in for a Mac whose security software refuses to let an app listen.
 final class UnbindableListener: LoopbackListening {
+    /// Always throws.
     func bind() async throws(AccountError) -> URL { throw .serverUnreachable }
 
+    /// Always throws.
     func awaitCallback() async throws(AccountError) -> LoopbackCallback {
         throw .serverUnreachable
     }
 
+    /// Nothing to close.
     func close() async {}
 }

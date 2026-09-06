@@ -1,30 +1,14 @@
-/// One run of word characters in a piece of text, and where it sits in it.
-///
-/// The range travels with the text because a replacement has to land on exactly the
-/// words that were said and leave everything around them alone. Matching "my address"
-/// in "My address." and then replacing the whole sentence would eat the full stop the
-/// tidier had just decided to add.
+/// One run of word characters in a piece of text, with its range, so a replacement lands on those words only.
 public struct SnippetWordRun: Equatable, Sendable {
-    /// The characters as they were written, case and all.
+    /// The characters as written, case and all.
     public let text: String
+    /// Where the run sits in the text it came from.
     public let range: Range<String.Index>
 }
 
+/// The word-run split snippet matching is built on.
 extension String {
-    /// Every maximal run of letters and digits, in order.
-    ///
-    /// This is the whole of the punctuation tolerance. A trigger is *spoken*, so the
-    /// only thing it can be lined up against is words; everything the tidier does —
-    /// adding a full stop, adding a comma, capitalising the first letter — changes the
-    /// separators or the case and never the runs. "My address." and "my address"
-    /// therefore produce the same two runs, which is what makes them the same trigger.
-    ///
-    /// An apostrophe separates rather than joins, so "address's" is two runs and not
-    /// one. That reads like a mistake until you follow it through: the trigger
-    /// "address" then ends against a separator that ``SnippetExpander`` recognises as
-    /// glue, and the snippet refuses to fire inside the possessive. Making the
-    /// apostrophe a word character would have needed a second, separate rule to get the
-    /// same answer.
+    /// Every maximal run of letters and digits; an apostrophe separates, so no trigger fires in a possessive.
     public func snippetWordRuns() -> [SnippetWordRun] {
         var runs: [SnippetWordRun] = []
         var start: String.Index?

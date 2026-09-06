@@ -1,24 +1,12 @@
-/// Removes the wrapper a model puts around an otherwise correct answer.
-///
-/// Few-shot examples teach the task by showing `Cleaned: "…"`, and models reasonably
-/// echo that shape. The words inside are right; only the packaging is wrong. Without
-/// this, a perfectly good rewrite is thrown away by the meaning guard as though the
-/// model had started chatting — which is exactly what happened the first time a local
-/// model was measured, and it looked like the model was terrible.
-///
-/// Deliberately narrow: it strips a bare label from a known list, and matched quotes
-/// around the whole answer. A sentence like "Sure, here is the text:" is *not* a bare
-/// label and still gets rejected, because that really is the model chatting.
+// Unwraps a model's reply, with the whitespace trim it relies on.
+/// Strips a bare label or whole-answer quotes from a model's reply. See Docs/ai-model-output.md.
 public enum ResponseUnwrapper {
+    /// Labels a model echoes from the worked examples; a sentence is not a label and is left for the guard.
     private static let labels = [
         "cleaned", "output", "result", "text", "response", "answer", "corrected", "rewritten",
     ]
 
-    /// - Parameters:
-    ///   - rewritten: What the model returned.
-    ///   - spoken: What the user actually said. A label is only removed when the
-    ///     speaker did not say it themselves, so dictating "Output: ship it" survives.
-    /// - Returns: The answer without its wrapper.
+    /// The answer without its wrapper; a label the speaker said themselves ("Output: ship it") stays.
     public static func unwrap(_ rewritten: String, spoken: String) -> String {
         var text = lastLabelledLine(in: rewritten.trimmed(), unless: spoken)
         text = stripLabel(from: text, unless: spoken)
@@ -27,11 +15,7 @@ public enum ResponseUnwrapper {
         return stripLabel(from: text, unless: spoken).trimmed()
     }
 
-    /// Picks the answer out of a reply that replayed the whole exchange.
-    ///
-    /// Some models echo the worked example in full — the prompt back, then their
-    /// answer under its label. Everything before the last labelled line is the echo.
-    /// Observed from a 4B model, whose real output was correct and whose score was not.
+    /// The answer from a reply that replayed the whole exchange: everything from the last labelled line on.
     private static func lastLabelledLine(in text: String, unless spoken: String) -> String {
         let lines = text.split(whereSeparator: \.isNewline).map { String($0).trimmed() }
         guard lines.count > 1 else { return text }
@@ -43,6 +27,7 @@ public enum ResponseUnwrapper {
         return lines[lastLabelled...].joined(separator: " ")
     }
 
+    /// Removes a known label and its colon, unless the speaker's own words begin with that label.
     private static func stripLabel(from text: String, unless spoken: String) -> String {
         guard let colon = text.firstIndex(of: ":") else { return text }
         let label = String(text[text.startIndex..<colon]).trimmed().lowercased()
@@ -52,14 +37,14 @@ public enum ResponseUnwrapper {
         return String(text[text.index(after: colon)..<text.endIndex]).trimmed()
     }
 
+    /// Removes one pair of quotes around the whole answer, never a pair around part of it.
     private static func stripSurroundingQuotes(_ text: String) -> String {
         let pairs: [(Character, Character)] = [("\"", "\""), ("\u{201C}", "\u{201D}"), ("'", "'")]
         guard let first = text.first, let last = text.last, text.count >= 2 else { return text }
         guard pairs.contains(where: { $0.0 == first && $0.1 == last }) else { return text }
 
         let inner = String(text.dropFirst().dropLast())
-        // Only a quote around the whole answer is packaging; one around part of it is
-        // something the speaker meant.
+        // A quote around part of the answer is something the speaker meant.
         guard !inner.contains(first), !inner.contains(last) else { return text }
         return inner.trimmed()
     }

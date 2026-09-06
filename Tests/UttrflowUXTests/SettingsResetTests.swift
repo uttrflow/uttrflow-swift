@@ -70,6 +70,22 @@ struct SettingsResetLevelTests {
         #expect(SettingsReset.everything.targets.contains(.preferences))
     }
 
+    /// Every level, listed rather than enumerated because one of them names an application.
+    static let everyLevel: [SettingsReset] = [
+        .learnedWords, .everything, .suggestions(inApplication: "com.example.editor"),
+    ]
+
+    /// The switch is exhaustive, so a sixth level cannot be added without this failing to build.
+    @Test("every level there is appears in the list this suite sweeps")
+    func everyLevelIsSwept() {
+        for level in Self.everyLevel {
+            switch level {
+            case .learnedWords, .everything, .suggestions: continue
+            }
+        }
+        #expect(Set(Self.everyLevel).count == Self.everyLevel.count)
+    }
+
     /// Two opinions about the dictionary in one reset would mean the count the user was
     /// shown described only the first of them.
     /// The last dictation's words are on the diagnostics page, and a reset must not leave them there.
@@ -81,12 +97,15 @@ struct SettingsResetLevelTests {
 
     @Test("never holds two opinions about the dictionary at once")
     func noLevelBothKeepsAndEmpties() {
-        for reset in SettingsReset.allCases {
+        for reset in Self.everyLevel {
             let targets = reset.targets
             #expect(
                 !(targets.contains(.learnedWords) && targets.contains(.everyWord)),
                 "\(reset) both keeps and empties the dictionary")
-            #expect(Set(targets).count == targets.count, "\(reset) repeats a target")
+            for target in targets {
+                #expect(
+                    targets.count(where: { $0 == target }) == 1, "\(reset) repeats a target")
+            }
             #expect(!targets.isEmpty, "\(reset) removes nothing")
         }
     }

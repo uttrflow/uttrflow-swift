@@ -1,3 +1,4 @@
+// Writes a recording's WAV to disk while it is still being captured.
 public import Foundation
 public import UttrflowCore
 private import Synchronization
@@ -87,7 +88,7 @@ public final class RecordingWriter: Sendable {
             pread(descriptor, $0.baseAddress, 4, off_t(WAVEncoder.dataSizeOffset))
         }
         guard read == 4, UInt32(littleEndian: declared) == 0 else { return }
-        let frames = (size - WAVEncoder.headerSize) / WAVEncoder.bytesPerFrame
+        let frames = WAVEncoder.frames(inFileOf: size)
         let header = WAVEncoder.header(frames: frames, sampleRate: AudioSamples.canonicalSampleRate)
         _ = write(header, to: descriptor, at: 0)
     }

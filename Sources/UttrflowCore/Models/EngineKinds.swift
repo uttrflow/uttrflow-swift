@@ -1,7 +1,6 @@
-/// Which speech-to-text implementation to use.
-///
-/// Adding an engine means adding a case and registering an implementation; no caller
-/// of ``SpeechEngine`` changes.
+// The catalogue of engine kinds a configuration can name.
+
+/// Which speech-to-text implementation to use; a new engine is a case here and an implementation, no more.
 public enum SpeechEngineKind: String, Sendable, Equatable, CaseIterable, Codable {
     /// WhisperKit running a local Whisper model. Multilingual, highest accuracy.
     case whisperKit
@@ -20,23 +19,7 @@ public enum TransformerKind: String, Sendable, Equatable, CaseIterable, Codable 
     /// A hosted model. Compiled in only when `UTTRFLOW_CLOUD` is defined.
     case cloud
 
-    /// The kinds a build is allowed to select.
-    ///
-    /// V1 ships without cloud support, so ``cloud`` is excluded and the app contains
-    /// no path that reaches the network.
-    /// The kinds a build can actually run.
-    ///
-    /// This is what makes ``EngineConfiguration/resolvedTransformerPreference`` honest,
-    /// and both exclusions are here for the same reason: a preference listing an engine
-    /// the binary does not contain is silently dropped at routing time, so the
-    /// configuration says one thing and the product does another.
-    ///
-    /// `.cloud` is compiled in only under `UTTRFLOW_CLOUD`. `.localModel` is compiled in
-    /// only under `UTTRFLOW_LOCAL_MODEL`, and the app defines neither: `UttrflowLocalModel`
-    /// links MLX, whose Metal shaders need a toolchain the app deliberately does not
-    /// require in order to build. It is reachable from the bake-off, which measures it,
-    /// and not from the app. Apple's model turned out to handle Hindi — undocumented,
-    /// but verified — so the language the local model was brought in for is covered.
+    /// The kinds this binary contains; the app defines neither build flag. See `Docs/core-engine-kinds.md`.
     public static var selectable: [TransformerKind] {
         allCases.filter { kind in
             switch kind {

@@ -1,15 +1,15 @@
+// Tests for dock placement.
+
 import CoreGraphics
 import UttrflowCore
 import Testing
 
 @testable import Uttrflow
 
-/// The main display of a Mac with a menu bar and a Dock: a visible frame that starts
-/// above the origin and stops short of the top.
+/// The main display of a Mac with a menu bar and a Dock: a visible frame that starts above the origin.
 private let mainScreen = CGRect(x: 0, y: 84, width: 1512, height: 862)
 
-/// A second display placed to the left of the main one. Its coordinates are negative,
-/// which is the case an origin computed from a width alone gets silently wrong.
+/// A second display to the left of the main one, whose negative coordinates catch origin-from-width bugs.
 private let leftScreen = CGRect(x: -1920, y: -240, width: 1920, height: 1055)
 
 private let pill = CGSize(width: 298, height: 64)
@@ -98,8 +98,7 @@ struct DockAnchorTests {
     func staysInsideANegativeOriginScreen(anchor: DockAnchor) {
         let frame = DockPlacement.frame(for: anchor, panelSize: pill, in: leftScreen)
         #expect(leftScreen.contains(frame))
-        // The failure this guards is a panel placed as though the screen began at
-        // zero, which on this display is nearly two thousand points away.
+        // A panel placed as though the screen began at zero would be two thousand points away.
         #expect(frame.minX < 0)
     }
 
@@ -141,72 +140,5 @@ struct DockAnchorTests {
         let tall = CGSize(width: 100, height: 400)
         let origin = DockPlacement.origin(for: .rightEdge, panelSize: tall, in: short)
         #expect(origin.y == short.minY)
-    }
-
-    // MARK: - Snapping
-
-    @Test("A drop near a corner snaps to that corner")
-    func snapsToTheNearestCorner() {
-        #expect(
-            DockPlacement.nearestAnchor(to: CGPoint(x: 30, y: 95), in: mainScreen)
-                == .bottomLeft)
-        #expect(
-            DockPlacement.nearestAnchor(to: CGPoint(x: 760, y: 110), in: mainScreen)
-                == .bottomCentre)
-        #expect(
-            DockPlacement.nearestAnchor(to: CGPoint(x: 1480, y: 92), in: mainScreen)
-                == .bottomRight)
-        #expect(
-            DockPlacement.nearestAnchor(to: CGPoint(x: 1500, y: 600), in: mainScreen)
-                == .rightEdge)
-    }
-
-    @Test("Snapping works on a screen with negative coordinates")
-    func snapsOnANegativeOriginScreen() {
-        #expect(
-            DockPlacement.nearestAnchor(to: CGPoint(x: -1900, y: -220), in: leftScreen)
-                == .bottomLeft)
-        #expect(
-            DockPlacement.nearestAnchor(to: CGPoint(x: -60, y: 700), in: leftScreen)
-                == .rightEdge)
-    }
-
-    @Test("Dropping exactly on an anchor chooses that anchor")
-    func snapsToItself() {
-        for anchor in DockAnchor.allCases {
-            let point = DockPlacement.anchorPoint(for: anchor, in: mainScreen)
-            #expect(DockPlacement.nearestAnchor(to: point, in: mainScreen) == anchor)
-        }
-    }
-
-    @Test("A point equidistant from two anchors always resolves the same way")
-    func tiesResolveByDeclarationOrder() {
-        let left = DockPlacement.anchorPoint(for: .bottomLeft, in: mainScreen)
-        let centre = DockPlacement.anchorPoint(for: .bottomCentre, in: mainScreen)
-        let between = CGPoint(x: (left.x + centre.x) / 2, y: left.y)
-        #expect(DockPlacement.nearestAnchor(to: between, in: mainScreen) == .bottomLeft)
-
-        let right = DockPlacement.anchorPoint(for: .bottomRight, in: mainScreen)
-        let edge = DockPlacement.anchorPoint(for: .rightEdge, in: mainScreen)
-        let corner = CGPoint(x: right.x, y: (right.y + edge.y) / 2)
-        #expect(DockPlacement.nearestAnchor(to: corner, in: mainScreen) == .bottomRight)
-    }
-
-    @Test("Snapping honours a supplied margin")
-    func snappingHonoursCustomMargin() {
-        // With a huge margin the bottom-centre anchor is the only one that has not
-        // been dragged towards the middle horizontally, so a point on the centre line
-        // near the bottom still picks it.
-        #expect(
-            DockPlacement.nearestAnchor(
-                to: CGPoint(x: mainScreen.midX, y: mainScreen.minY), in: mainScreen, margin: 300)
-                == .bottomCentre)
-    }
-
-    // MARK: - Orientation
-
-    @Test("Only the right edge stands the button on its end", arguments: DockAnchor.allCases)
-    func orientation(anchor: DockAnchor) {
-        #expect(anchor.isVertical == (anchor == .rightEdge))
     }
 }

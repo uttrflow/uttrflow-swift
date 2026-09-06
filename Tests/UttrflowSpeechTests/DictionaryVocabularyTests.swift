@@ -1,3 +1,4 @@
+// Tests the dictionary-backed vocabulary source.
 import Foundation
 import Testing
 

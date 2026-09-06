@@ -1,3 +1,4 @@
+// Keeps recordings on disk for retry and prunes the old ones.
 public import Foundation
 public import UttrflowCore
 
@@ -83,7 +84,7 @@ public actor RecordingStore: RecordingKeeper {
                 discard(id)
                 continue
             }
-            let frames = max(0, (values?.fileSize ?? 0) - WAVEncoder.headerSize) / WAVEncoder.bytesPerFrame
+            let frames = WAVEncoder.frames(inFileOf: values?.fileSize ?? 0)
             kept.append(
                 KeptRecording(id: id, when: when, duration: RecordingWriter.duration(ofFrames: frames)))
         }
@@ -96,12 +97,5 @@ public actor RecordingStore: RecordingKeeper {
 
     private func url(of id: UUID) -> URL {
         directory.appending(path: "\(id.uuidString).wav", directoryHint: .notDirectory)
-    }
-}
-
-extension Duration {
-    /// The duration as a floating-point number of seconds.
-    fileprivate var inSeconds: Double {
-        Double(components.seconds) + Double(components.attoseconds) / 1e18
     }
 }

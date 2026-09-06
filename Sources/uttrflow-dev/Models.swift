@@ -1,3 +1,4 @@
+// The `models` command: lists, installs and removes speech models.
 import ArgumentParser
 import Foundation
 import UttrflowSpeech
@@ -48,11 +49,9 @@ struct Models: AsyncParsableCommand {
                 let bar =
                     String(repeating: "▇", count: filled)
                     + String(repeating: " ", count: width - filled)
-                FileHandle.standardError.write(
-                    Data("\r  [\(bar)] \(Int((fraction * 100).rounded()))% ".utf8)
-                )
+                Terminal.show("\r  [\(bar)] \(Int((fraction * 100).rounded()))% ")
             }
-            FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+            Terminal.clearLine()
             print("Installed to \(url.path)")
         }
     }

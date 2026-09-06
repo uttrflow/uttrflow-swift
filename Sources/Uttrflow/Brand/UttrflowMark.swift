@@ -1,14 +1,8 @@
+// The Uttrflow mark as a SwiftUI `Shape`, with its grid constants.
+
 import SwiftUI
 
-/// The Uttrflow mark: a lowercase *u* with deliberately uneven stems, a letter and a
-/// waveform at once.
-///
-/// Drawn rather than loaded. The mark is one round-capped stroke on a 100×100 grid, so a
-/// path costs less than a raster at every size and stays exact at all of them — and the
-/// stem tops are parameters, which is what lets a caller animate them.
-///
-/// The same geometry ships in the identity kit as `svg/mark/` and `code/tokens.json`;
-/// change it in one place and re-export, rather than editing either copy by hand.
+/// The Uttrflow mark: a lowercase *u* with uneven stems, one stroke on a 100-grid; see the identity kit.
 struct UttrflowMark: Shape {
     /// Where the short left stem starts, on the grid. Smaller is taller.
     var leftTop: CGFloat = 37

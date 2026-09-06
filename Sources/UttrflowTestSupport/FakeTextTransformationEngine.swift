@@ -1,9 +1,7 @@
+// A TextTransformationEngine with scriptable availability and output.
 public import UttrflowCore
 
-/// A ``TextTransformationEngine`` with scriptable availability and output.
-///
-/// Availability is scriptable because routing around an engine that cannot handle a
-/// language is a behaviour the pipeline must be tested for, not an edge case.
+/// A ``TextTransformationEngine`` with scriptable availability and output, so routing around one is tested.
 public actor FakeTextTransformationEngine: TextTransformationEngine {
     public let kind: TransformerKind
     public let availabilityCalls = CallLog<TransformationRequest>()

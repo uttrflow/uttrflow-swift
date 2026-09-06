@@ -1,9 +1,8 @@
-/// Where the floating button parks.
-///
-/// Lives here because it is both a saved preference and a thing on screen: the
-/// settings store and the panel would otherwise each define their own.
+/// Where the floating button parks; in Core because the settings store and the panel both need it.
 public enum DockAnchor: String, Sendable, Equatable, CaseIterable, Codable {
+    /// The bottom-left corner.
     case bottomLeft
+    /// Centred along the bottom edge.
     case bottomCentre
     /// The corner least likely to hold something the user is reading. The default.
     case bottomRight

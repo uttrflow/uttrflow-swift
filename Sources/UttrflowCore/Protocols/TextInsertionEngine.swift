@@ -12,6 +12,8 @@ public enum TextInsertionMethod: String, Sendable, Equatable, CaseIterable, Coda
     /// them to press ⌘V. Both used to report `pasteboard`, so the interface said
     /// "Inserted" for a dictation that had gone nowhere near their document.
     case clipboard
+    /// Typed in as key events, character by character, with the clipboard left alone.
+    case typed
 }
 
 /// Places finished text into whatever the user is typing in.

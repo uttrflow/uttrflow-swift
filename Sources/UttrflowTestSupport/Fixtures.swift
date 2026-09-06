@@ -1,7 +1,7 @@
+// Named fixtures shared by every test target.
 public import UttrflowCore
 
-// Named fixtures keep tests readable and stop every test file from re-inventing a
-// "typical" transcription or context.
+// Named fixtures, so no test file re-invents a "typical" transcription or context.
 
 extension AudioSamples {
     /// A silent buffer of a given length at the canonical rate.

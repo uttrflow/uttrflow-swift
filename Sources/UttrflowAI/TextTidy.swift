@@ -5,7 +5,12 @@ public enum TextTidy {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    /// Tidies spacing on every line without destroying the line breaks a model meant.
+    /// Lower-cased runs of letters and digits, which is the unit every comparison here counts in.
+    static func words(_ text: String) -> [String] {
+        text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+    }
+
+    /// Tidies spacing but keeps the line breaks a model's answer may mean. See Docs/ai-model-output.md.
     public static func collapseSpacing(_ text: String) -> String {
         text
             .split(separator: "\n", omittingEmptySubsequences: false)

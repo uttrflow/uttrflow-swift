@@ -2,7 +2,7 @@ public import Foundation
 
 /// One thing that happened in a text field, carrying the moment it happened rather than reading a clock.
 public enum CaptureEvent: Sendable, Equatable {
-    /// The whole of what the field holds after a key was pressed.
+    /// The line the caret is on after a key was pressed, which is what a completion matches.
     case keystroke(String, at: Date)
     /// Return was pressed, which is the user saying the value is finished.
     case returnPressed(at: Date)
@@ -31,11 +31,11 @@ public enum CommitReason: String, Sendable, Equatable, CaseIterable {
     case wentIdle
 }
 
-/// One value the user finished entering, and the shorter one it continues.
+/// One value the user finished entering, and the idle draft of it that came before.
 public struct Commit: Sendable, Equatable {
     /// The text as it stood when it was finished.
     public let text: String
-    /// A value committed earlier in this same run that this one extends, which it replaces.
+    /// What an idle committed earlier in this field's life, which this value replaces whatever it has become.
     public let supersedes: String?
     public let reason: CommitReason
 
@@ -46,16 +46,22 @@ public struct Commit: Sendable, Equatable {
     }
 }
 
-/// Decides when a field holds a finished value, so nothing is ever remembered per keystroke.
+/// Decides when a line holds a finished value, so nothing is ever remembered per keystroke.
 public struct CommitDetector: Sendable, Equatable {
-    /// How long a field sits untouched before what is in it counts as finished.
-    public static let idleInterval: TimeInterval = 3
+    /// How long a line sits genuinely untouched before an idle commit will consider it finished.
+    public static let idleInterval: TimeInterval = 8
 
     private var pending = ""
     private var lastKeystroke: Date?
+    /// What an idle commit remembered, kept until the field's life ends so the finished line can retire it.
     private var committed: String?
 
     public init() {}
+
+    /// Whether an idle alone may learn a line, which needs more than a bare single token still being typed.
+    static func looksComplete(_ text: String) -> Bool {
+        text.contains(" ")
+    }
 
     /// Takes one event and answers with the value to record, which is nothing almost every time.
     public mutating func receive(_ event: CaptureEvent) -> Commit? {
@@ -63,7 +69,6 @@ public struct CommitDetector: Sendable, Equatable {
         case .keystroke(let text, let moment):
             pending = text.trimmingCharacters(in: .whitespacesAndNewlines)
             lastKeystroke = moment
-            if let committed, !pending.hasPrefix(committed) { self.committed = nil }
             return nil
         case .returnPressed:
             return finishing(.returnPressed)
@@ -73,7 +78,9 @@ public struct CommitDetector: Sendable, Equatable {
             return finishing(.applicationDeactivated)
         case .tick(let moment):
             guard let lastKeystroke,
-                moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval
+                moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval,
+                // A still-being-typed fragment is left for Return or focus change to commit, not the idle timer.
+                Self.looksComplete(pending)
             else { return nil }
             return commit(.wentIdle)
         }
@@ -95,7 +102,8 @@ public struct CommitDetector: Sendable, Equatable {
     /// Emits what is pending, unless it is nothing or is exactly what was emitted last.
     private mutating func commit(_ reason: CommitReason) -> Commit? {
         guard !pending.isEmpty, pending != committed else { return nil }
-        let superseded = committed.flatMap { pending.hasPrefix($0) ? $0 : nil }
+        // An idle draft is retired by whatever the line became, even after it was backspaced away.
+        let superseded = committed
         committed = pending
         return Commit(text: pending, supersedes: superseded, reason: reason)
     }

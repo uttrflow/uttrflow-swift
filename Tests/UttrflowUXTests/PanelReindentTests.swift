@@ -1,23 +1,24 @@
+// Tests for offering to re-indent a code clip, and for what choosing it changes.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// D4 — the one action here that rewrites what was copied, so the tests are mostly about
-/// when it is *not* offered.
+/// The one action that rewrites what was copied, so the tests are mostly about when it is not offered.
 @Suite("D4 · offering to tidy indentation")
 struct PanelReindentTests {
+    /// Code with mixed tabs and spaces.
     static let messy = Clip(
         text: "func a() {\n\tlet x = 1\n        let y = 2\n}", kind: .code,
         copiedAt: PanelFixture.now, language: .swift)
 
+    /// The row's action titles for one clip.
     static func actions(_ clip: Clip) -> [String] {
         PanelPresenter.present(PanelFixture.panel([clip])).rows[0].actions.map(\.title)
     }
 
-    /// The presence of the action is itself the promise that pressing it is safe: it is
-    /// drawn only where the re-indenter has already decided it can act.
+    /// The action's presence is the promise that pressing it is safe: drawn only where it can act.
     @Test("offered on a code clip whose indentation can be tidied")
     func offeredWhenItWouldHelp() {
         #expect(Self.actions(Self.messy).contains("Re-indent"))
@@ -32,8 +33,7 @@ struct PanelReindentTests {
         #expect(!Self.actions(tidy).contains("Re-indent"))
     }
 
-    /// Prose has no indentation to be wrong, and offering to tidy a paragraph would
-    /// suggest the app is going to rewrite it.
+    /// Prose has no indentation to be wrong, and offering to tidy a paragraph suggests a rewrite.
     @Test("never offered on anything that is not code")
     func neverOnProse() {
         for kind in ClipKind.allCases where kind != .code {
@@ -43,8 +43,7 @@ struct PanelReindentTests {
         }
     }
 
-    /// Inside a multi-line string leading whitespace is content, and the re-indenter
-    /// refuses those. The row must not offer what the model would decline.
+    /// Whitespace inside a multi-line string is content, so the row does not offer what the model refuses.
     @Test("not offered where the re-indenter would refuse")
     func notOfferedWhenUnsafe() {
         let literal = Clip(

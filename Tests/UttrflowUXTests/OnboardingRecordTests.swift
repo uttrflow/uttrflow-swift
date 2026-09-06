@@ -1,3 +1,4 @@
+// Tests for the onboarding record kept in UserDefaults.
 import Testing
 
 @testable import UttrflowSettings

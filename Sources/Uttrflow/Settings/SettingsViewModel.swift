@@ -1,3 +1,5 @@
+// The Settings window's observable state over `SettingsSession`.
+
 import UttrflowCore
 import UttrflowHistory
 import UttrflowSettings
@@ -6,36 +8,20 @@ import SwiftUI
 
 import struct Foundation.Date
 
-/// The Settings window's observable state.
-///
-/// Deliberately almost empty. Everything the window shows and every rule about what may
-/// change lives in ``SettingsSession``, which is a value a test can drive; this adds
-/// only the three things a value cannot do — tell SwiftUI something moved, put the
-/// result somewhere it survives, and await an actor.
+/// The Settings window's observable state; every rule lives in `SettingsSession`.
 @MainActor
 @Observable
 final class SettingsViewModel {
     var session: SettingsSession
 
-    /// Who is signed in, for the foot of the rail. `nil` before anybody is, and while
-    /// the app has not read the profile yet.
-    ///
-    /// Set from outside rather than fetched here: this window has no business holding an
-    /// authentication service, and the app already keeps the answer for the Account page.
+    /// Who is signed in, for the foot of the rail; set from outside, because the app already holds it.
     var identity: AccountIdentity?
 
     private let store: any SettingsStore
     private let personalisation: any SettingsPersonalisationStore
     private let onChange: (UttrflowSettings.Settings) -> Void
     private let onReset: (SettingsReset) -> Void
-    /// Told when the shortcut field starts and stops listening, so the live shortcut can
-    /// be stood down while somebody is choosing a new one.
-    ///
-    /// It matters most for a held modifier. The field's monitor deliberately passes flag
-    /// changes on — swallowing them would leave the rest of the app believing a key is
-    /// still down — so with Fn bound, pressing Fn to record it also started a real
-    /// dictation behind the settings window, which then ran until something else stopped
-    /// it. A key press is swallowed and never had this problem.
+    /// Told when the shortcut field starts and stops listening, so the live shortcut stands down meanwhile.
     private let onShortcutRecording: (Bool) -> Void
 
     init(
@@ -62,25 +48,20 @@ final class SettingsViewModel {
         onShortcutRecording(true)
     }
 
-    /// Stops listening, whether or not a shortcut was recorded, and brings the live one
-    /// back. Called from both ends: Cancel, and a successful recording.
+    /// Stops listening and brings the live shortcut back; called from Cancel and from a successful recording.
     func cancelRecordingShortcut() {
         session.cancelRecordingShortcut()
         onShortcutRecording(false)
     }
 
-    /// Saved as each change is made rather than behind an OK button: nothing in this
-    /// window is half chosen, so there is nothing for a Cancel to undo.
+    /// Saved as each change is made; nothing here is half chosen, so there is nothing for Cancel to undo.
     func apply(_ change: SettingsChange) {
         persist(session.apply(change))
     }
 
     func record(keyCode: UInt16, modifiers: Set<HotkeyModifier>) {
         persist(session.record(keyCode: keyCode, modifiers: modifiers))
-        // A recorded shortcut ends the recording, so the live one comes back — with the
-        // new binding, which `onChange` has already saved. A refusal leaves the field
-        // listening and the live shortcut stood down, which is right: the user is still
-        // mid-choice.
+        // A recorded shortcut ends the recording; a refusal leaves the field listening, mid-choice.
         if !session.recorder.isRecording {
             onShortcutRecording(false)
         }
@@ -88,19 +69,13 @@ final class SettingsViewModel {
 
     // MARK: - Forgetting
 
-    /// The user pressed a destructive button.
-    ///
-    /// Whether that removes anything now, asks first, or is refused is
-    /// ``SettingsSession/request(_:)``'s decision, not this one's.
+    /// The user pressed a destructive button; whether that removes, asks or refuses is the session's call.
     func request(_ removal: SettingsRemoval) {
         guard let reset = session.request(removal) else { return }
         carryOut(reset)
     }
 
-    /// The user answered yes to the question in front of them.
-    ///
-    /// The removal is handed in rather than read back off the session, because the alert
-    /// clears itself as it closes and the two can happen in either order.
+    /// The user answered yes; the removal is handed in because the alert clears itself as it closes.
     func confirm(_ removal: SettingsRemoval) {
         guard let reset = session.confirm(removal) else { return }
         carryOut(reset)
@@ -110,10 +85,7 @@ final class SettingsViewModel {
         session.dismissRemoval()
     }
 
-    /// Reads the counts back off disk.
-    ///
-    /// Asked on every opening, because the window is kept alive between openings and
-    /// the user has been dictating in between.
+    /// Reads the counts back off disk on every opening, since the user has been dictating in between.
     func refreshPersonalisation() {
         let promise = retentionInForce
         Task { [personalisation] in
@@ -131,8 +103,7 @@ final class SettingsViewModel {
                 session.failed(reset)
                 return
             }
-            // Read back rather than assumed to be zero: what a level removes is the
-            // stores' definition, and this window's job is to report it, not restate it.
+            // Read back rather than assumed zero: what a level removes is the stores' definition.
             persist(
                 session.completed(
                     reset, leaving: await personalisation.personalisation(keeping: promise)))

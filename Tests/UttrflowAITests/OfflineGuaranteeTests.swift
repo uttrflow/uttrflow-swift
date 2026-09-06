@@ -4,12 +4,7 @@ import Testing
 @testable import UttrflowAI
 @testable import UttrflowCore
 
-/// Whether a clean-up engine can finish its work with the network switched off.
-///
-/// Written as an exhaustive switch rather than a list of allowed kinds so that adding
-/// a ``TransformerKind`` fails to compile until somebody has decided which side of the
-/// offline promise it falls on. A list would quietly admit a new engine as safe, which
-/// is exactly the regression these tests exist to catch.
+/// Whether an engine finishes with the network off; an exhaustive switch, so a new kind must decide.
 private func runsWithoutNetwork(_ kind: TransformerKind) -> Bool {
     switch kind {
     case .foundationModels: true  // Apple's model, already on this Mac.
@@ -19,22 +14,13 @@ private func runsWithoutNetwork(_ kind: TransformerKind) -> Bool {
     }
 }
 
-/// An endpoint no build should ever honour. Reserved by RFC 2606, so a test that
-/// wrongly reached it would fail to resolve rather than hitting somebody's server.
+/// An endpoint on an RFC 2606 reserved host, so a test that wrongly reaches it fails to resolve.
 private let refusedEndpoint = "https://cloud.invalid/tidy"
 
-/// The dictation path must never touch the network once the speech model is present.
-///
-/// The static half of that promise is audited by `Scripts/offline_audit.sh`, which
-/// reads the sources and the linked binary; the dynamic half is recorded in
-/// `Docs/offline.md`. These tests cover what neither can: that the *assembly* of
-/// engines refuses a network one even when a caller offers it one. Every test here is
-/// pure — none of them needs the network, or its absence, to pass.
+/// The assembly of engines refuses a network engine even when offered one. See Docs/offline.md.
 @Suite("Offline guarantee")
 struct OfflineGuaranteeTests {
-    /// A hosted endpoint is an argument, not a compile-time switch, so nothing stops a
-    /// caller passing one. In a build without `UTTRFLOW_CLOUD` it must be ignored
-    /// rather than honoured — otherwise the flag would guard the type but not the door.
+    /// A build without `UTTRFLOW_CLOUD` must ignore a supplied endpoint, or the flag guards the type only.
     @Test("a supplied endpoint cannot smuggle a network engine into a build without one")
     func endpointIsIgnoredWithoutCloudSupport() throws {
         let endpoint = try #require(URL(string: refusedEndpoint))
@@ -50,8 +36,7 @@ struct OfflineGuaranteeTests {
         #endif
     }
 
-    /// The check that has to keep holding after somebody adds an engine: whatever the
-    /// build assembles, all of it must run on this Mac alone.
+    /// Whatever the build assembles must run on this Mac alone, even after an engine is added.
     @Test("every engine the shipping build assembles runs without the network")
     func assembledEnginesAreAllLocal() throws {
         #if !UTTRFLOW_CLOUD
@@ -62,9 +47,7 @@ struct OfflineGuaranteeTests {
         #endif
     }
 
-    /// `route` is what the pipeline will actually try, in order. Asserting on it rather
-    /// than on the engine list catches a preference that reaches a network engine even
-    /// when the engine list itself looks innocent.
+    /// `route` is what the pipeline tries, so a preference reaching a network engine is caught here.
     @Test("the route the pipeline will take reaches no network engine")
     func shippingRouteIsLocal() throws {
         #if !UTTRFLOW_CLOUD
@@ -78,9 +61,7 @@ struct OfflineGuaranteeTests {
         #endif
     }
 
-    /// Settings are decoded from disk, so a preference written by a cloud-enabled build
-    /// — or by hand — can name an engine this binary does not contain. It must be
-    /// dropped before it reaches the router, not after.
+    /// A stored preference, from a cloud build or by hand, can name an engine this binary lacks.
     @Test("a stored preference asking for the cloud is dropped, not honoured")
     func storedCloudPreferenceIsDropped() {
         #if !UTTRFLOW_CLOUD
@@ -95,9 +76,7 @@ struct OfflineGuaranteeTests {
         #endif
     }
 
-    /// The compile-time gate and the offline classification have to agree. If a kind is
-    /// selectable in a build without cloud support, it is by definition one the user
-    /// can be routed to with no connection, so it had better not need one.
+    /// A kind selectable in a build without cloud support must not need a connection.
     @Test("every kind this build lets the user select works offline")
     func selectableKindsAreLocal() {
         #if !UTTRFLOW_CLOUD

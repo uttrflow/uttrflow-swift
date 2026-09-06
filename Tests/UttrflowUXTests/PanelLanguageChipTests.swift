@@ -1,14 +1,14 @@
+// Tests for the language chip on a row, and for the language being decided when a clip arrives.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// D1, D2 and D3 as the row actually shows them. The detector's own tests prove it
-/// refuses to guess; these prove the refusal reaches the screen as nothing rather than as
-/// an empty chip or a stray label.
+/// The detector refuses to guess, and these prove the refusal reaches the screen as nothing at all.
 @Suite("The language chip on a row")
 struct PanelLanguageChipTests {
+    /// The row for one clip.
     static func row(_ clip: Clip) -> PanelRow {
         PanelPresenter.present(PanelFixture.panel([clip])).rows[0]
     }
@@ -21,8 +21,7 @@ struct PanelLanguageChipTests {
         #expect(Self.row(code).language == "ts", "the chip is the short form, not the name")
     }
 
-    /// D2, D3 — nothing detected means nothing drawn. An empty chip would be a box on the
-    /// row saying the app looked and failed, which is not worth the space.
+    /// Nothing detected means nothing drawn; an empty chip would say the app looked and failed.
     @Test("D2, D3 · nothing is drawn when there was no confident answer")
     func undetectedDrawsNothing() {
         let ambiguous = Clip(
@@ -33,8 +32,7 @@ struct PanelLanguageChipTests {
         #expect(Self.row(prose).language == nil)
     }
 
-    /// The language of a credential is not itself a secret, but a masked row exists to
-    /// say as little as possible until the user asks, and a chip is one more thing on it.
+    /// A masked row says as little as possible until asked, and a chip is one more thing on it.
     @Test("a masked row carries no chip")
     func maskedRowsCarryNothing() {
         let secret = Clip(
@@ -57,15 +55,12 @@ struct PanelLanguageChipTests {
     }
 }
 
-/// The detector runs once, when the clip arrives — not while the panel is being drawn.
-/// Deciding it at draw time would run it over the whole history on every keystroke, and
-/// a panel that is slow to open is not worth three keystrokes.
+/// The detector runs once, when the clip arrives, not on every keystroke while the panel is drawn.
 @Suite("Where the language is decided")
 struct ClipLanguageStorageTests {
     @Test("a clip carries its own language, and drawing does not recompute it")
     func theClipCarriesIt() {
-        // Deliberately contradictory: were the row to detect for itself it would answer
-        // Swift, and this asserts that it takes the stored answer instead.
+        // Deliberately contradictory: a row detecting for itself would answer Swift.
         let mislabelled = Clip(
             text: "struct A: Sendable { let x: Int }", kind: .code,
             copiedAt: PanelFixture.now, language: .sql)

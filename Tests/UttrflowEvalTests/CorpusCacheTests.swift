@@ -1,12 +1,11 @@
+// Tests the corpus audio cache against real directories.
 import Foundation
 import Synchronization
 import Testing
 
 @testable import UttrflowEval
 
-/// Tested against real directories, like the recorded corpus store beside it: what this
-/// has to survive is a download cut off half way on somebody's disk, and a fake file
-/// system would agree with whatever this code happened to do.
+/// Tested against real directories, since a fake file system would agree with whatever this code did.
 @Suite("Corpus audio kept on this Mac")
 struct CorpusCacheTests {
     @Test("holds a sample once it has been stored")
@@ -22,8 +21,7 @@ struct CorpusCacheTests {
         #expect(try cache.read("one") == Data([1, 2, 3]))
     }
 
-    /// The one bug that would quietly corrupt every measurement after it: a half-written
-    /// WAV that the next run treats as a complete one.
+    /// A half-written WAV the next run treats as complete would corrupt every measurement after it.
     @Test("a short download is refused, and nothing is written")
     func refusesATruncatedDownload() throws {
         let directory = temporaryDirectory()
@@ -38,8 +36,7 @@ struct CorpusCacheTests {
         #expect(!FileManager.default.fileExists(atPath: cache.audioURL(for: "one").path))
     }
 
-    /// A file on disk that disagrees with the catalogue is treated as absent, because the
-    /// honest response to a truncated download is to fetch it again.
+    /// The honest response to a truncated download is to fetch it again.
     @Test("a file of the wrong length does not count as cached")
     func wrongLengthIsNotCached() throws {
         let directory = temporaryDirectory()
@@ -49,8 +46,7 @@ struct CorpusCacheTests {
         #expect(!cache.holds(makeSample("one", bytes: 4)))
     }
 
-    /// The catalogue does not always know a sample's size, and then presence is all there
-    /// is to go on.
+    /// The catalogue does not always know a sample's size, and then presence is all there is.
     @Test("with no promised size, any non-empty file counts")
     func unmeasuredSamples() throws {
         let directory = temporaryDirectory()
@@ -86,8 +82,7 @@ struct CorpusCacheTests {
 
     @Test("refuses to write where it cannot")
     func reportsAnUnwritableDirectory() {
-        // A path under a regular file cannot be created as a directory, which is the
-        // cheapest way to reach the write failure without root.
+        // A path under a regular file cannot become a directory, the cheapest write failure without root.
         let file = temporaryDirectory().appending(path: "occupied")
         try? FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -105,8 +100,7 @@ struct CorpusLibraryTests {
         CorpusLibrary(catalogue: catalogue, cache: CorpusCache(directory: directory))
     }
 
-    /// The whole reason the cache exists: a thousand samples is gigabytes, and a run that
-    /// downloaded them again would cost more in transfer than in compute.
+    /// A thousand samples is gigabytes, and downloading them again would cost more than the compute.
     @Test("downloads a sample once and reads it from disk afterwards")
     func downloadsOnce() async throws {
         let directory = temporaryDirectory()
@@ -118,15 +112,13 @@ struct CorpusLibraryTests {
         let url = try await subject.audioURL(for: sample)
         #expect(try Data(contentsOf: url) == Data([1, 2, 3]))
 
-        // With the bytes gone from the catalogue, a second call can only succeed from the
-        // cache — which is exactly the claim being made.
+        // With the bytes gone from the catalogue, a second call can only succeed from the cache.
         catalogue.audio = [:]
         let again = try await library(catalogue, directory).audioURL(for: sample)
         #expect(try Data(contentsOf: again) == Data([1, 2, 3]))
     }
 
-    /// Fetching a thousand samples over a domestic connection loses a few; a loop that
-    /// stopped at the first would never finish.
+    /// A domestic connection loses a few; a loop that stopped at the first would never finish.
     @Test("one failure does not stop the rest, and is named at the end")
     func carriesOnPastAFailure() async throws {
         let directory = temporaryDirectory()
@@ -138,8 +130,7 @@ struct CorpusLibraryTests {
             samples: samples, audio: ["one": Data([1]), "three": Data([3])])
         let subject = library(catalogue, directory)
 
-        // A mutex, because the progress callback is `@Sendable`: a captured `var` would
-        // be a race the compiler is right to refuse.
+        // A mutex, because the progress callback is `@Sendable` and a captured `var` would be a race.
         let progress = Mutex<[String]>([])
         let failures = await subject.fetchAll(samples) { sample, error in
             progress.withLock { $0.append("\(sample.slug):\(error == nil ? "ok" : "failed")") }

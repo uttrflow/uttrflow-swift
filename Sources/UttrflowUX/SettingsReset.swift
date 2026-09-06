@@ -4,12 +4,12 @@ public import UttrflowClipboard
 
 // MARK: - What can be undone
 
-/// The two levels of forgetting that live on the Settings screen.
+/// The three levels of forgetting that live on the Settings screen.
 ///
-/// There are four levels altogether, and the other two are elsewhere on purpose:
+/// There are five levels altogether, and the other two are elsewhere on purpose:
 /// reverting one correction belongs beside the correction, and removing one word
-/// belongs beside the word. What is left here is the pair that is about *everything* of
-/// a kind, which is the pair a user goes looking for in Settings when the app has
+/// belongs beside the word. What is left here is what is about *everything* of a kind
+/// or of a place, which is what a user goes looking for in Settings when the app has
 /// started getting something reliably wrong.
 ///
 /// ``learnedWords`` is the one that will actually be used. A few wrong corrections can
@@ -17,11 +17,13 @@ public import UttrflowClipboard
 /// the inferences away — but throwing away the words the user deliberately taught it at
 /// the same time would make the cure cost more than the illness, and they would live
 /// with the illness instead.
-public enum SettingsReset: String, Sendable, Equatable, CaseIterable {
+public enum SettingsReset: Sendable, Equatable, Hashable {
     /// Everything Uttrflow worked out for itself. Hand-added words survive.
     case learnedWords
     /// Everything, back to a fresh install.
     case everything
+    /// Every completion learned in one application, offered beside that application in the list for the reason reverting one correction is offered beside the correction.
+    case suggestions(inApplication: String)
 }
 
 /// One thing a reset removes.
@@ -29,7 +31,7 @@ public enum SettingsReset: String, Sendable, Equatable, CaseIterable {
 /// Split out from ``SettingsReset`` so that what a level *means* is decided here, in a
 /// module a test can read, rather than in the app layer that happens to hold the stores.
 /// The app layer is then a `switch` with no judgement in it.
-public enum SettingsResetTarget: Sendable, Equatable, CaseIterable {
+public enum SettingsResetTarget: Sendable, Equatable {
     /// The words Uttrflow inferred, leaving the ones the user typed in.
     case learnedWords
     /// The dictionary in full, hand-added words included.
@@ -44,6 +46,10 @@ public enum SettingsResetTarget: Sendable, Equatable, CaseIterable {
     /// with separate lifetimes; naming it here is what stops a reset that says "a fresh
     /// install" leaving every transcript the user ever spoke on the disk.
     case clipboard
+    /// Every completion one application taught, leaving every other application's.
+    case suggestions(inApplication: String)
+    /// Every completion there is, which a fresh install has none of.
+    case everySuggestion
 }
 
 extension SettingsReset {
@@ -51,7 +57,8 @@ extension SettingsReset {
     public var targets: [SettingsResetTarget] {
         switch self {
         case .learnedWords: [.learnedWords]
-        case .everything: [.everyWord, .history, .clipboard, .preferences]
+        case .everything: [.everyWord, .history, .clipboard, .everySuggestion, .preferences]
+        case .suggestions(let application): [.suggestions(inApplication: application)]
         }
     }
 
@@ -61,7 +68,7 @@ extension SettingsReset {
     /// Whether the user is asked first, which only what nothing brings back requires.
     public var isConfirmed: Bool {
         switch self {
-        case .learnedWords: false
+        case .learnedWords, .suggestions: false
         case .everything: true
         }
     }
@@ -93,13 +100,28 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// The app the last dictation went into; the frontmost one, while Settings is open, is Uttrflow.
     public let lastDictationApp: SettingsApp?
 
+    /// How many completions each application has taught, keyed by bundle identifier.
+    public let suggestions: [String: Int]
+
     public init(
-        learnedWords: Int, addedWords: Int, transcripts: Int, lastDictationApp: SettingsApp? = nil
+        learnedWords: Int, addedWords: Int, transcripts: Int,
+        lastDictationApp: SettingsApp? = nil, suggestions: [String: Int] = [:]
     ) {
         self.learnedWords = learnedWords
         self.addedWords = addedWords
         self.transcripts = transcripts
         self.lastDictationApp = lastDictationApp
+        self.suggestions = suggestions.reduce(into: [:]) { $0[$1.key.lowercased()] = $1.value }
+    }
+
+    /// How much one application has taught, which is what the button beside it will take.
+    public func suggestions(from bundleIdentifier: String) -> Int {
+        suggestions[bundleIdentifier.lowercased()] ?? 0
+    }
+
+    /// Every application that has taught the completions anything, so the list can name them.
+    public var applicationsWithSuggestions: Set<String> {
+        Set(suggestions.filter { $0.value > 0 }.keys)
     }
 
     /// Counts a dictionary as it stands.
@@ -114,14 +136,16 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     ///   - entries: Every word in the dictionary.
     ///   - transcripts: How many dictations are still kept.
     ///   - lastDictationApp: The app the last dictation went into, when one is known.
+    ///   - suggestions: How many completions each application has taught.
     public init(
-        entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil
+        entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
+        suggestions: [String: Int] = [:]
     ) {
         self.init(
             learnedWords: entries.count(where: { $0.origin != .added }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
-            lastDictationApp: lastDictationApp)
+            lastDictationApp: lastDictationApp, suggestions: suggestions)
     }
 
     /// A fresh install, and what a window shows before it has asked.
@@ -132,7 +156,7 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     public var words: Int { learnedWords + addedWords }
 
     /// Whether there is anything of the user's to remove at all.
-    public var isEmpty: Bool { words == 0 && transcripts == 0 }
+    public var isEmpty: Bool { words == 0 && transcripts == 0 && applicationsWithSuggestions.isEmpty }
 }
 
 // MARK: - Who does the removing
@@ -144,6 +168,18 @@ public struct SettingsPersonalisation: Sendable, Equatable {
 /// ``SettingsEditor`` is where the words for a refusal already live.
 public struct SettingsResetFailure: Error, Sendable, Equatable {
     public init() {}
+}
+
+/// Where the completions this Mac has learned live, so a reset can reach them without this module holding any SQL.
+public protocol SuggestionCorpus: Sendable {
+    /// How many completions each application has taught, keyed by bundle identifier.
+    func learnedSuggestions() async -> [String: Int]
+
+    /// Forgets everything learned in one application.
+    func forgetSuggestions(from bundleIdentifier: String) async throws
+
+    /// Forgets every completion there is, which a fresh install has none of.
+    func forgetEverySuggestion() async throws
 }
 
 /// Where this user's personalisation actually lives.
@@ -177,15 +213,19 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
     private let dictionary: PersonalDictionaryStore
     private let history: DictationHistoryStore
     private let clipboard: ClipboardStore
+    private let suggestions: (any SuggestionCorpus)?
 
+    /// The corpus is optional because a build with tab-to-complete switched off at the wiring has none to reach.
     public init(
         dictionary: PersonalDictionaryStore,
         history: DictationHistoryStore,
-        clipboard: ClipboardStore
+        clipboard: ClipboardStore,
+        suggestions: (any SuggestionCorpus)? = nil
     ) {
         self.dictionary = dictionary
         self.history = history
         self.clipboard = clipboard
+        self.suggestions = suggestions
     }
 
     public func personalisation(keeping retention: Retention) async -> SettingsPersonalisation {
@@ -196,7 +236,8 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         return await SettingsPersonalisation(
             entries: dictionary.allEntries(),
             transcripts: kept.count,
-            lastDictationApp: Self.lastApp(in: kept))
+            lastDictationApp: Self.lastApp(in: kept),
+            suggestions: suggestions?.learnedSuggestions() ?? [:])
     }
 
     /// The most recent dictation that named the app it went into, which is the app an override is about.
@@ -233,6 +274,9 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         // clips on purpose, because "Clear clipboard" is a tidy-up. This button says a
         // fresh install, and a fresh install has nothing pinned either.
         case .clipboard: try await clipboard.forgetEverything()
+        case .suggestions(let application):
+            try await suggestions?.forgetSuggestions(from: application)
+        case .everySuggestion: try await suggestions?.forgetEverySuggestion()
         case .preferences: break
         }
     }

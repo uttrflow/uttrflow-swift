@@ -1,3 +1,4 @@
+// Tests for the shared furniture: pills, callouts, meters, progress, scope, chrome, and search.
 import Testing
 
 @testable import UttrflowUX
@@ -14,8 +15,7 @@ struct MainShellTests {
         #expect(MainCallout(symbolName: "lock", message: "Kept here.").tone == .accent)
     }
 
-    /// Clamped on the way in, so a view can draw a meter without checking and a bad
-    /// measurement cannot draw outside its own track.
+    /// Clamped on the way in, so a view draws without checking and a bad measurement stays in its track.
     @Test("a meter cannot leave its track")
     func meterClamps() {
         #expect(MainMeter(label: "Today", fraction: 1.4).fraction == 1)
@@ -55,8 +55,7 @@ struct MainShellTests {
         #expect(!option.isSelected)
     }
 
-    /// A page that asks for none of the three controls gets a bare heading, which is
-    /// what Style and Account are drawn as.
+    /// A page that asks for none of the three controls gets a bare heading, as Style and Account do.
     @Test("a page may have no toolbar at all")
     func bareChrome() {
         let chrome = MainPageChrome(title: "Style")

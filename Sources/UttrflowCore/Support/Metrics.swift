@@ -1,31 +1,31 @@
-/// A stage of the speak-to-inserted journey, measured independently so a regression
-/// can be attributed rather than merely observed.
-///
-/// Declared in the order the journey runs, because ``CaseIterable/allCases`` is what
-/// every report orders its rows by — so a stage put in the wrong place here draws a
-/// journey that never happened.
-///
-/// Every stage the pipeline runs has a case, including the two that usually change
-/// nothing. Consulting a dictionary that matches no word still costs the dictation the
-/// consultation, and a stage left out of this enumeration is time the totals cannot see
-/// — which makes the fast path look faster than it is.
+// Per-stage timing of a dictation: the stages, a recorder protocol, a tally and the latency summary.
+
+/// A stage of the speak-to-inserted journey, declared in running order because reports iterate `allCases`.
 public enum PipelineStage: String, Sendable, Equatable, CaseIterable, Codable {
+    /// Microphone audio arriving.
     case capture
+    /// Speech becoming text.
     case transcription
-    /// The dictionary, consulted on what was heard — before the tidier rewrites it.
+    /// The dictionary, consulted on what was heard before the tidier rewrites it.
     case correction
+    /// The tidier rewriting the transcript.
     case transformation
     /// Snippets, expanded once the tidier has settled the sentence boundaries.
     case expansion
+    /// Text reaching the focused field.
     case insertion
 }
 
 /// How long one stage took, and whether it worked.
 public struct StageMeasurement: Sendable, Equatable {
+    /// The stage measured.
     public let stage: PipelineStage
+    /// How long it ran.
     public let duration: Duration
+    /// Whether it returned rather than threw.
     public let succeeded: Bool
 
+    /// A measurement of `stage`.
     public init(stage: PipelineStage, duration: Duration, succeeded: Bool) {
         self.stage = stage
         self.duration = duration
@@ -33,34 +33,23 @@ public struct StageMeasurement: Sendable, Equatable {
     }
 }
 
-/// Collects timings and failure counts.
-///
-/// V1 keeps everything on the device: §22's numbers exist to be read in the debug
-/// panel and by the evaluation harness, and are never transmitted.
+/// Collects timings and failure counts, which stay on the device and are never transmitted.
 public protocol MetricsRecording: Sendable {
+    /// Keeps one measurement.
     func record(_ measurement: StageMeasurement) async
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
 public struct NoOpMetricsRecorder: MetricsRecording {
+    /// A recorder with nothing to set up.
     public init() {}
+    /// Discards the measurement.
     public func record(_ measurement: StageMeasurement) async {}
 }
 
+/// The one way every stage is timed, so none is left out of the numbers.
 extension MetricsRecording {
-    /// Times `operation`, records the result — success or failure — and passes the
-    /// outcome straight through.
-    ///
-    /// Every stage is measured by calling this, so no stage can be accidentally left
-    /// out of the latency numbers and no stage duplicates timing code.
-    /// - Parameters:
-    ///   - stage: Which part of the journey is being timed.
-    ///   - clock: The clock to measure against.
-    ///   - isolation: Inherits the caller's actor, so a stage that touches actor state
-    ///     is timed in place rather than being sent across an isolation boundary.
-    ///   - operation: The work to time.
-    /// - Returns: Whatever `operation` returned.
-    /// - Throws: Rethrows whatever `operation` threw, after recording the failure.
+    /// Times `operation` on the caller's actor, records success or failure, and passes the outcome through.
     public func measuring<Success, Failure: Error>(
         _ stage: PipelineStage,
         clock: some Clock<Duration>,
@@ -81,10 +70,13 @@ extension MetricsRecording {
 
 /// Adds up every measurement of a stage, so a dictation done in pieces reports one figure per stage.
 public actor StageTally: MetricsRecording {
+    /// The running total per stage.
     private var totals: [PipelineStage: StageMeasurement] = [:]
 
+    /// An empty tally.
     public init() {}
 
+    /// Adds the duration to the stage's total; the total succeeds only if every piece did.
     public func record(_ measurement: StageMeasurement) {
         let stage = measurement.stage
         let previous = totals[stage]
@@ -106,34 +98,27 @@ public actor StageTally: MetricsRecording {
 }
 
 extension Duration {
-    /// Seconds as a `Double`, for arithmetic and for printing.
-    ///
-    /// `components` is exact and unwieldy, and everything that reads a duration here is
-    /// either taking a ratio or putting two decimal places on it — neither needs
-    /// attosecond fidelity. Here rather than beside each caller because two identical
-    /// private copies of this had already appeared.
+    /// Seconds as a `Double`, for ratios and printing.
     public var inSeconds: Double {
         let parts = components
         return Double(parts.seconds) + Double(parts.attoseconds) / 1e18
     }
 }
 
-/// What a set of measurements says about one stage.
-///
-/// The typical is the median rather than the mean: one pathological dictation — a model
-/// loading for the first time, a machine that went to sleep — drags a mean somewhere no
-/// real dictation has ever been, and the figure is there to answer "what is this usually
-/// like".
+/// What a set of measurements says about one stage; the median, not the mean, so a cold load cannot skew it.
 public struct StageLatency: Sendable, Equatable {
+    /// The stage summarised.
     public let stage: PipelineStage
-    /// The median. With an even number of samples this is the upper of the two, which
-    /// keeps the answer an observed duration rather than an average of two.
+    /// The median; with an even count the upper of the two, so it stays an observed duration.
     public let typical: Duration
+    /// The longest sample.
     public let slowest: Duration
+    /// How many measurements went into this.
     public let samples: Int
-    /// How many of those samples were failures. A stage can be fast because it gave up.
+    /// How many of those samples were failures; a stage can be fast because it gave up.
     public let failures: Int
 
+    /// A summary from figures already computed.
     public init(
         stage: PipelineStage, typical: Duration, slowest: Duration, samples: Int, failures: Int
     ) {
@@ -144,12 +129,7 @@ public struct StageLatency: Sendable, Equatable {
         self.failures = failures
     }
 
-    /// Summarises one stage, or `nil` when nothing measured it.
-    ///
-    /// `nil` rather than a zero-valued summary, and that distinction is the point: the
-    /// evaluation harness reads audio off disk so it never times capture, and a zero
-    /// would read as "instant" rather than "not measured". Callers are expected to name
-    /// the unmeasured stage instead of drawing it.
+    /// Summarises one stage, or `nil` when nothing measured it; a zero would read as "instant".
     public static func summarise(
         _ measurements: [StageMeasurement], stage: PipelineStage
     ) -> StageLatency? {
@@ -165,17 +145,12 @@ public struct StageLatency: Sendable, Equatable {
         )
     }
 
-    /// One entry per stage that was measured, in the order the journey runs.
-    ///
-    /// Driven by ``PipelineStage/allCases``, so a stage added to the pipeline appears
-    /// here the moment something times it, rather than when somebody remembers to add
-    /// it to a list.
+    /// One entry per measured stage, in running order, driven by ``PipelineStage/allCases``.
     public static func summarise(_ measurements: [StageMeasurement]) -> [StageLatency] {
         PipelineStage.allCases.compactMap { summarise(measurements, stage: $0) }
     }
 
-    /// The stages nothing measured, so a report can name them rather than imply they
-    /// were free.
+    /// The stages nothing measured, so a report can name them rather than imply they cost nothing.
     public static func unmeasuredStages(in measurements: [StageMeasurement]) -> [PipelineStage] {
         PipelineStage.allCases.filter { summarise(measurements, stage: $0) == nil }
     }

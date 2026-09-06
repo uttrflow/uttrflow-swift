@@ -1,12 +1,11 @@
+// Tests for what the app does about a panel outcome, and that every choice reports which clip.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// These are the decisions `AppDelegate` is not allowed to hold. It is excluded from the
-/// coverage gate because it relays rather than decides, so anything decided here and
-/// then re-decided there would be decided in the one file nothing checks.
+/// The decisions `AppDelegate` is not allowed to hold, since it is excluded from the coverage gate.
 @Suite("What the app does about a panel keystroke")
 struct PanelEffectTests {
     @Test("a key that only moved the highlight redraws, and nothing else")
@@ -19,9 +18,7 @@ struct PanelEffectTests {
         #expect(PanelOutcome.dismissed.effect == .close)
     }
 
-    /// The third keystroke is the last one. A panel still on screen afterwards is a
-    /// fourth, and it sits over the application the text was just put into — hiding the
-    /// one thing that would tell the user it worked.
+    /// A panel still on screen after the third keystroke is a fourth, and it hides the pasted text.
     @Test("choosing a clip closes the panel as well as inserting")
     func insertingCloses() {
         let clip = PanelFixture.clip("hello")
@@ -31,8 +28,7 @@ struct PanelEffectTests {
         #expect(effect != .redraw, "the panel does not stay up")
     }
 
-    /// The row draws one line. Pasting what the row drew would truncate the clip to it,
-    /// and a paste that succeeds with the wrong string reports success.
+    /// Pasting what the row drew would truncate the clip, and a wrong-string paste still reports success.
     @Test("a multi-line clip inserts every line, not the line the row drew")
     func insertsEveryLine() {
         let clip = PanelFixture.clip("first\nsecond\nthird")
@@ -43,8 +39,7 @@ struct PanelEffectTests {
                 == .closeAndInsert("first\nsecond\nthird", used: clip.id))
     }
 
-    /// Masking is for the screen, over the user's shoulder. The clip is still the token,
-    /// and pasting bullets into a terminal is a failure that looks like a success.
+    /// Masking is for the screen; the clip is still the token, and pasting bullets looks like success.
     @Test("a masked secret inserts the secret, not the bullets")
     func insertsBehindTheMask() {
         let secret = PanelFixture.clip("sk-live-abcdef123456", kind: .secret)
@@ -58,8 +53,7 @@ struct PanelEffectTests {
                 == .closeAndInsert("sk-live-abcdef123456", used: secret.id))
     }
 
-    /// Whitespace is content. A clip is stored exactly as it was copied, and indentation
-    /// is the whole value of copying a block of code.
+    /// Whitespace is content: indentation is the whole value of copying a block of code.
     @Test("nothing is trimmed on the way out")
     func nothingTrimmed() {
         let padded = PanelFixture.clip("    indented\n\n")
@@ -70,22 +64,15 @@ struct PanelEffectTests {
     }
 }
 
-/// Every way of choosing a clip says which clip it was.
-///
-/// This is the test that was missing. `Clip.lastUsedAt` is what eviction ranks by, and
-/// `AppDelegate` had a complete, documented `markUsed` that **nothing called** — a scripted
-/// edit failed before writing its five call sites, an unused private method raises no
-/// warning, and it compiled and shipped. Not one clip of seventy-eight on a real machine
-/// had ever recorded a use, so least-recently-used was quietly least-recently-*copied*.
-///
-/// The identity rides on the effect now, which is what makes it testable here rather than
-/// in the one file the coverage gate excludes. Derived from `allCases` rather than listed
-/// by hand, so an obstacle added later cannot slip through unjoined.
+/// Every way of choosing a clip says which clip, since eviction ranks by ``Clip/lastUsedAt``.
 @Suite("Choosing a clip says which clip")
 struct PanelUseReportingTests {
+    /// A plain clip.
     static let clip = PanelFixture.clip("the words")
+    /// Another plain clip.
     static let note = PanelFixture.clip("a note")
 
+    /// A panel over these clips with this insertion answer.
     static func panel(_ insertion: PanelInsertion, _ clips: [Clip] = [clip]) -> PanelSnapshot {
         var snapshot = PanelFixture.panel(clips)
         snapshot.insertion = insertion
@@ -115,8 +102,7 @@ struct PanelUseReportingTests {
             "a paste that does not say which clip it pasted leaves that clip's clock stopped")
     }
 
-    /// ⌘⏎ takes a different route through the outcome, and used to be where a second set
-    /// of bugs lived.
+    /// ⌘⏎ takes a different route through the outcome, so it is checked on its own.
     @Test("and the plain-paste route reports it too")
     func plainPasteReportsTheClip() {
         let formatted = Clip(
@@ -138,8 +124,7 @@ struct PanelUseReportingTests {
         #expect(Self.used(of: effect) == Self.clip.id)
     }
 
-    /// Merely looking is not using. If arrowing counted, the order would become a record
-    /// of scrolling rather than of what the user reaches for.
+    /// Merely looking is not using, or the order would record scrolling rather than reaching.
     @Test("but arrowing past a row is not using it")
     func browsingIsNotUsing() {
         let clips = [Self.clip, Self.note]

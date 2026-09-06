@@ -1,11 +1,7 @@
+// One passage's transcription score and the report over all of them.
 public import UttrflowCore
 
-/// Why a passage produced no transcript to score.
-///
-/// Kept as three kinds rather than one, because they lead to different work: a
-/// recogniser that heard nothing is a result, an engine that threw is a bug, and a file
-/// the harness could not open is the harness's own fault and must not be charged to the
-/// engine.
+/// Why a passage produced no transcript: heard nothing, engine threw, or the harness could not read the file.
 public enum TranscriptionFailure: Sendable, Equatable, Codable {
     /// The recording could not be read. The harness's problem, not the engine's.
     case audioUnreadable(String)
@@ -35,20 +31,11 @@ public enum TranscriptionFailure: Sendable, Equatable, Codable {
         }
     }
 
-    /// Whether the passage can still be scored.
-    ///
-    /// Hearing nothing is a transcript of no words, which is a perfectly measurable
-    /// 100% deletion. An unreadable file is not a transcript at all, and scoring it
-    /// would blame the engine for a missing recording.
+    /// Whether the passage can still be scored; hearing nothing is a measurable 100% deletion.
     public var isScorable: Bool { kind != .audioUnreadable }
 }
 
-/// A stage timing as it is written to disk.
-///
-/// ``StageMeasurement`` is the type the whole product measures in and the one this
-/// harness takes in; this is only its serialised form. `Duration` encodes as an opaque
-/// pair of integers, and a results file that a person — or a one-line script — cannot
-/// read is a results file nobody checks.
+/// A stage timing as it is written to disk, in seconds a person can read.
 public struct StoredStageTiming: Sendable, Equatable, Codable {
     public let stage: PipelineStage
     public let seconds: Double
@@ -71,25 +58,15 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
     public let caseID: String
     public let language: TranscriptionCase.Language
     public let stressor: TranscriptionCase.Stressor
-    /// Everything the passage stresses, in the corpus catalogue's vocabulary. Rows built
-    /// from this overlap; see ``TranscriptionCase/stresses``.
+    /// Everything the passage stresses, in the catalogue's vocabulary; rows built from this overlap.
     public let stresses: [String]
-    /// Who read it and where. `nil` for a recording nobody attributed, which every
-    /// report shows as its own row rather than merging into the rest.
+    /// Who read it and where; `nil` for an unattributed recording, which reports as its own row.
     public let cohortID: String?
-    /// `nil` only when there was no transcript to align against — see
-    /// ``TranscriptionFailure/isScorable``.
+    /// `nil` only when there is no transcript to align against; see ``TranscriptionFailure/isScorable``.
     public let wordErrorRate: WordErrorRate?
-    /// The script the engine answered in.
-    ///
-    /// `.devanagari` is itself a finding: Uttrflow's output is romanised Hinglish, so a
-    /// recogniser answering in Devanagari has handed clean-up a transliteration job on
-    /// top of everything else. The rate says how well it heard; the count of these says
-    /// how much work it left behind.
+    /// The script the engine answered in; `.devanagari` means clean-up also has to transliterate.
     public let answeredIn: Script
-    /// Which written form of the passage the transcript was compared with. Normally the
-    /// one matching ``answeredIn``, because comparing across scripts measures
-    /// transliteration rather than recognition.
+    /// The written form the transcript is compared with, normally the one matching ``answeredIn``.
     public let scoredAgainst: Script
     /// Terms the passage required that the transcript does not contain.
     public let lost: [String]
@@ -97,8 +74,7 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
     public let transcript: String
     public let stages: [StoredStageTiming]
     public let failure: TranscriptionFailure?
-    /// The rules both sides were put through. Stored per passage so a results file is
-    /// self-describing: a rate without its normalisation is not a number anyone can act on.
+    /// The rules both sides are put through, stored per passage so the results file is self-describing.
     public let normalisation: [NormalisationRule]
 
     public init(
@@ -119,7 +95,7 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         self.caseID = caseID
         self.language = language
         self.stressor = stressor
-        self.stresses = stresses.isEmpty ? [stressor.rawValue] : stresses
+        self.stresses = stressor.labels(from: stresses)
         self.cohortID = cohortID
         self.wordErrorRate = wordErrorRate
         self.answeredIn = answeredIn
@@ -131,12 +107,7 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         self.normalisation = normalisation
     }
 
-    /// Decoded by hand so that a results directory written before these two fields
-    /// existed still summarises.
-    ///
-    /// `--summarise` reads what previous runs banked, and a synthesised decoder would
-    /// refuse the lot the moment this type gained a field — turning every stored result
-    /// into something that has to be measured again to be read.
+    /// Decodes by hand so a results file written without the newer fields still summarises.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         caseID = try container.decode(String.self, forKey: .caseID)
@@ -157,14 +128,13 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
 
     public var keptEverythingRequired: Bool { lost.isEmpty }
 
-    /// The transcript had to be transliterated to be compared at all, so the rate is an
-    /// upper bound: ICU romanises letter by letter and charges for spellings no person
-    /// writes — "karana" where a Hinglish speaker types "karna".
+    /// The cohort to report under, naming the unattributed rather than merging them.
+    var cohortLabel: String { cohortID ?? RecordingCohort.unattributed }
+
+    /// Whether the rate is an upper bound because the transcript was transliterated to compare it.
     public var isUpperBound: Bool { answeredIn != scoredAgainst }
 }
 
-/// One stage's timings, summarised the way the diagnostics page summarises them.
-///
 /// Everything measured about one recogniser over the recorded corpus.
 public struct TranscriptionReport: Sendable, Equatable {
     public let label: String
@@ -194,14 +164,12 @@ public struct TranscriptionReport: Sendable, Equatable {
         return WordErrorRate.combined(scores.compactMap(\.wordErrorRate))
     }
 
-    /// Failures by kind. A kind nobody hit is absent rather than zero, so the printer
-    /// can say "none" once instead of listing three zeroes.
+    /// Failures by kind; a kind nobody hit is absent rather than zero.
     public var failureCounts: [TranscriptionFailure.Kind: Int] {
         scores.compactMap { $0.failure?.kind }.reduce(into: [:]) { $0[$1, default: 0] += 1 }
     }
 
-    /// Passages the recogniser answered in Devanagari, which the product cannot ship as
-    /// it stands.
+    /// Passages answered in Devanagari, which the product cannot ship as they stand.
     public var answeredInDevanagari: [PassageScore] { scores.filter { $0.answeredIn == .devanagari } }
 
     /// Passages whose rate is an upper bound because the transcript had to be transliterated.
@@ -211,12 +179,7 @@ public struct TranscriptionReport: Sendable, Equatable {
         scored.filter { !$0.keptEverythingRequired }
     }
 
-    /// The rules every score was measured under, and whether they all agree.
-    ///
-    /// A store can end up holding passages measured under different rules — someone
-    /// changed them and re-ran half the corpus — and a report that quietly printed one
-    /// set of rules over a mixture would be exactly the untrustworthy number this type
-    /// exists to prevent.
+    /// The rules every score was measured under; ``hasMixedNormalisation`` says whether they agree.
     public var normalisation: [NormalisationRule] { scores.first?.normalisation ?? [] }
 
     public var hasMixedNormalisation: Bool {
@@ -225,9 +188,7 @@ public struct TranscriptionReport: Sendable, Equatable {
 
     private var measurements: [StageMeasurement] { scores.flatMap(\.stages).map(\.measurement) }
 
-    /// `nil` when nothing timed this stage. The caller must say "not measured" rather
-    /// than printing a zero: this harness reads audio off disk, so capture is not timed
-    /// here at all, and a zero would read as "instant".
+    /// `nil` when nothing timed this stage, so the caller says "not measured" instead of printing a zero.
     public func latency(for stage: PipelineStage) -> StageLatency? {
         StageLatency.summarise(measurements, stage: stage)
     }
@@ -235,8 +196,7 @@ public struct TranscriptionReport: Sendable, Equatable {
     /// One entry per stage that was actually timed, in the order the journey runs.
     public var latencies: [StageLatency] { StageLatency.summarise(measurements) }
 
-    /// Stages nothing measured, so the report can name them instead of implying they
-    /// cost nothing.
+    /// Stages nothing measured, so the report can name them instead of implying they cost nothing.
     public var unmeasuredStages: [PipelineStage] {
         StageLatency.unmeasuredStages(in: measurements)
     }

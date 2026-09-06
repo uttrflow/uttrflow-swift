@@ -14,6 +14,7 @@ private struct ColdModel: CleanupModel {
     }
 }
 
+/// What `warm()` reaches through the transformer and the router.
 @Suite("Warming the tidier ahead of a dictation")
 struct WarmingTests {
     @Test("the generative transformer hands its model the instructions for where the words are going")

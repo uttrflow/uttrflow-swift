@@ -1,3 +1,4 @@
+// The dictation gate: whether this person may dictate now.
 public import struct Foundation.Date
 
 /// What Uttrflow may do for this person now, as five answers because four of them permit a dictation.
@@ -28,9 +29,12 @@ public enum DictationAccess: Sendable, Equatable, CaseIterable {
 
 /// The one thing the rest of the app asks: may this person dictate? See `Docs/entitlements.md`.
 public struct EntitlementGate: Sendable {
+    /// The signed half of what is known.
     private let profiles: any ProfileCache
+    /// The choice to do without an account, if any.
     private let local: (any LocalAccountStore)?
 
+    /// `local` may be omitted by a caller that offers no way to work without an account.
     public init(profiles: any ProfileCache, local: (any LocalAccountStore)? = nil) {
         self.profiles = profiles
         self.local = local

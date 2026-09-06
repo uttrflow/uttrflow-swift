@@ -1,23 +1,14 @@
+// The stage the window opens on, the account chip, a figure and the clipboard rail.
+
 import UttrflowUX
 import SwiftUI
 
-/// Where the window opens: a microphone at the centre of a ring of its own waveform.
-///
-/// The stage replaces a photograph, a gradient banner and every other thing a home screen
-/// usually opens with, for one reason — it is the only picture on the page that is about
-/// what this app does. It is drawn rather than fetched, so it costs no asset, no download
-/// and no network, which matters in a product that never reaches for any of the three.
-///
-/// It is deliberately the only place the ring appears, apart from the sidebar's
-/// microphone while a dictation is running. A mark repeated behind every page header
-/// stops being a mark and becomes wallpaper, and it says nothing on a page about words
-/// somebody typed a fortnight ago.
+/// Where the window opens: a microphone at the centre of a ring of its own waveform, drawn, not fetched.
 struct OrbitStage: View {
     let presentation: HomePresentation
     var onIntent: (MainIntent) -> Void = { _ in }
 
-    /// Built once for the whole process. Fifty-two bars is enough for the ring to read as
-    /// sound rather than as a gear wheel, and few enough to draw as three paths.
+    /// Built once for the whole process; fifty-two bars read as sound rather than as a gear wheel.
     private static let ticks = OrbitTick.ring(count: 52)
 
     var body: some View {
@@ -34,12 +25,7 @@ struct OrbitStage: View {
         .overlay(alignment: .bottom) { MainDivider() }
     }
 
-    /// The stage's own ground, dark whichever appearance the rest of the window is in.
-    ///
-    /// Fixed rather than following the system, because the ring is two saturated colours
-    /// that only hold their meaning against something dark — teal at `#00C3D0` on a white
-    /// panel is a pale smudge. The words on it are drawn white to match, so the contrast
-    /// is a property of the stage rather than a hope about the theme.
+    /// The stage's own ground, dark in both appearances, because the ring's colours only hold against dark.
     private var ground: some View {
         ZStack {
             LinearGradient(
@@ -48,29 +34,22 @@ struct OrbitStage: View {
             RadialGradient(
                 colors: [
                     Color.dockAccent.opacity(presentation.status.isReady ? 0.26 : 0.10),
-                    Color.dockSecondary.opacity(presentation.status.isReady ? 0.10 : 0.04),
+                    Color.dockActive.opacity(presentation.status.isReady ? 0.10 : 0.04),
                     .clear,
                 ],
                 center: UnitPoint(x: 0.5, y: 0.30), startRadius: 0, endRadius: 330)
         }
     }
 
-    /// The ring, and the microphone it is around.
-    ///
-    /// Three paths rather than fifty-two views: one for each accent and one for the quiet
-    /// bars between them. A `ForEach` of rotated rectangles would draw the same picture
-    /// and cost fifty-two view identities on a page that redraws on every keystroke in
-    /// the search field.
+    /// The ring and the microphone: three paths rather than fifty-two views, one per voice.
     private var instrument: some View {
         ZStack {
             ring(.quiet, colour: .white.opacity(presentation.status.isReady ? 0.16 : 0.10))
-            ring(.primary, colour: .dockSecondary.opacity(presentation.status.isReady ? 0.95 : 0.30))
+            ring(.primary, colour: .dockActive.opacity(presentation.status.isReady ? 0.95 : 0.30))
             ring(.secondary, colour: .dockAccent.opacity(presentation.status.isReady ? 0.95 : 0.30))
             microphone
         }
-        // Decoration with a caption of its own already underneath it. A screen reader
-        // reading "ring, ring, ring" before the greeting is a screen reader nobody
-        // leaves switched on.
+        // Decoration with its own caption underneath; a screen reader skips the rings.
         .accessibilityHidden(true)
     }
 
@@ -87,18 +66,14 @@ struct OrbitStage: View {
                 Image(systemName: "mic")
                     .font(.system(size: 30, weight: .light))
                     .foregroundStyle(
-                        presentation.status.isReady ? Color.dockSecondary : .white.opacity(0.35))
+                        presentation.status.isReady ? Color.dockActive : .white.opacity(0.35))
             }
             .frame(width: 112, height: 112)
     }
 
     private var words: some View {
         VStack(spacing: 11) {
-            // Only when it is not the answer somebody expects. "LISTENING · READY" over a
-            // microphone that is plainly ready is a label reporting the absence of a
-            // problem, every time the window opens, and a line that always says the same
-            // thing is a line nobody reads — which is exactly the line you need read on
-            // the day it changes.
+            // Only when it is not the expected answer; a line that always says the same thing is never read.
             if !presentation.status.isReady {
                 HStack(spacing: 7) {
                     Circle()
@@ -130,8 +105,7 @@ struct OrbitStage: View {
             """)
     }
 
-    /// "Say it once — hold ⌥ Space anywhere on your Mac", with the shortcut drawn as the
-    /// keys somebody has to find rather than as two more words in a sentence.
+    /// The hint with the shortcut drawn as keys somebody has to find, not as two more words.
     private var hint: some View {
         HStack(spacing: 7) {
             Text(presentation.hint.lead)
@@ -183,12 +157,7 @@ struct AccountChip: View {
         .accessibilityLabel(spokenLabel)
     }
 
-    /// The circle at the leading edge.
-    ///
-    /// Filled and teal for a person, outlined and grey for nobody. The difference is the
-    /// point: a filled monogram is how a Mac window says *signed in*, so the signed-out
-    /// state must not borrow it — not with a silhouette, and not with initials taken from
-    /// whoever owns the Mac.
+    /// The circle at the leading edge: filled teal for a person, outlined grey for nobody.
     @ViewBuilder private var mark: some View {
         switch account {
         case .signedIn(let initials, _, _):
@@ -201,8 +170,7 @@ struct AccountChip: View {
                         colors: [Color.dockAccent, Color.stageTealDeep],
                         startPoint: .topLeading, endPoint: .bottomTrailing),
                     in: .circle)
-        // The same monogram, unfilled. There is a real account behind it — this Mac's —
-        // and the ring says so without borrowing the gradient that means a session.
+        // The same monogram, unfilled: a real account, but not a session.
         case .onThisMac(let initials, _, _):
             Text(initials)
                 .font(.system(size: 10.5, weight: .semibold))
@@ -224,13 +192,11 @@ struct AccountChip: View {
         }
     }
 
-    /// The title alone would read as "Account" with no clue whose, and initials are
-    /// unpronounceable.
+    /// Names the account, because "Account" alone says nothing about whose and initials cannot be spoken.
     private var spokenLabel: String {
         switch account {
         case .signedIn(_, let name, let open): "\(open.title), \(name)"
-        // Said in full, because "Account, Naveen" beside an unfilled ring would tell
-        // somebody using VoiceOver they have a session they do not.
+        // Said in full, so VoiceOver does not report a session that does not exist.
         case .onThisMac(_, let name, let open): "\(open.title), \(name), on this Mac"
         case .signedOut(let open): open.title
         }
@@ -238,30 +204,18 @@ struct AccountChip: View {
 }
 
 extension Color {
-    /// The stage's ground, and the well the microphone sits in. Fixed values rather than
-    /// system ones: this panel is dark in both appearances by design.
-    static let stageGround = Color(.sRGB, red: 0x0B / 255, green: 0x0C / 255, blue: 0x10 / 255)
-    static let stagePanel = Color(.sRGB, red: 0x0E / 255, green: 0x10 / 255, blue: 0x16 / 255)
-    static let stageWell = Color(.sRGB, red: 0x12 / 255, green: 0x14 / 255, blue: 0x1C / 255)
-    /// The brand teal taken down until white sits legibly on it, for the one place a
-    /// small patch of it carries text: the monogram. `dockSecondary` at `#29C0B4` is
-    /// lovely on a control and hopeless behind two white letters.
-    static let stageTealDeep = Color(.sRGB, red: 0x0A / 255, green: 0x5F / 255, blue: 0x73 / 255)
+    /// The stage's ground and the microphone's well; fixed values, because the stage is dark by design.
+    static let stageGround = Color(rgb: 0x0B_0C10)
+    static let stagePanel = Color(rgb: 0x0E_1016)
+    static let stageWell = Color(rgb: 0x12_141C)
+    /// The brand teal deepened until white sits legibly on it, for the monogram.
+    static let stageTealDeep = Color(rgb: 0x0A_5F73)
 }
 
-/// One figure in the row under the stage.
-///
-/// The comment beneath is the whole reason this is not just a big number: "2,715" says
-/// where you stand and nothing about which way you are going, and the presenter only ever
-/// supplies the comparison when there is a real second figure to make it from.
+/// One figure in the row under the stage, with a comparison beneath when the presenter supplies one.
 struct OrbitFigure: View {
     let statistic: MainStatistic
-    /// Which of the two accents this figure wears, or none.
-    ///
-    /// By position rather than by meaning: the presenter hands over four captions and no
-    /// notion of which is the interesting one, and a view that matched on the words
-    /// would be a view that fell silent the day one of them was reworded. Alternating
-    /// keeps the row from reading as four of the same thing.
+    /// Which accent this figure wears, by position not meaning, so the row is not four of the same thing.
     let tint: Color?
 
     var body: some View {
@@ -287,14 +241,7 @@ struct OrbitFigure: View {
     }
 }
 
-/// The clipboard, beside today's dictations.
-///
-/// The same three rows the demonstration further down the page animates, held still. A
-/// still panel and a moving one earn different things: this one says *what is in there*
-/// at a glance, where the animation below teaches *how to get it out*. Neither shows the
-/// user's own clips — a password on the first screen of the app, where anyone walking
-/// past can read it, is the hazard the panel's mask exists to prevent, and a home page
-/// must not undo it.
+/// The clipboard beside today's dictations: the demonstration's rows, held still, never the user's own.
 struct ClipboardRail: View {
     let demonstration: HomeDemonstration
     var onIntent: (MainIntent) -> Void = { _ in }
@@ -309,22 +256,16 @@ struct ClipboardRail: View {
                         .font(.system(size: 9.5, weight: .medium))
                         .padding(.horizontal, 5)
                         .frame(minWidth: 17, minHeight: 17)
-                        .background(.primary.opacity(0.06), in: .rect(cornerRadius: 4))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
+                        .cardSurface(.primary.opacity(0.06), cornerRadius: 4)
                 }
             }
             VStack(spacing: 0) {
                 ForEach(Array(demonstration.rows.enumerated()), id: \.element.id) { index, row in
-                    line(row, isChosen: index == demonstration.chosen)
+                    demonstrationRow(row, isChosen: index == demonstration.chosen)
                     if index < demonstration.rows.count - 1 { MainDivider() }
                 }
             }
-            .background(Color.mainCard, in: .rect(cornerRadius: MainMetrics.cardRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: MainMetrics.cardRadius)
-                    .strokeBorder(Color.mainSeparator, lineWidth: 0.5))
+            .cardSurface()
             Text(demonstration.footnote)
                 .font(.system(size: MainMetrics.footnoteSize))
                 .foregroundStyle(Color.mainDim)
@@ -334,11 +275,11 @@ struct ClipboardRail: View {
         .accessibilityLabel(demonstration.title)
     }
 
-    private func line(_ row: HomeDemonstrationRow, isChosen: Bool) -> some View {
+    private func demonstrationRow(_ row: HomeDemonstrationRow, isChosen: Bool) -> some View {
         HStack(spacing: 8) {
             Image(systemName: row.symbolName)
                 .font(.system(size: 11))
-                .foregroundStyle(row.isMasked ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.dockSecondary))
+                .foregroundStyle(row.isMasked ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.dockActive))
                 .frame(width: 14)
             Text(row.text)
                 .font(.system(size: MainMetrics.calloutSize))
@@ -346,8 +287,7 @@ struct ClipboardRail: View {
                 .truncationMode(.tail)
                 .foregroundStyle(row.isMasked ? Color.mainDim : Color.mainText)
             Spacer(minLength: 4)
-            // The chosen row wears the key that would paste it; the masked one says why
-            // it is dots rather than words.
+            // The chosen row wears the key that would paste it; the masked one says why it is dots.
             if row.isMasked {
                 Text("hidden")
                     .font(.system(size: 9.5))
@@ -355,7 +295,7 @@ struct ClipboardRail: View {
             } else if isChosen {
                 Text("⏎")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color.dockSecondary)
+                    .foregroundStyle(Color.dockActive)
             }
         }
         .padding(.horizontal, 10)

@@ -29,7 +29,7 @@ struct ProtocolValueTypeTests {
 
     @Test("names every insertion outcome and round-trips them")
     func insertionMethods() throws {
-        #expect(TextInsertionMethod.allCases.count == 3)
+        #expect(TextInsertionMethod.allCases.count == 4)
         for method in TextInsertionMethod.allCases {
             let decoded = try JSONDecoder().decode(
                 TextInsertionMethod.self,

@@ -4,18 +4,13 @@ import Testing
 
 @testable import UttrflowSettings
 
+/// Drives the setting through a stand-in login-item database.
 @Suite("LaunchAtLogin")
 struct LaunchAtLoginTests {
-    /// Stands in for whatever macOS refuses with. Its contents never matter: the point
-    /// of every failing case below is that the thrown value is not the answer.
+    /// Whatever macOS refuses with; its contents never matter, as a throw is never the answer.
     private struct SystemRefusal: Error {}
 
-    /// A stand-in for the login-item database.
-    ///
-    /// `leaves` is the status the database ends up in, `nil` for a call that changes
-    /// nothing; `fails` is whether the call also throws. They are independent because
-    /// `SMAppService` really does combine them in all four ways — most awkwardly by
-    /// throwing "already registered" over a database that says enabled.
+    /// A stand-in database; what a call leaves and whether it throws are independent, like `SMAppService`.
     private func launchAtLogin(
         status: LaunchAtLoginStatus,
         registerLeaves: LaunchAtLoginStatus? = .enabled,
@@ -100,8 +95,7 @@ struct LaunchAtLoginTests {
         #expect(setting.isEnabled == false)
     }
 
-    /// A build that is not a signed app bundle: `register()` returns without
-    /// complaining and macOS still has nothing it can launch.
+    /// An unsigned build: `register()` returns quietly and macOS still has nothing it can launch.
     @Test("reports a registration macOS quietly ignored as unavailable")
     func silentlyIgnoredRegistrationIsNotSuccess() {
         let setting = launchAtLogin(status: .unavailable, registerLeaves: nil)
@@ -110,8 +104,7 @@ struct LaunchAtLoginTests {
         #expect(setting.isEnabled == false)
     }
 
-    /// The mirror image: the throw was "already registered", and the app really will
-    /// start at login. Believing the error here would turn the switch off wrongly.
+    /// The throw is "already registered" and the app really will start; believing it turns the switch off.
     @Test("reports an already-registered app as enabled even though registering threw")
     func throwOverAnEnabledStateIsStillEnabled() {
         let setting = launchAtLogin(status: .enabled, registerLeaves: .enabled, registerFails: true)
@@ -120,8 +113,7 @@ struct LaunchAtLoginTests {
         #expect(setting.isEnabled)
     }
 
-    /// Registering worked and the app still will not start: only the user can finish
-    /// this, in System Settings. Claiming success would be a lie the user later finds.
+    /// Registration succeeds and the app still will not start; only the user can finish this, in Settings.
     @Test("reports an app awaiting the user's approval as not yet enabled")
     func approvalPendingIsNotEnabled() {
         let setting = launchAtLogin(status: .disabled, registerLeaves: .requiresApproval)
@@ -163,8 +155,7 @@ struct LaunchAtLoginTests {
         #expect(LaunchAtLogin.launchAtLoginStatus(for: system) == expected)
     }
 
-    /// `SMAppService.Status` is an Objective-C enum, so a later macOS can hand back a
-    /// case this build does not know. Forcing one proves the fallback is not enabled.
+    /// `SMAppService.Status` is an Objective-C enum, so a later macOS can return a case this build lacks.
     @Test("treats a login-item state it does not recognise as disabled")
     func unknownSystemStatusIsDisabled() {
         let future = unsafeBitCast(Int(99), to: SMAppService.Status.self)

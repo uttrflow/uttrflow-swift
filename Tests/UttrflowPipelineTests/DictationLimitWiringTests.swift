@@ -1,3 +1,4 @@
+// Tests the dictation length limit's wiring through the controller.
 import Synchronization
 import Testing
 

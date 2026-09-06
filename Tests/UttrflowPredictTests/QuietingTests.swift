@@ -15,8 +15,7 @@ struct QuietingTests {
             (PredictionContext(typed: "x", isEnabledHere: false), Quieting.Reason.turnedOffHere),
             (PredictionContext(typed: "x", isSecure: true), .secureField),
             (PredictionContext(typed: "x", hasSelection: true), .textSelected),
-            (PredictionContext(typed: "x", isComposing: true), .inputMethodComposing),
-            (PredictionContext(typed: "x", caretAtEnd: false), .caretInsideText),
+            (PredictionContext(typed: "x", caretAtLineEnd: false), .caretInsideText),
             (PredictionContext(typed: "x", rejectionsThisSession: 3), .rejectedTooOften),
             (
                 PredictionContext(typed: "x", isProse: true, millisecondsSinceKeystroke: 100),
@@ -31,9 +30,15 @@ struct QuietingTests {
     @Test("Being turned off here outranks every other reason, so the report names the one that matters.")
     func prioritised() {
         let everything = PredictionContext(
-            typed: "x", caretAtEnd: false, hasSelection: true, isComposing: true, isSecure: true,
+            typed: "x", caretAtLineEnd: false, hasSelection: true, isComposing: true, isSecure: true,
             isEnabledHere: false)
         #expect(Quieting.reason(everything) == .turnedOffHere)
+    }
+
+    @Test("An input method mid-composition does not quiet the suggestion; drawing takes priority.")
+    func composingDoesNotQuiet() {
+        #expect(Quieting.reason(PredictionContext(typed: "x", isComposing: true)) == nil)
+        #expect(!Quieting.refuses(PredictionContext(typed: "x", isComposing: true)))
     }
 
     @Test("Fluency only quiets prose; a command field answers at once.")
@@ -95,5 +100,17 @@ struct CommonPrefixTests {
     @Test("Agreement is by character, so a shared emoji is not cut in half.")
     func unicode() {
         #expect(CommonPrefix.of(["🙂 ship it", "🙂 ship out"]) == "🙂 ship ")
+    }
+
+    @Test("A field with no place to draw is quiet for that reason, before anything about its text is asked.")
+    func nowhereToDrawIsAReason() {
+        #expect(
+            Quieting.reason(PredictionContext(typed: "select * from o", canDraw: false)) == .nowhereToDraw)
+        #expect(
+            Quieting.reason(PredictionContext(typed: "x", hasSelection: true, canDraw: false))
+                == .nowhereToDraw)
+        #expect(
+            Quieting.reason(PredictionContext(typed: "x", isSecure: true, canDraw: false)) == .secureField)
+        #expect(Quieting.reason(PredictionContext(typed: "x", canDraw: true)) == nil)
     }
 }

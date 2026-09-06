@@ -1,3 +1,4 @@
+// Tests for the Insights page: the chart, the figures, the places, the wait, and the average line.
 import Foundation
 import UttrflowHistory
 import UttrflowSettings
@@ -6,8 +7,7 @@ import Testing
 @testable import UttrflowUX
 
 extension HistoryFixture {
-    /// One dictation on each of the last `days` days, so the page has the week of
-    /// evidence it waits for.
+    /// One dictation on each of the last `days` days, so the page has the week of evidence it waits for.
     static func aWeek(
         words: Int = 10, seconds: Int? = nil, days: Int = 7, from first: Int = 0,
         application: String? = "Slack", measured: Bool = true
@@ -25,12 +25,12 @@ extension HistoryFixture {
         }
     }
 
+    /// The Insights page over these inputs, with the fixed clock and region.
     static func insights(
         entries: [HistoryEntry] = [],
         settings: Settings = .default
     ) -> InsightsPresentation {
-        // No corrections are passed: the snapshot still carries a list of them, but
-        // nothing reads it any more. See ``InsightsSnapshot/corrections``.
+        // The page reads only the entries.
         InsightsPresenter.page(
             for: InsightsSnapshot(entries: entries, settings: settings, now: now),
             calendar: calendar, locale: locale)
@@ -52,8 +52,7 @@ struct InsightsChartTests {
     /// A gap in a bar chart is information; a missing bar is a mystery.
     @Test("a day nobody spoke on is drawn as a silent day rather than left out")
     func silentDays() {
-        // A fortnight's window with only the last week spoken on, so half the chart is
-        // days that must still appear.
+        // A fortnight's window with only the last week spoken on, so half the chart is silent days.
         var settings = Settings.default
         settings.transcriptRetentionDays = 14
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek(), settings: settings)
@@ -79,8 +78,7 @@ struct InsightsChartTests {
         #expect(page.days.first?.id == page.days.first?.label)
     }
 
-    /// The window is however long the user's own retention keeps words for, and it is
-    /// not this page's to widen — so the control names it rather than offering a choice.
+    /// The window is the user's own retention setting, not this page's to widen, so the control names it.
     @Test("the scope names the window and offers nothing to pick")
     func scope() {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek())
@@ -101,9 +99,7 @@ struct InsightsChartTests {
 
 @Suite("The figures Insights can vouch for")
 struct InsightsFiguresTests {
-    /// The artboard drew a "languages you spoke" card and a "time saved" tile. Neither
-    /// has a source: ``DictationRecord`` carries no detected language, and nothing has
-    /// ever watched the user type. Both are absent rather than invented.
+    /// The "languages you spoke" card and "time saved" tile have no source, so both are absent.
     @Test("nothing is charted that has not been measured")
     func nothingInvented() {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek(measured: false))
@@ -119,8 +115,7 @@ struct InsightsFiguresTests {
         #expect(figure?.comment == "Days you did not dictate are skipped.")
     }
 
-    /// A line that dives to the floor because nobody spoke would read as the user
-    /// getting worse.
+    /// A line that dives to the floor because nobody spoke would read as the user getting worse.
     @Test("the pace trend has a point per day that had one, oldest first")
     func trend() {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek(seconds: 10))
@@ -140,8 +135,7 @@ struct InsightsFiguresTests {
         let figure = page.figures.first { $0.caption == "Accuracy" }
         #expect(figure?.value == "75.0%")
         #expect(figure?.meters.map(\.label) == ["Now"])
-        // One arithmetic described two ways is one description waiting to drift, so the
-        // page borrows the dictation page's wording rather than writing its own.
+        // The page borrows the Dictation page's wording, so one arithmetic is described one way.
         #expect(figure?.comment == DictationPresenter.accuracyCaption)
     }
 
@@ -168,8 +162,7 @@ struct InsightsPlacesTests {
         #expect(page.places.first?.id == "Slack")
     }
 
-    /// Left out of the total as well as the list, so the shares are of what is actually
-    /// known rather than shares that quietly fail to add up.
+    /// Left out of the total as well as the list, so the shares are of what is actually known.
     @Test("a dictation that went nowhere known is not counted")
     func unknownDestination() {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek(application: nil))
@@ -185,8 +178,7 @@ struct InsightsPlacesTests {
 
 @Suite("Insights before there is enough to chart")
 struct InsightsWaitingTests {
-    /// A baseline drawn from three days is noise wearing a number's clothes, so the
-    /// page waits and says how long for.
+    /// A baseline drawn from three days is noise wearing a number's clothes, so the page waits.
     @Test("fewer than seven days of speaking means the charts wait")
     func waits() {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek(days: 2))
@@ -240,8 +232,7 @@ struct InsightsWaitingTests {
 
 @Suite("The line a bar means something against")
 struct InsightsAverageTests {
-    /// A column of bars answers "which day was biggest" and nothing else. The average is
-    /// what turns each bar into a statement.
+    /// A column of bars answers "which day was biggest"; the average turns each bar into a statement.
     @Test("averages the words across every charted day")
     func averagesTheWindow() throws {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek())
@@ -252,14 +243,10 @@ struct InsightsAverageTests {
         #expect(average.label.hasSuffix("a day"))
     }
 
-    /// Silent days count. Dropping them would flatter the figure into meaning "your
-    /// average dictating day", which is not what anybody reads off a line drawn across a
-    /// chart of every day.
+    /// Silent days count; dropping them would flatter the figure into "your average dictating day".
     @Test("counts the silent days in the average")
     func silentDaysCount() throws {
-        // A month-long window with one week of dictating in it: the chart needs seven
-        // days spoken on before it appears at all, so silence can only be shown by a
-        // window longer than that.
+        // A month with one week of dictating in it, since the chart needs seven spoken days to appear.
         var settings = Settings.default
         settings.transcriptRetentionDays = 30
         let page = HistoryFixture.insights(
@@ -271,14 +258,12 @@ struct InsightsAverageTests {
         #expect(spoken.count == 7)
         #expect(page.days.count == 30, "the window is the retention setting")
         #expect(acrossSpokenOnly == 20, "each day spoken on had twenty words")
-        // The whole window averages far lower than the week inside it, which is the
-        // point: a mostly quiet month reads as a mostly quiet month.
+        // The whole window averages far lower than the week inside it: a quiet month reads as quiet.
         #expect(average.words < acrossSpokenOnly)
         #expect(average.words == Int((20.0 * 7 / 30).rounded()))
     }
 
-    /// The tallest bar is `fraction == 1`, so the line is measured against that same day
-    /// rather than against a scale the page would have to invent.
+    /// The tallest bar is `fraction == 1`, so the line is measured against that day, not an invented scale.
     @Test("sits on the same scale as the bars")
     func sharesTheBarsScale() throws {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek())
@@ -297,7 +282,6 @@ struct InsightsAverageTests {
 @Suite("How much was said where")
 struct InsightsPlaceWordsTests {
     /// The share says how the day was divided; the count says how much of it there was.
-    /// Half of two sentences and half of two hundred are the same percentage.
     @Test("each place carries the words said in it, not only its share")
     func placesCarryWords() throws {
         let page = HistoryFixture.insights(entries: HistoryFixture.aWeek())

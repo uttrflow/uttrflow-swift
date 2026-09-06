@@ -1,3 +1,4 @@
+// A SpeechEngine that answers as scripted.
 public import UttrflowCore
 
 /// A ``SpeechEngine`` that returns a scripted transcription.

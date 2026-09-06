@@ -1,3 +1,4 @@
+// A UserDefaults suite that lives for one test.
 public import Foundation
 
 /// A real `UserDefaults` domain that does not outlive the closure it is made for.

@@ -1,27 +1,14 @@
+// Microphone level to meter height, and the row of bars the meter draws.
+
 import CoreGraphics
 import Foundation
 
-/// Turns what the microphone is doing into what the meter draws.
-///
-/// Pure and free of SwiftUI on purpose. The old waveform was seventeen bars running a
-/// canned `easeInOut` loop — the same animation whether somebody shouted, whispered or
-/// said nothing at all — and the reason that was never noticed is that there was nothing
-/// to test. Every decision the meter makes now lives here, where a test can hold it to
-/// account.
+/// Turns what the microphone is doing into what the meter draws; pure, so a test can hold it to account.
 enum DockLevel {
-    /// The quietest signal the meter shows at all, in dBFS.
-    ///
-    /// Speech at a normal distance from a laptop microphone sits around −30 dBFS and
-    /// room tone around −55. Anchoring the floor at −50 puts a spoken sentence in the
-    /// upper half of the meter and leaves silence flat, which is the distinction the
-    /// meter exists to draw.
+    /// The quietest signal shown, in dBFS: speech sits around −30, room tone around −55.
     static let floorDecibels: Float = -50
 
-    /// Maps a root-mean-square level in `0...1` onto the bar scale, also `0...1`.
-    ///
-    /// Decibels rather than the raw amplitude: hearing is logarithmic, and a linear
-    /// meter spends nine tenths of its travel on the loudest tenth of speech, so it
-    /// looks broken — barely moving, then slamming to full.
+    /// Maps an RMS level in `0...1` onto the bar scale in decibels, because hearing is logarithmic.
     static func scale(rms: Float) -> CGFloat {
         guard rms.isFinite, rms > 0 else { return 0 }
         let decibels = 20 * log10(rms)
@@ -31,27 +18,12 @@ enum DockLevel {
     }
 }
 
-/// The row of capsules, one per arrival.
-///
-/// A bar here is a *moment*, not a sample of a curve: each 20 Hz arrival pushes one
-/// entry and every entry then walks across the panel until it falls off the far end. That
-/// is what makes the meter a recording of the last second rather than a decoration that
-/// happens to wobble — the horizontal axis is time, and every bar on screen is something
-/// that was actually said.
-///
-/// Newest first, so index zero is the edge where sound arrives and the walk is a simple
-/// increasing offset.
+/// The row of capsules, one per 20 Hz arrival, newest first; the horizontal axis is time.
 struct DockBars {
-    /// Enough to fill the widest meter with two to spare, so a bar exists to enter from
-    /// beyond the edge and one to leave past it.
+    /// Enough to fill the widest meter with one bar entering and one leaving.
     static let capacity = 24
 
-    /// Above this, a bar takes the mark's accent instead of the waveform teal.
-    ///
-    /// Half scale, chosen because it is the only threshold that needs no explanation.
-    /// It is worth being clear about what it does and does not mean: it says this instant
-    /// was louder than half, and nothing more. It is not a second measurement and the
-    /// meter has no second thing to measure — one microphone, one number.
+    /// Above this a bar takes the mark's accent: half scale, the one threshold needing no explanation.
     static let accentThreshold: CGFloat = 0.5
 
     private(set) var levels: [CGFloat]

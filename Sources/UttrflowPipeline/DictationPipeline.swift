@@ -1,3 +1,4 @@
+// The whole product in one actor: from the key going down to the text landing.
 public import UttrflowCore
 public import struct Foundation.UUID
 
@@ -253,14 +254,11 @@ public actor DictationPipeline {
         earlyPieces = []
         earlyCut = 0
         await capture.cancel()
-        if let openRecording {
-            self.openRecording = nil
-            await recordings.discard(openRecording)
-        }
+        await discardOpenRecording()
         transition(to: .idle)
     }
 
-    /// Whether the dictation that started at `mine` has since been abandoned, by it or by a later cancel.
+    /// Whether the dictation that started at `mine` is abandoned, by itself or by a later cancel.
     private func wasCancelled(_ mine: Int) -> Bool {
         guard let cancelledGeneration else { return false }
         return mine <= cancelledGeneration
@@ -406,7 +404,7 @@ public actor DictationPipeline {
             await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
-        // Every piece was done while recording, and the screen it was read against still applies.
+        // Every piece is done while recording, and the screen it is read against still applies.
         if state == .transcribing { transition(to: .tidying) }
         let joining = SituationResolver.resolve(
             from: appContext ?? AppContext(), overrides: runningOverrides)
@@ -425,7 +423,7 @@ public actor DictationPipeline {
         let changes = AppliedChanges(
             corrections: whole.corrected.corrections, snippets: expanded.snippets,
             // The unrewritten sentence, which is the space the corrections' word ranges index.
-            spokenWords: whole.heard.text.spokenWordCount)
+            spokenWords: whole.heard.text.spokenWords.count)
         guard
             await insert(
                 expanded.text, cleanedBy: whole.cleaned.producedBy, changes: changes,
@@ -525,6 +523,7 @@ public actor DictationPipeline {
         let request = TransformationRequest(
             transcription: transcription.saying(corrected), context: appContext, profile: profile,
             situation: SituationResolver.resolve(from: appContext, overrides: runningOverrides))
+        let untidied = TransformationResult(text: text, producedBy: .rules)
 
         do {
             let tidied = try await metrics.measuring(.transformation, clock: clock) {
@@ -534,11 +533,11 @@ public actor DictationPipeline {
                 }
             }
             // A language model that never answers costs the tidying, never the words.
-            guard let tidied else { return TransformationResult(text: text, producedBy: .rules) }
+            guard let tidied else { return untidied }
             if let cleaning = tidied.cleaning { cleaningRecords.append(cleaning) }
             return tidied
         } catch {
-            return TransformationResult(text: text, producedBy: .rules)
+            return untidied
         }
     }
 
@@ -577,10 +576,7 @@ public actor DictationPipeline {
                     description: "the application did not respond")
             }
             // The words landed, so the audio has done its job.
-            if let openRecording {
-                self.openRecording = nil
-                await recordings.discard(openRecording)
-            }
+            await discardOpenRecording()
             transition(
                 to: .inserted(
                     DictationOutcome(
@@ -610,6 +606,13 @@ public actor DictationPipeline {
             }
         }
         transition(to: .failed(failure))
+    }
+
+    /// Deletes the kept audio of the dictation under way, if there is one.
+    private func discardOpenRecording() async {
+        guard let openRecording else { return }
+        self.openRecording = nil
+        await recordings.discard(openRecording)
     }
 
     /// Tells the stores what this dictation used, once the words are safely on screen.

@@ -2,6 +2,7 @@ public import UttrflowCore
 
 /// The floor beneath every other transformer: the deterministic passes alone, which cannot invent or refuse.
 public struct RuleBasedTransformer: TextTransformationEngine {
+    /// Always `.rules`.
     public let kind: TransformerKind = .rules
 
     private let pipeline: CleaningPipeline?
@@ -18,6 +19,7 @@ public struct RuleBasedTransformer: TextTransformationEngine {
         .available
     }
 
+    /// Collapses whitespace, drops fillers, capitalises, and finishes the sentence.
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {

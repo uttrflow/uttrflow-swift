@@ -1,17 +1,16 @@
+// Tests for when a downloaded update may install.
 import Foundation
 import Testing
 
 @testable import UttrflowUX
 
-/// When a downloaded update is allowed to replace the running app.
-///
-/// The rule is worth this much testing because its failures are silent and expensive: an
-/// update that installs a second too early takes a sentence somebody was in the middle of
-/// saying, and nothing anywhere reports that it happened.
+/// Worth this much testing because a failure is silent: an early install takes a sentence mid-word.
 @Suite("Updating: when it may install")
 struct UpdateGateTests {
+    /// The fixed clock.
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
 
+    /// The clock this many seconds on.
     private func later(_ seconds: TimeInterval) -> Date {
         start.addingTimeInterval(seconds)
     }
@@ -20,7 +19,7 @@ struct UpdateGateTests {
     func nothingKnownMeansNo() {
         let gate = UpdateGate()
         #expect(!gate.mayInstall(at: start))
-        #expect(gate.quietFor(at: start) == nil)
+        #expect(gate.quietDuration(at: start) == nil)
     }
 
     @Test("not while the app is doing any of the four things")
@@ -55,8 +54,7 @@ struct UpdateGateTests {
         #expect(gate.mayInstall(at: later(6000)))
     }
 
-    /// The one that matters. A gate that merely paused its clock would install at the
-    /// fifty-ninth second of a minute the user never had.
+    /// A gate that merely paused its clock would install in a minute the user never had.
     @Test("anything at all starts the minute again")
     func speakingResetsTheClock() {
         var gate = UpdateGate()
@@ -69,8 +67,7 @@ struct UpdateGateTests {
         #expect(gate.mayInstall(at: later(111)))
     }
 
-    /// The app reports what it is doing whenever anything redraws, which is often. A gate
-    /// that restarted its clock on every report would never open.
+    /// The app reports its state on every redraw, so a clock restarting on each report would never open.
     @Test("being told the same quiet thing repeatedly does not restart the minute")
     func repeatedQuietDoesNotResetTheClock() {
         var gate = UpdateGate()
@@ -84,10 +81,10 @@ struct UpdateGateTests {
     func reportsHowLongItHasBeenQuiet() {
         var gate = UpdateGate()
         gate.note(UpdateActivity(), at: start)
-        #expect(gate.quietFor(at: later(30)) == 30)
+        #expect(gate.quietDuration(at: later(30)) == 30)
 
         gate.note(UpdateActivity(isPanelOpen: true), at: later(31))
-        #expect(gate.quietFor(at: later(32)) == nil)
+        #expect(gate.quietDuration(at: later(32)) == nil)
     }
 
     @Test("an activity is quiet only when every one of the four is false")

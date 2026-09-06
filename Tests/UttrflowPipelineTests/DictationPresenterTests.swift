@@ -1,3 +1,4 @@
+// Tests what the floating button shows for each state.
 import Foundation
 import Testing
 
@@ -6,8 +7,7 @@ import Testing
 
 // MARK: - Fixtures
 
-/// Deliberately free of any word the §16 guard forbids, so that a leak found by that
-/// test is the presenter's doing and never the fixture's.
+/// Free of any word the §16 guard forbids, so a leak is the presenter's doing, never the fixture's.
 private let spokenWords = "Right, so the plan for tomorrow is to finish the drafting."
 
 private let insertedOutcome = DictationOutcome(
@@ -26,8 +26,7 @@ private let failureWithoutWords = DictationFailure(
     recovery: .openSystemSettings(.microphone),
     severity: .blocking)
 
-/// Every state the interface can be asked to draw, in one list, so a new case cannot be
-/// added without also meeting the rules below.
+/// Every state the interface can draw, so a new case cannot be added without meeting the rules.
 private let everyState: [DictationState] = [
     .idle,
     .recording,
@@ -74,8 +73,7 @@ struct DictationPresentationTests {
         }
     }
 
-    /// Transcribing and tidying are one wait to the person waiting, and naming them
-    /// separately would describe the machinery rather than the moment.
+    /// Transcribing and tidying are one wait to the person waiting.
     @Test("presents transcribing and tidying as the same single wait")
     func transcribingAndTidyingAreIndistinguishable() {
         #expect(DictationPresenter.dock(for: .transcribing) == DictationPresenter.dock(for: .tidying))
@@ -167,10 +165,7 @@ struct InsertedPresentationTests {
 
 @Suite("Engine anonymity")
 struct EngineAnonymityTests {
-    /// §16: the user must never learn which engine ran. The choice of recogniser or
-    /// transformer is ours to change; the moment a symbol, a line of text or a spoken
-    /// label names one, that choice becomes something the user has learned to depend on
-    /// — and a swap becomes a broken promise rather than an implementation detail.
+    /// §16: the user must never learn which engine ran, or a swap becomes a broken promise.
     @Test("never leaks an implementation name into anything the user can see or hear")
     func neverNamesAnEngine() {
         let forbidden = [
@@ -255,8 +250,7 @@ struct SpokenLabelTests {
             let dock = DictationPresenter.dock(for: state)
 
             for (label, symbol) in [(dock.accessibilityLabel, dock.symbolName)] {
-                // An icon name read aloud is a leak of the drawing, not a description
-                // of what is happening.
+                // An icon name read aloud is a leak of the drawing, not a description of what is happening.
                 #expect(label != symbol, "\(state) reads out its icon name")
                 #expect(
                     label.contains { $0.isWhitespace },
@@ -271,8 +265,7 @@ struct SpokenLabelTests {
 
 @Suite("Small values the interface leans on")
 struct HotkeyAndCueValueTests {
-    /// A shortcut with no modifier would fire while the user was typing an ordinary
-    /// letter, so the settings screen has to be able to refuse one.
+    /// A shortcut with no modifier would fire while the user typed an ordinary letter.
     @Test("treats a shortcut with no modifier as unusable")
     func requiresAModifier() {
         #expect(HotkeyBinding.optionSpace.isUsable)
@@ -293,8 +286,7 @@ struct HotkeyAndCueValueTests {
         #expect(decoded == .optionSpace)
     }
 
-    /// What a user gets when they turn sounds off: nothing, without the caller needing
-    /// to know sounds are off.
+    /// Sounds off means nothing, without the caller needing to know.
     @Test("says nothing when the user has turned sounds off")
     func silentCueIsSilent() {
         let cue = SilentCue()
@@ -305,9 +297,7 @@ struct HotkeyAndCueValueTests {
 
 @Suite("Being told nothing was heard")
 struct HeardNothingTests {
-    /// The whole point of the notice: a dictation that produced nothing used to return
-    /// quietly to idle, which from the user's chair is exactly what a broken app looks
-    /// like — hold the key, speak, let go, nothing whatever happens.
+    /// A dictation that produced nothing must say so, or the app looks broken.
     @Test("says so, softly, rather than saying nothing")
     func drawnAsANotice() {
         let shown = DictationPresenter.dock(
@@ -318,8 +308,7 @@ struct HeardNothingTests {
         #expect(shown.action == nil, "the remedy is to speak again, not to press something")
     }
 
-    /// A real failure still looks like one. The soft treatment is for the severity, not
-    /// for everything that arrives down the same channel.
+    /// The soft treatment is for the severity, not for everything on the same channel.
     @Test("a genuine failure still carries a warning and its fix")
     func realFailuresAreStillAlarming() {
         let shown = DictationPresenter.dock(
@@ -341,8 +330,7 @@ struct DictationElapsedTests {
         #expect(DictationPresenter.elapsed(.seconds(83)) == "1:23")
     }
 
-    /// A dictation is a sentence. A button reading "0:04" an hour into a recording that
-    /// never stopped would be hiding the one thing worth noticing.
+    /// A button reading "0:04" an hour into a stuck recording would hide the thing worth noticing.
     @Test("keeps counting in minutes rather than rolling over at an hour")
     func pastAnHour() {
         #expect(DictationPresenter.elapsed(.seconds(3_600)) == "60:00")

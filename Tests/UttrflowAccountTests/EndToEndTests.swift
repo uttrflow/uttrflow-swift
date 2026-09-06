@@ -3,35 +3,20 @@ import Testing
 
 @testable import UttrflowAccount
 
-/// The whole sign-in, with nothing substituted: a real socket, a real HTTP client, and a
-/// real backend on the other end.
-///
-/// Everything else in this suite replaces one half of the flow to make the other half
-/// testable. This replaces neither, which is why it is the only test that can catch the
-/// class of bug those cannot — a port that binds but is never reached, a redirect the
-/// server refuses, a request the app builds one way and the backend parses another.
-///
-/// Skipped unless `UTTRFLOW_BACKEND_URL` names a running service, because it needs one:
-///
-/// ```bash
-/// cd ../uttrflow-backend && make run     # or PORT=8788 with a seeded database
-/// UTTRFLOW_BACKEND_URL=http://127.0.0.1:8788 swift test --filter "against a real backend"
-/// ```
+/// The whole sign-in against a live backend named by `UTTRFLOW_BACKEND_URL`, with nothing substituted.
 @Suite(
     "Signing in against a real backend",
     .enabled(if: LiveBackend.isConfigured, LiveBackend.absenceReason))
 struct EndToEndTests {
-    /// The service under test. Non-optional: the suite does not run without one, and
-    /// `.enabled(if:)` above is what makes that a reported skip rather than three tests
-    /// returning early and calling themselves passed.
+    /// The backend's address; `.enabled(if:)` above turns its absence into a reported skip, not a pass.
     private var backendURL: URL {
         get throws { try #require(LiveBackend.url, "UTTRFLOW_BACKEND_URL is not a URL") }
     }
 
-    /// The key the running service publishes, so this build verifies what that deployment
-    /// actually signs rather than what it was compiled to expect.
+    /// The key the running service publishes, so this build verifies what that deployment signs.
     private func liveVerifier(_ backend: URL) async throws -> Ed25519EntitlementVerifier {
         let (data, _) = try await URLSession.shared.data(from: backend.appending(path: "v1/health"))
+        /// The one field of `/v1/health` this test reads.
         struct Health: Decodable { let entitlementPublicKey: String }
         let health = try JSONDecoder().decode(Health.self, from: data)
         let key = try #require(Data(base64Encoded: health.entitlementPublicKey))
@@ -61,9 +46,7 @@ struct EndToEndTests {
         #expect(redirect.hasPrefix("http://127.0.0.1:"))
         #expect(redirect.hasSuffix("/callback"))
 
-        // Stand in for the browser: follow the redirects, which ends at the port the app
-        // is listening on. In development the provider redirects straight back, so this is
-        // the same two hops a person's browser would take.
+        // Stands in for the browser: following the redirects ends at the port, as a person's browser would.
         async let browsing: Void = {
             _ = try? await URLSession.shared.data(from: challenge.authorisationURL)
         }()
@@ -83,13 +66,7 @@ struct EndToEndTests {
         #expect(current.platform == .macOS)
     }
 
-    /// The path a locked-down machine takes, against the real service.
-    ///
-    /// The listener is made to fail on purpose, which is the only part of this that is not
-    /// real — a Mac where security software refuses to let an application listen cannot be
-    /// arranged in a test. Everything after that is: the backend really mints a code, this
-    /// really polls, and the approval really goes through the activation page and a
-    /// provider.
+    /// The device flow against the real service; only the listener's failure to bind is arranged.
     @Test("signs in by code when no port can be bound")
     func theDeviceGrant() async throws {
         let backend = try backendURL
@@ -110,8 +87,7 @@ struct EndToEndTests {
         #expect(userCode.count == 9, "a code somebody has to type is \(userCode)")
         #expect(verificationURL.absoluteString.contains("/v1/auth/device"))
 
-        // Stand in for the person at a browser: submit the activation form, then follow
-        // the provider's redirect back. Exactly the two steps they would take.
+        // Stands in for the person at a browser: submits the activation form, then follows the redirect back.
         async let approving: Void = approve(userCode, at: backend)
 
         let profile = try await service.completeSignIn(challenge)

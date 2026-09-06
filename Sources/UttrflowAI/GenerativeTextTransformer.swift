@@ -1,14 +1,11 @@
 public import UttrflowCore
 
-/// Cleans a transcript using a language model, and refuses to pass on a rewrite that
-/// changed what the speaker meant.
-///
-/// One implementation serves every generative engine — Apple's on-device model today,
-/// a local open-weight model and a hosted one later — because the difference between
-/// them is which ``CleanupModel`` is handed in, and nothing else.
+/// Cleans a transcript with any ``CleanupModel`` and refuses a rewrite that changes what the speaker meant.
 public struct GenerativeTextTransformer: TextTransformationEngine {
+    /// Which engine this stands for.
     public let kind: TransformerKind
 
+    /// The model that rewrites.
     private let model: any CleanupModel
     private let prompts: PromptBuilder
     private let meaningGuard: MeaningPreservationGuard
@@ -32,6 +29,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         self.doubtful = doubtful
     }
 
+    /// Passes the model's own verdict on the spoken language straight through.
     public func availability(for request: TransformationRequest) async -> TransformerAvailability {
         await model.availability(for: request.effectiveLanguage)
     }
@@ -41,6 +39,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         await model.warm(instructions: prompts.instructions(for: situation?.destination ?? .plain))
     }
 
+    /// Rewrites, unwraps and tidies, then throws `outputRejected` when the meaning guard refuses.
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {

@@ -1,3 +1,4 @@
+// Tests WAV encoding.
 import Foundation
 import Testing
 

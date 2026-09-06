@@ -29,12 +29,20 @@ public enum FuzzyMatch {
         (query & ~candidate).nonzeroBitCount <= budget
     }
 
-    /// Edits from the query to the nearest opening of a candidate, counting a transposition as one.
+    /// One ASCII byte lowercased, so matching ignores the capital a field puts on the first letter.
+    static func folded(_ byte: UInt8) -> UInt8 {
+        (byte >= 65 && byte <= 90) ? byte + 32 : byte
+    }
+
+    /// Edits from the query to the nearest opening of a candidate, counting a transposition as one, ignoring case.
     public static func prefixDistance(_ query: [UInt8], _ candidate: [UInt8], within budget: Int) -> Int {
         let rows = query.count
         guard rows > 0 else { return 0 }
         let columns = min(candidate.count, rows + budget)
         guard columns > 0 else { return rows }
+
+        let query = query.map(folded)
+        let candidate = candidate.map(folded)
 
         var beforeLast = [Int](repeating: 0, count: columns + 1)
         var last = Array(0...columns)

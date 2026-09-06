@@ -1,3 +1,4 @@
+// Encodes canonical samples as a WAV file.
 public import Foundation
 public import UttrflowCore
 
@@ -40,6 +41,11 @@ public enum WAVEncoder {
         data.append(ascii: "data")
         data.append(littleEndian: UInt32(payloadSize))
         return data
+    }
+
+    /// How many frames a file of `bytes` holds after its header.
+    static func frames(inFileOf bytes: Int) -> Int {
+        max(0, bytes - headerSize) / bytesPerFrame
     }
 
     /// The samples as little-endian 16-bit integers, clamped to full scale.

@@ -1,3 +1,4 @@
+// Tests for drawing the naming, move and delete sheets, and the hint that follows them.
 import Foundation
 import UttrflowClipboard
 import Testing
@@ -6,10 +7,14 @@ import Testing
 
 @Suite("Drawing the naming sheet")
 struct PanelAliasSheetPresentationTests {
+    /// A clip with no alias.
     static let plain = PanelFixture.clip("postgres://prod", minutesAgo: 1)
+    /// A clip that holds "taken".
     static let named = PanelFixture.clip("the other one", minutesAgo: 2, alias: "taken")
+    /// Both.
     static let clips = [plain, named]
 
+    /// The naming sheet for a clip with this draft typed.
     static func sheet(_ draft: String, for clip: Clip = plain) -> PanelSheetPresentation? {
         let panel = PanelFixture.panel(clips).applying([.alias(clip.id), .draft(draft)]).state
         return PanelPresenter.present(panel).sheet
@@ -26,8 +31,7 @@ struct PanelAliasSheetPresentationTests {
         #expect(Self.sheet("taken", for: Self.named)?.title == "Rename this clip")
     }
 
-    /// A field that rewrote characters as they were typed would be a field nobody could
-    /// type in — the correction is reported, never applied to what is on screen.
+    /// The correction is reported, never applied to the field, or nobody could type in it.
     @Test("the field shows exactly what was typed, uncorrected")
     func theFieldIsNotRewritten() {
         #expect(Self.sheet("PG Prod")?.draft == "PG Prod")
@@ -69,6 +73,7 @@ struct PanelAliasSheetPresentationTests {
 
 @Suite("Drawing the move sheet")
 struct PanelMoveSheetPresentationTests {
+    /// Two collections and a loose clip.
     static let clips = [
         PanelFixture.clip("one", minutesAgo: 1, category: "Work"),
         PanelFixture.clip("two", minutesAgo: 2, category: "Work"),
@@ -76,6 +81,7 @@ struct PanelMoveSheetPresentationTests {
         PanelFixture.clip("loose", minutesAgo: 4),
     ]
 
+    /// The move sheet for the loose clip with this draft.
     static func sheet(_ draft: String = "") -> PanelSheetPresentation? {
         let panel = PanelFixture.panel(clips)
             .applying([.move(clips[3].id), .draft(draft)]).state
@@ -119,6 +125,7 @@ struct PanelMoveSheetPresentationTests {
 /// F8 — the note is the answer to "why is this one asking me when the others did not".
 @Suite("Drawing the delete confirmation")
 struct PanelDeleteSheetPresentationTests {
+    /// The delete sheet for a clip.
     static func sheet(_ clip: Clip) -> PanelSheetPresentation? {
         let panel = PanelFixture.panel([clip]).applying(.delete(clip.id)).state
         return PanelPresenter.present(panel).sheet
@@ -144,8 +151,7 @@ struct PanelDeleteSheetPresentationTests {
     }
 }
 
-/// The keys change meaning while a sheet is open, so the line that teaches them has to
-/// change too — otherwise it teaches the wrong ones at the moment it matters.
+/// The keys change meaning while a sheet is open, so the line that teaches them changes too.
 @Suite("The hint follows what is open")
 struct PanelSheetHintTests {
     @Test("the hint teaches the sheet's keys, not the list's")

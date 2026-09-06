@@ -1,20 +1,17 @@
+// Tests for what the language detector refuses.
+
 import Foundation
 import Testing
 
 @testable import UttrflowClipboard
 
-/// D2 and D3, written from outside the detector rather than alongside it.
-///
-/// The cases here were chosen to break it, not to demonstrate it: things people copy all
-/// day that are shaped like source without being any particular language. A wrong chip is
-/// worse than no chip, so every one of these must come back as nothing.
+/// Written from outside the detector with cases chosen to break it; a wrong chip is worse than none.
 @Suite("What the language detector refuses to guess")
 struct CodeLanguageRefusalTests {
     @Test(
         "clips that are not one language answer with nothing",
         arguments: [
-            // Real formats outside the set it knows. Naming one of them something it
-            // recognises would be confidently wrong on files people copy constantly.
+            // Real formats outside the set it knows, copied constantly.
             (
                 "yaml",
                 "name: build\non:\n  push:\n    branches: [main]\njobs:\n  test:\n    runs: ubuntu"
@@ -45,9 +42,7 @@ struct CodeLanguageRefusalTests {
         #expect(CodeLanguage.detect(each.1) == nil, "labelled \(each.0) as a language")
     }
 
-    /// D2 proper: not "we cannot tell what this is", but "this is genuinely two things at
-    /// once". A single lead is one shared token falling one way, which is not a reason to
-    /// print a chip.
+    /// Not "we cannot tell" but "this is genuinely two things at once"; a single lead earns no chip.
     @Test(
         "a fragment that is equally two languages answers with nothing",
         arguments: [

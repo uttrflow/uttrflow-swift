@@ -2,6 +2,7 @@ import Testing
 
 @testable import UttrflowAI
 
+/// Every deterministic repair in `TextTidy`.
 @Suite("TextTidy")
 struct TextTidyTests {
     @Test(
@@ -19,7 +20,14 @@ struct TextTidyTests {
         #expect(TextTidy.collapseWhitespace(input) == expected)
     }
 
-    /// A model's line breaks can be the whole point: dictated code comes back as several lines.
+    @Test("text is read as lower-cased runs of letters and digits")
+    func words() {
+        #expect(TextTidy.words("PaymentSheet.swift") == ["paymentsheet", "swift"])
+        #expect(TextTidy.words("set-user-prefs!") == ["set", "user", "prefs"])
+        #expect(TextTidy.words("—:—").isEmpty)
+    }
+
+    /// A recogniser's line breaks are chunking artefacts; a model's are meant, as with dictated code.
     @Test(
         "keeps the line breaks a model meant, while still tidying the spacing",
         arguments: [
@@ -36,6 +44,7 @@ struct TextTidyTests {
         #expect(TextTidy.collapseSpacing(input) == expected)
     }
 
+    /// The generative path in order, so the newline guard in `ensureTerminalPunctuation` stays reachable.
     @Test("dictated code keeps its shape and gains no stray full stop")
     func dictatedCodeSurvivesTheGenerativePath() {
         let modelAnswer = "def add(a, b):\n    return a + b"
@@ -60,6 +69,7 @@ struct TextTidyTests {
         #expect(TextTidy.ensureTerminalPunctuation(input) == input)
     }
 
+    /// A full stop after code is wrong, and dictating code is a use this product serves.
     @Test(
         "does not finish something that looks like code",
         arguments: [

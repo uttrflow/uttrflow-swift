@@ -1,3 +1,4 @@
+// What one utterance length costs, and whether cost scales with length.
 public import UttrflowCore
 
 /// What one utterance length costs, end to end and stage by stage.
@@ -9,15 +10,9 @@ public struct UtteranceProfile: Sendable, Equatable {
     public let endToEnd: DurationSummary
     /// Each stage that something timed, in the order the journey runs.
     public let stages: [StageLatency]
-    /// Stages nothing timed. Named rather than shown as zero, because the profile reads
-    /// audio off disk and never captures, and a zero would read as "instant".
+    /// Stages nothing timed, named rather than shown as zero; the profile reads audio off disk.
     public let unmeasuredStages: [PipelineStage]
-    /// What the timed runs of this length cost in processor time, summed over all of
-    /// them. `nil` when the processor could not be read.
-    ///
-    /// Summed rather than averaged, and then divided by ``runs`` where a per-dictation
-    /// figure is wanted. The sum is what was actually observed; an average of an average
-    /// is where a run that failed quietly stops showing up.
+    /// Processor cost summed over every timed run of this length; `nil` when the processor is unreadable.
     public let cpu: CPUCost?
     /// How many timed runs ``cpu`` covers.
     public let runs: Int
@@ -40,11 +35,7 @@ public struct UtteranceProfile: Sendable, Equatable {
         self.runs = runs
     }
 
-    /// Processor seconds one dictation of this length costs.
-    ///
-    /// The figure that answers "what will this do to a battery", and the one that
-    /// transfers to a Mac nobody measured: a slower chip does the same work, so this
-    /// number moves far less across machines than the wall-clock seconds beside it.
+    /// Processor seconds one dictation of this length costs, the figure that transfers across Macs.
     public var cpuSecondsPerDictation: Double? {
         guard let cpu, runs > 0 else { return nil }
         return cpu.cpuSeconds / Double(runs)
@@ -56,11 +47,7 @@ public struct UtteranceProfile: Sendable, Equatable {
         return each / audioSeconds
     }
 
-    /// Wall-clock seconds spent per second of speech.
-    ///
-    /// Includes the fixed cost of starting a dictation, so a three-second utterance
-    /// looks dear here and a one-minute one cheap. That is the honest shape of it, and
-    /// ``ScalingAnalysis`` is where the fixed cost is separated out.
+    /// Wall-clock seconds per second of speech, start-up cost included; ``ScalingAnalysis`` separates it.
     public var costPerAudioSecond: Double {
         audioSeconds > 0 ? endToEnd.typical.inSeconds / audioSeconds : 0
     }
@@ -70,11 +57,7 @@ public struct UtteranceProfile: Sendable, Equatable {
         endToEnd.typical.inSeconds > 0 ? audioSeconds / endToEnd.typical.inSeconds : 0
     }
 
-    /// The typical seconds spent, for one stage or for the whole journey.
-    ///
-    /// - Parameter stage: `nil` for end to end.
-    /// - Returns: `nil` for a stage nothing timed, so a scaling verdict is never drawn
-    ///   through a point that does not exist.
+    /// Typical seconds for one stage, or end to end for `nil`; `nil` for a stage nothing timed.
     public func wallSeconds(of stage: PipelineStage?) -> Double? {
         guard let stage else { return endToEnd.typical.inSeconds }
         return stages.first { $0.stage == stage }?.typical.inSeconds
@@ -82,16 +65,8 @@ public struct UtteranceProfile: Sendable, Equatable {
 }
 
 /// Whether cost grows with utterance length, faster than length, or slower.
-///
-/// The question the profile exists to answer: if transcription is super-linear, a
-/// two-minute dictation behaves nothing like the fifteen-second test that was used to
-/// sign it off, and nobody finds out until a user does.
 public struct ScalingAnalysis: Sendable, Equatable {
-    /// What the step from one length to the next cost.
-    ///
-    /// Marginal rather than average, so the fixed per-dictation overhead — model
-    /// warm-up, prompt assembly — is charged once to the shortest utterance and never
-    /// again. An average would hide a genuine bend behind that overhead shrinking.
+    /// The marginal cost of the step from one length to the next, so fixed overhead is charged once.
     public struct Step: Sendable, Equatable {
         public let from: ProfilePassage.Length
         public let to: ProfilePassage.Length
@@ -125,11 +100,7 @@ public struct ScalingAnalysis: Sendable, Equatable {
         case superLinear
     }
 
-    /// How far the marginal cost may move before the difference is called a trend.
-    ///
-    /// A quarter, which is wide. Three lengths timed a handful of times each on a laptop
-    /// that is also running everything else cannot support a tighter claim, and a
-    /// profile that cried super-linear at every thermal wobble would be ignored.
+    /// How far the marginal cost may move before it is called a trend; wide, since runs are few and noisy.
     public static let tolerance = 0.25
 
     public let steps: [Step]
@@ -140,14 +111,7 @@ public struct ScalingAnalysis: Sendable, Equatable {
         self.verdict = verdict
     }
 
-    /// Reads the shape off the profiles.
-    ///
-    /// - Parameters:
-    ///   - profiles: One per length, in any order.
-    ///   - stage: Which stage to read, or `nil` for the whole journey. Per stage as well
-    ///     as overall because they need not agree: a recogniser that works in fixed
-    ///     windows can bend while the clean-up pass beside it stays straight, and only
-    ///     the stage-level answer says which one to go and look at.
+    /// Reads the shape off the profiles, per `stage` or end to end, since stages need not agree.
     public init(_ profiles: [UtteranceProfile], stage: PipelineStage? = nil) {
         let points: [(length: ProfilePassage.Length, audio: Double, wall: Double)] =
             profiles.compactMap { profile in

@@ -4,8 +4,10 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowTestSupport
 
+/// Which engine the router picks, and what it does when none can.
 @Suite("TransformerRouter")
 struct TransformerRouterTests {
+    /// A fixture request.
     private let request = TransformationRequest(transcription: .fixture())
 
     @Test("uses the first engine that can handle the request")
@@ -118,10 +120,10 @@ struct TransformerRouterTests {
     }
 }
 
+/// The engines the shipping build assembles.
 @Suite("Assembled transformers")
 struct TextTransformersTests {
-    /// The shipping build must contain a transformer that can never decline, or the
-    /// pipeline could dead-end on a language no model knows.
+    /// A transformer that can never decline keeps the pipeline from dead-ending on an unknown language.
     @Test("always includes the floor")
     func includesFloor() {
         #expect(TextTransformers.all().contains { $0.kind == .rules })
@@ -153,8 +155,7 @@ struct PromptContractTests {
             "Examples:",
             // Devanagari must come back in the Latin alphabet.
             "Latin alphabet",
-            // A mixed-language example, which is what stopped a trailing English
-            // clause being rewritten into Hinglish. The rule alone changed nothing.
+            // A mixed-language example stops a trailing English clause being rewritten into Hinglish.
             "I am working from home",
             // The goal, and the one restraint the bake-off showed the model still needs spelled out.
             "never a rewrite", "never invent or change a name, number, date or amount",

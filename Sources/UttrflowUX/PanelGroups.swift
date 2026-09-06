@@ -1,24 +1,22 @@
+// The panel's search results in groups, the scope sentence, the keep-query action, and excerpts.
 import Foundation
 import UttrflowClipboard
 
-/// A run of rows that matched the same way.
-///
-/// H1 — a list that shows an alias hit, a collection hit and a content hit together
-/// without saying which is which makes the user open rows to find out. The heading is the
-/// answer, given once for the run rather than repeated on every row.
+/// A run of rows that matched the same way, with the heading given once for the run.
 public struct PanelResultGroup: Sendable, Equatable, Identifiable {
+    /// Which part of the clip matched.
     public let field: PanelMatchField
+    /// The heading over the run.
     public let title: String
+    /// The rows in the run.
     public let rows: [PanelRow]
-    /// H6 — how many matches this group has that are not drawn.
-    ///
-    /// Said out loud rather than left off the end. A capped list that does not admit it
-    /// is a list the user reads as complete, and the clip they were looking for is
-    /// missing with no sign that anything was withheld.
+    /// How many matches this group has that are not drawn, said so a capped list is not read as complete.
     public let more: Int
 
+    /// The title, which is unique in the list.
     public var id: String { title }
 
+    /// Builds a group.
     public init(field: PanelMatchField, title: String, rows: [PanelRow], more: Int) {
         self.field = field
         self.title = title
@@ -28,25 +26,10 @@ public struct PanelResultGroup: Sendable, Equatable, Identifiable {
 }
 
 extension PanelPresenter {
-    /// H6 — how many rows of one kind of match are drawn before the rest become a count.
-    ///
-    /// Six is about a screen of one group without pushing the next heading out of sight.
-    /// The cap exists so that a search matching four hundred clips by content cannot bury
-    /// the one that matched by the name the user gave it.
+    /// How many rows of one kind of match are drawn before the rest become a count; six is about a screen.
     public static let rowsPerGroup = 6
 
-    /// The rows, cut into the runs the list is drawn in.
-    ///
-    /// Empty when nothing has been typed: with no query every row is here for no reason
-    /// at all, so a heading would be a label with nothing to distinguish it from the rest
-    /// of the list.
-    ///
-    /// Relies on ``PanelSnapshot/rank(_:)`` having already put matches of the same kind
-    /// together. Grouping a differently-ordered list would put the headings out of step
-    /// with the order the arrow keys walk.
-    /// The capping itself is not done here. ``PanelResults`` has already dropped the
-    /// surplus, because what is drawn and what Return can reach have to be the same list;
-    /// this only reads back how many it dropped.
+    /// The rows cut into runs, relying on ``PanelSnapshot/rank(_:)`` for the order; empty while browsing.
     static func groups(
         for rows: [PanelRow], omitted: [PanelMatchField: Int], isSearching: Bool
     ) -> [PanelResultGroup] {
@@ -68,8 +51,7 @@ extension PanelPresenter {
         return groups
     }
 
-    /// Named for what the user did, not for the field's name in the code. "Aliases" is a
-    /// word from the implementation; "Names you gave" is what the row actually is.
+    /// Named for what the user did, not the field's name in the code: "Names you gave", not "Aliases".
     static func heading(for field: PanelMatchField) -> String {
         switch field {
         case .alias: "Names you gave"
@@ -80,54 +62,25 @@ extension PanelPresenter {
 }
 
 extension PanelPresenter {
-    /// H7 — what the current list is scoped to, said out loud.
-    ///
-    /// Typing leaves the open collection behind and searches everywhere, which is right
-    /// but silent: the chips move to All and a user watching the list rather than the
-    /// chips sees clips appear from collections they thought they had narrowed away. This
-    /// is the sentence that stops them wondering.
-    ///
-    /// Nothing is said while browsing. The active chip already answers the question, and a
-    /// line repeating it would be a line of a 420-point panel spent on something visible.
+    /// What the list is scoped to, said while a search leaves a collection behind; silent while browsing.
     static func scope(for snapshot: PanelSnapshot) -> String? {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty, let leaving = PanelSnapshot.name(snapshot.category) else {
+        guard snapshot.isSearching, let leaving = PanelSnapshot.name(snapshot.category) else {
             return nil
         }
-        // Not "esc to go back": esc closes the panel. What returns the user to the
-        // collection is emptying the field, and telling them the wrong key would be a
-        // worse failure than saying nothing at all.
+        // Not "esc to go back": esc closes the panel, and emptying the field is what returns the user.
         return "Searching everywhere · clear the search to return to \(leaving)"
     }
 
-    /// H3 — the one thing worth doing about a search that found nothing.
-    ///
-    /// Offered only when something was actually typed. The other empty states — a
-    /// clipboard nobody has copied into, a collection with nothing filed in it, a filter
-    /// matching no kind — have no action that would help: there is nothing to keep, and a
-    /// button that creates a clip out of an empty search field would be a button that
-    /// creates nothing.
-    ///
-    /// Worth having because a fruitless search is often somebody discovering they never
-    /// copied the thing they meant to, and the text they typed is usually the thing.
+    /// The one thing worth doing about a search that found nothing: keep what was typed as a clip.
     static func emptyAction(for snapshot: PanelSnapshot) -> PanelAction? {
-        let query = snapshot.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = snapshot.needle
         guard !query.isEmpty else { return nil }
         return PanelAction(
             title: "Keep “\(query)” as a clip", symbolName: "plus.circle",
             intent: .keepQuery(query))
     }
 
-    /// H5 — the part of a long clip the search actually found.
-    ///
-    /// A row shows its first line, which is the right answer until the match is on line
-    /// forty. Then the row is a clip the user cannot see the reason for: it is in the list
-    /// because of a word that is nowhere on screen, and the only way to check is to open
-    /// it — which is the thing the summary exists to avoid.
-    ///
-    /// Only for content matches. An alias or collection hit is already named on the row,
-    /// so re-cutting the text around it would replace something useful with something the
-    /// user can already see.
+    /// The part of a long clip the search found, for content matches only; `nil` if it is on line one.
     static func excerpt(of text: String, around needle: String, locale: Locale) -> String? {
         guard !needle.isEmpty,
             let found = text.range(
@@ -146,8 +99,7 @@ extension PanelPresenter {
         let end =
             text.index(found.upperBound, offsetBy: 48, limitedBy: text.endIndex) ?? text.endIndex
 
-        // Flattened, because a row is one line high and a newline inside it would either
-        // be dropped silently or push the row out of alignment with its neighbours.
+        // Flattened, because a row is one line high.
         let window =
             text[start..<end]
             .split(whereSeparator: \.isNewline)
