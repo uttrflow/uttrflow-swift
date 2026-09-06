@@ -171,28 +171,22 @@ public actor ClipboardStore {
         }
         // Hashed before it is written, so a screenshot copied twice costs a counter, not another file.
         let sha = ClipboardStore.digest(of: picture.data)
-        if let previous = Self.previous(
-            for: Clip(
-                text: noticed.clip.text, kind: noticed.clip.kind,
-                copiedAt: noticed.clip.copiedAt, origin: noticed.clip.origin,
-                image: ClipImage(file: "", width: 0, height: 0, bytes: 0, sha: sha)),
-            in: loaded()),
-            let kept = previous.image
-        {
-            return try record(
-                Self.rebuilding(
-                    noticed.clip, text: noticed.clip.text, richText: noticed.clip.richText,
-                    image: kept),
-                keeping: retention)
+        var image = alreadyKept(sha, in: noticed.clip.origin)
+        if image == nil {
+            image = try keep(
+                picture.data, forClip: noticed.clip.id, width: picture.width,
+                height: picture.height, sha: sha)
         }
-        let image = try keep(
-            picture.data, forClip: noticed.clip.id, width: picture.width,
-            height: picture.height, sha: sha)
         return try record(
             Self.rebuilding(
                 noticed.clip, text: noticed.clip.text, richText: noticed.clip.richText,
                 image: image),
             keeping: retention)
+    }
+
+    /// The picture already on disk for these bytes in this list, if one is there.
+    private func alreadyKept(_ sha: String, in origin: ClipOrigin) -> ClipImage? {
+        loaded().first { $0.origin == origin && $0.image?.sha == sha }?.image
     }
 
     /// Keeps a picture on disk and answers with what a row needs; throws, since a missing file is forever.
