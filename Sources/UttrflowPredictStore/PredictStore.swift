@@ -16,13 +16,12 @@ public actor PredictStore: PredictionStore {
     /// How many candidates a query returns, which is more than any list shows.
     static let candidateLimit = 16
 
-    private let path: String
+    /// The open file every read and write goes through.
     private var database: Database
 
     /// Opens the corpus, replacing a file that is not a database at all and refusing one from a newer build.
     public init(path: String) throws(PredictStoreError) {
-        self.path = path
-        self.database = try Self.opened(at: path)
+        database = try Self.opened(at: path)
     }
 
     /// Where the corpus lives, beside the clipboard and the history, versioned in its name.
