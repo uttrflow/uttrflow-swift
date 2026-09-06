@@ -31,6 +31,19 @@ struct SettingsShortcutDrawingTests {
     func namesTheUnnameable() {
         #expect(SettingsShortcut.name(of: 200) == "Key 200")
     }
+
+    /// A held binding may be any modifier, so every one of those codes has to draw as a key.
+    @Test(
+        "names every modifier a held shortcut can be, rather than showing its code",
+        arguments: [
+            (UInt16(54), "⌘"), (55, "⌘"), (56, "⇧"), (57, "Caps Lock"), (58, "⌥"),
+            (59, "⌃"), (60, "⇧"), (61, "⌥"), (62, "⌃"), (63, "fn"),
+        ]
+    )
+    func namesEveryHeldModifier(keyCode: UInt16, drawn: String) {
+        #expect(SettingsShortcut.name(of: keyCode) == drawn)
+        #expect(!SettingsShortcut.name(of: keyCode).hasPrefix("Key "))
+    }
 }
 
 @Suite("Recording a new shortcut")

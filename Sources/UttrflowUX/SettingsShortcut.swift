@@ -49,6 +49,8 @@ public enum SettingsShortcut {
         24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\", 43: ",", 44: "/",
         47: ".", 50: "`",
         36: "Return", 48: "Tab", 49: "Space", 51: "Delete", 53: "Escape",
+        // The modifiers a held binding may be; unnamed, each drew as its raw code, "Key 58" for ⌥.
+        54: "⌘", 55: "⌘", 56: "⇧", 57: "Caps Lock", 58: "⌥", 59: "⌃", 60: "⇧", 61: "⌥", 62: "⌃",
         // Held rather than combined: the one key that types nothing and modifies nothing on its own.
         63: "fn",
         64: "F17", 65: "Decimal", 67: "Multiply", 69: "Plus", 71: "Clear", 75: "Divide",

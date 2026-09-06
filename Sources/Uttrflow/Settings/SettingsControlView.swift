@@ -174,6 +174,9 @@ struct SettingsShortcutField: View {
 
     @State private var monitor: Any?
 
+    /// A modifier held with nothing yet pressed against it, waiting to see which shortcut it becomes.
+    @State private var pendingHeld: UInt16?
+
     var body: some View {
         HStack(spacing: 8) {
             if model.session.recorder.isRecording {
@@ -226,6 +229,7 @@ struct SettingsShortcutField: View {
             let modifiers = SettingsShortcutField.modifiers(from: event.modifierFlags)
 
             guard event.type == .flagsChanged else {
+                pendingHeld = nil
                 model.record(keyCode: event.keyCode, modifiers: modifiers)
                 // Swallowed: nothing pressed at this field should reach the rest of the app.
                 return nil
@@ -235,13 +239,21 @@ struct SettingsShortcutField: View {
             if event.keyCode == HotkeyBinding.functionKeyCode,
                 event.modifierFlags.contains(.function)
             {
+                pendingHeld = nil
                 model.record(keyCode: event.keyCode, modifiers: [])
                 return event
             }
 
-            // Only the press is an attempt at a shortcut; the release arrives with empty flags.
-            guard !modifiers.isEmpty else { return event }
-            model.record(keyCode: event.keyCode, modifiers: modifiers)
+            // A modifier down waits: it is a shortcut of its own only if nothing is pressed against it.
+            guard !modifiers.isEmpty else {
+                // Released with nothing pressed against it, so the modifier was the whole shortcut.
+                if let held = pendingHeld {
+                    pendingHeld = nil
+                    model.record(keyCode: held, modifiers: [])
+                }
+                return event
+            }
+            pendingHeld = event.keyCode
             // Passed on, unlike a key press: the rest of the app must not think a key is still held.
             return event
         }
