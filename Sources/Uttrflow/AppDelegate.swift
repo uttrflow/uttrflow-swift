@@ -21,7 +21,8 @@ import UttrflowUX
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Records which of the three insertion routes a dictation took, which nothing else can tell.
-    private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "insertion")
+    private nonisolated static let log = Logger(
+        subsystem: "com.uttrflow.Uttrflow", category: "insertion")
 
     private let settingsStore: any SettingsStore = UserDefaultsSettingsStore()
     private var settings = Settings()
@@ -358,7 +359,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             cleaner: cleaner(for: settings),
             context: context,
             // Announced, like every write this app makes. See `Docs/insertion.md`.
-            inserter: TextInsertion.coordinator(pasteboard: announcingPasteboard),
+            inserter: TextInsertion.coordinator(
+                pasteboard: announcingPasteboard, reporting: Self.logPaste),
             corrector: DictionaryCorrections(dictionary: dictionary),
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
@@ -919,7 +921,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(DictationRecord(text: salvaged, when: Date()))
             }
-        case .idle, .recording, .transcribing, .tidying:
+        case .idle, .recording, .transcribing, .tidying, .inserting:
             break
         }
         // Whichever way it ended, the row that said "Retrying…" is not retrying any more.
@@ -953,13 +955,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Records how long the receiving application took to take a paste, which nothing else can observe.
+    @Sendable private nonisolated static func logPaste(_ outcome: PasteConfirmation.Outcome) {
+        switch outcome {
+        case .landed(let waited):
+            log.notice(
+                "paste landed after \(waited.inSeconds, format: .fixed(precision: 2), privacy: .public)s")
+        case .notReported:
+            log.notice("paste unconfirmed: the field does not report what it holds")
+        case .gaveUp(let waited):
+            log.notice(
+                "paste not seen within \(waited.inSeconds, format: .fixed(precision: 2), privacy: .public)s")
+        }
+    }
+
     /// Translates the pipeline's state into the menu's vocabulary, deciding nothing.
     private func menuBarState(for state: DictationState) -> MenuBarState {
         let activity: DictationActivity =
             switch state {
             case .idle, .failed: .idle
             case .recording: .listening
-            case .transcribing, .tidying: .working
+            case .transcribing, .tidying, .inserting: .working
             case .inserted: .finished
             }
         var failure: FailurePresentation?
@@ -1512,7 +1528,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // An informational notice asks nothing of the user, so it goes sooner.
         case .failed(let notice):
             linger = notice.severity == .informational ? Self.successLingers : Self.failureLingers
-        case .idle, .recording, .transcribing, .tidying: return
+        case .idle, .recording, .transcribing, .tidying, .inserting: return
         }
 
         dismissalTask = Task { [weak self] in

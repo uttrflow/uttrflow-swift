@@ -249,7 +249,7 @@ private func endOfDictation(_ stream: AsyncStream<DictationState>) async -> Dict
     for await state in stream {
         switch state {
         case .inserted, .failed: return state
-        case .idle, .recording, .transcribing, .tidying: continue
+        case .idle, .recording, .transcribing, .tidying, .inserting: continue
         }
     }
     return nil

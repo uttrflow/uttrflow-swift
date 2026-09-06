@@ -158,7 +158,7 @@ struct DockView: View {
         compact { LevelMeterView(model: model, towardsLeading: $0) }
     }
 
-    /// Working: the row the voice left behind, combing level and folding to a tick in about a second.
+    /// Working: the row the voice left behind, combing level and staying there until the words land.
     private func working() -> some View {
         compact { SettleView(bars: model.bars.levels, towardsLeading: $0) }
     }
@@ -372,36 +372,41 @@ private struct SettleView: View {
     let bars: [CGFloat]
     let towardsLeading: Bool
 
-    @State private var progress: CGFloat = 0
+    /// When this row appeared, so the settle and the bump that follows it share one clock.
+    @State private var began = Date.now
 
     var body: some View {
-        let settle = min(progress / 0.5, 1)
-        let fold = max((progress - 0.5) / 0.5, 0)
-
-        return ZStack {
+        TimelineView(.animation) { timeline in
             Canvas { context, size in
-                let levelled = bars.map { $0 + (DockMetrics.settledLevel - $0) * settle }
                 DockMetrics.drawBars(
-                    levelled, in: context, size: size,
-                    phase: 1, towardsLeading: towardsLeading)
+                    levels(after: timeline.date.timeIntervalSince(began)),
+                    in: context, size: size, phase: 1, towardsLeading: towardsLeading)
             }
-            .scaleEffect(x: 1 - fold * 0.92)
-            .opacity(1 - Double(fold))
-
-            Image(systemName: "checkmark")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.dockSuccess)
-                .scaleEffect(0.2 + fold * 0.8)
-                .opacity(Double(fold))
         }
         .frame(width: DockMetrics.meterWidth, height: DockMetrics.meterHeight)
         .clipShape(.rect)
-        .task {
-            withAnimation(.easeOut(duration: 0.34)) { progress = 0.5 }
-            try? await Task.sleep(for: .milliseconds(340))
-            withAnimation(.spring(duration: 0.3, bounce: 0.34)) { progress = 1 }
+    }
+
+    /// The row the voice left behind, easing level and then carrying a bump for as long as the work runs.
+    private func levels(after elapsed: TimeInterval) -> [CGFloat] {
+        let settle = min(max(elapsed / Self.settleSeconds, 0), 1)
+        let travel = (elapsed / Self.sweepSeconds).truncatingRemainder(dividingBy: 1)
+        let crest = travel * Double(bars.count + 2) - 1
+        return bars.enumerated().map { index, level in
+            let resting = level + (DockMetrics.settledLevel - level) * settle
+            let bump = max(0, 1 - abs(Double(index) - crest)) * Self.bumpHeight * settle
+            return resting + bump
         }
     }
+
+    /// How long the voice's own row takes to level out.
+    private static let settleSeconds = 0.34
+
+    /// How long the bump takes to cross the row, slow enough to read as thinking rather than loading.
+    private static let sweepSeconds = 1.15
+
+    /// How far the bump lifts a settled bar, below the level that would read as speech.
+    private static let bumpHeight = 0.42
 }
 
 /// One stroke that is the mark at 0 and a checkmark at 1; the arms splay open. See Docs/app-dock.md.

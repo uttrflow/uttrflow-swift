@@ -54,6 +54,13 @@ public enum DictationPresenter {
                 showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
                 accessibilityLabel: "Working on what you said.")
 
+        // Still working as far as the person waiting is concerned: nothing is on their screen yet.
+        case .inserting:
+            DockPresentation(
+                symbolName: "sparkles", primaryLine: "Putting it in…", secondaryLine: nil,
+                showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
+                accessibilityLabel: "Putting your words in.")
+
         case .inserted(let outcome) where outcome.method == .clipboard && outcome.isFromRecording:
             DockPresentation(
                 symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",

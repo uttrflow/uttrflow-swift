@@ -564,6 +564,8 @@ public actor DictationPipeline {
         _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges, delivery: Delivery
     ) async -> Bool {
         let inserter = delivery == .copy ? clipboard : self.inserter
+        // Said before the words are handed over, because the app takes its own time to show them.
+        transition(to: .inserting)
         do {
             let inserted = try await metrics.measuring(.insertion, clock: clock) {
                 try await withStageTimeout(StageTimeout.quick, clock: clock) {

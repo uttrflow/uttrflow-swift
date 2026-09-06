@@ -28,8 +28,13 @@ form made the listening pill 286 points wide on every dictation, for a state it 
 - Meter width is fixed at 56 points; how many bars fit is a consequence of the width.
 - `meterAmplitude` 0.9 keeps a loud syllable from touching the glass. `settledLevel` 0.18 is
   where the row settles when the microphone closes; zero reads as a broken panel.
-- The working animation plays once and resolves (0.34 s settle, then a 0.3 s spring fold to a
-  tick) rather than looping, because a loop is the animation of a wait with no end.
+- The working animation settles the row over 0.34 s and then carries a bump across it, once
+  every 1.15 s, for as long as the work runs. It used to resolve instead — a 0.3 s spring
+  folding the bars into a tick — on the reasoning that a loop is the animation of a wait with
+  no end. The wait does have an end, but the animation reached it first: the tick landed
+  0.98 s after the key came up whatever the pipeline was doing, so on any dictation longer
+  than a second the panel said the words were in while they were still being transcribed. A
+  tick is a claim about the words, and only ``DictationState/inserted`` may make it.
 
 ### Why the loud threshold is carried by opacity, not hue
 
