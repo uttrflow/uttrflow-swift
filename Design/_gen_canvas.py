@@ -66,7 +66,7 @@ ROWS = [
       ("Main-Dictation-Empty-Dark.dc.html", *MAIN, None)]),
 
     ("dictionary",
-     "Dictionary\nThe words you say that a general model has never heard. Where each came from, how often it earned its place, and how often you undid it. Zaprise has retired itself after seven undos out of fifteen — dimmed, labelled, and restorable. Empty means Uttrflow has not changed a single word of yours yet.",
+     "Dictionary\nThe words you say that a general model has never heard. Where each came from, how often it earned its place, and how often you undid it. Kestrel has retired itself after seven undos out of fifteen — dimmed, labelled, and restorable. Empty means Uttrflow has not changed a single word of yours yet.",
      [("Main-Dictionary.dc.html", *MAIN, None), ("Main-Dictionary-Dark.dc.html", *MAIN, None),
       ("Main-Dictionary-Empty.dc.html", *MAIN, None),
       ("Main-Dictionary-Empty-Dark.dc.html", *MAIN, None)]),

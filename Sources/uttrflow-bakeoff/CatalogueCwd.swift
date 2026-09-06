@@ -25,7 +25,7 @@ extension FixtureCatalogue {
         .entries(under: "fix"): [],
         .directories(under: "projects"): [],
         .entries(under: "projects"): [],
-        .directories(under: "projects/x-growth"): [],
+        .directories(under: "projects/beacon"): [],
         .branch: ["main", "fix/login-timeout", "release"],
         .subcommand(of: "make"): ["verify", "build", "test", "lint", "format"],
         .subcommand(of: "npm run"): ["dev", "build", "test", "lint"],
@@ -42,7 +42,7 @@ extension FixtureCatalogue {
     private static let situation = terminal(
         directory: "/Users/me/projects/api", title: "api — zsh",
         scrollback: """
-            $ cd projects/x-growth/backend
+            $ cd projects/beacon/backend
             $ git status
             On branch fix/login-timeout
             nothing to commit, working tree clean
@@ -67,7 +67,7 @@ extension FixtureCatalogue {
         category: "terminal", name: "cwd-absent", situation: situation,
         cuts: [.whole], determinacy: .nothing, band: 1...48, machine: machine,
         lines: [
-            "cd projects/x-growth/", "vim .env.vim", "cd Sources/Nowhere/", "make venv", "npm run observe",
+            "cd projects/beacon/", "vim .env.vim", "cd Sources/Nowhere/", "make venv", "npm run observe",
             "git checkout feat/", "cat docs/missing.md",
         ])
 }

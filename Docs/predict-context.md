@@ -46,7 +46,7 @@ milliseconds, not hundreds.
    400 elements, 400 characters per element and 1 200 in all — the moment the characters are
    gathered, not a ring later — and returns what it has. Every label is read without its control
    and direction marks and without its timestamp parts: a chat labels each message "text,
-   4 September at 6:41 PM, Received from Nishtha" (WhatsApp without the spaces), and `Timestamps`
+   4 September at 6:41 PM, Received from Priya" (WhatsApp without the spaces), and `Timestamps`
    drops a part that is only a time, or a date naming a month, weekday or day-half in the current
    calendar's own words, glued or not. `uttrflow-dev context --bundle <id> --surroundings` prints
    exactly what this read hands the model. Around it, every Accessibility call into the other application gives up

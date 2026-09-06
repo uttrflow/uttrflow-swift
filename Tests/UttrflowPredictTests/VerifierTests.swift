@@ -316,7 +316,7 @@ struct ArgumentOptionsTests {
         #expect(await options(for: "cd projects/", machine: machine) == .none)
         #expect(
             await options(
-                for: "cd projects/x-growth/", machine: [.directories(under: "projects/x-growth"): []])
+                for: "cd projects/beacon/", machine: [.directories(under: "projects/beacon"): []])
                 == .none)
         #expect(
             await options(for: "ls ~/", machine: [.entries(under: "~"): ["work", ".zshrc"]])
@@ -403,8 +403,8 @@ struct GeneratedLineTests {
     @Test("A path into a directory that is not there is not drawn, wherever the model read it.")
     func pathsNotFromHereAreDropped() async {
         let kept = await standing(
-            ["cd projects/x-growth/backend/"], after: "cd projects/x-growth/",
-            machine: [.directories(under: "projects/x-growth"): []])
+            ["cd projects/beacon/backend/"], after: "cd projects/beacon/",
+            machine: [.directories(under: "projects/beacon"): []])
         #expect(kept.isEmpty)
     }
 
@@ -459,8 +459,8 @@ struct GeneratedLineTests {
     @Test("An invented name in the middle of a line drops the whole line, not only its last word.")
     func everyAddedWordIsAsked() async {
         let kept = await standing(
-            ["cd projects/x-growth/backend/ && npm run dev"], after: "cd projects/x-growth/",
-            machine: [.directories(under: "projects/x-growth"): []])
+            ["cd projects/beacon/backend/ && npm run dev"], after: "cd projects/beacon/",
+            machine: [.directories(under: "projects/beacon"): []])
         #expect(kept.isEmpty)
     }
 

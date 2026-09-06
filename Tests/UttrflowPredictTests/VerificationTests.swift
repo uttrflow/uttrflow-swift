@@ -161,8 +161,8 @@ struct GeneratedAttestationTests {
         "A path is looked up by its last name under the directory before it, as the shell would resolve it.")
     func pathsAreLookedUpWhereTheyPoint() {
         #expect(
-            asked("cd projects/x-growth/backend/") == [
-                lookup("backend", [.directories(under: "projects/x-growth")])
+            asked("cd projects/beacon/backend/") == [
+                lookup("backend", [.directories(under: "projects/beacon")])
             ])
         #expect(asked("Scripts/bundle.sh") == [lookup("bundle.sh", [.entries(under: "Scripts")])])
         #expect(asked("cat /etc/hosts") == [lookup("hosts", [.entries(under: "/etc")])])
@@ -237,10 +237,10 @@ struct GeneratedAttestationTests {
     @Test("The words a completion adds are the model's, including the one it finished for the typist.")
     func addedWordsAreTheModels() {
         #expect(
-            added("cd projects/x-growth/", "backend/ && npm run dev") == [
-                "cd |projects/x-growth/backend/", "cd projects/x-growth/backend/ |&&",
-                "cd projects/x-growth/backend/ && |npm", "cd projects/x-growth/backend/ && npm |run",
-                "cd projects/x-growth/backend/ && npm run |dev",
+            added("cd projects/beacon/", "backend/ && npm run dev") == [
+                "cd |projects/beacon/backend/", "cd projects/beacon/backend/ |&&",
+                "cd projects/beacon/backend/ && |npm", "cd projects/beacon/backend/ && npm |run",
+                "cd projects/beacon/backend/ && npm run |dev",
             ])
         #expect(added("vim .env", ".vim") == ["vim |.env.vim"])
         #expect(added("git ", "status") == ["git |status"])

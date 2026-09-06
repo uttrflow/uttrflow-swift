@@ -191,7 +191,7 @@ WORDS = [
     ("Valkey", "val-key", "Learned", "14 Aug", "22", "2", False, False),
     ("shirorekha", "shiro-rekha", "Added by you", "12 Aug", "3", "0", False, False),
     ("Hinglish", "&mdash;", "Learned", "7 Aug", "41", "0", False, False),
-    ("Zaprise", "zap-rise", "Learned", "9 Aug", "15", "7", True, False),
+    ("Kestrel", "kes-trel", "Learned", "9 Aug", "15", "7", True, False),
 ]
 
 
@@ -234,7 +234,7 @@ dictionary = f"""<p class="daylabel">24 words Uttrflow knows and a general model
           <b style="font-weight:600">Learned</b> means you corrected it and Uttrflow kept the
           correction. <b style="font-weight:600">Seen on screen</b> means it was in front of you
           while you spoke. <b style="font-weight:600">Added by you</b> means you typed it in here.<br>
-          Zaprise retired itself: you undid it 7 times out of 15, so Uttrflow stopped applying it.
+          Kestrel retired itself: you undid it 7 times out of 15, so Uttrflow stopped applying it.
           Restore to try again. Every word here stays on this Mac.
         </div>"""
 
