@@ -259,8 +259,8 @@ struct VerifierCaseTests {
 }
 
 /// A verifier over a machine that has already answered about every kind the test gave it.
-private func asked(
-    _ machine: [EnvironmentKind: [String]], in surface: Surface = terminal
+private func verifier(
+    knowing machine: [EnvironmentKind: [String]], in surface: Surface = terminal
 ) async -> Verifier {
     let index = EnvironmentIndex(reader: StubEnvironment(machine))
     if let directory = EnvironmentSource.workingDirectory(of: surface) {
@@ -275,14 +275,15 @@ private func standing(
     _ completions: [String], after typed: String, machine: [EnvironmentKind: [String]],
     in surface: Surface = terminal
 ) async -> [String] {
-    await asked(machine, in: surface).standing(completions, after: typed, in: surface, now: moment)
+    await verifier(knowing: machine, in: surface).standing(
+        completions, after: typed, in: surface, now: moment)
 }
 
 /// What the machine says the next word may be, on a machine that has already answered.
 private func options(
     for typed: String, machine: [EnvironmentKind: [String]], in surface: Surface = terminal
 ) async -> ArgumentOptions {
-    await asked(machine, in: surface).options(for: typed, in: surface, now: moment)
+    await verifier(knowing: machine, in: surface).options(for: typed, in: surface, now: moment)
 }
 
 @Suite("What the next word may be")

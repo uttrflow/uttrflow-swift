@@ -9,7 +9,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     static let helpTimeoutInSeconds = 2.0
 
     /// How many values one read may return, so a huge repository or directory stays cheap.
-    static let limit = 200
+    static let valueLimit = 200
 
     /// How many verbs a program may list, since git alone lists over three hundred and a cut list would deny the rest.
     static let verbLimit = 400
@@ -72,7 +72,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         }
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: path) else { return nil }
         let kept = directoriesOnly ? names.filter { Self.isDirectory("\(path)/\($0)") } : names
-        return Array(kept.sorted().prefix(Self.limit))
+        return Array(kept.sorted().prefix(Self.valueLimit))
     }
 
     /// A path as the shell would read it from the terminal's directory: from root or home as given, otherwise from there.
@@ -186,7 +186,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         // A configuration with no aliases is an exit status of one and an answer of none, not a failure.
         let declared =
             await run(git, arguments: ["-C", directory, "config", "--get-regexp", "^alias\\."]) ?? ""
-        return Array(GitAliases.names(in: declared).prefix(Self.limit))
+        return Array(GitAliases.names(in: declared).prefix(Self.valueLimit))
     }
 
     /// Every alias the user's shell configuration declares, read as text rather than by running it.
@@ -195,7 +195,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         let text = Self.aliasFiles
             .compactMap { try? String(contentsOf: home.appending(path: $0), encoding: .utf8) }
             .joined(separator: "\n")
-        return Array(ShellAliases.names(in: text).prefix(Self.limit))
+        return Array(ShellAliases.names(in: text).prefix(Self.valueLimit))
     }
 
     /// One bounded run of a program, absent for a failure, a timeout or unreadable output; both streams are read, since help goes to either.
