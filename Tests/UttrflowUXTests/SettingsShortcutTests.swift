@@ -158,7 +158,12 @@ struct SettingsShortcutRecorderTests {
     @Suite("Every shape, as keystrokes")
     struct Strokes {
         private func held(_ mods: Set<HotkeyModifier>, fn: Bool = false, key: UInt16 = 0) -> KeyStroke {
-            KeyStroke(keyCode: key, modifiers: mods, isFunctionDown: fn, phase: .modifiersChanged)
+            KeyStroke(
+                keyCode: key, modifiers: mods, isFunctionDown: fn, phase: .modifiersChanged,
+                isKeyDown: true)
+        }
+        private func lifted(_ mods: Set<HotkeyModifier>, key: UInt16) -> KeyStroke {
+            KeyStroke(keyCode: key, modifiers: mods, phase: .modifiersChanged, isKeyDown: false)
         }
         private func down(_ key: UInt16, _ mods: Set<HotkeyModifier>) -> KeyStroke {
             KeyStroke(keyCode: key, modifiers: mods, phase: .down)
@@ -183,6 +188,29 @@ struct SettingsShortcutRecorderTests {
             _ = r.receive(held([.command], key: 55))
             _ = r.receive(held([]))
             #expect(r.binding == HotkeyBinding(keyCode: 55, modifiers: [.command]))
+        }
+
+        @Test("a modifier let go never becomes the shortcut")
+        func liftedModifierIsNotTheShortcut() {
+            var r = recorder()
+            // ⌘ down, ⌥ down, ⌥ up, ⌘ up: the pair held together is the shortcut.
+            _ = r.receive(held([.command], key: 55))
+            _ = r.receive(held([.command, .option], key: 58))
+            _ = r.receive(lifted([.command], key: 58))
+            _ = r.receive(held([]))
+            #expect(r.binding == HotkeyBinding(keyCode: 58, modifiers: [.command, .option]))
+            #expect(r.binding.isCoherent)
+        }
+
+        @Test("what is recorded always names a key its modifiers contain")
+        func everyRecordingIsCoherent() {
+            for last in [UInt16(55), 56, 58, 59, 63] {
+                var r = recorder()
+                _ = r.receive(held([.control], key: 59))
+                _ = r.receive(lifted([.control], key: last))
+                _ = r.receive(held([]))
+                #expect(r.binding.isCoherent, "key \(last) left an incoherent binding")
+            }
         }
 
         @Test("two keys, a modifier and a key")

@@ -17,8 +17,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private var activation: HotkeyActivation
     private var pressedAt: ClockType.Instant?
-    private var forwardingTask: Task<Void, Never>?
-
     /// Every gesture from every source, handled one at a time. See Docs/pipeline-gestures.md.
     private let gestures: AsyncStream<HotkeyEvent>
     private let gestureSink: AsyncStream<HotkeyEvent>.Continuation
@@ -41,6 +39,11 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         self.onAdvice = onAdvice
         (gestures, gestureSink) = AsyncStream<HotkeyEvent>.makeStream()
         Task { await self.consumeGestures() }
+        // Forwarded once for the controller's life: an `AsyncStream` has room for one reader.
+        let events = monitor.events
+        Task { [weak self] in
+            for await event in events { self?.submit(event) }
+        }
     }
 
     /// Queues a gesture from any source behind whatever is in flight, and returns at once.
@@ -54,25 +57,14 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
     }
 
-    /// Watches for the shortcut, or rebinds after ending the old forwarder. See Docs/pipeline-gestures.md.
+    /// Watches for the shortcut, or rebinds to another one. See Docs/pipeline-gestures.md.
     public func start(binding: HotkeyBinding) async throws(HotkeyError) {
-        forwardingTask?.cancel()
-        forwardingTask = nil
-
         try await monitor.start(binding: binding)
-        // Forwarded rather than handled here, so the shortcut queues behind the same single consumer.
-        let events = monitor.events
-        forwardingTask = Task { [weak self] in
-            for await event in events {
-                self?.submit(event)
-            }
-        }
     }
 
     public func stop() {
-        forwardingTask?.cancel()
-        forwardingTask = nil
         stopWatchingTheLimit()
+        // Stopped last, so the release it owes for a hold still reaches the forwarder.
         monitor.stop()
     }
 

@@ -36,9 +36,30 @@ public final class SystemKeyboard: KeyboardEventSource {
         if flags.contains(.maskAlternate) { modifiers.insert(.option) }
         if flags.contains(.maskControl) { modifiers.insert(.control) }
         if flags.contains(.maskShift) { modifiers.insert(.shift) }
+        let isFunctionDown = flags.contains(.maskSecondaryFn)
         return KeyStroke(
-            keyCode: keyCode, modifiers: modifiers,
-            isFunctionDown: flags.contains(.maskSecondaryFn), phase: phase)
+            keyCode: keyCode, modifiers: modifiers, isFunctionDown: isFunctionDown, phase: phase,
+            isKeyDown: isDown(
+                keyCode: keyCode, phase: phase, modifiers: modifiers,
+                isFunctionDown: isFunctionDown))
+    }
+
+    /// Whether the named key is down, which for a flags change is whether its own modifier survived.
+    static func isDown(
+        keyCode: UInt16, phase: KeyPhase, modifiers: Set<HotkeyModifier>, isFunctionDown: Bool
+    ) -> Bool {
+        switch phase {
+        case .down: true
+        case .up: false
+        case .modifiersChanged:
+            if keyCode == HotkeyBinding.functionKeyCode {
+                isFunctionDown
+            } else if let named = HotkeyBinding.modifier(ofKeyCode: keyCode) {
+                modifiers.contains(named)
+            } else {
+                false
+            }
+        }
     }
 }
 

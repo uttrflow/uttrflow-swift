@@ -19,12 +19,18 @@ struct HotkeyHoldTests {
     /// Whether a binding can be delivered is the type's question; whether it is wise is the Mac owner's.
     @Test("any modifier combination can be held, including one on its own")
     func everyModifierCodeIsAHold() {
-        // 54–63: ⌘ ⇧ ⌥ ⌃ left and right, Caps Lock, Fn.
-        for keyCode: UInt16 in [54, 55, 56, 57, 58, 59, 60, 61, 62, 63] {
+        // 54–63 less Caps Lock: ⌘ ⇧ ⌥ ⌃ left and right, and Fn.
+        for keyCode: UInt16 in [54, 55, 56, 58, 59, 60, 61, 62, 63] {
             let binding = HotkeyBinding(keyCode: keyCode, modifiers: [])
             #expect(binding.heldModifier != nil, "key \(keyCode) was not treated as a hold")
             #expect(binding.isDeliverable, "key \(keyCode) was refused")
         }
+    }
+
+    @Test("Caps Lock cannot be held, because nothing reports it")
+    func capsLockIsRefused() {
+        // It sets no modifier flag, so a watcher would read it as nothing held and fire constantly.
+        #expect(!HotkeyBinding(keyCode: 57, modifiers: []).isDeliverable)
     }
 
     @Test("a modifier combination is a hold, and carries the modifiers it names")
@@ -59,5 +65,26 @@ struct HotkeyHoldTests {
         let binding = HotkeyBinding(keyCode: 9, modifiers: [])
         #expect(!binding.isUsable)
         #expect(!binding.isDeliverable)
+    }
+
+    @Test("a key code and modifiers that disagree are refused")
+    func incoherentPairsAreRefused() {
+        // The Option key paired with Command: what a recorder writes when it reads a key going up.
+        let crossed = HotkeyBinding(keyCode: 58, modifiers: [.command])
+        #expect(!crossed.isCoherent)
+        #expect(!crossed.isDeliverable)
+        // Fn is named by no modifier, so a combination may not claim it beside one.
+        #expect(!HotkeyBinding(keyCode: 63, modifiers: [.option]).isCoherent)
+        // Caps Lock names no modifier at all, so nothing can ever hold it down.
+        #expect(!HotkeyBinding(keyCode: 57, modifiers: []).isCoherent)
+    }
+
+    @Test("a key code its own modifiers contain is kept")
+    func coherentPairsAreKept() {
+        #expect(HotkeyBinding.functionHold.isCoherent)
+        #expect(HotkeyBinding(keyCode: 58, modifiers: [.option]).isCoherent)
+        #expect(HotkeyBinding(keyCode: 58, modifiers: [.command, .option]).isCoherent)
+        #expect(HotkeyBinding.optionSpace.isCoherent)
+        #expect(HotkeyBinding.shiftCommandV.isCoherent)
     }
 }

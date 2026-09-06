@@ -244,6 +244,10 @@ struct SettingsTests {
             #"{"keyCode": 999, "modifiers": ["command"]}"#,
             // Command held down on its own, which is not a shortcut.
             #"{"keyCode": 200, "modifiers": ["command"]}"#,
+            // Option's key code carrying Command: the pair a recorder writes reading a key going up.
+            #"{"keyCode": 58, "modifiers": ["command"]}"#,
+            // Caps Lock, which sets no modifier flag and so can never be seen held.
+            #"{"keyCode": 57, "modifiers": []}"#,
         ]
     )
     func hostileHotkey(hotkey: String) throws {

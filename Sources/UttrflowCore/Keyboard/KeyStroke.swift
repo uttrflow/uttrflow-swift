@@ -19,15 +19,19 @@ public struct KeyStroke: Sendable, Equatable {
     /// Whether Fn is down, which is not a `HotkeyModifier` because no combination may name it.
     public let isFunctionDown: Bool
     public let phase: KeyPhase
+    /// Whether the key named here is itself down, which a flags change does not say on its face.
+    public let isKeyDown: Bool
 
+    /// Defaults `isKeyDown` to what the phase alone implies, which only a flags change has to state.
     public init(
         keyCode: UInt16, modifiers: Set<HotkeyModifier> = [], isFunctionDown: Bool = false,
-        phase: KeyPhase
+        phase: KeyPhase, isKeyDown: Bool? = nil
     ) {
         self.keyCode = keyCode
         self.modifiers = modifiers
         self.isFunctionDown = isFunctionDown
         self.phase = phase
+        self.isKeyDown = isKeyDown ?? (phase == .down)
     }
 
     /// Whether nothing is held, which is what a release of the last modifier looks like.

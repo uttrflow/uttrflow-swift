@@ -1,3 +1,4 @@
+import Foundation
 import Synchronization
 
 public import UttrflowCore
@@ -23,13 +24,17 @@ public final class ActivationMonitor: HotkeyMonitoring {
     @MainActor
     public func start(binding: HotkeyBinding) throws(HotkeyError) {
         stop()
-        guard binding.isDeliverable else { throw .shortcutUnavailable }
+        guard binding.isDeliverable else {
+            throw .shortcutUnavailable
+        }
         recogniser.withLock { $0 = HotkeyRecogniser(binding: binding) }
         let continuation = continuation
         do {
             try source.start { [weak self] stroke in
                 let happened = self?.recogniser.withLock { $0?.receive(stroke) } ?? nil
-                if let happened { continuation.yield(happened) }
+                if let happened {
+                    continuation.yield(happened)
+                }
             }
         } catch {
             throw .observationNotPermitted

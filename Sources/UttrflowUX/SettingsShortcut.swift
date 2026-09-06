@@ -132,6 +132,8 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
             return .ignored
         case .modifiersChanged:
             if stroke.isEmptyHold { return release() }
+            // A modifier coming up is not the shortcut; its key code belongs to what is leaving.
+            guard stroke.isKeyDown else { return .ignored }
             return hold(
                 keyCode: stroke.isFunctionDown ? HotkeyBinding.functionKeyCode : stroke.keyCode,
                 modifiers: stroke.modifiers)

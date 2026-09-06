@@ -19,11 +19,15 @@ the hotkey monitor below nor the pipeline above knows there is more than one way
 
 ## Rebinding the shortcut
 
-- `start(binding:)` is called again whenever the user changes the shortcut, and the previous
-  forwarding task has to go first. The monitor's `events` is one stream for the life of the
-  monitor: leaving the old task iterating it would leave two consumers on one `AsyncStream`, and
-  each keypress would go to whichever happened to be waiting, so roughly every other press would
-  vanish.
+- `start(binding:)` is called again whenever the user changes the shortcut, and it now only
+  rebinds the monitor. The monitor's `events` is one stream for the life of the monitor, and an
+  `AsyncStream` has room for one reader: two consumers would each get whichever keypress they
+  happened to be waiting for, so roughly every other press would vanish.
+- So the controller reads that stream exactly once, in `init`, and never cancels it. Cancelling
+  and recreating it per rebind was the earlier answer, and it was wrong twice over: the new
+  reader could start before the cancelled one had finished, and `stop()` cancelled the reader a
+  line before `monitor.stop()` yielded the release it owes for a hold in progress — the one
+  event that keeps a stuck microphone from staying open.
 
 ## A click has no release
 

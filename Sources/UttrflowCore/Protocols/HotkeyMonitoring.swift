@@ -46,8 +46,20 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// Whether the binding has a modifier or is itself a held key; a bare letter would fire while typing.
     public var isUsable: Bool { !modifiers.isEmpty || heldModifier != nil }
 
+    /// Whether the key code and the modifiers agree, since a pair that disagrees fires on the wrong key.
+    public var isCoherent: Bool {
+        guard Self.modifierKeyCodes.contains(keyCode) else { return true }
+        // Fn is named by no modifier, so a combination may not claim it alongside one.
+        if keyCode == Self.functionKeyCode { return modifiers.isEmpty }
+        // Caps Lock names no modifier, so nothing can ever see it held; it is not bindable.
+        guard let named = Self.modifier(ofKeyCode: keyCode) else { return false }
+        // Empty means the key alone; a set that omits the key's own modifier came from a key going up.
+        return modifiers.isEmpty || modifiers.contains(named)
+    }
+
     /// Whether macOS delivers this shortcut once registered; the monitor's translator keeps the same rules.
     public var isDeliverable: Bool {
+        guard isCoherent else { return false }
         // A held modifier is watched, not registered, so the modifier-key-code rule does not apply to it.
         if heldModifier != nil { return true }
         return isUsable && keyCode <= Self.highestKeyCode
