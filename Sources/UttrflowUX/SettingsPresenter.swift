@@ -30,6 +30,7 @@ public enum SettingsPresenter {
         }
     }
 
+    /// The whole window: every tab, which one is showing, and what that one draws.
     public static func window(
         showing tab: SettingsTab,
         settings: Settings,
@@ -46,6 +47,7 @@ public enum SettingsPresenter {
         )
     }
 
+    /// One tab, drawn from the settings and what this Mac can do.
     public static func pane(
         for tab: SettingsTab,
         settings: Settings,
@@ -64,6 +66,7 @@ public enum SettingsPresenter {
 
     // MARK: - General
 
+    /// General: the floating button, the shortcut, sound, appearance, login and updating.
     private static func general(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsPane {
@@ -180,6 +183,7 @@ public enum SettingsPresenter {
         return SettingsGroup(id: "updates", title: "Updates", rows: rows)
     }
 
+    /// One way of holding the shortcut, as a segmented option.
     private static func activationOption(_ activation: HotkeyActivation) -> SettingsOption {
         let title: String =
             switch activation {
@@ -192,6 +196,7 @@ public enum SettingsPresenter {
 
     // MARK: - Languages
 
+    /// Languages: which of the offered languages Uttrflow listens for.
     private static func languages(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsPane {
@@ -247,6 +252,7 @@ public enum SettingsPresenter {
 
     // MARK: - Dictation
 
+    /// Dictation: how much is tidied, how it is transcribed, and what to forget.
     private static func dictation(
         _ settings: Settings,
         _ capabilities: SettingsCapabilities,
@@ -287,6 +293,7 @@ public enum SettingsPresenter {
                     + "connection."))
     }
 
+    /// One transcription quality, as a segmented option.
     private static func qualityOption(_ quality: SettingsTranscriptionQuality) -> SettingsOption {
         SettingsOption(
             id: quality.rawValue, title: quality.title, change: .transcription(quality))
@@ -446,6 +453,7 @@ public enum SettingsPresenter {
 
     // MARK: - Privacy
 
+    /// Privacy: the promise, the retention period, and what signing out does not take.
     private static func privacy(
         _ settings: Settings, _ personalisation: SettingsPersonalisation
     ) -> SettingsPane {
@@ -640,6 +648,7 @@ public enum SettingsPresenter {
                 of: field, given: capabilities, in: settings))
     }
 
+    /// Where a switch reads its state from, in the one place that knows.
     static func value(of field: SettingsToggleField, in settings: Settings) -> Bool {
         switch field {
         case .showsFloatingButton: settings.showsFloatingButton

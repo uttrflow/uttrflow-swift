@@ -49,6 +49,7 @@ public struct SettingsRow: Sendable, Equatable, Identifiable {
         [label, explanation, unavailability].compactMap(\.self).joined(separator: ". ")
     }
 
+    /// Builds a row; operable unless given a reason it is not.
     public init(
         id: String,
         label: String,
@@ -120,6 +121,7 @@ public struct SettingsRemoval: Sendable, Equatable {
     /// What the user is shown before anything goes, or `nil` when a recoverable act needs no asking.
     public let confirmation: SettingsConfirmation?
 
+    /// Builds a destructive button; a `nil` confirmation means it acts without asking.
     public init(reset: SettingsReset, title: String, confirmation: SettingsConfirmation?) {
         self.reset = reset
         self.title = title
@@ -138,6 +140,7 @@ public struct SettingsConfirmation: Sendable, Equatable {
     /// The button Return presses, always the one that removes nothing.
     public var defaultTitle: String { cancelTitle }
 
+    /// Builds the question; Return presses the cancel button whatever it is called.
     public init(title: String, message: String, confirmTitle: String, cancelTitle: String) {
         self.title = title
         self.message = message
