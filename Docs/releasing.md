@@ -210,7 +210,9 @@ fail without saying so is worse than no gate, because it is trusted.
 
 The repository is public now, and public repositories are not billed for Actions, so
 `.github/workflows/ci.yml` runs `make verify` on every pull request and on `main`, with
-CodeQL, dependency review and Scorecard beside it. That is the check a contributor sees.
+dependency review and Scorecard beside it. That is the check a contributor sees. CodeQL
+runs weekly instead: it is the second macOS job of a pair the free plan's five concurrent
+runners cannot deliver, and it was starving the one that gates a merge.
 
 The gate that stops a red commit reaching `main` in the first place is still
 **`.githooks/pre-push`**, which runs the same `make verify` — lint, PII audit, build, the

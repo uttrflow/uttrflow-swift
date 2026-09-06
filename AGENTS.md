@@ -20,7 +20,8 @@ branch / fork  ──PR──>  main  ──tag v0.3.0-rc.1──>  prerelease  
 2. **Every PR targets `main`** — `gh pr create --base main`. There is no second trunk to
    choose between any more.
 3. **CI runs on every pull request and must be green.** `.github/workflows/ci.yml` runs
-   `make verify` and builds the app bundle; CodeQL and dependency review run beside it.
+   `make verify` and builds the app bundle; dependency review and the text checks run
+   beside it. CodeQL is weekly, not per-PR, and gates nothing.
    Run `make verify` locally anyway — it is the same command, and finding out here is
    faster than finding out in a queue.
 4. **Nobody pushes to `main` directly.** A ruleset blocks force-pushes and deletions,
