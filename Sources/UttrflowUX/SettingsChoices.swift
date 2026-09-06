@@ -1,23 +1,17 @@
+// The choices the settings screens offer, stated as outcomes. See `Docs/ux-settings-model.md`.
 public import UttrflowCore
 public import UttrflowPredict
 
 // MARK: - Tidying
 
-/// How much Uttrflow is allowed to rewrite what was said.
-///
-/// Stated as an outcome rather than as a list of engines. §16 holds here as much as it
-/// does on the floating button: the user chooses how much help they want, never which
-/// implementation gives it to them, so a change of engine is never a change of screen.
-///
-/// There is deliberately no "off". The preference order always ends in a floor that can
-/// handle anything, so something always runs; offering "off" would promise a state the
-/// pipeline has no way to be in.
+/// How much Uttrflow tidies what was said, with no "off" because a floor always runs.
 public enum SettingsTidyingLevel: String, Sendable, Equatable, CaseIterable {
     /// Punctuation, capitalisation and spacing. The floor, and nothing above it.
     case light
     /// Filler words removed and grammar repaired as well, wherever an engine can.
     case standard
 
+    /// What the level is called on screen.
     public var title: String {
         switch self {
         case .light: "Light"
@@ -25,16 +19,9 @@ public enum SettingsTidyingLevel: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// What the row is called, and what it says underneath — for every screen that shows
-    /// it.
-    ///
-    /// Held here rather than at each call site because there are two of them, and they
-    /// had drifted: Settings said "Tidy up what I say / Light fixes punctuation only",
-    /// Style said "How much Uttrflow tidies / Light fixes punctuation and capitalisation
-    /// only". A user comparing the two screens is entitled to conclude the app has two
-    /// settings, or that one of the screens is lying about what Light does — and one of
-    /// them was, since Light does capitalisation too.
+    /// What the row is called on both screens that draw it.
     public static let rowLabel = "How much Uttrflow tidies"
+    /// What the row says underneath on both screens that draw it.
     public static let rowExplanation = """
         Light fixes punctuation, capitalisation and spacing. Standard also removes filler \
         words and repairs grammar.
@@ -42,10 +29,7 @@ public enum SettingsTidyingLevel: String, Sendable, Equatable, CaseIterable {
 }
 
 extension SettingsTidyingLevel {
-    /// Reads the level back out of a stored preference order.
-    ///
-    /// Anything the build can run above the floor means the user asked for the full
-    /// treatment; a preference that is only the floor means they asked for less.
+    /// Reads the level back out of a stored preference order: anything above the floor is standard.
     public init(preference: [TransformerKind]) {
         let resolved = EngineConfiguration(speech: .whisperKit, transformerPreference: preference)
             .resolvedTransformerPreference
@@ -63,14 +47,14 @@ extension SettingsTidyingLevel {
 
 // MARK: - Transcription
 
-/// The trade the user is really making when they choose a speech engine: how long they
-/// wait against how often they have to correct it.
+/// The trade behind a speech engine: how long the user waits against how often they correct it.
 public enum SettingsTranscriptionQuality: String, Sendable, Equatable, CaseIterable {
     /// The lowest latency the Mac can manage.
     case faster
     /// The fewest mistakes, at the cost of a second or two.
     case mostAccurate
 
+    /// What the quality is called on screen.
     public var title: String {
         switch self {
         case .faster: "Faster"
@@ -86,11 +70,7 @@ public enum SettingsTranscriptionQuality: String, Sendable, Equatable, CaseItera
         }
     }
 
-    /// Reads the choice back out of a stored engine.
-    ///
-    /// An exhaustive `switch` rather than a search with a fallback: a fallback would be
-    /// a branch nothing could ever take, and it would silently mislabel a newly added
-    /// engine instead of refusing to compile until somebody said what it is for.
+    /// Reads the choice back out of a stored engine, exhaustively so a new engine must be named.
     public init(engine: SpeechEngineKind) {
         switch engine {
         case .appleSpeech: self = .faster
@@ -103,14 +83,7 @@ public enum SettingsTranscriptionQuality: String, Sendable, Equatable, CaseItera
 
 /// The one place that knows what a valid clean-up preference looks like.
 public enum SettingsEngines {
-    /// Puts a preference order into the only shape the pipeline can run.
-    ///
-    /// Two rules, both enforced rather than described. Kinds this build does not
-    /// contain are dropped, because a configuration written by another build must not
-    /// select an engine that is not here. And the floor is appended last, always, so
-    /// the pipeline cannot reach the end of the list with the text untouched — a
-    /// dead-end that would lose the user their words rather than merely tidy them
-    /// badly.
+    /// Drops kinds this build lacks and appends the floor. See `Docs/ux-settings-model.md`.
     public static func normalised(_ preference: [TransformerKind]) -> [TransformerKind] {
         let selectable = Set(TransformerKind.selectable)
         var ordered: [TransformerKind] = []
@@ -123,23 +96,13 @@ public enum SettingsEngines {
         return ordered + [floor]
     }
 
-    /// The kind that declines nothing. Rules cannot invent and cannot refuse, which is
-    /// exactly what makes it the only safe last entry.
+    /// The kind that declines nothing, and so the only safe last entry.
     public static let floor = TransformerKind.rules
 }
 
 // MARK: - Retention
 
-/// The retention periods the settings store keeps exactly as they are given.
-///
-/// Transcripts are the only thing there is a period for: audio is never written to
-/// disk, so there is nothing about a recording for the user to set.
-///
-/// The store treats a period of zero or less as a corrupt value and quietly replaces
-/// it, so a screen that offered one would show the user a choice, save it, and reopen
-/// showing something else. Offering only values that survive the round trip is what
-/// keeps that from happening; `SettingsRetentionTests` proves each one does by putting
-/// it through `Settings` rather than by restating the store's rule here.
+/// How long transcripts are kept, offering only periods the store round-trips unchanged.
 public enum SettingsRetention {
     /// A day, through to a quarter. Ordered, because they are drawn in this order.
     public static let offeredDays = [1, 3, 7, 14, 30, 90]
@@ -164,8 +127,7 @@ public struct SettingsLanguage: Sendable, Equatable, Identifiable {
 }
 
 extension SettingsLanguage {
-    /// The languages V1 transcribes. Held here rather than derived from the profile so
-    /// that a language the user has never chosen still appears, unticked, to be chosen.
+    /// The languages V1 transcribes, listed so an unchosen one still appears to be chosen.
     public static let offered: [SettingsLanguage] = [
         SettingsLanguage(code: .english, name: "English", endonym: nil),
         SettingsLanguage(code: .hindi, name: "Hindi", endonym: "हिन्दी"),

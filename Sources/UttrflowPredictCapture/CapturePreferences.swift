@@ -1,10 +1,14 @@
+// What the user has said about learning from each application, in memory and on disk.
 import UttrflowCore
 public import Foundation
 
 /// Whether the user has been asked about an application, and what they said.
 public enum ConsentState: String, Sendable, Codable, Equatable, CaseIterable {
+    /// The user has not been asked about this application.
     case unknown
+    /// The user has opted this application in.
     case allowed
+    /// The user has said no to this application.
     case declined
 }
 
@@ -25,6 +29,7 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
     /// Whether the one-time shell history import has already run.
     public var hasImportedShellHistory: Bool
 
+    /// Preferences holding the given answers, defaulting to nothing having been decided.
     public init(consent: [String: ConsentState] = [:], hasImportedShellHistory: Bool = false) {
         self.consent = consent
         self.hasImportedShellHistory = hasImportedShellHistory
@@ -57,8 +62,10 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
 
 /// The preferences on disk, so an answer given once is never asked for twice.
 public struct CapturePreferencesFile: Sendable {
+    /// The file the answers are read from and written to.
     private let path: String
 
+    /// A file at this path, which need not exist yet.
     public init(path: String) {
         self.path = path
     }

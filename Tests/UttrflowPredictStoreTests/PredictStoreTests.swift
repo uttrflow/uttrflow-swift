@@ -4,15 +4,16 @@ import UttrflowPredict
 
 @testable import UttrflowPredictStore
 
-/// A database of its own per test, removed when the test ends.
-private struct Corpus: ~Copyable {
+/// A database of its own per test, removed when the test ends; every suite in this target shares it.
+struct Corpus: ~Copyable {
     let path: String
 
-    init(_ name: String = UUID().uuidString) {
-        path = NSTemporaryDirectory() + "uttrflow-predict-\(name).sqlite"
+    init() {
+        path = NSTemporaryDirectory() + "uttrflow-corpus-\(UUID().uuidString).sqlite"
         remove()
     }
 
+    /// Removes the file and the two SQLite writes beside it.
     func remove() {
         for suffix in ["", "-wal", "-shm"] {
             try? FileManager.default.removeItem(atPath: path + suffix)
@@ -22,13 +23,13 @@ private struct Corpus: ~Copyable {
     deinit { remove() }
 }
 
-private let terminal = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea")
-private let moment = Date(timeIntervalSince1970: 1_800_000_000)
-
 /// Opens a store on a fresh file, so each test starts from nothing.
-private func store(_ corpus: borrowing Corpus) throws -> PredictStore {
+func store(_ corpus: borrowing Corpus) throws -> PredictStore {
     try PredictStore(path: corpus.path)
 }
+
+private let terminal = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea")
+private let moment = Date(timeIntervalSince1970: 1_800_000_000)
 
 @Suite("Remembering what was entered")
 struct RecordingTests {

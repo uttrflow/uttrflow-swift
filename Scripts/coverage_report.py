@@ -39,7 +39,6 @@ EXCLUDED_FILES = {
         "reads the focused field of another app through Accessibility; everything decided "
         "from what it reads is FocusedFieldSnapshot, which is tested"
     ),
-    "UttrflowPredictCapture/FieldReader+System.swift": "asks other apps what their focused field is called",
     "UttrflowContext/CompositionProbe+System.swift": (
         "asks the focused field and the Text Input Sources database about input-method "
         "composition; the rule it feeds is Composition, which is tested"

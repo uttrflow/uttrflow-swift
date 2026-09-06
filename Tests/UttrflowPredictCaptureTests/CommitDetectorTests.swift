@@ -50,7 +50,7 @@ struct CommitDetectorTests {
         #expect(detector.receive(.applicationDeactivated(at: start))?.reason == .applicationDeactivated)
     }
 
-    @Test("Three seconds untouched counts as finished, and two seconds does not.")
+    @Test("A pause as long as the idle interval counts as finished, and a shorter one does not.")
     func idlenessCommits() {
         var detector = CommitDetector()
         _ = typing("git push", into: &detector)

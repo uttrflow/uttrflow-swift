@@ -4,8 +4,10 @@ import Testing
 
 /// The two shapes every rule below is exercised against.
 private let one = Suggestion.certain("git commit")
+/// A list, which is what claims Down and, once walked, Up and Return.
 private let several = Suggestion.choice(leader: "git commit", others: ["git checkout", "git clone"])
 
+/// What one keystroke means over what is drawn.
 private func decide(
     _ stroke: KeyStroke, showing suggestion: Suggestion,
     selection: SuggestionSelection = .untouched, acceptKey: AcceptKey = .tab

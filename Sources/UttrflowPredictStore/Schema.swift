@@ -38,7 +38,7 @@ enum Schema {
           UNIQUE (surface_id, text)
         )
         """,
-        // The range scan every keystroke runs is over the lowercased text, so matching ignores case but keeps the index.
+        // The scan every keystroke runs is over the lowercased text: case ignored, index kept.
         "CREATE INDEX IF NOT EXISTS entry_prefix ON entry (surface_id, text_lower)",
         // The lines most recently entered in a field are read newest first, which this index orders.
         "CREATE INDEX IF NOT EXISTS entry_recent ON entry (surface_id, last_used)",

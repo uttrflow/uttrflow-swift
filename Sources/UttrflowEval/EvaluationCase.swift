@@ -14,6 +14,8 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         case multilingual
         /// The same words should come out differently depending on what is on screen.
         case contextual
+        /// Grammar slips a formatter may repair, and the dialect that must stay.
+        case grammar
     }
 
     public let id: String
@@ -36,6 +38,8 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
     public let mustBeginWith: String?
     /// Exactly how the output must end, for a case about its final mark.
     public let mustEndWith: String?
+    /// The spoken runs the recogniser was unsure of, which is what makes a case about a doubtful reading fire.
+    public let doubtful: [String]
 
     public init(
         id: String,
@@ -48,7 +52,8 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         mustNotAdd: [String] = [],
         destination: Destination = .plain,
         mustBeginWith: String? = nil,
-        mustEndWith: String? = nil
+        mustEndWith: String? = nil,
+        doubtful: [String] = []
     ) {
         self.id = id
         self.category = category
@@ -61,6 +66,27 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
         self.destination = destination
         self.mustBeginWith = mustBeginWith
         self.mustEndWith = mustEndWith
+        self.doubtful = doubtful
+    }
+
+    /// Below the correction engine's threshold, which is the line a doubtful word has to fall under.
+    public static let doubtfulConfidence = 0.3
+
+    /// What the recogniser produced, scored word by word only where the case names a doubtful run.
+    public var transcription: Transcription {
+        Transcription(
+            text: spoken, detectedLanguage: DetectedLanguage(code: language), segments: segments)
+    }
+
+    /// One segment carrying a score for every spoken word, or none at all when nothing was doubtful.
+    private var segments: [TranscriptionSegment] {
+        guard !doubtful.isEmpty else { return [] }
+        let unsure = Set(doubtful.flatMap { $0.split(whereSeparator: \.isWhitespace) }.map(String.init))
+        let words = spoken.split(whereSeparator: \.isWhitespace).map {
+            TranscribedWord(
+                text: String($0), confidence: unsure.contains(String($0)) ? Self.doubtfulConfidence : 1)
+        }
+        return [TranscriptionSegment(text: spoken, start: .zero, end: .zero, words: words)]
     }
 
     /// The situation the case is dictated in: its own destination, never the classifier's guess.
@@ -71,7 +97,7 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
     /// The request an engine is handed for this case; withholding the screen withholds the situation too.
     public func transformationRequest(withholdingContext: Bool = false) -> TransformationRequest {
         TransformationRequest(
-            transcription: Transcription(text: spoken, detectedLanguage: DetectedLanguage(code: language)),
+            transcription: transcription,
             context: withholdingContext ? .unknown : context,
             situation: withholdingContext ? .unknown : situation
         )

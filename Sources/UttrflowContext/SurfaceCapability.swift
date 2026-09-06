@@ -1,18 +1,11 @@
 import Foundation
 
 /// Where a suggestion can be drawn for one text field, best first.
-public enum SuggestionPlacement: String, Sendable, CaseIterable, Comparable {
+public enum SuggestionPlacement: Sendable, CaseIterable {
     /// Grey text at the caret, on the user's own line, with any alternatives listed below it.
     case inlineGhost
-    /// The old bottom-edge strip, kept only for the phase-0 probe's tally; nothing is ever drawn here now.
+    /// The bottom-edge strip, which the probe still tallies and nothing draws in.
     case windowStrip
-
-    /// Orders the ladder so the best placement is the smallest.
-    public static func < (lhs: Self, rhs: Self) -> Bool {
-        guard let l = allCases.firstIndex(of: lhs), let r = allCases.firstIndex(of: rhs)
-        else { return false }
-        return l < r
-    }
 }
 
 /// What one text field was willing to tell Accessibility about itself.
@@ -103,11 +96,6 @@ public struct CapabilitySweep: Sendable, Equatable {
     }
 
     public var isEmpty: Bool { byIdentity.isEmpty }
-
-    /// How many fields each placement would be drawn in.
-    public func count(of placement: SuggestionPlacement?) -> Int {
-        readings.filter { $0.placement == placement }.count
-    }
 
     /// The share of fields that could take a suggestion at all.
     public var eligibleShare: Double {

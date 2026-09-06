@@ -121,6 +121,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let permissions: [PermissionKind: PermissionStatus]
     /// Every stage timing recorded since the app started.
     public let measurements: [StageMeasurement]
+    /// What the clean-up steps did to the last dictation, absent until one has been tidied.
+    public let cleaning: CleaningRecord?
 
     /// Builds a snapshot; everything defaults to not yet checked.
     public init(
@@ -128,13 +130,15 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         transformerAvailability: [TransformerKind: Bool] = [:],
         speechModel: DiagnosticsModelPresence? = nil,
         permissions: [PermissionKind: PermissionStatus] = [:],
-        measurements: [StageMeasurement] = []
+        measurements: [StageMeasurement] = [],
+        cleaning: CleaningRecord? = nil
     ) {
         self.engines = engines
         self.transformerAvailability = transformerAvailability
         self.speechModel = speechModel
         self.permissions = permissions
         self.measurements = measurements
+        self.cleaning = cleaning
     }
 }
 
@@ -167,6 +171,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let reliability: [MainStatistic]
     /// One row per speech and clean-up engine.
     public let engines: [DiagnosticsRow]
+    /// What each clean-up step did to the last dictation, and which steps are switched off.
+    public let cleanUp: [DiagnosticsRow]
     /// One row per permission, granted or not.
     public let permissions: [DiagnosticsRow]
     /// What the speech model occupies on disk.
@@ -183,6 +189,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         latencyEmptyState: MainEmptyState?,
         reliability: [MainStatistic],
         engines: [DiagnosticsRow],
+        cleanUp: [DiagnosticsRow],
         permissions: [DiagnosticsRow],
         storage: [DiagnosticsRow],
         footnote: String,
@@ -193,6 +200,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.latencyEmptyState = latencyEmptyState
         self.reliability = reliability
         self.engines = engines
+        self.cleanUp = cleanUp
         self.permissions = permissions
         self.storage = storage
         self.footnote = footnote
@@ -225,6 +233,7 @@ public enum DiagnosticsPresenter {
             latencyEmptyState: summaries.isEmpty ? noTimingsYet : nil,
             reliability: reliability(for: snapshot.measurements, locale: locale),
             engines: engines,
+            cleanUp: cleanUpRows(for: snapshot.cleaning),
             permissions: permissions,
             storage: storage,
             footnote: footnote,
@@ -381,6 +390,76 @@ public enum DiagnosticsPresenter {
         }
     }
 
+    // MARK: - What the clean-up steps did
+
+    /// At most this many words are quoted in a row; the rest are counted, so a row stays a line.
+    static let quoted = 4
+
+    /// The steps this page reports on: the ones the user is offered, whichever engine tidied the words.
+    static func reported(_ record: CleaningRecord) -> [CleaningRecord.Change] {
+        record.changes.filter { CleaningSteps.isOffered($0.step) }
+    }
+
+    /// One row per step that changed something, then every step that is off, naming the words rather than counting them.
+    static func cleanUpRows(for record: CleaningRecord?) -> [DiagnosticsRow] {
+        guard let record else {
+            return [
+                DiagnosticsRow(
+                    title: "Clean-up steps", detail: "Nothing dictated yet", state: .unknown)
+            ]
+        }
+
+        let changed = reported(record).map {
+            DiagnosticsRow(
+                title: CleaningSteps.name(of: $0.step), detail: detail(of: $0), state: .good)
+        }
+        // Named rather than absent: a step that is off is why a word is still there.
+        let off = record.switchedOff.map {
+            DiagnosticsRow(
+                title: CleaningSteps.name(of: $0), detail: "Switched off", state: .unknown)
+        }
+        guard changed.isEmpty, off.isEmpty else { return changed + off }
+        return [
+            DiagnosticsRow(
+                title: "Clean-up steps", detail: "Nothing needed changing", state: .good)
+        ]
+    }
+
+    /// What one step did, in the first few words it did it to and a count of the rest.
+    static func detail(of change: CleaningRecord.Change) -> String {
+        var parts: [String] = []
+        if !change.removed.isEmpty {
+            parts.append("removed \(change.removed.count): \(listed(change.removed))")
+        }
+        if !change.replaced.isEmpty {
+            let rewrites = change.replaced.map { "\($0.from) → \($0.to)" }
+            parts.append("rewrote \(rewrites.count): \(listed(rewrites))")
+        }
+        if !change.inserted.isEmpty {
+            parts.append("added \(change.inserted.count): \(listed(change.inserted))")
+        }
+        return parts.joined(separator: "; ")
+    }
+
+    /// The first few words, then how many more there were, because the row is one line of a page.
+    static func listed(_ words: [String]) -> String {
+        guard words.count > quoted else { return words.joined(separator: ", ") }
+        return words.prefix(quoted).joined(separator: ", ") + " and \(words.count - quoted) more"
+    }
+
+    /// The same steps counted rather than quoted, for the report that leaves this Mac by hand.
+    static func countedCleanUp(_ record: CleaningRecord) -> [String] {
+        reported(record).map { change in
+            let counts = [
+                change.removed.isEmpty ? nil : "removed \(change.removed.count)",
+                change.replaced.isEmpty ? nil : "rewrote \(change.replaced.count)",
+                change.inserted.isEmpty ? nil : "added \(change.inserted.count)",
+            ].compactMap(\.self)
+            return "  \(CleaningSteps.name(of: change.step)): \(counts.joined(separator: ", "))"
+        }
+            + record.switchedOff.map { "  \(CleaningSteps.name(of: $0)): switched off" }
+    }
+
     // MARK: - Permissions
 
     /// Every permission, granted or not, so the page can confirm that nothing is broken.
@@ -462,6 +541,12 @@ public enum DiagnosticsPresenter {
             lines += StageLatency.unmeasuredStages(in: snapshot.measurements).map {
                 "  \(title(for: $0)): never run"
             }
+        }
+
+        // Counted, never quoted: this string is pasted elsewhere, and dictated words are not a diagnostic.
+        let counted = snapshot.cleaning.map(countedCleanUp) ?? []
+        if !counted.isEmpty {
+            lines += ["", "Clean-up steps, last dictation"] + counted
         }
 
         let sections: [(String, [DiagnosticsRow])] = [

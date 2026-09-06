@@ -8,7 +8,7 @@ public struct SystemPasteboard: Pasteboard {
     /// Told what this app is about to write, so the watcher can tell it from a copy. See `Docs/insertion.md`.
     private let willWrite: @Sendable (String?) -> Void
 
-    /// - Parameter willWrite: Told what is about to go on the clipboard, before it does.
+    /// Takes the announcement the clipboard watcher needs, and by default makes none.
     public init(willWrite: @escaping @Sendable (String?) -> Void = { _ in }) {
         self.willWrite = willWrite
     }
@@ -36,10 +36,27 @@ public struct SystemPasteboard: Pasteboard {
     private func clearForThisMacOnly() {
         NSPasteboard.general.prepareForNewContents(with: .currentHostOnly)
     }
+}
 
-    public func changeCount() -> Int {
-        NSPasteboard.general.changeCount
+/// What every failure to build a synthetic keystroke reports.
+private let unmakeableKeystroke = "could not create the keystroke"
+
+/// Posts one tagged key-down and key-up, after `prepare` has set each up. See `Docs/input-synthetic-keystrokes.md`.
+private func postTaggedKeyPair(
+    from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
+) throws(TextInsertionError) {
+    guard
+        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
+        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
+    else { throw .insertionRejected(description: unmakeableKeystroke) }
+
+    for event in [keyDown, keyUp] {
+        prepare(event)
+        SyntheticEvent.tag(event)
     }
+    // The one pair that reaches another application. See `Docs/insertion.md`.
+    keyDown.post(tap: .cghidEventTap)
+    keyUp.post(tap: .cghidEventTap)
 }
 
 /// Presses ⌘V by posting keyboard events, which no test can assert anything about.
@@ -51,25 +68,16 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
 
     public func sendPaste() throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
-        // The one pair that reaches another application. See `Docs/insertion.md`.
-        guard let source = CGEventSource(stateID: .hidSystemState),
-            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: Self.vKeyCode, keyDown: true),
-            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: Self.vKeyCode, keyDown: false)
-        else { throw .insertionRejected(description: "could not create the keystroke") }
-
-        keyDown.flags = .maskCommand
-        keyUp.flags = .maskCommand
-        // Marked as ours so the feature's own tap and monitor never take it for something the user typed.
-        SyntheticEvent.tag(keyDown)
-        SyntheticEvent.tag(keyUp)
-        keyDown.post(tap: .cghidEventTap)
-        keyUp.post(tap: .cghidEventTap)
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            throw .insertionRejected(description: unmakeableKeystroke)
+        }
+        try postTaggedKeyPair(from: source, keyCode: Self.vKeyCode) { $0.flags = .maskCommand }
     }
 }
 
 /// Types characters by posting key events that carry them, which no test can assert anything about.
 public struct CGEventTypist: KeystrokeTyping {
-    /// How many UTF-16 units one event may carry; longer strings are silently truncated by the system.
+    /// How many UTF-16 units one event may carry; the system truncates a longer string in silence.
     private static let unitsPerEvent = 16
 
     /// Virtual key code for Delete, positional and so correct on any keyboard layout.
@@ -82,50 +90,27 @@ public struct CGEventTypist: KeystrokeTyping {
         guard count > 0 else { return }
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: "could not create the keystroke")
+            throw .insertionRejected(description: unmakeableKeystroke)
         }
         for _ in 0..<count {
-            guard
-                let keyDown = CGEvent(
-                    keyboardEventSource: source, virtualKey: Self.deleteKeyCode, keyDown: true),
-                let keyUp = CGEvent(
-                    keyboardEventSource: source, virtualKey: Self.deleteKeyCode, keyDown: false)
-            else { throw .insertionRejected(description: "could not create the keystroke") }
-
-            // Cleared so a modifier the user is still holding cannot widen the delete.
-            keyDown.flags = []
-            keyUp.flags = []
-            // Marked as ours so the feature's own tap and monitor never take it for something the user typed.
-            SyntheticEvent.tag(keyDown)
-            SyntheticEvent.tag(keyUp)
-            keyDown.post(tap: .cghidEventTap)
-            keyUp.post(tap: .cghidEventTap)
+            // Flags cleared so a modifier the user is still holding cannot widen the delete.
+            try postTaggedKeyPair(from: source, keyCode: Self.deleteKeyCode) { $0.flags = [] }
         }
     }
 
     public func type(_ text: String) throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: "could not create the keystroke")
+            throw .insertionRejected(description: unmakeableKeystroke)
         }
         let units = Array(text.utf16)
         for start in stride(from: 0, to: units.count, by: Self.unitsPerEvent) {
-            var chunk = Array(units[start..<min(start + Self.unitsPerEvent, units.count)])
-            guard
-                let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
-                let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
-            else { throw .insertionRejected(description: "could not create the keystroke") }
-
-            // Cleared so a modifier the user is still holding cannot turn the text into a shortcut.
-            keyDown.flags = []
-            keyUp.flags = []
-            keyDown.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
-            keyUp.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
-            // Marked as ours so the feature's own tap and monitor never take it for something the user typed.
-            SyntheticEvent.tag(keyDown)
-            SyntheticEvent.tag(keyUp)
-            keyDown.post(tap: .cghidEventTap)
-            keyUp.post(tap: .cghidEventTap)
+            let chunk = Array(units[start..<min(start + Self.unitsPerEvent, units.count)])
+            try postTaggedKeyPair(from: source, keyCode: 0) { event in
+                // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
+                event.flags = []
+                event.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            }
         }
     }
 }
@@ -173,23 +158,11 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
 
     /// The `count` characters before the caret, when the field will report both its value and its caret.
     public func precedingText(_ count: Int) -> String? {
-        guard count > 0, let element = focusedElement() else { return nil }
-        var valueRef: AnyObject?
         guard
-            AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef) == .success,
-            let value = valueRef as? String
+            count > 0, let element = focusedElement(),
+            let value = stringAttribute(kAXValueAttribute, of: element),
+            let range = rangeAttribute(kAXSelectedTextRangeAttribute, of: element)
         else { return nil }
-        var rangeRef: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(
-                element, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
-            let rangeRef, CFGetTypeID(rangeRef) == AXValueGetTypeID()
-        else { return nil }
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        var range = CFRange()
-        guard AXValueGetValue(unsafeDowncast(rangeRef, to: AXValue.self), .cfRange, &range) else {
-            return nil
-        }
         return BackwardSelection.text(in: value, endingAt: range.location, covering: count)
     }
 
@@ -209,6 +182,7 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
 
 /// Writes into one focused field, holding an `AXUIElement` that is safe to pass between threads.
 private struct AXTextField: FocusedTextField, @unchecked Sendable {
+    /// The focused element this writes into.
     let element: AXUIElement
 
     func replaceSelection(with text: String) throws(TextInsertionError) {
@@ -238,13 +212,13 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
         do {
             try replaceSelection(with: text)
         } catch {
-            // A field that took the selection but refused the text is left as it was found, so the next route sees the caret, not a selection.
+            // A field that takes the selection and refuses the text keeps its caret, not a selection.
             _ = try? select(caret)
             throw error
         }
     }
 
-    /// Moves the selection's start back over `characters` and answers with the selection as it was.
+    /// Moves the selection's start back over `characters` and answers with the selection it replaces.
     private func selectBackwards(_ characters: Int) throws(TextInsertionError) -> CFRange {
         guard let whole = value(), let selection = selectedRange() else {
             throw .insertionRejected(description: "the field will not report its selection")
@@ -278,28 +252,36 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
 
     /// Where the caret is, in UTF-16 units, when the field will say.
     private func selectedRange() -> CFRange? {
-        var current: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(
-                element, kAXSelectedTextRangeAttribute as CFString, &current) == .success,
-            let value = current, CFGetTypeID(value) == AXValueGetTypeID()
-        else { return nil }
-
-        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        var range = CFRange()
-        guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range) else {
-            return nil
-        }
-        return range
+        rangeAttribute(kAXSelectedTextRangeAttribute, of: element)
     }
 
     /// The field's whole contents, when it will say.
     private func value() -> String? {
-        var current: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &current)
-                == .success
-        else { return nil }
-        return current as? String
+        stringAttribute(kAXValueAttribute, of: element)
     }
+}
+
+/// The string an Accessibility attribute holds, or `nil` when the element will not say.
+private func stringAttribute(_ name: String, of element: AXUIElement) -> String? {
+    var current: AnyObject?
+    guard
+        AXUIElementCopyAttributeValue(element, name as CFString, &current) == .success
+    else { return nil }
+    return current as? String
+}
+
+/// The range an Accessibility attribute holds, or `nil` when the element will not say.
+private func rangeAttribute(_ name: String, of element: AXUIElement) -> CFRange? {
+    var current: AnyObject?
+    guard
+        AXUIElementCopyAttributeValue(element, name as CFString, &current) == .success,
+        let value = current, CFGetTypeID(value) == AXValueGetTypeID()
+    else { return nil }
+
+    // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+    var range = CFRange()
+    guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range) else {
+        return nil
+    }
+    return range
 }

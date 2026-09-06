@@ -17,7 +17,7 @@ public enum KeyInterceptorFailure: Error, Sendable, Equatable {
 
 /// One thing the tap has to say.
 public enum InterceptedEvent: Sendable, Equatable {
-    /// This keystroke was armed, so it was taken and the application never saw it.
+    /// An armed keystroke the tap took, which the application never sees.
     case swallowed(KeyStroke)
     /// The tap has stopped and nothing more will be taken.
     case stopped(KeyInterceptorFailure)
@@ -25,11 +25,14 @@ public enum InterceptedEvent: Sendable, Equatable {
 
 /// Takes the keys a suggestion has claimed and passes every other key through. See `Docs/predict-accept.md`.
 public final class KeyInterceptor: Sendable {
-    /// What was taken, in the order it was taken.
+    /// What the tap took, in the order it took it.
     public let events: AsyncStream<InterceptedEvent>
 
+    /// Everything the C callback touches, which outlives any one run of the tap.
     private let state: TapState
+    /// The source the callback signals, on whose queue the taken keystrokes are turned into events.
     private let drain: any DispatchSourceUserDataAdd
+    /// The tap in force, or `nil` when nothing is watching the keyboard.
     private let running = Mutex<RunningTap?>(nil)
 
     public init() {
@@ -80,6 +83,7 @@ public final class KeyInterceptor: Sendable {
 private final class RunningTap: @unchecked Sendable {
     private let tap: CFMachPort
     private let source: CFRunLoopSource
+    /// The run loop of the tap's own thread, known only once that thread has started.
     private let loop = Mutex<CFRunLoop?>(nil)
 
     private init(tap: CFMachPort, source: CFRunLoopSource) {
@@ -138,11 +142,17 @@ private final class TapState: @unchecked Sendable {
 
     /// Written by the tap's thread and read by the drain, so one producer meets one consumer.
     private let ring: UnsafeMutablePointer<UInt32>
+    /// How many keystrokes have ever been written into the ring.
     private let written = Atomic<UInt64>(0)
+    /// How many the drain has ever taken out of it.
     private let read = Atomic<UInt64>(0)
+    /// How many disables have counted against the tap inside the current window.
     private let disables = Atomic<Int>(0)
+    /// When the last disable arrived, in uptime nanoseconds.
     private let lastDisable = Atomic<UInt64>(0)
+    /// The tap port, retained here so the callback can re-enable it without a lock.
     private let tapPointer = Atomic<UnsafeMutableRawPointer?>(nil)
+    /// Woken on every write, so the drain runs off the tap's own thread.
     private let signal: any DispatchSourceUserDataAdd
 
     init(signal: any DispatchSourceUserDataAdd) {

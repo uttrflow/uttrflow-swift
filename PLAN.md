@@ -26,7 +26,7 @@ clipboard is the product people open, and dictation is a shortcut inside it.
 | 8 | Evaluation harness and metrics | 🟡 **Built — awaiting the reading session** |
 | 9 | Hardening and packaging | ✅ **Done** |
 | 10 | Clipboard manager — the panel, and the pivot | ✅ **Done**, except where noted |
-| 11 | Cleaning, tier 2 — Situation, passes, prompt layers, grammar, doubtful words, join layout | 🟡 **A and B in progress** — `Docs/cleanup-design.md` |
+| 11 | Cleaning, tier 2 — Situation, passes, prompt layers, grammar, doubtful words, join layout | 🟡 **A done, B in progress** — `Docs/cleanup-design.md` |
 
 ## V2 — after the first release
 
@@ -1165,7 +1165,7 @@ prompt line second, the bake-off before and after.**
 | **E — Join-level layout** | `PieceJoiner`: lists from sequence words, paragraphs at piece boundaries, restatement corrections across pieces | list, paragraph and restatement cases pass on multi-piece dictations |
 | **F — Control** | Diagnostics show what each pass removed; a pass can be switched off; a destination can be overridden per app | the operator can read, in the app, why a word went missing |
 
-A and B are independent and started together in parallel worktrees on 2026-09-05. C needs
+A and B are independent and started together in parallel worktrees on 2026-09-05; A landed first and B merged it. C needs
 A; C½ needs C and B's guard; D needs B and C; E needs B; F reports on all of them. Each
 phase is one or more pull requests, green through the gate, with its bake-off table in
 the body. A step that costs a corpus case does not land.

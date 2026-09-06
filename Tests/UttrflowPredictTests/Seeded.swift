@@ -1,12 +1,15 @@
 /// A fixed-seed generator, so every generated case is the same on every run and a failure names its seed.
 struct Seeded: RandomNumberGenerator {
+    /// The generator's whole state, which the seed alone sets.
     private var state: UInt64
 
+    /// A generator that always produces the same sequence for the same seed.
     init(seed: Int) {
         // The multiply spreads small seeds apart and the low bit keeps xorshift out of its zero fixed point.
         state = (UInt64(truncatingIfNeeded: seed) &* 0x9E37_79B9_7F4A_7C15) | 1
     }
 
+    /// The next value in the sequence.
     mutating func next() -> UInt64 {
         state ^= state << 13
         state ^= state >> 7

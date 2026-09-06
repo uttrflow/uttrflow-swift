@@ -54,7 +54,8 @@ struct DictationLimitWiringTests {
                 cleaner: QuietCleaner(),
                 context: FakeContextEngine(),
                 inserter: inserter,
-                clock: clock),
+                // A real clock here, so the manual one carries only the cap's own sleepers.
+                clock: ContinuousClock()),
             monitor: SilentMonitor(),
             activation: .holdToTalk,
             clock: clock,

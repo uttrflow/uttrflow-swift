@@ -129,7 +129,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
         return Self.completions(from: run, typed: typed, asking: ask, in: situation)
     }
 
-    /// The model's words, how the pass ended, and the opening of its turn that was written for it.
+    /// The model's words, how the pass ended, and the opening of its turn handed to it.
     private struct Run {
         let text: String
         let stop: GenerateStopReason?
@@ -142,7 +142,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
     ) -> [String] {
         let text = ask == .one && run.stop == .length ? wholeWords(of: run.text) : run.text
         let context = contextNeverCopied(in: situation)
-        // What was written for the model is the line's own start, so the answer is read as the whole line it would have echoed.
+        // The prefill is the line's own start, so the answer reads as the whole line it would echo.
         return parse(run.written + text, typed: typed).compactMap {
             trimmed($0, typed: typed, echoing: context)
         }
