@@ -1,3 +1,4 @@
+// Where the capture path sends a finished value, and the corpus standing behind it.
 public import UttrflowPredict
 public import UttrflowPredictStore
 

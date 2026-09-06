@@ -38,7 +38,7 @@ public enum SuggestionGeometry {
     }
 
     /// The panel's top-left, hung from the caret's top edge so the leader sits on the line and rows fall below.
-    static func caretAnchored(caret: CGRect, size: CGSize) -> CGPoint {
+    private static func caretAnchored(caret: CGRect, size: CGSize) -> CGPoint {
         CGPoint(x: caret.maxX, y: caret.maxY - size.height)
     }
 

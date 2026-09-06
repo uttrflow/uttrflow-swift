@@ -1,32 +1,32 @@
 import func Foundation.exp
 
 /// How likely somebody meaning one word was to have typed another, which is the noisy channel's P(typed | meant).
-public enum TypoModel {
+enum TypoModel {
     /// What swapping two neighbouring characters costs, being the commonest slip a keyboard produces.
-    public static let transpositionCost = 1.1
+    static let transpositionCost = 1.1
 
     /// What doubling a letter, or dropping one of a doubled pair, costs.
-    public static let repeatedLetterCost = 1.3
+    static let repeatedLetterCost = 1.3
 
     /// What hitting a key physically next to the intended one costs.
-    public static let adjacentSubstitutionCost = 1.8
+    static let adjacentSubstitutionCost = 1.8
 
     /// What typing a stray character, or missing one out, costs.
-    public static let indelCost = 3.2
+    static let indelCost = 3.2
 
     /// What hitting a key nowhere near the intended one costs.
-    public static let distantSubstitutionCost = 4.0
+    static let distantSubstitutionCost = 4.0
 
     /// How much dearer the same slip is in the first character, which people rarely get wrong.
-    public static let firstCharacterMultiplier = 2.4
+    static let firstCharacterMultiplier = 2.4
 
     /// How likely the typed text was given what was meant, 1 when they are the same and never 0 below it.
-    public static func likelihood(typed: String, meant: String) -> Double {
+    static func likelihood(typed: String, meant: String) -> Double {
         exp(logLikelihood(typed: typed, meant: meant))
     }
 
     /// The same likelihood in logs, where costs add rather than multiply and nothing underflows.
-    public static func logLikelihood(typed: String, meant: String) -> Double {
+    static func logLikelihood(typed: String, meant: String) -> Double {
         -cost(typed: Array(typed.lowercased()), meant: Array(meant.lowercased()))
     }
 
@@ -67,7 +67,7 @@ public enum TypoModel {
             areAdjacent(meant, typed) ? adjacentSubstitutionCost : distantSubstitutionCost, atStart: atStart)
     }
 
-    /// What it costs to have missed out the meant character in that position, cheaply when it was a repeat.
+    /// What it costs to have missed out the meant character in that position, cheaply where it repeats a neighbour.
     static func deletion(_ meant: [Character], at i: Int) -> Double {
         let repeats = (i > 1 && meant[i - 1] == meant[i - 2]) || (i < meant.count && meant[i - 1] == meant[i])
         return weighted(repeats ? repeatedLetterCost : indelCost, atStart: i == 1)

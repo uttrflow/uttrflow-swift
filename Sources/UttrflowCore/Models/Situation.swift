@@ -26,7 +26,7 @@ public enum SituationResolver {
             destination: DestinationClassifier.classify(app, rules: rules, overrides: overrides))
     }
 
-    /// The situation a context read carries, with the caret text it was read with.
+    /// The situation a context read carries, together with its own caret text.
     public static func resolve(
         from app: AppContext, overrides: DestinationOverrides = .none
     ) -> Situation {

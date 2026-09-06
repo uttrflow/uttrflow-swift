@@ -14,6 +14,7 @@ public struct ProbeReport: Sendable {
         return table() + "\n" + verdict()
     }
 
+    /// One row per field read, under the header the columns are named in.
     private func table() -> String {
         var lines = [
             "| Application | Role | Field | Value | Caret | Style | Secure | Read | Placement |",
@@ -23,13 +24,14 @@ public struct ProbeReport: Sendable {
             lines.append(
                 "| \(escape(reading.application)) | \(escape(reading.role ?? "—")) "
                     + "| \(escape(reading.locator ?? "—")) "
-                    + "| \(tick(reading.reportsValue)) | \(tick(reading.reportsCaretRect)) "
-                    + "| \(tick(reading.reportsTextStyle)) | \(tick(reading.isSecure)) "
+                    + "| \(yesOrNo(reading.reportsValue)) | \(yesOrNo(reading.reportsCaretRect)) "
+                    + "| \(yesOrNo(reading.reportsTextStyle)) | \(yesOrNo(reading.isSecure)) "
                     + "| \(reading.readMicroseconds) µs | \(name(reading.placement)) |")
         }
         return lines.joined(separator: "\n") + "\n"
     }
 
+    /// The counts the table adds up to, and what they decide.
     private func verdict() -> String {
         let inline = percentage(sweep.inlineShare)
         let eligible = percentage(sweep.eligibleShare)
@@ -46,12 +48,15 @@ public struct ProbeReport: Sendable {
             """
     }
 
+    /// A share as whole percent, which is as precise as a sweep of a few dozen fields can be.
     private func percentage(_ share: Double) -> String {
         "\(Int((share * 100).rounded()))%"
     }
 
-    private func tick(_ value: Bool) -> String { value ? "yes" : "no" }
+    /// One column of the table, as the word a reader scans for.
+    private func yesOrNo(_ value: Bool) -> String { value ? "yes" : "no" }
 
+    /// A placement as the words the report prints for it.
     private func name(_ placement: SuggestionPlacement?) -> String {
         switch placement {
         case .inlineGhost: "inline ghost"

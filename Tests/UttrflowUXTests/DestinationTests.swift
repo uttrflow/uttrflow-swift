@@ -4,8 +4,7 @@ import Testing
 
 @Suite("Where the app can send you")
 struct DestinationTests {
-    /// The tab bars are built from these, so the order is the order on screen and a
-    /// reordering that nobody meant would show up here rather than in a screenshot.
+    /// The tab bars are built from these, so an unmeant reordering shows up here, not in a screenshot.
     @Test("settings tabs are in the approved design's sidebar order")
     func settingsTabOrder() {
         #expect(SettingsTab.allCases == [.general, .languages, .dictation, .suggestions, .privacy])
@@ -21,8 +20,7 @@ struct DestinationTests {
             ])
     }
 
-    /// Destinations are compared to decide whether a window is already showing what was
-    /// asked for, so two ways of naming the same place must not look different.
+    /// Two ways of naming one place compare equal, which is how "already showing it" is decided.
     @Test("the same place is the same destination")
     func equality() {
         #expect(Destination.settings(.privacy) == .settings(.privacy))

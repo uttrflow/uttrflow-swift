@@ -1,42 +1,22 @@
+// The only thing that changes `Settings`, and the sentences it refuses a change with.
 public import struct Foundation.Date
 import UttrflowCore
 import UttrflowPredict
 public import UttrflowSettings
 
-/// Why a change was refused, in the words the user is shown.
-///
-/// Carries the sentence rather than a code, because there is exactly one audience for
-/// a refusal on a settings screen and it is the person who just tried. A caller that
-/// wanted to branch on the kind of refusal would be making a decision this module has
-/// already made.
+/// Why a change was refused, carried as the sentence the user is shown rather than a code.
 public struct SettingsRejection: Error, Sendable, Equatable {
     public let reason: String
 
+    /// Wraps the sentence to show.
     public init(reason: String) {
         self.reason = reason
     }
 }
 
-/// The only thing that changes ``Settings``.
-///
-/// Pure, and the single authority on what a change means. Two rules it enforces rather
-/// than trusts: a shortcut macOS would never deliver is never saved, and the clean-up
-/// preference always ends in a kind that can handle anything. Both are failures the
-/// user could not recover from afterwards — a shortcut that does nothing leaves them
-/// with no way to dictate and no way back to this screen, and a preference the pipeline
-/// runs off the end of loses the words it was given.
+/// The only thing that changes ``Settings``, and the single authority on what a change means.
 public enum SettingsEditor {
-    /// Applies a change, or refuses it and leaves the settings exactly as they were.
-    ///
-    /// - Parameters:
-    ///   - change: What the user asked for.
-    ///   - settings: What they have now.
-    ///   - capabilities: What this Mac can do.
-    ///   - moment: Now, which only the half-hour pause is measured from.
-    /// - Returns: The settings to save.
-    /// - Throws: ``SettingsRejection`` when the change cannot be honoured, carrying the
-    ///   sentence to put in front of the user. The settings passed in are untouched, so
-    ///   a caller that ignores the throw still holds the state that was already good.
+    /// Applies a change, or throws the sentence refusing it and leaves the settings untouched.
     public static func apply(
         _ change: SettingsChange,
         to settings: Settings,
@@ -61,8 +41,7 @@ public enum SettingsEditor {
         case .spokenLanguage(let code, let isSpoken):
             try applyLanguage(code, isSpoken: isSpoken, to: &updated)
         case .appearance(let appearance):
-            // No capability to check: drawing itself light or dark is something every Mac
-            // can do, and refusing it would be refusing a preference for no reason.
+            // No capability to check: every Mac can draw itself light or dark.
             updated.appearance = appearance
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
@@ -82,15 +61,7 @@ public enum SettingsEditor {
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
         case .checkForUpdatesNow:
-            // Changes nothing, and says so here rather than being absent.
-            //
-            // It travels in this enum because the settings screen speaks one vocabulary
-            // and a second channel out of the view is a second thing to keep in step. The
-            // consequence is that this type sees a change it has no opinion about, and
-            // the honest thing is an empty case with a reason — not a `default`, which
-            // would swallow the next case somebody adds and forgets to handle.
-            //
-            // Acting on it belongs to whoever owns the updater; see `SettingsSession`.
+            // Named rather than left to a `default`, which would swallow the next case added.
             break
         }
         return updated
@@ -98,14 +69,14 @@ public enum SettingsEditor {
 
     // MARK: - Toggles
 
+    /// Throws a capability's refusal, then writes the switch.
     private static func applyToggle(
         _ field: SettingsToggleField,
         isOn: Bool,
         to settings: inout Settings,
         given capabilities: SettingsCapabilities
     ) throws(SettingsRejection) {
-        // Turning something off never needs a capability: whatever is missing, off is
-        // a state the machine can certainly manage.
+        // Turning something off needs no capability; off is a state any Mac can manage.
         if isOn, let reason = unavailability(of: field, given: capabilities, in: settings) {
             throw SettingsRejection(reason: reason)
         }
@@ -124,17 +95,13 @@ public enum SettingsEditor {
     /// The one sentence every suggestion control that depends on the master switch is refused with.
     static let suggestionsAreOff = "Turn suggestions on before choosing how they behave."
 
-    /// Refuses a suggestion control while the feature is off, rather than accepting a change nothing would act on.
+    /// Refuses a suggestion control while the feature is off, so no change is accepted unacted on.
     private static func requireSuggestionsAreOn(in settings: Settings) throws(SettingsRejection) {
         guard !settings.suggestions.isEnabled else { return }
         throw SettingsRejection(reason: suggestionsAreOff)
     }
 
-    /// Why a switch cannot be turned on, or `nil` when it can.
-    ///
-    /// Shared by the row and by ``apply(_:to:given:)`` so that a switch drawn as
-    /// operable and a change accepted as valid can never come apart: the row shows this
-    /// sentence, and the editor throws the same one if the change arrives anyway.
+    /// Why a switch cannot be turned on, shared by the row and by ``apply(_:to:given:)``.
     static func unavailability(
         of field: SettingsToggleField,
         given capabilities: SettingsCapabilities,
@@ -163,6 +130,7 @@ public enum SettingsEditor {
         }
     }
 
+    /// Why macOS will not open Uttrflow at login, or `nil` when it will.
     private static func reasonLoginIsUnavailable(_ status: LaunchAtLoginStatus) -> String? {
         switch status {
         case .enabled, .disabled:
@@ -176,30 +144,14 @@ public enum SettingsEditor {
 
     // MARK: - Shortcut
 
-    /// Whether a recorded combination can be saved, and why not when it cannot.
-    ///
-    /// Deliberately the only gate: the recorder asks this before it commits and the
-    /// editor asks it again before it writes, so there is no path — a stored value from
-    /// another build included — by which an undeliverable shortcut becomes the one the
-    /// user is left with.
-    ///
-    /// The three sentences come from ``HotkeyBinding/isUsable`` and
-    /// ``HotkeyBinding/isDeliverable``, which are the whole of what this module can
-    /// know. Naming the offending key code would mean holding a copy of the platform's
-    /// key tables here, and two copies of a table is how they come to disagree.
+    /// The one gate a shortcut passes to be saved, asked by both the recorder and the editor.
     static func rejection(forShortcut binding: HotkeyBinding) -> SettingsRejection? {
         if !binding.isUsable {
             return SettingsRejection(
                 reason: "Hold ⌘, ⌥, ⌃ or ⇧ as well, or the shortcut would fire while you type.")
         }
         if !binding.isDeliverable {
-            // Reached only by a key code no keyboard sends. The old wording here —
-            // "Try a letter, a number or Space" — was written when modifier-only
-            // combinations were refused too, and it described the wrong problem to
-            // everybody who pressed ⌃⌥: it implied they had pressed something exotic when
-            // they had pressed something perfectly ordinary that this app declined to
-            // support. Those are allowed now, and this sentence is back to covering only
-            // what it can actually mean.
+            // Reached only by a key code no keyboard sends; modifier-only combinations are fine.
             return SettingsRejection(
                 reason: "That key did not come from the keyboard, so it cannot start a dictation.")
         }
@@ -208,6 +160,7 @@ public enum SettingsEditor {
 
     // MARK: - Engines
 
+    /// Throws when the Mac cannot tidy this far, then normalises the level into a preference.
     private static func applyTidying(
         _ level: SettingsTidyingLevel,
         to settings: inout Settings,
@@ -216,12 +169,11 @@ public enum SettingsEditor {
         if let reason = unavailability(ofTidying: level, given: capabilities) {
             throw SettingsRejection(reason: reason)
         }
-        // Through `normalised` rather than assigned: the level already yields a lawful
-        // order, and running it through the one gate anyway means no second path to
-        // this field exists for a later change to forget about.
+        // Through `normalised` even so, to leave no second path to this field.
         settings.engines.transformerPreference = SettingsEngines.normalised(level.preference)
     }
 
+    /// Why this much tidying is not on offer, or `nil` when it is.
     static func unavailability(
         ofTidying level: SettingsTidyingLevel,
         given capabilities: SettingsCapabilities
@@ -230,6 +182,7 @@ public enum SettingsEditor {
         return "Full tidying is not available on this Mac yet, so Uttrflow will punctuate only."
     }
 
+    /// Throws when the engine behind this quality is not downloaded, then selects it.
     private static func applyTranscription(
         _ quality: SettingsTranscriptionQuality,
         to settings: inout Settings,
@@ -241,6 +194,7 @@ public enum SettingsEditor {
         settings.engines.speech = quality.engine
     }
 
+    /// Why this quality cannot be chosen, or `nil` when it can.
     static func unavailability(
         ofTranscription quality: SettingsTranscriptionQuality,
         given capabilities: SettingsCapabilities
@@ -251,6 +205,7 @@ public enum SettingsEditor {
 
     // MARK: - Languages
 
+    /// Adds or removes a spoken language, refusing to leave the profile with none.
     private static func applyLanguage(
         _ code: LanguageCode,
         isSpoken: Bool,
@@ -259,8 +214,7 @@ public enum SettingsEditor {
         var languages = settings.profile.preferredLanguages
         if isSpoken {
             guard !languages.contains(code) else { return }
-            // Appended rather than inserted: the order is the order the user added
-            // them, which is as good a guess at their first language as this screen has.
+            // Appended, so the order is the order they were added, the best guess this screen has.
             languages.append(code)
         } else {
             guard languages.count > 1 else {
@@ -304,11 +258,7 @@ public enum SettingsEditor {
 
     // MARK: - Forgetting
 
-    /// Why a reset cannot be asked for, or `nil` when it can.
-    ///
-    /// The same idiom as every other row on this screen: the row shows this sentence and
-    /// ``SettingsSession/request(_:)`` refuses on the same one, so a button drawn as
-    /// operable cannot then decline to do anything.
+    /// Why a reset cannot be asked for, shared by the row and by ``SettingsSession/request(_:)``.
     static func unavailability(
         of reset: SettingsReset, given personalisation: SettingsPersonalisation
     ) -> String? {
@@ -317,9 +267,7 @@ public enum SettingsEditor {
             personalisation.learnedWords > 0
                 ? nil : "Uttrflow has not picked up any words of its own yet."
         case .everything:
-            // Always available. Even with nothing saved there are preferences to put
-            // back, so there is no state in which pressing it achieves nothing — and a
-            // greyed reset is a dead end for the one user who most wants one.
+            // Always available: there are always preferences to put back.
             nil
         case .suggestions(let application):
             personalisation.suggestions(from: application) > 0
@@ -328,11 +276,7 @@ public enum SettingsEditor {
         }
     }
 
-    /// What to say when a reset was asked for and the disk refused.
-    ///
-    /// Says what is still here rather than apologising. A user who asked for their words
-    /// to be deleted and is told "something went wrong" does not know whether they were,
-    /// which is the one thing they needed to find out.
+    /// What to say when the disk refused a reset, naming what is still here rather than apologising.
     static func reason(forFailed reset: SettingsReset) -> String {
         switch reset {
         case .learnedWords, .suggestions:
@@ -344,6 +288,7 @@ public enum SettingsEditor {
 
     // MARK: - Retention
 
+    /// Writes a retention period, refusing any the store would not round-trip.
     private static func applyRetention(
         days: Int,
         to settings: inout Settings

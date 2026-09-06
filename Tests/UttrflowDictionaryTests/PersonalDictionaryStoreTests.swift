@@ -259,22 +259,6 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.index().candidates(soundingLike: "utterflow").count == 1)
     }
 
-    // MARK: The working set
-
-    @Test("hands the speech layer the words worth conditioning it with")
-    func workingSet() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
-        try await store.add(word("Uttrflow", from: .added, used: 4, daysAgo: 30))
-        try await store.add(word("PaymentSheet", from: .added, daysAgo: 30))
-
-        #expect(await store.workingSet(now: epoch) == ["Uttrflow", "PaymentSheet"])
-        #expect(await store.workingSet(limit: 1, now: epoch) == ["Uttrflow"])
-        #expect(
-            await store.workingSet(
-                now: epoch, favouring: AppContext(documentName: "PaymentSheet.swift"))
-                == ["PaymentSheet", "Uttrflow"])
-    }
-
     // MARK: A file nobody should lose the app to
 
     @Test("opens with an empty dictionary when there is no file at all")

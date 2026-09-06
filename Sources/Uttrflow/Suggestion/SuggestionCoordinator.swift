@@ -432,7 +432,7 @@ final class SuggestionCoordinator {
                 completions, for: query, elapsedMilliseconds: since(started),
                 whenEmpty: invented ? .notOnThisMachine : .nothingOffered)
         else { return }
-        // A silence has nothing to place, so it is settled and logged against the field as it was read.
+        // A silence has nothing to place, so it is settled and logged against the field it read.
         guard update.silence == nil else { return settle(update, in: snapshot, since: started) }
         await drawFresh(update, for: snapshot, turn: number)
         // With the one line on screen, the others are fetched behind it, so Down has a list and the person never waited for it.

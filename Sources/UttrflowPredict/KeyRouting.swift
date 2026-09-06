@@ -18,6 +18,7 @@ public struct SuggestionSelection: Sendable, Equatable {
     /// Nothing has been navigated, so the leader is highlighted and ⏎ belongs to the app.
     public static let untouched = SuggestionSelection()
 
+    /// Where the highlight sits, and whether the user put it there.
     public init(index: Int = 0, hasMoved: Bool = false) {
         self.index = index
         self.hasMoved = hasMoved
@@ -32,7 +33,7 @@ public enum KeyDecision: Sendable, Equatable {
     case moveSelection(SuggestionSelection)
     /// Swallow it and go this far quiet.
     case dismiss(Dismissal)
-    /// It was never ours, so the application gets it untouched.
+    /// Never ours, so the application gets it untouched.
     case passThrough
 }
 
