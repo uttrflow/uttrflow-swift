@@ -206,7 +206,7 @@
     .notice .s { font-size: var(--t-footnote); opacity: 0.58; margin-top: 2px; }
 </style>
 </helmet>
-<div class="stage dock" style="width: 900px; height: 880px; padding: 34px">
+<div class="stage dock" style="width: 900px; height: 931px; padding: 34px">
   <div style="padding: 4px 0 0">
     <div class="row" style="margin-bottom: 15px">
       <div style="width: 96px"></div>
@@ -233,7 +233,13 @@
         <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i class="loud" style="height:12.0px"></i><i class="loud" style="height:8.4px"></i><i style="height:5.3px"></i><i class="loud" style="height:13.4px"></i><i class="loud" style="height:10.4px"></i><i style="height:6.8px"></i><i class="loud" style="height:14.6px"></i><i class="loud" style="height:9.2px"></i><i style="height:4.4px"></i><i class="loud" style="height:9.9px"></i><i style="height:5.7px"></i><i style="height:2.8px"></i><i style="height:2.2px"></i><i style="height:2.2px"></i></div></div></div>
       </div>
       <div class="drow">
-        <div class="state-label"><div class="n">Working</div><div class="d">the row settles, then folds to a tick</div></div>
+        <div class="state-label"><div class="n">Working</div><div class="d">the row settles, then a bump crosses it</div></div>
+        <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i></div></div></div>
+        <div style="width: 36px"></div>
+        <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i></div></div></div>
+      </div>
+      <div class="drow">
+        <div class="state-label"><div class="n">Inserting</div><div class="d">handed over, not yet on screen</div></div>
         <div class="slot"><div class="glass compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i></div></div></div>
         <div style="width: 36px"></div>
         <div class="slot dark-col"><div class="glass dark compact"><div class="weight"><svg width="9" height="10" viewBox="19 14 62 72" fill="none" stroke="#04100F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21"/></svg></div><div class="meter"><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i><i style="height:2.9px"></i></div></div></div>
@@ -269,15 +275,16 @@
       button, or hold the shortcut &mdash; both do the same thing and both start with the same
       soft tick so you know it heard you before you start talking.
       <br><br>
-      Listening and working are the same 32 points tall, so nothing moves at the moment you let
-      go of the key. Three of the outcomes are the same 26-point disc, because a success needs no
+      Listening, working and inserting are the same 32 points tall, so nothing moves at the moment
+      you let go of the key, and nothing moves again until the words are in. The tick is a claim
+      about the words, so it waits for them. Three of the outcomes are the same 26-point disc, because a success needs no
       words &mdash; when the text has landed you are already looking at it. Only the state with
       something to do about it is wide, and after a run of discs that width is the message.
     </div>
   </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"$preview":{"width":900,"height":780}}'>
+<script data-dc-script data-props='{"$preview":{"width":900,"height":831}}'>
 class Component extends DCLogic {
   renderVals() { return {}; }
 }
