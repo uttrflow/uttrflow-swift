@@ -42,6 +42,10 @@ comment-audit: ## Prove no file gained a multi-line comment. Needs no build.
 comment-report: ## List the multi-line comments left, worst file first.
 	@python3 Scripts/comment_audit.py --report
 
+.PHONY: docs-audit
+docs-audit: ## Prove the documentation still describes this tree. Needs no build.
+	./Scripts/docs_audit.sh
+
 .PHONY: pii-audit
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
 	./Scripts/pii_audit.sh
@@ -60,7 +64,7 @@ pii-audit: ## Prove no personal data is in the tree. Needs no build.
 # without anybody noticing: a check nothing runs is a check that is already wrong, and
 # this one polices the claim the whole product is sold on.
 .PHONY: verify
-verify: pii-audit comment-audit lint build coverage offline-audit ## The whole gate: PII, comments, lint, build, tests, coverage floor, offline audit.
+verify: pii-audit docs-audit comment-audit lint build coverage offline-audit ## The whole gate: PII, docs, comments, lint, build, tests, coverage floor, offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
