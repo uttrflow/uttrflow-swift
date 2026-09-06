@@ -29,6 +29,12 @@ struct Clean: AsyncParsableCommand {
     @Option(name: .long, help: "Pretend this text is selected on screen.")
     var selection: String?
 
+    @Option(name: .long, help: "Pretend this text sits before the caret.")
+    var before: String?
+
+    @Flag(name: .long, help: "Also show the model's answer before anything unwraps or judges it.")
+    var showModel = false
+
     func run() async throws {
         let raw = try readInput()
         guard !raw.isEmpty else { throw CleanExit.message("Nothing to clean.") }
@@ -50,20 +56,29 @@ struct Clean: AsyncParsableCommand {
         let start = clock.now
         let context = AppContext(
             applicationName: app, bundleIdentifier: bundleID,
-            documentName: document, selectedText: selection
+            documentName: document, selectedText: selection, precedingText: before
         )
-        let result = try await router.transform(
-            TransformationRequest(transcription: Transcription(text: raw), context: context)
-        )
+        let request = TransformationRequest(transcription: Transcription(text: raw), context: context)
+        let result = try await router.transform(request)
         let elapsed = start.duration(to: clock.now)
 
         print("  raw    \(raw)")
-        // Printed from the context rather than the flags, so this is the line the model is given.
-        if let described = AppContextDescriber.describe(context) {
-            print("  seen   \(described)")
+        // Printed from the context rather than the flags, so these are the lines the model is given.
+        for line in PromptBuilder.standard.situationBlock(for: request.situation) {
+            print("  seen   \(line)")
         }
+        print("  as     \(request.situation.destination.rawValue)")
         print("  clean  \(result.text)")
         print("  by     \(result.producedBy.rawValue) in \(format(elapsed))s")
+        if showModel {
+            let builder = PromptBuilder.standard
+            let spoken = CleaningPipeline.beforeModel.run(Draft(transcription: request.transcription)).text
+            let answer = try await AppleFoundationCleanupModel().rewrite(
+                builder.userPrompt(for: request, spoken: spoken),
+                instructions: builder.instructions(for: request.situation.destination),
+                kind: .foundationModels)
+            print("  model  \(answer.replacingOccurrences(of: "\n", with: "⏎"))")
+        }
     }
 
     private func readInput() throws -> String {

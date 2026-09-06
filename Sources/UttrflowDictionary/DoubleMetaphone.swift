@@ -22,7 +22,7 @@ public struct PhoneticCode: Sendable, Hashable {
 
 extension PhoneticCode {
     /// Whether two spellings could be the same word said aloud: any reading of one matching any of the other.
-    func sounds(like other: PhoneticCode) -> Bool { keys.contains(where: other.keys.contains) }
+    public func sounds(like other: PhoneticCode) -> Bool { keys.contains(where: other.keys.contains) }
 
     /// Whether any reading of this word is among `sounds`, the keys of everything else that was said or shown.
     func sounds(likeAnyOf sounds: Set<String>) -> Bool { keys.contains(where: sounds.contains) }

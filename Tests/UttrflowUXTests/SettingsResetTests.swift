@@ -79,6 +79,13 @@ struct SettingsResetLevelTests {
         #expect(Set(Self.everyLevel).count == Self.everyLevel.count)
     }
 
+    /// The last dictation's words are on the diagnostics page, and a reset must not leave them there.
+    @Test("a reset that clears the transcripts clears the last dictation's words too")
+    func forgetsTheLastDictation() {
+        #expect(SettingsReset.everything.forgetsTheLastDictation)
+        #expect(!SettingsReset.learnedWords.forgetsTheLastDictation)
+    }
+
     /// Two opinions about the dictionary in one reset would leave the count describing only one.
     @Test("never holds two opinions about the dictionary at once")
     func noLevelBothKeepsAndEmpties() {
