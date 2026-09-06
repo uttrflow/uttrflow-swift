@@ -279,13 +279,14 @@ struct InsertingStateTests {
         #expect(DictationState.inserting.isListening == false)
     }
 
-    @Test("says what is happening without naming how it is done")
-    func speaksPlainly() {
-        let dock = DictationPresenter.dock(for: .inserting)
+    /// One wait to the person waiting, so a second wording would only announce our own plumbing.
+    @Test("says exactly what tidying says, because it is the same wait")
+    func speaksWithOneVoice() {
+        let inserting = DictationPresenter.dock(for: .inserting)
+        let tidying = DictationPresenter.dock(for: .tidying)
 
-        #expect(dock.primaryLine == "Putting it in…")
-        #expect(dock.accessibilityLabel.isEmpty == false)
-        #expect(dock.accessibilityLabel.lowercased().contains("paste") == false)
+        #expect(inserting == tidying)
+        #expect(inserting.accessibilityLabel.lowercased().contains("paste") == false)
     }
 }
 
