@@ -25,6 +25,7 @@ public struct AcceptKeys: Sendable, Equatable {
     /// The shipped answer, which is the kind of application and nothing else.
     public static let standard = AcceptKeys()
 
+    /// The shipped answer with the user's own choices laid over it.
     public init(overrides: [String: AcceptKey] = [:]) {
         self.overrides = overrides.reduce(into: [:]) { $0[$1.key.lowercased()] = $1.value }
     }

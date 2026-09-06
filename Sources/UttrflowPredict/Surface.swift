@@ -11,7 +11,10 @@ public struct Surface: Hashable, Sendable {
     /// The page host for a web field, or the working directory for a terminal.
     public let scope: String?
 
-    public init(bundleIdentifier: String, role: String, locator: String? = nil, scope: String? = nil) {
+    /// One field, named by as much of it as Accessibility publishes.
+    public init(
+        bundleIdentifier: String, role: String, locator: String? = nil, scope: String? = nil
+    ) {
         self.bundleIdentifier = bundleIdentifier
         self.role = role
         self.locator = locator
@@ -19,21 +22,22 @@ public struct Surface: Hashable, Sendable {
     }
 }
 
-/// One value the user finished entering, and what has happened to it since.
+/// One value the user finished entering, and the record the corpus keeps of it.
 public struct Entry: Sendable, Equatable {
-    /// The text as it was committed.
+    /// The text as committed.
     public let text: String
     /// How many times it has been entered here.
     public let count: Int
-    /// How many times it was offered and taken.
+    /// How many times an offer of it is taken.
     public let accepted: Int
-    /// How many times it was offered and typed past.
+    /// How many times an offer of it is typed past.
     public let rejected: Int
     /// How many of the entries came from accepting our own suggestion rather than typing.
     public let selfSourced: Int
-    /// When it was last entered.
+    /// When it last went in.
     public let lastUsed: Date
 
+    /// One committed value and the record the corpus keeps of it.
     public init(
         text: String, count: Int, accepted: Int = 0, rejected: Int = 0, selfSourced: Int = 0,
         lastUsed: Date

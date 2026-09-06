@@ -1,5 +1,5 @@
 /// What a word in a command line may be, decided by the command it belongs to and where it stands. See `Docs/predict-agent.md`, A1.
-public enum ArgumentKind: Equatable, Sendable {
+enum ArgumentKind: Equatable, Sendable {
     /// The command itself: a program on the path or an alias.
     case program
     /// One of the verbs a program takes, as git's subcommands, make's targets and a project's scripts are.
@@ -15,11 +15,11 @@ public enum ArgumentKind: Equatable, Sendable {
 }
 
 /// The command line as its shell reads it: the simple command the last word belongs to and what that word may be.
-public struct LineShape: Equatable, Sendable {
+struct LineShape: Equatable, Sendable {
     /// The program the word is an argument of, absent when the word is the program.
-    public let command: String?
+    let command: String?
     /// What the word may be.
-    public let kind: ArgumentKind
+    let kind: ArgumentKind
 
     /// The shape of the word a line ends on, from the words before it.
     static func of(_ token: CompletionToken) -> LineShape {

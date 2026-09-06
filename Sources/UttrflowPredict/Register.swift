@@ -13,6 +13,7 @@ public struct Register: Sendable, Equatable {
     /// Whether this person's lines here are web addresses, which a bare word then continues into a host, not a command.
     public let writesAddresses: Bool
 
+    /// The facts as a caller already holds them, for a register that is not inferred.
     public init(
         isMultiline: Bool, typicalLength: Int?, isConversational: Bool, symbolShare: Double,
         usesSentenceCase: Bool?, writesAddresses: Bool = false
