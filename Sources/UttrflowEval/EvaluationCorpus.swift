@@ -714,7 +714,7 @@ public enum EvaluationCorpus {
             mustBeginWith: "Leaving",
             mustEndWith: "cafe"
         ),
-        // Full stops either side of a paragraph break need the model; the rules are not asked to pass this one.
+        // Full stops either side of a paragraph break, which the rules are asked to pass and do.
         .init(
             id: "email-two-paragraphs", category: .contextual,
             spoken: "thanks for your note new paragraph I've attached the revised quote for the second floor",

@@ -122,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         personalisation: FilePersonalisationStore(
             dictionary: dictionary, history: history, clipboard: clipboard),
         onChange: { [weak self] settings in self?.settingsChanged(to: settings) },
-        onReset: { [weak self] _ in self?.refreshMainWindow() },
+        onReset: { [weak self] reset in self?.forget(after: reset) },
         onShortcutRecording: { [weak self] isRecording in
             self?.shortcutRecordingChanged(to: isRecording)
         })
@@ -268,6 +268,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     // MARK: Assembly
 
+    /// The tidier for these settings, built here alone so no caller can leave the dictionary out of it.
+    private func cleaner(for settings: Settings) -> TransformerRouter {
+        TextTransformers.router(
+            configuration: settings.engines, steps: settings.cleaning,
+            spellings: { [dictionary] in await dictionary.index() })
+    }
+
     private func buildPipeline() {
         let model = SpeechModel.default
 
@@ -287,9 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let pipeline = DictationPipeline(
             capture: microphone,
             speech: speech,
-            cleaner: TextTransformers.router(
-                configuration: settings.engines, steps: settings.cleaning,
-                spellings: { [dictionary] in await dictionary.index() }),
+            cleaner: cleaner(for: settings),
             context: context,
             // Announced, like every write this app makes. See `Docs/insertion.md`.
             inserter: TextInsertion.coordinator(pasteboard: announcingPasteboard),
@@ -1000,6 +1005,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         mainWindow.update(mainContent(measurements: lastMeasurements))
     }
 
+    /// Forgets what a reset removed before redrawing, so the page cannot repaint the words it took.
+    private func forget(after reset: SettingsReset) {
+        guard reset.forgetsTheLastDictation else {
+            refreshMainWindow()
+            return
+        }
+        lastCleaning = nil
+        Task { [weak self] in
+            await self?.diagnostics.forget()
+            self?.refreshMainWindow()
+        }
+    }
+
     /// Redraws from a fresh snapshot, reading everything on one hop so the pages agree.
     private func refreshMainWindow() {
         guard mainWindow != nil else { return }
@@ -1368,11 +1386,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations
             || updated.engines != previous.engines
         {
-            let cleaner = TextTransformers.router(
-                configuration: updated.engines, steps: updated.cleaning)
+            let tidier = cleaner(for: updated)
             let overrides = updated.destinations
             Task { [weak self] in
-                await self?.pipeline?.adopt(cleaner: cleaner, destinationOverrides: overrides)
+                await self?.pipeline?.adopt(cleaner: tidier, destinationOverrides: overrides)
             }
         }
 

@@ -236,8 +236,13 @@ Three surfaces, so a word that went missing can be accounted for rather than gue
   collects one account per piece where it already reports the stage timings and hands the
   merged account to `DiagnosticsRecorder`, which keeps the last one and only the last.
   Nothing is written to disk or sent anywhere; the **Copy Diagnostics** report counts the
-  words rather than quoting them, because that string is pasted somewhere else.
-- **A step can be switched off.** Settings → Dictation → "Clean-up steps" offers the eight
+  words rather than quoting them, because that string is pasted somewhere else. Only the
+  steps Settings offers are listed, so the section reads the same whether the model
+  answered or declined and cannot be read backwards into which engine ran, and a row names
+  the first four words and counts the rest. A reset that clears the transcripts clears this
+  too (`DiagnosticsRecorder.forget()`): the page must not still be holding the words the
+  user asked the app to forget.
+- **A step can be switched off.** Settings → Dictation → "Clean-up steps" offers the nine
   deterministic steps, all on by default, stored as the set that is *off*
   (`Settings.cleaning`) so a step a later build adds is on for everybody who never said
   otherwise. `CleaningPipeline.standard(for:situation:steps:)` builds only the ones left
@@ -254,7 +259,10 @@ Three surfaces, so a word that went missing can be accounted for rather than gue
   while the settings window is open the frontmost app is Uttrflow.
 
 All three take effect on the next dictation, not the next launch: `DictationPipeline.adopt`
-takes a freshly built cleaner and the overrides as they now stand.
+takes a freshly built cleaner and the overrides as they now stand. The next dictation
+literally: a dictation under way keeps the cleaner and the overrides it began with, so a
+step switched off while the user is speaking cannot treat the second half of what they say
+differently from the first.
 
 ## Sources
 

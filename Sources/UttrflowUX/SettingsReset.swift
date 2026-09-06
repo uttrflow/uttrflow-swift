@@ -55,6 +55,9 @@ extension SettingsReset {
         }
     }
 
+    /// Whether the last dictation's words go too, which every reset that clears the transcripts does.
+    public var forgetsTheLastDictation: Bool { targets.contains(.history) }
+
     /// Whether the user is asked first, which only what nothing brings back requires.
     public var isConfirmed: Bool {
         switch self {

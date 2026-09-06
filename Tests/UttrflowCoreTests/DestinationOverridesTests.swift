@@ -100,6 +100,18 @@ struct DestinationOverridesTests {
         #expect(decoded.destination(forBundleIdentifier: "com.example.app") == .email)
     }
 
+    @Test("one entry this build has no word for costs only itself, not every other override")
+    func unknownEntryKeepsTheRest() throws {
+        let mixed = Data(
+            """
+            {"overrides":[{"bundleIdentifier":"com.example.App","destination":"email"},\
+            {"bundleIdentifier":"com.example.Other","destination":"whiteboard"}]}
+            """.utf8)
+        let decoded = try JSONDecoder().decode(DestinationOverrides.self, from: mixed)
+        #expect(decoded.overrides.count == 1)
+        #expect(decoded.destination(forBundleIdentifier: "com.example.app") == .email)
+    }
+
     @Test("a blob that says nothing this build understands is no overrides at all")
     func unreadableBlob() throws {
         #expect(

@@ -18,6 +18,8 @@ public actor DictationPipeline {
     private let cleaningRecorder: any CleaningRecording
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     private var destinationOverrides: DestinationOverrides
+    /// The tidier and the overrides this dictation began with, so a change made while speaking lands on the next one.
+    private var inUse: (cleaner: any TranscriptCleaning, overrides: DestinationOverrides)?
     private let recordings: any RecordingKeeper
     /// Where a retried dictation's words go, since the field they were meant for is gone.
     private let clipboard: any TextInserting
@@ -108,6 +110,19 @@ public actor DictationPipeline {
     ) {
         self.cleaner = cleaner
         self.destinationOverrides = destinationOverrides
+        // Nothing is being spoken, so nothing is owed the choices the last dictation ran under.
+        if !isBusy { inUse = nil }
+    }
+
+    /// The tidier this dictation is being run with, which a mid-dictation change does not replace.
+    private var runningCleaner: any TranscriptCleaning { inUse?.cleaner ?? cleaner }
+
+    /// The overrides this dictation is being run with, for the same reason.
+    private var runningOverrides: DestinationOverrides { inUse?.overrides ?? destinationOverrides }
+
+    /// Fixes both for the dictation about to begin.
+    private func takeSettings() {
+        inUse = (cleaner, destinationOverrides)
     }
 
     public var currentState: DictationState { state }
@@ -161,6 +176,7 @@ public actor DictationPipeline {
                 return
             }
             stopwatch = Self.stopwatch(from: clock)
+            takeSettings()
             spokenFor = nil
             insertedInto = nil
             insertedIntoIdentifier = nil
@@ -220,6 +236,7 @@ public actor DictationPipeline {
             return
         }
         stopwatch = nil
+        takeSettings()
         spokenFor = audio.duration
         insertedInto = nil
         insertedIntoIdentifier = nil
@@ -232,6 +249,7 @@ public actor DictationPipeline {
     public func cancel() async {
         cancelledGeneration = generation
         earlyWork?.cancel()
+        earlyWork = nil
         earlyPieces = []
         earlyCut = 0
         await capture.cancel()
@@ -261,10 +279,10 @@ public actor DictationPipeline {
         earlyPieces = []
         earlyCut = 0
         earlyContext = nil
-        earlyWork = Task { [cleaner] in
-            let seeing = await self.earlyContextRead()
-            await cleaner.warm(
-                for: SituationResolver.resolve(from: seeing, overrides: destinationOverrides))
+        earlyWork = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
+            let seeing = await self.earlyContextRead(mine)
+            guard self.isStillRunning(mine) else { return }
+            await cleaner.warm(for: SituationResolver.resolve(from: seeing, overrides: overrides))
             await self.workAhead(mine)
         }
     }
@@ -291,7 +309,7 @@ public actor DictationPipeline {
             }
             guard generation == mine, !wasCancelled(mine) else { return }
             if let heard {
-                let seeing = await earlyContextRead()
+                let seeing = await earlyContextRead(mine)
                 let piece = await finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
                 guard generation == mine, !wasCancelled(mine) else { return }
                 earlyPieces.append(piece)
@@ -301,13 +319,20 @@ public actor DictationPipeline {
     }
 
     /// The screen as it was while the key was held, read once for every early piece.
-    private func earlyContextRead() async -> AppContext {
+    private func earlyContextRead(_ mine: Int) async -> AppContext {
         if let earlyContext { return earlyContext }
         let read = await readContext()
+        // A read the user cancelled belongs to no dictation: the one now under way read its own screen.
+        guard isStillRunning(mine) else { return read }
         earlyContext = read
         insertedInto = read.applicationName
         insertedIntoIdentifier = read.bundleIdentifier
         return read
+    }
+
+    /// Whether the dictation that started at `mine` is still the one under way.
+    private func isStillRunning(_ mine: Int) -> Bool {
+        generation == mine && !wasCancelled(mine)
     }
 
     /// Asks what is on screen, within a budget, answering nothing rather than waiting.
@@ -383,9 +408,9 @@ public actor DictationPipeline {
         }
         // Every piece was done while recording, and the screen it was read against still applies.
         if state == .transcribing { transition(to: .tidying) }
-        let whole = PieceJoiner.join(
-            pieces,
-            under: .standard(for: SituationResolver.resolve(from: appContext ?? AppContext()).destination))
+        let joining = SituationResolver.resolve(
+            from: appContext ?? AppContext(), overrides: runningOverrides)
+        let whole = PieceJoiner.join(pieces, under: .standard(for: joining.destination))
 
         // Inserting a blank would delete the user's selection, so it is refused like silence.
         guard !whole.cleaned.text.isBlank else {
@@ -464,7 +489,7 @@ public actor DictationPipeline {
     ) async -> Piece {
         // The dictionary before the tidier: a correction is argued from the sentence as heard.
         let corrected = await correct(heard, seeing: appContext, recording: metrics)
-        let cleaned = await tidy(heard, saying: corrected.text, seeing: appContext, recording: metrics)
+        let cleaned = await tidy(heard, saying: corrected, seeing: appContext, recording: metrics)
         return Piece(heard: heard, corrected: corrected, cleaned: cleaned)
     }
 
@@ -492,17 +517,19 @@ public actor DictationPipeline {
 
     /// Tidies the transcript, falling back to exactly what was said. The only optional stage.
     private func tidy(
-        _ transcription: Transcription, saying text: String, seeing appContext: AppContext,
-        recording metrics: any MetricsRecording
+        _ transcription: Transcription, saying corrected: CorrectedTranscript,
+        seeing appContext: AppContext, recording metrics: any MetricsRecording
     ) async -> TransformationResult {
+        let text = corrected.text
         // Every piece of a dictation is tidied against the one screen read, so all see one situation.
         let request = TransformationRequest(
-            transcription: transcription.saying(text), context: appContext, profile: profile,
-            situation: SituationResolver.resolve(from: appContext, overrides: destinationOverrides))
+            transcription: transcription.saying(corrected), context: appContext, profile: profile,
+            situation: SituationResolver.resolve(from: appContext, overrides: runningOverrides))
 
         do {
             let tidied = try await metrics.measuring(.transformation, clock: clock) {
-                try await withStageTimeout(StageTimeout.transformation, clock: clock) { [cleaner] in
+                try await withStageTimeout(StageTimeout.transformation, clock: clock) {
+                    [cleaner = runningCleaner] in
                     try await cleaner.clean(request)
                 }
             }
@@ -625,5 +652,48 @@ extension Transcription {
         return Transcription(
             text: text, detectedLanguage: detectedLanguage, segments: segments,
             audioDuration: audioDuration)
+    }
+
+    /// The same speech with the dictionary's spellings in it, every other word keeping the score it was heard with.
+    fileprivate func saying(_ corrected: CorrectedTranscript) -> Transcription {
+        guard corrected.text != text else { return self }
+        let heard = Draft(transcription: self)
+        guard heard.confidencesAreReal else { return saying(corrected.text) }
+
+        var scored: [TranscribedWord] = []
+        var next = 0
+        for correction in corrected.corrections.sorted(by: {
+            $0.wordRange.lowerBound < $1.wordRange.lowerBound
+        }) {
+            let range = correction.wordRange
+            guard range.lowerBound >= next, range.upperBound <= heard.words.count else {
+                return saying(corrected.text)
+            }
+            scored += heard.words[next..<range.lowerBound].map(\.scored)
+            // The dictionary has settled these words, so nothing downstream may treat them as half-heard.
+            scored += correction.wrote.split(whereSeparator: \.isWhitespace).map {
+                TranscribedWord(text: String($0), confidence: 1)
+            }
+            next = range.upperBound
+        }
+        scored += heard.words[next...].map(\.scored)
+
+        // The words have to spell the text, or the confidences would be read onto the wrong ones.
+        let spelling = corrected.text.split(whereSeparator: \.isWhitespace).joined()
+        guard scored.map(\.text).joined() == spelling else { return saying(corrected.text) }
+        return Transcription(
+            text: corrected.text, detectedLanguage: detectedLanguage,
+            segments: [
+                TranscriptionSegment(
+                    text: corrected.text, start: .zero, end: audioDuration, words: scored)
+            ],
+            audioDuration: audioDuration)
+    }
+}
+
+extension Draft.Word {
+    /// The word as the recogniser reported it, so a rebuilt transcription can carry its score.
+    fileprivate var scored: TranscribedWord {
+        TranscribedWord(text: text, confidence: confidence)
     }
 }

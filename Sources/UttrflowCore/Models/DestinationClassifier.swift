@@ -14,22 +14,32 @@ public struct DestinationRule: Sendable, Equatable, Codable {
 
     /// Whether the app's bundle identifier or window title falls under this row.
     public func matches(_ app: AppContext) -> Bool {
-        let bundle = app.bundleIdentifier?.lowercased() ?? ""
-        let title = app.documentName?.lowercased() ?? ""
-        return bundlePrefixes.contains { !bundle.isEmpty && bundle.hasPrefix($0.lowercased()) }
-            || titleContains.contains { !title.isEmpty && title.contains($0.lowercased()) }
+        matchesBundle(app) || matchesTitle(app)
+    }
+
+    /// Whether the app's bundle identifier falls under this row.
+    public func matchesBundle(_ app: AppContext) -> Bool {
+        guard let bundle = app.bundleIdentifier?.lowercased(), !bundle.isEmpty else { return false }
+        return bundlePrefixes.contains { bundle.hasPrefix($0.lowercased()) }
+    }
+
+    /// Whether the app's window title falls under this row, which decides only an app no row names.
+    public func matchesTitle(_ app: AppContext) -> Bool {
+        guard let title = app.documentName?.lowercased(), !title.isEmpty else { return false }
+        return titleContains.contains { title.contains($0.lowercased()) }
     }
 }
 
 /// Decides where the words are going by reading one table, so adding an app is a row.
 public enum DestinationClassifier {
-    /// The user's answer for this app first, then the first rule that matches; no match is `.plain`.
+    /// The user's answer, then every row's bundle identifiers, then their titles; a title never beats an identifier.
     public static func classify(
         _ app: AppContext, rules: [DestinationRule] = DestinationRules.standard,
         overrides: DestinationOverrides = .none
     ) -> Destination {
         overrides.destination(for: app)
-            ?? rules.first { $0.matches(app) }?.destination
+            ?? rules.first { $0.matchesBundle(app) }?.destination
+            ?? rules.first { $0.matchesTitle(app) }?.destination
             ?? .plain
     }
 }

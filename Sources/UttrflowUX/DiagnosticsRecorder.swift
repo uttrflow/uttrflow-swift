@@ -47,4 +47,9 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
     public func record(_ record: CleaningRecord) async {
         lastCleaning = record
     }
+
+    /// Drops the last dictation's words, so a reset leaves none of them on the diagnostics page.
+    public func forget() {
+        lastCleaning = nil
+    }
 }

@@ -10,6 +10,30 @@ public struct Draft: Sendable, Equatable {
             case inserted(by: PassID)
         }
 
+        /// One pass's change to this word, so a later pass touching it does not take the credit.
+        public struct Edit: Sendable, Equatable {
+            /// Which of the three things the pass did.
+            public enum Kind: Sendable, Equatable {
+                case removed
+                case replaced
+                case inserted
+            }
+
+            public let by: PassID
+            public let kind: Kind
+            /// What the word read before this pass; empty for a word the pass put in.
+            public let from: String
+            /// What it read after; empty for a word the pass took out.
+            public let to: String
+
+            public init(by: PassID, kind: Kind, from: String, to: String) {
+                self.by = by
+                self.kind = kind
+                self.from = from
+                self.to = to
+            }
+        }
+
         /// The word as it reads now, or a layout mark beginning with a newline.
         public var text: String
         /// What the recogniser said, never changed; empty for a word a pass inserted.
@@ -17,12 +41,23 @@ public struct Draft: Sendable, Equatable {
         /// The recogniser's confidence in the heard word, 0 to 1.
         public let confidence: Double
         public var state: State
+        /// Every change a pass has made to this word, oldest first.
+        public private(set) var edits: [Edit]
 
-        public init(text: String, heard: String, confidence: Double = 1, state: State = .kept) {
+        public init(
+            text: String, heard: String, confidence: Double = 1, state: State = .kept,
+            edits: [Edit] = []
+        ) {
             self.text = text
             self.heard = heard
             self.confidence = confidence
             self.state = state
+            self.edits = edits
+        }
+
+        /// Notes what a pass has just done to this word, keeping the chain a later pass adds to.
+        mutating func note(_ edit: Edit) {
+            edits.append(edit)
         }
 
         /// A heard word that nothing has touched yet.
@@ -150,18 +185,24 @@ public struct Draft: Sendable, Equatable {
 
     /// Takes the word at `index` out of the text, remembering which pass did it.
     public mutating func remove(at index: Int, by pass: PassID) {
+        guard words[index].isPresent else { return }
+        words[index].note(Word.Edit(by: pass, kind: .removed, from: words[index].text, to: ""))
         words[index].state = .removed(by: pass)
     }
 
-    /// Rewrites the word at `index`, remembering the pass and what it read before.
+    /// Rewrites the word at `index`, remembering the pass and what it read before; a removed word stays removed.
     public mutating func replace(at index: Int, with text: String, by pass: PassID) {
-        guard words[index].text != text else { return }
+        guard words[index].isPresent, words[index].text != text else { return }
+        words[index].note(Word.Edit(by: pass, kind: .replaced, from: words[index].text, to: text))
         words[index].state = .replaced(by: pass, from: words[index].text)
         words[index].text = text
     }
 
     /// Puts a word the speaker never said into the text at `index`.
     public mutating func insert(_ text: String, at index: Int, by pass: PassID) {
-        words.insert(Word(text: text, heard: "", confidence: 1, state: .inserted(by: pass)), at: index)
+        words.insert(
+            Word(
+                text: text, heard: "", confidence: 1, state: .inserted(by: pass),
+                edits: [Word.Edit(by: pass, kind: .inserted, from: "", to: text)]), at: index)
     }
 }

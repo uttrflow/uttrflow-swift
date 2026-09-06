@@ -71,8 +71,17 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
             self.init()
             return
         }
-        self.init(
-            (try? container.decodeIfPresent([DestinationOverride].self, forKey: .overrides)) ?? [])
+        let read = (try? container.decodeIfPresent([Readable].self, forKey: .overrides)) ?? []
+        self.init(read.compactMap(\.override))
+    }
+
+    /// One entry read on its own, so an app named as somewhere this build has no word for costs only itself.
+    private struct Readable: Decodable {
+        let override: DestinationOverride?
+
+        init(from decoder: any Decoder) throws {
+            override = try? DestinationOverride(from: decoder)
+        }
     }
 
     /// The first entry for each app wins, which is what makes ``setting(_:for:named:)`` a replacement.

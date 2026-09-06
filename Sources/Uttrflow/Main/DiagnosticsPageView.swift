@@ -173,9 +173,13 @@ struct DiagnosticsPageView: View {
                 .fill(colour(for: row.state))
                 .frame(width: 8, height: 8)
             Text(row.title)
-            Spacer(minLength: 0)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 12)
+            // Wrapped rather than truncated: a step's row names the words it changed.
             Text(row.detail)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
             if let action = row.action {
                 MainActionButton(action: action, onIntent: onIntent)
             }

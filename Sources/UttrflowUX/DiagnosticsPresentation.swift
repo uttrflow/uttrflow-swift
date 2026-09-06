@@ -446,6 +446,14 @@ public enum DiagnosticsPresenter {
 
     // MARK: - What the clean-up steps did
 
+    /// At most this many words are quoted in a row; the rest are counted, so a row stays a line.
+    static let quoted = 4
+
+    /// The steps this page reports on: the ones the user is offered, whichever engine tidied the words.
+    static func reported(_ record: CleaningRecord) -> [CleaningRecord.Change] {
+        record.changes.filter { CleaningSteps.isOffered($0.step) }
+    }
+
     /// One row per step that changed something, then every step that is off, naming the words rather than counting them.
     static func cleanUpRows(for record: CleaningRecord?) -> [DiagnosticsRow] {
         guard let record else {
@@ -455,7 +463,7 @@ public enum DiagnosticsPresenter {
             ]
         }
 
-        let changed = record.changes.map {
+        let changed = reported(record).map {
             DiagnosticsRow(
                 title: CleaningSteps.name(of: $0.step), detail: detail(of: $0), state: .good)
         }
@@ -471,25 +479,31 @@ public enum DiagnosticsPresenter {
         ]
     }
 
-    /// What one step did, in the words it did it to.
+    /// What one step did, in the first few words it did it to and a count of the rest.
     static func detail(of change: CleaningRecord.Change) -> String {
         var parts: [String] = []
         if !change.removed.isEmpty {
-            parts.append("removed \(change.removed.count): \(change.removed.joined(separator: ", "))")
+            parts.append("removed \(change.removed.count): \(listed(change.removed))")
         }
         if !change.replaced.isEmpty {
             let rewrites = change.replaced.map { "\($0.from) → \($0.to)" }
-            parts.append("rewrote \(rewrites.count): \(rewrites.joined(separator: ", "))")
+            parts.append("rewrote \(rewrites.count): \(listed(rewrites))")
         }
         if !change.inserted.isEmpty {
-            parts.append("added \(change.inserted.count): \(change.inserted.joined(separator: ", "))")
+            parts.append("added \(change.inserted.count): \(listed(change.inserted))")
         }
         return parts.joined(separator: "; ")
     }
 
+    /// The first few words, then how many more there were, because the row is one line of a page.
+    static func listed(_ words: [String]) -> String {
+        guard words.count > quoted else { return words.joined(separator: ", ") }
+        return words.prefix(quoted).joined(separator: ", ") + " and \(words.count - quoted) more"
+    }
+
     /// The same steps counted rather than quoted, for the report that leaves this Mac by hand.
     static func countedCleanUp(_ record: CleaningRecord) -> [String] {
-        record.changes.map { change in
+        reported(record).map { change in
             let counts = [
                 change.removed.isEmpty ? nil : "removed \(change.removed.count)",
                 change.replaced.isEmpty ? nil : "rewrote \(change.replaced.count)",
@@ -587,8 +601,9 @@ public enum DiagnosticsPresenter {
         }
 
         // Counted, never quoted: this string is pasted elsewhere, and dictated words are not a diagnostic.
-        if let cleaning = snapshot.cleaning, !cleaning.isEmpty {
-            lines += ["", "Clean-up steps, last dictation"] + countedCleanUp(cleaning)
+        let counted = snapshot.cleaning.map(countedCleanUp) ?? []
+        if !counted.isEmpty {
+            lines += ["", "Clean-up steps, last dictation"] + counted
         }
 
         let sections: [(String, [DiagnosticsRow])] = [
