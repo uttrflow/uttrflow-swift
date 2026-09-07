@@ -16,7 +16,14 @@ public struct HotkeyRecogniser: Sendable, Equatable {
 
     /// The press or release this stroke completes, or nothing when the state did not change.
     public mutating func receive(_ stroke: KeyStroke) -> HotkeyEvent? {
-        settle(binding.isFunctionHold ? stroke.isFunctionDown : matches(stroke))
+        guard !binding.isFunctionHold else { return receiveFunctionHold(stroke) }
+        return settle(matches(stroke))
+    }
+
+    /// Fn held, read only from a flags change: an arrow key carries the same flag without being Fn.
+    private mutating func receiveFunctionHold(_ stroke: KeyStroke) -> HotkeyEvent? {
+        guard stroke.phase == .modifiersChanged else { return nil }
+        return settle(stroke.isFunctionDown)
     }
 
     /// A release owed because watching stopped mid-hold, or nothing when nothing was held.
