@@ -610,4 +610,13 @@ struct SettingsUpdateEditingTests {
         let updated = try SettingsEditor.apply(.checkForUpdatesNow, to: settings)
         #expect(updated == settings)
     }
+
+    /// Which is why it has to be routed rather than saved; see `SettingsViewModel.apply`.
+    @Test("and says so, so a screen can hand it on instead of storing it")
+    func checkingIsARequestToAct() {
+        #expect(SettingsChange.checkForUpdatesNow.isRequestToAct)
+        #expect(!SettingsChange.toggle(.opensAtLogin, isOn: true).isRequestToAct)
+        #expect(!SettingsChange.retention(days: 7).isRequestToAct)
+        #expect(!SettingsChange.pauseSuggestions(isOn: true).isRequestToAct)
+    }
 }
