@@ -2,7 +2,9 @@
 
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowHistory
+import UttrflowPredict
 import UttrflowSettings
 import UttrflowUX
 
@@ -80,5 +82,158 @@ struct SettingsRequestWiringTests {
         #expect(changed.count == 1)
         #expect(changed.first?.playsSoundWhenRecordingStarts == true)
         #expect(asked.isEmpty)
+    }
+}
+
+// MARK: - Every change reaches something
+
+/// Names a change; exhaustive on purpose, so a new case cannot be added without being named.
+private func name(of change: SettingsChange) -> String {
+    switch change {
+    case .toggle: "toggle"
+    case .activation: "activation"
+    case .anchor: "anchor"
+    case .shortcut: "shortcut"
+    case .tidying: "tidying"
+    case .transcription: "transcription"
+    case .spokenLanguage: "spokenLanguage"
+    case .retention: "retention"
+    case .appearance: "appearance"
+    case .cleaningStep: "cleaningStep"
+    case .appDestination: "appDestination"
+    case .forgetAppDestination: "forgetAppDestination"
+    case .suggestionsHere: "suggestionsHere"
+    case .suggestionAcceptKey: "suggestionAcceptKey"
+    case .pauseSuggestions: "pauseSuggestions"
+    case .checkForUpdatesNow: "checkForUpdatesNow"
+    }
+}
+
+/// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
+private let settingsChangeCaseCount = 16
+
+/// Applies a change, or answers the settings unchanged when the editor refused it.
+private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
+    (try? SettingsEditor.apply(change, to: settings, given: .everything)) ?? settings
+}
+
+/// What a change did. Only `inert` is a bug: a refusal is a sentence the user is shown.
+private enum Outcome: Equatable {
+    case changed
+    case asks
+    case refused
+    case inert
+}
+
+/// What one sample did, which is the whole of what this suite asserts about.
+private func outcome(of sample: Sample) -> Outcome {
+    guard !sample.change.isRequestToAct else { return .asks }
+    do {
+        let after = try SettingsEditor.apply(sample.change, to: sample.from, given: .everything)
+        return after == sample.from ? .inert : .changed
+    } catch {
+        return .refused
+    }
+}
+
+/// One change, and settings it is guaranteed to mean something from.
+private struct Sample {
+    let change: SettingsChange
+    let from: Settings
+
+    init(_ change: SettingsChange, from: Settings = .default) {
+        self.change = change
+        self.from = from
+    }
+}
+
+/// Suggestions on, since every suggestion control is refused while the master switch is off.
+private var suggesting: Settings {
+    var settings = Settings.default
+    settings.suggestions.isEnabled = true
+    return settings
+}
+
+private let knownApp = "com.example.thing"
+
+/// One sample per case, each starting from settings the change actually alters.
+private let samples: [Sample] = [
+    Sample(.toggle(.showsFloatingButton, isOn: !Settings.default.showsFloatingButton)),
+    Sample(.activation(.pressToToggle)),
+    Sample(.anchor(.bottomLeft)),
+    Sample(.shortcut(.dictate, .functionHold)),
+    Sample(.tidying(.light), from: applying(.tidying(.standard), to: .default)),
+    Sample(
+        .transcription(.faster), from: applying(.transcription(.mostAccurate), to: .default)),
+    Sample(.spokenLanguage(.hindi, isSpoken: true)),
+    Sample(.retention(days: 3)),
+    Sample(.appearance(.light)),
+    Sample(.cleaningStep(.fillers, isOn: false)),
+    Sample(.appDestination(bundleIdentifier: knownApp, name: "Thing", destination: .document)),
+    Sample(
+        .forgetAppDestination(bundleIdentifier: knownApp),
+        from: applying(
+            .appDestination(bundleIdentifier: knownApp, name: "Thing", destination: .document),
+            to: .default)),
+    Sample(.suggestionsHere(application: knownApp, isOn: false), from: suggesting),
+    Sample(.suggestionAcceptKey(application: knownApp, key: .rightArrow), from: suggesting),
+    Sample(.pauseSuggestions(isOn: true), from: suggesting),
+    Sample(.checkForUpdatesNow),
+]
+
+/// Settings that start from whatever a sample needs, so a change is applied to ground it alters.
+private final class SeededStore: SettingsStore, @unchecked Sendable {
+    private var settings: Settings
+
+    init(_ settings: Settings) { self.settings = settings }
+
+    func load() -> Settings { settings }
+
+    func save(_ settings: Settings) { self.settings = settings }
+}
+
+@MainActor
+@Suite("Every settings control reaches something")
+struct SettingsChangeWiringTests {
+    @Test("every case has a sample, so a new one cannot be added without saying what it does")
+    func everyCaseHasASample() {
+        #expect(Set(samples.map { name(of: $0.change) }).count == settingsChangeCaseCount)
+    }
+
+    /// The shape of #123: a control that travelled, was saved, altered nothing, and was lost.
+    @Test("no control is inert: each one changes a setting, asks the app to act, or is refused")
+    func noControlIsInert() {
+        for sample in samples {
+            #expect(
+                outcome(of: sample) != .inert,
+                "\(name(of: sample.change)) changed nothing, asked nothing and refused nothing")
+        }
+    }
+
+    /// The half a presenter test cannot see: that the window hands the change on at all.
+    @Test("and the Settings window tells the app about every one of them")
+    func theWindowHandsEveryChangeOn() {
+        for sample in samples {
+            var saved: Settings?
+            var asked: SettingsChange?
+            let store = SeededStore(sample.from)
+            let model = SettingsViewModel(
+                store: store, personalisation: EmptyPersonalisation(), capabilities: .everything,
+                onChange: { saved = $0 }, onRequest: { asked = $0 })
+
+            model.apply(sample.change)
+
+            if sample.change.isRequestToAct {
+                #expect(
+                    asked == sample.change,
+                    "\(name(of: sample.change)) is a request and never reached the app")
+                #expect(saved == nil, "\(name(of: sample.change)) was saved as well as asked")
+            } else {
+                #expect(
+                    saved != nil && saved != sample.from,
+                    "\(name(of: sample.change)) reached the app unchanged, or not at all")
+                #expect(asked == nil, "\(name(of: sample.change)) was asked as well as saved")
+            }
+        }
     }
 }
