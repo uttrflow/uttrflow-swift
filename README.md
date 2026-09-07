@@ -5,6 +5,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/uttrflow/uttrflow-swift/badge)](https://scorecard.dev/viewer/?uri=github.com/uttrflow/uttrflow-swift)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 [![Download](https://img.shields.io/badge/download-latest-brightgreen.svg)](https://github.com/uttrflow/releases/releases/latest/download/Uttrflow.dmg)
+[![Website](https://img.shields.io/badge/website-uttrflow.com-0b7f76.svg)](https://uttrflow.com)
 
 **A native macOS clipboard manager with dictation built in.** Everything you copy is a
 keystroke away, and you can speak into any application instead of typing. Speech becomes
@@ -27,6 +28,7 @@ brew install --cask uttrflow/tap/uttrflow
 
 Or download [`Uttrflow.dmg`](https://github.com/uttrflow/releases/releases/latest/download/Uttrflow.dmg)
 and drag it to Applications. Either way the app updates itself from then on.
+[uttrflow.com/download](https://uttrflow.com/download) names the current version and its size.
 
 The build is not yet notarised by Apple, so the first launch is refused with *"Uttrflow is
 damaged and can't be opened"*. It is not damaged; macOS says that about any download it has
@@ -85,27 +87,10 @@ carrying a dictionary between Macs, and a subscription to bill.
 
 So a clone builds, tests and runs, complete. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-## Install
-
-To install via Homebrew:
-
-```bash
-  brew install --cask uttrflow/tap/uttrflow
-```
-
-Or download the latest .dmg installer:
-
-```bash
-  https://img.shields.io/badge/download-latest-brightgreen.svg
-```
-
-## Requirements
-
-- Apple Silicon Mac, macOS 26 or later
-- Xcode 26.6 or later (supplies the toolchain; the build itself is SwiftPM)
 ## Building it
 
-Xcode 26.6 or later supplies the toolchain; the build itself is SwiftPM.
+Apple Silicon Mac, macOS 26 or later. Xcode 26.6 or later supplies the toolchain; the build
+itself is SwiftPM.
 
 ```bash
 make verify     # lint, PII audit, build, 4,000+ tests, coverage floor, offline audit
@@ -151,6 +136,10 @@ Sources/
   UttrflowDictionary   Words you say that a general model does not know, found by sound.
   UttrflowAccount      Who is signed in, and what their subscription allows.
   UttrflowClipboard    Clipboard history and the panel that shows it.
+  UttrflowPredict      Finishing a line you have typed before: the turn, the gates, the ranking.
+  UttrflowPredictStore The corpus of what you have typed, on this Mac, in SQLite.
+  UttrflowPredictCapture
+                       What may be learned from, and where, and what is refused outright.
   UttrflowUX           What every window and menu should say, decided without drawing it.
   UttrflowPermissions  Reading and requesting what macOS gates the pipeline behind.
   UttrflowEval         Scoring how well it hears and how well it tidies. No model near it.
@@ -291,6 +280,7 @@ ideas go in [Discussions](https://github.com/uttrflow/uttrflow-swift/discussions
 - [`RELEASING.md`](RELEASING.md) — how a release is cut, and why there is no staging branch
 - [`SECURITY.md`](SECURITY.md) — reporting a vulnerability, and what runs automatically
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed, per version
+- [uttrflow.com](https://uttrflow.com) — the site, and what the app is for
 
 ## Licence
 
