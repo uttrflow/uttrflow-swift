@@ -17,7 +17,7 @@ public final class ActivationMonitor: HotkeyMonitoring {
     }
 
     deinit {
-        source.stop()
+        // Not `source.stop()`: a source this monitor owns stops itself, and reaching out here recurses.
         continuation.finish()
     }
 
