@@ -34,3 +34,6 @@ Design/__pycache__/
 # The app builds and runs without them; the buttons carry their wording alone.
 /Sources/Uttrflow/Resources/GoogleMark.png
 /Sources/Uttrflow/Resources/ProviderMarks/
+
+# Generated from UITests/project.yml by Scripts/uitest.sh.
+UITests/*.xcodeproj

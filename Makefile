@@ -6,7 +6,7 @@
 export DEVELOPER_DIR := /Applications/Xcode.app/Contents/Developer
 
 SWIFT := xcrun swift
-SOURCES := Sources Tests
+SOURCES := Sources Tests UITests
 
 .DEFAULT_GOAL := verify
 
@@ -92,6 +92,10 @@ hooks: ## Install the commit-msg and pre-push gates.
 .PHONY: soak
 soak: ## Watch a running Uttrflow's heap for the growth #140 unwinds. Hours, not minutes.
 	./Scripts/soak.sh
+
+.PHONY: uitest
+uitest: ## Drive dist/Uttrflow.app through the UI suite. Needs a windowing session, not CI.
+	./Scripts/uitest.sh
 
 .PHONY: app
 app: ## Build and sign Uttrflow.app into dist/ for this Mac.
