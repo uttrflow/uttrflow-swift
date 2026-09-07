@@ -197,3 +197,30 @@ struct SnippetsEmptyTests {
         #expect(page.example == nil)
     }
 }
+
+@Suite("An editor that has just opened")
+struct UntouchedEditorTests {
+    /// #156: both editors opened already showing a refusal, before anything had been typed.
+    @Test("says nothing about a snippet nobody has typed into yet")
+    func snippetStaysQuiet() {
+        #expect(SnippetsPresenter.problem(with: SnippetDraft(), in: SnippetsSnapshot(now: .now)) == nil)
+    }
+
+    @Test("and starts saying it as soon as there is something to say it about")
+    func snippetSpeaksOnceTouched() {
+        let touched = SnippetDraft(trigger: "", text: "an address")
+        #expect(SnippetsPresenter.problem(with: touched, in: SnippetsSnapshot(now: .now)) != nil)
+    }
+
+    @Test("says nothing about a word nobody has typed into yet")
+    func wordStaysQuiet() {
+        #expect(
+            DictionaryPresenter.problem(with: DictionaryDraft(), in: DictionarySnapshot(now: .now)) == nil)
+    }
+
+    @Test("and starts saying it as soon as there is something to say it about")
+    func wordSpeaksOnceTouched() {
+        let touched = DictionaryDraft(word: "", pronunciation: "nik-hil")
+        #expect(DictionaryPresenter.problem(with: touched, in: DictionarySnapshot(now: .now)) != nil)
+    }
+}
