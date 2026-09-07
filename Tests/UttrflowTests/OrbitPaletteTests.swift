@@ -60,6 +60,21 @@ struct OrbitPaletteTests {
         #expect(abs(light[3] - 0.05) < 0.01)
     }
 
+    /// Average of the channels: enough to tell a ground apart from the ink meant to sit on it.
+    private func brightness(_ channels: [CGFloat]) -> CGFloat {
+        (channels[0] + channels[1] + channels[2]) / 3
+    }
+
+    /// #147 shipped a fixed near-white here, so `.secondary` ink in the dark was invisible on it.
+    @Test("a callout's ground darkens with the theme, or the ink on it cannot be read")
+    func calloutGroundFollowsTheTheme() {
+        let dark = brightness(components(.settingsCalloutWash, in: .darkAqua))
+        let light = brightness(components(.settingsCalloutWash, in: .aqua))
+
+        #expect(dark < 0.2, "a light ground in the dark hides the secondary ink on it")
+        #expect(light > 0.8, "a dark ground in the light hides it just as well")
+    }
+
     /// `name == .darkAqua` would give the high-contrast dark appearance the light palette.
     @Test("counts the accessibility dark appearances as dark")
     func accessibilityDarkIsDark() {
