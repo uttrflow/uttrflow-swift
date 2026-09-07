@@ -13,7 +13,15 @@ struct SettingsControlView: View {
     let model: SettingsViewModel
 
     var body: some View {
-        view(for: control).accessibilityLabel(label)
+        switch control {
+        case .segmented:
+            // Each option names itself; one label over the pair reads as two identical buttons.
+            view(for: control)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(label)
+        default:
+            view(for: control).accessibilityLabel(label)
+        }
     }
 
     /// The one control a settings row asked for.
