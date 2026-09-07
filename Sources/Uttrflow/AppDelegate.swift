@@ -150,6 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         personalisation: FilePersonalisationStore(
             dictionary: dictionary, history: history, clipboard: clipboard),
         onChange: { [weak self] settings in self?.settingsChanged(to: settings) },
+        // Through the same switch the main window uses, so one choice is never applied two ways.
+        onRequest: { [weak self] change in self?.apply(change) },
         onReset: { [weak self] reset in self?.forget(after: reset) },
         onShortcutRecording: { [weak self] isRecording in
             self?.shortcutRecordingChanged(to: isRecording)
@@ -1427,8 +1429,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Applies a setting through ``SettingsEditor``, so two screens cannot apply one choice two ways.
     private func apply(_ change: SettingsChange) {
         // A request to act now rather than a change, so there is no `Settings` to save.
-        if case .checkForUpdatesNow = change {
-            updates.checkForUpdates()
+        if change.isRequestToAct {
+            if case .checkForUpdatesNow = change { updates.checkForUpdates() }
             return
         }
 
