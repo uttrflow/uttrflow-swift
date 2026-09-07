@@ -19,12 +19,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         personalisation: any SettingsPersonalisationStore,
         capabilities: SettingsCapabilities = .thisMac(),
         onChange: @escaping (UttrflowSettings.Settings) -> Void = { _ in },
+        onRequest: @escaping (SettingsChange) -> Void = { _ in },
         onReset: @escaping (SettingsReset) -> Void = { _ in },
         onShortcutRecording: @escaping (Bool) -> Void = { _ in }
     ) {
         model = SettingsViewModel(
             store: store, personalisation: personalisation, capabilities: capabilities,
-            onChange: onChange, onReset: onReset, onShortcutRecording: onShortcutRecording)
+            onChange: onChange, onRequest: onRequest, onReset: onReset,
+            onShortcutRecording: onShortcutRecording)
     }
 
     /// Opens the window and tells it who is signed in; handed over each time, since that can change.
