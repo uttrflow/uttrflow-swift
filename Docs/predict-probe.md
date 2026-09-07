@@ -77,16 +77,17 @@ not — and since the inline ghost is the only surface, there is nothing to fall
 
 `uttrflow-dev probe surface --seconds 120 --output Docs/predict-sweep.md`
 
-**Not yet run.** Accessibility is granted per binary, and `uttrflow-dev` does not have
-it. Granting it needs a password, and the sweep needs somebody to click into a text
+**Not yet run.** The sweep needs somebody to sit at the Mac and click into a text
 field in each application while it runs. Until then the capability table below is empty
-and the ladder decision is unmade.
+and the ladder decision is unmade. Accessibility itself is not the blocker: when the
+binary is launched from a terminal that already holds the grant, the reads succeed —
+see the aside in `Docs/predict-ime.md`.
 
-To run it: grant `.build/release/uttrflow-dev` Accessibility in System Settings ›
-Privacy & Security › Accessibility, then run the command above and click into a text
-field in each of Terminal, Chrome, Safari, Slack, Mail, Notes, Word, Cursor, VS Code,
-Xcode, Messages, Finder, Music, Preview, Numbers, Pages, Linear, Notion, Figma and
-System Settings.
+To run it: from a terminal that already has Accessibility in System Settings › Privacy
+& Security › Accessibility, run the command above and click into a text field in each
+of Terminal, Chrome, Safari, Slack, Mail, Notes, Word, Cursor, VS Code, Xcode,
+Messages, Finder, Music, Preview, Numbers, Pages, Linear, Notion, Figma and System
+Settings.
 
 The probe prints each new field as it sees it, so the run can be watched. It asks
 system-wide first and the application second, in that order, because apps answer one or
@@ -99,8 +100,10 @@ on a page do not collapse into one row.
 
 `uttrflow-dev probe tap --seconds 20`, and `--stall` to force the system to disable it.
 
-**Not yet run**, for the same reason: an event tap cannot be created without
-Accessibility. What it will answer:
+**Not yet run**, for the same reason: somebody has to be at the Mac to drive it.
+An event tap still needs Accessibility, but that comes from the launching terminal
+(again, see `Docs/predict-ime.md`) rather than from granting the binary a password.
+What it will answer:
 
 - Tab is swallowed while the tap is armed, and other keys pass through untouched.
 - `--stall` sleeps two seconds inside the callback, which is past the system's patience,
