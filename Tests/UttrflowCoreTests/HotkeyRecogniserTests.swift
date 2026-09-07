@@ -19,6 +19,14 @@ struct HotkeyRecogniserTests {
         KeyStroke(keyCode: keyCode, modifiers: modifiers, phase: .down)
     }
 
+    /// A key going down or up carrying the Fn flag, which is what every arrow key looks like.
+    private func key(_ keyCode: UInt16, _ phase: KeyPhase, fn: Bool = true) -> KeyStroke {
+        KeyStroke(keyCode: keyCode, modifiers: [], isFunctionDown: fn, phase: phase)
+    }
+
+    /// The right arrow, whose own events carry the Fn flag on macOS.
+    private static let rightArrow: UInt16 = 124
+
     @Test("Fn held on its own, which no NSEvent monitor ever reported")
     func functionHold() {
         var r = HotkeyRecogniser(binding: .functionHold)
@@ -74,6 +82,34 @@ struct HotkeyRecogniserTests {
         #expect(fn.receive(held([.command])) == nil)
         var command = HotkeyRecogniser(binding: HotkeyBinding(keyCode: 55, modifiers: []))
         #expect(command.receive(held([], fn: true)) == nil)
+    }
+
+    @Test("an arrow key is not Fn, though its own events carry the Fn flag")
+    func arrowKeyIsNotFunctionHeld() {
+        var r = HotkeyRecogniser(binding: .functionHold)
+        #expect(r.receive(key(Self.rightArrow, .down)) == nil)
+        #expect(r.receive(key(Self.rightArrow, .up)) == nil)
+        #expect(!r.isDown)
+    }
+
+    @Test("an arrow key pressed during a hold neither starts nor ends it")
+    func arrowKeyDuringAHoldChangesNothing() {
+        var r = HotkeyRecogniser(binding: .functionHold)
+        #expect(r.receive(held([], fn: true)) == .pressed)
+        #expect(r.receive(key(Self.rightArrow, .down)) == nil)
+        #expect(r.receive(key(Self.rightArrow, .up)) == nil)
+        #expect(r.isDown)
+        #expect(r.receive(held([])) == .released)
+    }
+
+    @Test("only the flags change ends a hold, so no later keystroke can end it early")
+    func onlyAFlagsChangeEndsAHold() {
+        var r = HotkeyRecogniser(binding: .functionHold)
+        #expect(r.receive(held([], fn: true)) == .pressed)
+        #expect(r.receive(key(0, .down, fn: false)) == nil)
+        #expect(r.receive(key(0, .up, fn: false)) == nil)
+        #expect(r.isDown)
+        #expect(r.receive(held([])) == .released)
     }
 
     @Test("a hold interrupted by stopping still owes its release, or the microphone stays open")
