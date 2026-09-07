@@ -360,6 +360,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.
     func applicationDidBecomeActive(_ notification: Notification) {
+        // Whatever held the combination may have quit while the user was away.
+        if !unarmedShortcuts.isEmpty { startWatchingForClaimedShortcuts() }
         guard shortcutFailure != nil else { return }
         startWatchingForTheShortcut()
     }
@@ -469,6 +471,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Why the shortcut is not armed, or `nil` when it is. Retried on the way back in.
     private var shortcutFailure: HotkeyError?
+    /// Claimed shortcuts the window server refused, so a row never shows a key that does nothing.
+    private var unarmedShortcuts: Set<ShortcutAction> = [] {
+        didSet {
+            guard unarmedShortcuts != oldValue else { return }
+            settingsWindow.setUnarmedShortcuts(unarmedShortcuts)
+        }
+    }
 
     private func startWatchingForTheShortcut() {
         guard let controller else { return }
@@ -526,6 +535,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         for monitor in claimedHotkeys.values { monitor.stop() }
         claimedHotkeys.removeAll()
 
+        var refused: Set<ShortcutAction> = []
         for descriptor in ShortcutRegistry.claimed {
             let action = descriptor.action
             guard let binding = settings.shortcuts.first(for: action) else { continue }
@@ -536,6 +546,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 Self.log.error(
                     "\(action.rawValue, privacy: .public) shortcut refused: \(error.userMessage, privacy: .public)"
                 )
+                refused.insert(action)
                 continue
             }
             claimedHotkeys[action] = monitor
@@ -547,6 +558,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }
             }
         }
+        unarmedShortcuts = refused
     }
 
     /// Does what one claimed shortcut is for; the registry decides which ones exist.
