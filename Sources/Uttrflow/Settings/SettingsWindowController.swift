@@ -1,6 +1,7 @@
 // Owns the Settings window.
 
 import AppKit
+import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowSettings
@@ -14,6 +15,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     /// What the suggestion model is doing, kept so a capability refresh cannot drop it.
     private var suggestionModel: SuggestionModelReadiness = .notAsked
+    /// Which shortcuts the window server refused, kept for the same reason.
+    private var unarmedShortcuts: Set<ShortcutAction> = []
 
     /// `personalisation` has no default: a fresh store here would be a second actor racing over each file.
     init(
@@ -47,6 +50,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                 for: model.session.settings.profile)
             // Re-applied, because the probe asks this Mac and only the app knows about the fetch.
             refreshed.suggestionModel = suggestionModel
+            refreshed.unarmedShortcuts = unarmedShortcuts
             model.session.capabilities = refreshed
         }
     }
@@ -55,6 +59,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func setSuggestionModel(_ readiness: SuggestionModelReadiness) {
         suggestionModel = readiness
         model.session.capabilities.suggestionModel = readiness
+    }
+
+    /// Told by the app when a shortcut could not be claimed, so its row stops advertising a dead key.
+    func setUnarmedShortcuts(_ unarmed: Set<ShortcutAction>) {
+        unarmedShortcuts = unarmed
+        model.session.capabilities.unarmedShortcuts = unarmed
     }
 
     func close() {

@@ -3,12 +3,16 @@ private import CoreGraphics
 private import Dispatch
 private import Foundation
 public import UttrflowCore
+private import OSLog
 private import Synchronization
 
 /// The shortcut, registered with Carbon, which needs no permission. See `Docs/shortcuts.md`.
 public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     /// Identifies our hot keys in the shared Carbon event stream: 'KHTP'.
     fileprivate static let signature = OSType(0x4B48_5450)
+
+    /// Where a registration says what the window server answered; the status is the whole story.
+    private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "shortcuts")
 
     public let events: AsyncStream<HotkeyEvent>
     private let continuation: AsyncStream<HotkeyEvent>.Continuation
@@ -99,10 +103,16 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
             EventHotKeyID(signature: Self.signature, id: identifier),
             GetEventDispatcherTarget(), 0, &hotKey)
         guard status == noErr, let hotKey else {
-            // Fails when another app owns the combination; the shared handler stays.
+            // With the status: -9878 is this process already holding it, a different fault. #142.
+            Self.log.error(
+                "RegisterEventHotKey refused key \(hotkey.keyCode, privacy: .public) with status \(status, privacy: .public)"
+            )
             hotkeySinks.withLock { $0[identifier] = nil }
             throw .shortcutUnavailable
         }
+        Self.log.debug(
+            "RegisterEventHotKey took key \(hotkey.keyCode, privacy: .public) as id \(identifier, privacy: .public)"
+        )
 
         registration.withLock {
             $0 = CarbonRegistration(identifier: identifier, hotKey: hotKey)

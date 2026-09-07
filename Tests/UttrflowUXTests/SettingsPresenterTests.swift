@@ -620,3 +620,34 @@ struct SettingsUpdateEditingTests {
         #expect(!SettingsChange.pauseSuggestions(isOn: true).isRequestToAct)
     }
 }
+
+@Suite("A shortcut the app could not claim")
+struct UnarmedShortcutTests {
+    private func row(_ capabilities: SettingsCapabilities) -> SettingsRow? {
+        SettingsPresenter.pane(for: .general, settings: .default, capabilities: capabilities)
+            .groups.flatMap(\.rows).first { $0.id == "shortcut.clipboard" }
+    }
+
+    /// #142: the row showed ⇧⌘V as though it worked while the key fell through and pasted.
+    @Test("says so, instead of showing a key that does nothing")
+    func saysSo() throws {
+        var capabilities = SettingsCapabilities.everything
+        capabilities.unarmedShortcuts = [.clipboard]
+        let shown = try #require(row(capabilities))
+        #expect(shown.explanation == SettingsPresenter.unarmed)
+    }
+
+    @Test("and every other row is left alone")
+    func othersAreUntouched() throws {
+        var capabilities = SettingsCapabilities.everything
+        capabilities.unarmedShortcuts = [.dictate]
+        let shown = try #require(row(capabilities))
+        #expect(shown.explanation != SettingsPresenter.unarmed)
+    }
+
+    @Test("while an armed one keeps the explanation it always had")
+    func armedIsUnchanged() throws {
+        let shown = try #require(row(.everything))
+        #expect(shown.explanation != SettingsPresenter.unarmed)
+    }
+}
