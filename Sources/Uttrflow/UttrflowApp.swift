@@ -13,7 +13,8 @@ enum UttrflowApp {
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
         let model = MLXCandidateScorer(model: .gemma3)
         let delegate = AppDelegate(
-            scoring: model, generating: model, prepareModel: { try? await model.prepare() })
+            scoring: model, generating: model,
+            prepareModel: { onProgress in try await model.prepare(onProgress: onProgress) })
         application.delegate = delegate
         // Regular, not accessory: Uttrflow has a Dock icon and its window opens at launch.
         application.setActivationPolicy(.regular)

@@ -59,7 +59,7 @@ public enum SettingsPresenter {
         case .general: general(settings, capabilities)
         case .languages: languages(settings, capabilities)
         case .dictation: dictation(settings, capabilities, personalisation)
-        case .suggestions: suggestions(settings, personalisation, moment)
+        case .suggestions: suggestions(settings, personalisation, capabilities, moment)
         case .privacy: privacy(settings, personalisation)
         }
     }
@@ -317,12 +317,13 @@ public enum SettingsPresenter {
     private static func suggestions(
         _ settings: Settings,
         _ personalisation: SettingsPersonalisation,
+        _ capabilities: SettingsCapabilities,
         _ moment: Date
     ) -> SettingsPane {
         SettingsPane(
             tab: .suggestions,
             title: "Suggestions",
-            banner: nil,
+            banner: suggestionModelBanner(settings, capabilities),
             groups: [
                 SettingsGroup(
                     id: "suggestions",
@@ -349,6 +350,43 @@ public enum SettingsPresenter {
                 message:
                     "Completions come from what you have typed on this Mac. Nothing is uploaded, "
                     + "and a password field is never read."))
+    }
+
+    /// Says what the model is doing, since a switch that is on and silent is indistinguishable from broken.
+    static func suggestionModelBanner(
+        _ settings: Settings, _ capabilities: SettingsCapabilities
+    ) -> SettingsBanner? {
+        // Nothing to explain while the feature is off: the model is not fetched until it is asked for.
+        guard settings.suggestions.isEnabled else { return nil }
+        switch capabilities.suggestionModel {
+        case .ready, .notAsked:
+            return nil
+        case .downloading(let fraction):
+            return SettingsBanner(
+                symbolName: "arrow.down.circle",
+                title: downloadingTitle(fraction),
+                message:
+                    "Uttrflow is fetching the model that finishes your lines, about 3 GB, once. "
+                    + "Suggestions start when it lands.")
+        case .loading:
+            return SettingsBanner(
+                symbolName: "clock",
+                title: "Getting ready",
+                message: "The model is being read into memory. This happens once per launch.")
+        case .failed:
+            return SettingsBanner(
+                symbolName: "exclamationmark.triangle",
+                title: "The model could not be fetched",
+                message:
+                    "Suggestions cannot run without it. Check your connection, then turn the "
+                    + "switch off and on again to try once more.")
+        }
+    }
+
+    /// The percentage where there is one, since a bar with no number says nothing about how long.
+    private static func downloadingTitle(_ fraction: Double?) -> String {
+        guard let fraction else { return "Getting ready" }
+        return "Getting ready — \(Int((fraction * 100).rounded()))%"
     }
 
     /// The half-hour pause, which lifts itself and so is a button rather than a switch.
