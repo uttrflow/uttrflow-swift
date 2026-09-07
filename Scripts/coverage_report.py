@@ -64,9 +64,9 @@ EXCLUDED_FILES = {
         "is tested"
     ),
     "UttrflowInput/SystemKeyboard.swift": (
-        "creates the one CGEventTap, which needs Accessibility and a window server; it "
-        "decides nothing — it reads an event into a KeyStroke and hands it on, and what is "
-        "made of one is HotkeyRecogniser, which is tested against every shape of binding"
+        "creates the one CGEventTap, which needs Accessibility and a window server; the two "
+        "rules it holds are tested without it — HotkeyRecogniser against every shape of "
+        "binding, and TapDisableWindow against a tap the system keeps switching off"
     ),
     "UttrflowInput/ActivationMonitor.swift": (
         "wires the keyboard source to the recogniser; the source needs a window server and "
