@@ -67,6 +67,9 @@ public struct DictionaryDraft: Sendable, Equatable {
         self.word = word
         self.pronunciation = pronunciation
     }
+
+    /// Nothing typed yet, so there is nothing to complain about; see `problem(with:in:)`.
+    public var isUntouched: Bool { word.isEmpty && pronunciation.isEmpty }
 }
 
 /// The word being written, in the row where it will end up; a separate type from the snippet editor.
@@ -293,6 +296,8 @@ public enum DictionaryPresenter {
         let word = draft.word.trimmingCharacters(in: .whitespacesAndNewlines)
         // The store's refusal wins: it is the more recent fact and about the attempt the user made.
         if let refusal = snapshot.refusal, !word.isEmpty { return refusal }
+        // An editor that opens complaining is telling somebody off for doing nothing yet.
+        if draft.isUntouched { return nil }
         if word.isEmpty { return "A word needs a spelling." }
         // Case only, matching ``PersonalDictionaryStore/add(_:)``, so "café" is not refused over "cafe".
         let clash = snapshot.entries.contains {

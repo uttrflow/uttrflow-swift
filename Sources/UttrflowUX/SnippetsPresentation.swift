@@ -94,6 +94,9 @@ public struct SnippetDraft: Sendable, Equatable {
         self.trigger = trigger
         self.text = text
     }
+
+    /// Nothing typed yet, so there is nothing to complain about; see `problem(with:in:)`.
+    public var isUntouched: Bool { trigger.isEmpty && text.isEmpty }
 }
 
 /// Everything the snippets page is drawn from.
@@ -271,6 +274,8 @@ public enum SnippetsPresenter {
     /// Why a draft cannot be saved; a duplicate trigger is refused, since one of two would never fire.
     static func problem(with draft: SnippetDraft, in snapshot: SnippetsSnapshot) -> String? {
         let trigger = draft.trigger.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An editor that opens complaining is telling somebody off for doing nothing yet.
+        if draft.isUntouched { return nil }
         if trigger.isEmpty { return "A snippet needs something to say." }
         // The store's refusal wins: it is the more recent fact and about the attempt the user made.
         if let refusal = snapshot.refusal { return refusal }
