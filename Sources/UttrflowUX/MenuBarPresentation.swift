@@ -115,6 +115,9 @@ public struct MenuBarState: Sendable, Equatable {
     /// Which of the three halves of the product are switched on.
     public var features: MenuBarFeatures
 
+    /// What the user actually bound, so the menu never advertises a key that does nothing.
+    public var shortcuts: ShortcutSet
+
     public init(
         activity: DictationActivity = .idle,
         failure: FailurePresentation? = nil,
@@ -123,7 +126,8 @@ public struct MenuBarState: Sendable, Equatable {
         recents: [MenuBarRecent] = [],
         canCheckForUpdates: Bool = false,
         updateProgress: UpdateProgress = .idle,
-        features: MenuBarFeatures = MenuBarFeatures()
+        features: MenuBarFeatures = MenuBarFeatures(),
+        shortcuts: ShortcutSet = .default
     ) {
         self.activity = activity
         self.failure = failure
@@ -133,6 +137,7 @@ public struct MenuBarState: Sendable, Equatable {
         self.canCheckForUpdates = canCheckForUpdates
         self.updateProgress = updateProgress
         self.features = features
+        self.shortcuts = shortcuts
     }
 }
 
@@ -203,8 +208,27 @@ public struct MenuBarShortcut: Sendable, Equatable {
         self.modifiers = modifiers
     }
 
-    /// The shipping dictation shortcut, as a character because a binding stores a key code.
-    public static let dictation = MenuBarShortcut(key: " ", modifiers: .option)
+    /// The key equivalent for a binding, or nothing when the key cannot be one — `fn` has no character.
+    public static func forBinding(_ binding: HotkeyBinding?) -> MenuBarShortcut? {
+        guard let binding, let key = keyEquivalents[binding.keyCode] else { return nil }
+        // A menu item cannot carry ⌃, and a shortcut missing a modifier is a different shortcut.
+        guard !binding.modifiers.contains(.control) else { return nil }
+        var modifiers: MenuBarModifiers = []
+        if binding.modifiers.contains(.command) { modifiers.insert(.command) }
+        if binding.modifiers.contains(.option) { modifiers.insert(.option) }
+        if binding.modifiers.contains(.shift) { modifiers.insert(.shift) }
+        return MenuBarShortcut(key: key, modifiers: modifiers)
+    }
+
+    /// The key codes an `NSMenuItem` can pair with, by ANSI position; everything else has no character.
+    private static let keyEquivalents: [UInt16: String] = [
+        0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x", 8: "c", 9: "v",
+        11: "b", 12: "q", 13: "w", 14: "e", 15: "r", 16: "y", 17: "t", 31: "o", 32: "u",
+        34: "i", 35: "p", 37: "l", 38: "j", 40: "k", 45: "n", 46: "m",
+        18: "1", 19: "2", 20: "3", 21: "4", 22: "5", 23: "6", 25: "9", 26: "7", 28: "8",
+        29: "0", 24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\", 43: ",",
+        44: "/", 47: ".", 50: "`", 49: " ",
+    ]
 }
 
 /// One thing the user can choose, and whether they may.
@@ -407,7 +431,7 @@ public enum MenuBarPresenter {
                 MenuBarCommand(
                     title: isDictating(in: state) ? "Stop Dictation" : "Start Dictation",
                     intent: isDictating(in: state) ? .stopDictation : .startDictation,
-                    shortcut: .dictation,
+                    shortcut: MenuBarShortcut.forBinding(state.shortcuts.first(for: .dictate)),
                     isEnabled: isDictating(in: state) || canStartDictation(in: state))))
 
         // Directly under dictation: the app's two halves, and this is where a forgotten shortcut is looked up.
@@ -415,7 +439,7 @@ public enum MenuBarPresenter {
             .command(
                 MenuBarCommand(
                     title: "Clipboard", intent: .openClipboard,
-                    shortcut: MenuBarShortcut(key: "v", modifiers: [.command, .shift]),
+                    shortcut: MenuBarShortcut.forBinding(state.shortcuts.first(for: .clipboard)),
                     isEnabled: state.features.clipboard)))
 
         items.append(contentsOf: recentItems(for: state))

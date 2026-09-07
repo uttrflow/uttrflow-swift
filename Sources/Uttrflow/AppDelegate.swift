@@ -1079,7 +1079,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             },
             canCheckForUpdates: UpdateController.isConfigured,
             updateProgress: updates.progress,
-            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled)
+            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled),
+            shortcuts: settings.shortcuts
         )
     }
 
