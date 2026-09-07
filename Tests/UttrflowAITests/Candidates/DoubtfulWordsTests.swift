@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import UttrflowCore
 import UttrflowDictionary
@@ -88,8 +89,10 @@ struct DoubtfulWordsTests {
             }
             best = min(best, taken)
         }
-        // Five times the design's 10 ms: a shared runner measured 34 ms for work this Mac does in 2 ms.
-        #expect(best < .milliseconds(50), "the candidate step took \(best)")
+        // The budget where the machine is known; an order of magnitude where it is shared. See #136.
+        let onARunner = ProcessInfo.processInfo.environment["CI"] != nil
+        let ceiling: Duration = onARunner ? .milliseconds(500) : .milliseconds(50)
+        #expect(best < ceiling, "the candidate step took \(best)")
     }
 
     @Test("asks the user's own dictionary before the screen and the general vocabulary")

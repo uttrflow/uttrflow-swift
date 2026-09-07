@@ -529,3 +529,25 @@ struct DictationControllerControlTests {
         #expect(harness.cue.plays == [.start, .stop])
     }
 }
+
+// MARK: - Being let go of
+
+@Suite("A controller nothing holds")
+struct DictationControllerLifetimeTests {
+    /// The tap and its thread go with the controller, so a controller that cannot die leaks both.
+    @Test("is deallocated, rather than kept alive by the task reading its own gestures")
+    func isDeallocated() async {
+        weak var released: DictationController<ManualClock>?
+        do {
+            let controller = makeHarness().controller
+            released = controller
+            #expect(released != nil)
+            await controller.stop()
+        }
+        // The task holds the stream, not the controller, so the drop is what has to be waited for.
+        for _ in 0..<200 where released != nil {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(released == nil, "the controller outlived every reference to it")
+    }
+}

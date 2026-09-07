@@ -25,6 +25,9 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// How far along the model tab-to-complete needs is, so the screen can say why it is silent.
     public var suggestionModel: SuggestionModelReadiness
 
+    /// Shortcuts the app could not claim, so a row never shows a key that does nothing.
+    public var unarmedShortcuts: Set<ShortcutAction>
+
     /// Builds the answers; updates and the version default to absent.
     public init(
         launchAtLogin: LaunchAtLoginStatus,
@@ -33,7 +36,8 @@ public struct SettingsCapabilities: Sendable, Equatable {
         versionDescription: String? = nil,
         readySpeechEngines: Set<SpeechEngineKind>,
         readyTransformers: Set<TransformerKind>,
-        suggestionModel: SuggestionModelReadiness = .notAsked
+        suggestionModel: SuggestionModelReadiness = .notAsked,
+        unarmedShortcuts: Set<ShortcutAction> = []
     ) {
         self.launchAtLogin = launchAtLogin
         self.canPlayRecordingSound = canPlayRecordingSound
@@ -42,6 +46,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         self.readySpeechEngines = readySpeechEngines
         self.readyTransformers = readyTransformers
         self.suggestionModel = suggestionModel
+        self.unarmedShortcuts = unarmedShortcuts
     }
 
     /// A Mac that can do everything: the start of a real probe, and a test's default.

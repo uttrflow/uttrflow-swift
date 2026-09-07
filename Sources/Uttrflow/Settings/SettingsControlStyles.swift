@@ -158,6 +158,8 @@ struct SettingsButtonStyle: ButtonStyle {
 extension Color {
     /// The fill under a control on a card, one step lifted, so a switch does not read as a hole.
     static let settingsControl = Color(nsColor: .orbit(dark: 0x12_151C, light: 0xF1_F0F5))
+    /// The callout's ground. Its ink is `.secondary`, which follows the theme, so this must too.
+    static let settingsCalloutWash = Color(nsColor: .settingsCalloutWash)
     /// The accent as a mark rather than a fill, in a window that follows the system's appearance.
     static let settingsAccentInk = Color(nsColor: .orbit(dark: 0x5F_E0D3, light: 0x0E_6B64))
 }

@@ -66,11 +66,25 @@ public enum SettingsPresenter {
 
     // MARK: - General
 
+    /// Said before anything else: a key that is not claimed does nothing, whatever the row shows.
+    static let unarmed = "Uttrflow could not claim this shortcut, so it does nothing. Try another."
+
     /// One shortcut's row, drawn the same way whichever shortcut it is.
+
     private static func shortcutRow(
-        _ descriptor: ShortcutDescriptor, _ settings: Settings
+        _ descriptor: ShortcutDescriptor, _ settings: Settings,
+        _ capabilities: SettingsCapabilities
     ) -> SettingsRow {
         let binding = settings.shortcuts.first(for: descriptor.action)
+        guard !capabilities.unarmedShortcuts.contains(descriptor.action) else {
+            return SettingsRow(
+                id: "shortcut.\(descriptor.action.rawValue)",
+                label: descriptor.label,
+                explanation: unarmed,
+                control: .shortcut(
+                    action: descriptor.action,
+                    keys: binding.map(SettingsShortcut.keycaps) ?? []))
+        }
         return SettingsRow(
             id: "shortcut.\(descriptor.action.rawValue)",
             label: descriptor.label,
@@ -100,7 +114,7 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "shortcut",
                     title: nil,
-                    rows: [] + ShortcutRegistry.all.map { shortcutRow($0, settings) } + [
+                    rows: [] + ShortcutRegistry.all.map { shortcutRow($0, settings, capabilities) } + [
                         SettingsRow(
                             id: "activation",
                             label: "Activation",

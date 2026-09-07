@@ -63,12 +63,49 @@ public final class SystemKeyboard: KeyboardEventSource {
     }
 }
 
-/// Holds the sink across the C callback boundary, and owns the lock guarding it.
+/// Holds the sink across the C callback boundary, the port to revive, and the lock guarding both.
 private final class Delivery: @unchecked Sendable {
     private let sink = Mutex<(@Sendable (KeyStroke) -> Void)?>(nil)
+    /// How many disables have counted against the tap inside the current window.
+    private let disables = Atomic<Int>(0)
+    /// When the last disable arrived, so two close together read as one fault.
+    private let lastDisable = Atomic<UInt64>(0)
+    /// The port, kept where the callback can revive the tap without taking a lock.
+    private let tapPointer = Atomic<UnsafeMutableRawPointer?>(nil)
+
+    deinit {
+        if let held = tapPointer.load(ordering: .relaxed) {
+            Unmanaged<CFMachPort>.fromOpaque(held).release()
+        }
+    }
 
     func set(_ value: (@Sendable (KeyStroke) -> Void)?) { sink.withLock { $0 = value } }
     func send(_ stroke: KeyStroke) { sink.withLock { $0 }?(stroke) }
+
+    /// Keeps the port the callback re-enables; the tap exists only after its own callback is written.
+    func adopt(_ port: CFMachPort) {
+        if let previous = tapPointer.exchange(
+            Unmanaged.passRetained(port).toOpaque(), ordering: .releasing)
+        {
+            Unmanaged<CFMachPort>.fromOpaque(previous).release()
+        }
+    }
+
+    /// The port to revive, read only on the path where the system has already stopped delivering.
+    func port() -> CFMachPort? {
+        guard let held = tapPointer.load(ordering: .acquiring) else { return nil }
+        return Unmanaged<CFMachPort>.fromOpaque(held).takeUnretainedValue()
+    }
+
+    /// Whether to turn the tap back on, which it is unless it keeps being disabled in a short window.
+    func shouldReEnable() -> Bool {
+        let now = DispatchTime.now().uptimeNanoseconds
+        let last = lastDisable.exchange(now, ordering: .relaxed)
+        let (count, reEnable) = TapDisableWindow.decide(
+            last: last, now: now, count: disables.load(ordering: .relaxed))
+        disables.store(count, ordering: .relaxed)
+        return reEnable
+    }
 }
 
 /// The tap, its run loop source, and the thread the two live on.
@@ -100,6 +137,7 @@ private final class RunningTap: @unchecked Sendable {
             held.release()
             return nil
         }
+        delivery.adopt(tap)
         return RunningTap(tap: tap, source: source, held: held)
     }
 
@@ -131,6 +169,13 @@ private func systemKeyboardCallback(
 ) -> Unmanaged<CGEvent>? {
     guard let userInfo else { return Unmanaged.passUnretained(event) }
     let delivery = Unmanaged<Delivery>.fromOpaque(userInfo).takeUnretainedValue()
+    // A tap the system switched off delivers nothing until it is asked back on. See KeyInterceptor.
+    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        if delivery.shouldReEnable(), let port = delivery.port() {
+            CGEvent.tapEnable(tap: port, enable: true)
+        }
+        return Unmanaged.passUnretained(event)
+    }
     let phase: KeyPhase? =
         switch type {
         case .flagsChanged: .modifiersChanged
