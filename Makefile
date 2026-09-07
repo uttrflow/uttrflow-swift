@@ -89,6 +89,10 @@ hooks: ## Install the commit-msg and pre-push gates.
 	@echo "              and runs 'make verify' before a push to main"
 	@echo "Skip deliberately with: git commit --no-verify / git push --no-verify"
 
+.PHONY: soak
+soak: ## Watch a running Uttrflow's heap for the growth #140 unwinds. Hours, not minutes.
+	./Scripts/soak.sh
+
 .PHONY: app
 app: ## Build and sign Uttrflow.app into dist/ for this Mac.
 	./Scripts/bundle.sh
