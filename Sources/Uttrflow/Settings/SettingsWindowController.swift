@@ -12,6 +12,8 @@ import SwiftUI
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let model: SettingsViewModel
     private var window: NSWindow?
+    /// What the suggestion model is doing, kept so a capability refresh cannot drop it.
+    private var suggestionModel: SuggestionModelReadiness = .notAsked
 
     /// `personalisation` has no default: a fresh store here would be a second actor racing over each file.
     init(
@@ -39,10 +41,20 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
         model.refreshPersonalisation()
 
-        Task { [model] in
-            model.session.capabilities = await SettingsCapabilities.refreshed(
+        Task { [weak self] in
+            guard let self else { return }
+            var refreshed = await SettingsCapabilities.refreshed(
                 for: model.session.settings.profile)
+            // Re-applied, because the probe asks this Mac and only the app knows about the fetch.
+            refreshed.suggestionModel = suggestionModel
+            model.session.capabilities = refreshed
         }
+    }
+
+    /// Told by the app as the weights are fetched and read, so a window already open redraws.
+    func setSuggestionModel(_ readiness: SuggestionModelReadiness) {
+        suggestionModel = readiness
+        model.session.capabilities.suggestionModel = readiness
     }
 
     func close() {

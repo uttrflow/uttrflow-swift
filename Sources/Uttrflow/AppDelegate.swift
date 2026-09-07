@@ -76,16 +76,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let scoring: (any CandidateScoring)?
     /// The local model that invents a suggestion where the corpus has none, handed in the same way.
     private let generating: (any CandidateGenerating)?
-    /// Fetches and loads that model's weights, run when tab-to-complete is first built rather than at launch.
-    private let prepareModel: (@Sendable () async -> Void)?
+    /// Fetches and loads that model's weights, reporting progress, run when tab-to-complete is first built.
+    private let prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)?
     /// Whether the weights have been asked for already, so turning the feature off and on does not ask twice.
     private var isModelPreparing = false
+    /// How far along that fetch is; internal so a test can read back what it did.
+    private(set) var suggestionModel: SuggestionModelReadiness = .notAsked {
+        didSet {
+            guard suggestionModel != oldValue else { return }
+            settingsWindow.setSuggestionModel(suggestionModel)
+        }
+    }
 
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
         container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
         scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
-        prepareModel: (@Sendable () async -> Void)? = nil
+        prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)? = nil
     ) {
         self.container = container
         self.loginItem = loginItem
@@ -295,11 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
     private func startCompletingWhatIsTyped() {
         guard settings.suggestions.isEnabled, completions == nil else { return }
-        // Several gigabytes of weights are fetched only once somebody has asked for the feature, so a Mac that never turns it on never downloads them.
-        if let prepareModel, !isModelPreparing {
-            isModelPreparing = true
-            Task.detached { await prepareModel() }
-        }
+        prepareTheModelIfNeeded()
         do {
             let coordinator = try SuggestionCoordinator(
                 container: container, preferences: settings.suggestions, scoring: scoring,
@@ -313,6 +316,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         } catch {
             Self.log.error("the corpus would not open: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    /// Fetches the several gigabytes of weights once somebody has asked for the feature, saying how far along.
+    private func prepareTheModelIfNeeded() {
+        guard let prepareModel, !isModelPreparing else { return }
+        isModelPreparing = true
+        suggestionModel = .downloading(fractionCompleted: nil)
+        // Built here rather than inside the task, so it takes its own handle and not the task's.
+        let report: @Sendable (Double) -> Void = { [weak self] fraction in
+            Task { @MainActor in self?.suggestionModelProgressed(fraction) }
+        }
+        Task { [weak self] in
+            do {
+                try await prepareModel(report)
+                self?.suggestionModel = .ready
+            } catch {
+                Self.log.error(
+                    "the suggestion model did not load: \(String(describing: error), privacy: .public)")
+                // Cleared, so turning the feature off and on tries again rather than staying dead all launch.
+                self?.isModelPreparing = false
+                self?.suggestionModel = .failed
+            }
+        }
+    }
+
+    /// Moves the reading on, and to loading once every byte is down and only the reading-in is left.
+    private func suggestionModelProgressed(_ fraction: Double) {
+        guard case .downloading = suggestionModel else { return }
+        suggestionModel = fraction >= 1 ? .loading : .downloading(fractionCompleted: fraction)
     }
 
     /// Follows the Suggestions screen: builds the loop, takes it away, or hands it what changed.
