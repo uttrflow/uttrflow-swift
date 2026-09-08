@@ -143,6 +143,35 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "writes dates from ordinals before months",
+        arguments: [
+            ("third of June", "third of June"),
+            ("the third of June", "the third of June"),
+            ("twenty fifth of March", "25 March"),
+            ("twenty first of May", "21 May"),
+            ("first of January", "first of January"),
+            ("thirty first of December", "31 December"),
+            ("twenty fifth March", "25 March"),
+            ("tenth of April", "10 April"),
+        ]
+    )
+    func dates(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes dates from ordinals before months under always policy",
+        arguments: [
+            ("third of June", "3 June"),
+            ("the third of June", "the 3 June"),
+            ("first of January", "1 January"),
+        ]
+    )
+    func datesAlwaysPolicy(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
+    }
+
     @Test("leaves numbers in other languages alone")
     func otherLanguages() {
         #expect(cleaned("बीस मिनट", by: sut) == "बीस मिनट")
