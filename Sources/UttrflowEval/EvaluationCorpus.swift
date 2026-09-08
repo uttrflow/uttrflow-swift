@@ -126,6 +126,12 @@ public enum EvaluationCorpus {
             mustKeep: ["room"]
         ),
         .init(
+            id: "coordinated-apology-kept", category: .everyday,
+            spoken: "say sorry to john sorry to marcy too",
+            expected: "Say sorry to John, sorry to Marcy too.",
+            mustKeep: ["John", "Marcy"]
+        ),
+        .init(
             id: "spoken-comma", category: .everyday,
             spoken: "we still need milk comma eggs comma and bread from the shop",
             expected: "We still need milk, eggs, and bread from the shop.",
