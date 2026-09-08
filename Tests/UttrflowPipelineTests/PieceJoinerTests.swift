@@ -97,6 +97,27 @@ struct PieceJoinerListTests {
                 == "First, the milk and the eggs.\n\nSecond, the bread.")
     }
 
+    /// "One person came" counts the people; a bare cardinal announces an item only where the speaker set it off, and an ordinal never counts.
+    @Test("a bare cardinal counting what follows it is prose, however the pieces line up")
+    func anAmountIsNotAnItem() {
+        #expect(
+            joined(["One person came to the review.", "Two people left before the end."], .document)
+                == "One person came to the review. Two people left before the end.")
+        #expect(
+            joined(["One hundred people came.", "Two hundred left."], .document)
+                == "One hundred people came. Two hundred left.")
+        #expect(
+            joined(["One bug is still open.", "Two tests are still red."], .document)
+                == "One bug is still open. Two tests are still red.")
+    }
+
+    @Test("an announcing word says an item as plainly as the mark does")
+    func announcedItemNeedsNoMark() {
+        #expect(
+            joined(["Number one fix the build.", "Number two review the PR."], .document)
+                == "- Fix the build\n- Review the PR")
+    }
+
     @Test("counts ordinals and cardinals as different sequences, so a mixed one is prose")
     func mixedSequenceIsProse() {
         #expect(
