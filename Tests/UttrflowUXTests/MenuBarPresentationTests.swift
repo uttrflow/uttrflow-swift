@@ -464,3 +464,31 @@ struct MenuBarUpdateTests {
         #expect(spoken == "Uttrflow. Updating.")
     }
 }
+
+@Suite("The shortcut the menu prints")
+struct MenuBarPrintedShortcutTests {
+    /// #157: the menu showed the shipped default, so anybody who rebound was told the wrong key.
+    @Test("is the one the user bound, not the one the product ships with")
+    func followsTheBinding() {
+        var state = MenuBarState()
+        state.shortcuts = ShortcutSet([.dictate: [.optionSpace]])
+        let dictate = MenuBarPresenter.present(state).command(.startDictation)
+        #expect(dictate?.shortcut == MenuBarShortcut(key: " ", modifiers: .option))
+    }
+
+    @Test("is absent rather than wrong when the key cannot be a menu equivalent")
+    func absentWhenUnprintable() {
+        var state = MenuBarState()
+        state.shortcuts = ShortcutSet([.dictate: [.functionHold]])
+        let dictate = MenuBarPresenter.present(state).command(.startDictation)
+        #expect(dictate != nil)
+        #expect(dictate?.shortcut == nil, "fn has no character, so the menu must not invent one")
+    }
+
+    @Test("and a modifier the menu cannot carry takes the whole shortcut with it")
+    func absentWhenAModifierCannotBeCarried() {
+        let control = HotkeyBinding(keyCode: 9, modifiers: [.control, .command])
+        #expect(MenuBarShortcut.forBinding(control) == nil)
+        #expect(MenuBarShortcut.forBinding(.shiftCommandV)?.key == "v")
+    }
+}

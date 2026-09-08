@@ -45,7 +45,14 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         self.limit = limit
         self.onAdvice = onAdvice
         (gestures, gestureSink) = AsyncStream<HotkeyEvent>.makeStream()
-        Task { await self.consumeGestures() }
+        // Weak, like the forwarder below: a strong `self` here would never let the controller die.
+        let queued = gestures
+        Task { [weak self] in
+            for await event in queued {
+                guard let self else { return }
+                await handle(event)
+            }
+        }
         // Forwarded once for the controller's life: an `AsyncStream` has room for one reader.
         let events = monitor.events
         Task { [weak self] in
@@ -53,15 +60,14 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
     }
 
+    deinit {
+        // Ends the gesture task, which is waiting on a stream only this controller can finish.
+        gestureSink.finish()
+    }
+
     /// Queues a gesture from any source behind whatever is in flight, and returns at once.
     public nonisolated func submit(_ event: HotkeyEvent) {
         gestureSink.yield(event)
-    }
-
-    private func consumeGestures() async {
-        for await event in gestures {
-            await handle(event)
-        }
     }
 
     /// Watches for the shortcut, or rebinds to another one. See Docs/pipeline-gestures.md.

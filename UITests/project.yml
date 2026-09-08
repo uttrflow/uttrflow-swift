@@ -1,0 +1,25 @@
+# Generated into UITests/UttrflowUITests.xcodeproj by Scripts/uitest.sh, which is gitignored.
+# SwiftPM cannot express a UI-testing bundle, and this is the smallest thing that can.
+name: UttrflowUITests
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "26.0"
+targets:
+  UttrflowUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - UttrflowUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.uttrflow.UttrflowUITests
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: true
+schemes:
+  UttrflowUITests:
+    build:
+      targets:
+        UttrflowUITests: [test]
+    test:
+      targets: [UttrflowUITests]

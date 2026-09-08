@@ -80,6 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)?
     /// Whether the weights have been asked for already, so turning the feature off and on does not ask twice.
     private var isModelPreparing = false
+    /// Which clean-up engines answered that they could run; internal so a test can read it back.
+    private(set) var transformerAvailability: [TransformerKind: Bool] = [:]
+
     /// How far along that fetch is; internal so a test can read back what it did.
     private(set) var suggestionModel: SuggestionModelReadiness = .notAsked {
         didSet {
@@ -184,6 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         startWatchingTheClipboard()
         startCompletingWhatIsTyped()
         loadSpeechModel()
+        probeTransformers()
         refreshAccount()
         presentOnboardingIfNeeded()
         // Shown at launch, since a menu-bar icon alone is an interface most people never find.
@@ -206,6 +210,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let self, let pipeline else { return }
             speechReadiness = await pipeline.isReady ? .ready : .notInstalled
             refreshMenuBar()
+        }
+    }
+
+    /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show.
+    func probeTransformers() {
+        Task { [weak self] in
+            guard let self else { return }
+            let ready = await SettingsCapabilities.refreshed(for: settings.profile)
+                .readyTransformers
+            transformerAvailability = Dictionary(
+                uniqueKeysWithValues: TransformerKind.allCases.map { ($0, ready.contains($0)) })
+            refreshMainWindow()
         }
     }
 
@@ -360,6 +376,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.
     func applicationDidBecomeActive(_ notification: Notification) {
+        // Whatever held the combination may have quit while the user was away.
+        if !unarmedShortcuts.isEmpty { startWatchingForClaimedShortcuts() }
         guard shortcutFailure != nil else { return }
         startWatchingForTheShortcut()
     }
@@ -469,6 +487,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Why the shortcut is not armed, or `nil` when it is. Retried on the way back in.
     private var shortcutFailure: HotkeyError?
+    /// Claimed shortcuts the window server refused, so a row never shows a key that does nothing.
+    private var unarmedShortcuts: Set<ShortcutAction> = [] {
+        didSet {
+            guard unarmedShortcuts != oldValue else { return }
+            settingsWindow.setUnarmedShortcuts(unarmedShortcuts)
+        }
+    }
 
     private func startWatchingForTheShortcut() {
         guard let controller else { return }
@@ -526,6 +551,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         for monitor in claimedHotkeys.values { monitor.stop() }
         claimedHotkeys.removeAll()
 
+        var refused: Set<ShortcutAction> = []
         for descriptor in ShortcutRegistry.claimed {
             let action = descriptor.action
             guard let binding = settings.shortcuts.first(for: action) else { continue }
@@ -536,6 +562,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 Self.log.error(
                     "\(action.rawValue, privacy: .public) shortcut refused: \(error.userMessage, privacy: .public)"
                 )
+                refused.insert(action)
                 continue
             }
             claimedHotkeys[action] = monitor
@@ -547,6 +574,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }
             }
         }
+        unarmedShortcuts = refused
     }
 
     /// Does what one claimed shortcut is for; the registry decides which ones exist.
@@ -1079,7 +1107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             },
             canCheckForUpdates: UpdateController.isConfigured,
             updateProgress: updates.progress,
-            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled)
+            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled),
+            shortcuts: settings.shortcuts
         )
     }
 
@@ -1280,7 +1309,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     settings: settings, capabilities: SettingsCapabilities.everything)),
             diagnostics: DiagnosticsPresenter.page(
                 for: DiagnosticsSnapshot(
-                    engines: settings.engines, permissions: knownPermissions,
+                    engines: settings.engines,
+                    transformerAvailability: transformerAvailability,
+                    permissions: knownPermissions,
                     measurements: measurements, cleaning: lastCleaning)),
             account: AccountPagePresenter.page(
                 for: AccountPageSnapshot(
@@ -1561,6 +1592,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations
             || updated.engines != previous.engines
         {
+            probeTransformers()
             let tidier = cleaner(for: updated)
             let overrides = updated.destinations
             Task { [weak self] in
