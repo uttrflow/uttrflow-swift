@@ -47,6 +47,19 @@ struct RawTranscriptMappingTests {
         #expect(RawTranscript(text: input).transcription(audioDuration: .zero).text == input)
     }
 
+    /// A bracket holding words no recogniser writes for non-speech is the speaker's own aside, whatever its shape.
+    @Test(
+        "keeps a bracketed aside the speaker dictated",
+        arguments: [
+            "the API (version two) is ready",
+            "we shipped it (finally) last night",
+            "call the office (not the mobile) tomorrow",
+            "the release (v3) is out",
+        ])
+    func keepsSpokenParentheticals(text: String) {
+        #expect(RawTranscript(text: text).transcription(audioDuration: .zero).text == text)
+    }
+
     @Test("strips a marker that ends the sentence, keeping the punctuation after it")
     func markerBeforePunctuation() {
         #expect(

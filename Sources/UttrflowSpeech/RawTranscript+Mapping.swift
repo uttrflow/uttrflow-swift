@@ -19,6 +19,26 @@ extension RawTranscript {
         return DetectedLanguage(code: code, confidence: languageProbability)
     }
 
+    /// The words a recogniser writes inside brackets for what it heard instead of speech; a bracket holding anything else is the speaker's own. See `Docs/silence.md`.
+    static let markerWords: Set<String> = [
+        "blank", "audio", "silence", "silent", "quiet", "pause", "no", "speech", "sound", "sounds",
+        "noise", "noises", "static", "background", "inaudible", "unintelligible", "indistinct",
+        "muffled", "crosstalk", "chatter", "music", "musical", "song", "singing", "humming",
+        "laughter", "laughs", "laughing", "chuckles", "applause", "clapping", "cheering",
+        "coughs", "coughing", "sighs", "sighing", "sniffs", "breathing", "breath", "beep",
+        "beeping", "chime", "ringing", "buzzing", "clicking", "typing", "footsteps", "wind",
+        "rain", "thunder", "foreign", "language", "speaking", "upbeat", "soft", "gentle",
+        "dramatic", "tense", "loud", "faint", "distant", "continues", "continued", "playing",
+        "plays", "ends",
+    ]
+
+    /// Whether every word between the brackets is one of those, which is the evidence that tells a marker from a parenthesis the speaker dictated.
+    static func isMarker(_ inside: Substring) -> Bool {
+        let words = inside.split(whereSeparator: { $0.isWhitespace || $0 == "_" || $0 == "-" })
+        guard !words.isEmpty, words.count <= 3 else { return false }
+        return words.allSatisfy { markerWords.contains($0.lowercased()) }
+    }
+
     /// Removes bracketed non-speech markers such as `[BLANK_AUDIO]`. See `Docs/silence.md`.
     static func cleaned(_ text: String) -> String {
         var result: [Substring] = []
@@ -37,11 +57,7 @@ extension RawTranscript {
                 && (after == nil || after?.isWhitespace == true || after?.isPunctuation == true)
 
             let inside = remainder[remainder.index(after: open)..<close]
-            let looksLikeAMarker =
-                standsAlone
-                && !inside.isEmpty
-                && inside.allSatisfy { $0.isLetter || $0.isWhitespace || $0 == "_" || $0 == "-" }
-                && inside.split(whereSeparator: \.isWhitespace).count <= 3
+            let looksLikeAMarker = standsAlone && isMarker(inside)
 
             result.append(remainder[..<open])
             if !looksLikeAMarker {
