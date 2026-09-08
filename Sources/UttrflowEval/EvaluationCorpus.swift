@@ -112,6 +112,25 @@ public enum EvaluationCorpus {
             expected: "No, I don't think so. We should wait for the results.",
             mustKeep: ["no", "wait", "results"]
         ),
+        // The trigger heads each item of a list here, so neither item is a half the speaker took back.
+        .init(
+            id: "coordinated-list-kept", category: .everyday,
+            spoken: "I said no to the offer no to the meeting",
+            expected: "I said no to the offer, no to the meeting.",
+            mustKeep: ["offer", "meeting"]
+        ),
+        .init(
+            id: "repeated-frame-kept", category: .everyday,
+            spoken: "there's no room no room at all for another one",
+            expected: "There's no room, no room at all for another one.",
+            mustKeep: ["room"]
+        ),
+        .init(
+            id: "coordinated-apology-kept", category: .everyday,
+            spoken: "say sorry to john sorry to marcy too",
+            expected: "Say sorry to John, sorry to Marcy too.",
+            mustKeep: ["John", "Marcy"]
+        ),
         .init(
             id: "spoken-comma", category: .everyday,
             spoken: "we still need milk comma eggs comma and bread from the shop",

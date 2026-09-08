@@ -42,6 +42,22 @@ let noSpeechProb: Float = 0 // TODO: implement no speech prob
 threshold changes nothing. This is worth knowing before anybody tries to fix silence by
 tuning the decoder: there is no value that works.
 
+## The brackets that are markers, and the ones the speaker dictated
+
+A recogniser writes what it heard instead of speech in brackets — `[BLANK_AUDIO]`,
+`(silence)`, `[ Music ]`, `(upbeat music)` — and `RawTranscript.cleaned` takes those out
+before anything else sees the text. It used to decide by shape alone: a bracket standing
+on its own, holding at most three words, all of them letters. That shape is a
+parenthesis the speaker dictated at least as often as it is a marker, and the words went
+silently — "the API (version two) is ready" arrived as "the API is ready", upstream of
+every guard the cleaning passes have.
+
+So the test is now positive. `markerWords` lists the words a recogniser actually writes
+for non-speech, and a bracket is a marker only when **every** word inside it is one of
+them. "version two" is not, so it stays. A marker whose wording is not on the list stays
+too, which is the side of the line this product errs on: an unfamiliar `[whirring]` in
+the text is visible and fixable, and a deleted clause is neither.
+
 ## What the app does instead
 
 `VoiceActivity` in `UttrflowCore` judges the audio before it is decoded, and

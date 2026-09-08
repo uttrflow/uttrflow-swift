@@ -1170,6 +1170,87 @@ A; C½ needs C and B's guard; D needs B and C; E needs B; F reports on all of th
 phase is one or more pull requests, green through the gate, with its bake-off table in
 the body. A step that costs a corpus case does not land.
 
+### Words deleted on shape alone — issue #198 and the sweep it started
+
+The audit that reproduced #198 found seven places on the cleaning path where a rule deletes
+what the speaker said on the shape of a word alone: a match, a stack of negative filters, and
+no positive evidence that what it matched is the thing the rule is named for. Three are fixed
+here, each reproduced before it was touched.
+
+- **A list whose items are headed by the correction trigger lost its first item.** "I said no
+  to the offer, no to the meeting" was inserted as "I said no to the meeting.", and "say sorry
+  to John, sorry to Marcy too" lost the name. `Restatement.discardedStart` anchors on any word
+  within six that matches the first word after the trigger
+  (`Sources/UttrflowCore/Cleaning/Restatement.swift:48`), which a coordinated list satisfies
+  exactly when the trigger heads each item; the bail beneath it reads `.!?` only, so the comma
+  is not what saves it. Nothing downstream recovered the words — `MeaningPreservationGuard`
+  judges the model against the draft this pass has already cut, and the rules-only floor has no
+  guard at all. `Restatement.coordinates` (`Restatement.swift:65`) is the positive evidence the
+  walk-back never had: the word before the half it would take back being the trigger over again
+  means the trigger is coordinating rather than correcting. It fixes both call sites, and the
+  joiner was the more exposed of the two — `PieceJoiner.restate` strips the previous piece's
+  stop before matching, so the seam reached through a sentence boundary that the pass's own
+  `endsSentence` bail would have refused. **Not** the boundary rule the issue first proposed:
+  `endsClause` there breaks the shipped "at four, no sorry, at five" case
+  (`Tests/UttrflowAITests/Passes/SelfCorrectionPassTests.swift:20`) and fixes nothing anyway,
+  because the anchor match returns before any boundary is tested. Held now by
+  `RestatementTests.swift:40`, `SelfCorrectionPassTests.swift:90` and
+  `PieceJoinerTests.swift:197`, and by three corpus cases in `RulesCorpusTests.rulesMustPass`.
+- **A count a piece opened with was deleted as a list designator.** "One person came to the
+  review." then "Two people left before the end." joined as "- Person came to the review" and
+  "- People left before the end", the counts silently gone. `PieceJoiner.sequence` read the
+  opening word straight off the cardinal table, guarded only by `isClause`, which asks what
+  follows the number rather than whether the number announces anything
+  (`Sources/UttrflowPipeline/PieceJoiner.swift:162`). It is reachable through the shipped
+  pipeline because a document's `fromTen` policy leaves one to nine as words, so they are still
+  on the table at the join. A bare cardinal now needs the announcing word ("number one") or the
+  mark the speaker set it off with ("One, fix the build"); an ordinal cannot count a noun, so
+  "first we fix the build" still opens a list. Held by `PieceJoinerTests.swift:101`. Requiring
+  the mark for ordinals too broke `DictationPipelineJoinTests:112` and
+  `DictationPipelineSettingsTests:157`, so the guard was narrowed rather than those weakened.
+- **A bracketed aside the speaker dictated was deleted as a non-speech marker.** "the API
+  (version two) is ready" arrived as "the API is ready". `RawTranscript.cleaned` judged a
+  bracket by shape — standing alone, at most three words, all letters — which a dictated
+  parenthesis has too, and it runs in the mapping, upstream of every guard the passes have
+  (`Sources/UttrflowSpeech/RawTranscript+Mapping.swift:60`). The test is positive now: a bracket
+  is a marker only when every word inside it is one a recogniser writes for non-speech
+  (`markerWords`, `RawTranscript+Mapping.swift:23`), which is the shape `FillersPass` already
+  uses. All six markers the suite pins still go, and an unfamiliar one now stays — the safe
+  direction, since a marker left in the text is visible and fixable and a deleted clause is
+  neither. Held by `RawTranscriptMappingTests.swift:51`.
+
+`Docs/cleanup.md`'s self-correction and list rows and a new section in `Docs/silence.md` carry
+the three rules, so the reasoning is not left in the commits alone.
+
+**The measurement was one-sided, and that is the guardrail.** The corpus held only
+should-delete cases for self-correction, so `make bakeoff` scored over-deletion as a win and
+the gap survived every measurement the process requires — a corpus case first, the bake-off
+before and after, and neither could see it. `Tests/UttrflowEvalTests/CorpusEvidenceTests.swift`
+now holds every phrase in `Restatement.triggers` to appearing in some corpus case that **keeps**
+it, not only in cases that delete it, and records the ones that do not yet in one `owedAKeepCase`
+list. It ratchets like the comment and disclosure baselines: a trigger may leave that list, and a
+new trigger may never join it, so the next word given the power to delete a clause arrives with
+evidence of when it must not. Seven triggers are owed a keep case today and the list says which.
+
+**Left standing, each measured rather than assumed.**
+
+- **`StammersPass` deletes the second half of a pseudo-cleft** — "what it is is a problem" →
+  "what it is a problem". The distinguishing evidence is syntactic rather than local: the shipped
+  "the build is is red" (`StammersPassTests.swift:17`) is shape-identical to the sentence that
+  must be kept, so no stop-list separates them. It needs clause-head detection the module does
+  not have, its own corpus cases and a bake-off trade — a change of its own, not a guard.
+- **`RepeatedPhrasePass` deletes a deliberate echo** — "it is what it is what it is" → "it is
+  what it is". Same reason: "so I was I was thinking" is the shipped keep-the-second case and has
+  the same shape. The pass-order defect the sweep also claimed does not hold: a spoken "comma"
+  survives as a word at that point and breaks the two runs' adjacency, so the later
+  `SpokenPunctuationPass` protects this pass rather than blinding it.
+- **`MLXCandidateScorer`** is the predictive-completion path with its own fixtures, not the
+  dictation cleaning path, and was not reproduced here.
+- **`PromptContract`** is model-facing text, and `Docs/cleanup.md:71` already records (measured
+  2026-09-06) that the model does not comply with the line in question, so editing it changes
+  nothing until the prompt is re-measured with the local models downloaded.
+
+
 ## Tab-to-complete 🟡
 
 The field the user is typing into finishes itself, from what this Mac has typed into that
