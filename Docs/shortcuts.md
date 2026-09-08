@@ -95,9 +95,12 @@ so an absent clipboard shortcut still means the default and an explicit `null` s
 `ShortcutRegistry` names each action and explains it, and the settings screen is generated
 from it. Adding a shortcut is adding an entry there, not a settings field, a monitor and a row.
 
-`hotkeyActivation` is still stored. It will go when a double tap on the dictation key means
-hands-free, and not before — removing it first would silently take press-to-toggle away from
-everyone using it.
+`hotkeyActivation` is still stored, and now outlives the condition it was given. A double tap on
+the dictation key has meant hands-free since 0.5.0, which was the thing this was waiting for — but
+removing the setting would still take press-to-toggle away from everyone using it, and the double
+tap does not replace it: it is reached from `(.holdToTalk, .released)` only, and gives somebody
+who chose to hold what press-to-toggle already gave everybody else. See
+`Docs/pipeline-gestures.md`.
 
 ## What is testable
 
