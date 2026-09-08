@@ -46,7 +46,10 @@ public enum Restatement {
         for candidate in stride(from: trigger - 1, through: earliest, by: -1) {
             let shape = draft.shape(at: live[candidate])
             if shape.key == firstAfter {
-                return holdsContent(candidate..<trigger, in: live, of: draft) ? candidate : nil
+                guard holdsContent(candidate..<trigger, in: live, of: draft),
+                    !coordinates(candidate, before: trigger, in: live, of: draft)
+                else { return nil }
+                return candidate
             }
             if shape.endsSentence { return nil }
         }
@@ -56,5 +59,12 @@ public enum Restatement {
     /// Whether the words the correction would take back hold anything the speaker meant.
     private static func holdsContent(_ span: Range<Int>, in live: [Int], of draft: Draft) -> Bool {
         span.contains { FunctionWords.isContent(draft.shape(at: live[$0]).key) }
+    }
+
+    /// Whether the trigger heads each item of a list rather than correcting one, the word before the half it would take back being the trigger over again.
+    private static func coordinates(
+        _ start: Int, before trigger: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        start > 0 && draft.shape(at: live[start - 1]).key == draft.shape(at: live[trigger]).key
     }
 }

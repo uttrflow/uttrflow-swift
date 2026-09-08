@@ -172,6 +172,17 @@ struct PieceJoinerRestatementTests {
                 == "I like tea. I like coffee, both are fine.")
     }
 
+    /// The seam drops the previous piece's stop before matching, so a trigger-headed list reaches across a sentence the pass would not.
+    @Test("keeps both pieces when the trigger heads a list rather than a correction")
+    func triggerHeadedListAcrossTheCut() {
+        #expect(
+            joined(["I said no to the offer.", "No to the meeting."], .document)
+                == "I said no to the offer. No to the meeting.")
+        #expect(
+            joined(["Say sorry to John.", "Sorry to Marcy too."], .document)
+                == "Say sorry to John. Sorry to Marcy too.")
+    }
+
     @Test("never opens a paragraph on a piece whose opening it swallowed")
     func aRestatementIsNeverAParagraph() {
         #expect(
