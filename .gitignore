@@ -37,3 +37,6 @@ Design/__pycache__/
 
 # Generated from UITests/project.yml by Scripts/uitest.sh.
 UITests/*.xcodeproj
+
+# graphflow run journals and transcripts — machine-local, never committed.
+.graphflow/
