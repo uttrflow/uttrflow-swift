@@ -172,6 +172,56 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
     }
 
+    @Test(
+        "recognises hyphenated dates and preserves their surrounding punctuation",
+        arguments: [
+            ("twenty-fifth of March", "25 March"),
+            ("TWENTY FIRST OF MAY", "21 MAY"),
+            ("twentieth june", "20 june"),
+            ("thirtieth September", "30 September"),
+            ("twenty ninth of February", "29 February"),
+            ("twenty fifth May", "25 May"),
+            ("\"twenty fifth of March.\"", "\"25 March.\""),
+            ("twenty-fifth June, twenty sixth July", "25 June, 26 July"),
+        ]
+    )
+    func dateForms(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps ambiguous, impossible and interrupted ordinals intact under both policies",
+        arguments: [
+            "the first may fail", "the tenth may fail", "the twenty first may fail",
+            "the second march was peaceful", "the twentieth march was peaceful",
+            "thirty second of January", "ninety ninth of May", "thirty first of April",
+            "thirtieth February", "twenty fifth of Smarch", "twenty fifth of",
+            "twenty fifth", "twenty-fifth", "twenty fifth, March", "tenth of, April",
+            "tenth of \"April\"", "twenty fifth place", "twenty--fifth of March",
+            "twenty-tenth of March", "first", "a hundred and twentieth of June",
+        ]
+    )
+    func preservesOrdinals(input: String) {
+        for policy in [NumberPolicy.fromTen, .always] {
+            #expect(cleaned(input, by: NumberFormsPass(policy: policy)) == input)
+        }
+    }
+
+    @Test("an ambiguous ordinal stays untouched in the edit history")
+    func untouchedOrdinalProvenance() {
+        let draft = Draft(text: "the twenty first may fail")
+        #expect(sut.apply(draft) == draft)
+    }
+
+    @Test("a date records only its replaced ordinal and removed words")
+    func dateProvenance() {
+        let draft = sut.apply(Draft(text: "twenty fifth of March"))
+        #expect(draft.words[0].state == .replaced(by: NumberFormsPass.id, from: "twenty"))
+        #expect(draft.words[1].state == .removed(by: NumberFormsPass.id))
+        #expect(draft.words[2].state == .removed(by: NumberFormsPass.id))
+        #expect(draft.words[3].state == .kept)
+    }
+
     @Test("leaves numbers in other languages alone")
     func otherLanguages() {
         #expect(cleaned("बीस मिनट", by: sut) == "बीस मिनट")
