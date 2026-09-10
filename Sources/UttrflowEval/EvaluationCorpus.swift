@@ -184,6 +184,20 @@ public enum EvaluationCorpus {
             mustKeep: ["5", "redesign"],
             mustNotAdd: ["percent"]
         ),
+        .init(
+            id: "dates", category: .everyday,
+            spoken: "the twenty fifth of March",
+            expected: "The 25 March.",
+            mustKeep: ["25", "March"],
+            mustNotAdd: ["of"]
+        ),
+        .init(
+            id: "ordinal-not-date", category: .everyday,
+            spoken: "the twenty first may fail",
+            expected: "The twenty first may fail.",
+            mustKeep: ["twenty", "first", "may", "fail"],
+            mustNotAdd: ["21"]
+        ),
     ]
 
     // MARK: Technical terms that must survive
