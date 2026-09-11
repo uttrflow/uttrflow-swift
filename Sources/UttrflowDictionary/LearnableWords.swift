@@ -12,18 +12,23 @@ enum LearnableWords {
 
     // MARK: - Seen on screen
 
-    /// The terms in the window title that were also spoken, judged by sound; never the selection or app name.
+    /// The terms in the window title that were also spoken, judged by sound and opening; never the selection or app name.
     static func seenAndSaid(heard: String, seeing context: AppContext) -> [String] {
         guard let title = context.documentName else { return [] }
-        let said = Utterance(heard: heard, confidence: 1)
-            .sounds(upTo: PhoneticIndex.maximumWordsPerEntry)
+        let said = Utterance(heard: heard, confidence: 1).spans(upTo: PhoneticIndex.maximumWordsPerEntry)
         guard !said.isEmpty else { return [] }
 
         var found: [String] = []
         var already: Set<String> = []
         for term in words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
         where GeneralVocabulary.isWorthLearning(term) && already.insert(term.lowercased()).inserted {
-            guard DoubleMetaphone.code(for: term).sounds(likeAnyOf: said) else { continue }
+            let sound = DoubleMetaphone.code(for: term)
+            guard
+                said.contains(where: {
+                    sound.sounds(like: DoubleMetaphone.code(for: $0.text))
+                        && ReadingRestraint.opensAlike(term, heard: $0.text)
+                })
+            else { continue }
             found.append(term)
         }
         return found
@@ -44,8 +49,10 @@ enum LearnableWords {
 
         let replacement = after.joined(separator: " ")
         let sound = DoubleMetaphone.code(for: replacement)
+        let selected = before.joined(separator: " ")
         guard !sound.isSilent,
-            sound.sounds(like: DoubleMetaphone.code(for: before.joined(separator: " ")))
+            sound.sounds(like: DoubleMetaphone.code(for: selected)),
+            ReadingRestraint.opensAlike(replacement, heard: selected)
         else { return nil }
         guard after.allSatisfy(GeneralVocabulary.isWorthLearning) else { return nil }
         return replacement
