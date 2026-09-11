@@ -323,6 +323,45 @@ struct GrammarGuardTests {
         #expect(verdict(kept, rewritten).isAccepted)
     }
 
+    // MARK: What the model added
+
+    /// A negation the speaker never said reverses the sentence, so it is refused the way a dropped one is.
+    @Test(
+        "rejects a rewrite that added a negation",
+        arguments: [
+            ("we should ship this on Friday", "We should not ship this on Friday."),
+            ("we agreed to that", "We never agreed to that."),
+            ("she wants the early slot", "She doesn't want the early slot."),
+        ]
+    )
+    func rejectsAddedNegation(kept: String, rewritten: String) {
+        #expect(!verdict(kept, rewritten).isAccepted)
+    }
+
+    /// The echo is the field's text before the caret, so its negators have no kept-side counterpart by construction.
+    @Test("accepts a faithful rewrite when the caret echo carries a negation the speaker did not say")
+    func acceptsANegationFromTheCaretEcho() {
+        #expect(
+            sut.verdict(
+                draft: Draft(text: "we should ship this on Friday"),
+                rewritten: "We should ship this on Friday.", echoed: "I don't think"
+            ).isAccepted)
+    }
+
+    /// A contraction is one negator whichever way it is written, so expanding or closing it adds nothing.
+    @Test(
+        "accepts a negating contraction rewritten in the other form, in both directions",
+        arguments: [
+            ("she doesnt want the early slot", "She does not want the early slot."),
+            ("she does not want the early slot", "She doesn't want the early slot."),
+            ("we can not do that today", "We cannot do that today."),
+            ("we cannot do that today", "We can not do that today."),
+        ]
+    )
+    func acceptsContractionEitherWay(kept: String, rewritten: String) {
+        #expect(verdict(kept, rewritten).isAccepted)
+    }
+
     @Test("rejects a rewrite that reworded too many small words in one sentence")
     func rejectsFunctionChurn() {
         #expect(

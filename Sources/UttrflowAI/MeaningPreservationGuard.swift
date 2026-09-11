@@ -127,8 +127,9 @@ public struct MeaningPreservationGuard: Sendable {
     ) -> GuardVerdict {
         let keptTokens = grammarTokens(kept)
         let rewrittenTokens = grammarTokens(rewritten)
+        let echoTokens = grammarTokens(echoed)
         // The echo the caret pass took back was in the model's answer, so its words still count as survivors.
-        let pool = Set((rewrittenTokens + grammarTokens(echoed)).filter(\.isPlain).map(\.matching))
+        let pool = Set((rewrittenTokens + echoTokens).filter(\.isPlain).map(\.matching))
         // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
         let offered = Set(
             doubtful
@@ -140,9 +141,14 @@ public struct MeaningPreservationGuard: Sendable {
                 return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
             }
         }
-        let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + grammarTokens(echoed))
+        let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + echoTokens)
         if dropped > 0 {
             return .rejected(reason: "the rewrite dropped a negation")
+        }
+        // The echo is the field's text before the caret, so it is an origin a negation may come from, never a total.
+        let added = negators(in: rewrittenTokens) - negators(in: keptTokens) - negators(in: echoTokens)
+        if added > 0 {
+            return .rejected(reason: "the rewrite added a negation")
         }
         let churn = functionWordChurn(keptTokens, rewrittenTokens)
         if churn > 3 * sentenceCount(rewritten) {
@@ -204,7 +210,7 @@ public struct MeaningPreservationGuard: Sendable {
         tokens.filter { negatingWords.contains($0.matching) }.count
     }
 
-    /// The words that reverse a sentence, apostrophes aside; dropping one is the worst edit the model can make.
+    /// The words that reverse a sentence, apostrophes aside; dropping or adding one is the worst edit the model can make.
     static let negatingWords: Set<String> = [
         "not", "no", "never", "none", "nothing", "nobody", "nowhere", "neither", "nor", "cannot",
         "dont", "doesnt", "didnt", "wont", "wouldnt", "cant", "couldnt", "shouldnt", "isnt",
