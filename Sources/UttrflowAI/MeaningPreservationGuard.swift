@@ -225,7 +225,7 @@ public struct MeaningPreservationGuard: Sendable {
         return false
     }
 
-    /// The endings English adds to a word without making it a different word; "ment" and "ion" are missing on purpose.
+    /// The endings English adds to a word without making it another word; the ones that turn a verb into a noun are left out on purpose.
     static let inflections: Set<String> = ["s", "es", "d", "ed", "ing", "er", "est", "n", "en"]
 
     /// The spellings a stem is written with before an ending: as it is, a final "e" dropped, a final "y" as "i", a final consonant doubled.
