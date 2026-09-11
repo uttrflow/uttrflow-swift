@@ -145,7 +145,10 @@ nothing outside `DestinationClassifier` turns an application into a destination 
 `AppKind`, and the only table read ahead of it is the user's own `DestinationOverrides`.
 Other modules do read a bundle identifier for their own questions — `AcceptKey` and
 `SuggestionPreferences` in `UttrflowPredict` each carry a list — and none of them decides
-where the words are going. A row also names the `AppKind` it
+where the words are going. `Tests/UttrflowCoreTests/OneAppTableTests.swift` is what keeps
+that scoped claim true: every reverse-DNS literal anywhere in `Sources` must be one
+`DestinationClassifier` has an answer for, and the seven `UttrflowPredict` still owes sit
+in one list that may shrink and may never grow. A row also names the `AppKind` it
 covers — finer than the destination, since a terminal and an editor want the same
 treatment but read differently in the prompt — and that kind is where the "Typed into:"
 caption comes from, so the caption and the style block cannot name two different places. `DestinationFormatter.registry` holds one value per destination and, so far, four decisions:
