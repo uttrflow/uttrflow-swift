@@ -53,6 +53,36 @@ struct StammersPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// English repeats a short word for emphasis as readily as a long one, and both halves were meant.
+    @Test(
+        "keeps a short word repeated for emphasis",
+        arguments: [
+            "this is very very important",
+            "much much better",
+            "okay okay I hear you",
+            "hear hear",
+            "chop chop",
+        ]
+    )
+    func keepsEmphaticRepeat(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// A doubled name loses half of itself to a removal, and no list of exceptions reaches every name.
+    @Test(
+        "keeps a doubled proper noun",
+        arguments: ["we flew to Bora Bora last year", "the flight to Pago Pago"]
+    )
+    func keepsDoubledName(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// A third copy is matched against the same stale previous word, so the run collapses to one token.
+    @Test("keeps every copy of a word said three times for emphasis")
+    func keepsTripledEmphasis() {
+        #expect(cleaned("ha ha ha", by: sut) == "ha ha ha")
+    }
+
     @Test("records which pass removed the word")
     func provenance() {
         let draft = sut.apply(Draft(text: "the the plan"))
