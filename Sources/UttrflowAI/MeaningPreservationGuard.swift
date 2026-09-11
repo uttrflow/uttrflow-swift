@@ -121,24 +121,24 @@ public struct MeaningPreservationGuard: Sendable {
         var isPlain: Bool { matching.allSatisfy(\.isASCII) }
     }
 
-    /// A repair may change a word's form, never which content words survive. See `Docs/cleanup.md`.
+    /// A repair may change a word's form, never which content words survive or the order they came in. See `Docs/cleanup.md`.
     static func grammarVerdict(
         kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = [], echoed: String = ""
     ) -> GuardVerdict {
         let keptTokens = grammarTokens(kept)
         let rewrittenTokens = grammarTokens(rewritten)
-        // The echo the caret pass took back was in the model's answer, so its words still count as survivors.
-        let pool = Set((rewrittenTokens + grammarTokens(echoed)).filter(\.isPlain).map(\.matching))
+        // The echo the caret pass took back opened the model's answer, so its words count as survivors ahead of the rest.
+        let written = (grammarTokens(echoed) + rewrittenTokens).filter(\.isPlain)
         // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
         let offered = Set(
             doubtful
                 .flatMap { $0.heard.split(whereSeparator: \.isWhitespace) }
                 .map { DoubtfulSpan.closedUp(String($0)) })
-        for token in keptTokens
-        where token.isPlain && isContent(token) && !offered.contains(DoubtfulSpan.closedUp(token.text)) {
-            if !survives(token.matching, in: pool) {
-                return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
-            }
+        let carried = keptTokens.filter {
+            $0.isPlain && isContent($0) && !offered.contains(DoubtfulSpan.closedUp($0.text))
+        }
+        if case .rejected(let reason) = survivalVerdict(carried, in: written) {
+            return .rejected(reason: reason)
         }
         let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + grammarTokens(echoed))
         if dropped > 0 {
@@ -183,18 +183,34 @@ public struct MeaningPreservationGuard: Sendable {
         return !functionWords.contains(token.lookup)
     }
 
-    /// Whether a content word survives: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
-    static func survives(_ word: String, in pool: Set<String>) -> Bool {
-        if pool.contains(word) { return true }
-        if let digits = numberWords[word], pool.contains(digits) { return true }
-        if word.allSatisfy(\.isNumber), pool.contains(where: { numberWords[$0] == word }) { return true }
-        if pool.contains(where: { numberWords[$0] == word }) { return true }
+    /// Walks the kept content words along the rewrite, so a word may change its form but never its place.
+    static func survivalVerdict(_ kept: [GrammarToken], in written: [GrammarToken]) -> GuardVerdict {
+        var reached = 0
+        for token in kept {
+            let places = written.indices.filter { survives(token.matching, as: written[$0]) }
+            guard !places.isEmpty else {
+                return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
+            }
+            // The earliest place still open is taken, which is the most room the words after it can be left.
+            guard let place = places.first(where: { $0 >= reached }) else {
+                return .rejected(reason: "the rewrite moved '\(token.text)'")
+            }
+            reached = place
+        }
+        return .accepted
+    }
+
+    /// Whether one rewritten word is the kept word: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
+    static func survives(_ word: String, as candidate: GrammarToken) -> Bool {
+        if word == candidate.matching { return true }
+        if numberWords[word] == candidate.matching { return true }
+        if numberWords[candidate.matching] == word { return true }
         // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.
-        if word.count >= 3, pool.contains(where: { $0.contains(word) }) { return true }
+        if word.count >= 3, candidate.matching.contains(word) { return true }
         let stem = word.count >= 3 ? String(word.prefix(3)) : word
-        if pool.contains(where: { $0.hasPrefix(stem) }) { return true }
+        if candidate.matching.hasPrefix(stem) { return true }
         if let index = IrregularVerbForms.setIndex[word] {
-            return pool.contains { IrregularVerbForms.setIndex[$0] == index }
+            return IrregularVerbForms.setIndex[candidate.matching] == index
         }
         return false
     }

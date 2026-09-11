@@ -485,3 +485,57 @@ struct LayoutGuardTests {
             ).isAccepted)
     }
 }
+
+/// The guard reads a rewrite in the order it was written, so a permutation is not a tidy-up.
+@Suite("The guard keeps the order the speaker spoke in")
+struct GuardOrderTests {
+    /// The guard under test.
+    private let sut = MeaningPreservationGuard()
+
+    /// The grammar checks run only against a draft, so every case here supplies one.
+    private func verdict(_ kept: String, _ rewritten: String) -> GuardVerdict {
+        sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+    }
+
+    /// Reordering clauses is Tier 3, and the same words in another order say the opposite thing.
+    @Test("refuses a swap that reverses which thing was approved")
+    func refusesSwappedVerbs() {
+        #expect(
+            verdict(
+                "we approved the design but rejected the budget",
+                "We rejected the design but approved the budget."
+            ) == .rejected(reason: "the rewrite moved 'design'"))
+    }
+
+    /// Every other check is a count, and a permutation changes no count.
+    @Test("refuses a swap that reverses who sent the token")
+    func refusesSwappedRoles() {
+        #expect(
+            !verdict("the server sends the client a token", "The client sends the server a token.")
+                .isAccepted)
+    }
+
+    /// The order rule must not fire on the tidying the product exists for.
+    @Test("keeps a rewrite that tidied the words where they stood")
+    func keepsOrderedTidying() {
+        #expect(
+            verdict("the server sends the client a token", "The server sends the client a token.")
+                .isAccepted)
+        #expect(
+            verdict(
+                "we approved the design but rejected the budget",
+                "We approved the design, but rejected the budget."
+            )
+            .isAccepted)
+    }
+
+    /// One identifier may carry several spoken words, so a place may be matched more than once.
+    @Test("lets several spoken words land on the one identifier that spells them")
+    func keepsWordsSharingAnIdentifier() {
+        #expect(
+            verdict(
+                "call fetch invoices before the sheet appears", "Call fetchInvoices before the sheet appears"
+            )
+            .isAccepted)
+    }
+}
