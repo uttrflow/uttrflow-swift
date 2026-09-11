@@ -402,9 +402,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 await (dictionary.allEntries(), context.currentContext(), Date())
             })
 
+        // One cue for both ends, so a stop sounds only after a start the user could have heard.
+        let cue: any RecordingCueing =
+            settings.playsSoundWhenRecordingStarts
+            ? SoundPlayingRecordingCue(player: SystemSoundPlayer()) : SilentCue()
+
         // Held so the floating button's meter reads the level without queueing behind a `stop()`.
         let microphone = AVAudioCaptureEngine(
-            source: AVAudioEngineMicrophoneSource(), recordings: recordings)
+            source: AVAudioEngineMicrophoneSource(), recordings: recordings, cue: cue)
         dock.setLevelSource { microphone.momentaryLevel }
 
         let pipeline = DictationPipeline(
@@ -434,8 +439,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller = DictationController(
             pipeline: pipeline,
             monitor: ActivationMonitor(),
-            cue: settings.playsSoundWhenRecordingStarts
-                ? SoundPlayingRecordingCue(player: SystemSoundPlayer()) : SilentCue(),
+            cue: cue,
             activation: settings.hotkeyActivation,
             clock: ContinuousClock(),
             onAdvice: { [weak self] advice in
