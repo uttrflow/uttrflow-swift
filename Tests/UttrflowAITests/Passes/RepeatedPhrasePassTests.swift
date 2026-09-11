@@ -36,6 +36,20 @@ struct RepeatedPhrasePassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A run said twice on purpose is a name or an emphasis, and half of it is a word the speaker meant.
+    @Test(
+        "keeps a run repeated on purpose rather than restarted",
+        arguments: [
+            "ha ha ha ha",
+            "no no no no",
+            "New York New York is the song",
+            "we flew to Bora Bora Bora Bora",
+        ]
+    )
+    func keepsDeliberateRepeat(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("drops the first copy and keeps the second")
     func provenance() {
         let draft = sut.apply(Draft(text: "so I was I was thinking"))
