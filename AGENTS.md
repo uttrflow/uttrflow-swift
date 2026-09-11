@@ -273,6 +273,34 @@ problem: fixture data has to look real to be useful, and the most available real
 value is the one you can see from where you are sitting. **This repository is being
 open-sourced, and a published address cannot be taken back by a later commit.**
 
+**Never decide that two spellings are the same word by their shape.** Not a prefix of
+*n* characters, not "is one of them a substring of the other". Ask
+`MeaningPreservationGuard.sameForm` whether two spellings are one word, `spelledInto` or
+`isWritten` whether a word is written out at its own boundaries, and
+`WordErrorRate.measure` whether it is still there *in the order it was said*. Those are
+the single home for each of those questions, and a local reimplementation is how this
+goes wrong.
+
+A shape match can only fail in one direction: it says "same" too easily, every one of
+these sits on a path whose failure is *acceptance*, and an acceptance leaves no trace —
+so the bug ships silently and no test that was written goes red. A three-character stem
+let "confirm" become "confuse" and "Aarav" become "Aaron" past the guard whose entire job
+is to refuse that; a two-character one decided whether a model had echoed the line.
+`Scripts/loose_match_audit.py` counts these per file against
+`Scripts/loose_match_baseline.json` and runs in `make verify`. It ratchets like the
+comment and disclosure baselines: a count may fall and may never rise.
+
+```bash
+make match-report                                            # what is left, with the line
+python3 Scripts/loose_match_audit.py --update                # re-record after tightening one
+python3 Scripts/loose_match_audit.py --update --after-merge  # only when main moved under you
+```
+
+One match is baselined today, and it is the shape with a legitimate answer:
+`CaretEchoPass` asks which completion targets begin with what the user has typed, where
+a prefix is the question rather than a stand-in for one. That is what the baseline is
+for — the audit reports the shape, and you say why this one is right.
+
 **CI exists now, and it is `.github/workflows/`.** This reverses a rule that was absolute
 in the private repository, so it is worth saying why rather than leaving two agents to
 argue about it. The old rule was: never add a workflow, because macOS runners bill at ten
