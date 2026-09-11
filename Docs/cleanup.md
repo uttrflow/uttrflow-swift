@@ -140,8 +140,15 @@ budget: the app, an `InsertionPoint` — up to 300 characters before the caret a
 after, from the focused field's value and selected range — and a `Destination`
 (`document`, `spreadsheet`, `sqlEditor`, `codeEditor`, `messaging`, `email`, `plain`).
 The destination is read off one table, `DestinationRules.standard`, by bundle
-identifier prefix or window title; no code branches on a bundle identifier anywhere
-else. `DestinationFormatter.registry` holds one value per destination and, so far, four decisions:
+identifier prefix, window title or a whole word of the application name, in that order;
+nothing outside `DestinationClassifier` turns an application into a destination or an
+`AppKind`, and the only table read ahead of it is the user's own `DestinationOverrides`.
+Other modules do read a bundle identifier for their own questions — `AcceptKey` and
+`SuggestionPreferences` in `UttrflowPredict` each carry a list — and none of them decides
+where the words are going. A row also names the `AppKind` it
+covers — finer than the destination, since a terminal and an editor want the same
+treatment but read differently in the prompt — and that kind is where the "Typed into:"
+caption comes from, so the caption and the style block cannot name two different places. `DestinationFormatter.registry` holds one value per destination and, so far, four decisions:
 how the first word is cased, whether the last sentence gets a full stop, whether grammar
 slips are repaired (`.repair` for a document, an email and plain text; `.asSpoken`
 everywhere else), and the layout
