@@ -75,6 +75,9 @@ public protocol TranscriptionBackend: Sendable {
 }
 
 extension TranscriptionBackend {
+    /// No floor of its own, so a recogniser that states none is handed exactly the speech.
+    public var minimumDuration: Duration { .zero }
+
     /// Ignores the vocabulary and transcribes normally; a dropped word costs a correction, not the dictation.
     public func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]

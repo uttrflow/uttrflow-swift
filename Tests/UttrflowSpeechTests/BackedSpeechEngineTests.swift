@@ -191,6 +191,16 @@ struct BackedSpeechEngineTests {
         #expect(BackedSpeechEngine.padded(audio, to: .zero) == audio.samples)
     }
 
+    @Test("a recogniser that states no floor gets none, so one written before floors existed still builds")
+    func unstatedFloorIsZero() async throws {
+        let backend = UnbiasableBackend()
+        #expect(backend.minimumDuration == .zero)
+
+        let engine = BackedSpeechEngine(kind: .appleSpeech, backend: backend)
+        _ = try await engine.transcribe(audio(seconds: 0.3), options: .automatic)
+        #expect(backend.transcriptions == 1)
+    }
+
     // MARK: The user's own words
 
     @Test("hands the recogniser the words to listen out for")

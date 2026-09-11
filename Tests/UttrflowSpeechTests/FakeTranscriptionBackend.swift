@@ -75,8 +75,6 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
 final class UnbiasableBackend: TranscriptionBackend {
     private let heard = Mutex(0)
 
-    let minimumDuration = Duration.zero
-
     func load() async throws(SpeechEngineError) {}
 
     func transcribe(
