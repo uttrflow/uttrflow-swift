@@ -97,6 +97,23 @@ struct MeaningPreservationGuardTests {
         accepted(original, rewritten)
     }
 
+    /// A number invented in words is the same invention as one invented in digits; only digits were read before.
+    @Test(
+        "rejects a number the speaker never said, written as a word",
+        arguments: [
+            ("we need more chairs for the room", "We need twenty more chairs for the room."),
+            ("I'll be late to the meeting", "I'll be ten minutes late to the meeting."),
+        ]
+    )
+    func rejectsInventedNumberInWords(original: String, rewritten: String) {
+        rejected(original, rewritten)
+    }
+
+    @Test("accepts a spoken number the rewrite left in words")
+    func acceptsNumberLeftInWords() {
+        accepted("I'll be twenty minutes late", "I'll be twenty minutes late.")
+    }
+
     @Test("accepts a number the speaker already said in digits")
     func acceptsExistingDigits() {
         accepted("I'll be 20 minutes late", "I'll be 20 minutes late.")

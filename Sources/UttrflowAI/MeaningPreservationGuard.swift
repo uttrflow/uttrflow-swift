@@ -297,7 +297,10 @@ public struct MeaningPreservationGuard: Sendable {
     /// A number in the rewrite the speaker said neither in digits nor in words, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
         let spoken = numbers(in: original).union(spelledNumbers(in: original))
-        return numbers(in: rewritten).subtracting(spoken).min()
+        // Read in words on the written side too, so "twenty chairs" is refused where "20 chairs" already was.
+        let written = numbers(in: rewritten)
+            .union(spelledNumbers(in: rewritten, using: englishNumberWords))
+        return written.subtracting(spoken).min()
     }
 
     /// Every run of digits in the text.
@@ -361,8 +364,10 @@ public struct MeaningPreservationGuard: Sendable {
         "hundred": "100", "thousand": "1000",
     ]
 
-    /// The digits for every number word in the text.
-    private static func spelledNumbers(in text: String) -> Set<String> {
-        Set(TextTidy.words(text).compactMap { numberWords[$0] })
+    /// The digits for every number word in the text, read through `table`; the written side gets the English one only.
+    private static func spelledNumbers(
+        in text: String, using table: [String: String] = numberWords
+    ) -> Set<String> {
+        Set(TextTidy.words(text).compactMap { table[$0] })
     }
 }
