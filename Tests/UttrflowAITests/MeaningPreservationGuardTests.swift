@@ -425,6 +425,24 @@ struct GrammarGuardTests {
         #expect(MeaningPreservationGuard.isWritten("payment sheet", in: "in PaymentSheet."))
     }
 
+    /// A word edge is a camel hump or a mark as well as a space, so a run written into either is still written.
+    @Test("accepts a heard run written at any word edge, inflected or not")
+    func acceptsAReadingAtEveryWordEdge() {
+        for line in [
+            "the PaymentSheet's layout", "open the payment sheets", "call openPaymentSheet now",
+            "PaymentSheet.present()", "the payment_sheet row", "the payment sheet",
+        ] {
+            #expect(MeaningPreservationGuard.isWritten("payment sheet", in: line), "\(line)")
+        }
+    }
+
+    @Test("refuses a heard run that is only part of a longer word")
+    func refusesAReadingInsideALongerWord() {
+        for line in ["the repayment sheet", "the payments heeded", "the paymentsheetrow"] {
+            #expect(!MeaningPreservationGuard.isWritten("payment sheet", in: line), "\(line)")
+        }
+    }
+
     @Test("judges nothing about readings when none were offered")
     func judgesNothingWithoutReadings() {
         #expect(MeaningPreservationGuard.candidateVerdict([], rewritten: "anything at all").isAccepted)

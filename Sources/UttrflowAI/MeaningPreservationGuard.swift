@@ -55,22 +55,44 @@ public struct MeaningPreservationGuard: Sendable {
         return .accepted
     }
 
-    /// Whether a reading is written out in whole words: `PaymentSheet` for "payment sheet", never "our time" inside "four times".
+    /// Whether a reading is written out as whole words: `PaymentSheet` or "payment sheets" for "payment sheet", never "our time" inside "four times".
     static func isWritten(_ reading: String, in rewritten: String) -> Bool {
-        let wanted = Array(DoubtfulSpan.closedUp(reading))
+        let wanted = DoubtfulSpan.closedUp(reading)
         guard !wanted.isEmpty else { return false }
-        // Closing a run up loses the spaces a word ends at, so the places words end at are kept beside it.
+        let (written, begins, ends) = closedUpEdges(rewritten)
+        // The rewrite may inflect the run it was given — "payment sheets" for "payment sheet" — and change it no further.
+        let forms = inflections(of: wanted).union([wanted])
+        return begins.contains { start in
+            forms.contains { form in
+                let end = start + form.count
+                return end <= written.count && ends.contains(end)
+                    && String(written[start..<end]) == form
+            }
+        }
+    }
+
+    /// A text closed up, with the places a word begins and ends, reading a camel hump as an edge like `spelledInto`.
+    static func closedUpEdges(_ text: String) -> (written: [Character], begins: Set<Int>, ends: Set<Int>) {
         var written: [Character] = []
-        var edges: Set<Int> = [0]
-        for word in rewritten.split(whereSeparator: \.isWhitespace) {
-            written += DoubtfulSpan.closedUp(String(word))
-            edges.insert(written.count)
+        var begins: Set<Int> = []
+        var ends: Set<Int> = [0]
+        var previous: Character?
+        for character in text {
+            guard character.isLetter || character.isNumber else {
+                previous = character
+                continue
+            }
+            // A word opens at the start, after anything that is not a letter, and at a capital.
+            if (previous.map { !$0.isLetter } ?? true) || character.isUppercase {
+                begins.insert(written.count)
+                ends.insert(written.count)
+            }
+            if !character.isLetter { ends.insert(written.count) }  // A digit closes the word before it.
+            written += DoubtfulSpan.closedUp(String(character))
+            previous = character
         }
-        guard written.count >= wanted.count else { return false }
-        return (0...(written.count - wanted.count)).contains { start in
-            edges.contains(start) && edges.contains(start + wanted.count)
-                && Array(written[start..<start + wanted.count]) == wanted
-        }
+        ends.insert(written.count)
+        return (written, begins, ends)
     }
 
     /// Refuses a rewrite that flattened a break the speaker asked for, since layout is the passes' to decide.
