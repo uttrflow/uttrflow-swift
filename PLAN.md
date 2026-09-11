@@ -1250,6 +1250,126 @@ evidence of when it must not. Seven triggers are owed a keep case today and the 
   2026-09-06) that the model does not comply with the line in question, so editing it changes
   nothing until the prompt is re-measured with the local models downloaded.
 
+### A run judged by the whole text — issue #218 and the sweep it started
+
+`MeaningPreservationGuard` was asked where a word stood and answered about the whole sentence.
+A doubtful run was checked by closing the entire rewrite up to letters and digits and asking
+whether that string *contained* the run as heard or one of the readings offered for it, and the
+doubtful words were then exempted from the content-word survival check by a set keyed on their
+text. Both are set membership over the whole text, so neither ever examined the span's own
+position. "the main thing is money", with `money` heard below the threshold and `main` offered
+as a reading, could be rewritten "The main thing is mine": the containment test found `main` in
+the earlier clause and passed, and the exemption then skipped `money` in the survival loop. A
+word nobody offered was accepted and the sentence meant something else. The same held whenever
+the heard run stood anywhere else in the sentence, and — separators being gone — whenever a
+match fell inside a longer word or across a word boundary, so `mark` was satisfied by `market`
+and `carpet` by `car petrol`.
+
+`RewriteAlignment` (`Sources/UttrflowAI/RewriteAlignment.swift`) is the position the checks
+never had. It pairs each run of the kept draft with the run of the rewrite standing in its
+place: equal prefix and suffix trimmed, then split at the words standing exactly once on each
+side, the longest order-preserving chain of those taken so a word that moved does not drag the
+rest with it, and the remainder recursed (`RewriteAlignment.swift:82`). `keptRuns(spelled:)`
+(`:47`) finds every place a run named by its text stands, and `standing(in:)` (`:64`) answers
+what the rewrite put there. `candidateVerdict` became `readingVerdict(_:in:)`
+(`MeaningPreservationGuard.swift:51`): a changed run whose kept words close up to a span's
+`heard` must be written as that span's own heard text or one of that span's own candidates, at
+that position, token for token. The text-keyed exemption set is deleted outright — only a
+reading rightly written is excused, and only at its own indices — so the survival check covers
+every content word again, and the substring and three-letter-stem rules are localised to the
+run they were written for. `DoubtfulSpan`'s public API is untouched: the alignment locates the
+change itself, so the three incompatible index bases the issue's fix direction would have had
+to reconcile — filtered draft words, `draft.text`, and the grammar tokens — never meet.
+
+Held by `Issue218ReproTests.swift:15` and `:24` for the two coincidences, `:57` for a run the
+rewrite only partly changed, `:75` to `:103` for the readings that must still be accepted,
+`MeaningPreservationGuardTests.swift:439` for the match inside a longer word and `:460` for the
+reading rightly written where the same word stands twice, and `RewriteAlignmentTests.swift:26`
+for the alignment itself.
+
+**The audit that reproduced #218 found fourteen places asking a positional question of the
+whole text. Thirteen are fixed here, each with a test that fails without it.** The guard's four
+rules were localised by the one alignment; the rest were separate.
+
+- **A number said once and written twice was not an invention, and a swap between two places
+  was not either.** `inventedNumber` compared two sets, so any number the speaker said anywhere
+  excused the same number written anywhere. It now walks the rewrite's numbers in order against
+  the spoken ones, each consuming its match (`MeaningPreservationGuard.swift:301`).
+- **A corpus case naming a doubtful run doubted every other occurrence of that spelling.**
+  `EvaluationCase.segments` built a `Set` of the named words and scored every matching word
+  down, so "clear the cash before the cash register closes" doubted both. Each named run is now
+  placed once, in order, past what is already doubted, with edge punctuation dropped
+  (`EvaluationCase.swift:107`). Held by `DoubtfulCorpusTests.swift:40`.
+- **The first word's case was read from a copy of it a pass had dropped.** `FirstWordPass` took
+  the heard words from the whole draft, so a filler or a repeat removed earlier shifted the
+  reading. The heard words are now read from the first present word's own place
+  (`FirstWordPass.swift:41`).
+- **A required phrase and a forbidden one were both read across the end of a sentence.**
+  `Scorer` tokenised to bare words, so "clear the cache" was satisfied by "…clear. The cache…".
+  A mark now stands where a sentence closed, applied to the run and the phrase alike, and a stop
+  with no space after it stays an abbreviation's so "p.m." is not two sentences
+  (`Scorer.swift:37`). The word-overlap score reads the unmarked words and is unchanged. Held by
+  `ScorerTests.swift:223`.
+- **A forbidden string was sought in text the harness typed, not in what the model wrote.**
+  `CompletionExpectation` searched the whole completion including its typed prefix, so a case
+  could fail on its own setup. It searches the continuation (`CompletionCase.swift:34`).
+- **A command line was judged on every word in it at once.** `git push` and a `--force` belonging
+  to a different clause read as a force-push, and a later destructive command was missed behind
+  an earlier harmless one. The line is cut into clauses and each judged alone
+  (`DestructiveCommand.swift:13`), and a git flag counts only where it stands after its own
+  subcommand.
+- **A path was attested by a name that was not its own.** `attestingKinds` flattened every
+  lookup's kinds together, so one lookup's word was sought among another's vocabulary. It is
+  deleted; each lookup now asks about its own word among its own kinds, and a correction puts
+  that lookup's prefix back (`Verifier.swift:67`, `Verification.swift:271`).
+- **`aria-checked` and `data-checked` read as a ticked box, so the toggle was a no-op.**
+  `lower.contains(" checked")` is a word boundary on one side only. The attribute is matched as
+  a whole name (`NoteChecklist.swift:81`). Held by `NoteChecklistTests.swift:119`.
+- **A label swallowed a child line it only spelled inside a longer word** — "Sam" suppressed by a
+  label reading "Samantha". Containment must now fall on word boundaries
+  (`Surroundings.swift:168`). Held by `SurroundingsTests.swift:210`.
+
+Three sites the audit named are not defects and were left alone: `CorrectionEvidence.swift:88`,
+`Corrections.swift:122` and `Verifier.swift:179`.
+
+**Left standing, deliberately.** `SnippetExpander.swift:27` vetoes a snippet whose expansion the
+user dictated anywhere in the transcript. That is a stated policy rather than a slip — somebody
+who says an expansion verbatim is quoting it, not triggering it — and the trigger's own
+boundaries are already positional. Making the veto per-position needs a map from the collapsed,
+lower-cased `spoken` back into `transcript`, which `TextTidy.collapseWhitespace` destroys and
+nothing reconstructs. There is no failing test and no contract saying it should be positional,
+so changing it would be a behaviour change to snippet expansion rather than a fix.
+
+**The corpus could not tell the two apart, and that is the guardrail.** `make bakeoff` was run
+twice, once with the old `Scorer` and `EvaluationCase` restored, and the numbers are identical
+in every category and destination cell — shipping 92%/98%, Apple 88%/93%, rules 79%/93%, and a
+refusal rate of 0 for all three, so the tighter assertion costs no good rewrite. Identical is
+the reassurance on the refusal rate and the problem everywhere else: a positionally blind
+implementation scores exactly as well as a positional one, because **all seven corpus cases that
+name a doubtful run name it where that spelling stands exactly once.** The evidence is never
+ambiguous, so the measurement cannot see the ambiguity. This is the one-sided-measurement
+finding of #198 a level up — there the corpus only ever deleted a trigger, here it only ever
+doubts a word that occurs once — and it is why the hole survived the process the repository
+already requires.
+
+`Tests/UttrflowEvalTests/PositionalEvidenceTests.swift` holds every distinct run the corpus
+doubts to being named in some case that says the same spelling more than once, and records the
+ones that are not yet in one `owedADistractorCase` list. It ratchets like the comment,
+disclosure and `owedAKeepCase` baselines: a run may leave that list, and a **new** run may never
+join it, so the next word the corpus is taught to doubt arrives with a case proving position
+matters. A second test refuses a stale entry, so a run that leaves the corpus cannot sit in the
+list unmeasured. All five runs are owed a distractor case today and the list says which.
+Both directions were proven to fail before being recorded as passing.
+
+A lint was considered and rejected on measurement. The class has no syntactic tell: matching
+`.contains` against a bare word literal across `Sources/` returns 33 hits of which about five
+are hazards — a shebang sniff, a `Set` of CSS class names and a deliberately loose password-field
+heuristic look identical to the bug — so a ratchet on it would be mostly noise, and this
+repository's own audits say a gate that cries wolf is a gate that gets switched off. What
+separates the defect from its legitimate twin is which question is being asked, which is visible
+in the evidence a test is given and not in the call that reads it. So the guardrail is on the
+fixtures, where the tell actually is.
+
 
 ## Tab-to-complete 🟡
 
