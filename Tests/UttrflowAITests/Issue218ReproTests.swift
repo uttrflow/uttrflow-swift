@@ -53,6 +53,45 @@ struct Issue218RegressionTests {
             ).isAccepted, "with no span offered the same rewrite is refused")
     }
 
+    /// The rewrite keeps "ice" and rewrites only "cream", so the changed run is a part of the doubtful run.
+    @Test("a doubtful run the rewrite only partly changed is still judged where it stands")
+    func aPartlyChangedRunIsStillJudged() {
+        let offered = [DoubtfulSpan(heard: "ice cream", confidence: 0.31, candidates: ["I scream"])]
+        let verdict = sut.verdict(
+            draft: draft("the ice cream is cold"), rewritten: "The ice screams is cold.",
+            offering: offered)
+        #expect(verdict == .rejected(reason: "the rewrite read 'ice cream' as a word it was not offered"))
+    }
+
+    @Test("the same partly changed run is refused through the two-text form as well")
+    func aPartlyChangedRunIsJudgedOverTwoTexts() {
+        #expect(
+            !MeaningPreservationGuard.candidateVerdict(
+                [DoubtfulSpan(heard: "ice cream", confidence: 0.31, candidates: ["I scream"])],
+                kept: "the ice cream is cold", rewritten: "The ice screams is cold."
+            ).isAccepted, "'ice screams' was never offered as a reading of 'ice cream'")
+    }
+
+    @Test("a multi-word run written as the reading it was offered is still accepted")
+    func aMultiWordReadingStillStands() {
+        let offered = [DoubtfulSpan(heard: "ice cream", confidence: 0.31, candidates: ["I scream"])]
+        #expect(
+            sut.verdict(
+                draft: draft("the ice cream is cold"), rewritten: "The I scream is cold.",
+                offering: offered
+            ).isAccepted)
+    }
+
+    @Test("a multi-word run left as it was heard is still accepted")
+    func aMultiWordRunLeftAloneStillStands() {
+        let offered = [DoubtfulSpan(heard: "ice cream", confidence: 0.31, candidates: ["I scream"])]
+        #expect(
+            sut.verdict(
+                draft: draft("the ice cream is cold"), rewritten: "The ice cream is cold.",
+                offering: offered
+            ).isAccepted)
+    }
+
     @Test("a reading written where it was offered is still accepted")
     func theOfferedReadingStillStands() {
         let offered = [DoubtfulSpan(heard: "money", confidence: 0.31, candidates: ["main"])]

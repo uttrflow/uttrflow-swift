@@ -53,21 +53,26 @@ public struct MeaningPreservationGuard: Sendable {
     ) -> (verdict: GuardVerdict, excused: Set<Int>) {
         var excused: Set<Int> = []
         guard !doubtful.isEmpty else { return (.accepted, excused) }
-        for change in alignment.changes {
-            let heard = alignment.keptSpelling(of: change.kept)
-            guard let span = doubtful.first(where: { DoubtfulSpan.closedUp($0.heard) == heard })
-            else { continue }
-            let written = alignment.rewrittenSpelling(of: change.rewritten)
-            guard
-                ([span.heard] + span.candidates).contains(where: {
-                    DoubtfulSpan.closedUp($0) == written
-                })
-            else {
-                let reason = "the rewrite read '\(span.heard)' as a word it was not offered"
-                return (.rejected(reason: reason), excused)
+        for span in doubtful {
+            for place in alignment.keptRuns(spelled: DoubtfulSpan.closedUp(span.heard)) {
+                let touched = alignment.changes.filter { $0.kept.overlaps(place) }
+                // A run the rewrite left where it stood is the run as it was heard, and needs no reading.
+                guard let first = touched.first, let last = touched.last else { continue }
+                let start = min(place.lowerBound, first.kept.lowerBound)
+                let end = max(place.upperBound, last.kept.upperBound)
+                // A change reaching past the run took its neighbours with it, so they are expected here too.
+                let before = alignment.keptSpelling(of: start..<place.lowerBound)
+                let after = alignment.keptSpelling(of: place.upperBound..<end)
+                let offered = ([span.heard] + span.candidates).map {
+                    before + DoubtfulSpan.closedUp($0) + after
+                }
+                guard offered.contains(alignment.standing(in: start..<end)) else {
+                    let reason = "the rewrite read '\(span.heard)' as a word it was not offered"
+                    return (.rejected(reason: reason), excused)
+                }
+                // A reading rightly written here is the one substitution the survival check must let past.
+                for change in touched { excused.formUnion(change.kept.clamped(to: place)) }
             }
-            // A reading rightly written here is the one substitution the survival check must let past.
-            excused.formUnion(change.kept)
         }
         return (.accepted, excused)
     }

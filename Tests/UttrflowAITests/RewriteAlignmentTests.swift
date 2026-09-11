@@ -56,6 +56,28 @@ struct RewriteAlignmentTests {
         #expect(alignment.changes.map(\.kept) == [3..<4, 8..<9])
     }
 
+    @Test("a spelling is found at every run of kept words that closes up to it")
+    func runsAreFoundBySpelling() {
+        let repeated = aligned("call mark before mark leaves", "Call Mark before Mike leaves.")
+        #expect(repeated.keptRuns(spelled: "mark") == [1..<2, 3..<4])
+
+        let joined = aligned("the crash is in payment sheet", "The crash is in PaymentSheet.")
+        #expect(joined.keptRuns(spelled: "paymentsheet") == [4..<6])
+        #expect(joined.keptRuns(spelled: "cream").isEmpty)
+        #expect(joined.keptRuns(spelled: "").isEmpty)
+    }
+
+    @Test("a run reads as the words standing in its place, whether or not the whole of it changed")
+    func aRunReadsAsWhatStandsThere() {
+        let partly = aligned("the ice cream is cold", "The ice screams is cold.")
+        #expect(partly.changes.map(\.kept) == [2..<3])
+        #expect(partly.standing(in: 1..<3) == "icescreams")
+        #expect(partly.standing(in: 3..<5) == "iscold")
+
+        let wholly = aligned("the ice cream is cold", "The I scream is cold.")
+        #expect(wholly.standing(in: 1..<3) == "iscream")
+    }
+
     @Test("a text with nothing in it aligns with anything and asks for no run")
     func emptyTexts() {
         #expect(aligned("", "").changes.isEmpty)

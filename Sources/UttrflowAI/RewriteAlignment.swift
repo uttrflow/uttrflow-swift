@@ -43,6 +43,39 @@ struct RewriteAlignment: Sendable {
         Set(rewritten[range].filter(\.isPlain).map(\.matching))
     }
 
+    /// Every run of kept words closing up to this spelling, which is where a run named by its text stands.
+    func keptRuns(spelled spelling: String) -> [Range<Int>] {
+        guard !spelling.isEmpty else { return [] }
+        var found: [Range<Int>] = []
+        for start in kept.indices {
+            var written = ""
+            for end in start..<kept.count {
+                written += DoubtfulSpan.closedUp(kept[end].text)
+                guard written.count < spelling.count else {
+                    if written == spelling { found.append(start..<(end + 1)) }
+                    break
+                }
+            }
+        }
+        return found
+    }
+
+    /// What stands where a run of kept words stood: an untouched word itself, a changed run what replaced it.
+    func standing(in keptRange: Range<Int>) -> String {
+        var written = ""
+        var index = keptRange.lowerBound
+        while index < keptRange.upperBound {
+            if let change = changes.first(where: { $0.kept.contains(index) }) {
+                written += rewritten[change.rewritten].map(\.text).joined()
+                index = change.kept.upperBound
+            } else {
+                written += kept[index].text
+                index += 1
+            }
+        }
+        return DoubtfulSpan.closedUp(written)
+    }
+
     // MARK: Aligning
 
     /// Trims the runs that match end to end, then splits what is left at the words standing once on each side.
