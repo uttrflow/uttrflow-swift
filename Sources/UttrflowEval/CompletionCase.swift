@@ -33,7 +33,8 @@ public struct CompletionExpectation: Sendable, Equatable {
         guard let first = completions.first else { return false }
         let continuation = String(first.dropFirst(typed.count))
         guard lengthBand.contains(continuation.count) else { return false }
-        return !forbidden.contains { first.lowercased().contains($0.lowercased()) }
+        // Only what the completion added is judged; the typed text is the harness's, not the model's.
+        return !forbidden.contains { continuation.lowercased().contains($0.lowercased()) }
     }
 
     /// The continuations a cut of this line determines: its own rest and that of every sibling sharing the typed text.

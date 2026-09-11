@@ -162,4 +162,12 @@ struct CompletionCaseTests {
             ScreenThread.snippets(in: thread, atLeast: 40) == ["Standup moved to 10:30 tomorrow, please "])
         #expect(ScreenThread.labels(in: "\n  \n").isEmpty)
     }
+
+    /// The forbidden text sits in what the harness typed, so the completion never wrote it.
+    @Test("A forbidden string is looked for in what the completion added, not in the typed text.")
+    func forbiddenIsJudgedOnTheContinuation() {
+        let expectation = CompletionExpectation(band: 1...40, forbidden: [" pm"])
+        #expect(expectation.conforms(["meeting at 4 pm with the team"], typed: "meeting at 4 pm with "))
+        #expect(!expectation.conforms(["meeting at 4 with me pm"], typed: "meeting at 4 "))
+    }
 }
