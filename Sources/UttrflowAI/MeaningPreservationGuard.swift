@@ -292,19 +292,41 @@ public struct MeaningPreservationGuard: Sendable {
 
     // MARK: Checks
 
-    /// A number in the rewrite the speaker said neither in digits nor in words, or nil.
+    /// The first number the rewrite states that the speaker did not state, there and that many times, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
-        let spoken = numbers(in: original).union(spelledNumbers(in: original))
-        return numbers(in: rewritten).subtracting(spoken).min()
+        var spoken = numberSequence(in: original, readingWords: true)[...]
+        for number in numberSequence(in: rewritten, readingWords: false) {
+            guard let found = spoken.firstIndex(of: number) else { return number }
+            spoken = spoken[(found + 1)...]
+        }
+        return nil
     }
 
-    /// Every run of digits in the text.
-    private static func numbers(in text: String) -> Set<String> {
-        Set(
-            withoutThousandsSeparators(text).split(whereSeparator: { !$0.isNumber })
-                .map(String.init)
-                .filter { !$0.isEmpty }
-        )
+    /// The numbers a text states, in order and with repeats kept, reading them as words too when asked.
+    static func numberSequence(in text: String, readingWords: Bool) -> [String] {
+        var found: [String] = []
+        var run = ""
+        var runIsDigits = false
+        func flush() {
+            defer { run = "" }
+            guard !run.isEmpty else { return }
+            if runIsDigits {
+                found.append(run)
+            } else if readingWords, let digits = numberWords[run.lowercased()] {
+                found.append(digits)
+            }
+        }
+        for character in withoutThousandsSeparators(text) {
+            guard character.isNumber || character.isLetter else {
+                flush()
+                continue
+            }
+            if character.isNumber != runIsDigits { flush() }
+            runIsDigits = character.isNumber
+            run.append(character)
+        }
+        flush()
+        return found
     }
 
     /// Drops a comma that groups digits, so "12,000" and "1,50,000" read as the numbers they are.
@@ -358,9 +380,4 @@ public struct MeaningPreservationGuard: Sendable {
         "sixty": "60", "seventy": "70", "eighty": "80", "ninety": "90",
         "hundred": "100", "thousand": "1000",
     ]
-
-    /// The digits for every number word in the text.
-    private static func spelledNumbers(in text: String) -> Set<String> {
-        Set(TextTidy.words(text).compactMap { numberWords[$0] })
-    }
 }

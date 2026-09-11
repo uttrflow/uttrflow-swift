@@ -487,6 +487,39 @@ struct GrammarGuardTests {
             ).isAccepted, "'mark' became 'apple'; the untouched 'market' says nothing about that")
     }
 
+    /// Both numbers are still present, so only their order says the rewrite moved them.
+    @Test("refuses two numbers swapped between their places")
+    func refusesSwappedNumbers() {
+        let verdict = sut.verdict(
+            draft: draft("the invoice is 400 and the credit is 900"),
+            rewritten: "The invoice is 900 and the credit is 400.")
+        #expect(!verdict.isAccepted, "the invoice is not 900")
+    }
+
+    /// The speaker said the number once, so the second one in the rewrite is the model's own.
+    @Test("refuses a number said once and written twice")
+    func refusesARepeatedNumber() {
+        #expect(
+            MeaningPreservationGuard.inventedNumber(
+                original: "the retry count is 20",
+                rewritten: "The retry count is 20 and the timeout is 20."
+            ) == "20")
+    }
+
+    /// The control for the four above: a number said twice may be written twice, in its own order.
+    @Test("accepts numbers written where they were spoken")
+    func acceptsNumbersInPlace() {
+        #expect(
+            sut.verdict(
+                draft: draft("the invoice is 400 and the credit is 900"),
+                rewritten: "The invoice is 400 and the credit is 900."
+            ).isAccepted)
+        #expect(
+            MeaningPreservationGuard.inventedNumber(
+                original: "twenty minutes, then one hundred more",
+                rewritten: "20 minutes, then 100 more.") == nil)
+    }
+
     @Test("judges nothing about readings when none were offered")
     func judgesNothingWithoutReadings() {
         #expect(
