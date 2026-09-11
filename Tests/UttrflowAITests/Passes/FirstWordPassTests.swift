@@ -192,6 +192,17 @@ struct FirstWordPassTests {
         #expect(!FirstWordPass.keepsCapital("Ice"))
     }
 
+    /// The first "total" was dropped by a pass, so the case comes from the "Total" that is still there.
+    @Test("as spoken reads the case from where the first word stands, not from a copy a pass dropped")
+    func asSpokenReadsItsOwnPlace() {
+        var draft = Draft(
+            words: ["total", "um", "Total", "Revenue"].map { Draft.Word($0) })
+        draft.remove(at: 0, by: .repeatedPhrase)
+        draft.remove(at: 1, by: .fillers)
+        let cased = FirstWordPass(policy: .asSpoken).apply(draft)
+        #expect(cased.text == "Total Revenue")
+    }
+
     @Test("records a changed word against this pass, once")
     func provenance() {
         let draft = sut.apply(Draft(text: "hello there"))
