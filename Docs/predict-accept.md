@@ -137,9 +137,11 @@ same precondition and the one tried first is not the blind one.
 And an offer is not taken from an older line. The field is read once per turn, and a slow
 read can take seconds, so a key typed after the read would otherwise leave Tab applying the
 edit worked out for "gti c" to "gti cm". `SuggestionSession` counts the keystrokes the
-coordinator reports, each turn is stamped with the count it saw before its field read began,
-and `route` answers an accept from an older count with nothing. The next turn, which that
-keystroke already woke, reads the line again and offers what fits it.
+coordinator reports. Each turn holds the count it saw before its field read began, and the
+offer it draws takes that count only when it is drawn, so the offer still on screen while the
+next turn is being answered keeps its own, older count. `route` answers an accept from an
+older count with nothing. The next turn, which that keystroke already woke, reads the line
+again and offers what fits it.
 
 ## What ⌘Z does afterwards
 

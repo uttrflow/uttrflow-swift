@@ -145,8 +145,10 @@ public struct SuggestionSession: Sendable, Equatable {
     private var shownIsGenerated = false
     /// Keystrokes the coordinator has reported, so an offer worked out before the latest one is never taken.
     public private(set) var keystrokes = 0
-    /// How many keystrokes the turn now on screen had seen when its field read began.
+    /// How many keystrokes the offer now on screen had seen when its turn's field read began.
     private var drawnAtKeystroke = 0
+    /// The same count for the turn still being answered, which becomes the drawn one's only once it draws.
+    private var pendingKeystroke = 0
 
     /// A session following nothing, with the feature on and nothing drawn.
     public init() {}
@@ -163,8 +165,8 @@ public struct SuggestionSession: Sendable, Equatable {
     ) -> SuggestionTurn {
         self.acceptKey = acceptKey
         self.isQuiet = isQuiet
-        // The count as the read began, so a key pressed during a slow read still makes this turn's offer stale.
-        drawnAtKeystroke = sawKeystrokes ?? keystrokes
+        // Held for this turn's offer, so the one still on screen keeps its own count until something replaces it.
+        pendingKeystroke = sawKeystrokes ?? keystrokes
         let rejected = adopt(surface, typing: moment.typed)
         typed = moment.typed
         // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
@@ -363,6 +365,8 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Records what is now on screen and reports it with the keys it claims and, when nothing is offered, why.
     private mutating func settle(_ shown: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
+        // What is drawn now carries the count its own turn's read saw, and nothing drawn earlier does.
+        drawnAtKeystroke = pendingKeystroke
         // The same line drawn again keeps the list behind it, so a tick that re-reads the corpus never disarms Down.
         if case .certain(let leader) = shown, case .choice(let current, let others) = suggestion,
             current == leader
