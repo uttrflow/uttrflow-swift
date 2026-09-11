@@ -1251,6 +1251,107 @@ evidence of when it must not. Seven triggers are owed a keep case today and the 
   nothing until the prompt is re-measured with the local models downloaded.
 
 
+### A rule that read past the end of a sentence — issue #199 and the sweep it started
+
+#199 reported one instance: `Restatement`'s number branch inventing a correction across a full
+stop. Reproducing it found the same defect in four more places on the cleaning path — a rule
+that gathers context by walking outwards from a word, bounded in words and unbounded at the
+sentence end. All five are fixed here, each reproduced before it was touched.
+
+- **A number said in the previous sentence was deleted, and two sentences welded into one.**
+  "the meeting is at 3. no 4 people confirmed" was inserted as "the meeting is at 4 people
+  confirmed", and "the code is 4 5. no 6" as "the code is 6". `Restatement.discardedStart` has
+  two exits and only the word branch tested for a boundary
+  (`Sources/UttrflowCore/Cleaning/Restatement.swift:40`); `WordShape` splits trailing
+  punctuation into `suffix` (`WordShape.swift:23`), so "3." has the key "3" and the stop was
+  invisible to `NumberWords`. The number branch now refuses an anchor that ends a sentence and
+  terminates its walk-back on one, and both branches read the boundary through a single
+  predicate (`Restatement.swift:65`) so a third anchor kind cannot forget it. The issue's own
+  analysis was right that the other two filters it skips are inert for numbers — no number is a
+  weak anchor and none is a function word — but it missed one that is not: the branch also
+  skipped `coordinates`, so "say no 3 no 4" lost its first item, the same coordinated-list
+  defect #198 fixed for the word branch. Held by `RestatementTests.swift:41` and `:53`, and
+  `SelfCorrectionPassTests.swift:59` and `:71`.
+- **A two-word spoken phrase straddled a sentence end.** "she is full. Stop." lost both words to
+  a spoken full stop, and "I bought something new. Line up here" lost "new." and "Line" to a
+  line break. Both passes match a phrase by comparing keys, and `WordShape.key` drops the
+  trailing stop, so a two-word name could span a boundary the speaker set. `Draft.sentenceRun`
+  (`WordShape.swift:66`) is the bound they lacked: `SpokenPunctuationPass.swift:48` and
+  `LayoutWordsPass.swift:59` and `:66` now require the phrase, and the number after "number", to
+  sit inside one sentence. Held by `SpokenPunctuationPassTests.swift:40` and
+  `LayoutWordsPassTests.swift:46`.
+- **A determiner in the previous sentence suppressed a mark the speaker asked for.** "hand me a
+  pen. Comma then go" kept the word "Comma", because `MentionGuard` walks back up to three words
+  for the determiner that would make a mark word a mention and had no boundary
+  (`Sources/UttrflowAI/Passes/MentionGuard.swift:42`). A noun phrase cannot begin in the sentence
+  before, so the walk-back now stops at a sentence end on the same footing as a word that is
+  itself a mark's name, and the phrase becomes "hand me a pen, then go". That the mark replaces
+  the recogniser's stop is the pass's standing rule rather than anything new here — a mark said
+  by name is an instruction and the recogniser's boundary is a guess. Held by
+  `SpokenPunctuationPassTests.swift:53`.
+- **A number took its context from the sentence before.** "we are in the room. Six people came"
+  wrote "6" on the strength of a "room" the speaker had already finished with, and "I have a
+  hundred. And fifty people came" left "fifty" a word because the scale guard read an unfinished
+  "a hundred and" across the stop. The labelling-word lookback and the scale guard now consult
+  one `startsASentence` predicate (`Sources/UttrflowAI/Passes/NumberFormsPass.swift:145`) at
+  `:88` and `:140`. Held by `NumberFormsPassTests.swift:75`.
+
+`Docs/cleanup.md`'s self-correction, spoken-punctuation, layout and number rows described a
+lookback or a phrase without saying it stops at a sentence end, which is the wording that let
+the number branch be written without one; all four now say it.
+
+**The corpus could not see any of this.** `make bakeoff ARGS="--baselines-only"` scores 79% pass
+and 93% close before and after, and the per-case rules JSON is byte-identical to an `origin/main`
+worktree's apart from its timings — so not one corpus case moved in either direction. The cases
+are single sentences, and every one of these five defects needs two.
+
+**Left standing, each measured rather than assumed.**
+
+- **`PieceJoiner` needs no change, and the issue's proposed parameter is not needed either.** The
+  issue warned that a boundary test would kill the documented cross-piece correction "let's meet
+  at four" | "no sorry at five", and proposed passing a flag saying the seam's stop is an
+  artefact. It is already handled the other way round: `PieceJoiner.restate` strips the previous
+  piece's trailing stop with `WordShape.withoutTrailingStop` before calling `discardedStart` and
+  restores it if nothing matched (`Sources/UttrflowPipeline/PieceJoiner.swift:89`), so the callee
+  never sees a stop to refuse. `PieceJoinerTests.numbersAcrossTheCut:174` stays green. Stripping
+  at the caller is the better of the two — the callee keeps one rule, and the artefact is removed
+  by the code that created it.
+- **`SelfCorrectionPass` holds no boundary logic of its own.** It delegates the whole decision to
+  `Restatement.discardedStart` and was fixed at the root.
+- **`MentionGuard`'s forward "of" lookahead.** The one instance left unfixed. A guard was
+  written, measured and reverted: it fires only when the mark name itself carries the
+  sentence-ending stop, where converting downgrades the recogniser's own boundary to a comma and
+  strands the next sentence's capital — "we shipped comma. Of course it broke" becomes "we
+  shipped, Of course it broke", and `FirstWordPass` was measured and does not lower that capital.
+  There is no corpus case for it, and the casing repair belongs to a pass this change does not
+  own.
+
+**A lookback with no sentence bound is the class, and the guardrail is a property rather than a
+case.** `Tests/UttrflowAITests/Passes/SentenceLocalityTests.swift` holds every sentence-local
+pass to one rule: a sentence is cleaned the same whether or not another sentence precedes it. It
+is a cross product — prefixes whose last word is bait for some lookback ("she is full.", "I have
+a hundred.", "the meeting is at 3.") against bodies that each rule acts on, over ten passes — so
+it costs nothing to extend and a new pass is one line. Run against the sources as they stood
+before this branch it independently reports four of the five defects above, in
+`SelfCorrectionPass`, `NumberFormsPass`, `LayoutWordsPass` and `SpokenPunctuationPass`, having
+been told about none of them. There is **one** exemption and it is asserted rather than assumed:
+a sentence opening on a spoken mark name, which the pass deliberately writes onto the word before
+for the reason given above. `MentionGuard`'s determiner case falls inside that exemption and
+keeps its own test instead.
+
+**It found a fifth defect on its first run, which is why it exists** — now issue #254, and
+pre-existing rather than introduced here: reverting every source file this branch touched
+reproduces it unchanged. `MentionGuard.isMentioned` opens with `guard position > 0 else { return
+true }` (`MentionGuard.swift:26`) — the rule that a layout phrase opening the text is a
+designator rather than an item — and it asks the **text** where the phrase sits, while
+`opensThePhrase` now asks the **sentence**. So "number one is broken" is left alone when it opens
+the text and becomes "1. is broken" after any sentence at all, deleting two words the speaker
+said. The determiner path stays correct across a stop, so only the bare opening is affected. It
+is filed rather than fixed here, and pinned in the guardrail's `readsTheTextNotTheSentence` list,
+which ratchets down only — a second entry can never be added quietly, and the entry itself is
+tested to still fail so it cannot go stale.
+
+
 ## Tab-to-complete 🟡
 
 The field the user is typing into finishes itself, from what this Mac has typed into that
