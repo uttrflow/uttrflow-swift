@@ -215,7 +215,7 @@ public actor DictationPipeline {
             stopwatch = nil
         } catch {
             hasTurn = false
-            // A cancel that arrived during the drain already put the pipeline at rest.
+            // A cancel during the drain leaves the pipeline at rest, so no failure is published over it.
             guard !wasCancelled(mine) else { return }
             transition(to: .failed(DictationFailure(error)))
             return
@@ -225,7 +225,7 @@ public actor DictationPipeline {
         let kept = await recordings.current()
         // Asked after the lookup, since a cancel can arrive while it is suspended as well as before it.
         if wasCancelled(mine) {
-            // The cancel ran before this recording was known, so it is deleted here instead.
+            // A cancel cannot see a recording not yet looked up, so it is deleted here instead.
             if let kept { await recordings.discard(kept.id) }
         } else {
             openRecording = kept?.id
@@ -250,7 +250,7 @@ public actor DictationPipeline {
             // A file that cannot be read cannot be retried, so it is not offered again.
             await recordings.discard(recording)
             hasTurn = false
-            // A cancel that arrived during the read already put the pipeline at rest.
+            // A cancel during the read leaves the pipeline at rest, so no failure is published over it.
             guard !wasCancelled(mine) else { return }
             transition(to: .failed(DictationFailure(error)))
             return
@@ -371,7 +371,7 @@ public actor DictationPipeline {
     }
 
     private func process(_ audio: AudioSamples, _ mine: Int, delivery: Delivery) async {
-        // Checked before the state moves, so a cancel that came first is not overwritten by work it abandoned.
+        // Checked before the state moves, so an abandoned run never overwrites the rest a cancel sets.
         guard !wasCancelled(mine) else { return }
         transition(to: .transcribing)
 

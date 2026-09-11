@@ -536,7 +536,7 @@ struct DictationControllerControlTests {
         harness.controller.submit(.pressed)
         await harness.controller.toggleFromControl()
 
-        // The press opened the microphone first, so the click is what finished it.
+        // The press opens the microphone first, so the click is what finishes it.
         #expect(await harness.capture.calls.events == [.start, .stop])
         #expect(harness.inserter.received == [controllerTidied])
     }
