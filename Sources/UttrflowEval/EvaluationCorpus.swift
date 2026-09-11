@@ -252,12 +252,14 @@ public enum EvaluationCorpus {
         .init(
             id: "door-code-repeated-digits", category: .technical,
             spoken: "the door code is four seven four seven",
-            expected: "The door code is four seven four seven."
+            expected: "The door code is four seven four seven.",
+            mustKeep: ["four seven four seven"]
         ),
         .init(
             id: "card-group-repeated-digits", category: .technical,
             spoken: "the test card number starts four two four two four two four two",
-            expected: "The test card number starts four two four two four two four two."
+            expected: "The test card number starts four two four two four two four two.",
+            mustKeep: ["four two four two four two four two"]
         ),
     ]
 

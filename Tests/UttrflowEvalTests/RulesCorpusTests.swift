@@ -96,6 +96,19 @@ struct RulesCorpusTests {
         }
     }
 
+    /// Similarity alone passes a run with one copy gone, so each case must name the whole run it keeps.
+    @Test(
+        "fails a repeated-digits case that loses half its run",
+        arguments: [
+            ("door-code-repeated-digits", "The door code is four seven."),
+            ("card-group-repeated-digits", "The test card number starts four two four two."),
+            ("extension-repeated-digits", "You can reach me on extension 442."),
+        ])
+    func halvedRunFails(id: String, halved: String) throws {
+        let testCase = try #require(EvaluationCorpus.all.first { $0.id == id })
+        #expect(!Scorer.score(halved, against: testCase).passed)
+    }
+
     @Test("names only cases that exist")
     func namesRealCases() {
         let ids = Set(EvaluationCorpus.all.map(\.id))
