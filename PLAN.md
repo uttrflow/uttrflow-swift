@@ -1251,6 +1251,72 @@ evidence of when it must not. Seven triggers are owed a keep case today and the 
   nothing until the prompt is re-measured with the local models downloaded.
 
 
+### A doubled word deleted for being short — issue #200, one scale down from the same class
+
+The same shape as the three above — a rule deleting what the speaker said on the shape of a
+word alone — at word scale, reproduced at runtime before either pass was touched. Two passes,
+because fixing the first made the second reachable.
+
+- **An emphasis and a place name each lost half of themselves.** "this is very very important"
+  was inserted as "This is very important.", "much much better" as "much better", and "we flew
+  to Bora Bora last year" as "we flew to Bora last year", which changes a name. `StammersPass`
+  used the length of the word as the proxy for disfluency — four letters or fewer — and patched
+  the residue with a five-word exception list. The commonest English emphatic reduplications are
+  exactly four letters, so the threshold admitted the class it was written to exclude, and no
+  list reaches an open class of proper nouns. The positive evidence is one the sibling pass
+  already reads: a false start restarts on the frame, and a frame is built from function words.
+  The test is now `!FunctionWords.isContent(word)`
+  (`Sources/UttrflowAI/Passes/StammersPass.swift:18`), the predicate `Restatement.swift:61`
+  depends on, and it takes the constant and the `NumberWords.isNumber` clause under it — every
+  number word is content, so "extension four four two" is kept for the rule's own reason rather
+  than by exemption. `legitimateDoubles` shrinks to the function words English doubles on
+  purpose (`StammersPass.swift:8`); "bye" and "no" need no entry, being content words protected
+  by construction. Held by `StammersPassTests.swift:69` (emphasis), `:84` (a doubled name) and
+  `:93` — "ha ha ha", which the old code collapsed to a single token because `previous` goes
+  stale on the removal path — with the five removal cases at `:10` all still removing.
+- **A name said twice lost half of itself one pass later, and the first fix created half of
+  that.** Measured at runtime before the change: "New York New York is the song" → "New York is
+  the song", "we flew to Bora Bora Bora Bora" → "we flew to Bora Bora", and — new, because the
+  stammer fix now keeps an emphasis that arrives here as a two-word run — "ha ha ha ha" → "ha
+  ha", "no no no no" → "no no". `RepeatedPhrasePass` had the rule at phrase scale with no
+  exception at all: a 2–4-word run repeated verbatim was always a false start. `isDeliberate`
+  (`Sources/UttrflowAI/Passes/RepeatedPhrasePass.swift:42`) is the evidence it lacked — one word
+  filling the window, or a run of content words and nothing else — and all six shipped removal
+  cases still remove, each being function words or a mix of the two. Held by
+  `RepeatedPhrasePassTests.swift:40`.
+
+`Docs/cleanup.md:51` and `:52` state the rule rather than the threshold, and the stammer row
+now concedes the limit it keeps: "this this" and "what what" are function words, so both still
+lose a copy, the restart reading being the commoner one and the pass having only the word to go
+on. `StammersPassTests.swift:25` pins both, so that is a decision to change on purpose rather
+than one a later edit flips by accident. The two defects already left standing above survive
+this change and stay true — "what it is is a problem" still loses its second "is", and "it is
+what it is what it is" still loses a copy, both runs being function words throughout.
+
+**Deliberately not taken from the issue's fix direction.** Moving the comparison from
+`draft.words[index].text.lowercased()` (`StammersPass.swift:16`) to `shape(at:).key` would make
+the pass delete across a punctuation split that `StammersPassTests.swift:60` asserts it leaves
+alone — the wrong direction for a fix about deleting too much, and nothing in the reproduction
+needs it. Refreshing `previous` on the removal path would have regressed
+`StammersPassTests.swift:16`, where "we we we should" is asserted to collapse to one token;
+"ha ha ha" is fixed by the predicate instead. `make bakeoff` was **not** run: it downloads model
+weights and needs the Metal toolchain (`Makefile:167`), neither available in this worktree, so
+the two new cases are held by the model-free `RulesCorpusTests` inside `make verify` instead —
+`swift test` reports 4,523 tests in 616 suites, and `make verify` exits 0.
+
+**The corpus was one-sided here too, which is why the class recurred, so the guardrail widens.**
+Every cleaning change is measured against the corpus, and it held no case in which a doubled
+word survived — so at both scales the bake-off scored the deletion as a win, exactly as it had
+for the correction triggers one sweep earlier. `EvaluationCorpus.swift:130` and `:136` add the
+keep side ("very very", "much much", "Bora Bora"), and `CorpusEvidenceTests.swift:64` holds the
+corpus to it: at each scale a pass deletes a verbatim repeat at — one word, and a run of two to
+four — there must be a case that deletes one *and* a case that keeps one. It was checked to
+bite rather than assumed: over-deleting the three keep cases in the corpus fails it at both
+scales (exit 1), and the tree as it stands passes it in 0.014s. That is one guardrail for two
+passes and for the next rule of this shape, which is why it is a rule rather than noise — this
+is the second time the one-sided corpus, not the pass, was what let the deletion ship.
+
+
 ## Tab-to-complete 🟡
 
 The field the user is typing into finishes itself, from what this Mac has typed into that
