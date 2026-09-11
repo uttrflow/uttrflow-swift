@@ -28,6 +28,19 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A two-word mark name cannot straddle a sentence end, because the halves were said in different sentences.
+    @Test(
+        "leaves a mark name whose two words sit in different sentences",
+        arguments: [
+            "She is full. Stop.",
+            "the glass was full. Stop worrying about it",
+            "ask the question. Mark it as done",
+        ]
+    )
+    func leavesANameAcrossASentenceEnd(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test(
         "ends a sentence with a spoken full stop only where the text closes",
         arguments: [
