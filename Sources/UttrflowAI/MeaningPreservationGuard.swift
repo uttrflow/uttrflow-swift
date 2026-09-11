@@ -215,7 +215,7 @@ public struct MeaningPreservationGuard: Sendable {
         return .accepted
     }
 
-    /// Whether one rewritten word is the kept word: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
+    /// Whether one rewritten word is the kept word: exact, as its numeral or its word, in an inflected form, in an identifier, or as a verb form.
     static func survives(_ word: String, as candidate: GrammarToken) -> Bool {
         if word == candidate.matching { return true }
         if numberWords[word] == candidate.matching { return true }
