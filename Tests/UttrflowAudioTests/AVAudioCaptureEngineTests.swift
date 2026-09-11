@@ -1,4 +1,5 @@
 // Tests the capture engine's lifecycle rules without a microphone.
+import Synchronization
 import Testing
 
 @testable import UttrflowAudio
@@ -163,4 +164,82 @@ struct AVAudioCaptureEngineSnapshotTests {
         let engine = AVAudioCaptureEngine(source: FakeMicrophoneSource())
         #expect(await engine.capturedSoFar() == .empty)
     }
+}
+
+@Suite("AVAudioCaptureEngine: the stop cue")
+struct AVAudioCaptureEngineCueTests {
+    @Test("plays the stop cue once the microphone has closed, so none of it is recorded")
+    func stopCueFollowsTheMicrophone() async throws {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+
+        let audio = try await engine.stop()
+
+        #expect(cue.stopsHeardWhileDelivering == [false], "one stop cue, after the microphone closed")
+        #expect(audio.samples == [0.1, 0.2], "the recording is still handed over whole")
+    }
+
+    @Test("plays no stop cue for a recording that was cancelled")
+    func noStopCueOnCancel() async throws {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+        try await engine.start()
+
+        await engine.cancel()
+
+        #expect(cue.stopsHeardWhileDelivering.isEmpty)
+    }
+
+    @Test("plays no stop cue when there is no recording to stop")
+    func noStopCueWhenIdle() async {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+
+        await #expect(throws: AudioCaptureError.notRecording) { _ = try await engine.stop() }
+        #expect(cue.stopsHeardWhileDelivering.isEmpty)
+    }
+
+    @Test("never plays the start cue, which waits until the pipeline is listening")
+    func startCueIsNotTheEngines() async throws {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+
+        try await engine.start()
+        _ = try await engine.stop()
+
+        #expect(cue.starts == 0)
+    }
+}
+
+/// A cue that notes, for every stop it plays, whether the microphone was still delivering.
+private final class MicrophoneWatchingCue: RecordingCueing {
+    private struct Log {
+        var starts = 0
+        var stops: [Bool] = []
+    }
+
+    private let source: FakeMicrophoneSource
+    private let log = Mutex(Log())
+
+    init(source: FakeMicrophoneSource) {
+        self.source = source
+    }
+
+    func playStart() {
+        log.withLock { $0.starts += 1 }
+    }
+
+    func playStop() {
+        let delivering = source.isDelivering
+        log.withLock { $0.stops.append(delivering) }
+    }
+
+    var starts: Int { log.withLock(\.starts) }
+    var stopsHeardWhileDelivering: [Bool] { log.withLock(\.stops) }
 }
