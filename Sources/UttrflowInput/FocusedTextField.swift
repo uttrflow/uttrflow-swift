@@ -5,18 +5,18 @@ public protocol FocusedTextField: Sendable {
     /// Replaces the selection, or inserts at the caret when there is none.
     func replaceSelection(with text: String) throws(TextInsertionError)
 
-    /// Replaces the selection *and* the `characters` before it, which only an accepted completion asks for.
+    /// Replaces the selection *and* `replaced` before it, having confirmed that is what is there; only a completion asks.
     func replaceSelection(
-        precededBy characters: Int, with text: String
+        replacing replaced: String, with text: String
     ) throws(TextInsertionError)
 }
 
 extension FocusedTextField {
     /// A field that cannot select backwards refuses, so the keystroke route takes the replacement instead.
     public func replaceSelection(
-        precededBy characters: Int, with text: String
+        replacing replaced: String, with text: String
     ) throws(TextInsertionError) {
-        guard characters == 0 else {
+        guard replaced.isEmpty else {
             throw .insertionRejected(description: "the field cannot select backwards")
         }
         try replaceSelection(with: text)

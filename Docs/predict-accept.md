@@ -129,6 +129,18 @@ replaced, throws `.insertionRejected` and types nothing. A field that will not s
 precedes the caret is not held up by the check: the deletions go ahead, since a Tab that
 does nothing is the worse failure.
 
+The Accessibility route checks too. Before it widens the selection, `AXTextField` compares
+the characters that selection would cover with what the edit replaces
+(`BackwardSelection.confirms`) and writes nothing when they differ, so both routes hold the
+same precondition and the one tried first is not the blind one.
+
+And an offer is not taken from an older line. The field is read once per turn, and a slow
+read can take seconds, so a key typed after the read would otherwise leave Tab applying the
+edit worked out for "gti c" to "gti cm". `SuggestionSession` counts the keystrokes the
+coordinator reports, each turn is stamped with the count it saw before its field read began,
+and `route` answers an accept from an older count with nothing. The next turn, which that
+keystroke already woke, reads the line again and offers what fits it.
+
 ## What ⌘Z does afterwards
 
 **One press, on the Accessibility route.** Setting `kAXSelectedText` on an AppKit field

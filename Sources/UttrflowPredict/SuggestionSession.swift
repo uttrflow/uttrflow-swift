@@ -143,17 +143,28 @@ public struct SuggestionSession: Sendable, Equatable {
     private var generation = 0
     /// Whether what is on screen was invented by the model rather than remembered, which decides what typing past it means.
     private var shownIsGenerated = false
+    /// Keystrokes the coordinator has reported, so an offer worked out before the latest one is never taken.
+    public private(set) var keystrokes = 0
+    /// How many keystrokes the turn now on screen had seen when its field read began.
+    private var drawnAtKeystroke = 0
 
     /// A session following nothing, with the feature on and nothing drawn.
     public init() {}
 
-    /// Takes one moment in one field and answers with what to do about it.
+    /// Notes one key typed in the field, which makes whatever is on offer stale until a turn reads the line again.
+    public mutating func keystrokeArrived() {
+        keystrokes += 1
+    }
+
+    /// Takes one moment in one field and answers with what to do about it; `sawKeystrokes` is the count as its read began.
     public mutating func turn(
         in surface: Surface?, at moment: PredictionContext, acceptKey: AcceptKey = .tab,
-        isQuiet: Bool = false
+        isQuiet: Bool = false, sawKeystrokes: Int? = nil
     ) -> SuggestionTurn {
         self.acceptKey = acceptKey
         self.isQuiet = isQuiet
+        // The count as the read began, so a key pressed during a slow read still makes this turn's offer stale.
+        drawnAtKeystroke = sawKeystrokes ?? keystrokes
         let rejected = adopt(surface, typing: moment.typed)
         typed = moment.typed
         // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
@@ -273,6 +284,8 @@ public struct SuggestionSession: Sendable, Equatable {
             for: stroke, showing: suggestion, selection: selection, acceptKey: acceptKey)
         {
         case .accept(let text):
+            // A key typed since the read this offer was worked out for has moved the line, so Tab takes nothing.
+            guard drawnAtKeystroke == keystrokes else { return .nothing }
             // The offer is gone the moment it is taken, and so is any answer still in flight for it.
             generation += 1
             clearDrawing()

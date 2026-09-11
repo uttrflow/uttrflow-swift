@@ -23,13 +23,13 @@ private final class RecordingField: FocusedTextField, @unchecked Sendable {
     }
 
     func replaceSelection(
-        precededBy characters: Int, with text: String
+        replacing replaced: String, with text: String
     ) throws(TextInsertionError) {
-        guard selectsBackwards || characters == 0 else {
+        guard selectsBackwards || replaced.isEmpty else {
             throw .insertionRejected(description: "the field cannot select backwards")
         }
         written.withLock { $0.append(text) }
-        replacedCounts.withLock { $0.append(characters) }
+        replacedCounts.withLock { $0.append(replaced.count) }
     }
 }
 
@@ -191,6 +191,28 @@ struct AccessibilityCompletionTests {
 
         await #expect(throws: (any Error).self) { try await engine.write("mit", replacing: "x") }
         #expect(field.text == ["mit"])
+    }
+}
+
+@Suite("Confirming what a completion takes back")
+struct BackwardSelectionConfirmationTests {
+    @Test("Confirms the characters before the caret when they are exactly what would be replaced.")
+    func confirmsAMatch() {
+        #expect(BackwardSelection.confirms("git ", in: "git ", endingAt: 4))
+        #expect(BackwardSelection.confirms("b🙂", in: "ab🙂", endingAt: 4))
+        #expect(BackwardSelection.confirms("", in: "anything", endingAt: 3))
+    }
+
+    /// Read as "gti c", then "m" typed before Tab: the four characters behind the caret are no longer "ti c".
+    @Test("Refuses when a character typed since the read sits before the caret.")
+    func refusesWhatMoved() {
+        #expect(!BackwardSelection.confirms("ti c", in: "gti cm", endingAt: 6))
+    }
+
+    @Test("Refuses when there is too little text or the caret splits a character.")
+    func refusesAnImpossibleRange() {
+        #expect(!BackwardSelection.confirms("ab", in: "a", endingAt: 1))
+        #expect(!BackwardSelection.confirms("🙂", in: "a🙂", endingAt: 2))
     }
 }
 

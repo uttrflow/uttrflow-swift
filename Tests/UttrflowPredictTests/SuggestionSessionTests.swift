@@ -33,10 +33,11 @@ private func settled(_ turn: SuggestionTurn) -> SuggestionUpdate? {
 func draw(
     _ session: inout SuggestionSession, typing typed: String, candidates: [Candidate] = lone(),
     context: PredictionContext? = nil, elapsed: Int = 0, in surface: Surface = field,
-    acceptKey: AcceptKey = .tab, isQuiet: Bool = false
+    acceptKey: AcceptKey = .tab, isQuiet: Bool = false, sawKeystrokes: Int? = nil
 ) throws -> SuggestionUpdate? {
     let context = context ?? PredictionContext(typed: typed)
-    let turn = session.turn(in: surface, at: context, acceptKey: acceptKey, isQuiet: isQuiet)
+    let turn = session.turn(
+        in: surface, at: context, acceptKey: acceptKey, isQuiet: isQuiet, sawKeystrokes: sawKeystrokes)
     if let update = settled(turn) { return update }
     let asked = try query(turn)
     switch session.resolve(candidates, for: asked, now: moment, elapsedMilliseconds: elapsed) {
@@ -418,6 +419,35 @@ struct SuggestionRoutingTests {
         let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
         _ = session.route(KeyStroke(.tab))
         #expect(session.resolve(lone(), for: asked, now: moment, elapsedMilliseconds: 0) == nil)
+    }
+
+    /// The edit was worked out for the line as read, so taking it after the line has moved would eat what was typed since.
+    @Test("A key typed after the offer was worked out means Tab takes nothing.")
+    func acceptAfterAKeystrokeTakesNothing() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        session.keystrokeArrived()
+        #expect(session.route(KeyStroke(.tab)) == .nothing)
+        #expect(session.typed == "git c")
+    }
+
+    @Test("A turn that reads the line after the keystroke may be taken again.")
+    func aFreshTurnMayBeTaken() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        session.keystrokeArrived()
+        _ = try draw(&session, typing: "git c")
+        #expect(session.route(KeyStroke(.tab)) == .accept("git commit -m"))
+    }
+
+    @Test("An offer from a read that began before a keystroke is stale even though it was drawn after it.")
+    func aReadThatMissedTheKeystrokeIsStale() throws {
+        var session = SuggestionSession()
+        let seen = session.keystrokes
+        session.keystrokeArrived()
+        _ = try draw(&session, typing: "git c", sawKeystrokes: seen)
+        #expect(session.suggestion == .certain("git commit -m"))
+        #expect(session.route(KeyStroke(.tab)) == .nothing)
     }
 
     @Test("A key nothing has claimed changes nothing.")
