@@ -5,8 +5,8 @@ import UttrflowDictionary
 
 @testable import UttrflowAI
 
-/// Regression for issue 217, the second candidate source: the same restraint, stated once and asked here too.
-@Suite("Issue 217 sweep: DictionaryCandidates asks the same restraint")
+/// Regression for issue 217: the user's own dictionary is exempt from the restraint the other two sources ask.
+@Suite("Issue 217 sweep: a taught spelling is evidence, so DictionaryCandidates is exempt")
 struct Issue217SweepTests {
     private static func index(_ words: [String]) -> PhoneticIndex {
         PhoneticIndex(
@@ -15,23 +15,30 @@ struct Issue217SweepTests {
             })
     }
 
-    @Test("refuses a dictionary word that only collides on the sound key")
-    func refusesACollidingEntry() async {
-        let source = DictionaryCandidates { Self.index(["Modo", "MDT", "Kubernetes"]) }
-        let found = await source.candidates(
-            for: Draft.Word("made", confidence: 0.42), in: .showing(title: "notes.txt"))
-        #expect(found.isEmpty)
+    /// A mishearing a personal dictionary exists to repair rarely opens like the word: K for C, PH for F, a shifted vowel.
+    @Test(
+        "offers a taught spelling whose opening the mishearing lost",
+        arguments: [
+            ("cooper netties", "Kubernetes"), ("questral", "Kestrel"), ("arav", "Aarav"),
+            ("fil", "Phil"),
+        ]
+    )
+    func offersASpellingThatOpensDifferently(heard: String, taught: String) async {
+        let source = DictionaryCandidates { Self.index([taught]) }
+        let found = await source.candidates(for: Draft.Word(heard, confidence: 0.42), in: .unknown)
+        #expect(found == [taught])
     }
 
-    @Test("still offers the user's own spelling of what they said")
-    func keepsTheUsersSpelling() async {
-        let source = DictionaryCandidates { Self.index(["PaymentSheet", "Kestrel"]) }
-        let sheet = await source.candidates(
-            for: Draft.Word("payment sheet", confidence: 0.42), in: .unknown)
-        let kestrel = await source.candidates(
-            for: Draft.Word("kestral", confidence: 0.42), in: .unknown)
-        #expect(sheet == ["PaymentSheet"])
-        #expect(kestrel == ["Kestrel"])
+    /// The source and the correction engine must answer the same question, or a spelling is applied and never offered.
+    @Test("offers what the correction engine recalls for the same run")
+    func answersTheEnginesQuestion() async {
+        let dictionary = Self.index(["Kubernetes"])
+        let source = DictionaryCandidates { dictionary }
+        let found = await source.candidates(
+            for: Draft.Word("cooper netties", confidence: 0.42), in: .unknown)
+        let engine = WordCorrectionEngine.spellings(of: "cooper netties", in: dictionary)
+        #expect(found == Array(engine.map(\.word).prefix(DictionaryCandidates.maximumOffered)))
+        #expect(!found.isEmpty)
     }
 
     @Test("caps what one sound may offer, so it cannot spend a span's whole budget")
@@ -43,13 +50,15 @@ struct Issue217SweepTests {
         #expect(found.count <= DictionaryCandidates.maximumOffered)
     }
 
-    @Test("asked first, it can no longer crowd the restrained sources out")
-    func doesNotCrowdTheOthersOut() async {
+    /// The cap is what keeps the exempt source from filling the line, since the restraint no longer thins it.
+    @Test("asked first, it leaves room on the line for the restrained sources")
+    func leavesRoomForTheOthers() async {
         let words = ["Modo", "MDT", "Midi", "Moda", "Mito"]
         let sources = DoubtfulWords.including(dictionary: { Self.index(words) })
         let spans = await sources.spans(
             in: .heard("i ?made a change", unsure: 0.42), for: .showing(title: "notes.txt"))
-        #expect(spans.isEmpty)
+        #expect(spans.count == 1)
+        #expect(spans.first?.candidates.count == DictionaryCandidates.maximumOffered)
     }
 }
 

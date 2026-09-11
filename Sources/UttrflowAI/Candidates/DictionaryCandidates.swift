@@ -13,16 +13,11 @@ public struct DictionaryCandidates: CandidateSource {
         self.index = index
     }
 
-    /// The entries the engine would consider, less the ones that only collide on a sound key.
+    /// What the correction engine's lookup recalls, capped; `ReadingRestraint` is not asked, because a taught word is evidence.
     public func candidates(for word: Draft.Word, in situation: Situation) async -> [String] {
-        let heard = word.text
-        return Array(
-            WordCorrectionEngine.spellings(of: heard, in: await index())
+        Array(
+            WordCorrectionEngine.spellings(of: word.text, in: await index())
                 .map(\.word)
-                .filter {
-                    DoubtfulSpan.closedUp($0) == DoubtfulSpan.closedUp(heard)
-                        || ReadingRestraint.opensAlike($0, heard: heard)
-                }
                 .prefix(Self.maximumOffered))
     }
 }

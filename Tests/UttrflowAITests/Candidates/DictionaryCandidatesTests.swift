@@ -27,13 +27,17 @@ struct DictionaryCandidatesTests {
         #expect(found.isEmpty)
     }
 
-    /// The engine's lookup is recall; what this source offers is that list restrained, never more than it.
-    @Test("offers a restrained part of what the correction engine's lookup recalls")
-    func restrainsTheEngineLookup() async {
+    @Test("answers the same question the correction engine asks of the same dictionary")
+    func sharesTheEngineLookup() async {
         let found = await source.candidates(for: Draft.Word("kestral", confidence: 0.3), in: .unknown)
-        let engine = WordCorrectionEngine.spellings(of: "kestral", in: CorrectionFixtures.index).map(\.word)
-        #expect(found.allSatisfy(engine.contains))
-        #expect(found.count <= DictionaryCandidates.maximumOffered)
+        let engine = WordCorrectionEngine.spellings(of: "kestral", in: CorrectionFixtures.index)
+        #expect(found == Array(engine.map(\.word).prefix(DictionaryCandidates.maximumOffered)))
         #expect(found.contains("Kestrel"))
+    }
+
+    @Test("offers at most two, so the screen and the ordinary words keep their places on the line")
+    func capsWhatItOffers() async {
+        let found = await source.candidates(for: Draft.Word("kestral", confidence: 0.3), in: .unknown)
+        #expect(found.count <= DictionaryCandidates.maximumOffered)
     }
 }
