@@ -37,9 +37,11 @@ enum MentionGuard {
         // A hyphen joins the two words around it, so it heads no phrase and only the word before it speaks.
         let far = draft.shape(at: live[position]).key == "hyphen" ? 1 : reach
         for back in 1...min(far, position) {
-            let key = draft.shape(at: live[position - back]).key
-            if back == 1 ? determiners.contains(key) : phraseOpeners.contains(key) { return true }
-            if markNames.contains(key) { return false }
+            let shape = draft.shape(at: live[position - back])
+            // A noun phrase cannot begin in the sentence before, so no opener stands on the far side of a stop.
+            if shape.endsSentence { return false }
+            if back == 1 ? determiners.contains(shape.key) : phraseOpeners.contains(shape.key) { return true }
+            if markNames.contains(shape.key) { return false }
         }
         return false
     }
