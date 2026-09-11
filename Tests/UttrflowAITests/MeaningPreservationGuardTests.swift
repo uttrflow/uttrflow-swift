@@ -481,6 +481,15 @@ struct GrammarGuardTests {
             ).isAccepted)
     }
 
+    /// A reading is offered for one run of words, not as leave to write anything beside it.
+    @Test("refuses a word nobody offered, written next to a reading that was")
+    func refusesAnInventionBesideAnOfferedReading() {
+        let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple"])]
+        let verdict = sut.verdict(
+            draft: draft("i ate an apple"), rewritten: "I ate an Apple pie.", offering: offered)
+        #expect(verdict == .rejected(reason: "the rewrite invented 'pie'"))
+    }
+
     @Test("judges nothing about readings when none were offered")
     func judgesNothingWithoutReadings() {
         #expect(MeaningPreservationGuard.candidateVerdict([], rewritten: "anything at all").isAccepted)
