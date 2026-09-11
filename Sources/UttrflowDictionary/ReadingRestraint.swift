@@ -1,6 +1,6 @@
 // What a sound key cannot decide on its own.
 
-/// The restraint every phonetic lookup needs and the encoder cannot supply. See `Docs/cleanup.md`.
+/// What a phonetic lookup must ask beyond the sound key, which the encoder cannot answer. See `Docs/cleanup.md`.
 public enum ReadingRestraint {
     /// The opening letters a reading must share, because a word that merely rhymes is noise, not a reading.
     public static let openingLettersShared = 2
@@ -20,9 +20,15 @@ public enum ReadingRestraint {
         return reading.prefix(openingLettersShared) == heard.prefix(openingLettersShared)
     }
 
-    /// Whether a reading is worth offering for what was heard: another spelling, sounding alike and opening alike.
+    /// Whether both words are ones a general recogniser already expects, which makes a shared sound key a collision rather than evidence.
+    public static func bothOrdinary(_ reading: String, heard: String) -> Bool {
+        GeneralVocabulary.knows(closedUp(reading)) && GeneralVocabulary.knows(closedUp(heard))
+    }
+
+    /// Whether a reading is worth offering: another spelling, sounding alike, opening alike, and not one ordinary word for another.
     public static func isWorthOffering(_ reading: String, for heard: String) -> Bool {
         closedUp(reading) != closedUp(heard) && opensAlike(reading, heard: heard)
+            && !bothOrdinary(reading, heard: heard)
             && DoubleMetaphone.code(for: reading).sounds(like: DoubleMetaphone.code(for: heard))
     }
 }

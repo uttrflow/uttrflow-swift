@@ -71,6 +71,28 @@ struct Issue217ReadingRestraintTests {
         #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'made'"))
     }
 
+    /// The second rule the issue names: what is on screen is evidence only when the word is not one everybody knows.
+    @Test("refuses an ordinary screen word as a reading of an ordinary spoken one")
+    func vetoesTwoOrdinaryWords() async {
+        let man = await source.candidates(
+            for: Draft.Word("main", confidence: 0.42), in: .showing(title: "man page"))
+        let main = await source.candidates(
+            for: Draft.Word("mean", confidence: 0.42), in: .showing(title: "main.go"))
+        #expect(man.isEmpty)
+        #expect(main.isEmpty)
+    }
+
+    /// The residual, measured and recorded rather than implied away: see the doubtful-words row of `Docs/cleanup.md`.
+    @Test("still offers a collision neither side of which GeneralVocabulary knows")
+    func recordsWhatTheVetoDoesNotReach() async {
+        let mad = await source.candidates(
+            for: Draft.Word("made", confidence: 0.42), in: .showing(title: "mad.rs"))
+        let men = await source.candidates(
+            for: Draft.Word("mean", confidence: 0.42), in: .showing(title: "men.csv"))
+        #expect(mad == ["mad"])
+        #expect(men == ["men"])
+    }
+
     @Test("still offers the reading that sounds alike and opens alike")
     func keepsTheRealReading() async {
         let found = await source.candidates(

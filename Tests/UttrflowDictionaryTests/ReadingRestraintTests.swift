@@ -28,6 +28,24 @@ struct ReadingRestraintTests {
         #expect(!ReadingRestraint.isWorthOffering("elephant", for: "cash"))
     }
 
+    /// Two ordinary words on one sound key is a collision, so a screen full of `main` says nothing about a spoken "mean".
+    @Test("refuses one ordinary word as a reading of another")
+    func vetoesTwoOrdinaryWords() {
+        #expect(ReadingRestraint.bothOrdinary("main", heard: "man"))
+        #expect(!ReadingRestraint.isWorthOffering("main", for: "man"))
+        #expect(!ReadingRestraint.isWorthOffering("man", for: "main"))
+        #expect(!ReadingRestraint.isWorthOffering("mean", for: "main"))
+    }
+
+    /// The veto asks that both be ordinary, so a term the screen shows is still a reading of a word everybody knows.
+    @Test("keeps a reading only one side of which is an ordinary word")
+    func keepsAHalfOrdinaryReading() {
+        #expect(!ReadingRestraint.bothOrdinary("Cache", heard: "cash"))
+        #expect(ReadingRestraint.isWorthOffering("Cache", for: "cash"))
+        #expect(ReadingRestraint.isWorthOffering("Kestrel", for: "kestral"))
+        #expect(ReadingRestraint.isWorthOffering("Maine", for: "main"))
+    }
+
     @Test("a word too short to have an opening is a reading only if it is the same spelling")
     func handlesShortWords() {
         #expect(ReadingRestraint.opensAlike("a", heard: "a"))
