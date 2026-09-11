@@ -539,3 +539,72 @@ struct GuardOrderTests {
             .isAccepted)
     }
 }
+
+/// A kept word survives as another form of itself, never as a different word that begins the same way.
+@Suite("The guard reads a form change, not a family resemblance")
+struct GuardMatchStrengthTests {
+    /// The guard under test.
+    private let sut = MeaningPreservationGuard()
+
+    /// The grammar checks run only against a draft, so every case here supplies one.
+    private func verdict(_ kept: String, _ rewritten: String) -> GuardVerdict {
+        sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+    }
+
+    /// Named at the helper as well, because a verdict says only that some word went.
+    private func survives(_ word: String, as candidate: String) -> Bool {
+        MeaningPreservationGuard.grammarTokens(candidate)
+            .contains { MeaningPreservationGuard.survives(word, as: $0) }
+    }
+
+    /// "confirm" and "confuse" share three characters and no morphology; a different word is a replacement.
+    @Test("refuses a near word sharing only the first three characters")
+    func refusesNearWord() {
+        #expect(
+            verdict("can you confirm the booking", "Can you confuse the booking?")
+                == .rejected(reason: "the rewrite lost or replaced 'confirm'"))
+        #expect(!survives("confirm", as: "confuse"))
+    }
+
+    /// Changing a name is Tier 3, and two names can begin alike.
+    @Test("refuses a name replaced by one that begins the same way")
+    func refusesNearName() {
+        #expect(
+            verdict("tell Aarav about the change", "Tell Aaron about the change.")
+                == .rejected(reason: "the rewrite lost or replaced 'Aarav'"))
+        #expect(!survives("aarav", as: "Aaron"))
+    }
+
+    /// Every word of the rewrite is a place a kept word may land, function words included.
+    @Test("refuses a content word that matched only a small word beside it")
+    func refusesMatchOnFunctionWord() {
+        #expect(!verdict("send me the forecast for tuesday", "Send me the food for Tuesday.").isAccepted)
+        #expect(!survives("forecast", as: "for"))
+        #expect(!survives("theory", as: "the"))
+        #expect(!survives("android", as: "and"))
+    }
+
+    /// A name inside a longer word is not that name, however many of its letters are there.
+    @Test("refuses a name swallowed by an unrelated longer word")
+    func refusesNameInsideAnotherWord() {
+        #expect(!verdict("ask ravi about the release", "Ask about the gravity of the release.").isAccepted)
+        #expect(!survives("ravi", as: "gravity"))
+    }
+
+    /// The identifier rule is why a spelled-in word matches at all, and it reads the humps.
+    @Test("keeps a word spelled into an identifier, in either kind of identifier")
+    func keepsSpelledIdentifiers() {
+        #expect(survives("invoices", as: "fetchInvoices"))
+        #expect(survives("user", as: "get_user"))
+    }
+
+    /// A suffix repaired in either direction is a form change, and only one direction was ever covered.
+    @Test("keeps a plural repaired either way round, which is a form change")
+    func keepsFormChangeBothWays() {
+        #expect(survives("developers", as: "developer"))
+        #expect(survives("developer", as: "developers"))
+        #expect(survives("address", as: "addressed"))
+        #expect(survives("studies", as: "study"))
+        #expect(survives("stop", as: "stopped"))
+    }
+}

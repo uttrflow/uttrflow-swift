@@ -205,14 +205,48 @@ public struct MeaningPreservationGuard: Sendable {
         if word == candidate.matching { return true }
         if numberWords[word] == candidate.matching { return true }
         if numberWords[candidate.matching] == word { return true }
+        if sameForm(word, candidate.matching) { return true }
         // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.
-        if word.count >= 3, candidate.matching.contains(word) { return true }
-        let stem = word.count >= 3 ? String(word.prefix(3)) : word
-        if candidate.matching.hasPrefix(stem) { return true }
+        if spelledInto(word, candidate.text) { return true }
         if let index = IrregularVerbForms.setIndex[word] {
             return IrregularVerbForms.setIndex[candidate.matching] == index
         }
         return false
+    }
+
+    /// Whether two words are one word in two forms: the same word, or one of them inflected from the other.
+    static func sameForm(_ word: String, _ other: String) -> Bool {
+        word == other || inflections(of: word).contains(other) || inflections(of: other).contains(word)
+    }
+
+    /// The forms speech inflects a word into: plural, third person, past and progressive.
+    static func inflections(of word: String) -> Set<String> {
+        guard word.count >= 3 else { return [] }
+        var forms: Set<String> = [word + "s", word + "es", word + "ed", word + "d", word + "ing"]
+        let trunk = String(word.dropLast())
+        if trunk.count >= 3, word.hasSuffix("y") { forms.formUnion([trunk + "ies", trunk + "ied"]) }
+        if trunk.count >= 3, word.hasSuffix("e") { forms.formUnion([trunk + "ed", trunk + "ing"]) }
+        // A final consonant doubles before the ending it carries: "stop" becomes "stopped", "run" "running".
+        if let last = word.last, last.isLetter, !"aeiou".contains(last) {
+            forms.formUnion([word + String(last) + "ed", word + String(last) + "ing"])
+        }
+        return forms
+    }
+
+    /// Whether `word` is spelled into an identifier as one of its words — "invoices" in "fetchInvoices", never "ravi" in "gravity".
+    static func spelledInto(_ word: String, _ identifier: String) -> Bool {
+        guard word.count >= 3 else { return false }
+        let written = Array(identifier)
+        let lowered = Array(identifier.lowercased())
+        let wanted = Array(word)
+        guard lowered.count == written.count, lowered.count > wanted.count else { return false }
+        return (0...(lowered.count - wanted.count)).contains { start in
+            let end = start + wanted.count
+            guard Array(lowered[start..<end]) == wanted else { return false }
+            let opens = start == 0 || written[start].isUppercase || !written[start - 1].isLetter
+            let closes = end == written.count || written[end].isUppercase || !written[end].isLetter
+            return opens && closes
+        }
     }
 
     /// How many words in `tokens` turn a sentence's meaning around.
