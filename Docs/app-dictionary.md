@@ -32,7 +32,9 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
 
 ### Seen and said
 
-- A term must be both in the window or document title and spoken (judged by sound) in
+- A term must be both in the window or document title and spoken — judged by sound **and by
+  opening letters**, through `ReadingRestraint`, so a title's "MDT" is not taken for a spoken
+  "made" on a shared sound key — in
   **three** separate dictations (`sightingsBeforeLearning`). One sighting is a coincidence;
   two is usually the same task seeing the same title; three is the same number
   `DictionaryEntry.isTrustworthy` already calls "enough to stop being an accident". Five would
