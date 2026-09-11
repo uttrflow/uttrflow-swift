@@ -48,14 +48,29 @@ public struct MeaningPreservationGuard: Sendable {
 
     /// A doubtful run may be written as it was heard or as a reading that was offered, and as nothing else.
     static func candidateVerdict(_ doubtful: [DoubtfulSpan], rewritten: String) -> GuardVerdict {
-        let written = DoubtfulSpan.closedUp(rewritten)
         for span in doubtful
-        where !([span.heard] + span.candidates).contains(where: {
-            written.contains(DoubtfulSpan.closedUp($0))
-        }) {
+        where !([span.heard] + span.candidates).contains(where: { isWritten($0, in: rewritten) }) {
             return .rejected(reason: "the rewrite read '\(span.heard)' as a word it was not offered")
         }
         return .accepted
+    }
+
+    /// Whether a reading is written out in whole words: `PaymentSheet` for "payment sheet", never "our time" inside "four times".
+    static func isWritten(_ reading: String, in rewritten: String) -> Bool {
+        let wanted = Array(DoubtfulSpan.closedUp(reading))
+        guard !wanted.isEmpty else { return false }
+        // Closing a run up loses the spaces a word ends at, so the places words end at are kept beside it.
+        var written: [Character] = []
+        var edges: Set<Int> = [0]
+        for word in rewritten.split(whereSeparator: \.isWhitespace) {
+            written += DoubtfulSpan.closedUp(String(word))
+            edges.insert(written.count)
+        }
+        guard written.count >= wanted.count else { return false }
+        return (0...(written.count - wanted.count)).contains { start in
+            edges.contains(start) && edges.contains(start + wanted.count)
+                && Array(written[start..<start + wanted.count]) == wanted
+        }
     }
 
     /// Refuses a rewrite that flattened a break the speaker asked for, since layout is the passes' to decide.

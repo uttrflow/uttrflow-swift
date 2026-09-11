@@ -413,6 +413,18 @@ struct GrammarGuardTests {
             ).isAccepted)
     }
 
+    /// Closing a run up crosses the spaces between words, so a reading must land on whole ones.
+    @Test("refuses a heard run found only across the middle of other words")
+    func refusesAReadingInsideOtherWords() {
+        let offered = [DoubtfulSpan(heard: "our time", confidence: 0.3, candidates: ["hour time"])]
+        #expect(
+            sut.verdict(
+                draft: draft("we wasted our time"), rewritten: "We wasted four times.", offering: offered
+            ) == .rejected(reason: "the rewrite read 'our time' as a word it was not offered"))
+        #expect(!MeaningPreservationGuard.isWritten("our time", in: "four times"))
+        #expect(MeaningPreservationGuard.isWritten("payment sheet", in: "in PaymentSheet."))
+    }
+
     @Test("judges nothing about readings when none were offered")
     func judgesNothingWithoutReadings() {
         #expect(MeaningPreservationGuard.candidateVerdict([], rewritten: "anything at all").isAccepted)
