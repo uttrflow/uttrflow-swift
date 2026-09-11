@@ -136,7 +136,7 @@ public struct Surroundings: Sendable, Equatable {
             guard !skippedRoles.contains(role) else { return }
             let text = Surroundings.trimmed(tree.text(of: element))
             // A child that only repeats its container's label, as a sticker row does, adds nothing.
-            let said = text.flatMap { label?.contains($0) == true ? nil : $0 }
+            let said = text.flatMap { Surroundings.repeats($0, in: label) ? nil : $0 }
             // A container's label names what it holds, so it reads before its children whichever way they are walked.
             if let said, direction == .forward { runs.append(take(said, direction)) }
             if let said, direction == .backward { stack.append(.say(said)) }
@@ -162,6 +162,25 @@ public struct Surroundings: Sendable, Equatable {
             gathered += piece.count + (gathered > 0 ? 1 : 0)
             return piece
         }
+    }
+
+    /// Whether the label already says this text in its own whole words, which is what makes a child a repeat.
+    static func repeats(_ text: String, in label: String?) -> Bool {
+        guard let label, !text.isEmpty else { return false }
+        var start = label.startIndex
+        while let end = label.index(start, offsetBy: text.count, limitedBy: label.endIndex) {
+            defer { start = label.index(after: start) }
+            guard label[start..<end] == text else { continue }
+            let opens = start == label.startIndex || !joinsAWord(label[label.index(before: start)])
+            let closes = end == label.endIndex || !joinsAWord(label[end])
+            if opens, closes { return true }
+        }
+        return false
+    }
+
+    /// Whether a character is part of a word, so "Sam" is not read as repeated inside "Samantha".
+    private static func joinsAWord(_ character: Character) -> Bool {
+        character.isLetter || character.isNumber
     }
 
     /// The text without surrounding whitespace, control and direction marks or timestamp parts, cut to the per-element cap, or nothing.
