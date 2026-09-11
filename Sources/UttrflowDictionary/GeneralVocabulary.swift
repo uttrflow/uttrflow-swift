@@ -14,16 +14,15 @@ public enum GeneralVocabulary {
     /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
     public static let maximumPerSound = 4
 
-    /// The opening letters a reading must share, because a common word that merely rhymes is noise, not a reading.
-    public static let openingLettersShared = 2
+    /// The opening letters a reading must share; stated once in `ReadingRestraint`, which every source asks.
+    public static let openingLettersShared = ReadingRestraint.openingLettersShared
 
     /// Ordinary words this one could have been misheard as: the same likelier sound, the same opening. See `Docs/cleanup.md`.
     public static func wordsSounding(like text: String) -> [String] {
-        let heard = text.lowercased()
-        let opening = heard.prefix(openingLettersShared)
-        return Array(
+        Array(
             (byPrimarySound[DoubleMetaphone.code(for: text).primary] ?? [])
-                .filter { $0 != heard && $0.hasPrefix(opening) }
+                .filter { ReadingRestraint.closedUp($0) != ReadingRestraint.closedUp(text) }
+                .filter { ReadingRestraint.opensAlike($0, heard: text) }
                 .prefix(maximumPerSound))
     }
 
