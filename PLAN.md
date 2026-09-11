@@ -1286,6 +1286,21 @@ base checks, exactly as the survival loop already left them. `Docs/ai-model-outp
 the reasoning, and `Docs/definition-of-done.md:21` and `Docs/pipeline.md:36` — which already
 claimed the guard refuses a rewrite that "drops or invents" — are true now rather than aspirational.
 
+**Every check here read one way, and that is the guardrail.** Three arms of one guard had the
+same shape, so the fault was the shape rather than any one of them, and nothing in the suite
+asked a check to hold in both directions — each arm was tested with the edit it was written
+for. `Tests/UttrflowAITests/GuardMirrorTests.swift` asks it of all of them: five minimal edits
+are judged, then judged again with the two sides swapped, and both directions must be refused.
+It reads the guard's own source for every `reason:` literal and holds each to being reached
+from both sides or to appearing in one `unmirrored` list with the reason it cannot be — so a
+check added later is held to the rule without anyone remembering to add a case, and the four
+entries on that list are the asymmetries this entry argues for rather than a silence. It
+ratchets like `owedAKeepCase` and the comment and disclosure baselines: a reason may leave the
+list, a new one may never join it, and a reason that stops existing is flagged too. Both halves
+were proven to fail before they were kept — removing the added-negation arm fails the swap
+("a negation added is not refused"), and a new one-directional check added to the guard fails
+the second test by name.
+
 **Left standing, each read rather than assumed.**
 
 - **The function-word churn allowance is set by the side being judged** (`:154`): it is
