@@ -27,10 +27,33 @@ struct DoubtfulCorpusTests {
     func marksTheRightWords() {
         for testCase in doubtfulCases {
             let draft = Draft(transcription: testCase.transcription)
-            let unsure = Set(draft.words.filter { $0.confidence < 0.5 }.map(\.text))
-            let named = Set(testCase.doubtful.flatMap { $0.split(separator: " ") }.map(String.init))
+            let unsure = Set(
+                draft.words.filter { $0.confidence < 0.5 }.map { EvaluationCase.bare($0.text) })
+            let named = Set(
+                testCase.doubtful.flatMap { $0.split(separator: " ") }
+                    .map { EvaluationCase.bare(String($0)) })
             #expect(unsure == named, "\(testCase.id)")
         }
+    }
+
+    /// A case names a run, not a spelling, so the other times the speaker said the same word stay certain.
+    @Test("doubts the run where it stands, punctuation and repeats included")
+    func doubtsOneRunOnly() {
+        let repeated = EvaluationCase(
+            id: "repeated", category: .contextual,
+            spoken: "we should clear the cash before the cash register closes",
+            expected: "We should clear the cash before the cash register closes.",
+            doubtful: ["cash"])
+        let words = repeated.transcription.segments.first?.words ?? []
+        #expect(words.filter { $0.confidence < 0.5 }.count == 1)
+        #expect(words.firstIndex(where: { $0.confidence < 0.5 }) == 4)
+
+        let punctuated = EvaluationCase(
+            id: "punctuated", category: .contextual,
+            spoken: "clear the cash, then deploy", expected: "Clear the cash, then deploy.",
+            doubtful: ["cash"])
+        let spoken = punctuated.transcription.segments.first?.words ?? []
+        #expect(spoken.filter { $0.confidence < 0.5 }.map(\.text) == ["cash,"])
     }
 
     @Test("offers the identifier the screen spells for each of the three identifier cases")
