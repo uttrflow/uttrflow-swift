@@ -222,11 +222,13 @@ public actor DictationPipeline {
         }
 
         // Written beside the buffer while the key was held, so it exists before anything can fail.
+        let kept = await recordings.current()
+        // Asked after the lookup, since a cancel can arrive while it is suspended as well as before it.
         if wasCancelled(mine) {
-            // A cancel during the drain came before the recording was known, so it is deleted here instead.
-            if let kept = await recordings.current() { await recordings.discard(kept.id) }
+            // The cancel ran before this recording was known, so it is deleted here instead.
+            if let kept { await recordings.discard(kept.id) }
         } else {
-            openRecording = await recordings.current()?.id
+            openRecording = kept?.id
         }
         // Released with no await before `process` moves the state on, so nothing can enter between.
         hasTurn = false
@@ -248,10 +250,14 @@ public actor DictationPipeline {
             // A file that cannot be read cannot be retried, so it is not offered again.
             await recordings.discard(recording)
             hasTurn = false
+            // A cancel that arrived during the read already put the pipeline at rest.
+            guard !wasCancelled(mine) else { return }
             transition(to: .failed(DictationFailure(error)))
             return
         }
         hasTurn = false
+        // A cancel during the read abandons the retry before it claims the recording as its own.
+        guard !wasCancelled(mine) else { return }
         stopwatch = nil
         takeSettings()
         spokenFor = audio.duration

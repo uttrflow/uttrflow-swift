@@ -50,26 +50,56 @@ private actor DrainingCaptureEngine: AudioCaptureEngine {
     }
 }
 
-/// A keeper whose read of a recording waits until the test lets it finish.
+/// A keeper whose lookups wait until the test lets them finish, recording what it was told to delete.
 private actor SlowRecordingKeeper: RecordingKeeper {
-    private var reading: [CheckedContinuation<Void, Never>] = []
-    private var isReleased = false
+    enum Slow {
+        /// The read of a recording's audio waits.
+        case read
+        /// The lookup of the recording just written waits.
+        case lookup
+    }
 
-    func current() -> KeptRecording? { nil }
-    func discard(_ id: UUID) {}
+    private let slow: Slow
+    private let recording: KeptRecording?
+    private let readFails: Bool
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+    private var isReleased = false
+    private(set) var discarded: [UUID] = []
+
+    init(slow: Slow = .read, recording: KeptRecording? = nil, readFails: Bool = false) {
+        self.slow = slow
+        self.recording = recording
+        self.readFails = readFails
+    }
+
+    func current() async -> KeptRecording? {
+        if slow == .lookup { await hold() }
+        return recording
+    }
+
+    func discard(_ id: UUID) {
+        discarded.append(id)
+    }
+
     func waiting(now: Date) -> [KeptRecording] { [] }
 
     func audio(of id: UUID) async throws(AudioCaptureError) -> AudioSamples {
-        if !isReleased { await withCheckedContinuation { reading.append($0) } }
+        if slow == .read { await hold() }
+        if readFails { throw .engineFailed(description: "the file is gone") }
         return .silence(seconds: 1)
     }
 
-    var isReading: Bool { !reading.isEmpty }
+    private func hold() async {
+        guard !isReleased else { return }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+
+    var isWaiting: Bool { !waiting.isEmpty }
 
     func release() {
         isReleased = true
-        reading.forEach { $0.resume() }
-        reading = []
+        waiting.forEach { $0.resume() }
+        waiting = []
     }
 }
 
@@ -148,7 +178,7 @@ struct DictationPipelineTurnTests {
         let clipboard = TurnInserter()
         let pipeline = makePipeline(capture: capture, recordings: keeper, clipboard: clipboard)
         let retry = Task { await pipeline.retry(UUID()) }
-        await eventually { await keeper.isReading }
+        await eventually { await keeper.isWaiting }
 
         await pipeline.startRecording()
 
@@ -201,7 +231,7 @@ struct DictationPipelineTurnTests {
         let pipeline = makePipeline(
             capture: FakeAudioCaptureEngine(), recordings: keeper, clipboard: clipboard)
         let retry = Task { await pipeline.retry(UUID()) }
-        await eventually { await keeper.isReading }
+        await eventually { await keeper.isWaiting }
 
         await pipeline.cancel()
         await keeper.release()
@@ -209,6 +239,42 @@ struct DictationPipelineTurnTests {
 
         #expect(await pipeline.currentState == .idle)
         #expect(clipboard.received.isEmpty)
+    }
+
+    @Test("a retry whose read fails after a cancel reports nothing over the cancel")
+    func failedReadAfterCancelRests() async {
+        let keeper = SlowRecordingKeeper(readFails: true)
+        let recording = UUID()
+        let pipeline = makePipeline(capture: FakeAudioCaptureEngine(), recordings: keeper)
+        let retry = Task { await pipeline.retry(recording) }
+        await eventually { await keeper.isWaiting }
+
+        await pipeline.cancel()
+        await keeper.release()
+        await retry.value
+
+        #expect(await pipeline.currentState == .idle, "the cancel stands; the failure is not shown over it")
+        #expect(await keeper.discarded == [recording], "an unreadable file is still not offered again")
+    }
+
+    @Test("a cancel while the recording is being looked up still deletes it")
+    func cancelDuringTheLookupDeletes() async {
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(1))
+        let keeper = SlowRecordingKeeper(slow: .lookup, recording: recording)
+        let inserter = TurnInserter()
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(), inserter: inserter, recordings: keeper)
+        await pipeline.startRecording()
+        let finishing = Task { await pipeline.finishRecording() }
+        await eventually { await keeper.isWaiting }
+
+        await pipeline.cancel()
+        await keeper.release()
+        await finishing.value
+
+        #expect(await pipeline.currentState == .idle)
+        #expect(inserter.received.isEmpty)
+        #expect(await keeper.discarded == [recording.id], "not kept and offered for retry")
     }
 
     @Test("the turn is given back, so the next dictation starts after one finishes")
