@@ -7,17 +7,25 @@ public struct ScreenCandidates: CandidateSource {
     public static let maximumWordsOnScreen = CorrectionEvidence.maximumWordsOnScreen
     /// The shortest screen word worth offering; below this a stray initial matches everything.
     public static let shortestWorthOffering = 3
+    /// Fewer than a span's whole budget, so a crowded screen cannot crowd the other sources off the line.
+    public static let maximumOffered = 2
 
     public init() {}
 
-    /// The screen words that sound like the run, or spell it with the spaces closed up.
+    /// The screen words that spell the run with its spaces closed up, then those that sound and open like it.
     public func candidates(for word: Draft.Word, in situation: Situation) async -> [String] {
         let heard = word.text
-        let sounds = DoubleMetaphone.code(for: heard)
         let closed = DoubtfulSpan.closedUp(heard)
-        return Self.words(on: situation).filter {
-            DoubtfulSpan.closedUp($0) == closed || DoubleMetaphone.code(for: $0).sounds(like: sounds)
+        var spelled: [String] = []
+        var sounded: [String] = []
+        for shown in Self.words(on: situation) {
+            if DoubtfulSpan.closedUp(shown) == closed {
+                spelled.append(shown)
+            } else if ReadingRestraint.isWorthOffering(shown, for: heard) {
+                sounded.append(shown)
+            }
         }
+        return Array((spelled + sounded).prefix(Self.maximumOffered))
     }
 
     /// The window title, the selection and the text either side of the caret, split into words that carry a spelling.

@@ -23,9 +23,7 @@ public struct DoubtfulSpan: Sendable, Equatable {
     }
 
     /// Lower-cased letters and digits, so "payment sheet" and `PaymentSheet` read as the same spelling.
-    static func closedUp(_ text: String) -> String {
-        text.lowercased().filter { $0.isLetter || $0.isNumber }
-    }
+    static func closedUp(_ text: String) -> String { ReadingRestraint.closedUp(text) }
 }
 
 /// Asks every source at once what the words the recogniser was unsure of could have been.
