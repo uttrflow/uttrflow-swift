@@ -42,6 +42,26 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
 - The tokenizer download reports no progress. It is well under a percent of the download, and a
   second scale running from zero after the weights reached one would send the bar backwards.
 
+## The shortest clip a recogniser decodes
+
+- WhisperKit starts a decode window only while `seek < clipEnd - windowClipTime * 16000`
+  (`Core/TranscribeTask.swift`), and hands the raw array to that loop when no
+  `chunkingStrategy` is set. A clip of one second or less therefore never enters the loop and
+  decodes to an empty string: a spoken "yes" is about 0.35 s, 0.75 s once `VoiceActivity` has
+  kept its 200 ms either side, and came back as "nothing heard".
+- `windowClipTime` exists to keep a window from starting in the last second of audio, where
+  Whisper invents words, so it stays at 1.0. `VocabularyPrompt.decodingOptions` names it and
+  every other `DecodingOptions` field, so a WhisperKit upgrade that moves a default changes
+  nothing here without a diff.
+- The floor belongs to the recogniser, not to the engine. `TranscriptionBackend.minimumDuration`
+  is each backend's answer: WhisperKit's is `windowClipTime` plus one 20 ms frame, the system
+  recogniser's is zero. `BackedSpeechEngine` still refuses anything under its own 250 ms, and
+  appends silence to trimmed speech shorter than the backend's floor. The decoder already pads
+  every window to 30 seconds with silence, so the appended samples add no signal it did not
+  already see; the seek loop runs once over the real speech and stops before the padding.
+- Not yet measured against the corpus. The same padding reaches a short final piece of a long
+  dictation, which is decoded alone rather than merged into the piece before it.
+
 ## Per-word confidence
 
 - Correction's first condition is that the recogniser was unsure. Without a per-word figure the

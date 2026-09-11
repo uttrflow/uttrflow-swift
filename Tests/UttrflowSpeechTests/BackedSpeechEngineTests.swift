@@ -139,6 +139,58 @@ struct BackedSpeechEngineTests {
         }
     }
 
+    // MARK: The recogniser's own floor
+
+    @Test("pads speech one sample under the recogniser's floor with trailing silence")
+    func padsBelowTheFloor() async throws {
+        let backend = FakeTranscriptionBackend(minimumDuration: .seconds(1))
+        let audio = AudioSamples.canonical(Array(repeating: 0.1, count: 15_999))
+
+        _ = try await engine(backend).transcribe(audio, options: .automatic)
+
+        let call = try #require(backend.calls.first)
+        #expect(call.sampleCount == 16_000)
+        #expect(call.trailingSample == 0)
+    }
+
+    @Test("hands over speech at or over the recogniser's floor untouched", arguments: [16_000, 16_001])
+    func leavesSpeechAtTheFloorAlone(samples: Int) async throws {
+        let backend = FakeTranscriptionBackend(minimumDuration: .seconds(1))
+        let audio = AudioSamples.canonical(Array(repeating: 0.1, count: samples))
+
+        _ = try await engine(backend).transcribe(audio, options: .automatic)
+
+        let call = try #require(backend.calls.first)
+        #expect(call.sampleCount == samples)
+        #expect(call.trailingSample == 0.1)
+    }
+
+    @Test("a one-word dictation reaches WhisperKit longer than the window it clips from the end")
+    func oneWordClearsWhisperKitsWindow() async throws {
+        let backend = FakeTranscriptionBackend(minimumDuration: WhisperKitBackend.shortestClip)
+
+        _ = try await engine(backend).transcribe(audio(seconds: 0.75), options: .automatic)
+
+        // WhisperKit decodes a window only while its start lies before the clip's end less that window.
+        let window = Int(VocabularyPrompt.windowClipTime * Float(AudioSamples.canonicalSampleRate))
+        #expect(try #require(backend.calls.first).sampleCount > window)
+    }
+
+    @Test("reports the length the user spoke for, not the silence added to it")
+    func paddingIsNotReportedAsSpeech() async throws {
+        let backend = FakeTranscriptionBackend(minimumDuration: .seconds(2))
+
+        let transcription = try await engine(backend).transcribe(audio(seconds: 0.5), options: .automatic)
+
+        #expect(transcription.audioDuration == audio(seconds: 0.5).duration)
+    }
+
+    @Test("a recogniser with no floor of its own is handed exactly the speech")
+    func noFloorMeansNoPadding() {
+        let audio = audio(seconds: 0.3)
+        #expect(BackedSpeechEngine.padded(audio, to: .zero) == audio.samples)
+    }
+
     // MARK: The user's own words
 
     @Test("hands the recogniser the words to listen out for")

@@ -55,8 +55,11 @@ public struct RawTranscript: Sendable, Equatable {
     }
 }
 
-/// A recogniser, reduced to the two things the engine needs from it.
+/// A recogniser, reduced to the things the engine needs from it.
 public protocol TranscriptionBackend: Sendable {
+    /// The shortest audio this recogniser decodes as handed; the engine pads anything shorter with silence.
+    var minimumDuration: Duration { get }
+
     /// Loads whatever the recogniser needs; throws `modelNotInstalled` or `modelLoadFailed`.
     func load() async throws(SpeechEngineError)
 

@@ -8,9 +8,13 @@ import Synchronization
 final class FakeTranscriptionBackend: TranscriptionBackend {
     struct Call: Sendable, Equatable {
         let sampleCount: Int
+        /// The last sample handed over, which tells padding from speech.
+        let trailingSample: Float?
         let languageHint: LanguageCode?
         let vocabulary: [String]
     }
+
+    let minimumDuration: Duration
 
     private struct State {
         var loadCount = 0
@@ -22,7 +26,8 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
 
     private let state = Mutex(State())
 
-    init(result: RawTranscript = RawTranscript(text: "hello there")) {
+    init(result: RawTranscript = RawTranscript(text: "hello there"), minimumDuration: Duration = .zero) {
+        self.minimumDuration = minimumDuration
         state.withLock { $0.result = result }
     }
 
@@ -46,7 +51,8 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
         let outcome = state.withLock { state -> Result<RawTranscript, SpeechEngineError> in
             state.calls.append(
                 Call(
-                    sampleCount: samples.count, languageHint: languageHint, vocabulary: vocabulary))
+                    sampleCount: samples.count, trailingSample: samples.last,
+                    languageHint: languageHint, vocabulary: vocabulary))
             if let error = state.transcribeError { return .failure(error) }
             return .success(state.result)
         }
@@ -68,6 +74,8 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
 /// A recogniser with no way to bias its decoder, the shape ``AppleSpeechBackend`` has.
 final class UnbiasableBackend: TranscriptionBackend {
     private let heard = Mutex(0)
+
+    let minimumDuration = Duration.zero
 
     func load() async throws(SpeechEngineError) {}
 

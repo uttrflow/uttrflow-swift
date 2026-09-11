@@ -46,7 +46,10 @@ enum VocabularyPrompt {
         return promptLength + fixed + (isMultilingual ? 2 : 0)
     }
 
-    /// What the recogniser is asked for, carrying a prompt only when one could be built.
+    /// Seconds at the end of a clip no window may start in, so WhisperKit decodes nothing from a clip no longer than this.
+    static let windowClipTime: Float = 1.0
+
+    /// What the recogniser is asked for, every option named so a WhisperKit upgrade cannot move one unseen.
     static func decodingOptions(
         languageHint: LanguageCode?,
         vocabulary: [String] = [],
@@ -56,14 +59,39 @@ enum VocabularyPrompt {
             verbose: false,
             task: .transcribe,
             language: languageHint?.value,
+            // Greedy first, so the same audio gives the same words.
+            temperature: 0,
+            // A window rejected by the thresholds below is retried this much warmer, this many times.
+            temperatureIncrementOnFallback: 0.2,
+            temperatureFallbackCount: 5,
+            sampleLength: Constants.maxTokenContext,
+            topK: 5,
+            usePrefillPrompt: true,
             // Detecting is what mixed-language speech needs.
             detectLanguage: languageHint == nil,
             skipSpecialTokens: true,
             withoutTimestamps: false,
             // The only way to get a per-word probability out of WhisperKit, which correction needs.
             wordTimestamps: true,
+            maxInitialTimestamp: nil,
+            maxWindowSeek: nil,
+            // The whole clip, which the engine has already trimmed to its speech.
+            clipTimestamps: [],
+            // Keeps a window from starting where Whisper invents words; the backend's floor follows it.
+            windowClipTime: windowClipTime,
             // Re-forced for every 30-second window, so a long dictation is biased throughout.
-            promptTokens: tokenizer.flatMap { tokens(for: vocabulary, using: $0) }
+            promptTokens: tokenizer.flatMap { tokens(for: vocabulary, using: $0) },
+            prefixTokens: nil,
+            suppressBlank: false,
+            suppressTokens: [],
+            // Whisper's own tests for a window of repetition, low confidence or silence.
+            compressionRatioThreshold: 2.4,
+            logProbThreshold: -1.0,
+            firstTokenLogProbThreshold: -1.5,
+            noSpeechThreshold: 0.6,
+            concurrentWorkerCount: 16,
+            // None of WhisperKit's own, because the product cuts its pieces at pauses. See `Docs/early-transcription.md`.
+            chunkingStrategy: nil
         )
     }
 
