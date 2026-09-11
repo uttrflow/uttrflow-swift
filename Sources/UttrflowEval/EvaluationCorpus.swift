@@ -872,6 +872,21 @@ public enum EvaluationCorpus {
             mustBeginWith: "Yesterday",
             mustEndWith: "immediately."
         ),
+        // A repair that spells a stem — try/tried — which a prefix match between the two words cannot see.
+        .init(
+            id: "tense-drift-over-a-stem", category: .grammar,
+            spoken: "yesterday I try to fix the build twice",
+            expected: "Yesterday I tried to fix the build twice.",
+            mustKeep: ["tried", "build"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: "com.apple.iWork.Pages",
+                documentName: "Incident write-up.pages"
+            ),
+            destination: .document,
+            mustBeginWith: "Yesterday",
+            mustEndWith: "twice."
+        ),
         .init(
             id: "preposition-slip", category: .grammar,
             spoken: "she is good in maths and physics",

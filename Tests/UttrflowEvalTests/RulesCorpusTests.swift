@@ -68,6 +68,7 @@ struct RulesCorpusTests {
             ("participle-have-went", "I have went through the whole report twice."),
             ("article-a-apple", "There was a apple left in the bowl."),
             ("tense-drift", "Yesterday I open the file and it crashes immediately."),
+            ("tense-drift-over-a-stem", "Yesterday I try to fix the build twice."),
             ("preposition-slip", "She is good in maths and physics."),
             ("plural-slip", "We need two more developer on this team."),
             ("dialect-gonna", "We're gonna ship it friday."),
@@ -84,7 +85,7 @@ struct RulesCorpusTests {
 
     @Test("covers every grammar case in the leave-alone list, so a new slip cannot skip the floor")
     func grammarCasesAreAllHeld() {
-        #expect(EvaluationCorpus.cases(in: .grammar).count == 13)
+        #expect(EvaluationCorpus.cases(in: .grammar).count == 14)
     }
 
     @Test("gives every destination at least three cases, so the bake-off can score its block")
