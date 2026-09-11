@@ -21,6 +21,18 @@ struct StammersPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// "this" and "what" are function words, so the restart reading wins over the emphatic one by design.
+    @Test(
+        "still removes a doubled function word English also emphasises",
+        arguments: [
+            ("this this thing is broken", "this thing is broken"),
+            ("what what did you say", "what did you say"),
+        ]
+    )
+    func removesDoubledFunctionWordDespiteEmphaticReading(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A double English means is not a stammer, and taking a word out of one loses what was said.
     @Test(
         "keeps a double the language itself makes",
