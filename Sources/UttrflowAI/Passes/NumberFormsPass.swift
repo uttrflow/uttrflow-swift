@@ -68,7 +68,7 @@ public struct NumberFormsPass: CleaningPass {
     ) -> Phrase? {
         let keys = shapes.map(\.key)
 
-        guard !finishesAScale(at: position, keys: keys) else { return nil }
+        guard !finishesAScale(at: position, keys: keys, shapes: shapes) else { return nil }
         if let ordinal = parseOrdinal(at: position, keys: keys, shapes: shapes) {
             var end = position + ordinal.count
             guard joined(end, shapes) else { return nil }
@@ -84,7 +84,8 @@ public struct NumberFormsPass: CleaningPass {
             return Phrase(text: String(ordinal.value), count: end - position)
         }
         guard let item = item(at: position, keys: keys, shapes: shapes) else { return nil }
-        let inContext = position > 0 && contextWords.contains(keys[position - 1])
+        let inContext =
+            position > 0 && !startsASentence(position, shapes) && contextWords.contains(keys[position - 1])
         var end = position + item.count
         var text = item.text
         var isPhrase = false
@@ -135,8 +136,14 @@ public struct NumberFormsPass: CleaningPass {
     }
 
     /// Whether the words here finish a scale the parser could not read whole, as in "a hundred and fifty".
-    private static func finishesAScale(at position: Int, keys: [String]) -> Bool {
-        position >= 2 && keys[position - 1] == "and" && NumberWords.scales[keys[position - 2]] != nil
+    private static func finishesAScale(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        position >= 2 && !startsASentence(position, shapes) && !startsASentence(position - 1, shapes)
+            && keys[position - 1] == "and" && NumberWords.scales[keys[position - 2]] != nil
+    }
+
+    /// Whether the word at `index` opens a sentence, past which a number reads none of its context.
+    private static func startsASentence(_ index: Int, _ shapes: [WordShape]) -> Bool {
+        index > 0 && shapes[index - 1].endsSentence
     }
 
     private static func item(at position: Int, keys: [String], shapes: [WordShape]) -> Item? {
