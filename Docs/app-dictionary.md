@@ -38,7 +38,10 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
   **three** separate dictations (`sightingsBeforeLearning`). One sighting is a coincidence;
   two is usually the same task seeing the same title; three is the same number
   `DictionaryEntry.isTrustworthy` already calls "enough to stop being an accident". Five would
-  end a fortnight's project before its vocabulary is learnt.
+  end a fortnight's project before its vocabulary is learnt. The restraint binds what may be
+  *learnt* here, never what a learnt word may later be offered for: a spelling the user taught is
+  evidence in its own right, and `DictionaryCandidates` asks no restraint of it — see the
+  doubtful-words row of `Docs/cleanup.md`.
 - Never from the application name, which is on screen for every dictation in that app.
 - Never from the selected text: both insertion routes write over the selection, so every word
   in it is a word the user is deleting.
