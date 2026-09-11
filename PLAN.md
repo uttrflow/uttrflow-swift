@@ -1251,6 +1251,113 @@ evidence of when it must not. Seven triggers are owed a keep case today and the 
   nothing until the prompt is re-measured with the local models downloaded.
 
 
+### Words kept on shape alone — issue #189, and the same mistake facing the other way
+
+#198 was a rule deleting what the speaker said on the shape of a word alone. This is the
+same mistake on the acceptance side: a rule *keeping* a rewrite because two spellings look
+alike. It is the more dangerous half, because the guard's failure is silence — a refusal
+falls back to the raw transcript and is visible, and a wrongful acceptance is the model's
+output going straight to the user's cursor with nothing left behind to read. The issue was
+filed from a source audit and explicitly **not reproduced at runtime**; all four cases below
+were reproduced at the guard's own API before anything was touched, and all four were
+`accepted`.
+
+- **The guard compared unordered sets, so a permutation was a tidy-up.** "we approved the
+  design but rejected the budget" was accepted as "We rejected the design but approved the
+  budget." — the opposite claim, from identical content-word and function-word multisets,
+  zero churn and no dropped negator. `grammarVerdict` reduced the rewrite to a `Set` of
+  `matching` before comparing, so position, order and multiplicity were not representable at
+  all, and `Docs/cleanup.md`'s Tier 3 ban on reordering had no code anywhere. The kept content
+  words are now walked *along* the rewrite in order, each taking the earliest place still open
+  (`MeaningPreservationGuard.survivalVerdict`, `Sources/UttrflowAI/MeaningPreservationGuard.swift:224`):
+  no place at all is "lost or replaced", a place only behind one already taken is "moved".
+  Places may be **reused**, deliberately — several spoken words must still land on the one
+  identifier that spells them, so "set user prefs" → `setUserPrefs` survives; requiring
+  distinct places would break it. Held by `MeaningPreservationGuardTests.swift:521`, which
+  also pins the tidying that must *not* fire it.
+- **Three shared characters made two different words the same word.** "can you confirm the
+  booking" was accepted as "Can you confuse the booking?" on the stem "con", and "Aarav" as
+  "Aaron" on "aar". The rule was a three-character prefix plus a bare substring test standing
+  in for two questions neither could answer — "is this the same word in another form" and "is
+  this word still here". `survives` is pairwise now
+  (`MeaningPreservationGuard.swift:241`) and the prefix is gone: `sameForm` (`:255`) asks
+  whether one spelling is a listed inflection of the other — `-s/-es/-ies/-ed/-ied/-d/-ing`,
+  final-consonant doubling, `e-` and `y-` truncation (`:260`) — applied in **both**
+  directions, plus the irregular-verb table. Both directions is load-bearing:
+  `survives("developers", as: "developer")` had no other cover. The substring rule is kept
+  because `acceptsIdentifierSpelling` is its real job, but bound to it: `spelledInto` (`:274`)
+  now requires a camel hump or a non-letter to open *and* close the match, so "invoices" is
+  still in `fetchInvoices` and "ravi" is no longer in "gravity". Held by
+  `MeaningPreservationGuardTests.swift:575`, which pins the near-misses that must be refused
+  (confirm/confuse, Aarav/Aaron, forecast/for, theory/the, android/and, ravi/gravity) beside
+  the form changes that must be kept.
+- **A doubtful run was found in the middle of other words.** The candidate check asked whether
+  the reading's letters appeared anywhere in the closed-up line, so "our time" was "found" in
+  "four times" and a reading the model was never offered was accepted. `isWritten`
+  (`MeaningPreservationGuard.swift:59`) closes the rewrite up a word at a time and keeps the
+  edges (`closedUpEdges`, `:75`), so a reading must begin and end on a word boundary — a camel
+  hump and a mark counting as edges, the same reading `spelledInto` uses. `CandidateSource`'s
+  `closedUp` is unchanged and correct as a normaliser; it was only ever wrong as the input to a
+  containment test, which is this call site. Held by
+  `MeaningPreservationGuardTests.swift:417`, `:429` and `:439`.
+- **The corpus scorer scored a permutation perfectly.** `Scorer.overlap` counted shared words
+  from a multiset, so the bake-off could not have caught the reordering above even in
+  principle — the measurement and the guard were blind in the same direction. It takes its
+  shared count from `WordErrorRate.measure` now (`Sources/UttrflowEval/Scorer.swift:48`), the
+  ordered primitive already on `UttrflowEval`'s dependency path, so `CaseScore.passed` is no
+  longer order-blind. Held by `ScorerTests.swift:90`.
+- **A two-character prefix decided whether a model had echoed the line.** Outside the
+  dictation path but the identical mistake: `AppleCandidateGenerator` read "busier tomorrow"
+  as an echo of "busy nahi" because both open "bu", and then declined the generous
+  continuation reading the answer had earned. It asks `MLXCandidateScorer.echoes`
+  (`Sources/UttrflowLocalModel/MLXCandidateScorer.swift:375`) now — the same reading `parse`
+  already uses. Held by `CompletionParsingTests.swift:159`.
+
+The guard's private copy of the function words is gone with the rest: it asks
+`FunctionWords.holds` (`Sources/UttrflowCore/Cleaning/FunctionWords.swift:4`), and the
+comment at that file promising a follow-up went with it. `Docs/cleanup.md` carries the order
+rule and the form relation, so the reasoning is not left in the commits alone.
+
+**Left standing, each named rather than overlooked.**
+
+- **The third face — content words the rewrite *adds* — is still unchecked.** "lets meet at
+  four" → "Let's meet at four, best regards." is still accepted, refused only by the `2n+4`
+  length cap when the invention is long, so `Docs/cleanup.md:105-106` — "a greeting, a
+  sign-off, a heading, a summary, or a bullet the speaker did not say" — still has no code
+  behind it. It has the highest false-positive risk of the four and the exemptions it needs are real
+  and untested: the caret echo is by construction a block of added words, a doubtful span read
+  as an offered reading aligns to nothing kept, and a romanised Devanagari rewrite is all
+  additions. It cannot land without `make bakeoff`.
+- **`CaseScore.isExact` is computed and never consulted.** It is reported data on a public
+  struct, and `passed` is order-aware through `similarity` now, so consulting it would change
+  the gate rather than fix it.
+- **`EvaluationCorpus` has 83 `mustKeep` lists with only 11 multi-word entries.** That is
+  corpus authoring rather than a defect, and the ordered similarity now constrains order in
+  all 89 cases rather than in the 11.
+
+**The honest limit.** `make bakeoff` was **not** run — it downloads models and needs the
+Metal toolchain — so nothing above is a corpus measurement. A refusal falls back to the raw
+transcript, so a rule that is too strict degrades good rewrites silently and no unit test
+would show it. The order rule is the one to watch: it fires on a genuine inversion of two
+aligned content words, and non-decreasing positions with reuse were chosen specifically to
+keep it off legitimate tidying, but the corpus is where that gets proven.
+
+**The guardrail, because this is a class and not an incident.** Four sites across three
+modules, all the same shape — a fixed-width prefix or a bare substring standing in for "is
+this the same word" — and #198 was this family already, facing the other way. Every one of
+them fails by *accepting*, which is why none had a failing test to find:
+`Scripts/loose_match_audit.py` counts the shape per source file against
+`Scripts/loose_match_baseline.json` and runs in `make verify` (`make match-report` lists
+what is left). It ratchets like the comment and disclosure baselines — a count may fall and
+may never rise. Run against the tree as it stood before this fix it names all four cited
+lines; run against it now it names one, `CaretEchoPass.swift:33`, where a prefix is the
+question rather than a stand-in for one, and that is what the baseline records. The three
+questions each have one home now, and the audit's failure message says which: `sameForm` for
+whether two spellings are one word, `spelledInto` and `isWritten` for whether a word is
+written out at its own boundaries, `WordErrorRate.measure` for whether it is still there in
+the order it was said.
+
+
 ## Tab-to-complete 🟡
 
 The field the user is typing into finishes itself, from what this Mac has typed into that
