@@ -1250,6 +1250,99 @@ evidence of when it must not. Seven triggers are owed a keep case today and the 
   2026-09-06) that the model does not comply with the line in question, so editing it changes
   nothing until the prompt is re-measured with the local models downloaded.
 
+### Two tables answering "what sort of app is this" — issue #203
+
+**Reproduced first**, per app the issue names, through the shipped pipeline
+(`Tests/UttrflowAITests/Issue203ReproductionTests.swift`). "on my way" into Signal came out
+"On my way." where the same words into Slack came out "On my way"; dictated code into Sublime
+Text was finished like prose — `terminalStop: .always`, `grammar: .repair`, newlines not kept —
+where the same code into VS Code was not; a spoken list into Notion was never laid out, because
+`.plain`'s layout has no `.lists`; and the Electron build of WhatsApp behaved unlike the native
+one. Fifteen apps, and the reproduction suite alone recorded 36 failures across seven tests
+before the fix.
+
+**Root cause: two tables, and `.plain` is a plausible-looking wrong answer.** `AppKind` was a
+41-row bundle-prefix table inside `AppContextDescriber`, written for the prompt's "Typed into:"
+caption before `Destination` existed; `DestinationRules.standard` was six rows; nothing compared
+them. An app in the first and not the second got a caption naming a chat app and a style block
+saying plain prose, in one prompt — `PromptBuilder.situationBlock` took the place from one and
+`block(for:)` took the rules from the other. Whichever table a contributor edited was the one
+that learned the new app, and the divergence was silent because plain text is what an unknown
+app was always going to get.
+
+**There is one table now.** `DestinationRule` carries the `AppKind` it names and derives its
+`Destination` from that (`Sources/UttrflowCore/Models/DestinationClassifier.swift:25`), so a row
+cannot say two things; it gained a `nameWords` column matched on whole words of the application
+name, after identifiers and titles (`DestinationClassifier.swift:54`, ordered at `:75`), which is
+what `AppKind` had and the rules did not. `AppKind` stays deliberately finer than `Destination`
+(`Sources/UttrflowCore/Models/AppKind.swift:13`): a terminal and a code editor are two kinds and
+one destination, notes and a document editor likewise — so Warp is formatted as code while the
+caption still says "a terminal". A browser is no kind at all, because the tab is the place and
+the title names it, which is also why a browser row would have shadowed the Gmail title it has to
+lose to. `AppContextDescriber.describe` takes a `Situation`
+(`Sources/UttrflowAI/AppContextDescriber.swift:17`) and `AppKind(naming:)` takes the kind from the
+row only where that row agrees with the destination in force (`AppKind.swift:48`), so neither a
+window-title match nor a user's override can leave the caption naming one place and the style
+block another. The hard-coded DataGrip `if` went with the table that needed it — the SQL row
+already precedes the JetBrains prefix — and `Docs/cleanup.md` and `Docs/ai-context-line.md` were
+rewritten to what the code now does. `PromptBuilder.version` 8 → 9, because an app known only by
+its name now gets a block it did not get before.
+
+**Two more of the same shape, found by sweeping for it.** `MeaningPreservationGuard` kept its own
+word-to-digit table beside `UttrflowCore.NumberWords`; it stopped at "thousand" and never
+composed, so a model that wrote 600 for "six hundred" or 2,000,000 for "two million" had both
+invented a number and lost the words it was said in, and the whole rewrite was refused. It reads
+`NumberWords.cardinal` now in both places it counts numbers
+(`Sources/UttrflowAI/MeaningPreservationGuard.swift:138` and `:342`); the Hindi table stays,
+because Core has no equivalent for it. And `TextTidy.words` and the word splitting the new name
+column needs are the same question asked twice — `WordShape.words`
+(`Sources/UttrflowCore/Cleaning/WordShape.swift:20`) is the one splitter, and both read it.
+
+**What holds it.** `swift test --filter 'Issue203|DestinationTableAgreementTests|GuardNumberWords'`
+→ exit 0, four suites that all failed before the change: the reproduction above;
+`DestinationTableAgreementTests`, which puts each of the fifteen apps beside the nearest app the
+rules already carried and requires the same destination, the same five formatter decisions, the
+same prompt block and the same cleaned text; `Issue203ClassSweepTests`, which pins the caption to
+the block under a window-title match and under a user override; and `GuardNumberWordsTests`.
+`make verify` → exit 0.
+
+**The guardrail, because this is a class and not a one-off.** Three instances landed on this one
+branch, and the V2 notes above record a fourth in a different register — the app and the backend
+each checking their own idea of one contract against itself. The checkable projection of "two
+tables of one fact" here is an app named outside the table that names apps, so
+`Tests/UttrflowCoreTests/OneAppTableTests.swift` reads every `Sources/**/*.swift` except
+`DestinationRules.swift`, takes every reverse-DNS literal in it, and requires
+`DestinationClassifier` to have an answer for it. Not "no bundle identifier outside the table",
+which the issue proposed and which the corpus would break the day it gains a case: the corpus
+names apps legitimately, and what must be true of a name wherever it appears is that the one
+table knows it. Seven identifiers do not pass today and sit in one `owed` list that ratchets like
+the comment and disclosure baselines — an entry may leave it, none may join, and an entry the
+table has since learned or the source has stopped saying must be deleted. All seven are
+`UttrflowPredict`'s own editor and terminal lists, which cannot be unified until that module has
+any dependencies at all (`Package.swift:208`), and one of them is a live defect the sweep found
+and did not fix: `AcceptKey.swift:69` says `io.alacritty` where Alacritty ships as
+`org.alacritty`, so Alacritty gets Tab as its accept key. The guardrail was mutation-tested — a
+new app named in `AppContext.swift` fails it with the file and line.
+
+**Not measured at runtime.** No app was driven and nothing was dictated; `make bakeoff` was not
+run. Moving fifteen apps off `.plain` changes their terminal stop and their layout, which is
+exactly what the destination-tagged corpus cases score, so a case per newly covered destination
+and a bake-off across it is the step that turns this from argued into measured.
+
+**Left standing, and why.** `AcceptKey` and `SuggestionPreferences` classify apps a third and
+fourth time, which is a module-graph decision rather than a local edit (above).
+`PieceJoiner.swift:205` and `NumberFormsPass.swift:20` agree on every shared key and differ only
+in how far their ordinals run. `UttrflowEval/TextNormaliser.swift:177` shadows `NumberWords` on
+purpose — it must not compose scales, and unifying it moves the WER baselines.
+`UttrflowCore/Models/EngineConfiguration.swift:22` against `UttrflowUX/SettingsChoices.swift:87`,
+and `UttrflowCore/Models/EngineKinds.swift:32` against `UttrflowAI/TextTransformers.swift:6`, do
+genuinely drift — `.localModel` is selectable and never constructed — but only behind build flags
+`Package.swift` does not set, and closing either changes settings behaviour and breaks tests
+pinning the losing side.
+`MainPresentation.swift:169`, `ErrorPresentation.swift:103` and `DockView.swift:305` disagree on
+two user-visible button titles with tests pinning both, which is a product decision, not a
+refactor.
+
 
 ## Tab-to-complete 🟡
 
