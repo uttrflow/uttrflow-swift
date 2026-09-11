@@ -69,12 +69,26 @@ public enum NoteChecklist {
                 || lower.contains("type=checkbox")
         else { return nil }
         // A bare `checked` is the HTML spelling; `checked="checked"` is the XHTML one.
-        let isChecked = lower.contains(" checked") || lower.contains("checked=")
+        let isChecked = hasAttribute("checked", in: lower)
         let flipped =
             isChecked
             ? withoutCheckedAttribute(tag)
             : tag.replacingOccurrences(of: ">", with: " checked>", options: .backwards)
         return (isChecked, flipped)
+    }
+
+    /// Whether the tag carries this attribute in its own right, so `aria-checked` is not read as `checked`.
+    private static func hasAttribute(_ name: String, in lower: String) -> Bool {
+        var searched = lower.startIndex
+        while let found = lower.range(of: name, range: searched..<lower.endIndex) {
+            searched = found.upperBound
+            guard found.lowerBound > lower.startIndex,
+                lower[lower.index(before: found.lowerBound)].isWhitespace
+            else { continue }
+            let after = found.upperBound == lower.endIndex ? ">" : lower[found.upperBound]
+            if after == "=" || after == ">" || after == "/" || after.isWhitespace { return true }
+        }
+        return false
     }
 
     /// Apple Notes and TipTap mark the item rather than writing an input.

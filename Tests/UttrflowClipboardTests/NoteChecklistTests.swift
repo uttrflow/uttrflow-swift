@@ -115,6 +115,15 @@ struct NoteChecklistTests {
         #expect(NoteChecklist.items(in: bare).map(\.isChecked) == [true])
     }
 
+    /// The attribute is `aria-checked`, and the box it describes is not ticked.
+    @Test("an attribute merely ending in checked is not the checked attribute")
+    func ariaCheckedIsNotChecked() {
+        let html = "<ul><li><input type=\"checkbox\" aria-checked=\"false\"> Buy milk</li></ul>"
+        #expect(NoteChecklist.items(in: html).map(\.isChecked) == [false])
+        #expect(NoteChecklist.toggling(0, in: html) != html, "ticking it has to change the note")
+        #expect(NoteChecklist.toggling(0, in: html)?.contains(" checked>") == true)
+    }
+
     /// Malformed input is the user's clipboard, not a test fixture.
     @Test("an unclosed tag does not crash or eat the rest")
     func malformed() {
