@@ -338,6 +338,18 @@ struct GrammarGuardTests {
         #expect(!verdict(kept, rewritten).isAccepted)
     }
 
+    /// Words the speaker did not say are an invention however few they are, and a short clause fits inside the growth cap.
+    @Test(
+        "rejects content words the rewrite invented",
+        arguments: [
+            ("send the report", "Send the report to the team today, please."),
+            ("i will call you", "I will call you tomorrow morning."),
+        ]
+    )
+    func rejectsInventedContentWords(kept: String, rewritten: String) {
+        #expect(!verdict(kept, rewritten).isAccepted)
+    }
+
     /// The echo is the field's text before the caret, so its negators have no kept-side counterpart by construction.
     @Test("accepts a faithful rewrite when the caret echo carries a negation the speaker did not say")
     func acceptsANegationFromTheCaretEcho() {

@@ -121,7 +121,7 @@ public struct MeaningPreservationGuard: Sendable {
         var isPlain: Bool { matching.allSatisfy(\.isASCII) }
     }
 
-    /// A repair may change a word's form, never which content words survive. See `Docs/cleanup.md`.
+    /// A repair may change a word's form, never which content words are there, either way round. See `Docs/cleanup.md`.
     static func grammarVerdict(
         kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = [], echoed: String = ""
     ) -> GuardVerdict {
@@ -153,6 +153,30 @@ public struct MeaningPreservationGuard: Sendable {
         let churn = functionWordChurn(keptTokens, rewrittenTokens)
         if churn > 3 * sentenceCount(rewritten) {
             return .rejected(reason: "the rewrite changed \(churn) small words")
+        }
+        return inventionVerdict(
+            kept: keptTokens, rewritten: rewrittenTokens, echo: echoTokens, allowing: doubtful)
+    }
+
+    /// Refuses a content word the model brought in, an addition being the same fault as a loss read the other way.
+    static func inventionVerdict(
+        kept: [GrammarToken], rewritten: [GrammarToken], echo: [GrammarToken],
+        allowing doubtful: [DoubtfulSpan]
+    ) -> GuardVerdict {
+        // A draft the checks cannot read romanises into words with no counterpart here, so the base checks keep it.
+        guard kept.allSatisfy(\.isPlain) else { return .accepted }
+        let pool = Set((kept + echo).filter(\.isPlain).map(\.matching))
+        // A reading offered for a doubtful word is by definition not what was said, and `candidateVerdict` judges it.
+        let readings = Set(
+            doubtful
+                .flatMap { $0.candidates }
+                .flatMap { $0.split(whereSeparator: \.isWhitespace) }
+                .map { DoubtfulSpan.closedUp(String($0)) })
+        for token in rewritten
+        where token.isPlain && isContent(token) && !readings.contains(DoubtfulSpan.closedUp(token.text)) {
+            if !survives(token.matching, in: pool) {
+                return .rejected(reason: "the rewrite invented '\(token.text)'")
+            }
         }
         return .accepted
     }
@@ -189,7 +213,7 @@ public struct MeaningPreservationGuard: Sendable {
         return !functionWords.contains(token.lookup)
     }
 
-    /// Whether a content word survives: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
+    /// Whether a content word has a counterpart in `pool`: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
     static func survives(_ word: String, in pool: Set<String>) -> Bool {
         if pool.contains(word) { return true }
         if let digits = numberWords[word], pool.contains(digits) { return true }
