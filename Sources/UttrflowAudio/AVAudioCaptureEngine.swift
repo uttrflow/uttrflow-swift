@@ -9,14 +9,17 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private let recordings: RecordingStore?
     private var writer: RecordingWriter?
     private var currentState: AudioCaptureState = .idle
+    /// Played the moment the microphone closes, since this engine alone knows that instant.
+    private let cue: any RecordingCueing
 
     public init(
         source: any MicrophoneSource, accumulator: SampleAccumulator = SampleAccumulator(),
-        recordings: RecordingStore? = nil
+        recordings: RecordingStore? = nil, cue: any RecordingCueing = SilentCue()
     ) {
         self.source = source
         self.accumulator = accumulator
         self.recordings = recordings
+        self.cue = cue
     }
 
     public var state: AudioCaptureState { currentState }
@@ -55,6 +58,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     public func stop() async throws(AudioCaptureError) -> AudioSamples {
         guard currentState == .recording else { throw .notRecording }
         source.stop()
+        // After the microphone closes and before the buffer is taken, so the stop cue is heard but never recorded.
+        cue.playStop()
         currentState = .idle
         if let writer, let recordings {
             _ = await recordings.finish(writer)
