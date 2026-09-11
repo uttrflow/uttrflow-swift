@@ -11,6 +11,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private let pipeline: DictationPipeline
     private let monitor: any HotkeyMonitoring
+    /// Sounds the start only; the capture engine sounds the stop, once the microphone has closed.
     private let cue: any RecordingCueing
     private let clock: ClockType
     private let limit: DictationLimit
@@ -117,7 +118,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private func toggleListening() async {
         if await pipeline.currentState.isListening {
             stopWatchingTheLimit()
-            cue.playStop()
             await pipeline.finishRecording()
         } else {
             await beginListening()
@@ -153,7 +153,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Ends a dictation that reached the cap, keeping every word of it.
     private func finishAtTheLimit() async {
         guard await pipeline.currentState.isListening else { return }
-        cue.playStop()
         await pipeline.finishRecording()
         stopWatchingTheLimit()
     }
@@ -187,7 +186,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         // Letting go of a key that was never held is what ends a hold, and hands-free has no hold.
         guard !isHandsFree else { return }
         stopWatchingTheLimit()
-        cue.playStop()
         await pipeline.finishRecording()
     }
 
@@ -195,7 +193,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private func stopHandsFree() async {
         isHandsFree = false
         stopWatchingTheLimit()
-        cue.playStop()
         await pipeline.finishRecording()
     }
 }
