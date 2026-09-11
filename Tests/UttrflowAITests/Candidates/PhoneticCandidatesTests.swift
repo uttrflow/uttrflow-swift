@@ -29,6 +29,11 @@ struct PhoneticCandidatesTests {
         #expect(await source.candidates(for: Draft.Word("reader", confidence: 0.3), in: .unknown).isEmpty)
     }
 
+    @Test("offers nothing at all for a doubted function word", arguments: ["there", "their", "than", "on"])
+    func offersNothingForAFunctionWord(heard: String) async {
+        #expect(await source.candidates(for: Draft.Word(heard, confidence: 0.3), in: .unknown).isEmpty)
+    }
+
     @Test("offers at most two, so the screen and the dictionary keep their places on the line")
     func capsWhatItOffers() async {
         let found = await source.candidates(for: Draft.Word("hear", confidence: 0.3), in: .unknown)

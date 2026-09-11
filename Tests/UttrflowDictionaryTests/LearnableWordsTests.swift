@@ -63,6 +63,12 @@ struct GeneralVocabularyTests {
         #expect(!GeneralVocabulary.wordsSounding(like: heard).contains(homophone))
     }
 
+    /// Refused at the query, not only filtered from the answer, so nothing at all comes back for one.
+    @Test("Offers nothing at all for a function word", arguments: ["there", "their", "than", "on"])
+    func offersNothingForAFunctionWord(heard: String) {
+        #expect(GeneralVocabulary.wordsSounding(like: heard).isEmpty)
+    }
+
     @Test("Never offers a function word as the reading of anything")
     func neverOffersAFunctionWord() {
         for word in ["then", "one", "hear", "note", "kar", "hai", "wait", "mail", "week"] {
