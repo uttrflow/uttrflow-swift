@@ -413,9 +413,86 @@ struct GrammarGuardTests {
             ).isAccepted)
     }
 
+    // MARK: Where the reading stands
+
+    /// The rewrite writes "mine" where "money" was doubted, and is accepted because "main" stands earlier.
+    @Test("refuses a reading nobody offered when a reading that was offered stands elsewhere")
+    func refusesAnInventionWhenACandidateStandsElsewhere() {
+        let offered = [DoubtfulSpan(heard: "money", confidence: 0.31, candidates: ["main"])]
+        let verdict = sut.verdict(
+            draft: draft("the main thing is money"), rewritten: "The main thing is mine.",
+            offering: offered)
+        #expect(!verdict.isAccepted, "'mine' was never offered as a reading of 'money'")
+    }
+
+    /// The second "mark" is the doubtful one, and the first covers for the "Mike" written in its place.
+    @Test("refuses a reading nobody offered when the run as heard stands elsewhere")
+    func refusesAnInventionWhenTheHeardRunStandsElsewhere() {
+        let offered = [DoubtfulSpan(heard: "mark", confidence: 0.31, candidates: ["Mark"])]
+        let verdict = sut.verdict(
+            draft: draft("call mark before mark leaves"), rewritten: "Call Mark before Mike leaves.",
+            offering: offered)
+        #expect(!verdict.isAccepted, "'Mike' was never offered as a reading of 'mark'")
+    }
+
+    /// A reading is a word, so a spelling that merely contains one is not the reading that was offered.
+    @Test("refuses a reading that only matches inside a longer word")
+    func refusesAReadingInsideALongerWord() {
+        let offered = [DoubtfulSpan(heard: "mark", confidence: 0.31, candidates: ["Mark"])]
+        let verdict = sut.verdict(
+            draft: draft("the mark closed early"), rewritten: "The market closed early.",
+            offering: offered)
+        #expect(!verdict.isAccepted, "'market' was never offered as a reading of 'mark'")
+    }
+
+    /// The sources offer the span here rather than the test, so the guard is judging a real recognition.
+    @Test("refuses the same invention when the readings come from the sources themselves")
+    func refusesAnInventionFromReadingsTheSourcesOffered() async {
+        let heard = Draft.heard("the main thing is ?money")
+        let offered = await DoubtfulWords(sources: [ScriptedCandidates(["money": ["main"]])])
+            .spans(in: heard, for: .unknown)
+        #expect(offered.map(\.heard) == ["money"])
+        let verdict = sut.verdict(draft: heard, rewritten: "The main thing is mine.", offering: offered)
+        #expect(!verdict.isAccepted, "'mine' was never offered as a reading of 'money'")
+    }
+
+    /// The control for the three above: a doubtful word written as its offered reading is still accepted.
+    @Test("accepts the offered reading at the doubtful word where the same word stands twice")
+    func acceptsAnOfferedReadingAmongRepeats() {
+        let offered = [DoubtfulSpan(heard: "mark", confidence: 0.31, candidates: ["Mark"])]
+        #expect(
+            sut.verdict(
+                draft: draft("call mark before mark leaves"),
+                rewritten: "Call Mark before Mark leaves.", offering: offered
+            ).isAccepted)
+    }
+
+    // MARK: Where a word stands, not merely whether it is somewhere
+
+    /// One "mark" became "Mike"; the other is a different word in a different place and covers for nothing.
+    @Test("refuses a replaced word that another copy of itself stands elsewhere for")
+    func refusesAReplacedDuplicate() {
+        let verdict = sut.verdict(
+            draft: draft("call mark before mark leaves"), rewritten: "Call Mark before Mike leaves.")
+        #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'mark'"))
+    }
+
+    /// "mark" is spelled inside "market", but "market" stands where it always stood and did not replace it.
+    @Test("refuses a lost word that a longer word elsewhere merely spells")
+    func refusesAWordCoveredByALongerOneElsewhere() {
+        #expect(
+            !MeaningPreservationGuard.grammarVerdict(
+                kept: "the mark is above the market floor",
+                rewritten: "The apple is above the market floor."
+            ).isAccepted, "'mark' became 'apple'; the untouched 'market' says nothing about that")
+    }
+
     @Test("judges nothing about readings when none were offered")
     func judgesNothingWithoutReadings() {
-        #expect(MeaningPreservationGuard.candidateVerdict([], rewritten: "anything at all").isAccepted)
+        #expect(
+            MeaningPreservationGuard.candidateVerdict(
+                [], kept: "anything at all", rewritten: "anything at all"
+            ).isAccepted)
     }
 }
 
