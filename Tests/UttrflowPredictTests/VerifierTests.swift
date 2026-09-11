@@ -16,7 +16,7 @@ func warmed(
 ) async -> Verifier {
     let index = EnvironmentIndex(reader: StubEnvironment(machine))
     if let token = CompletionToken(text), let directory = EnvironmentSource.workingDirectory(of: surface) {
-        for kind in Verification.attestingKinds(for: token) {
+        for kind in Verification.attestation(for: token)?.lookups.flatMap(\.kinds) ?? [] {
             _ = await index.values(of: kind, in: directory, now: moment)
         }
         await index.settle()
@@ -467,6 +467,24 @@ struct GeneratedLineTests {
     @Test("A machine that has not answered denies nothing, so the model's line stands.")
     func silenceLetsTheLineStand() async {
         #expect(await standing(["vim .env.vim"], after: "vim .env", machine: [:]) == ["vim .env.vim"])
+    }
+
+    /// The listing names `guide.md`, and the candidate is the path that ends in it.
+    @Test("A path is attested by the name it ends in, which is what the listing under it holds.")
+    func aPathIsAttestedByItsOwnName() async {
+        let verdict = await decided(
+            "cat docs/guide.md", typed: "cat docs/",
+            machine: [.entries(under: "docs"): ["guide.md"]])
+        #expect(verdict == .attested)
+    }
+
+    /// The correction is on the name, and the path in front of it is put back before it is offered.
+    @Test("A mistyped path is corrected at its last name, keeping the directory in front of it.")
+    func aPathIsCorrectedAtItsName() async {
+        let verdict = await decided(
+            "cat docs/gude.md", typed: "cat docs/",
+            machine: [.entries(under: "docs"): ["guide.md"]])
+        #expect(verdict == .corrected("cat docs/guide.md"))
     }
 
     @Test("A field that is not a directory is never asked about, so prose is never denied.")
