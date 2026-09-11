@@ -148,7 +148,9 @@ public struct MeaningPreservationGuard: Sendable {
         let keptTokens = grammarTokens(kept)
         let rewrittenTokens = grammarTokens(rewritten)
         // The echo the caret pass took back was in the model's answer, so its words still count as survivors.
-        let pool = Set((rewrittenTokens + grammarTokens(echoed)).filter(\.isPlain).map(\.matching))
+        let written = (rewrittenTokens + grammarTokens(echoed)).filter(\.isPlain)
+        // An identifier is its parts as well as itself, so a word spelled into `fetchURL` is one of the rewrite's words.
+        let pool = Set(written.map(\.matching) + written.flatMap { identifierParts(of: $0.text) })
         // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
         let offered = Set(
             doubtful
@@ -203,7 +205,7 @@ public struct MeaningPreservationGuard: Sendable {
         return !functionWords.contains(token.lookup)
     }
 
-    /// The shortest run of letters that spells a word rather than a syllable, so "own" is not read out of "downtown".
+    /// The shortest run of letters read out of a word that is not broken into parts, so "own" is not read out of "downtown".
     static let shortestSpelledInto = 4
 
     /// Whether a content word survives: exact, as its numeral or its word, in an identifier, as a form, or as a verb form.
@@ -212,20 +214,61 @@ public struct MeaningPreservationGuard: Sendable {
         if let digits = numberWords[word], pool.contains(digits) { return true }
         if word.allSatisfy(\.isNumber), pool.contains(where: { numberWords[$0] == word }) { return true }
         if pool.contains(where: { numberWords[$0] == word }) { return true }
-        // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.
+        // An identifier is in the pool broken into its parts too, so "url" inside `fetchURL` is matched above.
         if word.count >= Self.shortestSpelledInto, pool.contains(where: { $0.contains(word) }) {
             return true
         }
-        // A form of the same word extends it or is extended by it; "contact" is no form of "contract".
-        if word.count >= 3,
-            pool.contains(where: { $0.count >= 3 && ($0.hasPrefix(word) || word.hasPrefix($0)) })
-        {
-            return true
-        }
+        if pool.contains(where: { isAForm(word, of: $0) }) { return true }
         if let index = IrregularVerbForms.setIndex[word] {
             return pool.contains { IrregularVerbForms.setIndex[$0] == index }
         }
         return false
+    }
+
+    /// The endings English adds to a word without making it a different word; "ment" and "ion" are missing on purpose.
+    static let inflections: Set<String> = ["s", "es", "d", "ed", "ing", "er", "est", "n", "en"]
+
+    /// The spellings a stem is written with before an ending: as it is, a final "e" dropped, a final "y" as "i", a final consonant doubled.
+    static func formStems(_ word: String) -> [String] {
+        var stems = [word]
+        if word.hasSuffix("y") { stems.append(word.dropLast() + "i") }
+        if word.hasSuffix("e") { stems.append(String(word.dropLast())) }
+        if let last = word.last, last.isLetter { stems.append(word + String(last)) }
+        return stems
+    }
+
+    /// Whether two words are forms of one word: the shorter, spelled as a stem, plus an ending — so "tried" is "try" and "contact" is no "contract".
+    static func isAForm(_ word: String, of other: String) -> Bool {
+        let shorter = word.count <= other.count ? word : other
+        let longer = word.count <= other.count ? other : word
+        guard shorter.count >= 2, shorter != longer else { return false }
+        return formStems(shorter).contains {
+            longer.hasPrefix($0) && inflections.contains(String(longer.dropFirst($0.count)))
+        }
+    }
+
+    /// An identifier's parts, cut where its case changes or an underscore or digit separates them; a word with no such seam has none.
+    static func identifierParts(of text: String) -> [String] {
+        var parts: [String] = []
+        var current = ""
+        var seam = false
+        for character in text {
+            if character == "_" || character.isNumber {
+                if !current.isEmpty { parts.append(current) }
+                current = ""
+                seam = true
+                continue
+            }
+            guard character.isLetter else { return [] }
+            if character.isUppercase, current.last?.isLowercase == true {
+                parts.append(current)
+                current = ""
+                seam = true
+            }
+            current.append(character)
+        }
+        if !current.isEmpty { parts.append(current) }
+        return seam ? parts.map { $0.lowercased() } : []
     }
 
     /// How many words in `tokens` turn a sentence's meaning around.

@@ -33,6 +33,58 @@ struct Issue217GuardSweepTests {
         #expect(MeaningPreservationGuard.survives("running", in: ["run"]))
     }
 
+    /// The repairs `Docs/cleanup.md` says the formatter makes — a tense that drifts, agreement — change a word's form.
+    @Test(
+        "accepts the grammar repairs the tidier is asked for",
+        arguments: [
+            ("yesterday i try to fix the build", "Yesterday I tried to fix the build."),
+            ("we apply the patch last week", "We applied the patch last week."),
+            ("she carry the box upstairs", "She carried the box upstairs."),
+            ("i study the logs all morning", "I studied the logs all morning."),
+            ("three city are on the list", "Three cities are on the list."),
+            ("he go to the standup", "He goes to the standup."),
+            ("i was take notes", "I was taking notes."),
+            ("they was use the old build", "They were using the old build."),
+        ]
+    )
+    func acceptsAFormRepair(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.grammarVerdict(kept: kept, rewritten: rewritten).isAccepted)
+    }
+
+    /// A y-stem or a dropped "e" is a spelling change English makes before an ending, not a different word.
+    @Test("reads a form written over a stem, and still refuses a word that only shares one")
+    func readsAStemmedForm() {
+        #expect(MeaningPreservationGuard.survives("try", in: ["tried"]))
+        #expect(MeaningPreservationGuard.survives("happy", in: ["happier"]))
+        #expect(MeaningPreservationGuard.survives("cities", in: ["city"]))
+        #expect(MeaningPreservationGuard.survives("take", in: ["taking"]))
+        #expect(!MeaningPreservationGuard.survives("mad", in: ["made"]))
+        #expect(!MeaningPreservationGuard.survives("depot", in: ["deposit"]))
+        #expect(!MeaningPreservationGuard.survives("many", in: ["management"]))
+        #expect(!MeaningPreservationGuard.survives("one", in: ["on"]))
+    }
+
+    /// Three letters is what `GeneralVocabulary` calls a word — "SQL or API" — so an identifier must not swallow one.
+    @Test("sees a three-letter word spelled into an identifier the model wrote")
+    func seesAShortWordInAnIdentifier() {
+        #expect(MeaningPreservationGuard.identifierParts(of: "fetchURL") == ["fetch", "url"])
+        #expect(MeaningPreservationGuard.identifierParts(of: "new_tab") == ["new", "tab"])
+        #expect(MeaningPreservationGuard.identifierParts(of: "downtown").isEmpty)
+        #expect(MeaningPreservationGuard.identifierParts(of: "don't").isEmpty)
+    }
+
+    @Test(
+        "accepts a rewrite that spelled a short word into an identifier",
+        arguments: [
+            ("the fetch url is wrong", "The fetchURL is wrong."),
+            ("call api after the retry", "callAPI after the retry."),
+            ("open a new tab first", "Open a newTab first."),
+        ]
+    )
+    func acceptsAShortWordInAnIdentifier(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.grammarVerdict(kept: kept, rewritten: rewritten).isAccepted)
+    }
+
     @Test("the whole guard refuses a rewrite that swapped a content word")
     func wholeGuardRefuses() {
         let verdict = MeaningPreservationGuard().verdict(
