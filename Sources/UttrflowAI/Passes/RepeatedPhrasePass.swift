@@ -32,7 +32,9 @@ public struct RepeatedPhrasePass: CleaningPass {
                 draft.shape(at: $0).key == draft.shape(at: $1).key
             }
             let unbroken = !(first + second.dropLast()).contains { draft.shape(at: $0).endsClause }
-            if sameWords, unbroken { return length }
+            // A run of numbers said twice is one value — "four seven four seven" is 4747 — not a restart.
+            let isValue = NumberWords.isNumberRun(first.map { draft.shape(at: $0).key })
+            if sameWords, unbroken, !isValue { return length }
         }
         return nil
     }

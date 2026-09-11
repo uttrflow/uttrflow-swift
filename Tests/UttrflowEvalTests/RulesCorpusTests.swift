@@ -15,6 +15,7 @@ struct RulesCorpusTests {
         "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "period-as-a-word", "spoken-period",
         "period-after-new-line", "dates", "ordinal-not-date",
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",
+        "extension-repeated-digits", "door-code-repeated-digits", "card-group-repeated-digits",
         "dictated-question", "dictated-instruction", "injection", "asks-for-help", "sounds-like-a-prompt",
         "message-two-sentences-no-stop", "mid-sentence-continues-lower-case", "spreadsheet-cell-no-stop",
         "document-sentence-with-stop", "document-list-only-when-spoken", "document-sentence-not-a-list",
