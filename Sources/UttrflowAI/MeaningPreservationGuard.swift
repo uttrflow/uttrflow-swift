@@ -48,14 +48,34 @@ public struct MeaningPreservationGuard: Sendable {
 
     /// A doubtful run may be written as it was heard or as a reading that was offered, and as nothing else.
     static func candidateVerdict(_ doubtful: [DoubtfulSpan], rewritten: String) -> GuardVerdict {
-        let written = DoubtfulSpan.closedUp(rewritten)
+        let written = closedUpWords(rewritten)
         for span in doubtful
-        where !([span.heard] + span.candidates).contains(where: {
-            written.contains(DoubtfulSpan.closedUp($0))
-        }) {
+        where !([span.heard] + span.candidates).contains(where: { appears($0, in: written) }) {
             return .rejected(reason: "the rewrite read '\(span.heard)' as a word it was not offered")
         }
         return .accepted
+    }
+
+    /// The rewrite's words closed up one at a time, so a reading has to start where one of them starts.
+    static func closedUpWords(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isWhitespace)
+            .map { DoubtfulSpan.closedUp(String($0)) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Whether a reading is written from a word boundary on, so "in it" is not found inside "begin it".
+    static func appears(_ reading: String, in words: [String]) -> Bool {
+        let wanted = DoubtfulSpan.closedUp(reading)
+        guard !wanted.isEmpty else { return true }
+        for start in words.indices {
+            var run = ""
+            for word in words[start...] {
+                run += word
+                if run.hasPrefix(wanted) { return true }
+                if !wanted.hasPrefix(run) { break }
+            }
+        }
+        return false
     }
 
     /// Refuses a rewrite that flattened a break the speaker asked for, since layout is the passes' to decide.
@@ -183,16 +203,25 @@ public struct MeaningPreservationGuard: Sendable {
         return !functionWords.contains(token.lookup)
     }
 
-    /// Whether a content word survives: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
+    /// The shortest run of letters that spells a word rather than a syllable, so "own" is not read out of "downtown".
+    static let shortestSpelledInto = 4
+
+    /// Whether a content word survives: exact, as its numeral or its word, in an identifier, as a form, or as a verb form.
     static func survives(_ word: String, in pool: Set<String>) -> Bool {
         if pool.contains(word) { return true }
         if let digits = numberWords[word], pool.contains(digits) { return true }
         if word.allSatisfy(\.isNumber), pool.contains(where: { numberWords[$0] == word }) { return true }
         if pool.contains(where: { numberWords[$0] == word }) { return true }
         // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.
-        if word.count >= 3, pool.contains(where: { $0.contains(word) }) { return true }
-        let stem = word.count >= 3 ? String(word.prefix(3)) : word
-        if pool.contains(where: { $0.hasPrefix(stem) }) { return true }
+        if word.count >= Self.shortestSpelledInto, pool.contains(where: { $0.contains(word) }) {
+            return true
+        }
+        // A form of the same word extends it or is extended by it; "contact" is no form of "contract".
+        if word.count >= 3,
+            pool.contains(where: { $0.count >= 3 && ($0.hasPrefix(word) || word.hasPrefix($0)) })
+        {
+            return true
+        }
         if let index = IrregularVerbForms.setIndex[word] {
             return pool.contains { IrregularVerbForms.setIndex[$0] == index }
         }
