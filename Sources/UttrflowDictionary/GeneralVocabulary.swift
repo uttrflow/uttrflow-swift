@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// Words a general recogniser already knows and the dictionary must not learn. See Docs/app-dictionary.md.
 public enum GeneralVocabulary {
     /// The fewest letters a word worth learning can have: three, the length of `SQL` or `API`.
@@ -17,13 +19,15 @@ public enum GeneralVocabulary {
     /// The opening letters a reading must share, because a common word that merely rhymes is noise, not a reading.
     public static let openingLettersShared = 2
 
-    /// Ordinary words this one could have been misheard as: the same likelier sound, the same opening. See `Docs/cleanup.md`.
+    /// Ordinary words this one could have been misheard as: the same likelier sound, the same opening, no function word. See `Docs/cleanup.md`.
     public static func wordsSounding(like text: String) -> [String] {
         let heard = text.lowercased()
+        // A function word carries the sentence's structure, so its homophone changes the meaning, not the spelling.
+        guard !FunctionWords.holds(heard) else { return [] }
         let opening = heard.prefix(openingLettersShared)
         return Array(
             (byPrimarySound[DoubleMetaphone.code(for: text).primary] ?? [])
-                .filter { $0 != heard && $0.hasPrefix(opening) }
+                .filter { $0 != heard && $0.hasPrefix(opening) && !FunctionWords.holds($0) }
                 .prefix(maximumPerSound))
     }
 
