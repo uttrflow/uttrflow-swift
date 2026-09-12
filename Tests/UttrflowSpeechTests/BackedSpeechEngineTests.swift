@@ -203,29 +203,31 @@ struct BackedSpeechEngineTests {
 
     // MARK: The user's own words
 
-    @Test("hands the recogniser the words to listen out for")
+    @Test("hands the recogniser the words the dictation was ranked for")
     func passesVocabulary() async throws {
         let backend = FakeTranscriptionBackend()
-        let engine = BackedSpeechEngine(
-            kind: .whisperKit, backend: backend,
-            vocabulary: FixedVocabulary(["Uttrflow", "Nikhil"]))
+        let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
 
-        _ = try await engine.transcribe(audio(seconds: 1), options: .automatic)
+        _ = try await engine.transcribe(
+            audio(seconds: 1), options: TranscriptionOptions(vocabulary: ["Uttrflow", "Nikhil"]))
+
         #expect(backend.calls.first?.vocabulary == ["Uttrflow", "Nikhil"])
     }
 
-    @Test("asks for the words once per dictation, because the answer moves")
-    func readsVocabularyEveryTime() async throws {
+    /// The engine no longer reads them: one ranking per dictation is the pipeline's to make. See #180.
+    @Test("reads nothing of its own, so every piece of a dictation carries the same words")
+    func takesTheWordsItIsGiven() async throws {
         let backend = FakeTranscriptionBackend()
-        let source = FixedVocabulary(["Uttrflow"])
-        let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend, vocabulary: source)
+        let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
+        let options = TranscriptionOptions(vocabulary: ["Uttrflow"])
 
-        _ = try await engine.transcribe(audio(seconds: 1), options: .automatic)
-        _ = try await engine.transcribe(audio(seconds: 1), options: .automatic)
-        #expect(await source.readings == 2)
+        _ = try await engine.transcribe(audio(seconds: 1), options: options)
+        _ = try await engine.transcribe(audio(seconds: 1), options: options)
+
+        #expect(backend.calls.map(\.vocabulary) == [["Uttrflow"], ["Uttrflow"]])
     }
 
-    @Test("an engine given no vocabulary biases the recogniser towards nothing")
+    @Test("an engine given no words biases the recogniser towards nothing")
     func noVocabularySource() async throws {
         let backend = FakeTranscriptionBackend()
         _ = try await engine(backend).transcribe(audio(seconds: 1), options: .automatic)
@@ -235,27 +237,12 @@ struct BackedSpeechEngineTests {
     @Test("a recogniser that cannot be biased still transcribes")
     func unbiasableBackendStillWorks() async throws {
         let backend = UnbiasableBackend()
-        let engine = BackedSpeechEngine(
-            kind: .appleSpeech, backend: backend, vocabulary: FixedVocabulary(["Uttrflow"]))
+        let engine = BackedSpeechEngine(kind: .appleSpeech, backend: backend)
 
-        let transcription = try await engine.transcribe(audio(seconds: 1), options: .automatic)
+        let transcription = try await engine.transcribe(
+            audio(seconds: 1), options: TranscriptionOptions(vocabulary: ["Uttrflow"]))
 
         #expect(transcription.text == "hello there")
         #expect(backend.transcriptions == 1)
-    }
-}
-
-/// A vocabulary that is whatever a test says it is, counting how often it is asked.
-private actor FixedVocabulary: VocabularySource {
-    private let words: [String]
-    private(set) var readings = 0
-
-    init(_ words: [String]) {
-        self.words = words
-    }
-
-    func vocabulary() async -> [String] {
-        readings += 1
-        return words
     }
 }

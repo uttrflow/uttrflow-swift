@@ -398,11 +398,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         let speech = SpeechEngineFactory.make(
             kind: settings.engines.speech, model: model,
-            modelFolder: modelStore.location(of: model),
-            vocabulary: DictionaryVocabulary { [dictionary, context] in
-                // One reading, so the words are ranked against the screen they were ranked for.
-                await (dictionary.allEntries(), context.currentContext(), Date())
-            })
+            modelFolder: modelStore.location(of: model))
+
+        // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
+        let speechWords = DictionaryVocabulary { [dictionary] in
+            await (dictionary.allEntries(), Date())
+        }
 
         // One cue for both ends, so a stop sounds only after a start the user could have heard.
         let cue: any RecordingCueing =
@@ -422,6 +423,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Announced, like every write this app makes. See `Docs/insertion.md`.
             inserter: TextInsertion.coordinator(
                 pasteboard: announcingPasteboard, reporting: Self.logPaste),
+            speechWords: { seeing in await speechWords.vocabulary(favouring: seeing) },
             corrector: DictionaryCorrections(dictionary: dictionary),
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
