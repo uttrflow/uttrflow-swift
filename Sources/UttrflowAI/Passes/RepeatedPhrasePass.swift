@@ -17,7 +17,9 @@ public struct RepeatedPhrasePass: CleaningPass {
                 position += 1
                 continue
             }
-            for index in live[position..<position + length] { draft.remove(at: index, by: Self.id) }
+            for index in live[position..<position + length] {
+                draft.remove(at: index, by: Self.id, carryingMarks: true)
+            }
             live.removeSubrange(position..<position + length)
         }
         return draft

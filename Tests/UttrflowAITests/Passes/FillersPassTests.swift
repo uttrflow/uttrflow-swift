@@ -52,6 +52,22 @@ struct FillersPassTests {
         #expect(draft.originalText == "um hello")
     }
 
+    /// The recogniser hangs the sentence's mark on the last word it heard, and that can be the filler.
+    @Test(
+        "keeps the mark the recogniser hung on a trailing filler",
+        arguments: [
+            ("so are we shipping today, uh?", "so are we shipping today?"),
+            ("are we shipping today uh?", "are we shipping today?"),
+            ("that is amazing uh!", "that is amazing!"),
+            ("no way um!", "no way!"),
+            // Nothing stands before it, so there is nowhere for the mark to go.
+            ("hmm? yes", "yes"),
+        ]
+    )
+    func keepsTheMarkOnATrailingFiller(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// Found by dictating it: "we should, uh, ship" left a comma separating nothing.
     @Test(
         "takes the comma that only bracketed the filler",
