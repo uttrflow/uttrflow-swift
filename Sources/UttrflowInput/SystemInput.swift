@@ -174,7 +174,18 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
             let value = stringAttribute(kAXValueAttribute, of: element),
             let range = rangeAttribute(kAXSelectedTextRangeAttribute, of: element)
         else { return nil }
-        return BackwardSelection.text(in: value, endingAt: range.location, covering: count)
+        return BackwardSelection.text(in: value, endingAt: range.location, exactly: count)
+    }
+
+    /// As much as the field holds before the caret, so a field shorter than the request is still read.
+    public func tail(upTo count: Int) -> FieldTail {
+        guard
+            count > 0, let element = focusedElement(),
+            let value = stringAttribute(kAXValueAttribute, of: element),
+            let range = rangeAttribute(kAXSelectedTextRangeAttribute, of: element),
+            let tail = BackwardSelection.tail(in: value, endingAt: range.location, upTo: count)
+        else { return .unreadable }
+        return .text(tail)
     }
 
     public func focusedTextField() -> (any FocusedTextField)? {

@@ -36,9 +36,23 @@ public protocol AccessibilityFocus: Sendable {
 
     /// The `count` characters immediately before the caret, or `nil` when the field will not say.
     func precedingText(_ count: Int) -> String?
+
+    /// As much of the text before the caret as there is, up to `count`, or that the field will not say.
+    func tail(upTo count: Int) -> FieldTail
+}
+
+/// What a field says about the text before its caret, keeping "too short" apart from "will not say".
+public enum FieldTail: Sendable, Equatable {
+    /// Everything before the caret, up to what was asked for; shorter than that means the field is shorter.
+    case text(String)
+    /// The field reports neither its value nor its caret.
+    case unreadable
 }
 
 extension AccessibilityFocus {
     /// Most fields on the typed route cannot be read, so the guard falls back to the cap alone.
     public func precedingText(_ count: Int) -> String? { nil }
+
+    /// The same default: a field that will not report its value will not report its tail either.
+    public func tail(upTo count: Int) -> FieldTail { .unreadable }
 }

@@ -20,13 +20,20 @@ private final class SlowFocus: AccessibilityFocus, @unchecked Sendable {
     func hasFocusedElement() -> Bool { true }
     func isSelfFrontmost() -> Bool { false }
 
+    /// The real exact-count rule: a field holding fewer than `count` characters answers nothing at all.
     func precedingText(_ count: Int) -> String? {
-        guard let answer else { return nil }
+        guard case .text(let seen) = tail(upTo: count), seen.count >= count else { return nil }
+        return seen
+    }
+
+    func tail(upTo count: Int) -> FieldTail {
+        guard let answer else { return .unreadable }
         let read = reads.withLock { reads -> Int in
             reads += 1
             return reads
         }
-        return read > readsBeforeItLands ? answer : "what was already there"
+        // As short as the field is: the point of #223 is that a short field is still readable.
+        return .text(read > readsBeforeItLands ? answer : "what was already there")
     }
 
     var readCount: Int { reads.withLock { $0 } }
@@ -39,6 +46,16 @@ struct PasteConfirmationTests {
 
     private func confirming(_ focus: any AccessibilityFocus) -> PasteConfirmation {
         PasteConfirmation(focus: focus, budget: budget, interval: interval)
+    }
+
+    /// #223: a search box or a chat line holds less than the 96 asked for, and was reported unverifiable.
+    @Test("confirms a paste into a field shorter than the read length")
+    func confirmsAShortField() async {
+        let focus = SlowFocus(answer: "ok")
+
+        let outcome = await confirming(focus).waitFor("ok")
+
+        #expect(outcome == .landed(.milliseconds(1)))
     }
 
     /// The Electron case, which is most of them: waiting on a field that never answers proves nothing.
