@@ -61,7 +61,11 @@ struct DoubtfulCorpusTests {
             // The same words in Notes, whose window says nothing about how the name is spelled.
             "notes-name-spelling",
         ] {
-            guard let testCase = EvaluationCorpus.all.first(where: { $0.id == id }) else { continue }
+            guard let testCase = EvaluationCorpus.all.first(where: { $0.id == id }) else {
+                // A case renamed out from under this list would otherwise leave the test passing on nothing.
+                Issue.record("\(id) is not in the corpus")
+                continue
+            }
             #expect(await spans(for: testCase).isEmpty, "\(id)")
         }
     }
