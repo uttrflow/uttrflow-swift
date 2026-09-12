@@ -45,13 +45,13 @@ public struct PasteConfirmation: Sendable {
     public func waitFor(_ text: String) async -> Outcome {
         let wanted = Self.wanted(from: text)
         // A field that will not answer now will not answer in a second either, so nothing is waited for.
-        guard !wanted.isEmpty, focus.precedingText(Self.readLength) != nil else { return .notReported }
+        guard !wanted.isEmpty, focus.tail(upTo: Self.readLength) != .unreadable else { return .notReported }
 
         var waited = Duration.zero
         while waited < budget {
             try? await clock.sleep(for: interval)
             waited += interval
-            guard let seen = focus.precedingText(Self.readLength) else { return .notReported }
+            guard case .text(let seen) = focus.tail(upTo: Self.readLength) else { return .notReported }
             if Self.collapsed(seen).hasSuffix(wanted) { return .landed(waited) }
         }
         return .gaveUp(waited)
