@@ -107,10 +107,14 @@ public final class InputDeviceSession: Sendable {
             guard state.withLock(\.health) == .reopening else { return }
             do {
                 try device.open()
-                state.withLock {
-                    $0.health = .live
-                    $0.reopening = nil
+                let kept = state.withLock { state -> Bool in
+                    guard state.health == .reopening else { return false }
+                    state.health = .live
+                    state.reopening = nil
+                    return true
                 }
+                // A close that landed while this was opening leaves a device nothing else would shut.
+                if !kept { device.close() }
                 return
             } catch {
                 continue

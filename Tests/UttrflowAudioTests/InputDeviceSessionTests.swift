@@ -142,6 +142,23 @@ struct InputDeviceSessionTests {
         #expect(reported.count == 0)
     }
 
+    /// A device opened after the recording stopped is one nothing else would ever shut: see #171.
+    @Test("closes a device it opened after the close, rather than stranding it open")
+    func neverStrandsADeviceOpen() async throws {
+        // Opens succeed, so every attempt leaves a device that something has to close.
+        let device = FlakyDevice(failing: 0)
+        let (session, _) = session(device)
+        try session.open { _ in }
+
+        session.deviceChanged()
+        session.close()
+        try await untilSettled(session)
+
+        #expect(session.health == .gone)
+        // Every open is answered by a close, whichever side of the race the reopen landed.
+        #expect(device.log.withLock(\.closes) >= device.log.withLock(\.opens))
+    }
+
     /// Waits for the reopen task, which runs off this one.
     private func untilSettled(_ session: InputDeviceSession) async throws {
         for _ in 0..<200 where session.health == .reopening {
