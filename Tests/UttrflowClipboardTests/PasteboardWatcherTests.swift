@@ -207,7 +207,7 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
 
-    /// The failure a count-only match caused: somebody's own copy swallowed by Uttrflow's picture paste.
+    /// What matching on the count alone swallows: a copy of the user's own in the same tick as a picture paste.
     @Test("a copy that lands in the same tick as a picture paste is still noticed")
     func aCopyRacingThePicturePasteSurvives() async {
         let clipboard = FakeClipboard()

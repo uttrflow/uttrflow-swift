@@ -6,11 +6,11 @@
 # the same account, and `prepareForNewContents(with: .currentHostOnly)` is the one line that
 # stops it. That line lives in `SystemPasteboard`, along with announcing the write so the
 # watcher does not read it back as the user's own copy. A call site that reaches
-# `NSPasteboard` directly gets neither, which is how finished transcripts reached a user's
-# iPhone from the panel's Copy.
+# `NSPasteboard` directly has neither, so it sends the user's transcript to their phone and
+# files it again as a copy.
 #
-# So the rule is structural rather than remembered: one adapter writes the clipboard, one
-# reads it, and nothing else in the product knows the platform type exists.
+# The rule is therefore structural rather than remembered: one adapter writes the clipboard,
+# one reads it, and nothing else in the product knows the platform type exists.
 #
 # Usage:  ./Scripts/pasteboard_audit.sh
 set -euo pipefail
