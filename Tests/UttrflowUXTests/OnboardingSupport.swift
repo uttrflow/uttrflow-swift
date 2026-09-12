@@ -343,7 +343,7 @@ final class Harness {
         reachable: Bool = true,
         /// What macOS would call the person at this Mac. Named here so a test about the
         /// Mac account is not also a test about whoever is running it.
-        systemName: String? = "Naveen Bhatt",
+        systemName: String? = "User Name",
         now: Date = Date(timeIntervalSince1970: 1_800_000_000)
     ) {
         self.microphone = FakePermissionGate(

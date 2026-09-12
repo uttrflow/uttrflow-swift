@@ -137,7 +137,7 @@ struct ExpiredEntitlementNeverLocksTests {
     func chosenThisMac() {
         let gate = EntitlementGate(
             profiles: Fixture.cacheHolding(nil),
-            local: InMemoryLocalAccountStore(LocalAccount(name: "Naveen", since: Fixture.noon)))
+            local: InMemoryLocalAccountStore(LocalAccount(name: "UserName", since: Fixture.noon)))
         for reachable in [true, false] {
             let access = gate.access(at: Fixture.noon, networkIsReachable: reachable)
             #expect(access == .allowedOnThisMac)
@@ -158,7 +158,7 @@ struct ExpiredEntitlementNeverLocksTests {
     /// would be a way to talk an expired subscription into looking current.
     @Test("the entitlement decides even when a local account is also present")
     func entitlementBeatsTheLocalAccount() {
-        let local = InMemoryLocalAccountStore(LocalAccount(name: "Naveen", since: Fixture.noon))
+        let local = InMemoryLocalAccountStore(LocalAccount(name: "UserName", since: Fixture.noon))
         #expect(
             EntitlementGate(
                 profiles: Fixture.cacheHolding(Fixture.entitlement(expiring: 86_400)),

@@ -13,7 +13,7 @@ private func standardExpander() -> SnippetExpander {
     SnippetExpander(snippets: [
         makeSnippet(trigger: "my address", expansion: address),
         makeSnippet(trigger: "my work address", expansion: "Level 4, Vaswani Presidio"),
-        makeSnippet(trigger: "sign off", expansion: "Thanks, Naveen"),
+        makeSnippet(trigger: "sign off", expansion: "Thanks, User"),
         makeSnippet(trigger: "pr", expansion: "pull request"),
     ])
 }
@@ -115,9 +115,9 @@ struct SnippetExpanderTests {
     @Test("notices the quotation through a difference of case or spacing")
     func quotingIsRecognisedLoosely() {
         let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "sign off", expansion: "Thanks,  Naveen")
+            makeSnippet(trigger: "sign off", expansion: "Thanks,  User")
         ])
-        #expect(!expander.expand("sign off with thanks, Naveen").didExpand)
+        #expect(!expander.expand("sign off with thanks, User").didExpand)
     }
 
     /// One snippet being quoted must not stop the others.
@@ -132,10 +132,10 @@ struct SnippetExpanderTests {
     @Test("a snippet whose text contains its own trigger expands once and stops")
     func selfReferenceTerminates() {
         let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "sign off", expansion: "Thanks, Naveen — sign off")
+            makeSnippet(trigger: "sign off", expansion: "Thanks, User — sign off")
         ])
         let result = expander.expand("Please sign off.")
-        #expect(result.text == "Please Thanks, Naveen — sign off.")
+        #expect(result.text == "Please Thanks, User — sign off.")
         #expect(result.applied.count == 1)
     }
 

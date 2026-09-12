@@ -6,7 +6,7 @@ import Testing
 @Suite("What this machine tells the backend about itself")
 struct DeviceIdentityTests {
     private func identity(
-        storage: MemoryStorage, name: String = "Naveen's MacBook Pro",
+        storage: MemoryStorage, name: String = "User's MacBook Pro",
         appVersion: String? = "0.1.0", minting identifier: String = "install-0123456789"
     ) -> MacDeviceIdentity {
         MacDeviceIdentity(
@@ -20,7 +20,7 @@ struct DeviceIdentityTests {
 
         #expect(registration.installId == "install-0123456789")
         #expect(registration.platform == "macos")
-        #expect(registration.name == "Naveen's MacBook Pro")
+        #expect(registration.name == "User's MacBook Pro")
         #expect(registration.appVersion == "0.1.0")
     }
 

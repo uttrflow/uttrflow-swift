@@ -11,14 +11,14 @@ struct PathShapeTests {
     @Test(
         "paths people actually copy",
         arguments: [
-            "/Users/naveen/Desktop/notes.txt",
+            "/Users/testuser/Desktop/notes.txt",
             "~/Desktop/projects/uttrflow",
             "~/Library/Application Support/Uttrflow/clipboard.v1.json",
             "./Scripts/coverage.sh",
             "~/Desktop/My Notes.txt",
             "../Sources/UttrflowUX/PanelResults.swift",
             "/usr/local/bin",
-            "/Users/naveen/Desktop/a-file_with.punctuation(2).txt",
+            "/Users/testuser/Desktop/a-file_with.punctuation(2).txt",
         ])
     func paths(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .filePath)
@@ -33,7 +33,7 @@ struct PathShapeTests {
             "1/2",
             "and/or",
             "he said yes/no and left",
-            "The file is at /Users/naveen/notes.txt somewhere",
+            "The file is at /Users/testuser/notes.txt somewhere",
             "cat /etc/hosts | grep localhost",
             "//",
             "/",
@@ -64,7 +64,7 @@ struct PathShapeTests {
     /// what the clip holds is the URL, not the path inside it.
     @Test("a file URL is not claimed as a path")
     func fileURLsAreNotPaths() {
-        #expect(ClipKindDetector.kind(of: "file:///Users/naveen/notes.txt") == .text)
+        #expect(ClipKindDetector.kind(of: "file:///Users/testuser/notes.txt") == .text)
     }
 
     /// A credential is masked whatever else it looks like, and some of them are shaped

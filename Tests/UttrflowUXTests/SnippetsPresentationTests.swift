@@ -73,10 +73,10 @@ struct SnippetsPageTests {
     func searching() {
         let snippets = [
             HistoryFixture.snippet("my address", text: "Flat 402, Bengaluru"),
-            HistoryFixture.snippet("sign off", text: "Thanks, Naveen"),
+            HistoryFixture.snippet("sign off", text: "Thanks, User"),
         ]
         #expect(HistoryFixture.snippets(snippets, query: "address").rows.count == 1)
-        #expect(HistoryFixture.snippets(snippets, query: "Naveen").rows.count == 1)
+        #expect(HistoryFixture.snippets(snippets, query: "User").rows.count == 1)
         #expect(HistoryFixture.snippets(snippets, query: "  ").rows.count == 2)
     }
 

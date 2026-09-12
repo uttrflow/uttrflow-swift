@@ -16,8 +16,8 @@ struct LocalAccountStoreTests {
         let store = store()
         #expect(store.load() == nil)
 
-        store.save(LocalAccount(name: "Naveen Bhatt", since: noon))
-        #expect(store.load() == LocalAccount(name: "Naveen Bhatt", since: noon))
+        store.save(LocalAccount(name: "User Name", since: noon))
+        #expect(store.load() == LocalAccount(name: "User Name", since: noon))
 
         store.clear()
         #expect(store.load() == nil)
@@ -36,7 +36,7 @@ struct LocalAccountStoreTests {
 
     @Test("keeps the name macOS gave it, without the whitespace around it")
     func namesAreTrimmed() {
-        #expect(LocalAccount(name: "  Naveen  ", since: noon).name == "Naveen")
+        #expect(LocalAccount(name: " User Name ", since: noon).name == "UserName")
     }
 
     /// The same rule ``ProfileCache`` keeps: a value that cannot be read means there is
@@ -55,8 +55,8 @@ struct LocalAccountStoreTests {
     func inMemoryAgrees() {
         let store = InMemoryLocalAccountStore()
         #expect(store.load() == nil)
-        store.save(LocalAccount(name: "Naveen", since: noon))
-        #expect(store.load()?.name == "Naveen")
+        store.save(LocalAccount(name: "User Name", since: noon))
+        #expect(store.load()?.name == "User Name")
         store.clear()
         #expect(store.load() == nil)
         #expect(InMemoryLocalAccountStore(LocalAccount(name: "A", since: noon)).load() != nil)

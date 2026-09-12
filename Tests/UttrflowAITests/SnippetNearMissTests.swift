@@ -22,7 +22,7 @@ struct SnippetNearMissTests {
         makeSnippet(trigger: "pr", expansion: "pull request"),
         makeSnippet(trigger: "add", expansion: "Adobe Acrobat"),
         makeSnippet(trigger: "my address", expansion: "Flat 402, Sample Road, Bengaluru 560001"),
-        makeSnippet(trigger: "sign off", expansion: "Thanks, Naveen"),
+        makeSnippet(trigger: "sign off", expansion: "Thanks, User"),
         makeSnippet(trigger: "stand up", expansion: "Yesterday: … Today: … Blockers: …"),
         makeSnippet(trigger: "meeting link", expansion: "https://meet.google.com/qzt-hnrv-dka"),
     ]
@@ -60,7 +60,7 @@ struct SnippetNearMissTests {
         "I gave them my old address by mistake.",
 
         // The user quoting the expansion back. Saying it is not asking for it again.
-        "Sign off with Thanks, Naveen at the bottom.",
+        "Sign off with Thanks, User at the bottom.",
         "The link is https://meet.google.com/qzt-hnrv-dka — that is the meeting link.",
     ]
 

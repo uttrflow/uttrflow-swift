@@ -393,13 +393,13 @@ struct DictationPipelineRecoveryTests {
                     heard: "payment sheet", wrote: "PaymentSheet", wordRange: 3..<5,
                     entryID: UUID(), reason: "heardAsSeveralWords", heardConfidence: 0.3)
             ]),
-            snippets: RecoveryFakeExpander(replacing: ("kr", "Kind regards, Naveen")),
+            snippets: RecoveryFakeExpander(replacing: ("kr", "Kind regards, TestUser")),
             metrics: recorder
         )
 
         let state = await dictate(pipeline)
 
-        #expect(state.insertedOutcome?.text == "Email me the PaymentSheet Kind regards, Naveen.")
+        #expect(state.insertedOutcome?.text == "Email me the PaymentSheet Kind regards, TestUser.")
         let measurements = await recorder.measurements
         #expect(measurements.map(\.stage) == PipelineStage.allCases)
         #expect(

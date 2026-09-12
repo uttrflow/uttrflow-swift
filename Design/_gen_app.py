@@ -185,7 +185,7 @@ COLS = [("Word", 116, "left"), ("Sounds like", 104, "left"), ("Where from", 106,
 
 WORDS = [
     ("Uttrflow", "utter-flow", "Added by you", "12 Aug", "34", "0", False, False),
-    ("Naveen Bhatt", "&mdash;", "Learned", "2 Aug", "118", "1", False, False),
+    ("testuser Bhatt", "&mdash;", "Learned", "2 Aug", "118", "1", False, False),
     ("pgvector", "pee-gee vector", "Seen on screen", "19 Aug", "9", "0", False, True),
     ("asyncpg", "a-sync-p-g", "Seen on screen", "20 Aug", "6", "0", False, False),
     ("Valkey", "val-key", "Learned", "14 Aug", "22", "2", False, False),
@@ -261,7 +261,7 @@ CHANGES = [
     ("um, I think we should", "I think we should", "Filler removed", "4:12 PM", "Slack", None),
     ("a sink p g", "asyncpg", "Seen on screen", "2:30 PM", "Code", None),
     ("mein", "main", "Hinglish spelling", "3:48 PM", "Notes", None),
-    ("naveen bhat", "Naveen Bhatt", "Your dictionary", "11:05 AM", "Mail", None),
+    ("testuser bhat", "testuser Bhatt", "Your dictionary", "11:05 AM", "Mail", None),
     ("postgress", "Postgres", "Common misspelling", "2:30 PM", "Code", None),
     ("your late", "you&rsquo;re late", "Grammar", "9:41 AM", "Slack", "undone"),
 ]
@@ -444,7 +444,7 @@ SNIPS = [
     ("standup update", "Yesterday: &hellip; &nbsp;Today: &hellip; &nbsp;Blockers: &hellip;",
      "31", "Today"),
     ("meeting link", "https://meet.google.com/qzt-hnrv-dka", "48", "Today"),
-    ("sign off", "Thanks, Naveen", "64", "Today"),
+    ("sign off", "Thanks, testuser", "64", "Today"),
 ]
 
 snip_rows = "".join(f"""<div class="tr">
@@ -592,7 +592,7 @@ account = f"""<div class="card" style="padding: 14px 15px">
           <div class="row" style="gap: 13px">
             <div class="avatar">NB</div>
             <div style="flex: 1; min-width: 0">
-              <div style="font-size: var(--t-title3); font-weight: 600">Naveen Bhatt</div>
+              <div style="font-size: var(--t-title3); font-weight: 600">testuser Bhatt</div>
               <div class="muted" style="font-size: var(--t-callout); margin-top: 2px">
                 nadia.d@example.com</div>
             </div>

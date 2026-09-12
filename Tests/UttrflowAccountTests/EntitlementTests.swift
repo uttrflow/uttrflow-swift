@@ -10,7 +10,7 @@ struct EntitlementTests {
     private func entitlement(expiring: TimeInterval) -> Entitlement {
         Entitlement(
             account: Account(
-                identifier: "u_1", displayName: "Naveen", emailAddress: nil, provider: .google),
+                identifier: "u_1", displayName: "UserName", emailAddress: nil, provider: .google),
             plan: .pro, expiresAt: noon.addingTimeInterval(expiring), signature: "sig")
     }
 

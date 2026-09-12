@@ -106,7 +106,7 @@ struct CorpusSlugTests {
 
     @Test("puts the cohort first, so a bucket sorts by sitting")
     func naming() {
-        #expect(CorpusSlug.make(passage: "en-standup", cohort: "naveen-quiet") == "naveen-quiet-en-standup")
+        #expect(CorpusSlug.make(passage: "en-standup", cohort: "user-quiet") == "user-quiet-en-standup")
         // No `unattributed-` prefix: it would become part of the key, and renaming a
         // thousand objects later is not a thing anybody does.
         #expect(CorpusSlug.make(passage: "en-standup", cohort: nil) == "en-standup")
@@ -114,7 +114,7 @@ struct CorpusSlugTests {
 
     @Test("folds what a person types into what Postgres will take")
     func sanitising() {
-        #expect(CorpusSlug.sanitised("Naveen's Quiet Room") == "naveen-s-quiet-room")
+        #expect(CorpusSlug.sanitised("User's Quiet Room") == "user-s-quiet-room")
         #expect(CorpusSlug.sanitised("  spaced  out  ") == "spaced-out")
         #expect(CorpusSlug.sanitised("!!!") == "")
         #expect(CorpusSlug.sanitised("café") == "caf")
@@ -126,8 +126,8 @@ struct CorpusSlugTests {
 
     @Test("a cohort carries who and where, and names the recordings that have neither")
     func cohorts() {
-        let cohort = RecordingCohort(id: "naveen-quiet", speaker: "naveen", setting: "quiet room")
-        #expect(cohort.description == "naveen · quiet room")
+        let cohort = RecordingCohort(id: "user-quiet", speaker: "user", setting: "quiet room")
+        #expect(cohort.description == "user · quiet room")
         #expect(RecordingCohort.unattributed == "unattributed")
     }
 }

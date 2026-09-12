@@ -49,7 +49,7 @@ enum Fixture {
 
     static func account(_ identifier: String = "u_1", provider: SignInProvider = .google) -> Account {
         Account(
-            identifier: identifier, displayName: "Naveen", emailAddress: "n@example.com",
+            identifier: identifier, displayName: "UserName", emailAddress: "u@example.com",
             provider: provider)
     }
 
@@ -96,7 +96,7 @@ enum Fixture {
 
     static func device(
         identifier: String = "d_1", platform: Profile.Platform = .macOS,
-        name: String = "Naveen's MacBook Pro", isCurrent: Bool = true
+        name: String = "User's MacBook Pro", isCurrent: Bool = true
     ) -> Profile.Device {
         Profile.Device(
             identifier: identifier, platform: platform, name: name, appVersion: "0.1.0",

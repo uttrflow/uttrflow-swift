@@ -185,7 +185,7 @@ struct HTTPAuthenticationServiceTests {
     func registersTheDevice() async throws {
         let transport = signingIn()
         let identity = MacDeviceIdentity(
-            storage: MemoryStorage(), name: { "Naveen's MacBook Pro" }, appVersion: "0.1.0",
+            storage: MemoryStorage(), name: { "User's MacBook Pro" }, appVersion: "0.1.0",
             makeInstallIdentifier: { "install-abcdef123456" })
 
         let backend = service(transport: transport, device: identity, listener: answering())
@@ -195,7 +195,7 @@ struct HTTPAuthenticationServiceTests {
         let registration = try #require(spent.jsonBody["device"] as? [String: Any])
         #expect(registration["installId"] as? String == "install-abcdef123456")
         #expect(registration["platform"] as? String == "macos")
-        #expect(registration["name"] as? String == "Naveen's MacBook Pro")
+        #expect(registration["name"] as? String == "User's MacBook Pro")
     }
 
     @Test("signs in a client that has nothing to say about itself")

@@ -116,7 +116,7 @@ enum PathShape {
     /// The prefixes that make a path a path.
     ///
     /// A leading `~` or `/` is somebody's home or root. A relative `./` or `../` says the
-    /// author meant a path rather than happened to type a slash. Bare `Users/naveen/x` is
+    /// author meant a path rather than happened to type a slash. Bare `Users/testuser/x` is
     /// deliberately excluded: it is also how people write most things with slashes in.
     static let starts = ["/", "~/", "./", "../"]
 

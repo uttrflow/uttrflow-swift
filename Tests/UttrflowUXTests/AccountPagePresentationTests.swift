@@ -6,7 +6,7 @@ import Testing
 
 extension HistoryFixture {
     static func account(
-        name: String? = "Naveen Bhatt",
+        name: String? = "User Name",
         email: String? = "nadia.d@example.com",
         provider: SignInProvider = .google
     ) -> Account {
@@ -33,7 +33,7 @@ extension HistoryFixture {
     }
 
     /// Somebody who chose this Mac over an account, with no entitlement anywhere.
-    static func macAccountPage(name: String? = "Naveen Bhatt") -> AccountPagePresentation {
+    static func macAccountPage(name: String? = "User Name") -> AccountPagePresentation {
         accountPage(
             account: nil, access: .allowedOnThisMac,
             local: LocalAccount(name: name, since: now))
@@ -48,8 +48,8 @@ struct MacAccountPageTests {
     func drawnAsAnAccount() {
         let page = HistoryFixture.macAccountPage()
         #expect(page.emptyState == nil)
-        #expect(page.identity?.name == "Naveen Bhatt")
-        #expect(page.identity?.initials == "NB")
+        #expect(page.identity?.name == "User Name")
+        #expect(page.identity?.initials == "UN")
         #expect(page.identity?.provider == "This Mac")
         #expect(page.identity?.providerID == nil, "nobody signed this person in")
         #expect(page.identity?.emailAddress == nil, "no provider means no address to show")
@@ -100,7 +100,7 @@ struct MacAccountPageTests {
     func realAccountWins() {
         let page = HistoryFixture.accountPage(
             local: LocalAccount(name: "Somebody Else", since: HistoryFixture.now))
-        #expect(page.identity?.name == "Naveen Bhatt")
+        #expect(page.identity?.name == "User Name")
         #expect(page.identity?.providerID == .google)
         #expect(page.details.contains { $0.label == "Plan" })
     }
@@ -119,7 +119,7 @@ struct AccountIdentityTests {
     @Test("the name, the address and the provider are shown")
     func identity() {
         let identity = HistoryFixture.accountPage().identity
-        #expect(identity?.name == "Naveen Bhatt")
+        #expect(identity?.name == "User Name")
         #expect(identity?.emailAddress == "nadia.d@example.com")
         #expect(identity?.provider == "Google")
         #expect(identity?.providerID == .google)
@@ -172,7 +172,7 @@ struct AccountIdentityTests {
         let identity = HistoryFixture.accountPage(
             account: HistoryFixture.account(email: nil)
         ).identity
-        #expect(identity?.name == "Naveen Bhatt")
+        #expect(identity?.name == "User Name")
         #expect(identity?.emailAddress == nil)
     }
 

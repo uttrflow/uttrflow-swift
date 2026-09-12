@@ -10,7 +10,7 @@ public import UttrflowSettings
 /// invents nothing: every figure and every row on it is drawn from the same values the
 /// pages behind it use, and anything without a source is left off rather than filled in.
 public struct HomePresentation: Sendable, Equatable {
-    /// "Good morning, Naveen" — or just "Good morning" when there is no name to use.
+    /// "Good morning, User" — or just "Good morning" when there is no name to use.
     public let greeting: String
     /// One sentence under the greeting saying where things stand.
     public let subtitle: String
@@ -133,7 +133,7 @@ public enum HomeAccount: Sendable, Equatable {
     /// Nobody is signed in, so the corner offers the way in rather than a monogram.
     ///
     /// It used to fall back to the name macOS knows this Mac's owner by, which drew a
-    /// filled avatar and "Naveen" in the corner of a window whose Account page said "Not
+    /// filled avatar and "User" in the corner of a window whose Account page said "Not
     /// signed in". The name was real; the claim the chip made with it was not. A monogram
     /// beside a chevron is how every Mac app says *you are signed in as this person*, and
     /// it has to mean that here or it means nothing anywhere.
@@ -463,7 +463,7 @@ public enum HomePresenter {
             open: MainAction(title: "Account", intent: .show(.account)))
     }
 
-    /// The letters in the circle: first and last, so "Naveen Kumar Bhatt" is NB rather
+    /// The letters in the circle: first and last, so "User Name" is NB rather
     /// than NK — the middle name is the one nobody uses.
     ///
     /// A question mark for a name with no letters in it at all. Two chip states derive
@@ -484,7 +484,7 @@ public enum HomePresenter {
 
     // MARK: - Saying hello
 
-    /// "Good morning, Naveen".
+    /// "Good morning, User".
     ///
     /// The name is the account's if there is one and the Mac's otherwise, and neither is
     /// invented: both are this person's own name for themselves. With no name at all the
@@ -500,7 +500,7 @@ public enum HomePresenter {
             default: "Good evening"
             }
         guard let name, !name.isEmpty else { return timeOfDay }
-        // The first name only. "Good morning, Naveen Bhatt" is a form letter.
+        // The first name only. "Good morning, User Name" is a form letter.
         return "\(timeOfDay), \(name.split(separator: " ").first.map(String.init) ?? name)"
     }
 

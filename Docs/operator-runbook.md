@@ -69,7 +69,7 @@ Nothing else.
 About a thousand samples, roughly sixteen hours. Read them in sittings:
 
 ```bash
-uttrflow-eval record --backend <url> --cohort naveen-quiet --sync
+uttrflow-eval record --backend <url> --cohort user-quiet --sync
 ```
 
 It is resumable, so stopping after twenty passages leaves the rest. **The local write is

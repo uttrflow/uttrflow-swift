@@ -59,13 +59,13 @@ struct OnboardingSignInTests {
     /// Mac's own name — nothing is invented and nothing is fetched.
     @Test("continuing on this Mac records who is here and moves the flow on")
     func continuingOnThisMac() async {
-        let harness = Harness(signedIn: false, systemName: "Naveen Bhatt")
+        let harness = Harness(signedIn: false, systemName: "User Name")
         await harness.startPastWelcome()
         #expect(harness.step == .signIn)
 
         await harness.flow.perform(.continueOnThisMac)
 
-        #expect(harness.local.load()?.name == "Naveen Bhatt")
+        #expect(harness.local.load()?.name == "User Name")
         #expect(harness.step != .signIn, "the page it exists to get past is still on screen")
         #expect(harness.profiles.load() == nil, "no session was invented to get past it")
     }

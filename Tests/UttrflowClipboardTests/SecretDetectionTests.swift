@@ -173,7 +173,7 @@ struct SecretDetectionTests {
             "shortenough123",
             "abcdefghijklmnopqrstuvwxyz",
             "com.uttrflow.clipboard.watcher.queue1",
-            "/Users/naveen/Library/Application1",
+            "/Users/testuser/Library/Application1",
             "~/Developer/uttrflow/Sources/Clipboard2",
             "https://example.com/a/verylongpathsegment12345",
             "The quick brown fox jumps over the lazy dog again and again for 24 chars.",

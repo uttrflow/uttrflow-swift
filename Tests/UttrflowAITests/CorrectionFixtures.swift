@@ -12,7 +12,7 @@ enum CorrectionFixtures {
     /// ("Claude", "Sonnet", "Kestrel", "Maven"), because those collisions are the whole
     /// hazard and a fixture that avoided them would test nothing.
     static let words = [
-        "Uttrflow", "asyncpg", "Nikhil", "Naveen Bhatt", "PaymentSheet", "kubectl",
+        "Uttrflow", "asyncpg", "Nikhil", "User Name", "PaymentSheet", "kubectl",
         "Postgres", "Claude", "Grafana", "Kestrel", "Redis", "Aditi", "setUserPrefs",
         "Valkey", "Sonnet", "Cassandra", "Terraform", "Maven", "SQL", "API", "XML",
         "CSS", "URL", "Kubernetes",

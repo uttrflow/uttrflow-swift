@@ -229,7 +229,7 @@ struct AccountChip: View {
     private var spokenLabel: String {
         switch account {
         case .signedIn(_, let name, let open): "\(open.title), \(name)"
-        // Said in full, because "Account, Naveen" beside an unfilled ring would tell
+        // Said in full, because "Account, User" beside an unfilled ring would tell
         // somebody using VoiceOver they have a session they do not.
         case .onThisMac(_, let name, let open): "\(open.title), \(name), on this Mac"
         case .signedOut(let open): open.title

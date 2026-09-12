@@ -6,7 +6,7 @@ import Testing
 
 @Suite("Sending recordings to the corpus")
 struct CorpusUploadOutboxTests {
-    private let cohort = RecordingCohort(id: "naveen-quiet", speaker: "naveen", setting: "quiet room")
+    private let cohort = RecordingCohort(id: "user-quiet", speaker: "user", setting: "quiet room")
 
     private func passage(_ id: String) -> TranscriptionCase {
         TranscriptionCase(
@@ -51,7 +51,7 @@ struct CorpusUploadOutboxTests {
         let receipt = await outbox(recordings, uploader).send(recorded("hinglish-numbers", cohort: cohort))
 
         #expect(receipt.outcome == .uploaded)
-        #expect(receipt.slug == "naveen-quiet-hinglish-numbers")
+        #expect(receipt.slug == "user-quiet-hinglish-numbers")
         #expect(uploader.uploads.first?.audio == Data([1, 2, 3]))
     }
 
@@ -244,6 +244,6 @@ struct CorpusUploadOutboxTests {
         let recordings = try store(directory, ["one"])
         let uploader = FakeUploader()
         let receipt = await outbox(recordings, uploader, cohort: cohort).send(recorded("one"))
-        #expect(receipt.slug == "naveen-quiet-one")
+        #expect(receipt.slug == "user-quiet-one")
     }
 }
