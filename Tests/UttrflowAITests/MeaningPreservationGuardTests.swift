@@ -97,6 +97,23 @@ struct MeaningPreservationGuardTests {
         accepted(original, rewritten)
     }
 
+    /// A number invented in words is the same invention as one invented in digits; only digits were read before.
+    @Test(
+        "rejects a number the speaker never said, written as a word",
+        arguments: [
+            ("we need more chairs for the room", "We need twenty more chairs for the room."),
+            ("I'll be late to the meeting", "I'll be ten minutes late to the meeting."),
+        ]
+    )
+    func rejectsInventedNumberInWords(original: String, rewritten: String) {
+        rejected(original, rewritten)
+    }
+
+    @Test("accepts a spoken number the rewrite left in words")
+    func acceptsNumberLeftInWords() {
+        accepted("I'll be twenty minutes late", "I'll be twenty minutes late.")
+    }
+
     @Test("accepts a number the speaker already said in digits")
     func acceptsExistingDigits() {
         accepted("I'll be 20 minutes late", "I'll be 20 minutes late.")
@@ -323,6 +340,57 @@ struct GrammarGuardTests {
         #expect(verdict(kept, rewritten).isAccepted)
     }
 
+    // MARK: What the model added
+
+    /// A negation the speaker never said reverses the sentence, so it is refused the way a dropped one is.
+    @Test(
+        "rejects a rewrite that added a negation",
+        arguments: [
+            ("we should ship this on Friday", "We should not ship this on Friday."),
+            ("we agreed to that", "We never agreed to that."),
+            ("she wants the early slot", "She doesn't want the early slot."),
+        ]
+    )
+    func rejectsAddedNegation(kept: String, rewritten: String) {
+        #expect(!verdict(kept, rewritten).isAccepted)
+    }
+
+    /// Words the speaker did not say are an invention however few they are, and a short clause fits inside the growth cap.
+    @Test(
+        "rejects content words the rewrite invented",
+        arguments: [
+            ("send the report", "Send the report to the team today, please."),
+            ("i will call you", "I will call you tomorrow morning."),
+        ]
+    )
+    func rejectsInventedContentWords(kept: String, rewritten: String) {
+        #expect(!verdict(kept, rewritten).isAccepted)
+    }
+
+    /// The echo is the field's text before the caret, so its negators have no kept-side counterpart by construction.
+    @Test("accepts a faithful rewrite when the caret echo carries a negation the speaker did not say")
+    func acceptsANegationFromTheCaretEcho() {
+        #expect(
+            sut.verdict(
+                draft: Draft(text: "we should ship this on Friday"),
+                rewritten: "We should ship this on Friday.", echoed: "I don't think"
+            ).isAccepted)
+    }
+
+    /// A contraction is one negator whichever way it is written, so expanding or closing it adds nothing.
+    @Test(
+        "accepts a negating contraction rewritten in the other form, in both directions",
+        arguments: [
+            ("she doesnt want the early slot", "She does not want the early slot."),
+            ("she does not want the early slot", "She doesn't want the early slot."),
+            ("we can not do that today", "We cannot do that today."),
+            ("we cannot do that today", "We can not do that today."),
+        ]
+    )
+    func acceptsContractionEitherWay(kept: String, rewritten: String) {
+        #expect(verdict(kept, rewritten).isAccepted)
+    }
+
     @Test("rejects a rewrite that reworded too many small words in one sentence")
     func rejectsFunctionChurn() {
         #expect(
@@ -411,6 +479,15 @@ struct GrammarGuardTests {
                 draft: draft("the crash is in payment sheet"),
                 rewritten: "The crash is in PaymentSheet.", offering: offered
             ).isAccepted)
+    }
+
+    /// A reading is offered for one run of words, not as leave to write anything beside it.
+    @Test("refuses a word nobody offered, written next to a reading that was")
+    func refusesAnInventionBesideAnOfferedReading() {
+        let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple"])]
+        let verdict = sut.verdict(
+            draft: draft("i ate an apple"), rewritten: "I ate an Apple pie.", offering: offered)
+        #expect(verdict == .rejected(reason: "the rewrite invented 'pie'"))
     }
 
     @Test("judges nothing about readings when none were offered")

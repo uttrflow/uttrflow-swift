@@ -1511,6 +1511,102 @@ which ratchets down only — a second entry can never be added quietly, and the 
 tested to still fail so it cannot go stale.
 
 
+### A meaning reversed by a check that read one way — issue #188 and the sweep it started
+
+`MeaningPreservationGuard` is the product's only enforcement of "never invent", and every
+grammar check in it ran from the kept draft to the rewrite and never back. The survival loop
+walked the kept tokens and read the rewrite as a lookup pool, so no rewritten word was ever
+the subject of a check; the negation check subtracted the rewrite's negators from the draft's
+and refused a *positive* difference only. An added negator therefore scored -1 and passed.
+Measured on the shipping path through `GenerativeTextTransformer`, not reasoned: "we should
+ship this on Friday" was returned to the caret as "We should not ship this on Friday.", and
+"send the report" as "Send the report to the team today, please."
+
+- **A negation the rewrite added is refused, as a dropped one already was**
+  (`MeaningPreservationGuard.swift:149`). **Not** the plain inequality the issue proposed:
+  `Self.echo(in:)` is the field's text *before* the caret, words the speaker never said, so
+  counting it into the rewritten total refuses a faithful rewrite the moment the caret context
+  holds a negator — measured at kept 0 against rewritten-plus-echo 1. The echo is a permitted
+  *origin* for an addition and stays a source of survivors on the dropped side. Held by
+  `MeaningPreservationGuardTests.swift:354` and `:372`, with contractions both ways at `:390`
+  so "cannot" ↔ "can not" still costs nothing.
+- **A content word the rewrite invented is refused** (`inventionVerdict`,
+  `MeaningPreservationGuard.swift:162`): the survival relation with the sides swapped, so a
+  rewritten word must have a counterpart in the draft, in the caret echo, or in a reading the
+  model was offered. Nothing else bit — the growth cap allows `2n + 4` words, and a short
+  invented clause fits inside it. Held by `:366`, and end to end by
+  `GenerativeTextTransformerTests.swift:220`.
+- **A number invented in words is refused where one in digits already was**
+  (`inventedNumber`, `:298`): the written side was read as digit runs only, so "twenty chairs"
+  passed where "20 chairs" failed. Held by `MeaningPreservationGuardTests.swift:108`.
+
+`inventionVerdict` stands down when any kept token is non-ASCII, because romanising Devanagari
+produces words with no counterpart in the draft by construction; those rewrites are left to the
+base checks, exactly as the survival loop already left them. `Docs/ai-model-output.md` carries
+the reasoning, and `Docs/definition-of-done.md:21` and `Docs/pipeline.md:36` — which already
+claimed the guard refuses a rewrite that "drops or invents" — are true now rather than aspirational.
+
+**Every check here read one way, and that is the guardrail.** Three arms of one guard had the
+same shape, so the fault was the shape rather than any one of them, and nothing in the suite
+asked a check to hold in both directions — each arm was tested with the edit it was written
+for. `Tests/UttrflowAITests/GuardMirrorTests.swift` asks it of all of them: five minimal edits
+are judged, then judged again with the two sides swapped, and both directions must be refused.
+It reads the guard's own source for every `reason:` literal and holds each to being reached
+from both sides or to appearing in one `unmirrored` list with the reason it cannot be — so a
+check added later is held to the rule without anyone remembering to add a case, and the four
+entries on that list are the asymmetries this entry argues for rather than a silence. It
+ratchets like `owedAKeepCase` and the comment and disclosure baselines: a reason may leave the
+list, a new one may never join it, and a reason that stops existing is flagged too. Both halves
+were proven to fail before they were kept — removing the added-negation arm fails the swap
+("a negation added is not refused"), and a new one-directional check added to the guard fails
+the second test by name.
+
+**Left standing, each read rather than assumed.**
+
+- **The function-word churn allowance is set by the side being judged** (`:154`): it is
+  `3 * sentenceCount(rewritten)`, so a rewrite that writes more full stops buys itself a larger
+  allowance. Confirmed as a mechanism and no end-to-end exploit found. Every minimal tightening
+  scales the allowance off the kept draft, which is an unpunctuated transcript whose sentence
+  count is 1 — so it would refuse the run-on splitting the tidier is *for*. It is a corpus
+  measurement, not a guard edit, and it cannot reverse a meaning on its own now that both
+  negation arms and the invention arm are in place.
+- **`candidateVerdict` is position-free** (`:50`): it asks whether an offered reading appears
+  anywhere in the closed-up rewrite. The half that mattered — a word nobody offered written
+  *beside* one that was — is refused by the invention arm now, pinned at
+  `MeaningPreservationGuardTests.swift:486`. What is left is an offered reading placed in the
+  wrong position, which needs word alignment the guard does not have.
+- **`layoutVerdict` refuses a dropped break and permits an added one** (`:62`). Deliberate, per
+  `Docs/cleanup-design.md:272` and `MeaningPreservationGuardTests.swift:557`; listed here so the
+  next sweep does not re-flag it.
+
+**The same one-directional shape elsewhere, each owed its own issue.** None is on #188's failure
+path, and each changes behaviour that is deliberately tested, contractual or gating, so none was
+folded into this branch:
+
+- `AccuracyBaseline.swift:184-192` — the regression verdict never consults `removed`, so a run
+  that drops its hardest samples can report `.improved`. `newlyUnscorable` is judged and a
+  sample that vanishes outright is not, which is the same event reported two ways. Fixing it
+  means reversing `AccuracyBaselineTests.swift:188`, which asserts that choice on purpose.
+- `Scripts/coverage_report.py:170-196` — the floor is applied only to modules present in the
+  llvm-cov report, so a module absent from it entirely is neither printed nor failed. Raising
+  it may uncover real uncovered modules, which is a gate change of its own.
+- `Scripts/soak.sh:69-70` — `join -j 2` is an inner join, so an allocation class absent from the
+  first sample cannot appear in the leak table, which is the leak shape the script exists to find.
+- `TelemetryReport.swift:180-181` — `cancelledCount` is capped against `dictationCount` and the
+  adjacent `failureCount` is not; the per-language counts are never reconciled against the total.
+- `LearnableWords.swift:50` — only the replacement is held to `isWorthLearning`, where the checks
+  above it at `:40-48` are symmetric.
+- `CorrectionProposal.swift:62-72` — splices by arithmetic without checking the words it replaces,
+  where the mirror `CorrectionUndo.swift:43-44` does check. No production caller, so it is a
+  harden-or-delete decision.
+- `HotkeyRecogniser.swift:39` with `ShortcutSet.swift:68` and `SettingsEditor.swift:149-157` — the
+  recogniser ignores the key code for a held binding, the clash check compares by `Equatable`, and
+  the recorder produces two unequal bindings for one gesture depending on modifier order, so two
+  actions can take the same hold with no clash shown and both fire.
+- `Scripts/predict_scorecard.py:74-76` and `Design/_gen_predict.py:381-405` — reported by the
+  sweep and not reproduced here, so recorded as a lead rather than a finding.
+
+
 ## Tab-to-complete 🟡
 
 The field the user is typing into finishes itself, from what this Mac has typed into that

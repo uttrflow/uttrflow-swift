@@ -121,14 +121,15 @@ public struct MeaningPreservationGuard: Sendable {
         var isPlain: Bool { matching.allSatisfy(\.isASCII) }
     }
 
-    /// A repair may change a word's form, never which content words survive. See `Docs/cleanup.md`.
+    /// A repair may change a word's form, never which content words are there, either way round. See `Docs/cleanup.md`.
     static func grammarVerdict(
         kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = [], echoed: String = ""
     ) -> GuardVerdict {
         let keptTokens = grammarTokens(kept)
         let rewrittenTokens = grammarTokens(rewritten)
+        let echoTokens = grammarTokens(echoed)
         // The echo the caret pass took back was in the model's answer, so its words still count as survivors.
-        let pool = Set((rewrittenTokens + grammarTokens(echoed)).filter(\.isPlain).map(\.matching))
+        let pool = Set((rewrittenTokens + echoTokens).filter(\.isPlain).map(\.matching))
         // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
         let offered = Set(
             doubtful
@@ -144,13 +145,42 @@ public struct MeaningPreservationGuard: Sendable {
                 return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
             }
         }
-        let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + grammarTokens(echoed))
+        let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + echoTokens)
         if dropped > 0 {
             return .rejected(reason: "the rewrite dropped a negation")
+        }
+        // The echo is the field's text before the caret, so it is an origin a negation may come from, never a total.
+        let added = negators(in: rewrittenTokens) - negators(in: keptTokens) - negators(in: echoTokens)
+        if added > 0 {
+            return .rejected(reason: "the rewrite added a negation")
         }
         let churn = functionWordChurn(keptTokens, rewrittenTokens)
         if churn > 3 * sentenceCount(rewritten) {
             return .rejected(reason: "the rewrite changed \(churn) small words")
+        }
+        return inventionVerdict(
+            kept: keptTokens, rewritten: rewrittenTokens, echo: echoTokens, allowing: doubtful)
+    }
+
+    /// Refuses a content word the model brought in, an addition being the same fault as a loss read the other way.
+    static func inventionVerdict(
+        kept: [GrammarToken], rewritten: [GrammarToken], echo: [GrammarToken],
+        allowing doubtful: [DoubtfulSpan]
+    ) -> GuardVerdict {
+        // A draft the checks cannot read romanises into words with no counterpart here, so the base checks keep it.
+        guard kept.allSatisfy(\.isPlain) else { return .accepted }
+        let pool = Set((kept + echo).filter(\.isPlain).map(\.matching))
+        // A reading offered for a doubtful word is by definition not what was said, and `candidateVerdict` judges it.
+        let readings = Set(
+            doubtful
+                .flatMap { $0.candidates }
+                .flatMap { $0.split(whereSeparator: \.isWhitespace) }
+                .map { DoubtfulSpan.closedUp(String($0)) })
+        for token in rewritten
+        where token.isPlain && isContent(token) && !readings.contains(DoubtfulSpan.closedUp(token.text)) {
+            if !survives(token.matching, in: pool) {
+                return .rejected(reason: "the rewrite invented '\(token.text)'")
+            }
         }
         return .accepted
     }
@@ -187,7 +217,7 @@ public struct MeaningPreservationGuard: Sendable {
         return !functionWords.contains(token.lookup)
     }
 
-    /// Whether a content word survives: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
+    /// Whether a content word has a counterpart in `pool`: exact, as its numeral or its word, in an identifier, by stem, or as a verb form.
     static func survives(_ word: String, in pool: Set<String>) -> Bool {
         if pool.contains(word) { return true }
         if let digits = numberWords[word], pool.contains(digits) { return true }
@@ -208,7 +238,7 @@ public struct MeaningPreservationGuard: Sendable {
         tokens.filter { negatingWords.contains($0.matching) }.count
     }
 
-    /// The words that reverse a sentence, apostrophes aside; dropping one is the worst edit the model can make.
+    /// The words that reverse a sentence, apostrophes aside; dropping or adding one is the worst edit the model can make.
     static let negatingWords: Set<String> = [
         "not", "no", "never", "none", "nothing", "nobody", "nowhere", "neither", "nor", "cannot",
         "dont", "doesnt", "didnt", "wont", "wouldnt", "cant", "couldnt", "shouldnt", "isnt",
@@ -271,7 +301,10 @@ public struct MeaningPreservationGuard: Sendable {
     /// A number in the rewrite the speaker said neither in digits nor in words, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
         let spoken = numbers(in: original).union(spelledNumbers(in: original))
-        return numbers(in: rewritten).subtracting(spoken).min()
+        // Read in words on the written side too, so "twenty chairs" is refused where "20 chairs" already was.
+        let written = numbers(in: rewritten)
+            .union(spelledNumbers(in: rewritten, using: englishNumberWords))
+        return written.subtracting(spoken).min()
     }
 
     /// Every run of digits in the text.
