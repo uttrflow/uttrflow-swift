@@ -667,8 +667,9 @@ public actor DictationPipeline {
                 to: .inserted(
                     DictationOutcome(
                         text: text, method: attempt.method, cleanedBy: cleanedBy,
-                        insertedInto: insertedInto,
-                        insertedIntoIdentifier: insertedIntoIdentifier,
+                        insertedInto: landedIn(attempt)?.applicationName ?? insertedInto,
+                        insertedIntoIdentifier: landedIn(attempt)?.bundleIdentifier
+                            ?? insertedIntoIdentifier,
                         spokenFor: spokenFor, changes: changes,
                         fromRecording: delivery == .copy, arrival: attempt.arrival)))
             return true
@@ -677,6 +678,12 @@ public actor DictationPipeline {
             await fail(DictationFailure(error, transcript: text))
             return false
         }
+    }
+
+    /// Where the words actually went, which is the insertion's to say; the recording's read is the fallback.
+    private func landedIn(_ attempt: InsertionAttempt) -> InsertionDestination? {
+        guard let destination = attempt.destination, destination.isKnown else { return nil }
+        return destination
     }
 
     /// Ends the dictation in failure, keeping the audio exactly when the words were lost. See `Docs/recordings.md`.
