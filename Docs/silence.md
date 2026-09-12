@@ -30,11 +30,11 @@ whatever the user had highlighted.
 ## Why WhisperKit's own guard does not fire
 
 `DecodingOptions.noSpeechThreshold` defaults to 0.6 and is consulted in two places —
-`DecodingFallback.init` and `SegmentSeeker` — but in WhisperKit 0.18 the value it is
+`DecodingFallback.init` and `SegmentSeeker` — but in WhisperKit 1.1.0 the value it is
 compared against is a constant:
 
 ```swift
-// WhisperKit 0.18, Core/TextDecoder.swift:993
+// WhisperKit 1.1.0, Core/TextDecoder.swift:817
 let noSpeechProb: Float = 0 // TODO: implement no speech prob
 ```
 
