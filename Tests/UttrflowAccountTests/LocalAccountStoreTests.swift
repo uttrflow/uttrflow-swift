@@ -36,7 +36,7 @@ struct LocalAccountStoreTests {
 
     @Test("keeps the name macOS gave it, without the whitespace around it")
     func namesAreTrimmed() {
-        #expect(LocalAccount(name: " User Name ", since: noon).name == "UserName")
+        #expect(LocalAccount(name: " User Name ", since: noon).name == "User Name")
     }
 
     /// The same rule ``ProfileCache`` keeps: a value that cannot be read means there is
