@@ -30,14 +30,34 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
     /// Derived from the preceding text, never read from the field.
     public var sentenceState: SentenceState { Self.sentenceState(before: precedingText) }
 
-    /// Reads the sentence state off the last mark before the caret, spaces and tabs aside.
+    /// Reads the sentence state off the line the caret sits on, since a list marker is not a word.
     public static func sentenceState(before text: String?) -> SentenceState {
         guard let text else { return .unknown }
-        let tail = text.reversed().drop { $0.isWhitespace && !$0.isNewline }
-        guard let last = tail.first else { return .startOfText }
-        if last.isNewline { return .startOfSentence }
+        let line = text.split(separator: "\n", omittingEmptySubsequences: false).last ?? ""
+        guard let last = withoutOpeningMarker(line).last(where: { !$0.isWhitespace }) else {
+            // Only a marker, a blank line or an empty field stands here; a line break still opened a line.
+            let isBlank = line.allSatisfy(\.isWhitespace)
+            return isBlank && text.contains(where: \.isNewline) ? .startOfSentence : .startOfText
+        }
         return sentenceEnds.contains(last) ? .startOfSentence : .midSentence
     }
+
+    /// The line without the one list, quote or heading marker it opens with, which is typed but not written.
+    private static func withoutOpeningMarker(_ line: Substring) -> Substring {
+        let body = line.drop(while: \.isWhitespace)
+        if let marker = openingMarkers.first(where: { body.hasPrefix($0) }) {
+            return body.dropFirst(marker.count)
+        }
+        // A numbered item: its digits, then the stop or bracket that closes the number.
+        let digits = body.prefix(while: \.isNumber)
+        let rest = body.dropFirst(digits.count)
+        guard !digits.isEmpty, rest.first.map({ ".)".contains($0) }) == true else { return body }
+        return rest.dropFirst()
+    }
+
+    /// What a line may open with that is a marker rather than words: a list item, a quotation, a heading.
+    private static let openingMarkers: [String] =
+        Draft.bulletTokens.sorted() + ["#", ">", "\"", "'", "\u{201C}", "\u{2018}", "(", "[", "{"]
 
     /// The marks after which a new sentence begins.
     private static let sentenceEnds: Set<Character> = [".", "!", "?"]
