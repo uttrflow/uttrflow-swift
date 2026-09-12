@@ -106,7 +106,8 @@ struct Clean: AsyncParsableCommand {
     private func unsureWords(in spoken: [String]) throws -> Set<Int> {
         let runs = doubtful.map { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
             .filter { !$0.isEmpty }
-        if let marked = placing(runs[...], in: spoken, around: []) { return marked }
+        var refused: Set<Attempt> = []
+        if let marked = placing(runs[...], in: spoken, around: [], refused: &refused) { return marked }
         if let missing = runs.first(where: { starts(of: $0, in: spoken).isEmpty }) {
             throw ValidationError(
                 "The transcript does not read '\(missing.joined(separator: " "))' anywhere, so that cannot be "
@@ -119,13 +120,20 @@ struct Clean: AsyncParsableCommand {
 
     /// One occurrence per named run, none overlapping, searched so the order the runs were given cannot decide it.
     private func placing(
-        _ runs: ArraySlice<[String]>, in spoken: [String], around taken: Set<Int>
+        _ runs: ArraySlice<[String]>, in spoken: [String], around taken: Set<Int>,
+        refused: inout Set<Attempt>
     ) -> Set<Int>? {
         guard let run = runs.first else { return taken }
+        // Runs that read alike reach the same arrangement by many paths, so a refusal is remembered, not retried.
+        let attempt = Attempt(remaining: runs.startIndex, taken: taken)
+        guard !refused.contains(attempt) else { return nil }
         for start in starts(of: run, in: spoken) where taken.isDisjoint(with: start..<(start + run.count)) {
             let next = taken.union(start..<(start + run.count))
-            if let marked = placing(runs.dropFirst(), in: spoken, around: next) { return marked }
+            if let marked = placing(runs.dropFirst(), in: spoken, around: next, refused: &refused) {
+                return marked
+            }
         }
+        refused.insert(attempt)
         return nil
     }
 
@@ -152,4 +160,10 @@ struct Clean: AsyncParsableCommand {
             format: "%.2f",
             duration.inSeconds)
     }
+}
+
+/// A point the placement search has already stood at: the runs still to place, and the words already spoken for.
+private struct Attempt: Hashable {
+    let remaining: Int
+    let taken: Set<Int>
 }
