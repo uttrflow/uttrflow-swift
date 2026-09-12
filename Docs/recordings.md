@@ -15,14 +15,19 @@ says when the audio goes.
 
 `AVAudioCaptureEngine` opens a `RecordingWriter` before installing the tap, and the tap
 block appends every block to both the `SampleAccumulator` and the writer. The writer
-queues the write on its own utility queue, so the capture thread never waits on a disk.
-Releasing the key still hands WhisperKit the in-memory buffer at once; the file is a
-side effect, never a source, for a live dictation.
+hands the block to an actor through an `AsyncStream`, so the capture thread never waits on
+a disk and nothing on the cooperative pool ever blocks on one either. Releasing the key
+hands WhisperKit the in-memory buffer at once: `finish()` answers for the recording from
+what was handed over and returns, and the last bytes land behind it. Only a reader of the
+file waits for that, by awaiting `RecordingStore.settle(_:)` — which `audio(of:)`,
+`waiting(now:)` and `discard(_:)` all do for their caller. The file is a side effect,
+never a source, for a live dictation.
 
 The file is a plain 16-bit mono WAV at the canonical 16 kHz, built from the same header
 and PCM bytes `WAVEncoder` produces, so a finished file is byte-for-byte what the encoder
-would have written. It opens with a header claiming zero frames; `finish()` rewrites the
-count. A file whose header still says zero is one the writer never finished — a crash —
+would have written. It opens with a header claiming zero frames, and the count is rewritten
+when the last block has landed. A file whose header still says zero is one the writer
+never finished — a crash —
 and `RecordingWriter.repair` patches the count from the bytes that reached disk, which
 is how a recording from before a crash becomes readable at the next launch.
 

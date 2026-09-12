@@ -72,6 +72,16 @@ public enum DictationPresenter {
                     "Copied to the clipboard, not typed. Press Command V to paste it. "
                     + "Uttrflow needs Accessibility access to type for you. \(outcome.text)")
 
+        case .inserted(let outcome) where outcome.arrival == .unconfirmed:
+            // The instruction is worth more than the glance here, since the words are still recoverable.
+            DockPresentation(
+                symbolName: "questionmark.circle", primaryLine: "Inserted — not confirmed",
+                secondaryLine: "Still on the clipboard — press ⌘V if it is missing",
+                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
+                accessibilityLabel:
+                    "Inserted, but not confirmed. The words are still on the clipboard, so press "
+                    + "Command V if they are missing. \(outcome.text)")
+
         case .inserted(let outcome):
             DockPresentation(
                 symbolName: "checkmark", primaryLine: "Inserted",

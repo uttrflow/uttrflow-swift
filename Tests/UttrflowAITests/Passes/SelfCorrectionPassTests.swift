@@ -43,6 +43,35 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A number anchor may not reach back through a full stop, because the number in the sentence before was not the one corrected. See `Docs/cleanup.md`.
+    @Test(
+        "leaves a number the speaker said in the sentence before the correction",
+        arguments: [
+            "the meeting is at 3. no 4 people confirmed",
+            "the meeting is at three. no four people confirmed",
+            "the meeting is at 3! no 4 people confirmed",
+            "the meeting is at 3? no 4 people confirmed",
+            "the code is 4 5. no 6",
+            "call at 2:30. no 3",
+            "room 5. actually 6",
+        ]
+    )
+    func leavesNumbersBeforeASentenceEnd(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// The correction still runs inside its own sentence, reaching back only as far as the stop.
+    @Test(
+        "corrects the number in this sentence without taking the one in the last",
+        arguments: [
+            ("the code is 4. 5 no 6", "the code is 4. 6"),
+            ("we booked 7. 8 actually 9", "we booked 7. 9"),
+        ]
+    )
+    func correctsWithinTheSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "leaves everything, trigger included, when the halves do not match",
         arguments: [
@@ -94,9 +123,23 @@ struct SelfCorrectionPassTests {
             "say sorry to John, sorry to Marcy too",
             "say no to the offer no to the meeting",
             "there's no room, no room at all",
+            "say no 3 no 4",
+            "the bus is no 7 no 8",
         ]
     )
     func leavesTriggerHeadedLists(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// One answer answering another is a pair of items, and taking the first back inverts what was said. See `Docs/cleanup.md`.
+    @Test(
+        "leaves a pair whose items are headed by different answers",
+        arguments: [
+            "I said yes to the offer no to the meeting",
+            "say thanks to John sorry to Marcy too",
+        ]
+    )
+    func leavesAnsweredPairs(input: String) {
         #expect(cleaned(input, by: sut) == input)
     }
 

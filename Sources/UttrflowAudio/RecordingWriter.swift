@@ -5,8 +5,56 @@ private import Synchronization
 
 /// Appends microphone blocks to a WAV file as they arrive, so a crash loses at most the last block.
 public final class RecordingWriter: Sendable {
-    private struct State: Sendable {
-        var descriptor: Int32
+    /// What the capture thread hands the sink, in the order it happened.
+    private enum Piece: Sendable {
+        case audio([Float])
+        case close(keeping: Bool)
+    }
+
+    /// Owns the descriptor, so every write to it happens on one isolated task rather than on a caller's thread.
+    private actor Sink {
+        private let url: URL
+        private let descriptor: Int32
+        private var frames = 0
+        private var isOpen = true
+
+        init(descriptor: Int32, url: URL) {
+            self.descriptor = descriptor
+            self.url = url
+        }
+
+        /// Writes each piece as it arrives and closes the file when the stream ends, however it ends.
+        func consume(_ pieces: AsyncStream<Piece>) async {
+            for await piece in pieces {
+                switch piece {
+                case .audio(let block): append(block)
+                case .close(let keeping): close(keeping: keeping)
+                }
+            }
+            close(keeping: true)
+        }
+
+        private func append(_ block: [Float]) {
+            guard isOpen, RecordingWriter.write(WAVEncoder.pcm(block), to: descriptor) else { return }
+            frames += block.count
+        }
+
+        /// Rewrites the header with the frames that reached disk, or deletes a file nobody wants.
+        private func close(keeping: Bool) {
+            guard isOpen else { return }
+            isOpen = false
+            if keeping {
+                let header = WAVEncoder.header(
+                    frames: frames, sampleRate: AudioSamples.canonicalSampleRate)
+                _ = RecordingWriter.write(header, to: descriptor, at: 0)
+            }
+            Darwin.close(descriptor)
+            if !keeping { try? FileManager.default.removeItem(at: url) }
+        }
+    }
+
+    /// What the recording is worth saying about before any of its bytes are durable.
+    private struct Bookkeeping: Sendable {
         var frames = 0
         var isOpen = true
     }
@@ -16,9 +64,10 @@ public final class RecordingWriter: Sendable {
     /// When the microphone opened.
     public let when: Date
 
-    private let state: Mutex<State>
-    /// Off the capture thread, which must never wait on a disk.
-    private let queue = DispatchQueue(label: "com.uttrflow.recording-writer", qos: .utility)
+    private let bookkeeping = Mutex(Bookkeeping())
+    /// Off the capture thread, which must never wait on a disk, and off the cooperative pool, which must never block.
+    private let pieces: AsyncStream<Piece>.Continuation
+    private let sink: Task<Void, Never>
 
     /// Creates the file with a header that claims no frames yet. See `Docs/recordings.md`.
     public init(url: URL, id: UUID = UUID(), when: Date = Date()) throws(AudioCaptureError) {
@@ -29,51 +78,55 @@ public final class RecordingWriter: Sendable {
         guard descriptor >= 0 else {
             throw .engineFailed(description: "could not create \(url.lastPathComponent)")
         }
-        state = Mutex(State(descriptor: descriptor))
         let header = WAVEncoder.header(frames: 0, sampleRate: AudioSamples.canonicalSampleRate)
         guard Self.write(header, to: descriptor) else {
             close(descriptor)
             throw .engineFailed(description: "could not write \(url.lastPathComponent)")
         }
+        let (stream, continuation) = AsyncStream<Piece>.makeStream()
+        pieces = continuation
+        let sink = Sink(descriptor: descriptor, url: url)
+        self.sink = Task { await sink.consume(stream) }
     }
 
-    /// Queues `block` for writing and returns at once.
+    /// Hands `block` to the sink and returns at once.
     public func append(_ block: [Float]) {
         guard !block.isEmpty else { return }
-        queue.async { [self] in
-            state.withLock { state in
-                guard state.isOpen, Self.write(WAVEncoder.pcm(block), to: state.descriptor) else { return }
-                state.frames += block.count
-            }
+        let accepted = bookkeeping.withLock { state -> Bool in
+            guard state.isOpen else { return false }
+            state.frames += block.count
+            return true
         }
+        guard accepted else { return }
+        pieces.yield(.audio(block))
     }
 
-    /// Flushes what is queued, writes the true frame count into the header and closes the file.
+    /// Ends the recording and answers for it from what was handed over, before the last bytes reach the disk.
     public func finish() -> KeptRecording {
-        let frames = queue.sync {
-            state.withLock { state -> Int in
-                defer { state.isOpen = false }
-                guard state.isOpen else { return state.frames }
-                let header = WAVEncoder.header(
-                    frames: state.frames, sampleRate: AudioSamples.canonicalSampleRate)
-                _ = Self.write(header, to: state.descriptor, at: 0)
-                close(state.descriptor)
-                return state.frames
+        let frames = bookkeeping.withLock { state -> Int in
+            if state.isOpen {
+                state.isOpen = false
+                pieces.yield(.close(keeping: true))
+                pieces.finish()
             }
+            return state.frames
         }
         return KeptRecording(id: id, when: when, duration: Self.duration(ofFrames: frames))
     }
 
-    /// Closes and deletes the file: nothing in it is wanted.
+    /// Asks for the file to be closed and deleted: nothing in it is wanted.
     public func abandon() {
-        queue.sync {
-            state.withLock { state in
-                guard state.isOpen else { return }
-                state.isOpen = false
-                close(state.descriptor)
-            }
+        bookkeeping.withLock { state in
+            guard state.isOpen else { return }
+            state.isOpen = false
+            pieces.yield(.close(keeping: false))
+            pieces.finish()
         }
-        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// Suspends until every block handed over has reached the disk, which only a reader of the file needs.
+    public func drained() async {
+        await sink.value
     }
 
     /// Rewrites the header of a file whose writer never finished, from the bytes that made it to disk.

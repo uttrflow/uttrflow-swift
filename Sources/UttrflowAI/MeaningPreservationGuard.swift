@@ -158,34 +158,107 @@ public struct MeaningPreservationGuard: Sendable {
         var isPlain: Bool { matching.allSatisfy(\.isASCII) }
     }
 
-    /// A repair may change a word's form, never which content words survive or the order they came in. See `Docs/cleanup.md`.
+    /// A repair may change a word's form, never which content words are there, either way round, or the order they came in. See `Docs/cleanup.md`.
     static func grammarVerdict(
         kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = [], echoed: String = ""
     ) -> GuardVerdict {
         let keptTokens = grammarTokens(kept)
         let rewrittenTokens = grammarTokens(rewritten)
+        let echoTokens = grammarTokens(echoed)
         // The echo the caret pass took back opened the model's answer, so its words count as survivors ahead of the rest.
-        let written = (grammarTokens(echoed) + rewrittenTokens).filter(\.isPlain)
+        let written = (echoTokens + rewrittenTokens).filter(\.isPlain)
         // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
         let offered = Set(
             doubtful
                 .flatMap { $0.heard.split(whereSeparator: \.isWhitespace) }
                 .map { DoubtfulSpan.closedUp(String($0)) })
-        let carried = keptTokens.filter {
-            $0.isPlain && isContent($0) && !offered.contains(DoubtfulSpan.closedUp($0.text))
-        }
+        // A number spoken over several words answers to the one numeral the rewrite wrote for it.
+        let composed = composedNumbers(keptTokens, in: Set(written.map(\.matching)))
+        let carried = keptTokens.indices.filter { index in
+            let token = keptTokens[index]
+            return token.isPlain && isContent(token) && !composed.contains(index)
+                && !offered.contains(DoubtfulSpan.closedUp(token.text))
+        }.map { keptTokens[$0] }
         if case .rejected(let reason) = survivalVerdict(carried, in: written) {
             return .rejected(reason: reason)
         }
-        let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + grammarTokens(echoed))
+        let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + echoTokens)
         if dropped > 0 {
             return .rejected(reason: "the rewrite dropped a negation")
+        }
+        // The echo is the field's text before the caret, so it is an origin a negation may come from, never a total.
+        let added = negators(in: rewrittenTokens) - negators(in: keptTokens) - negators(in: echoTokens)
+        if added > 0 {
+            return .rejected(reason: "the rewrite added a negation")
         }
         let churn = functionWordChurn(keptTokens, rewrittenTokens)
         if churn > 3 * sentenceCount(rewritten) {
             return .rejected(reason: "the rewrite changed \(churn) small words")
         }
+        return inventionVerdict(
+            kept: keptTokens, rewritten: rewrittenTokens, echo: echoTokens, allowing: doubtful)
+    }
+
+    /// Refuses a content word the model brought in, an addition being the same fault as a loss read the other way.
+    static func inventionVerdict(
+        kept: [GrammarToken], rewritten: [GrammarToken], echo: [GrammarToken],
+        allowing doubtful: [DoubtfulSpan]
+    ) -> GuardVerdict {
+        // A draft the checks cannot read romanises into words with no counterpart here, so the base checks keep it.
+        guard kept.allSatisfy(\.isPlain) else { return .accepted }
+        let origins = (kept + echo).filter(\.isPlain)
+        // A reading offered for a doubtful word is by definition not what was said, and `candidateVerdict` judges it.
+        let readings = Set(
+            doubtful
+                .flatMap { $0.candidates }
+                .flatMap { $0.split(whereSeparator: \.isWhitespace) }
+                .map { DoubtfulSpan.closedUp(String($0)) })
+        for token in rewritten
+        where token.isPlain && isContent(token) && !readings.contains(DoubtfulSpan.closedUp(token.text)) {
+            if !origins.contains(where: { survives(token.matching, as: $0) })
+                && !isSpelled(token.text, from: origins)
+            {
+                return .rejected(reason: "the rewrite invented '\(token.text)'")
+            }
+        }
         return .accepted
+    }
+
+    /// Whether an identifier is spelled wholly from said words, every part of it one of them and in the order they were said.
+    static func isSpelled(_ identifier: String, from said: [GrammarToken]) -> Bool {
+        let parts = identifierParts(identifier)
+        guard parts.count > 1 else { return false }
+        var next = said.startIndex
+        for part in parts {
+            guard let place = said[next...].firstIndex(where: { survives(part, as: $0) }) else {
+                return false
+            }
+            next = place + 1
+        }
+        return true
+    }
+
+    /// The words an identifier is written from, cut at a camel hump and at anything not a letter or digit.
+    static func identifierParts(_ identifier: String) -> [String] {
+        var parts: [String] = []
+        var current = ""
+        var previous: Character?
+        for character in identifier where character != "'" && character != "\u{2019}" {
+            guard character.isLetter || character.isNumber else {
+                if !current.isEmpty { parts.append(current) }
+                current = ""
+                previous = nil
+                continue
+            }
+            if character.isUppercase, previous.map({ $0.isLowercase || $0.isNumber }) == true {
+                parts.append(current)
+                current = ""
+            }
+            current += character.lowercased()
+            previous = character
+        }
+        if !current.isEmpty { parts.append(current) }
+        return parts
     }
 
     /// Splits on whitespace and hyphens, trimming punctuation and tracking sentence starts.
@@ -210,7 +283,37 @@ public struct MeaningPreservationGuard: Sendable {
                     startsSentence: startsSentence))
             startsSentence = endsSentence
         }
-        return tokens
+        return joiningOneWordSpellings(tokens)
+    }
+
+    /// Two words written apart for one word, keyed by the one word; a listed pair, never a rule about shape.
+    static let oneWordSpellings: [String: (first: String, second: String)] = [
+        "cannot": ("can", "not")
+    ]
+
+    /// Reads a listed pair written apart as its one word, so "can not" and "cannot" are the same word either way round.
+    static func joiningOneWordSpellings(_ tokens: [GrammarToken]) -> [GrammarToken] {
+        var joined: [GrammarToken] = []
+        var index = tokens.startIndex
+        while index < tokens.endIndex {
+            let token = tokens[index]
+            let next = index + 1 < tokens.endIndex ? tokens[index + 1] : nil
+            if let next, !next.startsSentence,
+                let word = oneWordSpellings.first(where: {
+                    $0.value.first == token.matching && $0.value.second == next.matching
+                })?.key
+            {
+                joined.append(
+                    GrammarToken(
+                        text: token.text + next.text, lookup: word, matching: word,
+                        startsSentence: token.startsSentence))
+                index += 2
+                continue
+            }
+            joined.append(token)
+            index += 1
+        }
+        return joined
     }
 
     /// A number and a mid-sentence capital are always content; the rest is unless the set below holds it.
@@ -291,7 +394,7 @@ public struct MeaningPreservationGuard: Sendable {
         tokens.filter { negatingWords.contains($0.matching) }.count
     }
 
-    /// The words that reverse a sentence, apostrophes aside; dropping one is the worst edit the model can make.
+    /// The words that reverse a sentence, apostrophes aside; dropping or adding one is the worst edit the model can make.
     static let negatingWords: Set<String> = [
         "not", "no", "never", "none", "nothing", "nobody", "nowhere", "neither", "nor", "cannot",
         "dont", "doesnt", "didnt", "wont", "wouldnt", "cant", "couldnt", "shouldnt", "isnt",
@@ -328,7 +431,10 @@ public struct MeaningPreservationGuard: Sendable {
     /// A number in the rewrite the speaker said neither in digits nor in words, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
         let spoken = numbers(in: original).union(spelledNumbers(in: original))
-        return numbers(in: rewritten).subtracting(spoken).min()
+        // Read in words on the written side too, so "twenty chairs" is refused where "20 chairs" already was.
+        let written = numbers(in: rewritten)
+            .union(spelledNumbers(in: rewritten, using: englishNumberWords))
+        return written.subtracting(spoken).min()
     }
 
     /// Every run of digits in the text.
@@ -392,8 +498,37 @@ public struct MeaningPreservationGuard: Sendable {
         "hundred": "100", "thousand": "1000",
     ]
 
-    /// The digits for every number word in the text.
-    private static func spelledNumbers(in text: String) -> Set<String> {
-        Set(TextTidy.words(text).compactMap { numberWords[$0] })
+    /// The digits for every number word read through `table`, each on its own and every run of them composed.
+    private static func spelledNumbers(
+        in text: String, using table: [String: String] = numberWords
+    ) -> Set<String> {
+        let words = TextTidy.words(text)
+        var found = Set(words.compactMap { table[$0] })
+        for run in cardinalRuns(words) { found.insert(String(run.value)) }
+        return found
+    }
+
+    /// The positions of every spoken number run the rewrite wrote as the one numeral it comes to.
+    static func composedNumbers(_ tokens: [GrammarToken], in pool: Set<String>) -> Set<Int> {
+        var covered: Set<Int> = []
+        for run in cardinalRuns(tokens.map(\.matching)) where pool.contains(String(run.value)) {
+            covered.formUnion(run.start..<(run.start + run.count))
+        }
+        return covered
+    }
+
+    /// Every run of two or more words that `NumberWords` reads as one cardinal, longest first from each start.
+    private static func cardinalRuns(_ words: [String]) -> [(start: Int, count: Int, value: Int)] {
+        var runs: [(start: Int, count: Int, value: Int)] = []
+        var index = words.startIndex
+        while index < words.endIndex {
+            guard let read = NumberWords.cardinal(words[index...]), read.count > 1 else {
+                index += 1
+                continue
+            }
+            runs.append((index, read.count, read.value))
+            index += read.count
+        }
+        return runs
     }
 }

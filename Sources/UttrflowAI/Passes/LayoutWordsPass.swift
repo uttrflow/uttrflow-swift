@@ -56,13 +56,14 @@ public struct LayoutWordsPass: CleaningPass {
             guard let value = Int(digits), value > 0 else { return nil }
             return (value, 1)
         }
-        let keys = live[position...].map { draft.shape(at: $0).key }
+        let keys = live[draft.sentenceRun(from: position, in: live)].map { draft.shape(at: $0).key }
         guard let spoken = NumberWords.cardinal(keys[...]), spoken.value > 0 else { return nil }
         return spoken
     }
 
     private func matches(_ words: [String], at position: Int, in live: [Int], of draft: Draft) -> Bool {
         position + words.count <= live.count
+            && draft.sentenceRun(from: position, in: live).count >= words.count
             && zip(words, live[position..<position + words.count]).allSatisfy {
                 $0 == draft.shape(at: $1).key
             }

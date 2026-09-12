@@ -19,6 +19,12 @@ The kind carries the signal; the name only disambiguates. An app whose kind is u
 still said as a noun phrase, `an app called Linear`, because a bare name in that position
 did nothing at all.
 
+The kind is `AppKind`, read off the same row of `DestinationRules.standard` that decides
+the destination, so the caption always names the place whose style rules ship beside it.
+Where the user has overridden a destination, or a window title decided it, the caption
+falls back to the kind that destination reads as on its own. A browser has no kind: the
+tab is the place, and the title is what names it.
+
 ## Selected text earns its place, and 120 characters of it is enough
 
 A colleague's name that appears only in the selection is corrected, so the field stays.

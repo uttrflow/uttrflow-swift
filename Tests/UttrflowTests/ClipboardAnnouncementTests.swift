@@ -86,23 +86,18 @@ struct ClipboardAnnouncementTests {
         }
     }
 
-    /// The two places that reach `NSPasteboard` directly must announce too.
-    @Test("and the writes it makes by hand announce themselves too")
-    func directWritesAnnounce() throws {
+    /// Reaching the platform clipboard at all is what let a write skip the announcement and the host-only clear.
+    @Test("and it never reaches the platform clipboard itself")
+    func theAppNamesNoPasteboard() throws {
         for file in try swiftFiles() {
             let source = try code(of: file)
-            let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
-            for (number, line) in lines.enumerated() where line.contains("clearContents()") {
-                // The announcement goes immediately before the write; ten lines is room for the guards.
-                let window = lines[max(0, number - 10)..<number].joined(separator: "\n")
-                // With or without the text it names: a picture has none.
-                #expect(
-                    window.contains("ignoreNextWrite("),
-                    """
-                    \(file.lastPathComponent):\(number + 1) clears the clipboard without \
-                    telling the watcher first, so the write will be read as a copy.
-                    """)
-            }
+            #expect(
+                !source.contains("NSPasteboard"),
+                """
+                \(file.lastPathComponent) writes the clipboard itself, so it misses the \
+                announcement and `.currentHostOnly` and sends the text to the user's other \
+                devices. Go through `announcingPasteboard`. See `Scripts/pasteboard_audit.sh`.
+                """)
         }
     }
 }

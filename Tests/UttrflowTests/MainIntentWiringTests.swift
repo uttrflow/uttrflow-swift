@@ -154,8 +154,10 @@ struct MainIntentWiringTests {
         // No refresh in between, so the app has never seen this snippet.
         app.carryOut(.editSnippet(snippet.id))
 
-        let opened = await eventually { app.mainWindow?.snippetDraft.editing == snippet.id }
-        #expect(opened)
+        // Waited for rather than polled for: the read is off the disk, and a deadline is a guess.
+        await app.openingEditor?.value
+
+        #expect(app.mainWindow?.snippetDraft.editing == snippet.id)
         #expect(app.mainWindow?.snippetDraft.trigger == "my address")
         #expect(app.mainWindow?.snippetDraft.text == "Flat 402")
     }

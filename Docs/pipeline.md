@@ -67,6 +67,20 @@ comparing against a number that moved the moment the user began their next dicta
 `wasCancelled` uses `<=` rather than `==`: a cancel at any generation up to and
 including this one abandons this run, and later cancels belong to later runs.
 
+## The turn
+
+`hasTurn` is held across every await that runs before the state shows what a dictation is doing,
+because an actor is reentrant across each one. `startRecording` holds it while the microphone
+opens. `finishRecording` holds it while the buffer drains: the state still reads `.recording`
+then, so without it a second stop gesture reaches a microphone that has already closed and
+publishes a failure over a dictation that goes on to succeed. `retry` holds it while it reads the
+file, or a dictation could open the microphone underneath it. It is released with no await before
+`process` moves the state on, so nothing can enter in between.
+
+`process` checks for a cancel before it moves the state, so a cancel that arrived during the drain
+is not overwritten by `.transcribing` and left there. A cancel during the drain also deletes the
+recording, which was not yet known when the cancel ran.
+
 ## Timeouts
 
 Every stage runs somebody else's code and none of it promises to return. See

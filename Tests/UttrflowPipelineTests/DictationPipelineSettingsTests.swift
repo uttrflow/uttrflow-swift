@@ -78,8 +78,8 @@ private actor GatedContextEngine: ContextEngine {
 
 /// A place for the words to land that never refuses.
 private struct QuietInserter: TextInserting {
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
-        .accessibility
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
+        InsertionAttempt(.accessibility)
     }
 }
 

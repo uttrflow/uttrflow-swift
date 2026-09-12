@@ -27,6 +27,36 @@ and is left for the guard to reject.
 | `minimumRetainedFraction` | 0.4 | allows heavy filler removal from a short utterance |
 | `shortUtteranceWords` | 3 | "um yes" may become "Yes."; at six, "what is the capital of france" was exempt and "Paris" slipped through |
 
+## What the model added, not only what it lost
+
+Every grammar check ran in one direction — kept draft to rewrite — until #188. The survival
+loop iterated the kept tokens and read the rewrite only as a lookup pool, and the negation
+check subtracted the rewrite's negators from the draft's and rejected a *positive*
+difference. So a word the model invented was the subject of no check at all, and an added
+negator scored -1 and passed. Measured on the shipping path: "we should ship this on Friday"
+was typed as "We should not ship this on Friday."
+
+Both arms now read the other way too. `inventionVerdict` is the survival relation with the
+sides swapped: a rewritten content word must have a counterpart in the kept draft, in the
+caret echo, or in a reading the model was offered.
+
+**The caret echo is why the added-negator arm is not a plain inequality.** `CaretEchoPass`
+takes back the field's text *before* the caret, which the model answered with but the speaker
+never said. Counting it into the rewritten total refuses a faithful rewrite the moment that
+context holds a negator — measured: kept negators 0, rewritten plus echo 1. The echo is
+therefore a permitted *origin* for an addition, subtracted on the added side, and still a
+source of survivors on the dropped side.
+
+`inventionVerdict` stands down when any kept token is non-ASCII, because romanising
+Devanagari produces words with no counterpart in the draft by construction; those rewrites
+are left to the base checks, as the survival loop already left them.
+
+It runs after the function-word churn check so a rewrite that did both still reports the
+churn, which is the more useful reason.
+
+Neither arm moved the corpus: `--baselines-only` scored 92% shipping / 88% Apple / 79% rules
+with nothing declined, before and after, identical in every category and destination.
+
 ## Numbers in Hindi
 
 The guard allows a spoken number written as digits by consulting a table of number words.
