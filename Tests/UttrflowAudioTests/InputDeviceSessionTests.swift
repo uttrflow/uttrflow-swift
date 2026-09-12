@@ -100,11 +100,11 @@ struct InputDeviceSessionTests {
         #expect(device.log.withLock(\.opens) == 5)
         // Said even though it worked: the recording now has a hole where the device was away.
         #expect(reported.count == 1)
-        #expect(reported.first == .resumed)
+        #expect(reported.first == .began)
     }
 
     /// The silence this closes: a reopen that works still costs the words spoken while it was away.
-    @Test("says the recording has a hole when the device comes back")
+    @Test("says the recording has a hole the moment the device goes")
     func reportsAGapWhenTheDeviceReturns() async throws {
         let device = FlakyDevice(failing: 0)
         let (session, reported) = session(device)
@@ -115,8 +115,8 @@ struct InputDeviceSessionTests {
         try await untilSettled(session)
 
         #expect(session.health == .live)
-        #expect(reported.first == .resumed)
-        #expect(reported.firstError == nil, "coming back is not a failure")
+        #expect(reported.first == .began)
+        #expect(reported.firstError == nil, "going away is not yet a failure")
     }
 
     /// The failure this exists to stop: one refusal used to end the recording with nobody told.
@@ -131,7 +131,9 @@ struct InputDeviceSessionTests {
         try await untilSettled(session)
 
         #expect(session.health == .gone)
-        #expect(reported.count == 1)
+        // The hole as it opened, then the ending when nothing filled it.
+        #expect(reported.count == 2)
+        #expect(reported.first == .began)
         #expect(reported.firstError?.recovery == .retry)
         // Every delay in the schedule is tried before giving up.
         #expect(device.log.withLock(\.opens) == 5)
@@ -152,7 +154,8 @@ struct InputDeviceSessionTests {
         #expect(device.log.withLock(\.opens) == 4)
     }
 
-    @Test("closing abandons a reopen rather than letting it reopen a stopped recording")
+    /// A stop landing mid-reopen used to report nothing, so the truncated recording read as whole.
+    @Test("keeps the hole reported when the recording stops mid-reopen")
     func closingStopsTheRetry() async throws {
         let device = FlakyDevice(failing: 0)
         let (session, reported) = session(device)
@@ -164,7 +167,9 @@ struct InputDeviceSessionTests {
         try await untilSettled(session)
 
         #expect(session.health == .gone)
-        #expect(reported.count == 0)
+        // Said before the retry began, so the close cancelling it costs the caller nothing.
+        #expect(reported.first == .began)
+        #expect(reported.firstError == nil, "a stop is not the device failing")
     }
 
     /// A device opened after the recording stopped is one nothing else would ever shut: see #171.
@@ -189,5 +194,7 @@ struct InputDeviceSessionTests {
         for _ in 0..<200 where session.health == .reopening {
             try await Task.sleep(for: .milliseconds(5))
         }
+        // Recorded rather than waited out, so a reopen that never lands fails here instead of downstream.
+        if session.health == .reopening { Issue.record("the reopen never settled") }
     }
 }

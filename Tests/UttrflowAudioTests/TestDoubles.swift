@@ -43,7 +43,7 @@ final class FakeMicrophoneSource: MicrophoneSource {
 
     /// Says the device went and came back, which leaves a hole in the middle of the recording.
     func skip() {
-        state.withLock { $0.interrupted }?(.resumed)
+        state.withLock { $0.interrupted }?(.began)
     }
 
     func stop() {

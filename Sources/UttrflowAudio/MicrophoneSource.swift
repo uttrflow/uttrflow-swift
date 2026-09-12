@@ -3,8 +3,8 @@ public import UttrflowCore
 
 /// What a device change did to a recording, since both outcomes leave the audio untrustworthy.
 public enum CaptureInterruption: Sendable, Equatable {
-    /// The device came back, so the recording carries on with a gap where it was away.
-    case resumed
+    /// The device went, so the recording has a hole from here whatever happens next.
+    case began
     /// The device did not come back, and the recording ends where it went.
     case ended(AudioCaptureError)
 }

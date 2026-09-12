@@ -87,12 +87,14 @@ public final class InputDeviceSession: Sendable {
 
     /// Reopens after a configuration change, retrying across the window in which a device re-enumerates.
     public func deviceChanged() {
-        let begin = state.withLock { state -> Bool in
-            guard state.health == .live else { return false }
+        let begun = state.withLock { state -> (@Sendable (CaptureInterruption) -> Void)? in
+            guard state.health == .live else { return nil }
             state.health = .reopening
-            return true
+            return state.report ?? { _ in }
         }
-        guard begin else { return }
+        guard let begun else { return }
+        // Said before the retry, because a stop landing mid-reopen would otherwise report nothing at all.
+        begun(.began)
         device.close()
         let reopening = Task { [self] in await reopen() }
         // Only if the retry has not already finished, which it can when the schedule waits for nothing.
@@ -107,20 +109,14 @@ public final class InputDeviceSession: Sendable {
             guard state.withLock(\.health) == .reopening else { return }
             do {
                 try device.open()
-                let resumed = state.withLock {
-                    state -> (kept: Bool, report: (@Sendable (CaptureInterruption) -> Void)?) in
-                    guard state.health == .reopening else { return (false, nil) }
+                let kept = state.withLock { state -> Bool in
+                    guard state.health == .reopening else { return false }
                     state.health = .live
                     state.reopening = nil
-                    return (true, state.report)
+                    return true
                 }
                 // A close that landed while this was opening leaves a device nothing else would shut.
-                guard resumed.kept else {
-                    device.close()
-                    return
-                }
-                // Said even though it worked: the recording now has a hole where the device was away.
-                resumed.report?(.resumed)
+                if !kept { device.close() }
                 return
             } catch {
                 continue

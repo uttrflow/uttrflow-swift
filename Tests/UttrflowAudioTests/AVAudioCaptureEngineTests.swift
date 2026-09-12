@@ -107,7 +107,8 @@ struct AVAudioCaptureEngineTests {
         try await engine.start()
         source.skip()
         try await settle()
-        _ = try? await engine.stop()
+        // Asserted, not discarded: a gap that stopped being refused would pass this test silently.
+        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
 
         try await engine.start()
         source.emit(Array(repeating: 0.25, count: 32))

@@ -11,7 +11,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private var currentState: AudioCaptureState = .idle
     /// Set when the microphone stops for good mid-recording, and thrown by `stop()` rather than half a recording.
     private var failure: AudioCaptureError?
-    /// Set when the microphone went and came back, so the audio either side of the hole does not join.
+    /// Says the microphone went during this recording, so the audio either side of the hole does not join.
     private var isGapped = false
     /// Played the moment the microphone closes, since this engine alone knows that instant.
     private let cue: any RecordingCueing
@@ -93,7 +93,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private func microphoneInterrupted(_ interruption: CaptureInterruption) {
         guard currentState == .recording else { return }
         switch interruption {
-        case .resumed: isGapped = true
+        case .began: isGapped = true
         case .ended(let error): failure = error
         }
     }
