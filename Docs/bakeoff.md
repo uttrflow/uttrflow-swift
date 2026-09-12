@@ -246,5 +246,15 @@ sixteen point two").
 **One Hindi case may be unfair.** Everything scores badly on `hinglish-request`, which
 suggests the reference is one of several reasonable phrasings.
 
-**The corpus is 36 cases** — 26 plus the ten Phase 6 added — and everything in it is
-synthesised or written by hand. Phase 8 grows it, with real recorded speech behind it.
+**The corpus is 105 cases in six categories** — `everyday` 36, `contextual` 36, `grammar` 13,
+`technical` 10, `multilingual` 5, `notARequest` 5 — and everything in it is synthesised or
+written by hand. Phase 8 grows it, with real recorded speech behind it.
+
+`contextual` and `grammar` were both added after the tables above were run, so neither is
+scored anywhere on this page: `contextual` is the same words against different windows
+(`Docs/predict.md` and the destination rows in `Docs/cleanup.md` are what it measures), and
+`grammar` is the slips a formatter may repair beside the dialect that must stay, which
+`Docs/cleanup-design.md` asked for. The count moves whenever a case is added, so the number
+of record is the one the command prints in its own header — `make bakeoff`, from
+`EvaluationCorpus.all.count` — and the figures here are what it printed when this paragraph
+was written.
