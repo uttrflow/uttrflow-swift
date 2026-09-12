@@ -282,6 +282,18 @@ ideas go in [Discussions](https://github.com/uttrflow/uttrflow-swift/discussions
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed, per version
 - [uttrflow.com](https://uttrflow.com) — the site, and what the app is for
 
+## Contributors
+
+Every person below has landed a change in this repository. The grid is generated from the
+commit history, so a merged pull request is all it takes to appear here.
+
+<p align="center">
+  <a href="https://github.com/uttrflow/uttrflow-swift/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=uttrflow/uttrflow-swift&columns=16"
+         alt="The avatars of everyone who has contributed to uttrflow-swift, linking to the contributors graph.">
+  </a>
+</p>
+
 ## Licence
 
 MIT — see [`LICENSE`](LICENSE). The code is yours to fork, modify and ship, commercially
