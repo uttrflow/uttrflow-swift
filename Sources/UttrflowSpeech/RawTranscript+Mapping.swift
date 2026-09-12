@@ -39,6 +39,34 @@ extension RawTranscript {
         return words.allSatisfy { markerWords.contains($0.lowercased()) }
     }
 
+    /// The same removal over the recogniser's words, so the text and the word list cannot fall out of step.
+    static func cleaned(_ words: [TranscribedWord]) -> [TranscribedWord] {
+        var kept: [TranscribedWord] = []
+        var index = words.startIndex
+
+        while index < words.endIndex {
+            let opener = words[index].text.first
+            guard opener == "[" || opener == "(" else {
+                kept.append(words[index])
+                index += 1
+                continue
+            }
+            let closer: Character = opener == "[" ? "]" : ")"
+            guard let close = words[index...].firstIndex(where: { $0.text.hasSuffix(String(closer)) })
+            else {
+                kept.append(words[index])
+                index += 1
+                continue
+            }
+            let inside = words[index...close].map(\.text).joined(separator: " ").dropFirst().dropLast()
+            if !isMarker(inside) {
+                kept.append(contentsOf: words[index...close])
+            }
+            index = words.index(after: close)
+        }
+        return kept
+    }
+
     /// Removes bracketed non-speech markers such as `[BLANK_AUDIO]`. See `Docs/silence.md`.
     static func cleaned(_ text: String) -> String {
         var result: [Substring] = []
@@ -76,16 +104,19 @@ extension RawTranscript {
 
 extension RawSegment {
     fileprivate func transcriptionSegment(shiftedBy offset: Duration) -> TranscriptionSegment {
-        TranscriptionSegment(
-            text: RawTranscript.cleaned(text),
+        // Whisper emits a leading space on each word, which no correction indexes.
+        let spoken = words?.map {
+            TranscribedWord(
+                text: $0.text.trimmingCharacters(in: .whitespaces),
+                confidence: $0.probability)
+        }
+        let kept = spoken.map(RawTranscript.cleaned)
+        return TranscriptionSegment(
+            // Derived from the words wherever the recogniser reported them, so a removal reaches both.
+            text: kept.map { $0.map(\.text).joined(separator: " ") } ?? RawTranscript.cleaned(text),
             start: .seconds(start) + offset,
             end: .seconds(end) + offset,
-            words: (words ?? []).map {
-                // Whisper emits a leading space on each word, which no correction indexes.
-                TranscribedWord(
-                    text: $0.text.trimmingCharacters(in: .whitespaces),
-                    confidence: $0.probability)
-            }
+            words: kept ?? []
         )
     }
 }

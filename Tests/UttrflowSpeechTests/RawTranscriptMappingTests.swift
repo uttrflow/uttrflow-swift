@@ -126,3 +126,70 @@ struct RawTranscriptMappingTests {
         #expect(RawTranscript(text: "[BLANK_AUDIO]").transcription(audioDuration: .zero).isBlank)
     }
 }
+
+/// #179: a marker removed from the text but not from the words costs the piece its confidences.
+@Suite("A marker and the word list")
+struct MarkerWordListTests {
+    @Test("leaves the recogniser's confidences usable when a marker was removed")
+    func confidencesSurviveAMarker() {
+        let raw = RawTranscript(
+            text: "[BLANK_AUDIO] the crash is in payment sheet",
+            segments: [
+                RawSegment(
+                    text: "[BLANK_AUDIO] the crash is in payment sheet", start: 0, end: 2,
+                    words: [
+                        RawWord(text: " [BLANK_AUDIO]", start: 0.0, end: 0.2, probability: 0.9),
+                        RawWord(text: " the", start: 0.2, end: 0.4, probability: 0.99),
+                        RawWord(text: " crash", start: 0.4, end: 0.6000000000000001, probability: 0.99),
+                        RawWord(text: " is", start: 0.6000000000000001, end: 0.8, probability: 0.99),
+                        RawWord(text: " in", start: 0.8, end: 1.0, probability: 0.99),
+                        RawWord(text: " payment", start: 1.0, end: 1.2, probability: 0.3),
+                        RawWord(text: " sheet", start: 1.2, end: 1.4, probability: 0.3),
+                    ])
+            ])
+
+        let draft = Draft(transcription: raw.transcription(audioDuration: .seconds(2)))
+
+        #expect(draft.confidencesAreReal)
+        #expect(draft.text == "the crash is in payment sheet")
+    }
+
+    /// "not reported" and "reported nothing" are different facts: see Transcription.swift's own warning.
+    @Test("does not read an absent word list as full confidence")
+    func absentWordsAreNotConfidence() {
+        let raw = RawTranscript(
+            text: "the crash is in payment sheet",
+            segments: [
+                RawSegment(text: "the crash is in payment sheet", start: 0, end: 2, words: nil)
+            ])
+
+        let draft = Draft(transcription: raw.transcription(audioDuration: .seconds(2)))
+
+        #expect(!draft.confidencesAreReal)
+        #expect(draft.text == "the crash is in payment sheet")
+    }
+
+    /// The other half of the rule: a bracket the speaker dictated has to survive in both representations.
+    @Test("keeps a dictated aside in the words as well as the text")
+    func keepsADictatedAside() {
+        let raw = RawTranscript(
+            text: "the API (version two) is ready",
+            segments: [
+                RawSegment(
+                    text: "the API (version two) is ready", start: 0, end: 2,
+                    words: [
+                        RawWord(text: " the", start: 0, end: 0.2, probability: 0.99),
+                        RawWord(text: " API", start: 0.2, end: 0.4, probability: 0.99),
+                        RawWord(text: " (version", start: 0.4, end: 0.6, probability: 0.9),
+                        RawWord(text: " two)", start: 0.6, end: 0.8, probability: 0.9),
+                        RawWord(text: " is", start: 0.8, end: 1.0, probability: 0.99),
+                        RawWord(text: " ready", start: 1.0, end: 1.2, probability: 0.99),
+                    ])
+            ])
+
+        let draft = Draft(transcription: raw.transcription(audioDuration: .seconds(2)))
+
+        #expect(draft.confidencesAreReal)
+        #expect(draft.text == "the API (version two) is ready")
+    }
+}
