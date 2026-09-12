@@ -35,6 +35,12 @@ and the text is still on the system clipboard. This is the only case where Uttrf
 remember something on purpose. It applies on the way in; a clip becomes kept after it is held,
 so it was under the cap when it arrived.
 
+`PasteboardWatcher` asks the cap before it classifies, because `ClipKindDetector` reads the whole
+string — about 2.9 s per megabyte — and leaving the question to the store spent all of that on a
+clip it was going to refuse, with the poll loop stopped meanwhile. Both count the same bytes: the
+plain text plus the formatted flavour, as `ClipboardStore.weight(of:)` does. The store still asks
+too, because a clip also reaches it from dictation and from the panel.
+
 ## Kept
 
 A clip the user named, filed or pinned has no quota, no window and no replacement policy.

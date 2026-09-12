@@ -15,6 +15,8 @@ public actor PasteboardWatcher {
 
     private nonisolated let source: any ClipboardSource
     private let interval: Duration
+    /// The same bound the store applies, asked here so an oversize copy is never classified.
+    private let budget: ClipboardBudget
     private nonisolated let now: @Sendable () -> Date
 
     /// Uttrflow's own write, behind a `Mutex` because a write cannot `await` to announce itself.
@@ -26,10 +28,12 @@ public actor PasteboardWatcher {
     public init(
         source: any ClipboardSource,
         interval: Duration = PasteboardWatcher.pollInterval,
+        budget: ClipboardBudget = .standard,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.source = source
         self.interval = interval
+        self.budget = budget
         self.now = now
         self.seen = source.changeCount()
     }
@@ -91,6 +95,9 @@ public actor PasteboardWatcher {
             ClipContent.isWorthKeeping(text)
         else { return nil }
 
+        // Before the classifier, which reads the whole string: the store would refuse this anyway.
+        guard fitsTheBound(text, html) else { return nil }
+
         let kind = ClipKindDetector.kind(of: text)
         return NoticedClip(
             clip: Clip(
@@ -100,6 +107,12 @@ public actor PasteboardWatcher {
                 language: kind == .code ? CodeLanguage.detect(text) : nil,
                 // E — kept beside the plain form, never instead of it.
                 richText: html))
+    }
+
+    /// Whether a clip is small enough to keep, counting both flavours as `ClipboardStore.weight(of:)` does.
+    private func fitsTheBound(_ text: String, _ html: String?) -> Bool {
+        guard budget.largestClip > 0 else { return true }
+        return text.utf8.count + (html?.utf8.count ?? 0) <= budget.largestClip
     }
 
     // MARK: - The loop
