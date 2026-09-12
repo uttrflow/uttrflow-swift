@@ -186,6 +186,10 @@ Reproduce any row with:
 uttrflow-dev clean -e foundationModels "thanks marcy i'll pick up the printer quote this afternoon" --app Slack --bundle-id com.tinyspeck.slackmacgap --document "Marcie Alvarez (DM) — Northwind"
 ```
 
+A row whose case names a doubtful run needs `--doubtful "<the run>"` as well, repeated once per
+run. Being unsure is the condition for a candidate source to be asked at all, so without it the
+command runs a shorter pipeline than the app and the `seen` lines carry no readings.
+
 ### With context and without: one case in thirty-six changes
 
 The corpus was run twice, once normally and once with
