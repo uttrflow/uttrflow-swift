@@ -387,7 +387,8 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.tinyspeck.slackmacgap",
                 documentName: "Marcie Alvarez (DM) — Northwind"
             ),
-            mustNotAdd: ["Marcy"]
+            mustNotAdd: ["Marcy"],
+            doubtful: ["marcy"]
         ),
         .init(
             id: "notes-name-spelling", category: .contextual,
@@ -399,7 +400,8 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.apple.Notes",
                 documentName: "Errands"
             ),
-            mustNotAdd: ["Marcie"]
+            mustNotAdd: ["Marcie"],
+            doubtful: ["marcy"]
         ),
 
         // Pair three: two spoken words are one identifier only because the window title says so.
@@ -442,7 +444,8 @@ public enum EvaluationCorpus {
                 documentName: "settings_store.py — uttrflow",
                 selectedText: "setUserPrefs"
             ),
-            mustNotAdd: ["set user prefs", "savePreferences"]
+            mustNotAdd: ["set user prefs", "savePreferences"],
+            doubtful: ["set user prefs"]
         ),
 
         // Describing a function in a chat window is a message, so any keyword means the model answered it.

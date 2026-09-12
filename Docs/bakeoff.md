@@ -166,6 +166,12 @@ it heard is **not itself a plausible name**:
 | "thanks sara" | `Sarah Chen (DM)` | Sara ❌ |
 | "thanks jon" | `Jonathan Reed (DM)` | Jon ❌ |
 
+**These rows were taken with the candidate path switched off.** `slack-name-spelling`
+declared no doubtful run until the corpus was corrected, and a case that declares none is
+never asked of a candidate source — so the model was never handed `Marcie` and the table
+measures it noticing a spelling unaided. The case declares its run now, and the rule below
+is what the old runs suggested rather than what the shipping path does; it needs re-measuring.
+
 "Nikhel" is not a spelling anyone uses, so the title wins. "Marcy", "Sara" and "Jon" are
 all real names, and the model will not overrule a name the speaker apparently said with a
 different one it can see. Two of those three rows are the conservative answer: the person
