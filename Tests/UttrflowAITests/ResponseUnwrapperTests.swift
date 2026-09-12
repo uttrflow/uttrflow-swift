@@ -43,6 +43,34 @@ struct ResponseUnwrapperTests {
         #expect(unwrap("\"hello\" and \"goodbye\"") == "\"hello\" and \"goodbye\"")
     }
 
+    /// The recogniser reports reported speech in quotes, and deleting them is a change to the sentence.
+    @Test(
+        "keeps the quotes when the speaker's own words are the quotation",
+        arguments: [
+            ("\"We ship on Friday.\"", "\"we ship on friday\""),
+            ("\u{201C}We ship on Friday.\u{201D}", "\"we ship on friday\""),
+            // The pair need not be the same one: a model that answered in curly quotes still added nothing.
+            ("\u{201C}We ship on Friday.\u{201D}", "\u{201C}we ship on friday\u{201D}"),
+            ("'We ship on Friday.'", "'we ship on friday'"),
+        ]
+    )
+    func keepsAQuotationTheSpeakerSaid(produced: String, spoken: String) {
+        #expect(unwrap(produced, spoken: spoken) == produced)
+    }
+
+    /// The label is still the model's, even inside a quotation the speaker did say.
+    @Test("takes the label off a quotation the speaker said")
+    func stripsALabelAroundASpokenQuotation() {
+        #expect(
+            unwrap("Cleaned: \"We ship on Friday.\"", spoken: "\"we ship on friday\"")
+                == "\"We ship on Friday.\"")
+    }
+
+    @Test("still removes the model's own quotes when the draft carries none")
+    func stillStripsTheModelsOwnQuotes() {
+        #expect(unwrap("\"We ship on Friday.\"", spoken: "we ship on friday") == "We ship on Friday.")
+    }
+
     /// A sentence is the model chatting, not a label, and the guard should still catch it.
     @Test(
         "leaves conversational preambles alone, so the guard still rejects them",

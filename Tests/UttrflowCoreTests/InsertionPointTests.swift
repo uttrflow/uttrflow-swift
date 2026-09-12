@@ -39,6 +39,34 @@ struct InsertionPointTests {
         #expect(InsertionPoint.sentenceState(before: preceding) == .midSentence)
     }
 
+    /// A marker is typed but not written: the caret after one opens the line, whatever the marker is.
+    @Test(
+        "a caret after a list, quote or heading marker opens the line",
+        arguments: [
+            "- ", "* ", "\u{2022} ", "1. ", "2) ", "# ", "## ", "> ", "\"", "(", "[",
+            "notes\n- ", "notes\n1. ", "Done.\n\n- ",
+        ]
+    )
+    func markerOpensTheLine(preceding: String) {
+        #expect(InsertionPoint.sentenceState(before: preceding) == .startOfText)
+    }
+
+    /// The bullet and the numbered item are two items of one list and must be read the same way.
+    @Test("reads a bulleted and a numbered item alike")
+    func listMarkersAgree() {
+        #expect(
+            InsertionPoint.sentenceState(before: "- ")
+                == InsertionPoint.sentenceState(before: "1. "))
+    }
+
+    /// Only the marker the line opens with is a marker; the same character inside a line is a word's.
+    @Test(
+        "reads words written after the marker as the middle of a sentence",
+        arguments: ["- the migration", "1. the migration ", "# Incident log", "-5 degrees ", "well - "])
+    func wordsAfterTheMarkerContinue(preceding: String) {
+        #expect(InsertionPoint.sentenceState(before: preceding) == .midSentence)
+    }
+
     @Test("keeps both sides of the caret exactly as given")
     func keepsText() {
         let point = InsertionPoint(precedingText: "before ", followingText: " after")

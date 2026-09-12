@@ -88,8 +88,8 @@ public struct Draft: Sendable, Equatable {
     public static let bullet = "- "
     /// What a numbered item begins with once its digits are past: "1. ", "2. ".
     public static let numberStop = ". "
-    /// The tokens a line may open with to be read as a list item.
-    private static let bulletTokens: Set<Substring> = ["-", "•", "*"]
+    /// The tokens a line may open with to be read as a list item; `InsertionPoint` reads the same set.
+    public static let bulletTokens: Set<String> = ["-", "\u{2022}", "*"]
 
     public var words: [Word]
     /// Whether the words carry the recogniser's confidences rather than a stand-in of 1 for every word.
@@ -113,7 +113,7 @@ public struct Draft: Sendable, Equatable {
         for (number, line) in lines.enumerated() {
             var lineWords = line.split(whereSeparator: \.isWhitespace)
             guard !lineWords.isEmpty else { continue }
-            let isItem = lineWords.count > 1 && Self.bulletTokens.contains(lineWords[0])
+            let isItem = lineWords.count > 1 && Self.bulletTokens.contains(String(lineWords[0]))
             if isItem { lineWords.removeFirst() }
             let breaks = previousLine.map { String(repeating: "\n", count: number - $0) } ?? ""
             let mark = breaks + (isItem ? Self.bullet : "")

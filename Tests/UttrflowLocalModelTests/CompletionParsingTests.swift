@@ -157,6 +157,17 @@ struct CompletionParsingTests {
     }
 
     @Test(
+        "Whether an answer repeated the line is asked of the whole echo, not of its first two characters."
+    )
+    func anEchoIsReadWholeRatherThanByItsOpening() {
+        #expect(MLXCandidateScorer.echoes("busy nahi hoon bolo", of: "busy nahi"))
+        #expect(MLXCandidateScorer.echoes("- busy nahi hoon", of: "busy nahi"))
+        #expect(!MLXCandidateScorer.echoes("hoon bolo", of: "busy nahi"))
+        // The answer drops the line and opens on a character the line opens on, which a prefix cannot tell apart.
+        #expect(!MLXCandidateScorer.echoes("busier tomorrow", of: "busy nahi"))
+    }
+
+    @Test(
         "An answer without its echo joins the line only where a boundary says how, never letters against letters."
     )
     func anEchoLessAnswerJoinsOnlyAtABoundary() {
