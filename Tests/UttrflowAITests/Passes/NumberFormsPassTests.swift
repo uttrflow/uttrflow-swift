@@ -21,6 +21,10 @@ struct NumberFormsPassTests {
             ("fifteen,", "15,"),
             ("\"twenty\"", "\"20\""),
             ("twenty, one", "20, one"),
+            ("five dollars", "5 dollars"),
+            ("fifteen thousand dollars", "15,000 dollars"),
+            ("five, dollars", "five, dollars"),
+            ("a dollar", "a dollar"),
         ]
     )
     func wholeNumbers(input: String, expected: String) {
@@ -59,6 +63,21 @@ struct NumberFormsPassTests {
     )
     func leavesAnUnparsedScaleWhole(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// A number reads its context from its own sentence, so neither a labelling word nor a scale binds across a stop.
+    @Test(
+        "reads no context word and no scale tail from the sentence before",
+        arguments: [
+            ("we are in the room. Six people came", "we are in the room. Six people came"),
+            ("turn to the page. Four of them left", "turn to the page. Four of them left"),
+            ("check the version. Three times today", "check the version. Three times today"),
+            ("I have a hundred. And fifty people came", "I have a hundred. And 50 people came"),
+            ("we counted a thousand. And twenty came", "we counted a thousand. And 20 came"),
+        ]
+    )
+    func readsNoContextAcrossASentenceEnd(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     @Test(

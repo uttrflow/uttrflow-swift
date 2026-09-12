@@ -131,9 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let formatter: any CodeFormatting = SystemCodeFormatter()
 
     /// The one pasteboard that announces its writes, so no inserter can silently forget to. See `Docs/insertion.md`.
-    private lazy var announcingPasteboard = SystemPasteboard {
-        [clipboardWatcher] in clipboardWatcher.ignoreNextWrite(of: $0)
-    }
+    private lazy var announcingPasteboard = SystemPasteboard(
+        willWrite: { [clipboardWatcher] in clipboardWatcher.ignoreNextWrite(of: $0) },
+        willWritePicture: { [clipboardWatcher] in clipboardWatcher.ignoreNextPicture($0) })
 
     /// Puts a chosen clip where the caret is, announcing the write so it is not read as a copy.
     private lazy var clipInserter = TextInsertion.coordinator(
@@ -147,6 +147,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var undoable: Clip?
     private var undoTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
+    private(set) var openingEditor: Task<Void, Never>?
     /// A3, A7 — where the user was when the panel closed, while reopening still counts as undoing.
     private var resume: PanelResume?
     /// Long enough to reach for the keyboard, short enough to not undo a forgotten delete.
@@ -396,11 +398,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         let speech = SpeechEngineFactory.make(
             kind: settings.engines.speech, model: model,
-            modelFolder: modelStore.location(of: model),
-            vocabulary: DictionaryVocabulary { [dictionary, context] in
-                // One reading, so the words are ranked against the screen they were ranked for.
-                await (dictionary.allEntries(), context.currentContext(), Date())
-            })
+            modelFolder: modelStore.location(of: model))
+
+        // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
+        let speechWords = DictionaryVocabulary { [dictionary] in
+            await (dictionary.allEntries(), Date())
+        }
 
         // One cue for both ends, so a stop sounds only after a start the user could have heard.
         let cue: any RecordingCueing =
@@ -420,6 +423,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Announced, like every write this app makes. See `Docs/insertion.md`.
             inserter: TextInsertion.coordinator(
                 pasteboard: announcingPasteboard, reporting: Self.logPaste),
+            speechWords: { seeing in await speechWords.vocabulary(favouring: seeing) },
             corrector: DictionaryCorrections(dictionary: dictionary),
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
@@ -888,16 +892,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// K4 — pastes a picture, on its own path because the Accessibility route writes only strings.
     private func insertImage(_ clip: Clip) {
         markUsed(clip.id)
-        Task { [clipboard, clipboardWatcher] in
+        Task { [clipboard, pasteboard = announcingPasteboard] in
             guard let image = clip.image, let data = await clipboard.imageData(for: image) else {
                 // B8 from the other side: the file went between the draw and the keypress.
                 Self.log.error("picture missing at paste: \(clip.id, privacy: .public)")
                 return
             }
-            // No text to name, so the count is all this one has to go on.
-            clipboardWatcher.ignoreNextWrite()
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setData(data, forType: .png)
+            // Named by its bytes, so a copy landing in the same tick is not claimed by this write.
+            pasteboard.setImage(data)
             do {
                 try CGEventKeystrokeSender().sendPaste()
             } catch let failure as TextInsertionError {
@@ -958,14 +960,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quickPanel.update(PanelPresenter.present(snapshot))
     }
 
-    /// Announced first, so a clip put back is not read as the user copying it.
+    /// Through the one pasteboard, so the write is announced and stays on this Mac. See `Docs/insertion.md`.
     private func putOnClipboard(_ text: String, richText: String? = nil, used: Clip.ID?) {
         markUsed(used)
-        clipboardWatcher.ignoreNextWrite(of: text)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
         // E2, E3 — both flavours, so the receiving application takes the one it understands.
-        if let richText { NSPasteboard.general.setString(richText, forType: .html) }
+        announcingPasteboard.setText(text, richText: richText)
     }
 
     /// Long enough to read one short sentence and no more, since the panel is in the way.
@@ -1451,7 +1450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // From the store, since `knownSnippets` can be a refresh behind.
             editorGeneration += 1
             let opening = editorGeneration
-            Task { [weak self] in
+            openingEditor = Task { [weak self] in
                 guard let self,
                     let snippet = await snippets.snippets().first(where: { $0.id == id }),
                     // Anything done while the disk was read wins over this.

@@ -106,6 +106,11 @@ EXCLUDED_FILES = {
     ),
     "Uttrflow/Sidebar/SidebarView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/HomePageView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Main/ClipboardDemonstration.swift": (
+        "SwiftUI; the two things it decides are ClipboardDemonstrationPhase, which says what "
+        "is drawn at an instant, and ClipboardDemonstrationMetrics, which chooses the "
+        "arrangement from a width, and both are tested"
+    ),
     "Uttrflow/Main/WindowVisibility.swift": (
         "asks a real NSWindow whether it is on screen; there is nothing to decide "
         "here that a test could reach without a window server"

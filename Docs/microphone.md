@@ -34,9 +34,29 @@ The accumulated audio survives, because it is held by `AVAudioCaptureEngine` rat
 by the source. A dictation interrupted by a device change loses the fraction of a second
 the changeover takes, and keeps the rest.
 
-If the device has gone and nothing replaced it, `open()` fails and the recording carries
-on with nothing arriving — which the voice-activity check reports honestly as nothing
-heard, rather than as words. See `Docs/silence.md`.
+If the device has gone and nothing replaced it, the reopen is retried across the few
+seconds a device takes to re-enumerate — a Bluetooth headset or a sample-rate change is
+usually back well inside that. `InputDeviceSession` owns that schedule, because the
+notification that announces a configuration change is posted by an engine: once a reopen
+has failed there is no engine, so nothing would announce the device coming back, and a
+single `try?` left the microphone dead for the rest of the recording.
+
+The hole is announced the moment the device goes, not when the reopen resolves. That ordering is
+load-bearing: a stop landing while the retry is still in flight cancels it, so a report that waited
+for the outcome would never be made at all and the truncated recording would be handed back as
+whole. Whatever happens next, the recording is refused rather than handed over. It sounds wrong to refuse a recording the microphone recovered from, but `AudioSamples`
+is a run of samples and a sample rate: it cannot say that time passed. The audio from before the
+change and the audio from after it sit next to each other with the missing seconds simply gone, so
+the words either side are joined into one sentence that nobody spoke. Refusing it offers the user a
+retry instead, which is the only honest option while a gap cannot be represented.
+
+When the device never comes back, the session says so and the recording ends as a failure
+with a Retry, rather than handing back what it managed to capture. That distinction only
+holds before the first word: audio captured *before* the change survives, so a recording
+that ends this way can still contain speech, and half a sentence reads as a whole one. It
+is `.engineFailed`, so `DictationPipeline` keeps the audio and offers the retry. See
+`Docs/silence.md` for what the voice-activity check does with a recording that holds no
+speech at all.
 
 ## What this cannot fix
 

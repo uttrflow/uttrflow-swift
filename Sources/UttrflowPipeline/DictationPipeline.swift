@@ -9,6 +9,8 @@ public actor DictationPipeline {
     /// A `var` so a clean-up step switched off takes effect on the next dictation rather than the next launch.
     private var cleaner: any TranscriptCleaning
     private let context: any ContextEngine
+    /// The dictation's words, ranked against the screen it began on; a closure so the speech module stays out of here.
+    private let speechWords: @Sendable (AppContext) async -> [String]
     private let inserter: any TextInserting
     private let corrector: any WordCorrecting
     private let snippets: any SnippetExpanding
@@ -40,8 +42,8 @@ public actor DictationPipeline {
     private var generation = 0
     private var cancelledGeneration: Int?
 
-    /// Claims the turn before the microphone opens, so two presses cannot both pass the guard.
-    private var isStarting = false
+    /// Held across every await before the state shows a dictation's next step, so no second entry slips in.
+    private var hasTurn = false
 
     /// Reads how long the microphone has been open, closing over the injected clock.
     private var stopwatch: (() -> Duration)?
@@ -54,11 +56,13 @@ public actor DictationPipeline {
     /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
     private var openRecording: UUID?
 
-    /// Pieces finished while the key was still held, and where the audio they cover ends. See `Docs/early-transcription.md`.
-    private var earlyPieces: [Piece] = []
+    /// Spans the early loop reached while the key was held, and where the audio it consumed ends. See `Docs/early-transcription.md`.
+    private var earlySpans: [Span] = []
     private var earlyCut = 0
     private var earlyWork: Task<Void, Never>?
     private var earlyContext: AppContext?
+    /// Ranked once per dictation, against the screen it began on, and given to every piece.
+    private var dictationWords: [String]?
 
     /// What the clean-up steps did to each piece of the dictation under way, reported as one when it ends.
     private var cleaningRecords: [CleaningRecord] = []
@@ -69,6 +73,7 @@ public actor DictationPipeline {
         cleaner: any TranscriptCleaning,
         context: any ContextEngine,
         inserter: any TextInserting,
+        speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] },
         corrector: any WordCorrecting = NoTextChanges(),
         snippets: any SnippetExpanding = NoTextChanges(),
         learner: any DictationLearning = NoTextChanges(),
@@ -89,6 +94,7 @@ public actor DictationPipeline {
         self.cleaner = cleaner
         self.context = context
         self.inserter = inserter
+        self.speechWords = speechWords
         self.corrector = corrector
         self.snippets = snippets
         self.learner = learner
@@ -158,14 +164,14 @@ public actor DictationPipeline {
 
     // MARK: The sequence
 
-    /// Whether a new dictation can begin, counting a start that has not opened the microphone yet.
-    private var isBusy: Bool { isStarting || state.isBusy }
+    /// Whether a new dictation can begin, counting one that holds the turn before its state has moved.
+    private var isBusy: Bool { hasTurn || state.isBusy }
 
     /// Begins listening. Does nothing if a dictation is already under way.
     public func startRecording() async {
         guard !isBusy else { return }
-        isStarting = true
-        defer { isStarting = false }
+        hasTurn = true
+        defer { hasTurn = false }
 
         generation += 1
         let mine = generation
@@ -191,7 +197,9 @@ public actor DictationPipeline {
 
     /// Stops listening and runs the rest: transcribe, tidy, insert.
     public func finishRecording() async {
-        guard state == .recording else { return }
+        // A second stop while the microphone drains is refused here, not sent to a microphone already closed.
+        guard state == .recording, !hasTurn else { return }
+        hasTurn = true
 
         // Carried through every stage below, so a later dictation cannot revive this one.
         let mine = generation
@@ -212,18 +220,32 @@ public actor DictationPipeline {
             spokenFor = stopwatch?()
             stopwatch = nil
         } catch {
+            hasTurn = false
+            // A cancel during the drain leaves the pipeline at rest, so no failure is published over it.
+            guard !wasCancelled(mine) else { return }
             transition(to: .failed(DictationFailure(error)))
             return
         }
 
         // Written beside the buffer while the key was held, so it exists before anything can fail.
-        openRecording = await recordings.current()?.id
+        let kept = await recordings.current()
+        // Asked after the lookup, since a cancel can arrive while it is suspended as well as before it.
+        if wasCancelled(mine) {
+            // A cancel cannot see a recording not yet looked up, so it is deleted here instead.
+            if let kept { await recordings.discard(kept.id) }
+        } else {
+            openRecording = kept?.id
+        }
+        // Released with no await before `process` moves the state on, so nothing can enter between.
+        hasTurn = false
         await process(audio, mine, delivery: .insert)
     }
 
     /// Runs a kept recording through the same stages, delivering the words to the clipboard.
     public func retry(_ recording: UUID) async {
         guard !isBusy else { return }
+        // Held while the file is read, so a dictation cannot open the microphone underneath the retry.
+        hasTurn = true
         generation += 1
         let mine = generation
 
@@ -233,9 +255,15 @@ public actor DictationPipeline {
         } catch {
             // A file that cannot be read cannot be retried, so it is not offered again.
             await recordings.discard(recording)
+            hasTurn = false
+            // A cancel during the read leaves the pipeline at rest, so no failure is published over it.
+            guard !wasCancelled(mine) else { return }
             transition(to: .failed(DictationFailure(error)))
             return
         }
+        hasTurn = false
+        // A cancel during the read abandons the retry before it claims the recording as its own.
+        guard !wasCancelled(mine) else { return }
         stopwatch = nil
         takeSettings()
         spokenFor = audio.duration
@@ -251,7 +279,7 @@ public actor DictationPipeline {
         cancelledGeneration = generation
         earlyWork?.cancel()
         earlyWork = nil
-        earlyPieces = []
+        earlySpans = []
         earlyCut = 0
         await capture.cancel()
         await discardOpenRecording()
@@ -274,9 +302,10 @@ public actor DictationPipeline {
 
     /// Reads the screen, warms the tidier for where the words are going, then works on the recording as it grows.
     private func beginWorkingAhead(_ mine: Int) {
-        earlyPieces = []
+        earlySpans = []
         earlyCut = 0
         earlyContext = nil
+        dictationWords = nil
         earlyWork = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
             let seeing = await self.earlyContextRead(mine)
             guard self.isStillRunning(mine) else { return }
@@ -298,22 +327,35 @@ public actor DictationPipeline {
                     in: audio.samples, sampleRate: audio.sampleRate, from: earlyCut)
             else { continue }
 
-            // A piece that fails is left for the end, where its failure can be reported.
+            let seeing = await earlyContextRead(mine)
             let heard: Transcription?
             do {
-                heard = try await transcribe(audio, earlyCut..<end, recording: NoOpMetricsRecorder())
+                heard = try await transcribe(
+                    audio, earlyCut..<end, biasedTowards: await vocabulary(seeing: seeing),
+                    recording: NoOpMetricsRecorder())
             } catch {
-                return
+                guard generation == mine, !wasCancelled(mine) else { return }
+                // A failed piece is left for the end, where it is reported; the rest still work ahead.
+                earlySpans.append(.pending(earlyCut..<end))
+                earlyCut = end
+                continue
             }
             guard generation == mine, !wasCancelled(mine) else { return }
             if let heard {
-                let seeing = await earlyContextRead(mine)
                 let piece = await finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
                 guard generation == mine, !wasCancelled(mine) else { return }
-                earlyPieces.append(piece)
+                earlySpans.append(.done(piece))
             }
             earlyCut = end
         }
+    }
+
+    /// The words every piece of this dictation is biased towards, ranked once and then remembered.
+    private func vocabulary(seeing context: AppContext) async -> [String] {
+        if let dictationWords { return dictationWords }
+        let words = await speechWords(context)
+        dictationWords = words
+        return words
     }
 
     /// The screen as it was while the key was held, read once for every early piece.
@@ -342,6 +384,12 @@ public actor DictationPipeline {
 
     // MARK: Stages
 
+    /// One span of a recording: the words a pass finished it with, or audio a later pass still has to do.
+    private enum Span {
+        case done(Piece)
+        case pending(Range<Int>)
+    }
+
     /// Where the finished words go.
     private enum Delivery {
         case insert
@@ -349,50 +397,83 @@ public actor DictationPipeline {
     }
 
     private func process(_ audio: AudioSamples, _ mine: Int, delivery: Delivery) async {
+        // Checked before the state moves, so an abandoned run never overwrites the rest a cancel sets.
+        guard !wasCancelled(mine) else { return }
         transition(to: .transcribing)
 
         // A piece under way is finished, not thrown away: its words are needed either way.
         earlyWork?.cancel()
         await earlyWork?.value
         earlyWork = nil
-        var pieces = earlyPieces
+        var spans = earlySpans
         var cut = earlyCut
         let earlyContext = self.earlyContext
-        earlyPieces = []
+        earlySpans = []
         earlyCut = 0
         self.earlyContext = nil
         // Pieces cut from other audio than this cannot be joined to it.
         if delivery == .copy || cut > audio.samples.count {
-            pieces = []
+            spans = []
             cut = 0
             cleaningRecords = []
         }
 
         var remainder = windowing.windows(in: audio.samples, sampleRate: audio.sampleRate, from: cut)
         // Nothing at all still goes to the recogniser, whose refusal names the reason.
-        if pieces.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
+        if spans.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
 
         let tally = StageTally()
         var appContext = earlyContext
-        for window in remainder {
-            let heard: Transcription?
-            do {
-                heard = try await transcribe(audio, window, recording: tally)
-            } catch {
-                await tally.report(to: metrics)
-                await fail(DictationFailure(error))
-                return
-            }
-            guard !wasCancelled(mine) else { return }
-            guard let heard else { continue }
+        var pieces: [Piece] = []
+        var failure: DictationFailure?
+        var abandoned = false
+        // One tidy runs beside the next recognition, which the two stages allow. See `Docs/early-transcription.md`.
+        await withTaskGroup(of: Piece.self) { tidying in
+            // A span the early loop left unfinished is done here, in its place, so the words stay in order.
+            for span in spans + remainder.map(Span.pending) {
+                let window: Range<Int>
+                switch span {
+                case .done(let piece):
+                    if let earlier = await tidying.next() { pieces.append(earlier) }
+                    pieces.append(piece)
+                    continue
+                case .pending(let range):
+                    window = range
+                }
+                let heard: Transcription?
+                do {
+                    heard = try await transcribe(
+                        audio, window,
+                        biasedTowards: await vocabulary(seeing: earlyContext ?? AppContext()),
+                        recording: tally)
+                } catch {
+                    failure = DictationFailure(error)
+                    tidying.cancelAll()
+                    return
+                }
+                // The tidy that ran beside this recognition is taken before the next one starts, so one is ever in flight.
+                if let earlier = await tidying.next() { pieces.append(earlier) }
+                guard !wasCancelled(mine) else {
+                    abandoned = true
+                    tidying.cancelAll()
+                    return
+                }
+                guard let heard else { continue }
 
-            // The first piece ends transcribing, whether or not the screen was read while recording.
-            if state == .transcribing { transition(to: .tidying) }
-            if appContext == nil { appContext = await contextFor(delivery) }
-            let seeing = appContext ?? AppContext()
-            pieces.append(await finish(heard, seeing: seeing, recording: tally))
-            guard !wasCancelled(mine) else { return }
+                // The first piece ends transcribing, whether or not the screen was read while recording.
+                if state == .transcribing { transition(to: .tidying) }
+                if appContext == nil { appContext = await contextFor(delivery) }
+                let seeing = appContext ?? AppContext()
+                tidying.addTask { await self.finish(heard, seeing: seeing, recording: tally) }
+            }
+            while let last = await tidying.next() { pieces.append(last) }
         }
+        if let failure {
+            await tally.report(to: metrics)
+            await fail(failure)
+            return
+        }
+        guard !abandoned, !wasCancelled(mine) else { return }
         await tally.report(to: metrics)
         // Only when something was tidied, so silence cannot blank the last account.
         if !cleaningRecords.isEmpty {
@@ -451,7 +532,8 @@ public actor DictationPipeline {
 
     /// Recognises one window of the audio, answering `nil` when nothing was said in it.
     private func transcribe(
-        _ audio: AudioSamples, _ window: Range<Int>, recording metrics: any MetricsRecording
+        _ audio: AudioSamples, _ window: Range<Int>, biasedTowards words: [String],
+        recording metrics: any MetricsRecording
     ) async throws -> Transcription? {
         let slice =
             AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
@@ -459,7 +541,9 @@ public actor DictationPipeline {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in
                 do {
-                    return Heard.words(try await speech.transcribe(slice, options: .automatic))
+                    return Heard.words(
+                        try await speech.transcribe(
+                            slice, options: TranscriptionOptions(vocabulary: words)))
                 } catch SpeechEngineError.nothingHeard, SpeechEngineError.audioTooShort {
                     // Only when there is nothing else: alone, silence is refused below.
                     guard window != audio.samples.indices else { throw SpeechEngineError.nothingHeard }
@@ -573,7 +657,7 @@ public actor DictationPipeline {
                 }
             }
             // Either way the dictation has to end, so the next one can begin.
-            guard let method = inserted else {
+            guard let attempt = inserted else {
                 throw TextInsertionError.insertionRejected(
                     description: "the application did not respond")
             }
@@ -582,11 +666,11 @@ public actor DictationPipeline {
             transition(
                 to: .inserted(
                     DictationOutcome(
-                        text: text, method: method, cleanedBy: cleanedBy,
+                        text: text, method: attempt.method, cleanedBy: cleanedBy,
                         insertedInto: insertedInto,
                         insertedIntoIdentifier: insertedIntoIdentifier,
                         spokenFor: spokenFor, changes: changes,
-                        fromRecording: delivery == .copy)))
+                        fromRecording: delivery == .copy, arrival: attempt.arrival)))
             return true
         } catch {
             // The words survive the failure: the interface can still offer them.

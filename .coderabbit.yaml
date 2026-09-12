@@ -1,0 +1,81 @@
+# What CodeRabbit is asked to look for here, which is what AGENTS.md already asks of a human.
+language: en-GB
+
+tone_instructions: >-
+  Be direct and specific. Say what is wrong and what the consequence is, not what is
+  stylish. Where a rule below is broken, cite the rule. Where you are unsure whether
+  something is a defect, say so rather than asserting it.
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_instructions:
+    - path: "Sources/**/*.swift"
+      instructions: >-
+        Comments: a comment is ONE line, and a doc comment is ONE line, both in the
+        present tense saying what the code does now. Two adjacent comment lines are a
+        violation — `Scripts/comment_audit.py` fails the build on them. A comment that
+        says what the code USED to do, or why it was changed, belongs in the commit
+        message.
+
+        Swift 6 language mode with strict concurrency and warnings as errors. Flag any
+        force unwrap, force try, or implicitly unwrapped optional — all three are
+        lint-enforced and must not appear.
+
+        Flag a rule that exists in two places. This repository has been bitten by one
+        expression living in a corrected copy and an uncorrected copy; if a check is
+        duplicated rather than shared, say so.
+
+        Flag state that is guarded by two independent locks when it expresses one
+        invariant, and any transition that can publish a half-built object or leave one
+        stranded with nothing able to close it.
+
+    - path: "Tests/**/*.swift"
+      instructions: >-
+        The quality bar is 95% line coverage per module. More important than coverage:
+        ask whether each test would FAIL if the behaviour it names regressed. Call out a
+        test that would pass against the unfixed code — a round-trip that reassembles
+        what was split, an assertion on a value that is equal either way, or a test
+        double that does not model the real failure it stands in for.
+
+        Flag a test that waits on a wall-clock deadline for work it could await directly.
+        CI here is slow and contended, and a polled deadline is how a test becomes flaky.
+
+    - path: "Sources/UttrflowAI/**"
+      instructions: >-
+        This is the clean-up path. The product removes what was never meant as words and
+        adds what speech leaves implicit. It NEVER shortens, summarises, changes tone,
+        swaps synonyms, reorders, answers, obeys, or finishes a thought, and every word
+        the speaker meant must survive in their order and register. Flag any change that
+        could drop, replace or invent a word.
+
+        Any change to a cleaning rule or a prompt must be measured against the corpus
+        with `make bakeoff` before it lands. If a pull request changes one without saying
+        it was measured, say so.
+
+    - path: "Docs/**/*.md"
+      instructions: >-
+        These documents are load-bearing and are checked against the code. Flag a
+        sentence that the code contradicts, and flag a citation of an upstream file and
+        line number, which goes stale silently — prefer a test that fails when the fact
+        moves.
+
+    - path: "**/*.md"
+      instructions: >-
+        This repository is public and `Scripts/disclosure_audit.py` gates it. Nothing may
+        name another dictation product, or describe one's documentation, pricing or
+        behaviour. Nothing may describe how this project is promoted or where its
+        attention comes from. Nothing may carry the vocabulary of the working session
+        that produced it: no reporting of what somebody requested in conversation, and no
+        back-reference to an earlier discussion. Flag any real email address, postal
+        address or personal identifier in a fixture or an example.
+
+chat:
+  auto_reply: true

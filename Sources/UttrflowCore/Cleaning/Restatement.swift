@@ -10,6 +10,11 @@ public enum Restatement {
     /// How many words back the discarded half may reach.
     public static let reach = 6
 
+    /// Words that head an answer, which a second answer pairs with rather than takes back.
+    public static let answerHeads: Set<String> = [
+        "yes", "yeah", "yep", "no", "nope", "sorry", "thanks", "thank", "okay", "ok",
+    ]
+
     /// Words a restated phrase may not anchor on, because a fresh clause starts with them far more often.
     public static let weakAnchors: Set<String> = [
         "i", "i'm", "i'll", "i've", "i'd", "we", "you", "he", "she", "they", "it", "it's", "that",
@@ -38,22 +43,32 @@ public enum Restatement {
         let earliest = max(0, trigger - reach)
         let firstAfter = draft.shape(at: live[restart]).key
         if NumberWords.isNumber(firstAfter), NumberWords.isNumber(draft.shape(at: live[trigger - 1]).key) {
+            guard !endsSentence(trigger - 1, in: live, of: draft) else { return nil }
             var start = trigger - 1
-            while start > earliest, NumberWords.isNumber(draft.shape(at: live[start - 1]).key) { start -= 1 }
+            while start > earliest, NumberWords.isNumber(draft.shape(at: live[start - 1]).key),
+                !endsSentence(start - 1, in: live, of: draft)
+            {
+                start -= 1
+            }
+            guard !coordinates(start, before: trigger, in: live, of: draft) else { return nil }
             return start
         }
         guard !weakAnchors.contains(firstAfter) else { return nil }
         for candidate in stride(from: trigger - 1, through: earliest, by: -1) {
-            let shape = draft.shape(at: live[candidate])
-            if shape.key == firstAfter {
+            if draft.shape(at: live[candidate]).key == firstAfter {
                 guard holdsContent(candidate..<trigger, in: live, of: draft),
                     !coordinates(candidate, before: trigger, in: live, of: draft)
                 else { return nil }
                 return candidate
             }
-            if shape.endsSentence { return nil }
+            if endsSentence(candidate, in: live, of: draft) { return nil }
         }
         return nil
+    }
+
+    /// Whether the word at `position` closes a sentence, which no anchor may reach past to take words out of the sentence before.
+    private static func endsSentence(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
+        draft.shape(at: live[position]).endsSentence
     }
 
     /// Whether the words the correction would take back hold anything the speaker meant.
@@ -61,10 +76,13 @@ public enum Restatement {
         span.contains { FunctionWords.isContent(draft.shape(at: live[$0]).key) }
     }
 
-    /// Whether the trigger heads each item of a list rather than correcting one, the word before the half it would take back being the trigger over again.
+    /// Whether the trigger heads each item of a list rather than correcting one: the word before the half it would take back is the trigger over again, or an answer this trigger answers ("yes … no …", "thanks … sorry …").
     private static func coordinates(
         _ start: Int, before trigger: Int, in live: [Int], of draft: Draft
     ) -> Bool {
-        start > 0 && draft.shape(at: live[start - 1]).key == draft.shape(at: live[trigger]).key
+        guard start > 0 else { return false }
+        let before = draft.shape(at: live[start - 1]).key
+        let head = draft.shape(at: live[trigger]).key
+        return before == head || (answerHeads.contains(before) && answerHeads.contains(head))
     }
 }

@@ -20,9 +20,15 @@ So 100 ms buys every realistic reading a thousand times over, and truncates only
 were going to fail anyway.
 
 It is also below the ~200 ms at which a person notices a delay, which is the ceiling that matters.
-The read happens after transcription, not before the recording — the pipeline asks for it while
-tidying, so the screen it describes is the one the text is about to go into — so the cost lands in
-the wait the user is already sitting through rather than eating their first word. That makes it
+The read for tidying happens after transcription, not before the recording — the pipeline asks for
+it while tidying, so the screen it describes is the one the text is about to go into — so the cost
+lands in the wait the user is already sitting through rather than eating their first word.
+
+One other read happens earlier, and it is the same one twice over rather than a second cost: the
+pipeline reads the screen once when the key goes down, to warm the tidier for where the words are
+heading, and the recogniser's vocabulary is ranked from that same reading. So a dictation cut into
+five pieces pays for one reading, not five, and the words the recogniser is listening for and the
+screen the tidier resolves against describe the same instant. That makes it
 additive to the time between stopping speaking and seeing text, which is the number this budget is
 defending.
 
