@@ -1,3 +1,4 @@
+import Foundation
 import Synchronization
 import Testing
 
@@ -10,6 +11,7 @@ final class FakePasteboard: Pasteboard {
         var text: String?
         var changeCount = 0
         var writes: [String] = []
+        var pictures: [Data] = []
         var acceptsWrites = true
     }
 
@@ -33,6 +35,15 @@ final class FakePasteboard: Pasteboard {
         }
     }
 
+    /// K4 — a picture write, kept apart from the text ones so a test can tell them apart.
+    func setImage(_ data: Data) {
+        state.withLock { state in
+            state.pictures.append(data)
+            state.changeCount += 1
+            if state.acceptsWrites { state.text = nil }
+        }
+    }
+
     /// Stands in for another app copying something while the paste is in flight.
     func copyFromAnotherApp(_ text: String) {
         state.withLock { state in
@@ -42,6 +53,7 @@ final class FakePasteboard: Pasteboard {
     }
 
     var writes: [String] { state.withLock(\.writes) }
+    var pictures: [Data] { state.withLock(\.pictures) }
 }
 
 /// A ⌘V that can be counted, and made to fail.
