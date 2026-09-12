@@ -64,7 +64,17 @@ been enough.
 | insertion | the dictation fails, carrying the transcript so it can still be offered |
 
 The point is not that a timeout produces a good outcome. It is that it produces *an*
-outcome, so the next dictation can start.
+outcome, so the next dictation can start — and only one. `withStageTimeout` cancels the work
+when the limit wins, not only its timer, because the abandoned work went on having effects
+nobody was waiting for any more: an application that stopped answering Accessibility for
+fifteen seconds used to have the words pasted into whatever window was in front by the time it
+came back, over a clipboard the user had been told to go and use.
+
+So each irreversible act on the insertion path asks first whether its stage is still running —
+the Accessibility write, the pasteboard write before the paste keystroke, and the clipboard
+floor. The floor included: "cannot fail" means the words are never lost, and they are already
+kept under Recent; it does not mean taking somebody's clipboard after they were told the
+dictation failed.
 
 ### 3. Nobody let go at all
 

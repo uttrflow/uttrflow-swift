@@ -35,6 +35,10 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
     public func insert(
         _ text: String, richText: String?
     ) async throws(TextInsertionError) -> InsertionArrival {
+        // The clipboard is the user's, so a stage that has given up must not take it. See `Docs/insertion.md`.
+        guard !Task.isCancelled else {
+            throw .insertionRejected(description: TextInsertion.dictationEnded)
+        }
         pasteboard.setText(text, richText: richText)
         // Thrown onwards with the words left on the clipboard: the floor below would only put them back.
         try keystrokes.sendPaste()
