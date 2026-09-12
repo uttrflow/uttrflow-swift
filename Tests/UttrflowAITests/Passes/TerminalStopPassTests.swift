@@ -28,6 +28,46 @@ struct TerminalStopPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A symbol ends a word without ending a sentence, and the policy here is `.always`.
+    @Test(
+        "finishes a sentence whose last word ends in a symbol",
+        arguments: [
+            ("conversion went up 5%", "conversion went up 5%."),
+            ("the gap is 20\u{00B0}", "the gap is 20\u{00B0}."),
+            ("the cost was $5", "the cost was $5."),
+        ]
+    )
+    func addsStopAfterASymbol(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// The stop belongs inside the quotation it ends, which is also where the typography wants it.
+    @Test(
+        "puts the stop inside a closing quote",
+        arguments: [
+            ("she said \"ship it\"", "she said \"ship it.\""),
+            ("he replied \u{201C}ship it\u{201D}", "he replied \u{201C}ship it.\u{201D}"),
+        ]
+    )
+    func addsStopInsideAQuote(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "takes back a stop it put inside a quote, where the policy wants none",
+        arguments: [("she said \"ship it.\"", "she said \"ship it\""), ("up 5%.", "up 5%")])
+    func takesBackAStopInsideAQuote(input: String, expected: String) {
+        #expect(cleaned(input, by: never) == expected)
+    }
+
+    /// A short message is finished and then unfinished, so the two have to agree on where the stop went.
+    @Test(
+        "leaves a short message as it was, symbol or quote and all",
+        arguments: ["on my way", "up 5%", "she said \"ship it\""])
+    func shortMessageKeepsItsEnding(input: String) {
+        #expect(cleaned(input, by: short) == input)
+    }
+
     @Test("adds nothing when the text holds a line break and the layout keeps newlines")
     func leavesLayout() {
         let code = TerminalStopPass(policy: .always, layout: .preserveNewlines)

@@ -13,6 +13,7 @@ import Testing
 private actor NumberingSpeechEngine: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
     private(set) var sampleCounts: [Int] = []
+    private(set) var biases: [[String]] = []
     private var silentCalls: Set<Int>
     private var failingCalls: Set<Int>
 
@@ -27,6 +28,7 @@ private actor NumberingSpeechEngine: SpeechEngine {
         _ audio: AudioSamples, options: TranscriptionOptions
     ) async throws(SpeechEngineError) -> Transcription {
         sampleCounts.append(audio.samples.count)
+        biases.append(options.vocabulary)
         let call = sampleCounts.count
         if silentCalls.contains(call) { throw .nothingHeard }
         if failingCalls.contains(call) { throw .transcriptionFailed(description: "call \(call)") }
@@ -62,12 +64,113 @@ private final class ShoutingCleaner: TranscriptCleaning, Sendable {
     var seen: [String] { state.withLock(\.seen) }
 }
 
+/// Whether a recognition ran beside a tidy, forced by each side waiting for the other rather than hoped for.
+private final class StageRendezvous: Sendable {
+    private struct State {
+        var recognitionsInFlight = 0
+        var recognitions = 0
+        var besides = 0
+    }
+
+    private let state = Mutex(State())
+
+    /// How many recognitions ran in all, which says the pipeline did the work rather than skipped it.
+    var recognitions: Int { state.withLock(\.recognitions) }
+
+    /// How many tidies had a recognition beside them, which is the property #186 asks for.
+    var tidiesBesideARecognition: Int { state.withLock(\.besides) }
+
+    /// Holds a recognition open until a tidy has noticed it, so a late-scheduled tidy is waited for.
+    func recognition<T: Sendable>(waitsForATidy waits: Bool, doing work: () async -> T) async -> T {
+        let noticed = state.withLock { state -> Int in
+            state.recognitionsInFlight += 1
+            state.recognitions += 1
+            return state.besides
+        }
+        // Waits to be noticed rather than for a tidy to be in flight, which a prompt tidy is only briefly.
+        if waits { await until(within: .seconds(2)) { $0.besides > noticed } }
+        let answer = await work()
+        state.withLock { $0.recognitionsInFlight -= 1 }
+        return answer
+    }
+
+    /// Holds a tidy open until a recognition is running beside it, which a serial pass can never provide.
+    func tidy(waitsForARecognition waits: Bool) async {
+        guard waits else { return }
+        if await until(within: .seconds(2), { $0.recognitionsInFlight > 0 }) {
+            state.withLock { $0.besides += 1 }
+        }
+    }
+
+    /// Polls until the condition holds, answering whether it ever did rather than how long it took.
+    @discardableResult
+    private func until(within limit: Duration, _ holds: @Sendable (borrowing State) -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + limit
+        repeat {
+            if state.withLock({ holds($0) }) { return true }
+            try? await Task.sleep(for: .milliseconds(2))
+        } while ContinuousClock.now < deadline
+        return false
+    }
+}
+
+/// A recogniser that will not finish until a tidy is running beside it, where the pipeline allows one.
+private actor TimedSpeechEngine: SpeechEngine {
+    let kind = SpeechEngineKind.whisperKit
+    private let rendezvous: StageRendezvous
+    private(set) var calls = 0
+
+    init(rendezvous: StageRendezvous) {
+        self.rendezvous = rendezvous
+    }
+
+    func prepare() async throws(SpeechEngineError) {}
+
+    func transcribe(
+        _ audio: AudioSamples, options: TranscriptionOptions
+    ) async throws(SpeechEngineError) -> Transcription {
+        calls += 1
+        let call = calls
+        // The first recognition has no tidy before it to run beside, so waiting for one would only spend the limit.
+        return await rendezvous.recognition(waitsForATidy: call > 1) {
+            Transcription(
+                text: "w\(call) x", detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
+                audioDuration: audio.duration)
+        }
+    }
+}
+
+/// A tidier that will not finish until a recognition is running beside it, where the pipeline allows one.
+private final class TimedCleaner: TranscriptCleaning, Sendable {
+    private let rendezvous: StageRendezvous
+    private let pieces: Int
+    private let calls = Mutex(0)
+
+    init(rendezvous: StageRendezvous, pieces: Int) {
+        self.rendezvous = rendezvous
+        self.pieces = pieces
+    }
+
+    func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
+        let call = calls.withLock { calls in
+            calls += 1
+            return calls
+        }
+        // The last piece has no recognition left to run beside, so waiting for one would only spend the limit.
+        await rendezvous.tidy(waitsForARecognition: call < pieces)
+        return TransformationResult(
+            text: request.transcription.text.uppercased(), producedBy: .foundationModels)
+    }
+
+    func warm(for situation: Situation?) async {}
+}
+
 private final class CollectingInserter: TextInserting, Sendable {
     private let received = Mutex<[String]>([])
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         received.withLock { $0.append(text) }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     var texts: [String] { received.withLock { $0 } }
@@ -126,18 +229,19 @@ extension DictationState {
 struct DictationPipelineEarlyWorkTests {
     private func makePipeline(
         capture: FakeAudioCaptureEngine,
-        speech: NumberingSpeechEngine = NumberingSpeechEngine(),
-        cleaner: ShoutingCleaner = ShoutingCleaner(),
+        speech: any SpeechEngine = NumberingSpeechEngine(),
+        cleaner: any TranscriptCleaning = ShoutingCleaner(),
         inserter: CollectingInserter = CollectingInserter(),
         context: FakeContextEngine = FakeContextEngine(context: .fixture()),
         corrector: any WordCorrecting = NoTextChanges(),
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
-        recordings: any RecordingKeeper = RecordingsNotKept()
+        recordings: any RecordingKeeper = RecordingsNotKept(),
+        speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] }
     ) -> DictationPipeline {
         DictationPipeline(
             capture: capture, speech: speech, cleaner: cleaner, context: context,
-            inserter: inserter, corrector: corrector, metrics: metrics, recordings: recordings,
-            windowing: quick, earlyPoll: .milliseconds(2))
+            inserter: inserter, speechWords: speechWords, corrector: corrector, metrics: metrics,
+            recordings: recordings, windowing: quick, earlyPoll: .milliseconds(2))
     }
 
     /// Waits for the recogniser to have been asked `count` times, or gives up loudly.
@@ -255,7 +359,7 @@ struct DictationPipelineEarlyWorkTests {
     func earlyFailureIsReportedAtTheEnd() async {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
-        let speech = NumberingSpeechEngine(failingCalls: [1, 2])
+        let speech = NumberingSpeechEngine(failingCalls: Set(1...12))
         let pipeline = makePipeline(capture: capture, speech: speech)
 
         await pipeline.startRecording()
@@ -263,7 +367,26 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.failure != nil)
-        #expect(await speech.calls == 2, "the failed piece is tried once more at the end, not skipped")
+        #expect(await speech.calls >= 2, "the failed piece is tried once more at the end, not skipped")
+    }
+
+    @Test("a piece that fails while recording does not stop the later pieces being worked ahead")
+    func earlyFailureLeavesTheRestWorkingAhead() async {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = NumberingSpeechEngine(failingCalls: [1])
+        let pipeline = makePipeline(capture: capture, speech: speech)
+
+        await pipeline.startRecording()
+        await waitForCalls(2, on: speech)
+        #expect(
+            await pipeline.currentState == .recording,
+            "the piece after the failed one is worked ahead, not left to the release")
+        await pipeline.finishRecording()
+
+        let state = await pipeline.currentState
+        #expect(state.outcome?.text == "W3 X W2 X W4 X", "the failed piece is redone in its own place")
+        #expect(await speech.calls == 4, "only the failed piece and the tail are left for the end")
     }
 
     @Test("a retried recording is recognised in windows, so a long one is never one request")
@@ -361,5 +484,55 @@ struct DictationPipelineEarlyWorkTests {
 
         #expect(await speech.calls == 1)
         #expect(await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+    }
+
+    /// The contract VocabularySource's own doc comment claims, which the engine used to break. See #180.
+    @Test("ranks the dictation's words once, however many pieces it is cut into")
+    func ranksTheWordsOncePerDictation() async {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = NumberingSpeechEngine()
+        let rankings = Mutex<[AppContext]>([])
+        let pipeline = makePipeline(capture: capture, speech: speech) { seeing in
+            rankings.withLock { $0.append(seeing) }
+            return ["Uttrflow"]
+        }
+
+        await pipeline.startRecording()
+        await waitForCalls(2, on: speech)
+        await pipeline.finishRecording()
+
+        #expect(await speech.calls == 3)
+        #expect(rankings.withLock(\.count) == 1, "one ranking, not one per piece")
+        #expect(
+            await speech.biases == [["Uttrflow"], ["Uttrflow"], ["Uttrflow"]],
+            "every piece is biased towards the same words")
+        // Ranked against the screen the dictation began on, which is the one the tidier resolves from.
+        #expect(rankings.withLock { $0.first?.applicationName } == AppContext.fixture().applicationName)
+    }
+
+    /// The release pass overlaps the two stages, which a retry is the plainest case of. See #186.
+    @Test("the tidy of one piece runs beside the recognition of the next, and the pieces stay in order")
+    func tidyingRunsBesideTheNextRecognition() async {
+        let rendezvous = StageRendezvous()
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
+        let recordings = FakeRecordingKeeper(
+            waiting: [recording], audioOutcome: .success(Take.threePieces))
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: TimedSpeechEngine(rendezvous: rendezvous),
+            cleaner: TimedCleaner(rendezvous: rendezvous, pieces: 3),
+            recordings: recordings)
+
+        await pipeline.retry(recording.id)
+
+        #expect(
+            await pipeline.currentState.outcome?.text == "W1 X W2 X W3 X",
+            "the pieces are joined in the order they were spoken")
+        #expect(rendezvous.recognitions == 3)
+        // Each stage waits for the other, so a late-scheduled tidy is waited for rather than missed.
+        #expect(
+            rendezvous.tidiesBesideARecognition == 2,
+            "every tidy but the last runs beside the next recognition")
     }
 }

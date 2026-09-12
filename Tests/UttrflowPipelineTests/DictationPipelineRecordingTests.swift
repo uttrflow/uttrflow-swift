@@ -19,18 +19,21 @@ private struct RecordingFakeCleaner: TranscriptCleaning {
 /// A ``TextInserting`` that records what it is handed and answers as scripted.
 private final class RecordingFakeInserter: TextInserting, Sendable {
     private struct State: Sendable {
-        var outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError>
+        var outcome: ScriptedOutcome<InsertionAttempt, TextInsertionError>
         var received: [String] = []
     }
 
     private let state: Mutex<State>
 
-    init(outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError> = .success(.accessibility)) {
+    init(
+        outcome: ScriptedOutcome<InsertionAttempt, TextInsertionError> = .success(
+            InsertionAttempt(.accessibility))
+    ) {
         state = Mutex(State(outcome: outcome))
     }
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
-        let outcome = state.withLock { state -> ScriptedOutcome<TextInsertionMethod, TextInsertionError> in
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
+        let outcome = state.withLock { state -> ScriptedOutcome<InsertionAttempt, TextInsertionError> in
             state.received.append(text)
             return state.outcome
         }
@@ -194,7 +197,7 @@ struct DictationPipelineRecordingTests {
         let recordings = FakeRecordingKeeper(waiting: [recording], audioOutcome: .success(audio))
         let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
         let inserter = RecordingFakeInserter()
-        let clipboard = RecordingFakeInserter(outcome: .success(.clipboard))
+        let clipboard = RecordingFakeInserter(outcome: .success(InsertionAttempt(.clipboard)))
         let pipeline = makePipeline(
             speech: speech, inserter: inserter, clipboard: clipboard, recordings: recordings)
 

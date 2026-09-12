@@ -185,6 +185,50 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.allEntries().first?.timesUsed == 2)
     }
 
+    @Test("counts a whole dictation's entries in one call, each distinct entry once")
+    func countingABatch() async throws {
+        let sandbox = Sandbox()
+        let first = word("Claude", from: .added)
+        let second = word("kubectl", from: .added, used: 4)
+        let untouched = word("Uttrflow", from: .added)
+        try sandbox.seed([first, second, untouched])
+        let store = PersonalDictionaryStore(file: sandbox.file)
+
+        let counted = try await store.recordUse(of: [second.id, first.id, second.id, UUID()])
+
+        #expect(counted.map(\.word) == ["Claude", "kubectl"])
+        #expect(sandbox.onDisk()?.map(\.timesUsed) == [1, 5, 0])
+    }
+
+    /// A folder that refuses every write proves no write was attempted, rather than timing one.
+    @Test("writes nothing when no entry in the batch is there")
+    func countingNothingDoesNotWrite() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([word("Claude", from: .added)])
+        let path = sandbox.folder.path(percentEncoded: false)
+        try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: path)
+        defer { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: path) }
+        let store = PersonalDictionaryStore(file: sandbox.file)
+
+        #expect(try await store.recordUse(of: [UUID(), UUID()]).isEmpty)
+        #expect(try await store.recordUse(of: []).isEmpty)
+    }
+
+    @Test("counts none of a batch the disk refuses, and says so")
+    func countingABatchTheDiskRefuses() async throws {
+        let sandbox = Sandbox()
+        let entry = word("Claude", from: .added)
+        try sandbox.seed([entry])
+        let path = sandbox.folder.path(percentEncoded: false)
+        try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: path)
+        defer { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: path) }
+
+        await #expect(throws: DictionaryStoreError.couldNotWrite) {
+            try await PersonalDictionaryStore(file: sandbox.file).recordUse(of: [entry.id])
+        }
+        #expect(sandbox.onDisk()?.map(\.timesUsed) == [0])
+    }
+
     /// The caller holds a list that has drifted from the disk, and is told so.
     @Test("says nothing was counted when the word is not there")
     func countingAnUnknownWord() async throws {

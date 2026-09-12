@@ -204,6 +204,17 @@ struct PieceJoinerRestatementTests {
                 == "Say sorry to John. Sorry to Marcy too.")
     }
 
+    /// The seam has no sentence to stop the match, so the pair rule is what keeps the first answer's item whole.
+    @Test("keeps both pieces when the trigger answers the head the piece before used")
+    func triggerAnsweringAnotherHeadAcrossTheCut() {
+        #expect(
+            joined(["I said yes to the offer.", "No to the meeting."], .document)
+                == "I said yes to the offer. No to the meeting.")
+        #expect(
+            joined(["Say thanks to John.", "Sorry to Marcy too."], .document)
+                == "Say thanks to John. Sorry to Marcy too.")
+    }
+
     @Test("never opens a paragraph on a piece whose opening it swallowed")
     func aRestatementIsNeverAParagraph() {
         #expect(

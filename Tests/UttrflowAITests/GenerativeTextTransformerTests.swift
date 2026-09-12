@@ -208,6 +208,30 @@ struct GenerativeTextTransformerTests {
         }
     }
 
+    /// The guard is what stands between an invented word and the caret, so a refusal has to reach the caller.
+    @Test(
+        "refuses a rewrite the model invented meaning into, rather than typing it",
+        arguments: [
+            ("we should ship this on Friday", "We should not ship this on Friday."),
+            ("we agreed to that", "We never agreed to that."),
+            ("send the report", "Send the report to the team today, please."),
+        ]
+    )
+    func refusesInventedMeaning(spoken: String, answer: String) async {
+        let model = FakeCleanupModel { _ in answer }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        do {
+            let result = try await sut.transform(request(spoken))
+            Issue.record("expected the rewrite to be refused, got \(result.text)")
+        } catch {
+            guard case .outputRejected = error else {
+                Issue.record("expected outputRejected, got \(error)")
+                return
+            }
+        }
+    }
+
     @Test("surfaces a model failure rather than returning the raw transcript silently")
     func surfacesModelFailure() async {
         let model = FakeCleanupModel()

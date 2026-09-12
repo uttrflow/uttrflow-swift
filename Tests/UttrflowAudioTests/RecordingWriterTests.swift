@@ -20,7 +20,7 @@ struct RecordingWriterTests {
 
     /// The streamed file and the one-shot encoder describe the same audio, so they must agree to the byte.
     @Test("writes the same bytes the encoder would, block by block")
-    func matchesTheEncoder() throws {
+    func matchesTheEncoder() async throws {
         let sandbox = Sandbox()
         let url = sandbox.file("take.wav")
         let samples: [Float] = (0..<5_000).map { sin(Float($0) * 0.03) * 0.4 }
@@ -31,6 +31,7 @@ struct RecordingWriterTests {
         writer.append([])
         writer.append(Array(samples[4_096...]))
         let recording = writer.finish()
+        await writer.drained()
 
         #expect(try Data(contentsOf: url) == WAVEncoder.encode(.canonical(samples)))
         #expect(recording.duration == .seconds(5_000.0 / 16_000.0))
@@ -38,12 +39,13 @@ struct RecordingWriterTests {
     }
 
     @Test("a finished file reads back through the audio reader")
-    func readsBack() throws {
+    func readsBack() async throws {
         let sandbox = Sandbox()
         let url = sandbox.file("take.wav")
         let writer = try RecordingWriter(url: url)
         writer.append(Array(repeating: 0.25, count: 1_600))
         _ = writer.finish()
+        await writer.drained()
 
         let read = try AudioFileReader.read(contentsOf: url)
         #expect(read.samples.count == 1_600)
@@ -62,13 +64,14 @@ struct RecordingWriterTests {
     }
 
     @Test("abandoning deletes the file")
-    func abandonDeletes() throws {
+    func abandonDeletes() async throws {
         let sandbox = Sandbox()
         let url = sandbox.file("take.wav")
         let writer = try RecordingWriter(url: url)
         writer.append([0.1])
         writer.abandon()
         writer.abandon()
+        await writer.drained()
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 

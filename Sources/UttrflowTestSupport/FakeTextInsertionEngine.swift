@@ -8,22 +8,26 @@ public actor FakeTextInsertionEngine: TextInsertionEngine {
 
     private var canInsertResult: Bool
     private var insertOutcome: ScriptedOutcome<Void, TextInsertionError>
+    private var arrival: InsertionArrival
 
     public init(
         method: TextInsertionMethod = .accessibility,
         canInsert: Bool = true,
-        insertOutcome: ScriptedOutcome<Void, TextInsertionError> = .ok
+        insertOutcome: ScriptedOutcome<Void, TextInsertionError> = .ok,
+        arrival: InsertionArrival = .notReported
     ) {
         self.method = method
         self.canInsertResult = canInsert
         self.insertOutcome = insertOutcome
+        self.arrival = arrival
     }
 
     public func canInsert() async -> Bool { canInsertResult }
 
-    public func insert(_ text: String) async throws(TextInsertionError) {
+    public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         await insertedText.append(text)
         try insertOutcome.resolve()
+        return arrival
     }
 
     // MARK: Scripting
@@ -34,5 +38,9 @@ public actor FakeTextInsertionEngine: TextInsertionEngine {
 
     public func setInsertOutcome(_ outcome: ScriptedOutcome<Void, TextInsertionError>) {
         insertOutcome = outcome
+    }
+
+    public func setArrival(_ value: InsertionArrival) {
+        arrival = value
     }
 }

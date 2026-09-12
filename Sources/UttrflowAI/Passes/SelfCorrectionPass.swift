@@ -15,7 +15,7 @@ public struct SelfCorrectionPass: CleaningPass {
                 position += 1
                 continue
             }
-            for index in live[discarded] { draft.remove(at: index, by: Self.id) }
+            for index in live[discarded] { draft.remove(at: index, by: Self.id, carryingMarks: true) }
             live.removeSubrange(discarded)
             position = discarded.lowerBound
         }

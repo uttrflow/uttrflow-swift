@@ -97,6 +97,23 @@ struct MeaningPreservationGuardTests {
         accepted(original, rewritten)
     }
 
+    /// A number invented in words is the same invention as one invented in digits; only digits were read before.
+    @Test(
+        "rejects a number the speaker never said, written as a word",
+        arguments: [
+            ("we need more chairs for the room", "We need twenty more chairs for the room."),
+            ("I'll be late to the meeting", "I'll be ten minutes late to the meeting."),
+        ]
+    )
+    func rejectsInventedNumberInWords(original: String, rewritten: String) {
+        rejected(original, rewritten)
+    }
+
+    @Test("accepts a spoken number the rewrite left in words")
+    func acceptsNumberLeftInWords() {
+        accepted("I'll be twenty minutes late", "I'll be twenty minutes late.")
+    }
+
     @Test("accepts a number the speaker already said in digits")
     func acceptsExistingDigits() {
         accepted("I'll be 20 minutes late", "I'll be 20 minutes late.")
@@ -323,6 +340,57 @@ struct GrammarGuardTests {
         #expect(verdict(kept, rewritten).isAccepted)
     }
 
+    // MARK: What the model added
+
+    /// A negation the speaker never said reverses the sentence, so it is refused the way a dropped one is.
+    @Test(
+        "rejects a rewrite that added a negation",
+        arguments: [
+            ("we should ship this on Friday", "We should not ship this on Friday."),
+            ("we agreed to that", "We never agreed to that."),
+            ("she wants the early slot", "She doesn't want the early slot."),
+        ]
+    )
+    func rejectsAddedNegation(kept: String, rewritten: String) {
+        #expect(!verdict(kept, rewritten).isAccepted)
+    }
+
+    /// Words the speaker did not say are an invention however few they are, and a short clause fits inside the growth cap.
+    @Test(
+        "rejects content words the rewrite invented",
+        arguments: [
+            ("send the report", "Send the report to the team today, please."),
+            ("i will call you", "I will call you tomorrow morning."),
+        ]
+    )
+    func rejectsInventedContentWords(kept: String, rewritten: String) {
+        #expect(!verdict(kept, rewritten).isAccepted)
+    }
+
+    /// The echo is the field's text before the caret, so its negators have no kept-side counterpart by construction.
+    @Test("accepts a faithful rewrite when the caret echo carries a negation the speaker did not say")
+    func acceptsANegationFromTheCaretEcho() {
+        #expect(
+            sut.verdict(
+                draft: Draft(text: "we should ship this on Friday"),
+                rewritten: "We should ship this on Friday.", echoed: "I don't think"
+            ).isAccepted)
+    }
+
+    /// A contraction is one negator whichever way it is written, so expanding or closing it adds nothing.
+    @Test(
+        "accepts a negating contraction rewritten in the other form, in both directions",
+        arguments: [
+            ("she doesnt want the early slot", "She does not want the early slot."),
+            ("she does not want the early slot", "She doesn't want the early slot."),
+            ("we can not do that today", "We cannot do that today."),
+            ("we cannot do that today", "We can not do that today."),
+        ]
+    )
+    func acceptsContractionEitherWay(kept: String, rewritten: String) {
+        #expect(verdict(kept, rewritten).isAccepted)
+    }
+
     @Test("rejects a rewrite that reworded too many small words in one sentence")
     func rejectsFunctionChurn() {
         #expect(
@@ -437,7 +505,7 @@ struct GrammarGuardTests {
 
     /// A reading is a word, so a spelling that merely contains one is not the reading that was offered.
     @Test("refuses a reading that only matches inside a longer word")
-    func refusesAReadingInsideALongerWord() {
+    func refusesAReadingInsideALongerWordWhereItStands() {
         let offered = [DoubtfulSpan(heard: "mark", confidence: 0.31, candidates: ["Mark"])]
         let verdict = sut.verdict(
             draft: draft("the mark closed early"), rewritten: "The market closed early.",
@@ -520,6 +588,46 @@ struct GrammarGuardTests {
                 rewritten: "20 minutes, then 100 more.") == nil)
     }
 
+    /// Closing a run up crosses the spaces between words, so a reading must land on whole ones.
+    @Test("refuses a heard run found only across the middle of other words")
+    func refusesAReadingInsideOtherWords() {
+        let offered = [DoubtfulSpan(heard: "our time", confidence: 0.3, candidates: ["hour time"])]
+        #expect(
+            sut.verdict(
+                draft: draft("we wasted our time"), rewritten: "We wasted sour times.", offering: offered
+            ) == .rejected(reason: "the rewrite read 'our time' as a word it was not offered"))
+        #expect(!MeaningPreservationGuard.isWritten("our time", in: "sour times"))
+        #expect(!MeaningPreservationGuard.isWritten("our time", in: "four times"))
+        #expect(MeaningPreservationGuard.isWritten("payment sheet", in: "in PaymentSheet."))
+    }
+
+    /// A word edge is a camel hump or a mark as well as a space, so a run written into either is still written.
+    @Test("accepts a heard run written at any word edge, inflected or not")
+    func acceptsAReadingAtEveryWordEdge() {
+        for line in [
+            "the PaymentSheet's layout", "open the payment sheets", "call openPaymentSheet now",
+            "PaymentSheet.present()", "the payment_sheet row", "the payment sheet",
+        ] {
+            #expect(MeaningPreservationGuard.isWritten("payment sheet", in: line), "\(line)")
+        }
+    }
+
+    @Test("refuses a heard run that is only part of a longer word")
+    func refusesAReadingInsideALongerWord() {
+        for line in ["the repayment sheet", "the payments heeded", "the paymentsheetrow"] {
+            #expect(!MeaningPreservationGuard.isWritten("payment sheet", in: line), "\(line)")
+        }
+    }
+
+    /// A reading is offered for one run of words, not as leave to write anything beside it.
+    @Test("refuses a word nobody offered, written next to a reading that was")
+    func refusesAnInventionBesideAnOfferedReading() {
+        let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple"])]
+        let verdict = sut.verdict(
+            draft: draft("i ate an apple"), rewritten: "I ate an Apple pie.", offering: offered)
+        #expect(verdict == .rejected(reason: "the rewrite invented 'pie'"))
+    }
+
     @Test("judges nothing about readings when none were offered")
     func judgesNothingWithoutReadings() {
         #expect(
@@ -593,5 +701,171 @@ struct LayoutGuardTests {
             MeaningPreservationGuard.layoutVerdict(
                 kept: "one milk two eggs", rewritten: "one milk\ntwo eggs"
             ).isAccepted)
+    }
+}
+
+/// The guard reads a rewrite in the order it was written, so a permutation is not a tidy-up.
+@Suite("The guard keeps the order the speaker spoke in")
+struct GuardOrderTests {
+    /// The guard under test.
+    private let sut = MeaningPreservationGuard()
+
+    /// The grammar checks run only against a draft, so every case here supplies one.
+    private func verdict(_ kept: String, _ rewritten: String) -> GuardVerdict {
+        sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+    }
+
+    /// Reordering clauses is Tier 3, and the same words in another order say the opposite thing.
+    @Test("refuses a swap that reverses which thing was approved")
+    func refusesSwappedVerbs() {
+        #expect(
+            verdict(
+                "we approved the design but rejected the budget",
+                "We rejected the design but approved the budget."
+            ) == .rejected(reason: "the rewrite moved 'design'"))
+    }
+
+    /// Every other check is a count, and a permutation changes no count.
+    @Test("refuses a swap that reverses who sent the token")
+    func refusesSwappedRoles() {
+        #expect(
+            !verdict("the server sends the client a token", "The client sends the server a token.")
+                .isAccepted)
+    }
+
+    /// The order rule must not fire on the tidying the product exists for.
+    @Test("keeps a rewrite that tidied the words where they stood")
+    func keepsOrderedTidying() {
+        #expect(
+            verdict("the server sends the client a token", "The server sends the client a token.")
+                .isAccepted)
+        #expect(
+            verdict(
+                "we approved the design but rejected the budget",
+                "We approved the design, but rejected the budget."
+            )
+            .isAccepted)
+    }
+
+    /// One identifier may carry several spoken words, so a place may be matched more than once.
+    @Test("lets several spoken words land on the one identifier that spells them")
+    func keepsWordsSharingAnIdentifier() {
+        #expect(
+            verdict(
+                "call fetch invoices before the sheet appears", "Call fetchInvoices before the sheet appears"
+            )
+            .isAccepted)
+    }
+}
+
+/// A kept word survives as another form of itself, never as a different word that begins the same way.
+@Suite("The guard reads a form change, not a family resemblance")
+struct GuardMatchStrengthTests {
+    /// The guard under test.
+    private let sut = MeaningPreservationGuard()
+
+    /// The grammar checks run only against a draft, so every case here supplies one.
+    private func verdict(_ kept: String, _ rewritten: String) -> GuardVerdict {
+        sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+    }
+
+    /// Named at the helper as well, because a verdict says only that some word went.
+    private func survives(_ word: String, as candidate: String) -> Bool {
+        MeaningPreservationGuard.grammarTokens(candidate)
+            .contains { MeaningPreservationGuard.survives(word, as: $0) }
+    }
+
+    /// "confirm" and "confuse" share three characters and no morphology; a different word is a replacement.
+    @Test("refuses a near word sharing only the first three characters")
+    func refusesNearWord() {
+        #expect(
+            verdict("can you confirm the booking", "Can you confuse the booking?")
+                == .rejected(reason: "the rewrite lost or replaced 'confirm'"))
+        #expect(!survives("confirm", as: "confuse"))
+    }
+
+    /// Changing a name is Tier 3, and two names can begin alike.
+    @Test("refuses a name replaced by one that begins the same way")
+    func refusesNearName() {
+        #expect(
+            verdict("tell Aarav about the change", "Tell Aaron about the change.")
+                == .rejected(reason: "the rewrite lost or replaced 'Aarav'"))
+        #expect(!survives("aarav", as: "Aaron"))
+    }
+
+    /// Every word of the rewrite is a place a kept word may land, function words included.
+    @Test("refuses a content word that matched only a small word beside it")
+    func refusesMatchOnFunctionWord() {
+        #expect(!verdict("send me the forecast for tuesday", "Send me the food for Tuesday.").isAccepted)
+        #expect(!survives("forecast", as: "for"))
+        #expect(!survives("theory", as: "the"))
+        #expect(!survives("android", as: "and"))
+    }
+
+    /// A name inside a longer word is not that name, however many of its letters are there.
+    @Test("refuses a name swallowed by an unrelated longer word")
+    func refusesNameInsideAnotherWord() {
+        #expect(!verdict("ask ravi about the release", "Ask about the gravity of the release.").isAccepted)
+        #expect(!survives("ravi", as: "gravity"))
+    }
+
+    /// The identifier rule is why a spelled-in word matches at all, and it reads the humps.
+    @Test("keeps a word spelled into an identifier, in either kind of identifier")
+    func keepsSpelledIdentifiers() {
+        #expect(survives("invoices", as: "fetchInvoices"))
+        #expect(survives("user", as: "get_user"))
+    }
+
+    /// A suffix repaired in either direction is a form change, and only one direction was ever covered.
+    @Test("keeps a plural repaired either way round, which is a form change")
+    func keepsFormChangeBothWays() {
+        #expect(survives("developers", as: "developer"))
+        #expect(survives("developer", as: "developers"))
+        #expect(survives("address", as: "addressed"))
+        #expect(survives("studies", as: "study"))
+        #expect(survives("stop", as: "stopped"))
+    }
+
+    /// An identifier the rewrite wrote counts as said only when every part of it was said, in that order.
+    @Test("accepts an identifier only when its every part was said, in order")
+    func judgesAnIdentifierByItsParts() {
+        let said = MeaningPreservationGuard.grammarTokens("call fetch invoices for the user")
+        #expect(MeaningPreservationGuard.isSpelled("fetchInvoices", from: said))
+        #expect(MeaningPreservationGuard.isSpelled("fetch_invoices", from: said))
+        #expect(!MeaningPreservationGuard.isSpelled("fetchPayments", from: said))
+        #expect(!MeaningPreservationGuard.isSpelled("invoicesFetch", from: said))
+        #expect(!MeaningPreservationGuard.isSpelled("fetch", from: said))
+        #expect(MeaningPreservationGuard.identifierParts("PaymentSheet's") == ["payment", "sheets"])
+        #expect(
+            verdict(
+                "call fetch invoices before the sheet appears", "Call fetchPayments before the sheet appears")
+                != .accepted)
+        #expect(
+            verdict(
+                "call fetch invoices before the sheet appears",
+                "Call fetchInvoicesNow before the sheet appears")
+                == .rejected(reason: "the rewrite invented 'fetchInvoicesNow'"))
+    }
+
+    /// "cannot" is named as "can not" written together; a word merely beginning with another is still a different word.
+    @Test("refuses a word that begins with another when the pair is not a named one-word spelling")
+    func refusesUnlistedPrefixPair() {
+        #expect(verdict("we can not do that today", "We cannot do that today.").isAccepted)
+        #expect(!survives("cancel", as: "can"))
+        #expect(!survives("cannon", as: "cannot"))
+        #expect(
+            verdict("we can not go today", "We cannon go today.")
+                == .rejected(reason: "the rewrite lost or replaced 'cannot'"))
+        #expect(
+            verdict("cancel the order today", "Can the order today.")
+                == .rejected(reason: "the rewrite lost or replaced 'cancel'"))
+        #expect(
+            MeaningPreservationGuard.grammarTokens("we can note that").map(\.matching) == [
+                "we", "can", "note", "that",
+            ])
+        #expect(
+            MeaningPreservationGuard.grammarTokens("we can. Not now").map(\.matching) == [
+                "we", "can", "not", "now",
+            ])
     }
 }

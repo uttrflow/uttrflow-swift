@@ -53,6 +53,24 @@ public enum EvaluationCorpus {
             expected: "So basically the thing is, we need more time."
         ),
         .init(
+            id: "filler-carrying-a-question-mark", category: .everyday,
+            spoken: "so are we shipping today, uh?",
+            expected: "So are we shipping today?",
+            mustEndWith: "?"
+        ),
+        .init(
+            id: "filler-carrying-an-exclamation-mark", category: .everyday,
+            spoken: "that is amazing uh!",
+            expected: "That is amazing!",
+            mustEndWith: "!"
+        ),
+        .init(
+            id: "filler-between-commas", category: .everyday,
+            spoken: "we should, uh, ship it today",
+            expected: "We should ship it today.",
+            mustEndWith: "."
+        ),
+        .init(
             id: "no-punctuation", category: .everyday,
             spoken: "the build passed everything looks good ship it",
             expected: "The build passed. Everything looks good. Ship it."
@@ -125,6 +143,19 @@ public enum EvaluationCorpus {
             expected: "There's no room, no room at all for another one.",
             mustKeep: ["room"]
         ),
+        // A doubled function word is the stammer; a doubled content word in the same breath is the emphasis.
+        .init(
+            id: "emphatic-double-kept", category: .everyday,
+            spoken: "the the plan is very very late and much much worse than last week",
+            expected: "The plan is very very late and much much worse than last week.",
+            mustKeep: ["very very", "much much"]
+        ),
+        .init(
+            id: "doubled-place-name-kept", category: .everyday,
+            spoken: "we flew to bora bora last year for the wedding",
+            expected: "We flew to Bora Bora last year for the wedding.",
+            mustKeep: ["Bora Bora"]
+        ),
         .init(
             id: "coordinated-apology-kept", category: .everyday,
             spoken: "say sorry to john sorry to marcy too",
@@ -185,6 +216,12 @@ public enum EvaluationCorpus {
             mustNotAdd: ["percent"]
         ),
         .init(
+            id: "money", category: .everyday,
+            spoken: "the taxi cost five dollars",
+            expected: "The taxi cost 5 dollars.",
+            mustKeep: ["taxi", "5", "dollars"]
+        ),
+        .init(
             id: "dates", category: .everyday,
             spoken: "the twenty fifth of March",
             expected: "The 25 March.",
@@ -242,6 +279,24 @@ public enum EvaluationCorpus {
             spoken: "the gateway listens on port eight thousand eighty in staging",
             expected: "The gateway listens on port 8080 in staging.",
             mustKeep: ["8080", "staging"]
+        ),
+        .init(
+            id: "extension-repeated-digits", category: .technical,
+            spoken: "you can reach me on extension four four two four four two",
+            expected: "You can reach me on extension 442442.",
+            mustKeep: ["442442"]
+        ),
+        .init(
+            id: "door-code-repeated-digits", category: .technical,
+            spoken: "the door code is four seven four seven",
+            expected: "The door code is four seven four seven.",
+            mustKeep: ["four seven four seven"]
+        ),
+        .init(
+            id: "card-group-repeated-digits", category: .technical,
+            spoken: "the test card number starts four two four two four two four two",
+            expected: "The test card number starts four two four two four two four two.",
+            mustKeep: ["four two four two four two four two"]
         ),
     ]
 
@@ -356,7 +411,8 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.tinyspeck.slackmacgap",
                 documentName: "Marcie Alvarez (DM) — Northwind"
             ),
-            mustNotAdd: ["Marcy"]
+            mustNotAdd: ["Marcy"],
+            doubtful: ["marcy"]
         ),
         .init(
             id: "notes-name-spelling", category: .contextual,
@@ -368,7 +424,22 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.apple.Notes",
                 documentName: "Errands"
             ),
-            mustNotAdd: ["Marcie"]
+            mustNotAdd: ["Marcie"],
+            doubtful: ["marcy"]
+        ),
+        // The doubted name is said again later, so only the run's own place can say what was written for it.
+        .init(
+            id: "notes-name-said-twice", category: .contextual,
+            spoken: "marcy said the printer quote came in under budget so i told marcy to go ahead",
+            expected: "Marcy said the printer quote came in under budget, so I told Marcy to go ahead.",
+            mustKeep: ["Marcy", "printer"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Office supplies"
+            ),
+            mustNotAdd: ["Marcie"],
+            doubtful: ["marcy"]
         ),
 
         // Pair three: two spoken words are one identifier only because the window title says so.
@@ -411,7 +482,24 @@ public enum EvaluationCorpus {
                 documentName: "settings_store.py — uttrflow",
                 selectedText: "setUserPrefs"
             ),
-            mustNotAdd: ["set user prefs", "savePreferences"]
+            mustNotAdd: ["set user prefs", "savePreferences"],
+            doubtful: ["set user prefs"]
+        ),
+        // The same words come back as prose, which the identifier on screen does not license.
+        .init(
+            id: "editor-identifier-then-prose", category: .contextual,
+            spoken: "we call set user prefs at launch so the settings page never has to set user prefs again",
+            expected:
+                "We call setUserPrefs at launch, so the settings page never has to set user prefs again.",
+            mustKeep: ["setUserPrefs", "launch"],
+            context: AppContext(
+                applicationName: "Visual Studio Code",
+                bundleIdentifier: "com.microsoft.VSCode",
+                documentName: "settings_store.py — uttrflow",
+                selectedText: "setUserPrefs"
+            ),
+            mustNotAdd: ["savePreferences"],
+            doubtful: ["set user prefs"]
         ),
 
         // Describing a function in a chat window is a message, so any keyword means the model answered it.
@@ -513,6 +601,36 @@ public enum EvaluationCorpus {
             destination: .document,
             mustBeginWith: "The",
             mustEndWith: "."
+        ),
+
+        .init(
+            id: "document-sentence-ending-in-a-percentage", category: .contextual,
+            spoken: "conversion went up five percent",
+            expected: "Conversion went up 5%.",
+            mustKeep: ["5"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Board pack.docx",
+                precedingText: ""
+            ),
+            mustNotAdd: ["percent"],
+            destination: .document,
+            mustEndWith: "%."
+        ),
+        .init(
+            id: "document-sentence-ending-in-a-close-quote", category: .contextual,
+            spoken: "the brief says open quote ship on friday close quote",
+            expected: "The brief says \"ship on Friday.\"",
+            mustKeep: ["Friday"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Board pack.docx",
+                precedingText: ""
+            ),
+            destination: .document,
+            mustBeginWith: "The"
         ),
 
         // Three or more per destination, so the bake-off can score each place's prompt block on its own.

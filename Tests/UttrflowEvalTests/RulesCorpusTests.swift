@@ -10,14 +10,20 @@ struct RulesCorpusTests {
     /// Every case the passes are answerable for; one leaving this list is a regression, not a tuning choice.
     static let rulesMustPass: Set<String> = [
         "false-start", "self-correction", "filler-heavy", "pronoun-i", "number-words", "short-yes",
+        "filler-carrying-a-question-mark", "filler-carrying-an-exclamation-mark",
+        "filler-between-commas",
         "repeated-phrase", "i-mean-correction", "actually-between-numbers", "false-no-stays",
-        "coordinated-list-kept", "repeated-frame-kept", "coordinated-apology-kept", "spoken-comma",
-        "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "period-as-a-word", "spoken-period",
+        "coordinated-list-kept", "repeated-frame-kept", "emphatic-double-kept",
+        "doubled-place-name-kept", "coordinated-apology-kept", "spoken-comma",
+        "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "money",
+        "period-as-a-word", "spoken-period",
         "period-after-new-line", "dates", "ordinal-not-date",
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",
+        "extension-repeated-digits", "door-code-repeated-digits", "card-group-repeated-digits",
         "dictated-question", "dictated-instruction", "injection", "asks-for-help", "sounds-like-a-prompt",
         "message-two-sentences-no-stop", "mid-sentence-continues-lower-case", "spreadsheet-cell-no-stop",
         "document-sentence-with-stop", "document-list-only-when-spoken", "document-sentence-not-a-list",
+        "document-sentence-ending-in-a-percentage", "document-sentence-ending-in-a-close-quote",
         "spreadsheet-number-in-cell", "spreadsheet-percentage-in-cell", "sql-editor-prose-stays-prose",
         "sql-editor-numerals", "code-editor-line-break-preserved", "code-editor-numeral-no-stop",
         "message-short-no-stop", "email-greeting-kept", "email-continues-mid-sentence",
@@ -52,7 +58,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 20)
+        #expect(named.count == 22)
         #expect(named.subtracting(Self.modelOnly).isSubset(of: Self.rulesMustPass))
         #expect(Self.modelOnly.isSubset(of: named))
         #expect(Self.modelOnly.isDisjoint(with: Self.rulesMustPass))
@@ -95,6 +101,19 @@ struct RulesCorpusTests {
         }
     }
 
+    /// Similarity alone passes a run with one copy gone, so each case must name the whole run it keeps.
+    @Test(
+        "fails a repeated-digits case that loses half its run",
+        arguments: [
+            ("door-code-repeated-digits", "The door code is four seven."),
+            ("card-group-repeated-digits", "The test card number starts four two four two."),
+            ("extension-repeated-digits", "You can reach me on extension 442."),
+        ])
+    func halvedRunFails(id: String, halved: String) throws {
+        let testCase = try #require(EvaluationCorpus.all.first { $0.id == id })
+        #expect(!Scorer.score(halved, against: testCase).passed)
+    }
+
     @Test("names only cases that exist")
     func namesRealCases() {
         let ids = Set(EvaluationCorpus.all.map(\.id))
@@ -113,6 +132,7 @@ struct RulesCorpusTests {
             ("time-of-day", "The dentist moved my appointment to 2:30 pm tomorrow."),
             ("port-number", "The gateway listens on port 8080 in staging."),
             ("percentage", "Conversion dropped by 5% after the redesign."),
+            ("money", "The taxi cost 5 dollars."),
             ("actually-between-numbers", "Let's get coffee at three."),
             ("period-as-a-word", "The trial period ended last week."),
             ("spoken-period", "Ship it."),

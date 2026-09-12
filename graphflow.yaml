@@ -5,9 +5,14 @@ gate:
   command: "make verify"
 
 vcs:
-  # This repository has no beta branch: releases are cut on a release branch and merged to main.
+  # One long-lived branch. There is no beta branch here and never was one.
   integration_branch: main
   release_branch: main
+
+release:
+  method: a tag on main; a tag with anything after the version is a prerelease
+  by: operator
+  note: agents never tag and never release; the task ends when the PR is merged
 
 issues:
   provider: github

@@ -13,7 +13,7 @@ public struct TextInsertionCoordinator: TextInserting {
 
     /// Inserts `text` and reports how it got there, throwing only when every strategy refused.
     @discardableResult
-    public func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    public func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         try await insert(text, richText: nil)
     }
 
@@ -21,18 +21,19 @@ public struct TextInsertionCoordinator: TextInserting {
     @discardableResult
     public func insert(
         _ text: String, richText: String?
-    ) async throws(TextInsertionError) -> TextInsertionMethod {
+    ) async throws(TextInsertionError) -> InsertionAttempt {
         let usable =
             richText == nil ? strategies : strategies.filter { $0.method != .accessibility }
         let outcome = await FallbackRunner.firstSuccess(among: usable) { strategy in
             guard await strategy.canInsert() else { throw TextInsertionError.noFocusedTextField }
-            try await strategy.insert(text, richText: richText)
-            return strategy.method
+            // Passed through rather than dropped, so what the strategy found out survives the fallback.
+            let arrival = try await strategy.insert(text, richText: richText)
+            return InsertionAttempt(strategy.method, arrival: arrival)
         }
 
         switch outcome {
-        case .succeeded(let method):
-            return method
+        case .succeeded(let attempt, _):
+            return attempt
         case .exhausted(let errors):
             // The last strategy's reason is the most specific; the earlier refusals are expected.
             throw errors.compactMap { $0 as? TextInsertionError }.last ?? .clipboardUnavailable

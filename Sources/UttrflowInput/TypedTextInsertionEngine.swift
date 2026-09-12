@@ -24,8 +24,10 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
     /// Anything but ourselves; Electron apps expose no focused element and still take typing.
     public func canInsert() async -> Bool { !focus.isSelfFrontmost() }
 
-    public func insert(_ text: String) async throws(TextInsertionError) {
+    /// Answers `.notReported`: a key event posted is not a character accepted, and nothing reads it back.
+    public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         try typist.type(text)
+        return .notReported
     }
 }
 

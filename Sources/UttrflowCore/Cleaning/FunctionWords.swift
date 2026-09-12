@@ -8,7 +8,7 @@ public enum FunctionWords {
     /// Whether the word carries meaning, so a restatement may be anchored on it or replace it.
     public static func isContent(_ word: String) -> Bool { !word.isEmpty && !holds(word) }
 
-    /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns; `MeaningPreservationGuard` keeps its own copy until a follow-up shares this one.
+    /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns; dialect stays content.
     public static let all: Set<String> = [
         "a", "an", "the",
         "of", "in", "on", "at", "to", "for", "with", "by", "from", "about", "into", "onto", "over",
