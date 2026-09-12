@@ -104,24 +104,35 @@ struct Clean: AsyncParsableCommand {
 
     /// Where each named run falls, so the same word said elsewhere in the transcript stays certain.
     private func unsureWords(in spoken: [String]) throws -> Set<Int> {
-        var marked: Set<Int> = []
-        for run in doubtful {
-            let wanted = run.split(whereSeparator: \.isWhitespace).map(String.init)
-            guard !wanted.isEmpty else { continue }
-            // Naming a run twice marks its next occurrence, so a repeated run is sayable one occurrence at a time.
-            let starts = spoken.count < wanted.count ? 0..<0 : 0..<(spoken.count - wanted.count + 1)
-            let start = starts.first {
-                Array(spoken[$0..<($0 + wanted.count)]) == wanted
-                    && marked.isDisjoint(with: $0..<($0 + wanted.count))
-            }
-            guard let start else {
-                throw ValidationError(
-                    "The transcript has no unmarked run reading '\(run)', so it cannot be one the recogniser "
-                        + "was unsure of. It has to match word for word.")
-            }
-            marked.formUnion(start..<(start + wanted.count))
+        let runs = doubtful.map { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
+            .filter { !$0.isEmpty }
+        if let marked = placing(runs[...], in: spoken, around: []) { return marked }
+        if let missing = runs.first(where: { starts(of: $0, in: spoken).isEmpty }) {
+            throw ValidationError(
+                "The transcript does not read '\(missing.joined(separator: " "))' anywhere, so that cannot be "
+                    + "a run the recogniser was unsure of. It has to match word for word.")
         }
-        return marked
+        throw ValidationError(
+            "Every named run is in the transcript, but they cannot all be given an occurrence of their own. "
+                + "Name a run once per occurrence you mean.")
+    }
+
+    /// One occurrence per named run, none overlapping, searched so the order the runs were given cannot decide it.
+    private func placing(
+        _ runs: ArraySlice<[String]>, in spoken: [String], around taken: Set<Int>
+    ) -> Set<Int>? {
+        guard let run = runs.first else { return taken }
+        for start in starts(of: run, in: spoken) where taken.isDisjoint(with: start..<(start + run.count)) {
+            let next = taken.union(start..<(start + run.count))
+            if let marked = placing(runs.dropFirst(), in: spoken, around: next) { return marked }
+        }
+        return nil
+    }
+
+    /// Every place the transcript reads this run, whether or not another run has claimed it.
+    private func starts(of run: [String], in spoken: [String]) -> [Int] {
+        guard spoken.count >= run.count else { return [] }
+        return (0...(spoken.count - run.count)).filter { Array(spoken[$0..<($0 + run.count)]) == run }
     }
 
     /// The runs the sources offer a reading for, recomputed here so the printed lines are the ones the model is given.
