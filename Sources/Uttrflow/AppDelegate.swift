@@ -1748,9 +1748,9 @@ private struct StoreCounters: DictationLearning {
     let dictionary: PersonalDictionaryStore
     let snippets: SnippetStore
 
-    func recordUse(ofEntry id: UUID) async throws(DictationChangeError) {
+    func recordUse(ofEntries ids: [UUID]) async throws(DictationChangeError) {
         do {
-            _ = try await dictionary.recordUse(of: id)
+            _ = try await dictionary.recordUse(of: ids)
         } catch {
             throw .storeRefused
         }
