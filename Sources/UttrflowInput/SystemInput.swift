@@ -141,6 +141,14 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
             == ProcessInfo.processInfo.processIdentifier
     }
 
+    /// The same in-process read `isSelfFrontmost` makes, so naming the destination costs no message to another app.
+    public func frontmostApplication() -> InsertionDestination? {
+        guard let application = NSWorkspace.shared.frontmostApplication else { return nil }
+        return InsertionDestination(
+            applicationName: application.localizedName,
+            bundleIdentifier: application.bundleIdentifier)
+    }
+
     /// The focused element, asked system-wide then per-application. See `Docs/insertion.md`.
     private func focusedElement() -> AXUIElement? {
         guard AXIsProcessTrusted() else { return nil }

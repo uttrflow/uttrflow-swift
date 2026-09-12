@@ -78,8 +78,11 @@ private actor GatedContextEngine: ContextEngine {
 
 /// A place for the words to land that never refuses.
 private struct QuietInserter: TextInserting {
+    /// What the insertion says it wrote into, which is what the record should follow.
+    var destination: InsertionDestination?
+
     func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        InsertionAttempt(.accessibility)
+        InsertionAttempt(.accessibility, destination: destination)
     }
 }
 
@@ -223,6 +226,55 @@ struct DictationPipelineSettingsTests {
 
         #expect(await pipeline.currentState.outcome?.insertedInto == "Notes")
         #expect(cleaner.destinations == [.document], "Notes, not the spreadsheet nobody dictated into")
+    }
+
+    /// The user starts in one app and switches while the words are being transcribed; they land in the second.
+    @Test("files the dictation under the application the insertion wrote into")
+    func recordsWhereTheWordsLanded() async {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.onePiece))
+        let pipeline = DictationPipeline(
+            capture: capture,
+            speech: ScriptedSpeechEngine(pieces(["ship it"])),
+            cleaner: WatchingCleaner(),
+            context: FakeContextEngine(
+                context: .fixture(
+                    applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal",
+                    documentName: "zsh")),
+            inserter: QuietInserter(
+                destination: InsertionDestination(
+                    applicationName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap")),
+            windowing: quick,
+            earlyPoll: .seconds(60))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await pipeline.currentState.outcome?.insertedInto == "Slack")
+        #expect(
+            await pipeline.currentState.outcome?.insertedIntoIdentifier
+                == "com.tinyspeck.slackmacgap")
+    }
+
+    /// A route that cannot say where it wrote leaves the recording's read as the best answer there is.
+    @Test("keeps the recording's reading when the insertion cannot say")
+    func keepsTheRecordingsReadingWhenUnknown() async {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.onePiece))
+        let pipeline = DictationPipeline(
+            capture: capture,
+            speech: ScriptedSpeechEngine(pieces(["ship it"])),
+            cleaner: WatchingCleaner(),
+            context: FakeContextEngine(
+                context: .fixture(
+                    applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal",
+                    documentName: "zsh")),
+            inserter: QuietInserter(),
+            windowing: quick,
+            earlyPoll: .seconds(60))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await pipeline.currentState.outcome?.insertedInto == "Terminal")
     }
 
     /// A word the dictionary settled is certain; every other word keeps the score it was heard with.

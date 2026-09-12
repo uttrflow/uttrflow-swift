@@ -14,6 +14,21 @@ dictation happen and had nothing to paste. The write is therefore **read back an
 verified**; a field that does not answer the read is trusted, since that is a
 verification rather than a precondition.
 
+## Which application the record names
+
+The layout decisions are made against the screen as it was when each piece was cut — that is
+what working ahead requires, and `Docs/early-transcription.md` measures what it buys. The
+*record* is a different question: the user may switch windows while the sentence is being
+transcribed, and the words land wherever the caret is by then. So `TextInsertionCoordinator`
+reads the frontmost application immediately after a strategy succeeds and reports it on the
+`InsertionAttempt`, and the pipeline files the dictation under that rather than under the name
+it read at the start. The read is `NSWorkspace.shared.frontmostApplication`, which
+`isSelfFrontmost` already makes, so it costs no message to another application. A reader that
+cannot say leaves the recording's own reading as the best answer there is.
+
+Nothing here can refuse or degrade an insertion: the destination is read after the words are
+written, and is only ever a label on what already happened.
+
 ## The paste that is posted and never arrives
 
 `.hidSystemState` with `.cghidEventTap` is the pair that reaches another application.

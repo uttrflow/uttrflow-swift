@@ -9,12 +9,14 @@ public enum TextInsertion {
         keystrokes: any KeystrokeSender = CGEventKeystrokeSender(),
         reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil
     ) -> TextInsertionCoordinator {
-        TextInsertionCoordinator(strategies: [
-            AccessibilityTextInsertionEngine(focus: focus),
-            PasteboardTextInsertionEngine(
-                focus: focus, pasteboard: pasteboard, keystrokes: keystrokes, reporting: reporting),
-            ClipboardTextInsertionEngine(pasteboard: pasteboard),
-        ])
+        TextInsertionCoordinator(
+            strategies: [
+                AccessibilityTextInsertionEngine(focus: focus),
+                PasteboardTextInsertionEngine(
+                    focus: focus, pasteboard: pasteboard, keystrokes: keystrokes,
+                    reporting: reporting),
+                ClipboardTextInsertionEngine(pasteboard: pasteboard),
+            ], focus: focus)
     }
 
     /// The route an accepted suggestion takes, which has no clipboard in it at all. See `Docs/predict-accept.md`.

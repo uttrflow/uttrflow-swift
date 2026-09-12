@@ -291,24 +291,29 @@ struct FakeFocus: AccessibilityFocus {
     var preceding: String?
     /// The field's whole contents, read with the caret at its end.
     var value: String?
+    /// What is in front at the moment of the write, which a real reader answers from the window server.
+    var frontmost: InsertionDestination?
 
     init(
         field: (any FocusedTextField)? = nil,
         somethingFocused: Bool? = nil,
         isSelf: Bool = false,
         preceding: String? = nil,
-        value: String? = nil
+        value: String? = nil,
+        frontmost: InsertionDestination? = nil
     ) {
         self.field = field
         self.somethingFocused = somethingFocused
         self.isSelf = isSelf
         self.preceding = preceding
         self.value = value
+        self.frontmost = frontmost
     }
 
     func focusedTextField() -> (any FocusedTextField)? { field }
     func hasFocusedElement() -> Bool { somethingFocused ?? (field != nil) }
     func isSelfFrontmost() -> Bool { isSelf }
+    func frontmostApplication() -> InsertionDestination? { frontmost }
     func precedingText(_ count: Int) -> String? {
         guard let value else { return preceding }
         return BackwardSelection.text(in: value, endingAt: value.utf16.count, exactly: count)
@@ -366,5 +371,24 @@ struct TextInsertionAssemblyTests {
         #expect(coordinator().route.last == .clipboard)
         // `.clipboard`, not `.pasteboard`: the floor says the words are waiting, not that a paste landed.
         #expect(try await coordinator().insert("hello").method == .clipboard)
+    }
+
+    /// The user may have switched applications since the recording began, so the write is what is asked.
+    @Test("names the application that was in front when the words were written")
+    func namesWhereTheWordsWent() async throws {
+        let slack = InsertionDestination(
+            applicationName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap")
+        let coordinator = TextInsertion.coordinator(
+            focus: FakeFocus(field: FakeTextField(), frontmost: slack),
+            pasteboard: FakePasteboard(),
+            keystrokes: FakeKeystrokeSender())
+
+        #expect(try await coordinator.insert("hello").destination == slack)
+    }
+
+    /// A reader that will not say leaves the record to whatever the pipeline already knew.
+    @Test("says nothing about the destination when the reader will not")
+    func saysNothingWhenTheReaderWillNot() async throws {
+        #expect(try await coordinator().insert("hello").destination == nil)
     }
 }

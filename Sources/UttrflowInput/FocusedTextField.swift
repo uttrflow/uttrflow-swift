@@ -39,6 +39,9 @@ public protocol AccessibilityFocus: Sendable {
 
     /// As much of the text before the caret as there is, up to `count`, or that the field will not say.
     func tail(upTo count: Int) -> FieldTail
+
+    /// The application in front right now, which is where a write lands. See `Docs/insertion.md`.
+    func frontmostApplication() -> InsertionDestination?
 }
 
 /// What a field says about the text before its caret, keeping "too short" apart from "will not say".
@@ -55,4 +58,7 @@ extension AccessibilityFocus {
 
     /// The same default: a field that will not report its value will not report its tail either.
     public func tail(upTo count: Int) -> FieldTail { .unreadable }
+
+    /// A reader with no window server behind it cannot say what is in front, and says so.
+    public func frontmostApplication() -> InsertionDestination? { nil }
 }
