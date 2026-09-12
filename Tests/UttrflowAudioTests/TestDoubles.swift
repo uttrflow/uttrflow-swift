@@ -9,6 +9,7 @@ import Synchronization
 final class FakeMicrophoneSource: MicrophoneSource {
     private struct State {
         var handler: (@Sendable ([Float]) -> Void)?
+        var failed: (@Sendable (AudioCaptureError) -> Void)?
         var startCount = 0
         var stopCount = 0
         var startError: AudioCaptureError?
@@ -20,13 +21,24 @@ final class FakeMicrophoneSource: MicrophoneSource {
         state.withLock { $0.startError = startError }
     }
 
-    func start(onSamples: @escaping @Sendable ([Float]) -> Void) throws(AudioCaptureError) {
+    func start(
+        onSamples: @escaping @Sendable ([Float]) -> Void,
+        onFailure: @escaping @Sendable (AudioCaptureError) -> Void
+    ) throws(AudioCaptureError) {
         let error = state.withLock { state -> AudioCaptureError? in
             state.startCount += 1
-            if state.startError == nil { state.handler = onSamples }
+            if state.startError == nil {
+                state.handler = onSamples
+                state.failed = onFailure
+            }
             return state.startError
         }
         if let error { throw error }
+    }
+
+    /// Says the microphone stopped for good, which is what a device that never came back does.
+    func die(_ error: AudioCaptureError = .engineFailed(description: "gone")) {
+        state.withLock { $0.failed }?(error)
     }
 
     func stop() {

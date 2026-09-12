@@ -9,6 +9,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private let recordings: RecordingStore?
     private var writer: RecordingWriter?
     private var currentState: AudioCaptureState = .idle
+    /// Set when the microphone stops for good mid-recording, and thrown by `stop()` rather than half a recording.
+    private var failure: AudioCaptureError?
     /// Played the moment the microphone closes, since this engine alone knows that instant.
     private let cue: any RecordingCueing
 
@@ -39,6 +41,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         // Reset before starting, so a crash mid-recording cannot prepend audio to the next one.
         accumulator.reset()
 
+        failure = nil
         let accumulator = self.accumulator
         // Opened before the tap, so the file holds every block the buffer does.
         let writer = await recordings?.begin()
@@ -47,6 +50,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
             try source.start { samples in
                 accumulator.append(samples)
                 writer?.append(samples)
+            } onFailure: { [weak self] error in
+                Task { await self?.microphoneDied(error) }
             }
         } catch {
             await abandonWriter()
@@ -65,7 +70,19 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
             _ = await recordings.finish(writer)
         }
         writer = nil
-        return .canonical(accumulator.take())
+        let samples = accumulator.take()
+        // A microphone that died mid-recording captured only the first half, which reads as a whole sentence.
+        if let failure {
+            self.failure = nil
+            throw failure
+        }
+        return .canonical(samples)
+    }
+
+    /// Remembers that the microphone stopped for good, since only `stop()` has somewhere to report it.
+    private func microphoneDied(_ error: AudioCaptureError) {
+        guard currentState == .recording else { return }
+        failure = error
     }
 
     /// Everything the microphone has delivered so far, so work can begin before the key is released.
