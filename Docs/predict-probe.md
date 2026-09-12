@@ -104,9 +104,13 @@ on a page do not collapse into one row.
 
 `uttrflow-dev probe tap --seconds 20`, and `--stall` to force the system to disable it.
 
-**Not yet run**, for the same reason: somebody has to be at the Mac while it runs. An
-event tap does need Accessibility, and comes by it the same way — from the terminal that
-already holds the grant. What it will answer:
+**Not yet run**, for the same reason: somebody has to be at the Mac while it runs. Its
+trust check is satisfied the same way, from the terminal that already holds the grant.
+Whether that is enough for the tap itself is untested: `CGEvent.tapCreate` can refuse
+after `AXIsProcessTrusted()` has returned true, and a keyboard tap may want Input
+Monitoring, which is a grant of its own. The probe tells the two apart rather than
+failing silently — "The tap could not be created even though Accessibility is granted"
+is that case, and it is the first thing this sweep will settle. What it will answer:
 
 - Tab is swallowed while the tap is armed, and other keys pass through untouched.
 - `--stall` sleeps two seconds inside the callback, which is past the system's patience,
