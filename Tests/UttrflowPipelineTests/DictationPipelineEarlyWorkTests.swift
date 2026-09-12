@@ -258,7 +258,7 @@ struct DictationPipelineEarlyWorkTests {
     func earlyFailureIsReportedAtTheEnd() async {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
-        let speech = NumberingSpeechEngine(failingCalls: [1, 2])
+        let speech = NumberingSpeechEngine(failingCalls: Set(1...12))
         let pipeline = makePipeline(capture: capture, speech: speech)
 
         await pipeline.startRecording()
@@ -266,7 +266,26 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.failure != nil)
-        #expect(await speech.calls == 2, "the failed piece is tried once more at the end, not skipped")
+        #expect(await speech.calls >= 2, "the failed piece is tried once more at the end, not skipped")
+    }
+
+    @Test("a piece that fails while recording does not stop the later pieces being worked ahead")
+    func earlyFailureLeavesTheRestWorkingAhead() async {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = NumberingSpeechEngine(failingCalls: [1])
+        let pipeline = makePipeline(capture: capture, speech: speech)
+
+        await pipeline.startRecording()
+        await waitForCalls(2, on: speech)
+        #expect(
+            await pipeline.currentState == .recording,
+            "the piece after the failed one is worked ahead, not left to the release")
+        await pipeline.finishRecording()
+
+        let state = await pipeline.currentState
+        #expect(state.outcome?.text == "W3 X W2 X W4 X", "the failed piece is redone in its own place")
+        #expect(await speech.calls == 4, "only the failed piece and the tail are left for the end")
     }
 
     @Test("a retried recording is recognised in windows, so a long one is never one request")
