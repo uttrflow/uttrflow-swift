@@ -215,15 +215,4 @@ struct VocabularyPromptTests {
         #expect(VocabularyPrompt.decodingOptions(languageHint: nil).chunkingStrategy == nil)
     }
 
-    // MARK: What the recogniser has to be held open for
-
-    @Test("counts the tokens WhisperKit forces before the transcript starts")
-    func forcedPrefillLength() {
-        // <|startofprev|> + prompt + <|startoftranscript|> + language + task + timestamps.
-        #expect(
-            VocabularyPrompt.forcedPrefillLength(promptLength: 9, isMultilingual: true) == 14)
-        // A model that knows only English is given neither a language nor a task token.
-        #expect(
-            VocabularyPrompt.forcedPrefillLength(promptLength: 9, isMultilingual: false) == 12)
-    }
 }

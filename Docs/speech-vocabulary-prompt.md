@@ -60,11 +60,15 @@ The language and task tokens are absent when the model only knows English.
 
 > WhisperKit 1.1.0, `Core/TextDecoder.swift:163-223`.
 
-WhisperKit ends a window the moment the sampler predicts the end token — *including* while it
-is still force-feeding the prompt, when whatever the sampler produced is thrown away anyway.
-Every conditioning prompt trips this and returns an empty transcript. `PromptPrefillGuard` in
-`WhisperKitBackend` holds that token shut until `forcedPrefillLength(promptLength:isMultilingual:)`
-tokens have gone through.
+WhisperKit 0.18 ended a window the moment the sampler predicted the end token — *including*
+while it was still force-feeding the prompt, when whatever the sampler produced is thrown away
+anyway. Every conditioning prompt tripped that and returned an empty transcript. 1.1.0 ignores
+an end token sampled during its own prefill (`Core/TextDecoder.swift:679-686`) and honours one
+sampled at the last prefill token, which is the first real prediction.
+
+`DecoderPrefill` counts that run once, and it is the only place the count is written. A prompt
+that survives trimming brings a `<|startofprev|>` token with it; a prompt that does not is
+dropped whole and takes that token with it.
 
 ## Two decoding options that cost something
 
