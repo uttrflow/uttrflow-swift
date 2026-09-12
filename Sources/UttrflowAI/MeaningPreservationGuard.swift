@@ -135,8 +135,12 @@ public struct MeaningPreservationGuard: Sendable {
             doubtful
                 .flatMap { $0.heard.split(whereSeparator: \.isWhitespace) }
                 .map { DoubtfulSpan.closedUp(String($0)) })
-        for token in keptTokens
-        where token.isPlain && isContent(token) && !offered.contains(DoubtfulSpan.closedUp(token.text)) {
+        // A number spoken over several words answers to the one numeral the rewrite wrote for it.
+        let composed = composedNumbers(keptTokens, in: pool)
+        for (index, token) in keptTokens.enumerated()
+        where token.isPlain && isContent(token) && !composed.contains(index)
+            && !offered.contains(DoubtfulSpan.closedUp(token.text))
+        {
             if !survives(token.matching, in: pool) {
                 return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
             }
@@ -364,10 +368,35 @@ public struct MeaningPreservationGuard: Sendable {
         "hundred": "100", "thousand": "1000",
     ]
 
-    /// The digits for every number word in the text, read through `table`; the written side gets the English one only.
-    private static func spelledNumbers(
-        in text: String, using table: [String: String] = numberWords
-    ) -> Set<String> {
-        Set(TextTidy.words(text).compactMap { table[$0] })
+    /// The digits for every number word in the text, each on its own and every run of them composed.
+    private static func spelledNumbers(in text: String) -> Set<String> {
+        let words = TextTidy.words(text)
+        var found = Set(words.compactMap { numberWords[$0] })
+        for run in cardinalRuns(words) { found.insert(String(run.value)) }
+        return found
+    }
+
+    /// The positions of every spoken number run the rewrite wrote as the one numeral it comes to.
+    static func composedNumbers(_ tokens: [GrammarToken], in pool: Set<String>) -> Set<Int> {
+        var covered: Set<Int> = []
+        for run in cardinalRuns(tokens.map(\.matching)) where pool.contains(String(run.value)) {
+            covered.formUnion(run.start..<(run.start + run.count))
+        }
+        return covered
+    }
+
+    /// Every run of two or more words that `NumberWords` reads as one cardinal, longest first from each start.
+    private static func cardinalRuns(_ words: [String]) -> [(start: Int, count: Int, value: Int)] {
+        var runs: [(start: Int, count: Int, value: Int)] = []
+        var index = words.startIndex
+        while index < words.endIndex {
+            guard let read = NumberWords.cardinal(words[index...]), read.count > 1 else {
+                index += 1
+                continue
+            }
+            runs.append((index, read.count, read.value))
+            index += read.count
+        }
+        return runs
     }
 }

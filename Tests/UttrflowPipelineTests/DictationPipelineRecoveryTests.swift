@@ -49,7 +49,7 @@ private final class RecoveryFakeCleaner: TranscriptCleaning, Sendable {
 /// A ``TextInserting`` scripted to place text or fail, recording what it is asked to insert.
 private final class RecoveryFakeInserter: TextInserting, Sendable {
     private struct State: Sendable {
-        var outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError>
+        var outcome: ScriptedOutcome<InsertionAttempt, TextInsertionError>
         var received: [String] = []
     }
 
@@ -58,7 +58,8 @@ private final class RecoveryFakeInserter: TextInserting, Sendable {
     private let takes: Duration
 
     init(
-        outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError> = .success(.accessibility),
+        outcome: ScriptedOutcome<InsertionAttempt, TextInsertionError> = .success(
+            InsertionAttempt(.accessibility)),
         clock: ManualClock? = nil,
         takes: Duration = .zero
     ) {
@@ -67,8 +68,8 @@ private final class RecoveryFakeInserter: TextInserting, Sendable {
         self.takes = takes
     }
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
-        let outcome = state.withLock { state -> ScriptedOutcome<TextInsertionMethod, TextInsertionError> in
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
+        let outcome = state.withLock { state -> ScriptedOutcome<InsertionAttempt, TextInsertionError> in
             state.received.append(text)
             return state.outcome
         }

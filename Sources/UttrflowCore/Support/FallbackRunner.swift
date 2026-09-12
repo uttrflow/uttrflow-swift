@@ -1,7 +1,7 @@
 /// The outcome of running an operation across a list of candidates.
 public enum FallbackOutcome<Success: Sendable>: Sendable {
-    /// The first candidate that worked, and what it produced.
-    case succeeded(Success)
+    /// The first candidate that worked, what it produced, and why the ones before it did not.
+    case succeeded(Success, afterFailing: [any Error])
     /// Every candidate was tried and every one failed, in order.
     case exhausted(errors: [any Error])
 }
@@ -18,7 +18,7 @@ public enum FallbackRunner {
 
         for candidate in candidates {
             do {
-                return .succeeded(try await attempt(candidate))
+                return .succeeded(try await attempt(candidate), afterFailing: errors)
             } catch {
                 errors.append(error)
             }

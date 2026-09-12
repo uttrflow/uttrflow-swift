@@ -27,7 +27,7 @@ public struct FillersPass: CleaningPass {
                 draft.replace(
                     at: before, with: String(draft.words[before].text.dropLast()), by: Self.id)
             }
-            draft.remove(at: index, by: Self.id)
+            draft.remove(at: index, by: Self.id, carryingMarks: true)
         }
         return draft
     }

@@ -28,6 +28,32 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A two-word mark name cannot straddle a sentence end, because the halves were said in different sentences.
+    @Test(
+        "leaves a mark name whose two words sit in different sentences",
+        arguments: [
+            "She is full. Stop.",
+            "the glass was full. Stop worrying about it",
+            "ask the question. Mark it as done",
+        ]
+    )
+    func leavesANameAcrossASentenceEnd(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// A noun phrase cannot begin in the sentence before, so a determiner there does not make the mark a mention.
+    @Test(
+        "takes a mark whose only determiner sits in the sentence before",
+        arguments: [
+            ("hand me a pen. Comma then go", "hand me a pen, then go"),
+            ("hand me the red pen. Comma then go", "hand me the red pen, then go"),
+            ("this is the plan. Full stop", "this is the plan."),
+        ]
+    )
+    func takesAMarkWhoseDeterminerIsInTheSentenceBefore(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "ends a sentence with a spoken full stop only where the text closes",
         arguments: [

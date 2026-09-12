@@ -17,6 +17,9 @@ pipeline above knows there is more than one way to be recording.
 - So every gesture from every source goes through one `AsyncStream` and is handled one at a
   time. `submit(_:)` returns immediately and the work queues behind whatever is in flight; the
   shortcut's own stream is forwarded into the same queue rather than handled directly.
+- A click from the floating button or a menu item is queued the same way. `toggleFromControl()`
+  waits for its turn and returns once the click has been handled, so a caller that awaits it still
+  sees the dictation it started or finished.
 
 ## Rebinding the shortcut
 

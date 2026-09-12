@@ -418,7 +418,12 @@ public enum DiagnosticsPresenter {
             DiagnosticsRow(
                 title: CleaningSteps.name(of: $0), detail: "Switched off", state: .unknown)
         }
-        guard changed.isEmpty, off.isEmpty else { return changed + off }
+        // A refused answer is why this dictation reads plainer than the last, and nothing else says so.
+        let refused = record.refusals.map {
+            DiagnosticsRow(
+                title: "Answer refused", detail: "\($0.engine): \($0.reason)", state: .unknown)
+        }
+        guard changed.isEmpty, off.isEmpty, refused.isEmpty else { return refused + changed + off }
         return [
             DiagnosticsRow(
                 title: "Clean-up steps", detail: "Nothing needed changing", state: .good)
@@ -458,6 +463,7 @@ public enum DiagnosticsPresenter {
             return "  \(CleaningSteps.name(of: change.step)): \(counts.joined(separator: ", "))"
         }
             + record.switchedOff.map { "  \(CleaningSteps.name(of: $0)): switched off" }
+            + record.refusals.map { "  answer refused (\($0.engine)): \($0.reason)" }
     }
 
     // MARK: - Permissions

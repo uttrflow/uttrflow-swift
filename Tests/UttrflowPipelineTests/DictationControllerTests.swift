@@ -84,9 +84,9 @@ private final class ControllerCleaner: TranscriptCleaning {
 private final class ControllerInserter: TextInserting {
     private let log = Mutex<[String]>([])
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         log.withLock { $0.append(text) }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     /// Everything that reached the user's document, in order.
@@ -441,15 +441,17 @@ struct DictationControllerTests {
         #expect(harness.cue.plays.isEmpty)
     }
 
-    @Test("plays the stop sound when a hold finishes normally")
-    func stopSoundPlaysWhenAHoldFinishes() async {
+    /// The stop cue belongs to the capture engine, which alone knows when the microphone closed.
+    @Test("leaves the stop sound to the microphone when a hold finishes, so it is never recorded")
+    func stopSoundIsLeftToTheMicrophoneWhenAHoldFinishes() async {
         let harness = makeHarness()
         await harness.controller.handle(.pressed)
         harness.clock.advance(by: .seconds(3))
 
         await harness.controller.handle(.released)
 
-        #expect(harness.cue.plays == [.start, .stop])
+        #expect(harness.cue.plays == [.start])
+        #expect(await harness.capture.calls.events == [.start, .stop], "the microphone was stopped")
     }
 
     @Test("does not play the stop sound when a slip cancels the recording")
@@ -463,14 +465,15 @@ struct DictationControllerTests {
         #expect(harness.cue.plays == [.start], "nothing finished, so nothing announces it")
     }
 
-    @Test("plays the stop sound on the closing press when set to toggle")
-    func stopSoundPlaysOnTheClosingPress() async {
+    @Test("leaves the stop sound to the microphone on the closing press when set to toggle")
+    func stopSoundIsLeftToTheMicrophoneOnTheClosingPress() async {
         let harness = makeHarness(activation: .pressToToggle)
         await harness.controller.handle(.pressed)
 
         await harness.controller.handle(.pressed)
 
-        #expect(harness.cue.plays == [.start, .stop])
+        #expect(harness.cue.plays == [.start])
+        #expect(await harness.capture.calls.events == [.start, .stop])
     }
 }
 
@@ -520,13 +523,25 @@ struct DictationControllerControlTests {
         #expect(await harness.capture.calls.events == [.start, .stop, .start])
     }
 
-    @Test("the cue sounds for a control, as it does for the shortcut")
+    @Test("the start cue sounds for a control, as it does for the shortcut")
     func controlPlaysTheCue() async {
         let harness = makeHarness(activation: .holdToTalk)
         await harness.controller.toggleFromControl()
         #expect(harness.cue.plays == [.start])
         await harness.controller.toggleFromControl()
-        #expect(harness.cue.plays == [.start, .stop])
+        #expect(harness.cue.plays == [.start], "the stop cue is the microphone's")
+    }
+
+    @Test("a click waits its turn behind a key press already queued, rather than jumping it")
+    func controlQueuesBehindAKeyPress() async {
+        let harness = makeHarness(activation: .holdToTalk)
+
+        harness.controller.submit(.pressed)
+        await harness.controller.toggleFromControl()
+
+        // The press opens the microphone first, so the click is what finishes it.
+        #expect(await harness.capture.calls.events == [.start, .stop])
+        #expect(harness.inserter.received == [controllerTidied])
     }
 }
 

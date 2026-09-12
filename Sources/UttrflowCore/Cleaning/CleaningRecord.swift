@@ -33,14 +33,33 @@ public struct CleaningRecord: Sendable, Equatable {
         public var isEmpty: Bool { removed.isEmpty && replaced.isEmpty && inserted.isEmpty }
     }
 
+    /// An engine's answer that was thrown away before this one, and the reason it was refused.
+    public struct Refusal: Sendable, Equatable {
+        public let engine: String
+        public let reason: String
+
+        public init(engine: String, reason: String) {
+            self.engine = engine
+            self.reason = reason
+        }
+    }
+
     /// One entry per step that changed something, ordered by the first word each touched.
     public let changes: [Change]
     /// The steps that were not in the pipeline that ran, in the order they would have run.
     public let switchedOff: [PassID]
+    /// Answers refused before the one that was kept, which is why a dictation can come out plainer than the last.
+    public let refusals: [Refusal]
 
-    public init(changes: [Change], switchedOff: [PassID] = []) {
+    public init(changes: [Change], switchedOff: [PassID] = [], refusals: [Refusal] = []) {
         self.changes = changes
         self.switchedOff = switchedOff
+        self.refusals = refusals
+    }
+
+    /// The same record, saying which answers were refused before the one it describes.
+    public func refused(_ refusals: [Refusal]) -> CleaningRecord {
+        CleaningRecord(changes: changes, switchedOff: switchedOff, refusals: refusals)
     }
 
     /// At most this many words are listed per step; the counts are exact either way.
@@ -54,7 +73,7 @@ public struct CleaningRecord: Sendable, Equatable {
     }
 
     /// Whether anything at all is worth showing.
-    public var isEmpty: Bool { changes.isEmpty && switchedOff.isEmpty }
+    public var isEmpty: Bool { changes.isEmpty && switchedOff.isEmpty && refusals.isEmpty }
 
     /// One record for a dictation done in pieces, keeping each step's words in the order they were said.
     public static func merging(_ records: [CleaningRecord]) -> CleaningRecord {
@@ -73,9 +92,15 @@ public struct CleaningRecord: Sendable, Equatable {
             }
         }
         let off = Set(records.flatMap(\.switchedOff))
+        // Kept whole: a piece whose answer was refused is why the dictation reads unevenly.
+        var refusals: [Refusal] = []
+        for refusal in records.flatMap(\.refusals) where !refusals.contains(refusal) {
+            refusals.append(refusal)
+        }
         return CleaningRecord(
             changes: order.compactMap { merged[$0] },
-            switchedOff: CleaningSteps.offered.map(\.id).filter(off.contains))
+            switchedOff: CleaningSteps.offered.map(\.id).filter(off.contains),
+            refusals: refusals)
     }
 
     /// Every word a step touched, grouped by the step and ordered by the first word it reached.

@@ -9,17 +9,14 @@ public actor BackedSpeechEngine: SpeechEngine {
     public nonisolated let kind: SpeechEngineKind
 
     private let backend: any TranscriptionBackend
-    private let vocabulary: (any VocabularySource)?
     private var isLoaded = false
 
     public init(
         kind: SpeechEngineKind,
-        backend: any TranscriptionBackend,
-        vocabulary: (any VocabularySource)? = nil
+        backend: any TranscriptionBackend
     ) {
         self.kind = kind
         self.backend = backend
-        self.vocabulary = vocabulary
     }
 
     public func prepare() async throws(SpeechEngineError) {
@@ -41,11 +38,18 @@ public actor BackedSpeechEngine: SpeechEngine {
         // A caller that forgot to prepare gets a slow first transcription, not a failure.
         try await prepare()
 
-        // Read now, because which words matter depends on what is on screen right now.
-        let words = await vocabulary?.vocabulary() ?? []
+        // Ranked once for the dictation and carried in, so every piece is biased towards the same words.
         let raw = try await backend.transcribe(
-            speech.audio.samples, languageHint: options.languageHint, biasedTowards: words)
+            Self.padded(speech.audio, to: backend.minimumDuration),
+            languageHint: options.languageHint, biasedTowards: options.vocabulary)
         // The original duration, not the trimmed one: it is what the user spoke for.
         return raw.transcription(audioDuration: audio.duration, startingAt: speech.start)
+    }
+
+    /// The samples with silence appended up to `minimum`, so a word shorter than the recogniser's floor still decodes.
+    static func padded(_ audio: AudioSamples, to minimum: Duration) -> [Float] {
+        let needed = Int((minimum / .seconds(1) * Double(audio.sampleRate)).rounded(.up))
+        guard audio.samples.count < needed else { return audio.samples }
+        return audio.samples + Array(repeating: 0, count: needed - audio.samples.count)
     }
 }

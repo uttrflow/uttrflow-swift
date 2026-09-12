@@ -15,6 +15,8 @@ public actor PasteboardWatcher {
 
     private nonisolated let source: any ClipboardSource
     private let interval: Duration
+    /// The same bound the store applies, asked here so an oversize copy is never classified.
+    private let budget: ClipboardBudget
     private nonisolated let now: @Sendable () -> Date
 
     /// Uttrflow's own write, behind a `Mutex` because a write cannot `await` to announce itself.
@@ -26,10 +28,12 @@ public actor PasteboardWatcher {
     public init(
         source: any ClipboardSource,
         interval: Duration = PasteboardWatcher.pollInterval,
+        budget: ClipboardBudget = .standard,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.source = source
         self.interval = interval
+        self.budget = budget
         self.now = now
         self.seen = source.changeCount()
     }
@@ -37,14 +41,26 @@ public actor PasteboardWatcher {
     // MARK: - Ignoring ourselves
 
     /// Announces a write — call immediately before it — naming its text. See `Docs/insertion.md`.
-    public nonisolated func ignoreNextWrite(of text: String? = nil) {
-        let before = source.changeCount()
-        let at = now()
-        announced.withLock { $0 = Announcement(after: before, at: at, text: text) }
+    public nonisolated func ignoreNextWrite(of text: String) {
+        announce(.text(text))
     }
 
-    /// Whether this change is the announced write, matched on its text. See `Docs/insertion.md`.
-    private nonisolated func claims(_ count: Int, at date: Date, holding text: String?) -> Bool {
+    /// K4 — announces a picture write, named by the bytes it puts there. See `Docs/insertion.md`.
+    public nonisolated func ignoreNextPicture(_ data: Data) {
+        announce(.picture(data))
+    }
+
+    /// Records what is about to be written, reading the count before the write moves it.
+    private nonisolated func announce(_ written: Written) {
+        let before = source.changeCount()
+        let at = now()
+        announced.withLock { $0 = Announcement(after: before, at: at, wrote: written) }
+    }
+
+    /// Whether this change is the announced write, matched on what it put there. See `Docs/insertion.md`.
+    private nonisolated func claims(
+        _ count: Int, at date: Date, holding text: String?, picture: () -> Data?
+    ) -> Bool {
         announced.withLock { held -> Bool in
             guard let pending = held else { return false }
             // A write that never happened must not sit armed over somebody's copy.
@@ -53,12 +69,13 @@ public actor PasteboardWatcher {
                 return false
             }
             guard count > pending.after else { return false }
-            // A write with no text to name — a picture — has only the count to go on.
-            guard let wrote = pending.text else {
-                held = nil
-                return true
+            switch pending.wrote {
+            case .text(let wrote):
+                guard text == wrote else { return false }
+            // Read only here, so a tick that has no picture announcement pending never asks for bytes.
+            case .picture(let wrote):
+                guard text == nil, picture() == wrote else { return false }
             }
-            guard text == wrote else { return false }
             held = nil
             return true
         }
@@ -74,7 +91,9 @@ public actor PasteboardWatcher {
 
         // Fetched only now, and once, so an idle tick costs one integer read.
         let copied = source.text()
-        guard !claims(count, at: date, holding: copied) else { return nil }
+        guard !claims(count, at: date, holding: copied, picture: { source.image()?.data }) else {
+            return nil
+        }
 
         // K4 — a picture, asked first because the branch below returns for anything textless.
         if copied == nil, let picture = source.image() {
@@ -91,6 +110,9 @@ public actor PasteboardWatcher {
             ClipContent.isWorthKeeping(text)
         else { return nil }
 
+        // Before the classifier, which reads the whole string: the store would refuse this anyway.
+        guard fitsTheBound(text, html) else { return nil }
+
         let kind = ClipKindDetector.kind(of: text)
         return NoticedClip(
             clip: Clip(
@@ -100,6 +122,12 @@ public actor PasteboardWatcher {
                 language: kind == .code ? CodeLanguage.detect(text) : nil,
                 // E — kept beside the plain form, never instead of it.
                 richText: html))
+    }
+
+    /// Whether a clip is small enough to keep, counting both flavours as `ClipboardStore.weight(of:)` does.
+    private func fitsTheBound(_ text: String, _ html: String?) -> Bool {
+        guard budget.largestClip > 0 else { return true }
+        return text.utf8.count + (html?.utf8.count ?? 0) <= budget.largestClip
     }
 
     // MARK: - The loop
@@ -113,12 +141,18 @@ public actor PasteboardWatcher {
     }
 }
 
+/// What an announced write puts on the clipboard, so the change it makes is named rather than guessed.
+private enum Written: Sendable, Equatable {
+    case text(String)
+    case picture(Data)
+}
+
 /// An Uttrflow write that has been announced and not yet seen on the clipboard.
 private struct Announcement: Sendable {
     let after: Int
     let at: Date
-    /// What is about to be written, or `nil` for a write carrying no text.
-    let text: String?
+    /// What is about to be written, which the change is matched against.
+    let wrote: Written
 }
 
 /// A clip the watcher noticed, carrying the picture's bytes until the store can write them.

@@ -1,4 +1,5 @@
 // Tests the capture engine's lifecycle rules without a microphone.
+import Synchronization
 import Testing
 
 @testable import UttrflowAudio
@@ -67,6 +68,128 @@ struct AVAudioCaptureEngineTests {
         let audio = try await engine.stop()
         #expect(audio.isEmpty)
         #expect(audio.duration == .zero)
+    }
+
+    /// Half a sentence reads as a whole one, so the recording has to end as a failure rather than as audio.
+    @Test("refuses to hand back a recording the microphone died in the middle of")
+    func stopThrowsAfterTheMicrophoneDied() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: 64))
+
+        source.die()
+        try await settle()
+
+        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
+    }
+
+    /// The other half of #170: the device came back, so the halves either side of the hole do not join.
+    @Test("refuses a recording the microphone was away in the middle of")
+    func stopThrowsAfterAGap() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: 64))
+
+        // Away, then back: samples resume into the same buffer with the missing span dropped.
+        source.skip()
+        source.emit(Array(repeating: 0.5, count: 64))
+        try await settle()
+
+        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
+    }
+
+    @Test("a hole in one recording cannot fail the next one")
+    func theGapDoesNotOutliveItsRecording() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.skip()
+        try await settle()
+        // Asserted, not discarded: a gap that stopped being refused would pass this test silently.
+        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
+
+        try await engine.start()
+        source.emit(Array(repeating: 0.25, count: 32))
+
+        let audio = try await engine.stop()
+        #expect(audio.samples.count == 32)
+    }
+
+    @Test("a microphone that died in one recording cannot fail the next one")
+    func theFailureDoesNotOutliveItsRecording() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.die()
+        try await settle()
+        _ = try? await engine.stop()
+
+        try await engine.start()
+        source.emit(Array(repeating: 0.25, count: 32))
+
+        let audio = try await engine.stop()
+        #expect(audio.samples.count == 32)
+    }
+
+    /// What the tap holds at key-up is up to one block, which is the tail of whatever was last said.
+    @Test("keeps the block the hardware was still holding when the key came up")
+    func stopDrainsBeforeTearingTheTapDown() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: Self.tapPeriodSamples))
+        source.holdAtStop(Array(repeating: 0.25, count: Self.tapPeriodSamples))
+
+        let audio = try await engine.stop()
+
+        #expect(source.drainedCount == 1)
+        #expect(audio.samples.count == 2 * Self.tapPeriodSamples)
+        #expect(audio.samples.suffix(Self.tapPeriodSamples).allSatisfy { $0 == 0.25 })
+    }
+
+    /// The size of the recovery is the claim worth checking: one tap period, not a rounding error.
+    @Test("recovers one tap period of audio, which is what an undrained stop loses")
+    func drainRecoversOneTapPeriod() async throws {
+        let withheld = FakeMicrophoneSource()
+        let heard = FakeMicrophoneSource()
+        heard.holdAtStop(Array(repeating: 0.25, count: Self.tapPeriodSamples))
+
+        let short = try await captureOneBlock(from: withheld)
+        let full = try await captureOneBlock(from: heard)
+
+        #expect(full.samples.count - short.samples.count == Self.tapPeriodSamples)
+        #expect(full.duration - short.duration == .seconds(Double(Self.tapPeriodSamples) / 16_000))
+    }
+
+    /// A cancelled recording is thrown away, so waiting for more of it would only delay the key coming up.
+    @Test("does not drain a recording it is about to discard")
+    func cancelDoesNotDrain() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.holdAtStop([0.9])
+
+        await engine.cancel()
+
+        #expect(source.stopCount == 1)
+        #expect(source.drainedCount == 0)
+    }
+
+    /// 4096 tap frames at 48 kHz, resampled to the canonical 16 kHz: about 85 ms of audio.
+    private static let tapPeriodSamples = 1365
+
+    private func captureOneBlock(from source: FakeMicrophoneSource) async throws -> AudioSamples {
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: Self.tapPeriodSamples))
+        return try await engine.stop()
+    }
+
+    /// The report crosses onto the actor, so the test has to let that hop happen.
+    private func settle() async throws {
+        try await Task.sleep(for: .milliseconds(20))
     }
 
     @Test("refuses to stop what is not running")
@@ -163,4 +286,82 @@ struct AVAudioCaptureEngineSnapshotTests {
         let engine = AVAudioCaptureEngine(source: FakeMicrophoneSource())
         #expect(await engine.capturedSoFar() == .empty)
     }
+}
+
+@Suite("AVAudioCaptureEngine: the stop cue")
+struct AVAudioCaptureEngineCueTests {
+    @Test("plays the stop cue once the microphone has closed, so none of it is recorded")
+    func stopCueFollowsTheMicrophone() async throws {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+
+        let audio = try await engine.stop()
+
+        #expect(cue.stopsHeardWhileDelivering == [false], "one stop cue, after the microphone closed")
+        #expect(audio.samples == [0.1, 0.2], "the recording is still handed over whole")
+    }
+
+    @Test("plays no stop cue for a recording that was cancelled")
+    func noStopCueOnCancel() async throws {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+        try await engine.start()
+
+        await engine.cancel()
+
+        #expect(cue.stopsHeardWhileDelivering.isEmpty)
+    }
+
+    @Test("plays no stop cue when there is no recording to stop")
+    func noStopCueWhenIdle() async {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+
+        await #expect(throws: AudioCaptureError.notRecording) { _ = try await engine.stop() }
+        #expect(cue.stopsHeardWhileDelivering.isEmpty)
+    }
+
+    @Test("never plays the start cue, which waits until the pipeline is listening")
+    func startCueIsNotTheEngines() async throws {
+        let source = FakeMicrophoneSource()
+        let cue = MicrophoneWatchingCue(source: source)
+        let engine = AVAudioCaptureEngine(source: source, cue: cue)
+
+        try await engine.start()
+        _ = try await engine.stop()
+
+        #expect(cue.starts == 0)
+    }
+}
+
+/// A cue that notes, for every stop it plays, whether the microphone was still delivering.
+private final class MicrophoneWatchingCue: RecordingCueing {
+    private struct Log {
+        var starts = 0
+        var stops: [Bool] = []
+    }
+
+    private let source: FakeMicrophoneSource
+    private let log = Mutex(Log())
+
+    init(source: FakeMicrophoneSource) {
+        self.source = source
+    }
+
+    func playStart() {
+        log.withLock { $0.starts += 1 }
+    }
+
+    func playStop() {
+        let delivering = source.isDelivering
+        log.withLock { $0.stops.append(delivering) }
+    }
+
+    var starts: Int { log.withLock(\.starts) }
+    var stopsHeardWhileDelivering: [Bool] { log.withLock(\.stops) }
 }

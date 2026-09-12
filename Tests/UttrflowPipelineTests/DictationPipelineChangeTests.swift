@@ -148,10 +148,10 @@ private final class FakeInserter: TextInserting, Sendable {
         self.refuses = refuses
     }
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         state.withLock { $0.append(text) }
         guard !refuses else { throw .clipboardUnavailable }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     var received: [String] { state.withLock { $0 } }

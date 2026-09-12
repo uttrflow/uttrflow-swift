@@ -45,6 +45,7 @@ public struct SpokenPunctuationPass: CleaningPass {
 
     private func matches(_ words: [String], at position: Int, in live: [Int], of draft: Draft) -> Bool {
         position + words.count <= live.count
+            && draft.sentenceRun(from: position, in: live).count >= words.count
             && zip(words, live[position..<position + words.count]).allSatisfy {
                 $0 == draft.shape(at: $1).key
             }
@@ -90,19 +91,10 @@ public struct SpokenPunctuationPass: CleaningPass {
             live.remove(at: after)
         } else {
             draft.replace(
-                at: previous, with: Self.marked(draft.words[previous].text, with: mark), by: Self.id)
+                at: previous, with: WordShape.marked(draft.words[previous].text, with: mark), by: Self.id)
         }
         for index in live[position..<after] { draft.remove(at: index, by: Self.id) }
         live.removeSubrange(position..<after)
         return true
-    }
-
-    /// The word with the mark on its end; a clause mark replaces one already there, a quote follows it.
-    private static func marked(_ text: String, with mark: String) -> String {
-        if mark == "\u{2014}" { return text + " " + mark }
-        if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
-            return String(text.dropLast()) + mark
-        }
-        return text + mark
     }
 }
