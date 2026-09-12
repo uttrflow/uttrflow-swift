@@ -216,12 +216,12 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
         }
     }
 
-    /// Grows the selection back over `characters` first, so one write replaces them and undo sees one edit.
+    /// Grows the selection back over what is replaced first, so one write replaces it and undo sees one edit.
     func replaceSelection(
-        precededBy characters: Int, with text: String
+        replacing replaced: String, with text: String
     ) throws(TextInsertionError) {
-        guard characters > 0 else { return try replaceSelection(with: text) }
-        let caret = try selectBackwards(characters)
+        guard !replaced.isEmpty else { return try replaceSelection(with: text) }
+        let caret = try selectBackwards(over: replaced)
         do {
             try replaceSelection(with: text)
         } catch {
@@ -231,16 +231,20 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
         }
     }
 
-    /// Moves the selection's start back over `characters` and answers with the selection it replaces.
-    private func selectBackwards(_ characters: Int) throws(TextInsertionError) -> CFRange {
+    /// Moves the selection's start back over `replaced`, once it is confirmed to be there, and answers with the selection it replaces.
+    private func selectBackwards(over replaced: String) throws(TextInsertionError) -> CFRange {
         guard let whole = value(), let selection = selectedRange() else {
             throw .insertionRejected(description: "the field will not report its selection")
         }
         guard
             let widened = BackwardSelection.range(
-                in: whole, endingAt: selection.location, covering: characters)
+                in: whole, endingAt: selection.location, covering: replaced.count)
         else {
             throw .insertionRejected(description: "the field has too little text before the caret")
+        }
+        // Checked like the typed route, so a character typed since the edit was worked out is never taken back.
+        guard BackwardSelection.confirms(replaced, in: whole, endingAt: selection.location) else {
+            throw .insertionRejected(description: "the text before the caret is not what would be replaced")
         }
         try select(
             CFRange(

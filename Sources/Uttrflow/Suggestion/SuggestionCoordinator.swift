@@ -192,6 +192,8 @@ final class SuggestionCoordinator {
         // Keys arriving while we insert are our own, so they neither reset the pause clock nor wake a turn.
         guard !isInserting else { return }
         lastKeystroke = Date()
+        // Counted in the session, so a Tab pressed before the next read cannot take an offer for the old line.
+        session.keystrokeArrived()
         // The line just changed, so a pass about its old prefix and a wake booked for it are both stale.
         generating?.cancel()
         pendingWake?.cancel()
@@ -252,6 +254,8 @@ final class SuggestionCoordinator {
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
     private func turn(_ number: Int, because reason: SuggestionReason) async {
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
+        let keystrokesSeen = session.keystrokes
         let read = front == ownBundleIdentifier ? nil : await FocusedFieldReader.read()
         guard turns.isCurrent(number) else { return }
         Self.log.debug(
@@ -289,7 +293,7 @@ final class SuggestionCoordinator {
         let turn = session.turn(
             in: reading.surface, at: context(of: snapshot, at: started),
             acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
-            isQuiet: preferences.isQuiet)
+            isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             try? await store.recordRejected(rejected, in: surface)
         }
