@@ -65,6 +65,21 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A number reads its context from its own sentence, so neither a labelling word nor a scale binds across a stop.
+    @Test(
+        "reads no context word and no scale tail from the sentence before",
+        arguments: [
+            ("we are in the room. Six people came", "we are in the room. Six people came"),
+            ("turn to the page. Four of them left", "turn to the page. Four of them left"),
+            ("check the version. Three times today", "check the version. Three times today"),
+            ("I have a hundred. And fifty people came", "I have a hundred. And 50 people came"),
+            ("we counted a thousand. And twenty came", "we counted a thousand. And 20 came"),
+        ]
+    )
+    func readsNoContextAcrossASentenceEnd(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "keeps a single digit as a word unless something makes it a number",
         arguments: [
