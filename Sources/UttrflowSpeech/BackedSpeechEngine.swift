@@ -44,8 +44,16 @@ public actor BackedSpeechEngine: SpeechEngine {
         // Read now, because which words matter depends on what is on screen right now.
         let words = await vocabulary?.vocabulary() ?? []
         let raw = try await backend.transcribe(
-            speech.audio.samples, languageHint: options.languageHint, biasedTowards: words)
+            Self.padded(speech.audio, to: backend.minimumDuration),
+            languageHint: options.languageHint, biasedTowards: words)
         // The original duration, not the trimmed one: it is what the user spoke for.
         return raw.transcription(audioDuration: audio.duration, startingAt: speech.start)
+    }
+
+    /// The samples with silence appended up to `minimum`, so a word shorter than the recogniser's floor still decodes.
+    static func padded(_ audio: AudioSamples, to minimum: Duration) -> [Float] {
+        let needed = Int((minimum / .seconds(1) * Double(audio.sampleRate)).rounded(.up))
+        guard audio.samples.count < needed else { return audio.samples }
+        return audio.samples + Array(repeating: 0, count: needed - audio.samples.count)
     }
 }

@@ -50,6 +50,10 @@ docs-audit: ## Prove the documentation still describes this tree. Needs no build
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
 	./Scripts/pii_audit.sh
 
+.PHONY: pasteboard-audit
+pasteboard-audit: ## Prove only the clipboard adapters touch NSPasteboard. Needs no build.
+	./Scripts/pasteboard_audit.sh
+
 .PHONY: disclosure-audit
 disclosure-audit: ## Prove nothing private to building this reached the tree. No build.
 	@python3 Scripts/disclosure_audit.py
@@ -76,7 +80,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit disclosure-audit docs-audit comment-audit lint build coverage offline-audit ## The whole gate: PII, disclosure, docs, comments, lint, build, tests, coverage floor, offline audit.
+verify: pii-audit disclosure-audit docs-audit comment-audit pasteboard-audit lint build coverage offline-audit ## The whole gate: PII, disclosure, docs, comments, clipboard, lint, build, tests, coverage floor, offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
