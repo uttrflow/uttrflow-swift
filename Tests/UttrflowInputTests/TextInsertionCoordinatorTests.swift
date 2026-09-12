@@ -360,6 +360,26 @@ struct TextInsertionAssemblyTests {
         #expect(coordinator().route == [.accessibility, .pasteboard, .clipboard])
     }
 
+    /// The words arrive seconds after the user was told the dictation failed, in whatever is in front now.
+    @Test("writes nothing once the dictation that asked has given up")
+    func writesNothingAfterCancellation() async throws {
+        let pasteboard = FakePasteboard()
+        let field = FakeTextField()
+        let coordinator = TextInsertion.coordinator(
+            focus: FakeFocus(field: field), pasteboard: pasteboard,
+            keystrokes: FakeKeystrokeSender())
+
+        let attempt = Task {
+            // Cancelled before it runs, which is what a stage that has timed out leaves behind.
+            try await coordinator.insert("ship it")
+        }
+        attempt.cancel()
+
+        await #expect(throws: TextInsertionError.self) { try await attempt.value }
+        #expect(field.contents.isEmpty, "the focused field was written into after the dictation ended")
+        #expect(pasteboard.text() == nil, "the user's clipboard was taken after the dictation ended")
+    }
+
     /// §19: a user must never lose words to a failed insertion, so the last strategy cannot fail.
     @Test("ends in a strategy that cannot fail")
     func endsInAGuaranteedStrategy() async throws {
