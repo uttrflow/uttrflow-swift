@@ -1139,9 +1139,9 @@ else depends on.
 - **The J group — sync.** Not built and not designed. There is no account-backed
   clipboard sync, and the panel's footer says so: *"Clipboard history stays on this
   Mac."*
-- **I8 — the cap on a long dictation.** `DictationLimit` and its tests are complete and
-  nothing calls them. A soft cap with a warning is specified; today there is neither.
-  Either wire it or delete it, but it should not sit there looking finished.
+- **I8 — the cap on a long dictation.** Wired. `DictationController` holds the
+  `DictationLimit`, warns at three minutes and finishes the dictation itself at four;
+  `Docs/stuck-recording.md` describes what the user sees.
 
 
 ## Phase 11 — Cleaning, tier 2 🔲
@@ -1644,8 +1644,7 @@ of the ranking to be verified, `Verifier` judges it against one deadline for the
 keystroke, and the second `resolve` draws what survived — corrected silently where the
 machine knew better, dropped where it did not, and reported to the corpus either way.
 
-Still open after it: no scorer is wired into the coordinator, so gate 2 never runs on a
-real machine; nothing draws the numbers on the Insights page (phase 6b); the settings
+Still open after it: nothing draws the numbers on the Insights page (phase 6b); the settings
 window does not reach the corpus, so the per-application counts and the "forget what this
 application taught" buttons never appear (phase 8); consent per application is an `NSAlert`
 rather than anything designed; and the placement ladder is still chosen from what each
