@@ -44,6 +44,27 @@ struct FillersPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A determiner before it says the token is a noun, which is what tells "the ER" from a hesitation.
+    @Test(
+        "keeps a word a determiner opens, however it is spelled",
+        arguments: [
+            "I took her to the ER", "an ER visit ran long", "her ER shift",
+            "we waited in the ER for hours", "put the ah file back",
+            // An interior mark is part of the word, so this is not the filler spelling at all.
+            "I took her to the E.R.",
+        ]
+    )
+    func keepsANounADeterminerOpens(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// The guard reads one word back, so a filler that opens the text has nothing to be mentioned by.
+    @Test("still removes a filler with no determiner before it")
+    func removesAFillerWithNoDeterminer() {
+        #expect(cleaned("Er, I think so", by: sut) == "I think so")
+        #expect(cleaned("we waited er for hours", by: sut) == "we waited for hours")
+    }
+
     @Test("records which pass removed the word")
     func provenance() {
         let draft = sut.apply(Draft(text: "um hello"))

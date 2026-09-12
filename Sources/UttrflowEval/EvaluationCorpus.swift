@@ -70,6 +70,13 @@ public enum EvaluationCorpus {
             expected: "We should ship it today.",
             mustEndWith: "."
         ),
+        // "ER" folds onto the filler "er", and only the determiner before it says which one was said.
+        .init(
+            id: "noun-spelled-like-a-filler", category: .everyday,
+            spoken: "um I took her to the ER last night",
+            expected: "I took her to the ER last night.",
+            mustKeep: ["ER"]
+        ),
         .init(
             id: "no-punctuation", category: .everyday,
             spoken: "the build passed everything looks good ship it",
