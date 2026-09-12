@@ -129,11 +129,11 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
 
     public func start(
         onSamples: @escaping @Sendable ([Float]) -> Void,
-        onFailure: @escaping @Sendable (AudioCaptureError) -> Void
+        onInterruption: @escaping @Sendable (CaptureInterruption) -> Void
     ) throws(AudioCaptureError) {
         device.deliver(to: onSamples)
         do {
-            try session.open(reporting: onFailure)
+            try session.open(reporting: onInterruption)
         } catch {
             device.deliver(to: nil)
             throw error

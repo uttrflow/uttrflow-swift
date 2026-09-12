@@ -35,13 +35,20 @@ private final class FlakyDevice: InputDevice, @unchecked Sendable {
 
 /// Collects what the session said, since a Mutex cannot itself be handed back in a tuple.
 private final class Reports: Sendable {
-    private let errors = Mutex<[AudioCaptureError]>([])
+    private let said = Mutex<[CaptureInterruption]>([])
 
-    var count: Int { errors.withLock(\.count) }
-    var first: AudioCaptureError? { errors.withLock(\.first) }
+    var count: Int { said.withLock(\.count) }
+    var first: CaptureInterruption? { said.withLock(\.first) }
 
-    func record(_ error: AudioCaptureError) {
-        errors.withLock { $0.append(error) }
+    /// The error of the first ending reported, which is what a caller acts on.
+    var firstError: AudioCaptureError? {
+        said.withLock { said in
+            said.compactMap { if case .ended(let error) = $0 { error } else { nil } }.first
+        }
+    }
+
+    func record(_ interruption: CaptureInterruption) {
+        said.withLock { $0.append(interruption) }
     }
 }
 
@@ -91,7 +98,25 @@ struct InputDeviceSessionTests {
         #expect(session.health == .live)
         // One for the first open, three refused, one that took.
         #expect(device.log.withLock(\.opens) == 5)
-        #expect(reported.count == 0)
+        // Said even though it worked: the recording now has a hole where the device was away.
+        #expect(reported.count == 1)
+        #expect(reported.first == .resumed)
+    }
+
+    /// The silence this closes: a reopen that works still costs the words spoken while it was away.
+    @Test("says the recording has a hole when the device comes back")
+    func reportsAGapWhenTheDeviceReturns() async throws {
+        let device = FlakyDevice(failing: 0)
+        let (session, reported) = session(device)
+        try session.open { interruption in reported.record(interruption) }
+
+        device.log.withLock { $0.failuresLeft = 1 }
+        session.deviceChanged()
+        try await untilSettled(session)
+
+        #expect(session.health == .live)
+        #expect(reported.first == .resumed)
+        #expect(reported.firstError == nil, "coming back is not a failure")
     }
 
     /// The failure this exists to stop: one refusal used to end the recording with nobody told.
@@ -107,7 +132,7 @@ struct InputDeviceSessionTests {
 
         #expect(session.health == .gone)
         #expect(reported.count == 1)
-        #expect(reported.first?.recovery == .retry)
+        #expect(reported.firstError?.recovery == .retry)
         // Every delay in the schedule is tried before giving up.
         #expect(device.log.withLock(\.opens) == 5)
     }

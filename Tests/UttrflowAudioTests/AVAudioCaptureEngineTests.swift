@@ -84,6 +84,38 @@ struct AVAudioCaptureEngineTests {
         await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
     }
 
+    /// The other half of #170: the device came back, so the halves either side of the hole do not join.
+    @Test("refuses a recording the microphone was away in the middle of")
+    func stopThrowsAfterAGap() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: 64))
+
+        // Away, then back: samples resume into the same buffer with the missing span dropped.
+        source.skip()
+        source.emit(Array(repeating: 0.5, count: 64))
+        try await settle()
+
+        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
+    }
+
+    @Test("a hole in one recording cannot fail the next one")
+    func theGapDoesNotOutliveItsRecording() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.skip()
+        try await settle()
+        _ = try? await engine.stop()
+
+        try await engine.start()
+        source.emit(Array(repeating: 0.25, count: 32))
+
+        let audio = try await engine.stop()
+        #expect(audio.samples.count == 32)
+    }
+
     @Test("a microphone that died in one recording cannot fail the next one")
     func theFailureDoesNotOutliveItsRecording() async throws {
         let source = FakeMicrophoneSource()
