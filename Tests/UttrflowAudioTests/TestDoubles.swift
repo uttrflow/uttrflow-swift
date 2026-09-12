@@ -12,6 +12,8 @@ final class FakeMicrophoneSource: MicrophoneSource {
         var interrupted: (@Sendable (CaptureInterruption) -> Void)?
         var startCount = 0
         var stopCount = 0
+        var drainedCount = 0
+        var heldAtStop: [Float]?
         var startError: AudioCaptureError?
     }
 
@@ -46,11 +48,19 @@ final class FakeMicrophoneSource: MicrophoneSource {
         state.withLock { $0.interrupted }?(.began)
     }
 
-    func stop() {
+    /// Hands over one last block while draining, which is what a tap holding a part-filled buffer does.
+    func stop(draining: Bool) async {
+        if draining, let tail = state.withLock(\.heldAtStop) { emit(tail) }
         state.withLock { state in
             state.stopCount += 1
+            state.drainedCount += draining ? 1 : 0
             state.handler = nil
         }
+    }
+
+    /// What the hardware is still holding when the key comes up, delivered only to a stop that drains.
+    func holdAtStop(_ samples: [Float]) {
+        state.withLock { $0.heldAtStop = samples }
     }
 
     /// Delivers samples the way a real tap would, from outside the engine's actor.
@@ -61,6 +71,7 @@ final class FakeMicrophoneSource: MicrophoneSource {
     var isDelivering: Bool { state.withLock { $0.handler != nil } }
     var startCount: Int { state.withLock(\.startCount) }
     var stopCount: Int { state.withLock(\.stopCount) }
+    var drainedCount: Int { state.withLock(\.drainedCount) }
 }
 
 /// Builds a PCM buffer without touching hardware.
