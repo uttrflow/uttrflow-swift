@@ -108,3 +108,10 @@ each one alone destroys real dictation:
   argument, and dictating code is a headline use of this product;
 - the contents are only letters — otherwise `[1, 2, 3]` disappears;
 - there are at most three words — otherwise a spoken aside in parentheses goes with them.
+
+A marker is removed from the recogniser's **words** as well as from its text, and where the
+words were reported the text is derived from them. The two used to be edited separately, so
+a transcript holding one marker no longer spelled its own word list, `Draft` could not line
+the confidences up with it, and it fell back to treating every word as certain — which
+silently switched off the doubtful-word repair for that piece while the per-word scores were
+still being asked for and paid for. One representation cannot disagree with itself.
