@@ -44,7 +44,8 @@ public struct TransformerRouter: TranscriptCleaning {
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        let outcome = await FallbackRunner.firstSuccess(among: orderedEngines) { engine in
+        let route = orderedEngines
+        let outcome = await FallbackRunner.firstSuccess(among: route) { engine in
             guard await engine.availability(for: request).isAvailable else {
                 throw TransformationError.noCapableTransformer
             }
@@ -52,10 +53,24 @@ public struct TransformerRouter: TranscriptCleaning {
         }
 
         switch outcome {
-        case .succeeded(let result):
-            return result
+        case .succeeded(let result, let refused):
+            // Carried on the record the Diagnostics page renders, so a plainer dictation has a reason.
+            let refusals = Self.refusals(in: refused, on: route.map(\.kind))
+            guard !refusals.isEmpty else { return result }
+            return result.recording((result.cleaning ?? CleaningRecord(changes: [])).refused(refusals))
         case .exhausted:
             throw .noCapableTransformer
+        }
+    }
+
+    /// The engines that answered and were refused, which is the half of a fallback nothing else records.
+    private static func refusals(
+        in errors: [any Error], on route: [TransformerKind]
+    ) -> [CleaningRecord.Refusal] {
+        errors.enumerated().compactMap { index, error in
+            guard case TransformationError.outputRejected(let reason) = error, index < route.count
+            else { return nil }
+            return CleaningRecord.Refusal(engine: route[index].rawValue, reason: reason)
         }
     }
 }

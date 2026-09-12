@@ -31,7 +31,7 @@ public struct TextInsertionCoordinator: TextInserting {
         }
 
         switch outcome {
-        case .succeeded(let method):
+        case .succeeded(let method, _):
             return method
         case .exhausted(let errors):
             // The last strategy's reason is the most specific; the earlier refusals are expected.
