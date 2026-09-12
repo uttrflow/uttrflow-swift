@@ -152,7 +152,7 @@ private struct NoScreen: ContextEngine {
 
 /// Puts the words on standard output rather than into another app.
 private struct PrintingInserter: TextInserting {
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
-        .pasteboard
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
+        InsertionAttempt(.pasteboard)
     }
 }

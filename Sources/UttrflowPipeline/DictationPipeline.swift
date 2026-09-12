@@ -657,7 +657,7 @@ public actor DictationPipeline {
                 }
             }
             // Either way the dictation has to end, so the next one can begin.
-            guard let method = inserted else {
+            guard let attempt = inserted else {
                 throw TextInsertionError.insertionRejected(
                     description: "the application did not respond")
             }
@@ -666,11 +666,11 @@ public actor DictationPipeline {
             transition(
                 to: .inserted(
                     DictationOutcome(
-                        text: text, method: method, cleanedBy: cleanedBy,
+                        text: text, method: attempt.method, cleanedBy: cleanedBy,
                         insertedInto: insertedInto,
                         insertedIntoIdentifier: insertedIntoIdentifier,
                         spokenFor: spokenFor, changes: changes,
-                        fromRecording: delivery == .copy)))
+                        fromRecording: delivery == .copy, arrival: attempt.arrival)))
             return true
         } catch {
             // The words survive the failure: the interface can still offer them.

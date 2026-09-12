@@ -59,6 +59,34 @@ as work in progress. That state exists so that the tick is a claim about the wor
 about the clock: a paste into a busy application takes as long as it takes, and saying so is
 better than a tick over an empty caret.
 
+## The answer is the return value, not a log line
+
+Confirmation was first added as an observer beside the insertion, and both halves of that were
+wrong. The answer reached one optional closure and nowhere else, so a paste into a surface that
+will not take it — a read-only page, a list, a field behind a modal — still ended in a tick,
+'Inserted' and a history row over an empty caret. And because a call optional-chained through
+that closure never evaluates its argument, **attaching the logger was what switched the check
+on**: the route built with one verified its pastes and the route built without one did not.
+
+So arrival is part of what an insertion strategy returns. ``TextInsertionEngine/insert(_:)``
+answers an ``InsertionArrival``, the coordinator carries it beside the method as an
+``InsertionAttempt``, and ``DictationOutcome`` holds it, which is what lets the floating button
+draw 'Inserted — not confirmed' against a plain 'Inserted'. The reporter is still there and is
+now only a reporter: it observes an answer that was reached whether or not anybody is listening.
+
+**A doubtful paste is not a failed one, and must not be treated as one.** `collapsed` normalises
+whitespace and nothing else, so any application that rewrites quotes, dashes or capitalisation
+as it takes the paste will never match the tail — and throwing on that answer would demote a
+large class of *successful* pastes to 'Copied — press ⌘V'. The words are on the clipboard
+either way, so the honest response to "not confirmed" is to say so and leave the recovery to
+the one person who can see the screen. Nothing retries, nothing re-pastes, and the history row
+is filed exactly as before.
+
+A strategy that cannot check answers **not reported**, and that is most of them: the
+Accessibility write verifies itself inside the field and does not report whether it could, and
+typing and the clipboard floor read nothing back at all. Not reported draws the plain tick,
+because treating "unknown" as "doubtful" would put a warning on nearly every dictation.
+
 ## `clearContents()` sends your words to your iPhone
 
 The default pasteboard behaviour offers everything written to it to every Apple device

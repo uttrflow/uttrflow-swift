@@ -18,16 +18,16 @@ extension TranscriptCleaning {
 
 /// Puts finished text wherever the user is typing and says how; the pipeline never sees the strategies.
 public protocol TextInserting: Sendable {
-    /// Inserts plain words and reports the method that carried them.
+    /// Inserts plain words and reports the method that carried them and whether they arrived.
     @discardableResult
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt
 
     /// Inserts text carrying formatting where the clip has any; separate so a dictation stays plain words.
     @discardableResult
     func insert(
         _ text: String, richText: String?
     ) async throws(TextInsertionError)
-        -> TextInsertionMethod
+        -> InsertionAttempt
 }
 
 /// The default for inserters that cannot carry formatting: insert the words.
@@ -37,7 +37,7 @@ extension TextInserting {
     public func insert(
         _ text: String, richText: String?
     ) async throws(TextInsertionError)
-        -> TextInsertionMethod
+        -> InsertionAttempt
     {
         try await insert(text)
     }

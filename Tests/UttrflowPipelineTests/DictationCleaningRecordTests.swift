@@ -71,8 +71,8 @@ private final class WatchingCleaner: TranscriptCleaning, Sendable {
 }
 
 private struct SilentInserter: TextInserting {
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
-        .accessibility
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
+        InsertionAttempt(.accessibility)
     }
 }
 

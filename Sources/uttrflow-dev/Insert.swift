@@ -79,8 +79,8 @@ struct Insert: AsyncParsableCommand {
         let clock = ContinuousClock()
         let start = clock.now
         do {
-            let method = try await coordinator.insert(text)
-            print("Inserted via \(method.rawValue).")
+            let attempt = try await coordinator.insert(text)
+            print("Inserted via \(attempt.method.rawValue), \(attempt.arrival.rawValue).")
             print("  took \(String(format: "%.2f", start.duration(to: clock.now).inSeconds))s in all")
         } catch {
             print(error.userMessage)

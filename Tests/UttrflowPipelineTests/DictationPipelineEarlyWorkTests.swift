@@ -168,9 +168,9 @@ private final class TimedCleaner: TranscriptCleaning, Sendable {
 private final class CollectingInserter: TextInserting, Sendable {
     private let received = Mutex<[String]>([])
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         received.withLock { $0.append(text) }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     var texts: [String] { received.withLock { $0 } }

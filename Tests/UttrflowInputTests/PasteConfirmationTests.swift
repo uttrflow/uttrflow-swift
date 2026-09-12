@@ -5,7 +5,7 @@ import Testing
 @testable import UttrflowInput
 
 /// A clock a test moves itself: sleeping on it costs no real time, so nothing here races CI for a core.
-private final class ScriptedClock: Clock, Sendable {
+final class ScriptedClock: Clock, Sendable {
     struct Instant: InstantProtocol {
         let offset: Duration
 

@@ -71,7 +71,7 @@ struct TypedTextInsertionEngineTests {
         let typist = RecordingTypist()
         let engine = TypedTextInsertionEngine(focus: FakeFocus(), typist: typist)
 
-        try await engine.insert("mit")
+        _ = try await engine.insert("mit")
 
         #expect(typist.text == ["mit"])
         #expect(engine.method == .typed)

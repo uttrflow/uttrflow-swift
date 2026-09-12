@@ -114,9 +114,9 @@ private struct TurnCleaner: TranscriptCleaning {
 private final class TurnInserter: TextInserting {
     private let log = Mutex<[String]>([])
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         log.withLock { $0.append(text) }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     var received: [String] { log.withLock { $0 } }
