@@ -133,6 +133,60 @@ struct AVAudioCaptureEngineTests {
         #expect(audio.samples.count == 32)
     }
 
+    /// What the tap holds at key-up is up to one block, which is the tail of whatever was last said.
+    @Test("keeps the block the hardware was still holding when the key came up")
+    func stopDrainsBeforeTearingTheTapDown() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: Self.tapPeriodSamples))
+        source.holdAtStop(Array(repeating: 0.25, count: Self.tapPeriodSamples))
+
+        let audio = try await engine.stop()
+
+        #expect(source.drainedCount == 1)
+        #expect(audio.samples.count == 2 * Self.tapPeriodSamples)
+        #expect(audio.samples.suffix(Self.tapPeriodSamples).allSatisfy { $0 == 0.25 })
+    }
+
+    /// The size of the recovery is the claim worth checking: one tap period, not a rounding error.
+    @Test("recovers one tap period of audio, which is what an undrained stop loses")
+    func drainRecoversOneTapPeriod() async throws {
+        let withheld = FakeMicrophoneSource()
+        let heard = FakeMicrophoneSource()
+        heard.holdAtStop(Array(repeating: 0.25, count: Self.tapPeriodSamples))
+
+        let short = try await captureOneBlock(from: withheld)
+        let full = try await captureOneBlock(from: heard)
+
+        #expect(full.samples.count - short.samples.count == Self.tapPeriodSamples)
+        #expect(full.duration - short.duration == .seconds(Double(Self.tapPeriodSamples) / 16_000))
+    }
+
+    /// A cancelled recording is thrown away, so waiting for more of it would only delay the key coming up.
+    @Test("does not drain a recording it is about to discard")
+    func cancelDoesNotDrain() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.holdAtStop([0.9])
+
+        await engine.cancel()
+
+        #expect(source.stopCount == 1)
+        #expect(source.drainedCount == 0)
+    }
+
+    /// 4096 tap frames at 48 kHz, resampled to the canonical 16 kHz: about 85 ms of audio.
+    private static let tapPeriodSamples = 1365
+
+    private func captureOneBlock(from source: FakeMicrophoneSource) async throws -> AudioSamples {
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: Self.tapPeriodSamples))
+        return try await engine.stop()
+    }
+
     /// The report crosses onto the actor, so the test has to let that hop happen.
     private func settle() async throws {
         try await Task.sleep(for: .milliseconds(20))

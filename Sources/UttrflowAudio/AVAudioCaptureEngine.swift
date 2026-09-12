@@ -65,7 +65,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
 
     public func stop() async throws(AudioCaptureError) -> AudioSamples {
         guard currentState == .recording else { throw .notRecording }
-        source.stop()
+        // Drained, so the block the hardware was still filling at key-up reaches the buffer instead of being dropped.
+        await source.stop(draining: true)
         // After the microphone closes and before the buffer is taken, so the stop cue is heard but never recorded.
         cue.playStop()
         currentState = .idle
@@ -106,7 +107,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
 
     public func cancel() async {
         guard currentState == .recording else { return }
-        source.stop()
+        // Not drained: the audio is being thrown away, so waiting for more of it buys nothing.
+        await source.stop(draining: false)
         accumulator.reset()
         currentState = .idle
         await abandonWriter()

@@ -17,8 +17,8 @@ public protocol MicrophoneSource: Sendable {
         onInterruption: @escaping @Sendable (CaptureInterruption) -> Void
     ) throws(AudioCaptureError)
 
-    /// Stops delivery. Safe to call when not started.
-    func stop()
+    /// Stops delivery, after one tap period when `draining`, so the hardware hands over what it still holds.
+    func stop(draining: Bool) async
 }
 
 extension MicrophoneSource {

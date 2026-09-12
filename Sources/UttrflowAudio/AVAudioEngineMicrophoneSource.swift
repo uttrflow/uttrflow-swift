@@ -28,6 +28,8 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
 
     /// One lock for one invariant: at most one engine, alive exactly while a sink is installed.
     private let state = Mutex(State())
+    /// Counts blocks off the tap, so key-up can wait for the one the hardware is still filling.
+    private let drainer = TapDrain()
     /// Called when macOS changes the hardware under the engine, which only the session knows what to do about.
     private let changed = Mutex<(@Sendable () -> Void)?>(nil)
 
@@ -42,6 +44,14 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
     /// Reads the sink rather than capturing it, so an engine that outlived its sink delivers to nobody.
     private func emit(_ samples: [Float]) {
         state.withLock(\.sink)?(samples)
+        drainer.blockDelivered()
+    }
+
+    /// Waits out one tap period, or the next block, so the block the hardware is filling is not torn away.
+    func drain() async {
+        guard let live = state.withLock(\.live) else { return }
+        let rate = live.engine.inputNode.inputFormat(forBus: live.inputBus).sampleRate
+        await drainer.wait(TapDrain.window(tapFrames: Int(Self.tapBufferSize), sampleRate: rate))
     }
 
     /// Builds an engine for whatever the current input device is, and starts it.
@@ -140,7 +150,8 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
         }
     }
 
-    public func stop() {
+    public func stop(draining: Bool) async {
+        if draining { await device.drain() }
         device.deliver(to: nil)
         session.close()
     }
