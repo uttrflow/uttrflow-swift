@@ -425,37 +425,55 @@ public actor DictationPipeline {
         let tally = StageTally()
         var appContext = earlyContext
         var pieces: [Piece] = []
-        // A span the early loop left unfinished is done here, in its place, so the words stay in order.
-        for span in spans + remainder.map(Span.pending) {
-            let window: Range<Int>
-            switch span {
-            case .done(let piece):
-                pieces.append(piece)
-                continue
-            case .pending(let range):
-                window = range
-            }
-            let heard: Transcription?
-            do {
-                heard = try await transcribe(
-                    audio, window,
-                    biasedTowards: await vocabulary(seeing: earlyContext ?? AppContext()),
-                    recording: tally)
-            } catch {
-                await tally.report(to: metrics)
-                await fail(DictationFailure(error))
-                return
-            }
-            guard !wasCancelled(mine) else { return }
-            guard let heard else { continue }
+        var failure: DictationFailure?
+        var abandoned = false
+        // One tidy runs beside the next recognition, which the two stages allow. See `Docs/early-transcription.md`.
+        await withTaskGroup(of: Piece.self) { tidying in
+            // A span the early loop left unfinished is done here, in its place, so the words stay in order.
+            for span in spans + remainder.map(Span.pending) {
+                let window: Range<Int>
+                switch span {
+                case .done(let piece):
+                    if let earlier = await tidying.next() { pieces.append(earlier) }
+                    pieces.append(piece)
+                    continue
+                case .pending(let range):
+                    window = range
+                }
+                let heard: Transcription?
+                do {
+                    heard = try await transcribe(
+                        audio, window,
+                        biasedTowards: await vocabulary(seeing: earlyContext ?? AppContext()),
+                        recording: tally)
+                } catch {
+                    failure = DictationFailure(error)
+                    tidying.cancelAll()
+                    return
+                }
+                // The tidy that ran beside this recognition is taken before the next one starts, so one is ever in flight.
+                if let earlier = await tidying.next() { pieces.append(earlier) }
+                guard !wasCancelled(mine) else {
+                    abandoned = true
+                    tidying.cancelAll()
+                    return
+                }
+                guard let heard else { continue }
 
-            // The first piece ends transcribing, whether or not the screen was read while recording.
-            if state == .transcribing { transition(to: .tidying) }
-            if appContext == nil { appContext = await contextFor(delivery) }
-            let seeing = appContext ?? AppContext()
-            pieces.append(await finish(heard, seeing: seeing, recording: tally))
-            guard !wasCancelled(mine) else { return }
+                // The first piece ends transcribing, whether or not the screen was read while recording.
+                if state == .transcribing { transition(to: .tidying) }
+                if appContext == nil { appContext = await contextFor(delivery) }
+                let seeing = appContext ?? AppContext()
+                tidying.addTask { await self.finish(heard, seeing: seeing, recording: tally) }
+            }
+            while let last = await tidying.next() { pieces.append(last) }
         }
+        if let failure {
+            await tally.report(to: metrics)
+            await fail(failure)
+            return
+        }
+        guard !abandoned, !wasCancelled(mine) else { return }
         await tally.report(to: metrics)
         // Only when something was tidied, so silence cannot blank the last account.
         if !cleaningRecords.isEmpty {

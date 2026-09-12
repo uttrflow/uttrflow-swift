@@ -111,6 +111,15 @@ piece, usually, or every piece for a retried recording. Those timings are added 
 stage into one measurement, so a dictation done in pieces still reports one figure for
 transcription and one for tidying.
 
+That final pass overlaps the two stages rather than alternating them: the tidy of one
+piece is started and left running while the next piece is recognised, and it is collected
+before the piece after that begins. One tidy is ever in flight, which is what the two
+measurements above ask for — the stages do not compete, and four tidies at once are no
+faster than four in a row. It changes when the model is called, never how many times: a
+piece is still tidied by exactly one call. Where the release pass has several pieces to
+do — a retry, or a dictation whose working ahead stopped early — this is close to the
+cost of the recognition alone, rather than the two stages added together.
+
 A piece the recogniser refuses while recording is not the end of working ahead. Its span
 is remembered as unfinished, the audio cursor moves past it, and the next pause is worked
 on as usual; the release pass then does every unfinished span in its own place, so a
