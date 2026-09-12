@@ -65,7 +65,7 @@ struct Clean: AsyncParsableCommand {
             applicationName: app, bundleIdentifier: bundleID,
             documentName: document, selectedText: selection, precedingText: before
         )
-        let request = TransformationRequest(transcription: transcription(of: raw), context: context)
+        let request = try TransformationRequest(transcription: transcription(of: raw), context: context)
         let result = try await router.transform(request)
         let elapsed = start.duration(to: clock.now)
         let doubtfulSpans = await spans(in: request)
@@ -90,17 +90,38 @@ struct Clean: AsyncParsableCommand {
     }
 
     /// The transcript as the recogniser would have reported it, scored word by word once a run is named doubtful.
-    private func transcription(of raw: String) -> Transcription {
+    private func transcription(of raw: String) throws -> Transcription {
         guard !doubtful.isEmpty else { return Transcription(text: raw) }
-        let unsure = Set(doubtful.flatMap { $0.split(whereSeparator: \.isWhitespace) }.map(String.init))
-        let words = raw.split(whereSeparator: \.isWhitespace)
-            .map {
-                TranscribedWord(
-                    text: String($0),
-                    confidence: unsure.contains(String($0)) ? EvaluationCase.doubtfulConfidence : 1)
-            }
+        let spoken = raw.split(whereSeparator: \.isWhitespace).map(String.init)
+        let unsure = try unsureWords(in: spoken)
+        let words = spoken.enumerated().map {
+            TranscribedWord(
+                text: $1, confidence: unsure.contains($0) ? EvaluationCase.doubtfulConfidence : 1)
+        }
         return Transcription(
             text: raw, segments: [TranscriptionSegment(text: raw, start: .zero, end: .zero, words: words)])
+    }
+
+    /// Where each named run falls, so the same word said elsewhere in the transcript stays certain.
+    private func unsureWords(in spoken: [String]) throws -> Set<Int> {
+        var marked: Set<Int> = []
+        for run in doubtful {
+            let wanted = run.split(whereSeparator: \.isWhitespace).map(String.init)
+            guard !wanted.isEmpty else { continue }
+            // Naming a run twice marks its next occurrence, so a repeated run is sayable one occurrence at a time.
+            let starts = spoken.count < wanted.count ? 0..<0 : 0..<(spoken.count - wanted.count + 1)
+            let start = starts.first {
+                Array(spoken[$0..<($0 + wanted.count)]) == wanted
+                    && marked.isDisjoint(with: $0..<($0 + wanted.count))
+            }
+            guard let start else {
+                throw ValidationError(
+                    "The transcript has no unmarked run reading '\(run)', so it cannot be one the recogniser "
+                        + "was unsure of. It has to match word for word.")
+            }
+            marked.formUnion(start..<(start + wanted.count))
+        }
+        return marked
     }
 
     /// The runs the sources offer a reading for, recomputed here so the printed lines are the ones the model is given.
