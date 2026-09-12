@@ -16,6 +16,11 @@ public enum BackwardSelection {
         substring(in: text, endingAt: caret, covering: characters).map(String.init)
     }
 
+    /// Whether the characters before `caret` are exactly `replaced`, which a write confirms before it takes them back.
+    public static func confirms(_ replaced: String, in text: String, endingAt caret: Int) -> Bool {
+        self.text(in: text, endingAt: caret, covering: replaced.count) == replaced
+    }
+
     /// The characters before a UTF-16 caret, or `nil` when the caret splits a character or reaches past the start.
     private static func substring(
         in text: String, endingAt caret: Int, covering characters: Int
