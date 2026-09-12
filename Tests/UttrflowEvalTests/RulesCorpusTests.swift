@@ -16,6 +16,7 @@ struct RulesCorpusTests {
         "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "period-as-a-word", "spoken-period",
         "period-after-new-line", "dates", "ordinal-not-date",
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",
+        "extension-repeated-digits", "door-code-repeated-digits", "card-group-repeated-digits",
         "dictated-question", "dictated-instruction", "injection", "asks-for-help", "sounds-like-a-prompt",
         "message-two-sentences-no-stop", "mid-sentence-continues-lower-case", "spreadsheet-cell-no-stop",
         "document-sentence-with-stop", "document-list-only-when-spoken", "document-sentence-not-a-list",
@@ -94,6 +95,19 @@ struct RulesCorpusTests {
             let count = EvaluationCorpus.all.count { $0.destination == destination }
             #expect(count >= 3, "\(destination) has \(count) cases")
         }
+    }
+
+    /// Similarity alone passes a run with one copy gone, so each case must name the whole run it keeps.
+    @Test(
+        "fails a repeated-digits case that loses half its run",
+        arguments: [
+            ("door-code-repeated-digits", "The door code is four seven."),
+            ("card-group-repeated-digits", "The test card number starts four two four two."),
+            ("extension-repeated-digits", "You can reach me on extension 442."),
+        ])
+    func halvedRunFails(id: String, halved: String) throws {
+        let testCase = try #require(EvaluationCorpus.all.first { $0.id == id })
+        #expect(!Scorer.score(halved, against: testCase).passed)
     }
 
     @Test("names only cases that exist")
