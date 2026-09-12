@@ -26,11 +26,12 @@ struct WhisperKitContractTests {
         #expect(options.windowClipTime == VocabularyPrompt.windowClipTime)
     }
 
-    /// The prefill the guard waits out is counted from these, so a change upstream changes the wait.
-    @Test("a multilingual prompted decode still prefills the five tokens the guard counts")
-    func prefillLengthIsStillFive() {
-        let length = VocabularyPrompt.forcedPrefillLength(promptLength: 0, isMultilingual: true)
+    /// The prefill the timestamp rules are told to start sampling after, counted from these.
+    @Test("a multilingual decode still prefills the four tokens DecoderPrefill counts without a prompt")
+    func prefillLengthIsStillFour() {
+        let prefill = DecoderPrefill(
+            promptTokens: nil, specialTokenBegin: 50_257, isMultilingual: true)
 
-        #expect(length == 5)
+        #expect(prefill.count == 4)
     }
 }

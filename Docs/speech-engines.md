@@ -99,22 +99,34 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
   options untouched. A word missing from the prompt costs the user a correction; a dictation
   refused because a word would not encode costs them the dictation.
 
-## The prefill guard
+## The rules a prompt costs the decode
 
-- WhisperKit ends a window as soon as its sampler predicts the end token, and it applies that
-  test on every iteration of the decode loop, including the ones that are force-feeding the
-  prompt and discarding whatever the sampler said. Asked to transcribe five seconds of clear
-  speech with a prompt, it returned an empty string for every prompt tried: three words, one
-  word, a comma-separated glossary, a sentence of prose, at nine tokens and at fifty-two.
-- `PromptPrefillGuard` holds the end token shut until the forced prefill
-  (`[<|startofprev|>] + prompt + [<|startoftranscript|>, language, task, timestamps]`, minus
-  language and task for an English-only model; `Core/TextDecoder.swift:163-223`) has gone
-  through. The `tokens.count == sampleBegin` shape is WhisperKit's own (`SuppressBlankFilter` is
-  built the same way) and works because the token array does not grow while the prompt is
-  forced. It is installed through `logitsFilters`, a documented extension point, and reassigned
-  on every call so a guard never outlives the prompt it was measured for.
-- Delete it when WhisperKit stops ending a window during its own prefill. Until then
-  `WhisperKitBackend` also re-runs a blank biased transcription without the vocabulary: a
+- WhisperKit's timestamp rules forbid the `<|notimestamps|>` token, keep timestamps paired and
+  rising, and force each segment to have a nonzero length — which is what stops a window
+  repeating itself until the compression-ratio threshold catches it six temperature retries
+  later. They are installed as a `TimestampRulesFilter` whose `sampleBegin` is re-derived from
+  the token array by looking for the task token in its first three tokens
+  (`Core/Text/LogitsFilter.swift:137-148`).
+- A conditioning prompt puts the task token past those three, because the prefill it builds is
+  `[<|startofprev|>] + prompt + [<|startoftranscript|>, language, task, timestamps]`
+  (`Core/TextDecoder.swift:163-223`), and prompt tokens are filtered below `specialTokenBegin`
+  at both ends so none of them can ever be it. The derivation then returns nothing and the
+  filter returns the logits untouched for the whole decode — so a user with a personal
+  dictionary decoded with no timestamp rules at all, and a user with an empty one decoded with
+  them.
+- `DecoderPrefill` counts the prefill the decoder is actually given and installs the rules with
+  that `sampleBegin`, reporting the model as English-only so they trust the number rather than
+  hunting for a token a prompt has moved. WhisperKit still appends its own inert copy beside
+  ours, which costs an early return per step. `DecoderPrefillTests` holds the behaviour.
+- An earlier `PromptPrefillGuard` held the end token shut for `tokens.count == prefill`, which
+  is every prefill iteration *and* the first sampled token, because the token array does not
+  grow while the prompt is forced — so no logits filter can tell those steps apart. WhisperKit
+  0.18 ended a window on an end token sampled during its own prefill and every prompt tried
+  returned an empty transcript; 1.1.0 ignores one sampled there (`Core/TextDecoder.swift:679`)
+  and honours one sampled at the last prefill token, where it is a real prediction that the
+  window holds no speech. The guard's only remaining effect was to suppress that prediction, so
+  it is gone.
+- `WhisperKitBackend` still re-runs a blank biased transcription without the vocabulary: a
   WhisperKit release or model variant that finds another way to return nothing must cost the
   user a slower dictation, never a silent one. Silence transcribes to nothing too, so this can
   decode twice for no gain, which is the right price.

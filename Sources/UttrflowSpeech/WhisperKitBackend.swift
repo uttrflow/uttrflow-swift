@@ -1,6 +1,5 @@
-// The WhisperKit recogniser, and the guard that keeps a prompt from silencing it.
+// The WhisperKit recogniser, and the decoding rules a conditioning prompt would otherwise cost it.
 public import Foundation
-private import CoreML
 public import UttrflowCore
 import WhisperKit
 
@@ -138,42 +137,24 @@ private final class LoadedKit: @unchecked Sendable {
             vocabulary: vocabulary,
             tokenizer: tokenizer.map { WhisperPromptTokenizer(tokenizer: $0) }
         )
-        // Reassigned on every call, including to nothing, so a guard never outlives its prompt.
-        kit.textDecoder.logitsFilters = Self.guards(for: options, tokenizer: tokenizer)
+        // Reassigned on every call, including to nothing, so a rule never outlives the prompt it was measured for.
+        kit.textDecoder.logitsFilters = Self.rules(for: options, tokenizer: tokenizer)
         return try await kit.transcribe(audioArray: samples, decodeOptions: options)
     }
 
-    /// The one filter a conditioning prompt needs, and nothing at all without one.
-    private static func guards(
+    /// The timestamp rules a prompted decode loses, and nothing at all without a prompt, where WhisperKit's own still fire.
+    private static func rules(
         for options: DecodingOptions, tokenizer: (any WhisperTokenizer)?
     ) -> [any LogitsFiltering] {
-        guard let prompt = options.promptTokens, let tokenizer else { return [] }
-        return [
-            PromptPrefillGuard(
-                forcedPrefillLength: VocabularyPrompt.forcedPrefillLength(
-                    promptLength: prompt.count, isMultilingual: !tokenizer.allLanguageTokens.isEmpty
-                ),
-                endToken: tokenizer.specialTokens.endToken
-            )
-        ]
-    }
-}
-
-/// Holds the end token shut while the decoder is fed a conditioning prompt. See Docs/speech-engines.md.
-private final class PromptPrefillGuard: LogitsFiltering {
-    private let forcedPrefillLength: Int
-    /// One index path into the logits, `[batch, sequence, token]`, as `fill(indexes:with:)` takes them.
-    private let endTokenIndex: [[Int]]
-
-    init(forcedPrefillLength: Int, endToken: Int) {
-        self.forcedPrefillLength = forcedPrefillLength
-        self.endTokenIndex = [[0, 0, endToken]]
-    }
-
-    func filterLogits(_ logits: MLMultiArray, withTokens tokens: [Int]) -> MLMultiArray {
-        guard tokens.count == forcedPrefillLength else { return logits }
-        logits.fill(indexes: endTokenIndex, with: -FloatType.infinity)
-        return logits
+        guard options.promptTokens != nil, let tokenizer, !options.withoutTimestamps else {
+            return []
+        }
+        let prefill = DecoderPrefill(
+            promptTokens: options.promptTokens,
+            specialTokenBegin: tokenizer.specialTokens.specialTokenBegin,
+            isMultilingual: !tokenizer.allLanguageTokens.isEmpty
+        )
+        return prefill.logitsFilters(specialTokens: tokenizer.specialTokens)
     }
 }
 

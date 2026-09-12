@@ -39,13 +39,6 @@ enum VocabularyPrompt {
         return body.isEmpty ? nil : opening + body + closing
     }
 
-    /// How many tokens run before the transcript begins, which ``PromptPrefillGuard`` waits out.
-    static func forcedPrefillLength(promptLength: Int, isMultilingual: Bool) -> Int {
-        // start-of-previous, start-of-transcript, and the timestamps token.
-        let fixed = 3
-        return promptLength + fixed + (isMultilingual ? 2 : 0)
-    }
-
     /// Seconds at the end of a clip no window may start in, so WhisperKit decodes nothing from a clip no longer than this.
     static let windowClipTime: Float = 1.0
 
