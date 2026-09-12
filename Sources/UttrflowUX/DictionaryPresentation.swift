@@ -279,16 +279,31 @@ public enum DictionaryPresenter {
             pronunciation: draft.pronunciation,
             wordLabel: "Write it as",
             pronunciationLabel: "Say it like",
-            pronunciationHint: """
-                Leave this blank unless the spelling misleads. “Nikhil” written, “Nikkel” \
-                said.
-                """,
+            pronunciationHint: pronunciationHint(for: draft),
             badge: MainPill(text: "New"),
             problem: problem(with: draft, in: snapshot),
             save: MainAction(
                 title: "Save",
                 intent: .saveWord(word: draft.word, pronunciation: draft.pronunciation)),
             cancel: MainAction(title: "Cancel", intent: .cancelWordEdit))
+    }
+
+    /// What the pronunciation field is for, and when it is the only thing that will make the word work.
+    static func pronunciationHint(for draft: DictionaryDraft) -> String {
+        let word = draft.word.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A spelling with no English letters is matched letter for letter, which is not how dictation arrives.
+        guard !word.isEmpty, draft.pronunciation.isEmpty,
+            DoubleMetaphone.code(for: word).isSilent
+        else {
+            return """
+                Leave this blank unless the spelling misleads. \u{201C}Nikhil\u{201D} written, \
+                \u{201C}Nikkel\u{201D} said.
+                """
+        }
+        return """
+            \u{201C}\(word)\u{201D} has no English letters to sound out, so write here how it is \
+            said — otherwise it is only matched spelt exactly this way.
+            """
     }
 
     /// Why a draft cannot be saved; an existing word is refused, since re-adding resets its counters.

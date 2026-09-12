@@ -139,4 +139,40 @@ struct PhoneticIndexTests {
         let heard = Utterance(heard: "clawed cloud one", confidence: 0.3)
         #expect(index.candidates(for: heard) == index.candidates(for: heard))
     }
+
+    // MARK: - Every entry has an address
+
+    /// The invariant: a word in the dictionary that nothing can look up is a word that does not work.
+    @Test(
+        "files every entry where its own spelling finds it",
+        arguments: [
+            "Uttrflow", "kubectl", "caf\u{00E9}", "2024", "\u{0928}\u{0935}\u{0940}\u{0928}",
+            "\u{5317}\u{4EAC}", "\u{041C}\u{043E}\u{0441}\u{043A}\u{0432}\u{0430}",
+        ])
+    func everyEntryIsReachable(spelling: String) {
+        let entry = word(spelling, from: .added)
+        let index = PhoneticIndex(entries: [entry])
+
+        #expect(index.candidates(soundingLike: spelling).map(\.id) == [entry.id])
+        #expect(index.unaddressable.isEmpty)
+    }
+
+    /// A pronunciation is still what a user writes when the spelling misleads, and it still wins.
+    @Test("keys on the pronunciation where there is one, whatever the spelling is")
+    func pronunciationStillWins() {
+        let entry = word("\u{0928}\u{0935}\u{0940}\u{0928}", saying: "Naveen", from: .added)
+        let index = PhoneticIndex(entries: [entry])
+
+        #expect(index.candidates(soundingLike: "naveen").map(\.id) == [entry.id])
+        #expect(index.candidates(soundingLike: "\u{0928}\u{0935}\u{0940}\u{0928}").isEmpty)
+    }
+
+    @Test("names an entry nothing can address rather than dropping it in silence")
+    func namesWhatItCannotFile() {
+        let unfilable = word("!!!", from: .added)
+        let index = PhoneticIndex(entries: [unfilable, word("Uttrflow", from: .added)])
+
+        #expect(index.unaddressable.map(\.word) == ["!!!"])
+        #expect(index.candidates(soundingLike: "Uttrflow").count == 1)
+    }
 }

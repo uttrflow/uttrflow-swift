@@ -15,14 +15,24 @@ public struct PhoneticIndex: Sendable, Equatable {
 
     private let buckets: [String: [DictionaryEntry]]
 
-    /// Files every trustworthy entry under every sound it could be heard as.
+    /// Entries no coder could address, which nothing can ever look up; empty unless a spelling is all punctuation.
+    public let unaddressable: [DictionaryEntry]
+
+    /// Files every trustworthy entry under every sound it could be heard as, and names any it could not file.
     public init(entries: [DictionaryEntry]) {
         var buckets: [String: [DictionaryEntry]] = [:]
+        var unfiled: [DictionaryEntry] = []
         for entry in entries where entry.isTrustworthy {
-            for key in DoubleMetaphone.code(for: entry.soundsLike).keys {
+            let keys = PronunciationCoder.keys(for: entry.soundsLike)
+            guard !keys.isEmpty else {
+                unfiled.append(entry)
+                continue
+            }
+            for key in keys {
                 buckets[key, default: []].append(entry)
             }
         }
+        self.unaddressable = unfiled
         self.buckets = buckets.mapValues {
             Array($0.sorted(by: PhoneticIndex.isMoreUseful).prefix(PhoneticIndex.maximumPerSound))
         }
@@ -32,7 +42,7 @@ public struct PhoneticIndex: Sendable, Equatable {
     public func candidates(soundingLike word: String) -> [DictionaryEntry] {
         var seen: Set<UUID> = []
         var found: [DictionaryEntry] = []
-        for key in DoubleMetaphone.code(for: word).keys {
+        for key in PronunciationCoder.keys(for: word) {
             for entry in buckets[key] ?? [] where seen.insert(entry.id).inserted {
                 found.append(entry)
             }
