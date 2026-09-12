@@ -82,7 +82,10 @@ dictionary is to throw the inferences away. Throwing away the user's own words a
 would make the fix cost more than the fault, and they would stop using it.
 
 Both `learned` and `observed` go, because both are the app's inference and the user cannot be
-expected to know which of the two mechanisms guessed wrong. Only `added` survives. The half-counted
+expected to know which of the two mechanisms guessed wrong. `added` survives, and so does
+`shipped`: a word this build was born knowing was inferred from nothing on this Mac, so there is
+nothing about it to forget. Deleting it one row at a time is still the user's to do, and it stays
+deleted — see the section below. The half-counted
 sightings go with the entries: a word that appeared one dictation after the user asked Uttrflow to
 forget what it had worked out would make a liar of the button.
 
@@ -90,6 +93,30 @@ This is also why the dictionary is not capped in size the way the history is. Th
 itself silently because nobody chose those records; here a silent trim would delete words a user
 deliberately taught the app. The reset is the answer instead, and it is one they ask for and can
 predict.
+
+## The words the build ships knowing
+
+The dictionary used to start empty, which left the word most likely to be dictated while somebody
+writes *about* this product — its own name — the one word it could not help with. `ShippedWords`
+holds the list, `PersonalDictionaryStore.seedShippedWords(at:)` writes it, and `AppDelegate` calls
+that once per launch, off the launch's own path.
+
+Matching is by sound, so one entry covers a family: "Uttrflow", "utter flow", "utterflow",
+"otter flow" and "udder flow" all carry the double metaphone code `ATRFL`, so any of them resolves
+to the shipped spelling. That is also the limit of what seeding buys — a mishearing that codes to
+something else is not reached by it, and the fix for those is a different mechanism, not a longer
+list.
+
+The seeding is recorded in `<dictionary name>.seeded.json` beside the dictionary, holding the
+version of the list that has been applied. Two things follow, and both are deliberate: a word the
+user deletes does not reappear on the next launch, and a later build that adds a word bumps
+`ShippedWords.version` to seed the new one without re-seeding what has already been thrown away.
+The record is named after the dictionary file, so two dictionaries in one directory never share it.
+
+**Be conservative about adding to this list.** A shipped dictionary that is too eager rewrites
+words the user meant, which is worse than not knowing them: every entry here is applied by sound to
+every user, and none of them asked for it. The product's own name earns its place because the
+product is what its users write about.
 
 ## Learning from a dictation
 
