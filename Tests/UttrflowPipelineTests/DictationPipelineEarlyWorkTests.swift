@@ -64,41 +64,56 @@ private final class ShoutingCleaner: TranscriptCleaning, Sendable {
     var seen: [String] { state.withLock(\.seen) }
 }
 
-/// When each stage of each piece ran, so the test can say whether two of them overlapped.
-private final class StageTimeline: Sendable {
-    struct Run: Sendable {
-        let stage: String
-        let started: ContinuousClock.Instant
-        let ended: ContinuousClock.Instant
+/// Whether a recognition ran beside a tidy, asked of the run itself rather than of the clock.
+private final class StageRendezvous: Sendable {
+    private struct State {
+        var inFlight = 0
+        var begun = 0
+        var besides = 0
     }
 
-    private let runs = Mutex<[Run]>([])
+    private let state = Mutex(State())
 
-    func add(_ stage: String, _ started: ContinuousClock.Instant, _ ended: ContinuousClock.Instant) {
-        runs.withLock { $0.append(Run(stage: stage, started: started, ended: ended)) }
-    }
-
-    func all(_ stage: String) -> [Run] { runs.withLock { $0.filter { $0.stage == stage } } }
-
-    /// The number of pairs where one stage was still running when the other started.
-    func overlaps(_ one: String, _ other: String) -> Int {
-        let first = all(one)
-        let second = all(other)
-        return first.reduce(0) { count, run in
-            count + second.count { $0.started < run.ended && run.started < $0.ended }
+    func recognitionBegan() {
+        state.withLock {
+            $0.inFlight += 1; $0.begun += 1
         }
+    }
+
+    func recognitionEnded() { state.withLock { $0.inFlight -= 1 } }
+
+    /// How many recognitions ran in all, which says the pipeline did the work rather than skipped it.
+    var recognitions: Int { state.withLock(\.begun) }
+
+    /// How many tidies had a recognition beside them, which is the property #186 asks for.
+    var tidiesBesideARecognition: Int { state.withLock(\.besides) }
+
+    /// Waits for a recognition to be running, which a serial pass can never provide while a tidy holds it.
+    func tidyWaitsForARecognition(within limit: Duration) async {
+        // Counted at entry, because a recognition that began before this tidy was scheduled still runs beside it.
+        let before = state.withLock { state in (state.inFlight, state.begun) }
+        let deadline = ContinuousClock.now + limit
+        repeat {
+            let beside = state.withLock { state -> Bool in
+                guard before.0 > 0 || state.begun > before.1 else { return false }
+                state.besides += 1
+                return true
+            }
+            if beside { return }
+            try? await Task.sleep(for: .milliseconds(2))
+        } while ContinuousClock.now < deadline
     }
 }
 
-/// A recogniser that takes a measurable time over every call and says when it ran.
+/// A recogniser that stays in flight long enough for a tidy to find it there.
 private actor TimedSpeechEngine: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
-    private let timeline: StageTimeline
+    private let rendezvous: StageRendezvous
     private let takes: Duration
     private(set) var calls = 0
 
-    init(timeline: StageTimeline, takes: Duration) {
-        self.timeline = timeline
+    init(rendezvous: StageRendezvous, takes: Duration) {
+        self.rendezvous = rendezvous
         self.takes = takes
     }
 
@@ -109,29 +124,35 @@ private actor TimedSpeechEngine: SpeechEngine {
     ) async throws(SpeechEngineError) -> Transcription {
         calls += 1
         let call = calls
-        let started = ContinuousClock.now
+        rendezvous.recognitionBegan()
         try? await Task.sleep(for: takes)
-        timeline.add("transcribe", started, ContinuousClock.now)
+        rendezvous.recognitionEnded()
         return Transcription(
             text: "w\(call) x", detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
             audioDuration: audio.duration)
     }
 }
 
-/// A tidier that takes a measurable time over every piece and says when it ran.
+/// A tidier that holds each piece until a recognition turns up beside it, or until it gives up waiting.
 private final class TimedCleaner: TranscriptCleaning, Sendable {
-    private let timeline: StageTimeline
-    private let takes: Duration
+    private let rendezvous: StageRendezvous
+    private let pieces: Int
+    private let waits: Duration
+    private let calls = Mutex(0)
 
-    init(timeline: StageTimeline, takes: Duration) {
-        self.timeline = timeline
-        self.takes = takes
+    init(rendezvous: StageRendezvous, pieces: Int, waits: Duration) {
+        self.rendezvous = rendezvous
+        self.pieces = pieces
+        self.waits = waits
     }
 
     func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
-        let started = ContinuousClock.now
-        try? await Task.sleep(for: takes)
-        timeline.add("tidy", started, ContinuousClock.now)
+        let call = calls.withLock { calls in
+            calls += 1
+            return calls
+        }
+        // The last piece has no recognition left to run beside, so waiting for one would only spend the limit.
+        if call < pieces { await rendezvous.tidyWaitsForARecognition(within: waits) }
         return TransformationResult(
             text: request.transcription.text.uppercased(), producedBy: .foundationModels)
     }
@@ -488,14 +509,14 @@ struct DictationPipelineEarlyWorkTests {
     /// The release pass overlaps the two stages, which a retry is the plainest case of. See #186.
     @Test("the tidy of one piece runs beside the recognition of the next, and the pieces stay in order")
     func tidyingRunsBesideTheNextRecognition() async {
-        let timeline = StageTimeline()
+        let rendezvous = StageRendezvous()
         let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
         let recordings = FakeRecordingKeeper(
             waiting: [recording], audioOutcome: .success(Take.threePieces))
         let pipeline = makePipeline(
             capture: FakeAudioCaptureEngine(),
-            speech: TimedSpeechEngine(timeline: timeline, takes: .milliseconds(60)),
-            cleaner: TimedCleaner(timeline: timeline, takes: .milliseconds(60)),
+            speech: TimedSpeechEngine(rendezvous: rendezvous, takes: .milliseconds(20)),
+            cleaner: TimedCleaner(rendezvous: rendezvous, pieces: 3, waits: .seconds(2)),
             recordings: recordings)
 
         await pipeline.retry(recording.id)
@@ -503,10 +524,10 @@ struct DictationPipelineEarlyWorkTests {
         #expect(
             await pipeline.currentState.outcome?.text == "W1 X W2 X W3 X",
             "the pieces are joined in the order they were spoken")
-        #expect(timeline.all("transcribe").count == 3)
-        #expect(timeline.all("tidy").count == 3)
+        #expect(rendezvous.recognitions == 3)
+        // Asked of the run rather than of the clock, so a loaded machine cannot make a serial pass look pipelined.
         #expect(
-            timeline.overlaps("tidy", "transcribe") >= 2,
+            rendezvous.tidiesBesideARecognition == 2,
             "every tidy but the last runs beside the next recognition")
     }
 }
