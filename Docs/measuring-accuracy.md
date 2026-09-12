@@ -3,6 +3,14 @@
 A proposal, written after WhisperKit 1.1.0 was declined because nobody could say whether
 it was better or worse. This is about the smallest thing that would have answered that.
 
+**The package depends on 1.1.0 anyway, and that is not a change of mind.** `Package.swift`
+declared `from: "0.18.0"` when this repository was published on 29 August; dependabot raised
+it to 1.1.0 the same day (`34b8440`, a `version-update:semver-major`), and this page was
+written the next morning without noticing. So the version this document says was declined is
+the version the recogniser has been running on since before the document existed — a
+major-version change to the dictation path that arrived without the measurement argued for
+below, because nothing gates it. The argument still stands; only its premise was stale.
+
 ## The finding
 
 **Almost all of it already exists.** The blocker is fifteen minutes of somebody reading
