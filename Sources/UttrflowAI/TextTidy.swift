@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// String-level repairs for text that is not a draft: a language model's answer, a snippet, a window title.
 public enum TextTidy {
     /// Collapses runs of whitespace and trims the ends.
@@ -5,10 +7,8 @@ public enum TextTidy {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    /// Lower-cased runs of letters and digits, which is the unit every comparison here counts in.
-    static func words(_ text: String) -> [String] {
-        text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
-    }
+    /// Lower-cased runs of letters and digits, read off the one splitter every word comparison uses.
+    static func words(_ text: String) -> [String] { WordShape.words(text) }
 
     /// Tidies spacing but keeps the line breaks a model's answer may mean. See Docs/ai-model-output.md.
     public static func collapseSpacing(_ text: String) -> String {

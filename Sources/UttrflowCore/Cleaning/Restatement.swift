@@ -10,6 +10,11 @@ public enum Restatement {
     /// How many words back the discarded half may reach.
     public static let reach = 6
 
+    /// Words that head an answer, which a second answer pairs with rather than takes back.
+    public static let answerHeads: Set<String> = [
+        "yes", "yeah", "yep", "no", "nope", "sorry", "thanks", "thank", "okay", "ok",
+    ]
+
     /// Words a restated phrase may not anchor on, because a fresh clause starts with them far more often.
     public static let weakAnchors: Set<String> = [
         "i", "i'm", "i'll", "i've", "i'd", "we", "you", "he", "she", "they", "it", "it's", "that",
@@ -61,10 +66,13 @@ public enum Restatement {
         span.contains { FunctionWords.isContent(draft.shape(at: live[$0]).key) }
     }
 
-    /// Whether the trigger heads each item of a list rather than correcting one, the word before the half it would take back being the trigger over again.
+    /// Whether the trigger heads each item of a list rather than correcting one: the word before the half it would take back is the trigger over again, or an answer this trigger answers ("yes … no …", "thanks … sorry …").
     private static func coordinates(
         _ start: Int, before trigger: Int, in live: [Int], of draft: Draft
     ) -> Bool {
-        start > 0 && draft.shape(at: live[start - 1]).key == draft.shape(at: live[trigger]).key
+        guard start > 0 else { return false }
+        let before = draft.shape(at: live[start - 1]).key
+        let head = draft.shape(at: live[trigger]).key
+        return before == head || (answerHeads.contains(before) && answerHeads.contains(head))
     }
 }

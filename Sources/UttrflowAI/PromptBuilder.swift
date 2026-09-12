@@ -3,7 +3,7 @@ public import UttrflowCore
 /// Builds the model's instructions and user prompt from three layers: the contract, the destination's block and the situation. See `Docs/cleanup.md`.
 public struct PromptBuilder: Sendable, Equatable {
     /// Bumped whenever any wording changes, so a measured result can be tied to the prompt that produced it.
-    public static let version = 8
+    public static let version = 9
 
     /// The label the text before a mid-sentence caret sits behind; the contract teaches the model to read it.
     public static let caretLabel = "Text before the caret:"
@@ -72,7 +72,7 @@ public struct PromptBuilder: Sendable, Equatable {
     /// The "Typed into:" line, the caret line and the doubtful-words line, each only when there is something to say.
     public func situationBlock(for situation: Situation, doubtful: [DoubtfulSpan] = []) -> [String] {
         var lines: [String] = []
-        if let place = AppContextDescriber.describe(situation.app) { lines.append(place) }
+        if let place = AppContextDescriber.describe(situation) { lines.append(place) }
         if let caret = Self.caretText(situation.insertion) { lines.append("\(Self.caretLabel) \"\(caret)\"") }
         if let readings = Self.doubtfulText(doubtful) { lines.append("\(Self.doubtfulLabel) \(readings)") }
         return lines
