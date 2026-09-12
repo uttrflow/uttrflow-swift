@@ -371,6 +371,16 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing {
         return results
     }
 
+    /// Whether an answer repeated the typed line anywhere in it, read exactly as `parse` reads an echo.
+    static func echoes(_ answer: String, of typed: String) -> Bool {
+        let unindented = String(typed.drop(while: \.isWhitespace))
+        return answer.split(whereSeparator: \.isNewline).contains { line in
+            let text = line.trimmingCharacters(in: .whitespaces)
+            return continuation(of: text, past: unindented) != nil
+                || continuation(of: unmarked(text), past: unindented) != nil
+        }
+    }
+
     /// What the line adds past the typed text, read through the marks, case and spacing a model rewrites and one slip in its echo.
     static func continuation(of line: String, past typed: String) -> String? {
         let wanted = Array(comparable(typed))

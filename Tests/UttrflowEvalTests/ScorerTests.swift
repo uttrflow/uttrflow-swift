@@ -86,6 +86,17 @@ struct ScorerTests {
         #expect(padded.similarity < 0.6)
     }
 
+    /// A bag of words scores a permutation perfectly, and reordering clauses is the edit Tier 3 forbids.
+    @Test("does not score a clause moved as a clause kept")
+    func penalisesReordering() {
+        let swapped = Scorer.score(
+            "We rejected the design but approved the budget.",
+            against: reference(expected: "We approved the design but rejected the budget.")
+        )
+        #expect(swapped.similarity < 1)
+        #expect(!swapped.passed)
+    }
+
     @Test("treats two empty strings as agreeing, and one empty as disagreeing")
     func emptyHandling() {
         #expect(Scorer.score("", against: reference(expected: "")).similarity == 1)

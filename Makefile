@@ -42,6 +42,14 @@ comment-audit: ## Prove no file gained a multi-line comment. Needs no build.
 comment-report: ## List the multi-line comments left, worst file first.
 	@python3 Scripts/comment_audit.py --report
 
+.PHONY: match-audit
+match-audit: ## Prove no source file gained a word match decided by shape. Needs no build.
+	@python3 Scripts/loose_match_audit.py
+
+.PHONY: match-report
+match-report: ## List the word matches still decided by shape, with the line.
+	@python3 Scripts/loose_match_audit.py --report
+
 .PHONY: docs-audit
 docs-audit: ## Prove the documentation still describes this tree. Needs no build.
 	./Scripts/docs_audit.sh
@@ -80,7 +88,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit disclosure-audit docs-audit comment-audit pasteboard-audit lint build coverage offline-audit ## The whole gate: PII, disclosure, docs, comments, clipboard, lint, build, tests, coverage floor, offline audit.
+verify: pii-audit disclosure-audit docs-audit comment-audit match-audit pasteboard-audit lint build coverage offline-audit ## The whole gate: PII, disclosure, docs, comments, word matches, clipboard, lint, build, tests, coverage floor, offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
