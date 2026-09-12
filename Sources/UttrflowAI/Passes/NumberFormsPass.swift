@@ -12,6 +12,7 @@ public struct NumberFormsPass: CleaningPass {
         "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
         "table", "level", "room", "floor",
     ]
+    static let currencies: Set<String> = ["rupee", "rupees", "dollar", "dollars", "euro", "euros"]
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
     static let monthDays: [String: Int] = [
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
@@ -126,7 +127,8 @@ public struct NumberFormsPass: CleaningPass {
             }
         }
         if !isPhrase, item.spoken, let value = item.value {
-            guard policy == .always || inContext || value >= 10 else { return nil }
+            let beforeCurrency = joined(end, shapes) && currencies.contains(keys[end])
+            guard policy == .always || inContext || value >= 10 || beforeCurrency else { return nil }
             text = NumberWords.render(value, grouped: !inContext)
         } else if !isPhrase {
             return nil

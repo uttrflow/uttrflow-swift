@@ -198,6 +198,12 @@ public enum EvaluationCorpus {
             mustNotAdd: ["percent"]
         ),
         .init(
+            id: "money", category: .everyday,
+            spoken: "the taxi cost five dollars",
+            expected: "The taxi cost 5 dollars.",
+            mustKeep: ["taxi", "5", "dollars"]
+        ),
+        .init(
             id: "dates", category: .everyday,
             spoken: "the twenty fifth of March",
             expected: "The 25 March.",
