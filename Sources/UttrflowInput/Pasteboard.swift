@@ -1,4 +1,5 @@
 public import UttrflowCore
+public import struct Foundation.Data
 
 /// The system clipboard, reduced to what insertion needs and testable without touching the real one.
 public protocol Pasteboard: Sendable {
@@ -9,6 +10,9 @@ public protocol Pasteboard: Sendable {
 
     /// The same write, with the formatted flavour alongside where there is one.
     func setText(_ text: String, richText: String?)
+
+    /// K4 — replaces the contents with a picture, as PNG bytes, so no caller needs the platform clipboard.
+    func setImage(_ data: Data)
 }
 
 /// Sends the keystroke that pastes.
