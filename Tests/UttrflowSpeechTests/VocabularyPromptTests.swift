@@ -189,6 +189,32 @@ struct VocabularyPromptTests {
         #expect(tokenizer.read(tokens) == " The words used here are Uttrflow.")
     }
 
+    // MARK: The end of the clip
+
+    @Test("the options drive WhisperKit with the end-of-clip window its floor is derived from")
+    func windowClipTimeIsTheNamedOne() {
+        for hint: LanguageCode? in [.english, nil] {
+            let options = VocabularyPrompt.decodingOptions(languageHint: hint)
+            #expect(options.windowClipTime == VocabularyPrompt.windowClipTime)
+        }
+    }
+
+    @Test("WhisperKit's floor lies past that window, so a clip at the floor has a window to decode")
+    func floorClearsTheWindow() {
+        let rate = Double(AudioSamples.canonicalSampleRate)
+        let window = Int(VocabularyPrompt.windowClipTime * Float(AudioSamples.canonicalSampleRate))
+        let floor = Int((WhisperKitBackend.shortestClip / .seconds(1) * rate).rounded(.up))
+
+        #expect(floor > window)
+        let backend = WhisperKitBackend(model: .default, modelFolder: URL(filePath: "/nonexistent"))
+        #expect(backend.minimumDuration == WhisperKitBackend.shortestClip)
+    }
+
+    @Test("WhisperKit is not asked to cut the audio itself, because the product already has")
+    func noChunkingOfItsOwn() {
+        #expect(VocabularyPrompt.decodingOptions(languageHint: nil).chunkingStrategy == nil)
+    }
+
     // MARK: What the recogniser has to be held open for
 
     @Test("counts the tokens WhisperKit forces before the transcript starts")
