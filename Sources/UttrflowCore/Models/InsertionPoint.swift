@@ -46,7 +46,8 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
     private static func withoutOpeningMarker(_ line: Substring) -> Substring {
         let body = line.drop(while: \.isWhitespace)
         if let marker = openingMarkers.first(where: { body.hasPrefix($0) }) {
-            return body.dropFirst(marker.count)
+            // A run of the same mark is one marker: "## " is a heading, ">>" a quotation inside a quotation.
+            return body.drop { String($0) == marker }
         }
         // A numbered item: its digits, then the stop or bracket that closes the number.
         let digits = body.prefix(while: \.isNumber)

@@ -559,9 +559,9 @@ public enum EvaluationCorpus {
         ),
         .init(
             id: "document-numbered-caret-capitalises", category: .contextual,
-            spoken: "the migration finished overnight",
-            expected: "The migration finished overnight.",
-            mustKeep: ["migration"],
+            spoken: "the rollback took twenty minutes",
+            expected: "The rollback took 20 minutes.",
+            mustKeep: ["rollback"],
             context: AppContext(
                 applicationName: "TextEdit",
                 bundleIdentifier: "com.apple.TextEdit",
