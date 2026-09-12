@@ -45,6 +45,11 @@ public struct TransformationResult: Sendable, Equatable {
         self.producedBy = producedBy
         self.cleaning = cleaning
     }
+
+    /// The same result, carrying a record that says what was refused on the way to it.
+    public func recording(_ cleaning: CleaningRecord?) -> TransformationResult {
+        TransformationResult(text: text, producedBy: producedBy, cleaning: cleaning)
+    }
 }
 
 /// Whether a transformer can handle a request; a value, not an error, so the preference list routes past it.
