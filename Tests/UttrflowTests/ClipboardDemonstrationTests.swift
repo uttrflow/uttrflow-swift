@@ -12,6 +12,17 @@ struct ClipboardDemonstrationArrangementTests {
     /// Padding both sides, the gap, the document, and the narrowest the words may be beside it.
     private let threshold: CGFloat = 17 * 2 + 22 + 400 + 360
 
+    @Test("is built from the dimensions Docs/app-main-window.md states, and is 816 points wide")
+    func theStatedDimensions() {
+        #expect(ClipboardDemonstrationMetrics.padding == 17)
+        #expect(ClipboardDemonstrationMetrics.columnSpacing == 22)
+        #expect(ClipboardDemonstrationMetrics.documentWidth == 400)
+        #expect(ClipboardDemonstrationMetrics.stageHeight == 172)
+        #expect(ClipboardDemonstrationMetrics.explanationMinimumWidth == 360)
+        #expect(ClipboardDemonstrationMetrics.explanationMaximumWidth == 460)
+        #expect(threshold == 816)
+    }
+
     @Test("stands side by side as soon as the words have their narrowest room")
     func sideBySideAtTheThreshold() {
         let arrangement = ClipboardDemonstrationMetrics.arrangement(forOfferedWidth: threshold)
