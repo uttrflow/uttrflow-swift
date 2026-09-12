@@ -1,9 +1,16 @@
-# Telemetry: what leaves the Mac, and why a dictation never waits for it
+# Telemetry: what would leave the Mac, and why a dictation never waits for it
 
 Three types carry Uttrflow's usage reporting: `TelemetryCollector` accumulates counters,
 `TelemetryReport` is the value that goes on the wire, and `TelemetryService` sends it and
 remembers what it sent. The code says what each does; this page says what the shapes
 guarantee and where the numbers come from.
+
+**None of it runs in the shipping app.** Nothing outside `UttrflowAccount` builds a
+`TelemetryService` — `grep -rn 'TelemetryService\|TelemetryCollector' Sources --include='*.swift'`
+answers nowhere else — so nothing is collected and nothing is sent. There is no opt-out
+switch because there is nothing yet to opt out of, which is what `README.md` says too. Read
+every sentence below as the design that sits in the tree, ready for the day it is wired up,
+rather than as behaviour a user has today.
 
 ## There is no `String` anywhere in a report
 
@@ -107,7 +114,7 @@ The percentile index is `count * fraction`, which at `0.5` is `count / 2`, the s
 zero: a stage nothing timed is not a stage that was instant, and the server's column is
 nullable so the difference survives.
 
-## Opting out forgets everything
+## Opting out would forget everything
 
 Switching collection off discards everything gathered so far in the same call, and
 `TelemetryService.setEnabled` empties the outbox too. Reports waiting for a connection
@@ -128,9 +135,11 @@ overflows the earliest report is dropped, because a report describes a window th
 already closed: the recent ones say what Uttrflow is like now.
 
 The ledger of sent reports holds 64 entries, and each entry is the very value that was
-encoded and posted, not a description written separately. The privacy page draws from it,
-so what the user is shown is what left their machine. `TelemetryReport.encodedForIngest()`
-exists so the page showing reports and the sender uploading them look at the same bytes.
+encoded and posted, not a description written separately. It is there so that whatever
+screen eventually shows a user their reports can show the same bytes that were posted;
+nothing reads `sentReports` today except `TelemetryServiceTests`, and there is no such
+screen. `TelemetryReport.encodedForIngest()` exists so that page and the sender would look
+at the same bytes rather than at two descriptions of them.
 
 `flush` cannot throw and cannot report a problem. No caller should do anything differently
 because telemetry failed, and a version that threw would eventually be `try`-ed somewhere
