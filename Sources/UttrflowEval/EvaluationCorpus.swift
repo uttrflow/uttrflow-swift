@@ -70,6 +70,12 @@ public enum EvaluationCorpus {
             expected: "We should ship it today.",
             mustEndWith: "."
         ),
+        // "ER" folds onto the filler "er", and only the determiner before it says which one was said.
+        .init(
+            id: "noun-spelled-like-a-filler", category: .everyday,
+            spoken: "um I took her to the ER last night",
+            expected: "I took her to the ER last night.",
+            mustKeep: ["ER"]
         // The unwrapper's case: a quote pair the recogniser reported is the speaker's, not the model's packaging.
         .init(
             id: "quoted-whole-utterance", category: .everyday,

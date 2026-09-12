@@ -13,11 +13,14 @@ public struct FillersPass: CleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
+        let live = draft.presentIndices
         var previous: Int?
-        for index in draft.presentIndices {
+        for (position, index) in live.enumerated() {
             let word = draft.words[index].text
-            let bare = word.lowercased().filter(\.isLetter)
-            guard Self.fillerWords.contains(bare), word.allSatisfy({ $0.isLetter || $0.isPunctuation })
+            // A filler sound is never preceded by a determiner; a noun spelled like one — "the ER" — always is.
+            guard Self.fillerWords.contains(draft.shape(at: index).key),
+                position == 0
+                    || !MentionGuard.isMentioned(at: position, spanning: 1, in: live, of: draft)
             else {
                 previous = index
                 continue
