@@ -11,6 +11,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private var currentState: AudioCaptureState = .idle
     /// Set when the microphone stops for good mid-recording, and thrown by `stop()` rather than half a recording.
     private var failure: AudioCaptureError?
+    /// Says the microphone went during this recording, so the audio either side of the hole does not join.
+    private var isGapped = false
     /// Played the moment the microphone closes, since this engine alone knows that instant.
     private let cue: any RecordingCueing
 
@@ -42,6 +44,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         accumulator.reset()
 
         failure = nil
+        isGapped = false
         let accumulator = self.accumulator
         // Opened before the tap, so the file holds every block the buffer does.
         let writer = await recordings?.begin()
@@ -50,8 +53,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
             try source.start { samples in
                 accumulator.append(samples)
                 writer?.append(samples)
-            } onFailure: { [weak self] error in
-                Task { await self?.microphoneDied(error) }
+            } onInterruption: { [weak self] interruption in
+                Task { await self?.microphoneInterrupted(interruption) }
             }
         } catch {
             await abandonWriter()
@@ -74,15 +77,25 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         // A microphone that died mid-recording captured only the first half, which reads as a whole sentence.
         if let failure {
             self.failure = nil
+            isGapped = false
             throw failure
+        }
+        // A hole in the middle reads as a whole sentence too, because samples cannot say time passed.
+        if isGapped {
+            isGapped = false
+            throw .engineFailed(
+                description: "The microphone was away for part of this recording.")
         }
         return .canonical(samples)
     }
 
-    /// Remembers that the microphone stopped for good, since only `stop()` has somewhere to report it.
-    private func microphoneDied(_ error: AudioCaptureError) {
+    /// Remembers what a device change did, since only `stop()` has somewhere to report it.
+    private func microphoneInterrupted(_ interruption: CaptureInterruption) {
         guard currentState == .recording else { return }
-        failure = error
+        switch interruption {
+        case .began: isGapped = true
+        case .ended(let error): failure = error
+        }
     }
 
     /// Everything the microphone has delivered so far, so work can begin before the key is released.
