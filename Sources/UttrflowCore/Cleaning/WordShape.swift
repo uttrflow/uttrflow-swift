@@ -56,6 +56,20 @@ public struct WordShape: Equatable, Sendable {
         return text + "."
     }
 
+    /// The word with `mark` on its end; a clause mark replaces one already there, a quote follows it.
+    public static func marked(_ text: String, with mark: String) -> String {
+        if mark == "\u{2014}" { return text + " " + mark }
+        if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
+            return String(text.dropLast()) + mark
+        }
+        return text + mark
+    }
+
+    /// The word with every mark of `marks` on its end, each merged in turn under `marked(_:with:)`.
+    public static func marked(_ text: String, withAll marks: some Sequence<Character>) -> String {
+        marks.reduce(text) { marked($0, with: String($1)) }
+    }
+
     /// Takes back one trailing full stop; a question or exclamation mark, or an ellipsis, stays.
     public static func withoutTrailingStop(_ text: String) -> String {
         guard text.hasSuffix("."), !text.hasSuffix("..") else { return text }

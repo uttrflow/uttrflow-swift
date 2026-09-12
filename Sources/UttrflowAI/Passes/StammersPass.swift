@@ -18,7 +18,7 @@ public struct StammersPass: CleaningPass {
             if word == previous, !FunctionWords.isContent(word),
                 !Self.legitimateDoubles.contains(word)
             {
-                draft.remove(at: index, by: Self.id)
+                draft.remove(at: index, by: Self.id, carryingMarks: true)
                 continue
             }
             previous = word

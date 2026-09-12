@@ -53,6 +53,24 @@ public enum EvaluationCorpus {
             expected: "So basically the thing is, we need more time."
         ),
         .init(
+            id: "filler-carrying-a-question-mark", category: .everyday,
+            spoken: "so are we shipping today, uh?",
+            expected: "So are we shipping today?",
+            mustEndWith: "?"
+        ),
+        .init(
+            id: "filler-carrying-an-exclamation-mark", category: .everyday,
+            spoken: "that is amazing uh!",
+            expected: "That is amazing!",
+            mustEndWith: "!"
+        ),
+        .init(
+            id: "filler-between-commas", category: .everyday,
+            spoken: "we should, uh, ship it today",
+            expected: "We should ship it today.",
+            mustEndWith: "."
+        ),
+        .init(
             id: "no-punctuation", category: .everyday,
             spoken: "the build passed everything looks good ship it",
             expected: "The build passed. Everything looks good. Ship it."
