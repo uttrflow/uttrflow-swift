@@ -76,6 +76,7 @@ public enum EvaluationCorpus {
             spoken: "um I took her to the ER last night",
             expected: "I took her to the ER last night.",
             mustKeep: ["ER"]
+        ),
         // The unwrapper's case: a quote pair the recogniser reported is the speaker's, not the model's packaging.
         .init(
             id: "quoted-whole-utterance", category: .everyday,
