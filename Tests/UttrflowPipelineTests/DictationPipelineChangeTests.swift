@@ -68,7 +68,7 @@ private final class FakeExpander: SnippetExpanding, Sendable {
 /// A ``DictationLearning`` that remembers what it is told, and can refuse.
 private final class FakeLearner: DictationLearning, Sendable {
     private struct State: Sendable {
-        var entries: [UUID] = []
+        var entries: [[UUID]] = []
         var snippets: [[UUID]] = []
     }
 
@@ -79,8 +79,8 @@ private final class FakeLearner: DictationLearning, Sendable {
         self.refuses = refuses
     }
 
-    func recordUse(ofEntry id: UUID) async throws(DictationChangeError) {
-        state.withLock { $0.entries.append(id) }
+    func recordUse(ofEntries ids: [UUID]) async throws(DictationChangeError) {
+        state.withLock { $0.entries.append(ids) }
         guard !refuses else { throw .storeRefused }
     }
 
@@ -89,7 +89,7 @@ private final class FakeLearner: DictationLearning, Sendable {
         guard !refuses else { throw .storeRefused }
     }
 
-    var entries: [UUID] { state.withLock { $0.entries } }
+    var entries: [[UUID]] { state.withLock { $0.entries } }
     var snippets: [[UUID]] { state.withLock { $0.snippets } }
 }
 
@@ -148,10 +148,10 @@ private final class FakeInserter: TextInserting, Sendable {
         self.refuses = refuses
     }
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         state.withLock { $0.append(text) }
         guard !refuses else { throw .clipboardUnavailable }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     var received: [String] { state.withLock { $0 } }
@@ -161,6 +161,7 @@ private final class FakeInserter: TextInserting, Sendable {
 
 private let heard = "open the payment sheet and send my address"
 private let entry = UUID()
+private let otherEntry = UUID()
 private let snippet = UUID()
 
 private let paymentSheet = DictationCorrection(
@@ -360,7 +361,7 @@ struct DictationPipelineLearningTests {
 
         await dictate(with: pipeline)
 
-        #expect(learner.entries == [entry])
+        #expect(learner.entries == [[entry]])
     }
 
     /// The dictionary counts dictations an entry applied to, not words.
@@ -377,7 +378,24 @@ struct DictationPipelineLearningTests {
 
         await dictate(with: pipeline)
 
-        #expect(learner.entries == [entry])
+        #expect(learner.entries == [[entry]])
+    }
+
+    /// Each call is one whole-file write in the store, so a dictation costs one write however many entries fired.
+    @Test("Counts every entry a dictation used in one call to the store")
+    func countsTheEntriesInOneCall() async {
+        let learner = FakeLearner()
+        let two = [
+            paymentSheet,
+            DictationCorrection(
+                heard: "my address", wrote: "MyAddress", wordRange: 6..<8, entryID: otherEntry,
+                reason: "heardAsSeveralWords", heardConfidence: 0.2),
+        ]
+        let pipeline = makePipeline(corrector: FakeCorrector(proposing: two), learner: learner)
+
+        await dictate(with: pipeline)
+
+        #expect(learner.entries == [[entry, otherEntry]])
     }
 
     /// The snippet store counts firings rather than dictations, and says so.
@@ -398,6 +416,7 @@ struct DictationPipelineLearningTests {
         await dictate(with: pipeline)
 
         #expect(learner.snippets == [[snippet, snippet]])
+        #expect(learner.entries.isEmpty)
     }
 
     /// The guard that makes this free for a user with neither a dictionary nor a snippet.

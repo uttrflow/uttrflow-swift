@@ -267,8 +267,8 @@ public enum Verification {
             || (word.count >= 7 && word.allSatisfy(\.isHexDigit))
     }
 
-    /// What could vouch for a word, which the command and the word's place in it decide; nothing for a word the command reads as text.
-    static func attestingKinds(for token: CompletionToken) -> [EnvironmentKind] {
-        attestation(for: token)?.lookups.flatMap(\.kinds) ?? []
+    /// Whether everything that could vouch for a word is a kind that names all there is, so a refusal is final.
+    static func isClosedVocabulary(for token: CompletionToken) -> Bool {
+        isClosedVocabulary(attestation(for: token)?.lookups.flatMap(\.kinds) ?? [])
     }
 }

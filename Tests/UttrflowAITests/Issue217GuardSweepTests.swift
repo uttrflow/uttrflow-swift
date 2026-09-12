@@ -6,6 +6,11 @@ import UttrflowCore
 /// Regression for issue 217 inside the guard: a lossy match is no longer the whole of what `survives` asks.
 @Suite("Issue 217 sweep: a content word does not survive on three shared letters")
 struct Issue217GuardSweepTests {
+    private func survives(_ word: String, as candidate: String) -> Bool {
+        MeaningPreservationGuard.grammarTokens(candidate)
+            .contains { MeaningPreservationGuard.survives(word, as: $0) }
+    }
+
     @Test(
         "refuses a rewrite that swapped a content word for one that merely opens like it",
         arguments: [
@@ -20,17 +25,17 @@ struct Issue217GuardSweepTests {
 
     @Test("a word is not read out of the middle of an unrelated one")
     func doesNotReadAWordOutOfAnother() {
-        #expect(!MeaningPreservationGuard.survives("contract", in: ["contact"]))
-        #expect(!MeaningPreservationGuard.survives("own", in: ["downtown"]))
-        #expect(!MeaningPreservationGuard.survives("art", in: ["start"]))
+        #expect(!survives("contract", as: "contact"))
+        #expect(!survives("own", as: "downtown"))
+        #expect(!survives("art", as: "start"))
     }
 
     /// What the loosened rules were written for still has to hold, or the guard refuses good rewrites.
     @Test("still sees a word spelled into an identifier, and a form of the same word")
     func keepsWhatTheRuleWasFor() {
-        #expect(MeaningPreservationGuard.survives("invoices", in: ["fetchinvoices"]))
-        #expect(MeaningPreservationGuard.survives("developer", in: ["developers"]))
-        #expect(MeaningPreservationGuard.survives("running", in: ["run"]))
+        #expect(survives("invoices", as: "fetchInvoices"))
+        #expect(survives("developer", as: "developers"))
+        #expect(survives("running", as: "run"))
     }
 
     /// The repairs `Docs/cleanup.md` says the formatter makes — a tense that drifts, agreement — change a word's form.
@@ -54,23 +59,39 @@ struct Issue217GuardSweepTests {
     /// A y-stem or a dropped "e" is a spelling change English makes before an ending, not a different word.
     @Test("reads a form written over a stem, and still refuses a word that only shares one")
     func readsAStemmedForm() {
-        #expect(MeaningPreservationGuard.survives("try", in: ["tried"]))
-        #expect(MeaningPreservationGuard.survives("happy", in: ["happier"]))
-        #expect(MeaningPreservationGuard.survives("cities", in: ["city"]))
-        #expect(MeaningPreservationGuard.survives("take", in: ["taking"]))
-        #expect(!MeaningPreservationGuard.survives("mad", in: ["made"]))
-        #expect(!MeaningPreservationGuard.survives("depot", in: ["deposit"]))
-        #expect(!MeaningPreservationGuard.survives("many", in: ["management"]))
-        #expect(!MeaningPreservationGuard.survives("one", in: ["on"]))
+        #expect(survives("try", as: "tried"))
+        #expect(survives("happy", as: "happier"))
+        #expect(survives("cities", as: "city"))
+        #expect(survives("take", as: "taking"))
+        #expect(!survives("mad", as: "made"))
+        #expect(!survives("depot", as: "deposit"))
+        #expect(!survives("many", as: "management"))
+        #expect(!survives("one", as: "on"))
+    }
+
+    /// The listed forms reach only the words listed, so a short word whose ending would make another word is still refused.
+    @Test("refuses an unlisted short word whose ending makes another word")
+    func listedFormsStayNarrow() {
+        #expect(survives("go", as: "goes"))
+        #expect(survives("happy", as: "happiest"))
+        #expect(!survives("dry", as: "dryer"))
+        #expect(!survives("corn", as: "corner"))
+        #expect(
+            !MeaningPreservationGuard.grammarVerdict(
+                kept: "the corn is ripe", rewritten: "The corner is ripe."
+            )
+            .isAccepted)
     }
 
     /// Three letters is what `GeneralVocabulary` calls a word — "SQL or API" — so an identifier must not swallow one.
     @Test("sees a three-letter word spelled into an identifier the model wrote")
     func seesAShortWordInAnIdentifier() {
-        #expect(MeaningPreservationGuard.identifierParts(of: "fetchURL") == ["fetch", "url"])
-        #expect(MeaningPreservationGuard.identifierParts(of: "new_tab") == ["new", "tab"])
-        #expect(MeaningPreservationGuard.identifierParts(of: "downtown").isEmpty)
-        #expect(MeaningPreservationGuard.identifierParts(of: "don't").isEmpty)
+        #expect(MeaningPreservationGuard.identifierParts("fetchURL") == ["fetch", "url"])
+        #expect(MeaningPreservationGuard.identifierParts("new_tab") == ["new", "tab"])
+        let downTown = MeaningPreservationGuard.grammarTokens("down town")
+        #expect(!MeaningPreservationGuard.isSpelled("downtown", from: downTown))
+        let doNot = MeaningPreservationGuard.grammarTokens("do not")
+        #expect(!MeaningPreservationGuard.isSpelled("don't", from: doNot))
     }
 
     @Test(
@@ -97,12 +118,16 @@ struct Issue217GuardSweepTests {
     func readingsStartWhereAWordStarts() {
         let span = DoubtfulSpan(heard: "in it", confidence: 0.3, candidates: ["init"])
         #expect(
-            !MeaningPreservationGuard.candidateVerdict([span], rewritten: "Let me begin it tomorrow.")
-                .isAccepted)
+            !MeaningPreservationGuard.candidateVerdict(
+                [span], kept: "let me in it tomorrow", rewritten: "Let me begin it tomorrow."
+            )
+            .isAccepted)
 
         let amount = DoubtfulSpan(heard: "a mount", confidence: 0.3, candidates: ["amount"])
         #expect(
-            MeaningPreservationGuard.candidateVerdict([amount], rewritten: "The amount is fine.")
-                .isAccepted)
+            MeaningPreservationGuard.candidateVerdict(
+                [amount], kept: "the a mount is fine", rewritten: "The amount is fine."
+            )
+            .isAccepted)
     }
 }

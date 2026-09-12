@@ -147,6 +147,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var undoable: Clip?
     private var undoTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
+    private(set) var openingEditor: Task<Void, Never>?
     /// A3, A7 — where the user was when the panel closed, while reopening still counts as undoing.
     private var resume: PanelResume?
     /// Long enough to reach for the keyboard, short enough to not undo a forgotten delete.
@@ -396,11 +398,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         let speech = SpeechEngineFactory.make(
             kind: settings.engines.speech, model: model,
-            modelFolder: modelStore.location(of: model),
-            vocabulary: DictionaryVocabulary { [dictionary, context] in
-                // One reading, so the words are ranked against the screen they were ranked for.
-                await (dictionary.allEntries(), context.currentContext(), Date())
-            })
+            modelFolder: modelStore.location(of: model))
+
+        // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
+        let speechWords = DictionaryVocabulary { [dictionary] in
+            await (dictionary.allEntries(), Date())
+        }
 
         // One cue for both ends, so a stop sounds only after a start the user could have heard.
         let cue: any RecordingCueing =
@@ -420,6 +423,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Announced, like every write this app makes. See `Docs/insertion.md`.
             inserter: TextInsertion.coordinator(
                 pasteboard: announcingPasteboard, reporting: Self.logPaste),
+            speechWords: { seeing in await speechWords.vocabulary(favouring: seeing) },
             corrector: DictionaryCorrections(dictionary: dictionary),
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
@@ -1446,7 +1450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // From the store, since `knownSnippets` can be a refresh behind.
             editorGeneration += 1
             let opening = editorGeneration
-            Task { [weak self] in
+            openingEditor = Task { [weak self] in
                 guard let self,
                     let snippet = await snippets.snippets().first(where: { $0.id == id }),
                     // Anything done while the disk was read wins over this.
@@ -1744,9 +1748,9 @@ private struct StoreCounters: DictationLearning {
     let dictionary: PersonalDictionaryStore
     let snippets: SnippetStore
 
-    func recordUse(ofEntry id: UUID) async throws(DictationChangeError) {
+    func recordUse(ofEntries ids: [UUID]) async throws(DictationChangeError) {
         do {
-            _ = try await dictionary.recordUse(of: id)
+            _ = try await dictionary.recordUse(of: ids)
         } catch {
             throw .storeRefused
         }

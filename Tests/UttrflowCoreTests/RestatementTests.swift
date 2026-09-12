@@ -36,6 +36,25 @@ struct RestatementTests {
         #expect(Restatement.discardedStart(before: 3, after: 5, in: bare.live, of: bare.draft) == nil)
     }
 
+    /// A number anchor reaches back only as far as the stop, because the number in the sentence before was not the one corrected.
+    @Test("refuses a number anchor that sits on the far side of a sentence end")
+    func numbersDoNotReachThroughAStop() {
+        let people = reading("the meeting is at 3. no 4 people confirmed")
+        #expect(Restatement.discardedStart(before: 5, after: 6, in: people.live, of: people.draft) == nil)
+        let spelled = reading("the meeting is at three. no four people confirmed")
+        #expect(
+            Restatement.discardedStart(before: 5, after: 6, in: spelled.live, of: spelled.draft) == nil)
+        let run = reading("the code is 4 5. no 6")
+        #expect(Restatement.discardedStart(before: 5, after: 6, in: run.live, of: run.draft) == nil)
+    }
+
+    /// The walk-back over a run of numbers stops at the stop, so the correction takes back only this sentence's half.
+    @Test("a number anchor whose neighbour ends a sentence reaches back no further")
+    func numberWalkBackStopsAtTheStop() {
+        let code = reading("the code is 4. 5 no 6")
+        #expect(Restatement.discardedStart(before: 5, after: 6, in: code.live, of: code.draft) == 4)
+    }
+
     /// A trigger heading a repeated frame — "no to the offer, no to the meeting" — coordinates a list rather than correcting one.
     @Test("refuses the match when the trigger word itself heads the half it would take back")
     func triggerHeadingAList() {
@@ -46,6 +65,9 @@ struct RestatementTests {
             Restatement.discardedStart(before: 4, after: 5, in: apology.live, of: apology.draft) == nil)
         let room = reading("there's no room, no room at all")
         #expect(Restatement.discardedStart(before: 3, after: 4, in: room.live, of: room.draft) == nil)
+        let numbered = reading("say no 3 no 4")
+        #expect(
+            Restatement.discardedStart(before: 3, after: 4, in: numbered.live, of: numbered.draft) == nil)
     }
 
     /// "Yes … no …" and "thanks … sorry …" are two items of one pair: the speaker answered twice, and took nothing back.

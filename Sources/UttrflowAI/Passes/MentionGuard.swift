@@ -22,9 +22,11 @@ enum MentionGuard {
 
     /// Whether the mark word at `position` is mentioned; `reach` is how far the phrase's own opener may stand.
     static func isMentioned(
-        at position: Int, spanning length: Int, in live: [Int], of draft: Draft, reach: Int = 1
+        at position: Int, spanning length: Int, in live: [Int], of draft: Draft, reach: Int = 1,
+        kind: SpokenMarkKind = .trailing
     ) -> Bool {
-        guard position > 0 else { return true }
+        // An opening mark goes on the word after it, so a text beginning with one is using it, not naming it.
+        guard position > 0 else { return kind != .opening }
         if opensThePhrase(ending: position, reaching: reach, in: live, of: draft) { return true }
         let next = position + length
         return next < live.count && draft.shape(at: live[next]).key == "of"
@@ -37,9 +39,11 @@ enum MentionGuard {
         // A hyphen joins the two words around it, so it heads no phrase and only the word before it speaks.
         let far = draft.shape(at: live[position]).key == "hyphen" ? 1 : reach
         for back in 1...min(far, position) {
-            let key = draft.shape(at: live[position - back]).key
-            if back == 1 ? determiners.contains(key) : phraseOpeners.contains(key) { return true }
-            if markNames.contains(key) { return false }
+            let shape = draft.shape(at: live[position - back])
+            // A noun phrase cannot begin in the sentence before, so no opener stands on the far side of a stop.
+            if shape.endsSentence { return false }
+            if back == 1 ? determiners.contains(shape.key) : phraseOpeners.contains(shape.key) { return true }
+            if markNames.contains(shape.key) { return false }
         }
         return false
     }

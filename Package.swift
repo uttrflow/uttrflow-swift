@@ -319,7 +319,10 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowSpeechTests",
-            dependencies: ["UttrflowSpeech", "UttrflowTestSupport"],
+            dependencies: [
+                "UttrflowSpeech", "UttrflowTestSupport",
+                .product(name: "WhisperKit", package: "whisperkit"),
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

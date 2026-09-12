@@ -15,6 +15,9 @@ public actor AppleSpeechBackend: TranscriptionBackend {
         self.locale = locale
     }
 
+    /// The analyser holds back no end-of-clip window, so it takes whatever the engine's own floor lets through.
+    public nonisolated var minimumDuration: Duration { .zero }
+
     /// Whether the system can recognise a language at all.
     public static func supports(_ language: LanguageCode) async -> Bool {
         await SpeechTranscriber.supportedLocales

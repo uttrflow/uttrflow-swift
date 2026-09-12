@@ -88,8 +88,8 @@ public struct Draft: Sendable, Equatable {
     public static let bullet = "- "
     /// What a numbered item begins with once its digits are past: "1. ", "2. ".
     public static let numberStop = ". "
-    /// The tokens a line may open with to be read as a list item.
-    private static let bulletTokens: Set<Substring> = ["-", "•", "*"]
+    /// The tokens a line may open with to be read as a list item; `InsertionPoint` reads the same set.
+    public static let bulletTokens: Set<String> = ["-", "\u{2022}", "*"]
 
     public var words: [Word]
     /// Whether the words carry the recogniser's confidences rather than a stand-in of 1 for every word.
@@ -113,7 +113,7 @@ public struct Draft: Sendable, Equatable {
         for (number, line) in lines.enumerated() {
             var lineWords = line.split(whereSeparator: \.isWhitespace)
             guard !lineWords.isEmpty else { continue }
-            let isItem = lineWords.count > 1 && Self.bulletTokens.contains(lineWords[0])
+            let isItem = lineWords.count > 1 && Self.bulletTokens.contains(String(lineWords[0]))
             if isItem { lineWords.removeFirst() }
             let breaks = previousLine.map { String(repeating: "\n", count: number - $0) } ?? ""
             let mark = breaks + (isItem ? Self.bullet : "")
@@ -196,6 +196,43 @@ public struct Draft: Sendable, Equatable {
         guard words[index].isPresent else { return }
         words[index].note(Word.Edit(by: pass, kind: .removed, from: words[index].text, to: ""))
         words[index].state = .removed(by: pass)
+    }
+
+    /// Takes the word out, moving the marks it carries onto the words that stay. See `Docs/cleanup.md`.
+    public mutating func remove(at index: Int, by pass: PassID, carryingMarks: Bool) {
+        guard words[index].isPresent else { return }
+        if carryingMarks { carryMarks(from: index, by: pass) }
+        remove(at: index, by: pass)
+    }
+
+    /// Moves a word's closing marks back onto the previous word and its opening marks onto the next.
+    private mutating func carryMarks(from index: Int, by pass: PassID) {
+        let shape = WordShape(words[index].text)
+        // A comma is the pause the removed word stood in, so it goes with the word; every other mark is the sentence's.
+        let closing = shape.suffix.filter { $0 != "," && !$0.isWhitespace }
+        let opening = shape.prefix.filter { $0 != "," && !$0.isWhitespace }
+        if !closing.isEmpty, let before = previousPresent(before: index) {
+            replace(at: before, with: WordShape.marked(words[before].text, withAll: closing), by: pass)
+        }
+        if !opening.isEmpty, let after = nextPresent(after: index) {
+            replace(at: after, with: String(opening) + words[after].text, by: pass)
+        }
+    }
+
+    /// The word still in the text before `index`, or nil when a line break stands between: a mark never crosses one.
+    private func previousPresent(before index: Int) -> Int? {
+        guard let found = words[..<index].lastIndex(where: \.isPresent),
+            !words[found].isLayoutMark
+        else { return nil }
+        return found
+    }
+
+    /// The word still in the text after `index`, or nil when a line break stands between.
+    private func nextPresent(after index: Int) -> Int? {
+        guard let found = words[(index + 1)...].firstIndex(where: \.isPresent),
+            !words[found].isLayoutMark
+        else { return nil }
+        return found
     }
 
     /// Rewrites the word at `index`, remembering the pass and what it read before; a removed word stays removed.

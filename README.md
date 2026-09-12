@@ -7,9 +7,10 @@
 [![Download](https://img.shields.io/badge/download-latest-brightgreen.svg)](https://github.com/uttrflow/releases/releases/latest/download/Uttrflow.dmg)
 [![Website](https://img.shields.io/badge/website-uttrflow.com-0b7f76.svg)](https://uttrflow.com)
 
-**A native macOS clipboard manager with dictation built in.** Everything you copy is a
-keystroke away, and you can speak into any application instead of typing. Speech becomes
-text on your own Mac; nothing you copy or say leaves it.
+**A native macOS clipboard manager, with dictation and tab-to-complete built in.** Everything
+you copy is a keystroke away, you can speak into any application instead of typing, and —
+once you ask for it — the line you are typing can be finished from what you have typed
+before. All three happen on your own Mac; nothing you copy, say or type leaves it.
 
 <p align="center">
   <img src="Docs/media/clipboard-panel.png" width="420"
@@ -51,9 +52,15 @@ Homebrew quarantines what it downloads too, so the command is needed after eithe
   hold it, and the shortcut can be changed in Settings.
 - **Dictionary.** A name the recogniser keeps getting wrong is fixed once; matching is by
   sound, so spellings you have not seen yet are caught too.
+- **Tab-to-complete**, once you turn it on in Settings → Suggestions. The rest of the line
+  appears in grey ahead of the caret as you type; **Tab** takes it, typing on ignores it,
+  and ↓ opens the alternatives when there is more than one. Tab is already spoken for in a
+  terminal and in an editor, so those take a completion with **→** and **⌥Tab** instead,
+  and the key can be set per application.
 
 The first dictation asks for the microphone, and typing into another app needs
-Accessibility. The clipboard needs neither to open.
+Accessibility — which tab-to-complete needs three times over: to read the field, to watch
+the keyboard, and to write the completion. The clipboard needs neither to open.
 
 ## What it does
 
@@ -69,6 +76,17 @@ speech recogniser, then a clean-up stage turns what was said into what was meant
 go, punctuation arrives, and the words in your dictionary are spelled your way. Each engine
 declines what it cannot handle, so a language Apple's model does not cover is routed to one
 that does.
+
+**Tab-to-complete** is off until you turn it on, and then it finishes the line you are
+typing in another application. A completion comes from what this Mac has entered in that
+same field before, or from what is on the machine right now — a branch name, a program on
+`PATH` — or, when neither has anything, from a line the local model writes. Turning it on
+fetches about 3 GB of model weights; the remembered and machine-known completions do not
+wait for them. It stays quiet more often than it speaks: a password field, a selection, a
+caret that is not at the end of its line, a field that reports no caret to draw at, or
+three completions typed past in one field are each reason enough to draw nothing. Four
+editors ship switched off, because their own completion already reads the whole file.
+[`Docs/predict.md`](Docs/predict.md) is the full account.
 
 **Works offline.** Sign in needs a network exactly once. After that every launch, every
 dictation and every paste works with Wi-Fi off — proven by a sandbox that fails any test
@@ -250,6 +268,19 @@ fixed width that does not reveal how long the token is, and they get no tooltip.
 a rule about the screen — about somebody reading over your shoulder, or a shared screen —
 and not about the disk. The text is stored in the clear like every other clip.
 
+**Tab-to-complete learns from what you type, and that corpus is the most sensitive thing
+the app keeps.** It is `predict.v1.sqlite` in the same Application Support folder, at the
+same ordinary file permissions, unencrypted, and it is never uploaded. Nothing is written
+until you have been asked: the first time you finish a value in an application Uttrflow
+asks once whether it may learn there, keeps the answer in `predict-consent.v1.json`, and
+records nothing in the meantime — so the choice is per application, and an application you
+said no to stays refused silently. A field that hides what is typed into it is refused
+before anything else is considered, because a password field a completion has seen is a
+password in a database; so are values shaped like a credential, values that would destroy
+data if they were ever completed and run, and anything shorter than two characters
+(`CaptureGate` in `Sources/UttrflowPredictCapture`). A field keeps at most 2,000 entries.
+You can forget one line, everything one application taught, or all of it.
+
 **There is an account, and it is required to dictate.** Signing in needs a network exactly
 once; every launch after that works without one, and an entitlement that has aged out
 still lets you dictate rather than locking you out.
@@ -281,6 +312,18 @@ ideas go in [Discussions](https://github.com/uttrflow/uttrflow-swift/discussions
 - [`SECURITY.md`](SECURITY.md) — reporting a vulnerability, and what runs automatically
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed, per version
 - [uttrflow.com](https://uttrflow.com) — the site, and what the app is for
+
+## Contributors
+
+Every person below has landed a change in this repository. The grid is generated from the
+commit history, so a merged pull request is all it takes to appear here.
+
+<p align="center">
+  <a href="https://github.com/uttrflow/uttrflow-swift/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=uttrflow/uttrflow-swift&columns=16"
+         alt="The avatars of everyone who has contributed to uttrflow-swift, linking to the contributors graph.">
+  </a>
+</p>
 
 ## Licence
 

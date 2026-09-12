@@ -248,8 +248,8 @@ Sixty buys 6%, which does not pay for any loss of smoothness on a ProMotion disp
 rise — available as a deliberate trade, not taken here.
 
 The real repair is structural: stop a redraw of one card from re-solving the root
-geometry. `ViewThatFits` sits inside the per-frame closure and re-measures both candidate
-arrangements on every frame, which is the obvious thing to move.
+geometry. `ViewThatFits` sat inside the per-frame closure and re-measured both candidate
+arrangements on every frame, which was the obvious thing to move.
 
 **It was attempted, and the obvious move is wrong.** Written down because it costs a build
 and an hour to find out, and because it fails in the worst available way — silently, and
@@ -283,10 +283,32 @@ It is absent or frozen — and therefore free — in all of these:
   stage, the figures and today's list. At the default window size it is off screen, and
   off-screen means not drawn.
 
-So the structural repair is still open, and it needs a bundle that has been granted
-Accessibility, a window big enough to show the card, and a way to hold focus — none of which
-were available in the session that found this. The `sample`-based frame count above is the
-gate any attempt has to pass before its processor figure means anything.
+That gate needs a bundle that has been granted Accessibility, a window big enough to show
+the card, and a way to hold focus — none of which were available in the session that found
+this. The `sample`-based frame count above is the gate any attempt has to pass before its
+processor figure means anything.
+
+### What has since been done to it, and what that does not claim
+
+`ViewThatFits` is gone from the card. The arrangement is now chosen by
+`ClipboardDemonstrationMetrics.arrangement(forOfferedWidth:)` from a width measured once by
+`onGeometryChange`, and only the drawing is left inside `TimelineView` — so a frame no
+longer proposes two candidate arrangements and asks each how big it would like to be. Both
+columns carry a resolved width and the stage a fixed height, so the animated subtree's size
+does not change between frames either.
+
+**The processor cost was not re-measured.** The session that made this change had no way to
+run the bundle with a granted Accessibility permission, a window held frontmost and the card
+on screen, which is exactly what the gate above demands — so the 97.9% figure stands
+unchallenged in this document and no improvement on it is claimed here. What *is* established
+is that the per-frame re-measurement is no longer in the code, and that the card is not the
+frozen kind of cheap: the clock is a pure function
+(`ClipboardDemonstrationPhase.at(_:)`, tested over the whole eight-second loop), it is
+reached through an ordinary `switch` rather than a `ViewThatFits` candidate, and
+`ClipboardDemonstrationTests` fails if a `ViewThatFits` or a second `TimelineView` returns to
+the file.
+
+Anybody with the Mac to do it should run the three-step gate above and write the number here.
 
 ## What is paid before anybody speaks
 

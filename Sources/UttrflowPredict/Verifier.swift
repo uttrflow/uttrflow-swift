@@ -63,10 +63,15 @@ public actor Verifier {
         if let remembered = cache.verdict(for: key, now: now) { return remembered }
         guard let token = CompletionToken(candidate.text) else { return .plausible }
 
-        let known = await known(of: Verification.attestingKinds(for: token), in: surface, now: now) ?? []
-        guard !Verification.attests(token.token, known) else {
-            cache.remember(.attested, for: key, now: now)
-            return .attested
+        // Each lookup asks about its own word among its own kinds, so a path's name is not sought among whole paths.
+        var judged: (word: String, prefix: String, known: Set<String>)?
+        for lookup in Verification.attestation(for: token)?.lookups ?? [] {
+            guard let known = await known(of: lookup.kinds, in: surface, now: now) else { continue }
+            guard !Verification.attests(lookup.word, known) else {
+                cache.remember(.attested, for: key, now: now)
+                return .attested
+            }
+            if judged == nil { judged = (lookup.word, lookup.prefix, known) }
         }
 
         let plausibility = await self.plausibility(
@@ -75,10 +80,10 @@ public actor Verifier {
 
         let verdict = await reported(
             Verification.verdict(
-                word: token.token, known: known,
+                word: judged?.word ?? token.token, known: judged?.known ?? [],
                 modelObjects: Verification.objects(to: plausibility)),
-            on: candidate.text, leading: token.leading, in: surface,
-            forGood: Verification.isClosedVocabulary(Verification.attestingKinds(for: token)))
+            on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: surface,
+            forGood: Verification.isClosedVocabulary(for: token))
         cache.remember(verdict, for: key, now: now)
         return verdict
     }

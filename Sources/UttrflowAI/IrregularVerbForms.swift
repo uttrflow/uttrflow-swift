@@ -2,7 +2,7 @@
 enum IrregularVerbForms {
     /// Each set holds every form of one verb; two words are forms of each other when they share a set.
     static let sets: [[String]] = [
-        ["go", "went", "gone"],
+        ["go", "goes", "going", "went", "gone"],
         ["do", "does", "did", "done"],
         ["be", "is", "are", "was", "were", "been", "am"],
         ["have", "has", "had"],
@@ -37,6 +37,10 @@ enum IrregularVerbForms {
         ["break", "broke", "broken"],
         ["choose", "chose", "chosen"],
         ["forget", "forgot", "forgotten"],
+        // Listed because they are too short or irregular for the general inflections to reach.
+        ["try", "tries", "tried", "trying"],
+        ["use", "uses", "used", "using"],
+        ["happy", "happier", "happiest"],
     ]
 
     /// Which set a lowercased form belongs to, or `nil` for a word no set holds; a form in two sets traps on first lookup.

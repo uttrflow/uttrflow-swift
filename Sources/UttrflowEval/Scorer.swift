@@ -1,15 +1,19 @@
+import UttrflowCore
+
 /// Scores one rewrite against a reference by word overlap, since several phrasings are correct.
 public enum Scorer {
     public static func score(_ rewritten: String, against reference: EvaluationCase) -> CaseScore {
         let produced = tokens(rewritten)
         let wanted = tokens(reference.expected)
+        // A phrase is one run inside one sentence, so the run it is sought in keeps the sentence ends.
+        let sentences = tokens(rewritten, keepingSentenceEnds: true)
         // Matched on words only; a wordless requirement is reported as lost rather than quietly satisfied.
         let lost = reference.mustKeep.filter { required in
-            !containsPhrase(tokens(required), in: produced)
+            !containsPhrase(tokens(required, keepingSentenceEnds: true), in: sentences)
         }
         // A context case usually fails by adding what the context suggested, so both directions are checked.
         let invented = reference.mustNotAdd.filter { forbidden in
-            containsGuard(forbidden, in: rewritten, tokenised: produced)
+            containsGuard(forbidden, in: rewritten, tokenised: sentences)
         }
 
         return CaseScore(
@@ -31,24 +35,48 @@ public enum Scorer {
         return broken
     }
 
+    /// Stands where a sentence closed, so a phrase is never read as running across the end of one.
+    static let sentenceEnd = "\u{0}"
+
     /// Words, lowercased, with punctuation dropped, so a model is not punished for a comma.
-    static func tokens(_ text: String) -> [String] {
-        text.lowercased()
-            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-            .map(String.init)
+    static func tokens(_ text: String, keepingSentenceEnds: Bool = false) -> [String] {
+        var found: [String] = []
+        var word = ""
+        var closed = false
+        var spaced = false
+        // A closing mark counts only with space after it, so "p.m." is one abbreviation rather than two sentences.
+        func flush() {
+            guard !word.isEmpty else { return }
+            if keepingSentenceEnds, closed, spaced, !found.isEmpty { found.append(sentenceEnd) }
+            found.append(word)
+            word = ""
+            closed = false
+            spaced = false
+        }
+        for character in text.lowercased() {
+            guard !character.isLetter, !character.isNumber else {
+                word.append(character)
+                continue
+            }
+            flush()
+            if ".!?".contains(character) {
+                closed = true
+                spaced = false
+            } else if character.isWhitespace, closed {
+                spaced = true
+            }
+        }
+        flush()
+        if keepingSentenceEnds, closed, !found.isEmpty { found.append(sentenceEnd) }
+        return found
     }
 
-    /// Harmonic mean of precision and recall over words, counting duplicates.
+    /// Harmonic mean of precision and recall over an aligned reading, so a word moved is not a word kept.
     static func overlap(_ produced: [String], _ wanted: [String]) -> Double {
         guard !produced.isEmpty || !wanted.isEmpty else { return 1 }
         guard !produced.isEmpty, !wanted.isEmpty else { return 0 }
 
-        var remaining = counts(wanted)
-        var shared = 0
-        for token in produced where (remaining[token] ?? 0) > 0 {
-            remaining[token, default: 0] -= 1
-            shared += 1
-        }
+        let shared = WordErrorRate.measure(reference: wanted, hypothesis: produced).hits
 
         let precision = Double(shared) / Double(produced.count)
         let recall = Double(shared) / Double(wanted.count)
@@ -60,7 +88,7 @@ public enum Scorer {
     static func containsGuard(
         _ forbidden: String, in rewritten: String, tokenised produced: [String]
     ) -> Bool {
-        let phrase = tokens(forbidden)
+        let phrase = tokens(forbidden, keepingSentenceEnds: true)
         guard phrase.isEmpty else { return containsPhrase(phrase, in: produced) }
         // A guard holding nothing has nothing to look for, and nothing is not evidence against anybody.
         guard forbidden.contains(where: { !$0.isWhitespace }) else { return false }
@@ -74,9 +102,5 @@ public enum Scorer {
         return (0...(text.count - phrase.count)).contains { start in
             Array(text[start..<start + phrase.count]) == phrase
         }
-    }
-
-    private static func counts(_ tokens: [String]) -> [String: Int] {
-        tokens.reduce(into: [:]) { $0[$1, default: 0] += 1 }
     }
 }

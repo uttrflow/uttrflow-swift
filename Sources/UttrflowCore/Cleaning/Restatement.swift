@@ -43,22 +43,32 @@ public enum Restatement {
         let earliest = max(0, trigger - reach)
         let firstAfter = draft.shape(at: live[restart]).key
         if NumberWords.isNumber(firstAfter), NumberWords.isNumber(draft.shape(at: live[trigger - 1]).key) {
+            guard !endsSentence(trigger - 1, in: live, of: draft) else { return nil }
             var start = trigger - 1
-            while start > earliest, NumberWords.isNumber(draft.shape(at: live[start - 1]).key) { start -= 1 }
+            while start > earliest, NumberWords.isNumber(draft.shape(at: live[start - 1]).key),
+                !endsSentence(start - 1, in: live, of: draft)
+            {
+                start -= 1
+            }
+            guard !coordinates(start, before: trigger, in: live, of: draft) else { return nil }
             return start
         }
         guard !weakAnchors.contains(firstAfter) else { return nil }
         for candidate in stride(from: trigger - 1, through: earliest, by: -1) {
-            let shape = draft.shape(at: live[candidate])
-            if shape.key == firstAfter {
+            if draft.shape(at: live[candidate]).key == firstAfter {
                 guard holdsContent(candidate..<trigger, in: live, of: draft),
                     !coordinates(candidate, before: trigger, in: live, of: draft)
                 else { return nil }
                 return candidate
             }
-            if shape.endsSentence { return nil }
+            if endsSentence(candidate, in: live, of: draft) { return nil }
         }
         return nil
+    }
+
+    /// Whether the word at `position` closes a sentence, which no anchor may reach past to take words out of the sentence before.
+    private static func endsSentence(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
+        draft.shape(at: live[position]).endsSentence
     }
 
     /// Whether the words the correction would take back hold anything the speaker meant.

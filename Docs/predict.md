@@ -309,10 +309,10 @@ than as one strong answer. Below the threshold the answer is a `.choice` of at m
 command whose acceptance cannot be undone by pressing Backspace — is never shown without
 full separation, and never appears among the alternatives of a `.choice` at any score.
 
-Before any of that, `Quieting.reason` runs six ordered predicates and returns the first
-that fires: turned off here, secure field, text selected, caret not at the end of its line,
-three suggestions typed past in this field already, or a prose writer who has not yet
-paused for 400 ms. It returns *which* rule fired, so the diagnostics can say why nothing
+Before any of that, `Quieting.reason` runs seven ordered predicates and returns the first
+that fires: turned off here, secure field, a field that reports no caret to draw at, text
+selected, caret not at the end of its line, three suggestions typed past in this field
+already, or a prose writer who has not yet paused for 400 ms. It returns *which* rule fired, so the diagnostics can say why nothing
 was drawn instead of leaving silence indistinguishable from a broken feature.
 
 Composition does not gate. `PredictionContext.isComposing` is still read and carried, but
@@ -438,8 +438,10 @@ Read them together, because each one alone is misleading in the same direction:
    2,776 within one edit — and the extra matches are other commands, `git commit` among
    them. A blended matcher would answer "did you mean `git commit`?" to somebody typing
    `git push` correctly. Queries under three characters are never corrected at all.
-2. **Return is only intercepted after Down.** Tab is the accept key. Return belongs to the
-   application — it sends the message, runs the command, submits the form — and stealing
+2. **Return is only intercepted after Down.** The accept key is Tab, the right arrow or
+   Option-Tab by kind of application; [predict-accept.md](predict-accept.md) has which.
+   Return belongs to the application — it sends the message, runs the command, submits the
+   form — and stealing
    it costs the user the thing they were actually doing. It is taken only once the user
    has pressed Down into the list of a `.choice`, where they are demonstrably choosing
    rather than finishing.

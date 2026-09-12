@@ -2,7 +2,7 @@
 
 Uttrflow's claim is that hold-key → capture → transcribe → tidy → insert touches the
 network zero times once the speech model is on disk. This is the evidence for that
-claim, the one place it is not yet true, and the things it does not prove.
+claim and the things it does not prove.
 
 Re-run the static half with `./Scripts/offline_audit.sh`. It exits non-zero if a new
 network call site appears on the dictation path.
@@ -146,18 +146,23 @@ and which would kill the build before a single test ran. `--disable-sandbox` is 
 for the same reason — SwiftPM sandboxes manifest evaluation itself, and sandboxes do
 not nest.
 
-## The hole: the tokenizer is fetched at dictation time
+## The tokenizer: a hole this audit found, and the install now fills
 
-`download: false` governs the *model*. It does not govern the tokenizer.
+`download: false` governs the *model*. It does not govern the tokenizer, so the install
+fetches the tokenizer itself and `tokenizerFolder` is pinned at the model folder —
+`TokenizerDownload` writes `tokenizer.json` and `tokenizer_config.json` beside the weights
+during `install`, `isInstalled` is false until both are there, and `load()` refuses to start
+without them. `Docs/speech-engines.md` § Keeping WhisperKit off the network says how that is
+arranged; what follows is the measurement that asked for it.
 
 After loading the model, WhisperKit calls `loadTokenizerIfNeeded`, which looks for
 `tokenizer.json` in the model folder and in Hub's cache — and, failing that,
-**downloads it from Hugging Face**. Uttrflow passes no `tokenizerFolder`, so Hub's cache
-is its default: `~/Documents/huggingface/`. That directory is not the model store. The
-store does not create it, does not count it in `isInstalled`, and does not delete it in
-`remove`.
+**downloads it from Hugging Face**. When this audit ran, Uttrflow passed no
+`tokenizerFolder`, so Hub's cache was its default: `~/Documents/huggingface/`. That
+directory is not the model store. The store did not create it, did not count it in
+`isInstalled`, and did not delete it in `remove`.
 
-On the machine this audit ran on, the two are in different places and were fetched at
+On the machine this audit ran on, the two were in different places and were fetched at
 different times:
 
 ```
@@ -171,8 +176,8 @@ different times:
     ← written 19:30, by the first transcription.
 ```
 
-So `models install` reports success, `isInstalled` says yes, and the tokenizer is still
-missing. It arrives on the first transcription — over the network.
+So `models install` reported success, `isInstalled` said yes, and the tokenizer was still
+missing. It arrived on the first transcription — over the network.
 
 Proved by hiding only that directory and changing nothing else:
 
@@ -183,29 +188,33 @@ EXIT=137
 ```
 
 Killed. With the tokenizer cache visible, the identical command under the identical
-profile exits 0. The difference between the two runs is one directory, and it is worth
+profile exited 0. The difference between the two runs was one directory, and it was worth
 a network call on the dictation path.
 
-**Who this bites.** Anyone who installs the model and goes offline before dictating
-once. That includes the intended first-run story — download on first launch, work
-offline afterwards — if the user quits between the download and their first dictation.
-It also bites a side-loaded or restored-from-backup model store.
+**Who it bit.** Anyone who installed the model and went offline before dictating once.
+That included the intended first-run story — download on first launch, work offline
+afterwards — if the user quit between the download and their first dictation. It bit a
+side-loaded or restored-from-backup model store too, which is why an install made by an
+older build is repaired rather than trusted.
 
-**What they see.** The dev tool reports
-`modelLoadFailed(description: "Download failed: …")`. In the app the same error becomes
-`SpeechEngineError.modelLoadFailed`, so the user gets *"Speech recognition couldn't
-start. Try again, or reinstall it from Settings."* — a complete sentence, but it names
-the wrong cause and offers `.retry`, which will fail identically every time.
+**What they saw.** The dev tool reported
+`modelLoadFailed(description: "Download failed: …")`. In the app the same error became
+`SpeechEngineError.modelLoadFailed`, so the user got *"Speech recognition couldn't
+start. Try again, or reinstall it from Settings."* — a complete sentence, but it named
+the wrong cause and offered `.retry`, which failed identically every time.
 
-**The fix** belongs in the store, not in the backend: `FileSystemSpeechModelStore.whisperKit`
-should fetch `tokenizer.json` and `tokenizer_config.json` into the model folder during
-`install`, so `isInstalled` means what it says. `ModelUtilities.loadTokenizer` searches
-`modelFolder` directly, so a tokenizer sitting beside the weights is found without a
-`HubApi` round trip. That last step is read from WhisperKit's source; it has not been
-run, because doing so meant writing into the operator's model store.
+**The fix landed in the store rather than the backend**, which is where the gap was.
+`SpeechModelStore.missingComponents(of:)` treats the tokenizer as a component of its own,
+answered by `TokenizerAssets.arePresent(in:)`, so `isInstalled` means what it says;
+`install` fetches every missing component and throws if one did not arrive; and
+`WhisperKitBackend` passes `tokenizerFolder: modelFolder`, so the search never reaches Hub's
+cache. `FileSystemSpeechModelStoreTests` pins the repair of an install made by a build that
+predates all of this.
 
-`offline_audit.sh` reports this as a KNOWN GAP without failing, and flips to a hard
-check the moment a `tokenizerFolder` appears — so the fix cannot be quietly undone.
+`offline_audit.sh` § Tokenizer takes the pass branch on that pinned folder — "a tokenizer
+folder is pinned, so loading cannot fall back to the hub" — and fails if it ever disappears,
+so the fix cannot be quietly undone. The KNOWN GAP note it prints instead is the branch that
+no longer runs.
 
 ## No model, no network
 
@@ -293,8 +302,6 @@ startup exception, but it is no longer silently discovered only after the first 
   `.installed`. It is off the shipping path (`EngineConfiguration.default.speech` is
   `.whisperKit`) but one settings change away, and the audit does not flag it because
   the download is Apple's, not Uttrflow's.
-- **The proposed tokenizer fix has not been run**, only read out of WhisperKit's source.
-  See above.
 - **Only the paths that ran were tested.** A sandboxed run proves what happened, not
   what would happen on a different model, locale or failure branch. That is what
   `offline_audit.sh` is for.

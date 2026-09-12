@@ -26,7 +26,7 @@ public struct FirstWordPass: CleaningPass {
         let text = draft.text
         let heardWords =
             heard.map { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
-            ?? draft.words.map(\.heard)
+            ?? draft.words.map(\.heard).filter { !$0.isEmpty }
         var startOfSentence = true
         var isFirst = true
         for index in draft.presentIndices {
@@ -37,7 +37,10 @@ public struct FirstWordPass: CleaningPass {
             }
             var cased = Self.pronounCapitalised(word.text)
             if isFirst {
-                cased = firstWord(cased, in: text, heard: heardWords)
+                // The case is read from where this word stands, so a word a pass dropped cannot decide it.
+                let spokenBefore = draft.words[..<index].filter { !$0.heard.isEmpty }.count
+                cased = firstWord(
+                    cased, in: text, heard: Array(heardWords.dropFirst(spokenBefore)))
             } else if startOfSentence {
                 cased = WordShape.capitalised(cased)
             }
@@ -86,7 +89,7 @@ public struct FirstWordPass: CleaningPass {
         return letters.count >= 2 && letters.allSatisfy(\.isUppercase)
     }
 
-    /// Copies the case the word was heard in, skipping any filler heard before it; a changed word is left alone.
+    /// Copies the case the word was heard in from where it stands, skipping fillers; a changed word is left alone.
     static func matchingHeardCase(_ word: String, heard: [String]) -> String {
         let letters = WordShape(word).core.filter(\.isLetter).lowercased()
         guard !letters.isEmpty,

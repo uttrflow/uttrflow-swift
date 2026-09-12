@@ -86,21 +86,22 @@ private final class FakeCleaner: TranscriptCleaning, Sendable {
 /// A ``TextInserting`` that records every string it is handed and answers as scripted.
 private final class FakeInserter: TextInserting, Sendable {
     private struct State: Sendable {
-        var outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError>
+        var outcome: ScriptedOutcome<InsertionAttempt, TextInsertionError>
         var received: [String] = []
     }
 
     private let state: Mutex<State>
 
     init(
-        outcome: ScriptedOutcome<TextInsertionMethod, TextInsertionError> = .success(.accessibility)
+        outcome: ScriptedOutcome<InsertionAttempt, TextInsertionError> = .success(
+            InsertionAttempt(.accessibility))
     ) {
         self.state = Mutex(State(outcome: outcome))
     }
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         let outcome = state.withLock {
-            state -> ScriptedOutcome<TextInsertionMethod, TextInsertionError> in
+            state -> ScriptedOutcome<InsertionAttempt, TextInsertionError> in
             state.received.append(text)
             return state.outcome
         }
@@ -325,6 +326,23 @@ struct DictationPipelineStateTests {
             await next(6, from: states) == [
                 .idle, .recording, .transcribing, .tidying, .inserting, .inserted(inserted),
             ])
+    }
+
+    /// #222: the confirmation's answer used to reach the log and stop there, so nothing above could draw it.
+    @Test("the finished dictation carries whether the words were seen to arrive")
+    func outcomeCarriesTheArrival() async {
+        let pipeline = makePipeline(
+            inserter: FakeInserter(
+                outcome: .success(InsertionAttempt(.pasteboard, arrival: .unconfirmed))))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        guard case .inserted(let outcome) = await pipeline.currentState else {
+            Issue.record("expected the dictation to finish")
+            return
+        }
+        #expect(outcome.arrival == .unconfirmed)
     }
 
     /// Taken from the tidying context, since a fresh read at insertion time would name the wrong app.

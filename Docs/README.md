@@ -103,7 +103,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [account-session.md](account-session.md) | The account session |
 | [account-keychain.md](account-keychain.md) | The refresh token in the Keychain |
 | [account-transport.md](account-transport.md) | Why the transport has no cache |
-| [account-telemetry.md](account-telemetry.md) | What leaves the Mac, and why a dictation never waits for it |
+| [account-telemetry.md](account-telemetry.md) | What would leave the Mac if telemetry were wired up, and why a dictation never waits for it |
 | [core-history-decoding.md](core-history-decoding.md) | Decoding a stored history: one unreadable change costs one change |
 | [core-history-undo.md](core-history-undo.md) | Undoing a correction: how the words are found and when they are left alone |
 | [core-history-accuracy.md](core-history-accuracy.md) | The accuracy figure: where its denominator comes from |

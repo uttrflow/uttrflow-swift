@@ -14,9 +14,11 @@ public struct AccessibilityTextInsertionEngine: TextInsertionEngine {
         focus.focusedTextField() != nil
     }
 
-    public func insert(_ text: String) async throws(TextInsertionError) {
+    /// Answers `.notReported`: the field verifies the write and does not say whether it could.
+    public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         guard let field = focus.focusedTextField() else { throw .noFocusedTextField }
         try field.replaceSelection(with: text)
+        return .notReported
     }
 }
 

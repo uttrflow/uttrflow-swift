@@ -14,8 +14,10 @@ public struct ClipboardTextInsertionEngine: TextInsertionEngine {
     /// Always. A clipboard is always available, which is the point of having this.
     public func canInsert() async -> Bool { true }
 
-    public func insert(_ text: String) async throws(TextInsertionError) {
+    /// Answers `.notReported`: nothing was sent anywhere, so there is no arrival to have an opinion about.
+    public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         pasteboard.setText(text)
         guard pasteboard.text() == text else { throw .clipboardUnavailable }
+        return .notReported
     }
 }

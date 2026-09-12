@@ -159,6 +159,35 @@ struct InsertedPresentationTests {
         #expect(secondary?.hasSuffix("…") == true)
         #expect((secondary?.count ?? 0) <= 61)
     }
+
+    /// #222: the words are on the clipboard either way, so the one thing owed the user is the truth.
+    @Test("says a paste it never saw arrive is not confirmed, and where the words still are")
+    func unconfirmedInsertion() {
+        let outcome = DictationOutcome(
+            text: spokenWords, method: .pasteboard, cleanedBy: .rules, arrival: .unconfirmed)
+
+        let dock = DictationPresenter.dock(for: .inserted(outcome))
+
+        #expect(dock.primaryLine == "Inserted — not confirmed")
+        #expect(dock.secondaryLine == "Still on the clipboard — press ⌘V if it is missing")
+        #expect(dock.symbolName != "checkmark", "a tick is the claim this state cannot make")
+        #expect(dock.accessibilityLabel.contains("Command V"))
+        #expect(dock.accessibilityLabel.contains(spokenWords))
+    }
+
+    /// A field that cannot be read is most of them, and calling that a doubtful paste would cry wolf.
+    @Test(
+        "draws the plain tick for anything but a paste that was watched for and never seen",
+        arguments: [InsertionArrival.confirmed, .notReported])
+    func plainTickUnlessTheWaitRanOut(arrival: InsertionArrival) {
+        let outcome = DictationOutcome(
+            text: spokenWords, method: .pasteboard, cleanedBy: .rules, arrival: arrival)
+
+        let dock = DictationPresenter.dock(for: .inserted(outcome))
+
+        #expect(dock.primaryLine == "Inserted")
+        #expect(dock.symbolName == "checkmark")
+    }
 }
 
 // MARK: - §16

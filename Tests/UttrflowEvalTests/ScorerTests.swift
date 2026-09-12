@@ -86,6 +86,17 @@ struct ScorerTests {
         #expect(padded.similarity < 0.6)
     }
 
+    /// A bag of words scores a permutation perfectly, and reordering clauses is the edit Tier 3 forbids.
+    @Test("does not score a clause moved as a clause kept")
+    func penalisesReordering() {
+        let swapped = Scorer.score(
+            "We rejected the design but approved the budget.",
+            against: reference(expected: "We approved the design but rejected the budget.")
+        )
+        #expect(swapped.similarity < 1)
+        #expect(!swapped.passed)
+    }
+
     @Test("treats two empty strings as agreeing, and one empty as disagreeing")
     func emptyHandling() {
         #expect(Scorer.score("", against: reference(expected: "")).similarity == 1)
@@ -217,6 +228,35 @@ struct ScorerTests {
             against: reference(expected: "List the users by name.", mustNotAdd: ["ORDER BY"])
         )
         #expect(run.invented == ["ORDER BY"])
+    }
+
+    /// The two words are in the text, but a full stop stands between them, so they are not one phrase.
+    @Test("does not read a guard's run across the end of a sentence")
+    func aRunStaysInsideOneSentence() {
+        let across = Scorer.score(
+            "Put in the order. By Friday it ships.",
+            against: reference(expected: "Put in the order. By Friday it ships.", mustNotAdd: ["ORDER BY"])
+        )
+        #expect(across.invented.isEmpty)
+
+        // An abbreviation's stop does not end a sentence, so a phrase either side of it is still one run.
+        let abbreviated = Scorer.score(
+            "Ship it at 4 p.m. sharp.",
+            against: reference(expected: "Ship it at 4 p.m. sharp.", mustNotAdd: ["p.m. sharp"])
+        )
+        #expect(abbreviated.invented == ["p.m. sharp"])
+    }
+
+    /// A required phrase is held to the same rule, so a sentence end does not satisfy it either.
+    @Test("does not satisfy a required phrase across the end of a sentence")
+    func aRequirementStaysInsideOneSentence() {
+        let across = Scorer.score(
+            "Put in the order. By Friday it ships.",
+            against: reference(
+                expected: "Put in the order by Friday.", mustKeep: ["order by"])
+        )
+        #expect(across.lost == ["order by"])
+        #expect(!across.keptEverythingRequired)
     }
 }
 

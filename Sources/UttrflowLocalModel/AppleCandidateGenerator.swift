@@ -40,7 +40,7 @@ public actor AppleCandidateGenerator: PassShowing {
             MLXCandidateScorer.trimmed($0, typed: typed, echoing: context)
         }
         // An answer that did not repeat the line is read as its continuation where a word boundary says how the two join, the most generous reading a text-only model can be given.
-        if completions.isEmpty, !answer.lowercased().hasPrefix(typed.lowercased().prefix(2)),
+        if completions.isEmpty, !MLXCandidateScorer.echoes(answer, of: typed),
             let joined = MLXCandidateScorer.joined(typed, with: answer)
         {
             completions = MLXCandidateScorer.parse(joined, typed: typed).compactMap {

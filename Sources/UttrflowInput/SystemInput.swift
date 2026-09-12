@@ -116,9 +116,7 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        let units = Array(text.utf16)
-        for start in stride(from: 0, to: units.count, by: Self.unitsPerEvent) {
-            let chunk = Array(units[start..<min(start + Self.unitsPerEvent, units.count)])
+        for chunk in UTF16Chunking.chunks(of: text, limit: Self.unitsPerEvent) {
             try postTaggedKeyPair(from: source, keyCode: 0) { event in
                 // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
                 event.flags = []
@@ -176,7 +174,18 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
             let value = stringAttribute(kAXValueAttribute, of: element),
             let range = rangeAttribute(kAXSelectedTextRangeAttribute, of: element)
         else { return nil }
-        return BackwardSelection.text(in: value, endingAt: range.location, covering: count)
+        return BackwardSelection.text(in: value, endingAt: range.location, exactly: count)
+    }
+
+    /// As much as the field holds before the caret, so a field shorter than the request is still read.
+    public func tail(upTo count: Int) -> FieldTail {
+        guard
+            count > 0, let element = focusedElement(),
+            let value = stringAttribute(kAXValueAttribute, of: element),
+            let range = rangeAttribute(kAXSelectedTextRangeAttribute, of: element),
+            let tail = BackwardSelection.tail(in: value, endingAt: range.location, upTo: count)
+        else { return .unreadable }
+        return .text(tail)
     }
 
     public func focusedTextField() -> (any FocusedTextField)? {

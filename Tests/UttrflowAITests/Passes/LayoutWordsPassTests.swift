@@ -34,6 +34,19 @@ struct LayoutWordsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// One spoken phrase cannot straddle a sentence end, so neither the phrase nor the item number reaches past one.
+    @Test(
+        "reads neither a layout phrase nor an item number across a sentence end",
+        arguments: [
+            ("we need number twenty. One more of them", "we need\n20. One more of them"),
+            ("I bought something new. Line up here", "I bought something new. Line up here"),
+            ("show me what is next. Point two is wrong", "show me what is next. Point two is wrong"),
+        ]
+    )
+    func staysInsideTheSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "leaves a layout word that is mentioned, first, or last",
         arguments: [

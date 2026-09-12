@@ -28,6 +28,32 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A two-word mark name cannot straddle a sentence end, because the halves were said in different sentences.
+    @Test(
+        "leaves a mark name whose two words sit in different sentences",
+        arguments: [
+            "She is full. Stop.",
+            "the glass was full. Stop worrying about it",
+            "ask the question. Mark it as done",
+        ]
+    )
+    func leavesANameAcrossASentenceEnd(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// A noun phrase cannot begin in the sentence before, so a determiner there does not make the mark a mention.
+    @Test(
+        "takes a mark whose only determiner sits in the sentence before",
+        arguments: [
+            ("hand me a pen. Comma then go", "hand me a pen, then go"),
+            ("hand me the red pen. Comma then go", "hand me the red pen, then go"),
+            ("this is the plan. Full stop", "this is the plan."),
+        ]
+    )
+    func takesAMarkWhoseDeterminerIsInTheSentenceBefore(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "ends a sentence with a spoken full stop only where the text closes",
         arguments: [
@@ -70,6 +96,29 @@ struct SpokenPunctuationPassTests {
         ]
     )
     func leavesTheVerb(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// An opening quote goes on the word after it, so a dictation may perfectly well begin with one.
+    @Test(
+        "wraps a quotation that opens the text",
+        arguments: [
+            (
+                "open quote the build is green close quote that is what he said",
+                "\"the build is green\" that is what he said"
+            ),
+            ("open quote ship it close quote", "\"ship it\""),
+        ]
+    )
+    func wrapsAQuotationThatOpensTheText(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// The opening half still needs a word to go on, and the closing half still needs one before it.
+    @Test(
+        "leaves a half quotation with nothing to attach to as words",
+        arguments: ["open quote", "close quote he said"])
+    func leavesAHalfQuotation(input: String) {
         #expect(cleaned(input, by: sut) == input)
     }
 

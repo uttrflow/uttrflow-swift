@@ -1139,9 +1139,9 @@ else depends on.
 - **The J group — sync.** Not built and not designed. There is no account-backed
   clipboard sync, and the panel's footer says so: *"Clipboard history stays on this
   Mac."*
-- **I8 — the cap on a long dictation.** `DictationLimit` and its tests are complete and
-  nothing calls them. A soft cap with a warning is specified; today there is neither.
-  Either wire it or delete it, but it should not sit there looking finished.
+- **I8 — the cap on a long dictation.** Wired. `DictationController` holds the
+  `DictationLimit`, warns at three minutes and finishes the dictation itself at four;
+  `Docs/stuck-recording.md` describes what the user sees.
 
 
 ## Phase 11 — Cleaning, tier 2 🔲
@@ -1250,6 +1250,589 @@ evidence of when it must not. Seven triggers are owed a keep case today and the 
   2026-09-06) that the model does not comply with the line in question, so editing it changes
   nothing until the prompt is re-measured with the local models downloaded.
 
+### A run judged by the whole text — issue #218 and the sweep it started
+
+`MeaningPreservationGuard` was asked where a word stood and answered about the whole sentence.
+A doubtful run was checked by closing the entire rewrite up to letters and digits and asking
+whether that string *contained* the run as heard or one of the readings offered for it, and the
+doubtful words were then exempted from the content-word survival check by a set keyed on their
+text. Both are set membership over the whole text, so neither ever examined the span's own
+position. "the main thing is money", with `money` heard below the threshold and `main` offered
+as a reading, could be rewritten "The main thing is mine": the containment test found `main` in
+the earlier clause and passed, and the exemption then skipped `money` in the survival loop. A
+word nobody offered was accepted and the sentence meant something else. The same held whenever
+the heard run stood anywhere else in the sentence, and — separators being gone — whenever a
+match fell inside a longer word or across a word boundary, so `mark` was satisfied by `market`
+and `carpet` by `car petrol`.
+
+`RewriteAlignment` (`Sources/UttrflowAI/RewriteAlignment.swift`) is the position the checks
+never had. It pairs each run of the kept draft with the run of the rewrite standing in its
+place: equal prefix and suffix trimmed, then split at the words standing exactly once on each
+side, the longest order-preserving chain of those taken so a word that moved does not drag the
+rest with it, and the remainder recursed (`RewriteAlignment.swift:82`). `keptRuns(spelled:)`
+(`:47`) finds every place a run named by its text stands, and `standing(in:)` (`:64`) answers
+what the rewrite put there. `candidateVerdict` became `readingVerdict(_:in:)`
+(`MeaningPreservationGuard.swift:51`): a changed run whose kept words close up to a span's
+`heard` must be written as that span's own heard text or one of that span's own candidates, at
+that position, token for token. The text-keyed exemption set is deleted outright — only a
+reading rightly written is excused, and only at its own indices — so the survival check covers
+every content word again, and the substring and three-letter-stem rules are localised to the
+run they were written for. `DoubtfulSpan`'s public API is untouched: the alignment locates the
+change itself, so the three incompatible index bases the issue's fix direction would have had
+to reconcile — filtered draft words, `draft.text`, and the grammar tokens — never meet.
+
+Held by `Issue218ReproTests.swift:15` and `:24` for the two coincidences, `:57` for a run the
+rewrite only partly changed, `:75` to `:103` for the readings that must still be accepted,
+`MeaningPreservationGuardTests.swift:439` for the match inside a longer word and `:460` for the
+reading rightly written where the same word stands twice, and `RewriteAlignmentTests.swift:26`
+for the alignment itself.
+
+**The audit that reproduced #218 found fourteen places asking a positional question of the
+whole text. Thirteen are fixed here, each with a test that fails without it.** The guard's four
+rules were localised by the one alignment; the rest were separate.
+
+- **A number said once and written twice was not an invention, and a swap between two places
+  was not either.** `inventedNumber` compared two sets, so any number the speaker said anywhere
+  excused the same number written anywhere. It now walks the rewrite's numbers in order against
+  the spoken ones, each consuming its match (`MeaningPreservationGuard.swift:301`).
+- **A corpus case naming a doubtful run doubted every other occurrence of that spelling.**
+  `EvaluationCase.segments` built a `Set` of the named words and scored every matching word
+  down, so "clear the cash before the cash register closes" doubted both. Each named run is now
+  placed once, in order, past what is already doubted, with edge punctuation dropped
+  (`EvaluationCase.swift:107`). Held by `DoubtfulCorpusTests.swift:40`.
+- **The first word's case was read from a copy of it a pass had dropped.** `FirstWordPass` took
+  the heard words from the whole draft, so a filler or a repeat removed earlier shifted the
+  reading. The heard words are now read from the first present word's own place
+  (`FirstWordPass.swift:41`).
+- **A required phrase and a forbidden one were both read across the end of a sentence.**
+  `Scorer` tokenised to bare words, so "clear the cache" was satisfied by "…clear. The cache…".
+  A mark now stands where a sentence closed, applied to the run and the phrase alike, and a stop
+  with no space after it stays an abbreviation's so "p.m." is not two sentences
+  (`Scorer.swift:37`). The word-overlap score reads the unmarked words and is unchanged. Held by
+  `ScorerTests.swift:223`.
+- **A forbidden string was sought in text the harness typed, not in what the model wrote.**
+  `CompletionExpectation` searched the whole completion including its typed prefix, so a case
+  could fail on its own setup. It searches the continuation (`CompletionCase.swift:34`).
+- **A command line was judged on every word in it at once.** `git push` and a `--force` belonging
+  to a different clause read as a force-push, and a later destructive command was missed behind
+  an earlier harmless one. The line is cut into clauses and each judged alone
+  (`DestructiveCommand.swift:13`), and a git flag counts only where it stands after its own
+  subcommand.
+- **A path was attested by a name that was not its own.** `attestingKinds` flattened every
+  lookup's kinds together, so one lookup's word was sought among another's vocabulary. It is
+  deleted; each lookup now asks about its own word among its own kinds, and a correction puts
+  that lookup's prefix back (`Verifier.swift:67`, `Verification.swift:271`).
+- **`aria-checked` and `data-checked` read as a ticked box, so the toggle was a no-op.**
+  `lower.contains(" checked")` is a word boundary on one side only. The attribute is matched as
+  a whole name (`NoteChecklist.swift:81`). Held by `NoteChecklistTests.swift:119`.
+- **A label swallowed a child line it only spelled inside a longer word** — "Sam" suppressed by a
+  label reading "Samantha". Containment must now fall on word boundaries
+  (`Surroundings.swift:168`). Held by `SurroundingsTests.swift:210`.
+
+Three sites the audit named are not defects and were left alone: `CorrectionEvidence.swift:88`,
+`Corrections.swift:122` and `Verifier.swift:179`.
+
+**Left standing, deliberately.** `SnippetExpander.swift:27` vetoes a snippet whose expansion the
+user dictated anywhere in the transcript. That is a stated policy rather than a slip — somebody
+who says an expansion verbatim is quoting it, not triggering it — and the trigger's own
+boundaries are already positional. Making the veto per-position needs a map from the collapsed,
+lower-cased `spoken` back into `transcript`, which `TextTidy.collapseWhitespace` destroys and
+nothing reconstructs. There is no failing test and no contract saying it should be positional,
+so changing it would be a behaviour change to snippet expansion rather than a fix.
+
+**The corpus could not tell the two apart, and that is the guardrail.** `make bakeoff` was run
+twice, once with the old `Scorer` and `EvaluationCase` restored, and the numbers are identical
+in every category and destination cell — shipping 92%/98%, Apple 88%/93%, rules 79%/93%, and a
+refusal rate of 0 for all three, so the tighter assertion costs no good rewrite. Identical is
+the reassurance on the refusal rate and the problem everywhere else: a positionally blind
+implementation scores exactly as well as a positional one, because **all seven corpus cases that
+name a doubtful run name it where that spelling stands exactly once.** The evidence is never
+ambiguous, so the measurement cannot see the ambiguity. This is the one-sided-measurement
+finding of #198 a level up — there the corpus only ever deleted a trigger, here it only ever
+doubts a word that occurs once — and it is why the hole survived the process the repository
+already requires.
+
+`Tests/UttrflowEvalTests/PositionalEvidenceTests.swift` holds every distinct run the corpus
+doubts to being named in some case that says the same spelling more than once, and records the
+ones that are not yet in one `owedADistractorCase` list. It ratchets like the comment,
+disclosure and `owedAKeepCase` baselines: a run may leave that list, and a **new** run may never
+join it, so the next word the corpus is taught to doubt arrives with a case proving position
+matters. A second test refuses a stale entry, so a run that leaves the corpus cannot sit in the
+list unmeasured. All five runs are owed a distractor case today and the list says which.
+Both directions were proven to fail before being recorded as passing.
+
+A lint was considered and rejected on measurement. The class has no syntactic tell: matching
+`.contains` against a bare word literal across `Sources/` returns 33 hits of which about five
+are hazards — a shebang sniff, a `Set` of CSS class names and a deliberately loose password-field
+heuristic look identical to the bug — so a ratchet on it would be mostly noise, and this
+repository's own audits say a gate that cries wolf is a gate that gets switched off. What
+separates the defect from its legitimate twin is which question is being asked, which is visible
+in the evidence a test is given and not in the call that reads it. So the guardrail is on the
+fixtures, where the tell actually is.
+
+### Two tables answering "what sort of app is this" — issue #203
+
+**Reproduced first**, per app the issue names, through the shipped pipeline
+(`Tests/UttrflowAITests/Issue203ReproductionTests.swift`). "on my way" into Signal came out
+"On my way." where the same words into Slack came out "On my way"; dictated code into Sublime
+Text was finished like prose — `terminalStop: .always`, `grammar: .repair`, newlines not kept —
+where the same code into VS Code was not; a spoken list into Notion was never laid out, because
+`.plain`'s layout has no `.lists`; and the Electron build of WhatsApp behaved unlike the native
+one. Fifteen apps, and the reproduction suite alone recorded 36 failures across seven tests
+before the fix.
+
+**Root cause: two tables, and `.plain` is a plausible-looking wrong answer.** `AppKind` was a
+41-row bundle-prefix table inside `AppContextDescriber`, written for the prompt's "Typed into:"
+caption before `Destination` existed; `DestinationRules.standard` was six rows; nothing compared
+them. An app in the first and not the second got a caption naming a chat app and a style block
+saying plain prose, in one prompt — `PromptBuilder.situationBlock` took the place from one and
+`block(for:)` took the rules from the other. Whichever table a contributor edited was the one
+that learned the new app, and the divergence was silent because plain text is what an unknown
+app was always going to get.
+
+**There is one table now.** `DestinationRule` carries the `AppKind` it names and derives its
+`Destination` from that (`Sources/UttrflowCore/Models/DestinationClassifier.swift:25`), so a row
+cannot say two things; it gained a `nameWords` column matched on whole words of the application
+name, after identifiers and titles (`DestinationClassifier.swift:54`, ordered at `:75`), which is
+what `AppKind` had and the rules did not. `AppKind` stays deliberately finer than `Destination`
+(`Sources/UttrflowCore/Models/AppKind.swift:13`): a terminal and a code editor are two kinds and
+one destination, notes and a document editor likewise — so Warp is formatted as code while the
+caption still says "a terminal". A browser is no kind at all, because the tab is the place and
+the title names it, which is also why a browser row would have shadowed the Gmail title it has to
+lose to. `AppContextDescriber.describe` takes a `Situation`
+(`Sources/UttrflowAI/AppContextDescriber.swift:17`) and `AppKind(naming:)` takes the kind from the
+row only where that row agrees with the destination in force (`AppKind.swift:48`), so neither a
+window-title match nor a user's override can leave the caption naming one place and the style
+block another. The hard-coded DataGrip `if` went with the table that needed it — the SQL row
+already precedes the JetBrains prefix — and `Docs/cleanup.md` and `Docs/ai-context-line.md` were
+rewritten to what the code now does. `PromptBuilder.version` 8 → 9, because an app known only by
+its name now gets a block it did not get before.
+
+**Two more of the same shape, found by sweeping for it.** `MeaningPreservationGuard` kept its own
+word-to-digit table beside `UttrflowCore.NumberWords`; it stopped at "thousand" and never
+composed, so a model that wrote 600 for "six hundred" or 2,000,000 for "two million" had both
+invented a number and lost the words it was said in, and the whole rewrite was refused. It reads
+`NumberWords.cardinal` now in both places it counts numbers
+(`Sources/UttrflowAI/MeaningPreservationGuard.swift:138` and `:342`); the Hindi table stays,
+because Core has no equivalent for it. And `TextTidy.words` and the word splitting the new name
+column needs are the same question asked twice — `WordShape.words`
+(`Sources/UttrflowCore/Cleaning/WordShape.swift:20`) is the one splitter, and both read it.
+
+**What holds it.** `swift test --filter 'Issue203|DestinationTableAgreementTests|GuardNumberWords'`
+→ exit 0, four suites that all failed before the change: the reproduction above;
+`DestinationTableAgreementTests`, which puts each of the fifteen apps beside the nearest app the
+rules already carried and requires the same destination, the same five formatter decisions, the
+same prompt block and the same cleaned text; `Issue203ClassSweepTests`, which pins the caption to
+the block under a window-title match and under a user override; and `GuardNumberWordsTests`.
+`make verify` → exit 0.
+
+**The guardrail, because this is a class and not a one-off.** Three instances landed on this one
+branch, and the V2 notes above record a fourth in a different register — the app and the backend
+each checking their own idea of one contract against itself. The checkable projection of "two
+tables of one fact" here is an app named outside the table that names apps, so
+`Tests/UttrflowCoreTests/OneAppTableTests.swift` reads every `Sources/**/*.swift` except
+`DestinationRules.swift`, takes every reverse-DNS literal in it, and requires
+`DestinationClassifier` to have an answer for it. Not "no bundle identifier outside the table",
+which the issue proposed and which the corpus would break the day it gains a case: the corpus
+names apps legitimately, and what must be true of a name wherever it appears is that the one
+table knows it. Seven identifiers do not pass today and sit in one `owed` list that ratchets like
+the comment and disclosure baselines — an entry may leave it, none may join, and an entry the
+table has since learned or the source has stopped saying must be deleted. All seven are
+`UttrflowPredict`'s own editor and terminal lists, which cannot be unified until that module has
+any dependencies at all (`Package.swift:208`), and one of them is a live defect the sweep found
+and did not fix: `AcceptKey.swift:69` says `io.alacritty` where Alacritty ships as
+`org.alacritty`, so Alacritty gets Tab as its accept key. The guardrail was mutation-tested — a
+new app named in `AppContext.swift` fails it with the file and line.
+
+**Not measured at runtime.** No app was driven and nothing was dictated; `make bakeoff` was not
+run. Moving fifteen apps off `.plain` changes their terminal stop and their layout, which is
+exactly what the destination-tagged corpus cases score, so a case per newly covered destination
+and a bake-off across it is the step that turns this from argued into measured.
+
+**Left standing, and why.** `AcceptKey` and `SuggestionPreferences` classify apps a third and
+fourth time, which is a module-graph decision rather than a local edit (above).
+`PieceJoiner.swift:205` and `NumberFormsPass.swift:20` agree on every shared key and differ only
+in how far their ordinals run. `UttrflowEval/TextNormaliser.swift:177` shadows `NumberWords` on
+purpose — it must not compose scales, and unifying it moves the WER baselines.
+`UttrflowCore/Models/EngineConfiguration.swift:22` against `UttrflowUX/SettingsChoices.swift:87`,
+and `UttrflowCore/Models/EngineKinds.swift:32` against `UttrflowAI/TextTransformers.swift:6`, do
+genuinely drift — `.localModel` is selectable and never constructed — but only behind build flags
+`Package.swift` does not set, and closing either changes settings behaviour and breaks tests
+pinning the losing side.
+`MainPresentation.swift:169`, `ErrorPresentation.swift:103` and `DockView.swift:305` disagree on
+two user-visible button titles with tests pinning both, which is a product decision, not a
+refactor.
+
+
+### A doubled word deleted for being short — issue #200, one scale down from the same class
+
+The same shape as the three above — a rule deleting what the speaker said on the shape of a
+word alone — at word scale, reproduced at runtime before either pass was touched. Two passes,
+because fixing the first made the second reachable.
+
+- **An emphasis and a place name each lost half of themselves.** "this is very very important"
+  was inserted as "This is very important.", "much much better" as "much better", and "we flew
+  to Bora Bora last year" as "we flew to Bora last year", which changes a name. `StammersPass`
+  used the length of the word as the proxy for disfluency — four letters or fewer — and patched
+  the residue with a five-word exception list. The commonest English emphatic reduplications are
+  exactly four letters, so the threshold admitted the class it was written to exclude, and no
+  list reaches an open class of proper nouns. The positive evidence is one the sibling pass
+  already reads: a false start restarts on the frame, and a frame is built from function words.
+  The test is now `!FunctionWords.isContent(word)`
+  (`Sources/UttrflowAI/Passes/StammersPass.swift:18`), the predicate `Restatement.swift:61`
+  depends on, and it takes the constant and the `NumberWords.isNumber` clause under it — every
+  number word is content, so "extension four four two" is kept for the rule's own reason rather
+  than by exemption. `legitimateDoubles` shrinks to the function words English doubles on
+  purpose (`StammersPass.swift:8`); "bye" and "no" need no entry, being content words protected
+  by construction. Held by `StammersPassTests.swift:69` (emphasis), `:84` (a doubled name) and
+  `:93` — "ha ha ha", which the old code collapsed to a single token because `previous` goes
+  stale on the removal path — with the five removal cases at `:10` all still removing.
+- **A name said twice lost half of itself one pass later, and the first fix created half of
+  that.** Measured at runtime before the change: "New York New York is the song" → "New York is
+  the song", "we flew to Bora Bora Bora Bora" → "we flew to Bora Bora", and — new, because the
+  stammer fix now keeps an emphasis that arrives here as a two-word run — "ha ha ha ha" → "ha
+  ha", "no no no no" → "no no". `RepeatedPhrasePass` had the rule at phrase scale with no
+  exception at all: a 2–4-word run repeated verbatim was always a false start. `isDeliberate`
+  (`Sources/UttrflowAI/Passes/RepeatedPhrasePass.swift:42`) is the evidence it lacked — one word
+  filling the window, or a run of content words and nothing else — and all six shipped removal
+  cases still remove, each being function words or a mix of the two. Held by
+  `RepeatedPhrasePassTests.swift:40`.
+
+`Docs/cleanup.md:51` and `:52` state the rule rather than the threshold, and the stammer row
+now concedes the limit it keeps: "this this" and "what what" are function words, so both still
+lose a copy, the restart reading being the commoner one and the pass having only the word to go
+on. `StammersPassTests.swift:25` pins both, so that is a decision to change on purpose rather
+than one a later edit flips by accident. The two defects already left standing above survive
+this change and stay true — "what it is is a problem" still loses its second "is", and "it is
+what it is what it is" still loses a copy, both runs being function words throughout.
+
+**Deliberately not taken from the issue's fix direction.** Moving the comparison from
+`draft.words[index].text.lowercased()` (`StammersPass.swift:16`) to `shape(at:).key` would make
+the pass delete across a punctuation split that `StammersPassTests.swift:60` asserts it leaves
+alone — the wrong direction for a fix about deleting too much, and nothing in the reproduction
+needs it. Refreshing `previous` on the removal path would have regressed
+`StammersPassTests.swift:16`, where "we we we should" is asserted to collapse to one token;
+"ha ha ha" is fixed by the predicate instead. `make bakeoff` was **not** run: it downloads model
+weights and needs the Metal toolchain (`Makefile:167`), neither available in this worktree, so
+the two new cases are held by the model-free `RulesCorpusTests` inside `make verify` instead —
+`swift test` reports 4,523 tests in 616 suites, and `make verify` exits 0.
+
+**The corpus was one-sided here too, which is why the class recurred, so the guardrail widens.**
+Every cleaning change is measured against the corpus, and it held no case in which a doubled
+word survived — so at both scales the bake-off scored the deletion as a win, exactly as it had
+for the correction triggers one sweep earlier. `EvaluationCorpus.swift:130` and `:136` add the
+keep side ("very very", "much much", "Bora Bora"), and `CorpusEvidenceTests.swift:64` holds the
+corpus to it: at each scale a pass deletes a verbatim repeat at — one word, and a run of two to
+four — there must be a case that deletes one *and* a case that keeps one. It was checked to
+bite rather than assumed: over-deleting the three keep cases in the corpus fails it at both
+scales (exit 1), and the tree as it stands passes it in 0.014s. That is one guardrail for two
+passes and for the next rule of this shape, which is why it is a rule rather than noise — this
+is the second time the one-sided corpus, not the pass, was what let the deletion ship.
+
+
+### A rule that read past the end of a sentence — issue #199 and the sweep it started
+
+#199 reported one instance: `Restatement`'s number branch inventing a correction across a full
+stop. Reproducing it found the same defect in four more places on the cleaning path — a rule
+that gathers context by walking outwards from a word, bounded in words and unbounded at the
+sentence end. All five are fixed here, each reproduced before it was touched.
+
+- **A number said in the previous sentence was deleted, and two sentences welded into one.**
+  "the meeting is at 3. no 4 people confirmed" was inserted as "the meeting is at 4 people
+  confirmed", and "the code is 4 5. no 6" as "the code is 6". `Restatement.discardedStart` has
+  two exits and only the word branch tested for a boundary
+  (`Sources/UttrflowCore/Cleaning/Restatement.swift:40`); `WordShape` splits trailing
+  punctuation into `suffix` (`WordShape.swift:23`), so "3." has the key "3" and the stop was
+  invisible to `NumberWords`. The number branch now refuses an anchor that ends a sentence and
+  terminates its walk-back on one, and both branches read the boundary through a single
+  predicate (`Restatement.swift:65`) so a third anchor kind cannot forget it. The issue's own
+  analysis was right that the other two filters it skips are inert for numbers — no number is a
+  weak anchor and none is a function word — but it missed one that is not: the branch also
+  skipped `coordinates`, so "say no 3 no 4" lost its first item, the same coordinated-list
+  defect #198 fixed for the word branch. Held by `RestatementTests.swift:41` and `:53`, and
+  `SelfCorrectionPassTests.swift:59` and `:71`.
+- **A two-word spoken phrase straddled a sentence end.** "she is full. Stop." lost both words to
+  a spoken full stop, and "I bought something new. Line up here" lost "new." and "Line" to a
+  line break. Both passes match a phrase by comparing keys, and `WordShape.key` drops the
+  trailing stop, so a two-word name could span a boundary the speaker set. `Draft.sentenceRun`
+  (`WordShape.swift:66`) is the bound they lacked: `SpokenPunctuationPass.swift:48` and
+  `LayoutWordsPass.swift:59` and `:66` now require the phrase, and the number after "number", to
+  sit inside one sentence. Held by `SpokenPunctuationPassTests.swift:40` and
+  `LayoutWordsPassTests.swift:46`.
+- **A determiner in the previous sentence suppressed a mark the speaker asked for.** "hand me a
+  pen. Comma then go" kept the word "Comma", because `MentionGuard` walks back up to three words
+  for the determiner that would make a mark word a mention and had no boundary
+  (`Sources/UttrflowAI/Passes/MentionGuard.swift:42`). A noun phrase cannot begin in the sentence
+  before, so the walk-back now stops at a sentence end on the same footing as a word that is
+  itself a mark's name, and the phrase becomes "hand me a pen, then go". That the mark replaces
+  the recogniser's stop is the pass's standing rule rather than anything new here — a mark said
+  by name is an instruction and the recogniser's boundary is a guess. Held by
+  `SpokenPunctuationPassTests.swift:53`.
+- **A number took its context from the sentence before.** "we are in the room. Six people came"
+  wrote "6" on the strength of a "room" the speaker had already finished with, and "I have a
+  hundred. And fifty people came" left "fifty" a word because the scale guard read an unfinished
+  "a hundred and" across the stop. The labelling-word lookback and the scale guard now consult
+  one `startsASentence` predicate (`Sources/UttrflowAI/Passes/NumberFormsPass.swift:145`) at
+  `:88` and `:140`. Held by `NumberFormsPassTests.swift:75`.
+
+`Docs/cleanup.md`'s self-correction, spoken-punctuation, layout and number rows described a
+lookback or a phrase without saying it stops at a sentence end, which is the wording that let
+the number branch be written without one; all four now say it.
+
+**The corpus could not see any of this.** `make bakeoff ARGS="--baselines-only"` scores 79% pass
+and 93% close before and after, and the per-case rules JSON is byte-identical to an `origin/main`
+worktree's apart from its timings — so not one corpus case moved in either direction. The cases
+are single sentences, and every one of these five defects needs two.
+
+**Left standing, each measured rather than assumed.**
+
+- **`PieceJoiner` needs no change, and the issue's proposed parameter is not needed either.** The
+  issue warned that a boundary test would kill the documented cross-piece correction "let's meet
+  at four" | "no sorry at five", and proposed passing a flag saying the seam's stop is an
+  artefact. It is already handled the other way round: `PieceJoiner.restate` strips the previous
+  piece's trailing stop with `WordShape.withoutTrailingStop` before calling `discardedStart` and
+  restores it if nothing matched (`Sources/UttrflowPipeline/PieceJoiner.swift:89`), so the callee
+  never sees a stop to refuse. `PieceJoinerTests.numbersAcrossTheCut:174` stays green. Stripping
+  at the caller is the better of the two — the callee keeps one rule, and the artefact is removed
+  by the code that created it.
+- **`SelfCorrectionPass` holds no boundary logic of its own.** It delegates the whole decision to
+  `Restatement.discardedStart` and was fixed at the root.
+- **`MentionGuard`'s forward "of" lookahead.** The one instance left unfixed. A guard was
+  written, measured and reverted: it fires only when the mark name itself carries the
+  sentence-ending stop, where converting downgrades the recogniser's own boundary to a comma and
+  strands the next sentence's capital — "we shipped comma. Of course it broke" becomes "we
+  shipped, Of course it broke", and `FirstWordPass` was measured and does not lower that capital.
+  There is no corpus case for it, and the casing repair belongs to a pass this change does not
+  own.
+
+**A lookback with no sentence bound is the class, and the guardrail is a property rather than a
+case.** `Tests/UttrflowAITests/Passes/SentenceLocalityTests.swift` holds every sentence-local
+pass to one rule: a sentence is cleaned the same whether or not another sentence precedes it. It
+is a cross product — prefixes whose last word is bait for some lookback ("she is full.", "I have
+a hundred.", "the meeting is at 3.") against bodies that each rule acts on, over ten passes — so
+it costs nothing to extend and a new pass is one line. Run against the sources as they stood
+before this branch it independently reports four of the five defects above, in
+`SelfCorrectionPass`, `NumberFormsPass`, `LayoutWordsPass` and `SpokenPunctuationPass`, having
+been told about none of them. There is **one** exemption and it is asserted rather than assumed:
+a sentence opening on a spoken mark name, which the pass deliberately writes onto the word before
+for the reason given above. `MentionGuard`'s determiner case falls inside that exemption and
+keeps its own test instead.
+
+**It found a fifth defect on its first run, which is why it exists** — now issue #254, and
+pre-existing rather than introduced here: reverting every source file this branch touched
+reproduces it unchanged. `MentionGuard.isMentioned` opens with `guard position > 0 else { return
+true }` (`MentionGuard.swift:26`) — the rule that a layout phrase opening the text is a
+designator rather than an item — and it asks the **text** where the phrase sits, while
+`opensThePhrase` now asks the **sentence**. So "number one is broken" is left alone when it opens
+the text and becomes "1. is broken" after any sentence at all, deleting two words the speaker
+said. The determiner path stays correct across a stop, so only the bare opening is affected. It
+is filed rather than fixed here, and pinned in the guardrail's `readsTheTextNotTheSentence` list,
+which ratchets down only — a second entry can never be added quietly, and the entry itself is
+tested to still fail so it cannot go stale.
+
+
+### A meaning reversed by a check that read one way — issue #188 and the sweep it started
+
+`MeaningPreservationGuard` is the product's only enforcement of "never invent", and every
+grammar check in it ran from the kept draft to the rewrite and never back. The survival loop
+walked the kept tokens and read the rewrite as a lookup pool, so no rewritten word was ever
+the subject of a check; the negation check subtracted the rewrite's negators from the draft's
+and refused a *positive* difference only. An added negator therefore scored -1 and passed.
+Measured on the shipping path through `GenerativeTextTransformer`, not reasoned: "we should
+ship this on Friday" was returned to the caret as "We should not ship this on Friday.", and
+"send the report" as "Send the report to the team today, please."
+
+- **A negation the rewrite added is refused, as a dropped one already was**
+  (`MeaningPreservationGuard.swift:149`). **Not** the plain inequality the issue proposed:
+  `Self.echo(in:)` is the field's text *before* the caret, words the speaker never said, so
+  counting it into the rewritten total refuses a faithful rewrite the moment the caret context
+  holds a negator — measured at kept 0 against rewritten-plus-echo 1. The echo is a permitted
+  *origin* for an addition and stays a source of survivors on the dropped side. Held by
+  `MeaningPreservationGuardTests.swift:354` and `:372`, with contractions both ways at `:390`
+  so "cannot" ↔ "can not" still costs nothing.
+- **A content word the rewrite invented is refused** (`inventionVerdict`,
+  `MeaningPreservationGuard.swift:162`): the survival relation with the sides swapped, so a
+  rewritten word must have a counterpart in the draft, in the caret echo, or in a reading the
+  model was offered. Nothing else bit — the growth cap allows `2n + 4` words, and a short
+  invented clause fits inside it. Held by `:366`, and end to end by
+  `GenerativeTextTransformerTests.swift:220`.
+- **A number invented in words is refused where one in digits already was**
+  (`inventedNumber`, `:298`): the written side was read as digit runs only, so "twenty chairs"
+  passed where "20 chairs" failed. Held by `MeaningPreservationGuardTests.swift:108`.
+
+`inventionVerdict` stands down when any kept token is non-ASCII, because romanising Devanagari
+produces words with no counterpart in the draft by construction; those rewrites are left to the
+base checks, exactly as the survival loop already left them. `Docs/ai-model-output.md` carries
+the reasoning, and `Docs/definition-of-done.md:21` and `Docs/pipeline.md:36` — which already
+claimed the guard refuses a rewrite that "drops or invents" — are true now rather than aspirational.
+
+**Every check here read one way, and that is the guardrail.** Three arms of one guard had the
+same shape, so the fault was the shape rather than any one of them, and nothing in the suite
+asked a check to hold in both directions — each arm was tested with the edit it was written
+for. `Tests/UttrflowAITests/GuardMirrorTests.swift` asks it of all of them: five minimal edits
+are judged, then judged again with the two sides swapped, and both directions must be refused.
+It reads the guard's own source for every `reason:` literal and holds each to being reached
+from both sides or to appearing in one `unmirrored` list with the reason it cannot be — so a
+check added later is held to the rule without anyone remembering to add a case, and the four
+entries on that list are the asymmetries this entry argues for rather than a silence. It
+ratchets like `owedAKeepCase` and the comment and disclosure baselines: a reason may leave the
+list, a new one may never join it, and a reason that stops existing is flagged too. Both halves
+were proven to fail before they were kept — removing the added-negation arm fails the swap
+("a negation added is not refused"), and a new one-directional check added to the guard fails
+the second test by name.
+
+**Left standing, each read rather than assumed.**
+
+- **The function-word churn allowance is set by the side being judged** (`:154`): it is
+  `3 * sentenceCount(rewritten)`, so a rewrite that writes more full stops buys itself a larger
+  allowance. Confirmed as a mechanism and no end-to-end exploit found. Every minimal tightening
+  scales the allowance off the kept draft, which is an unpunctuated transcript whose sentence
+  count is 1 — so it would refuse the run-on splitting the tidier is *for*. It is a corpus
+  measurement, not a guard edit, and it cannot reverse a meaning on its own now that both
+  negation arms and the invention arm are in place.
+- **`candidateVerdict` is position-free** (`:50`): it asks whether an offered reading appears
+  anywhere in the closed-up rewrite. The half that mattered — a word nobody offered written
+  *beside* one that was — is refused by the invention arm now, pinned at
+  `MeaningPreservationGuardTests.swift:486`. What is left is an offered reading placed in the
+  wrong position, which needs word alignment the guard does not have.
+- **`layoutVerdict` refuses a dropped break and permits an added one** (`:62`). Deliberate, per
+  `Docs/cleanup-design.md:272` and `MeaningPreservationGuardTests.swift:557`; listed here so the
+  next sweep does not re-flag it.
+
+**The same one-directional shape elsewhere, each owed its own issue.** None is on #188's failure
+path, and each changes behaviour that is deliberately tested, contractual or gating, so none was
+folded into this branch:
+
+- `AccuracyBaseline.swift:184-192` — the regression verdict never consults `removed`, so a run
+  that drops its hardest samples can report `.improved`. `newlyUnscorable` is judged and a
+  sample that vanishes outright is not, which is the same event reported two ways. Fixing it
+  means reversing `AccuracyBaselineTests.swift:188`, which asserts that choice on purpose.
+- `Scripts/coverage_report.py:170-196` — the floor is applied only to modules present in the
+  llvm-cov report, so a module absent from it entirely is neither printed nor failed. Raising
+  it may uncover real uncovered modules, which is a gate change of its own.
+- `Scripts/soak.sh:69-70` — `join -j 2` is an inner join, so an allocation class absent from the
+  first sample cannot appear in the leak table, which is the leak shape the script exists to find.
+- `TelemetryReport.swift:180-181` — `cancelledCount` is capped against `dictationCount` and the
+  adjacent `failureCount` is not; the per-language counts are never reconciled against the total.
+- `LearnableWords.swift:50` — only the replacement is held to `isWorthLearning`, where the checks
+  above it at `:40-48` are symmetric.
+- `CorrectionProposal.swift:62-72` — splices by arithmetic without checking the words it replaces,
+  where the mirror `CorrectionUndo.swift:43-44` does check. No production caller, so it is a
+  harden-or-delete decision.
+- `HotkeyRecogniser.swift:39` with `ShortcutSet.swift:68` and `SettingsEditor.swift:149-157` — the
+  recogniser ignores the key code for a held binding, the clash check compares by `Equatable`, and
+  the recorder produces two unequal bindings for one gesture depending on modifier order, so two
+  actions can take the same hold with no clash shown and both fire.
+- `Scripts/predict_scorecard.py:74-76` and `Design/_gen_predict.py:381-405` — reported by the
+  sweep and not reproduced here, so recorded as a lead rather than a finding.
+
+
+### Words kept on shape alone — issue #189, and the same mistake facing the other way
+
+#198 was a rule deleting what the speaker said on the shape of a word alone. This is the
+same mistake on the acceptance side: a rule *keeping* a rewrite because two spellings look
+alike. It is the more dangerous half, because the guard's failure is silence — a refusal
+falls back to the raw transcript and is visible, and a wrongful acceptance is the model's
+output going straight to the user's cursor with nothing left behind to read. The issue was
+filed from a source audit and explicitly **not reproduced at runtime**; all four cases below
+were reproduced at the guard's own API before anything was touched, and all four were
+`accepted`.
+
+- **The guard compared unordered sets, so a permutation was a tidy-up.** "we approved the
+  design but rejected the budget" was accepted as "We rejected the design but approved the
+  budget." — the opposite claim, from identical content-word and function-word multisets,
+  zero churn and no dropped negator. `grammarVerdict` reduced the rewrite to a `Set` of
+  `matching` before comparing, so position, order and multiplicity were not representable at
+  all, and `Docs/cleanup.md`'s Tier 3 ban on reordering had no code anywhere. The kept content
+  words are now walked *along* the rewrite in order, each taking the earliest place still open
+  (`MeaningPreservationGuard.survivalVerdict`, `Sources/UttrflowAI/MeaningPreservationGuard.swift:224`):
+  no place at all is "lost or replaced", a place only behind one already taken is "moved".
+  Places may be **reused**, deliberately — several spoken words must still land on the one
+  identifier that spells them, so "set user prefs" → `setUserPrefs` survives; requiring
+  distinct places would break it. Held by `MeaningPreservationGuardTests.swift:521`, which
+  also pins the tidying that must *not* fire it.
+- **Three shared characters made two different words the same word.** "can you confirm the
+  booking" was accepted as "Can you confuse the booking?" on the stem "con", and "Aarav" as
+  "Aaron" on "aar". The rule was a three-character prefix plus a bare substring test standing
+  in for two questions neither could answer — "is this the same word in another form" and "is
+  this word still here". `survives` is pairwise now
+  (`MeaningPreservationGuard.swift:241`) and the prefix is gone: `sameForm` (`:255`) asks
+  whether one spelling is a listed inflection of the other — `-s/-es/-ies/-ed/-ied/-d/-ing`,
+  final-consonant doubling, `e-` and `y-` truncation (`:260`) — applied in **both**
+  directions, plus the irregular-verb table. Both directions is load-bearing:
+  `survives("developers", as: "developer")` had no other cover. The substring rule is kept
+  because `acceptsIdentifierSpelling` is its real job, but bound to it: `spelledInto` (`:274`)
+  now requires a camel hump or a non-letter to open *and* close the match, so "invoices" is
+  still in `fetchInvoices` and "ravi" is no longer in "gravity". Held by
+  `MeaningPreservationGuardTests.swift:575`, which pins the near-misses that must be refused
+  (confirm/confuse, Aarav/Aaron, forecast/for, theory/the, android/and, ravi/gravity) beside
+  the form changes that must be kept.
+- **A doubtful run was found in the middle of other words.** The candidate check asked whether
+  the reading's letters appeared anywhere in the closed-up line, so "our time" was "found" in
+  "four times" and a reading the model was never offered was accepted. `isWritten`
+  (`MeaningPreservationGuard.swift:59`) closes the rewrite up a word at a time and keeps the
+  edges (`closedUpEdges`, `:75`), so a reading must begin and end on a word boundary — a camel
+  hump and a mark counting as edges, the same reading `spelledInto` uses. `CandidateSource`'s
+  `closedUp` is unchanged and correct as a normaliser; it was only ever wrong as the input to a
+  containment test, which is this call site. Held by
+  `MeaningPreservationGuardTests.swift:417`, `:429` and `:439`.
+- **The corpus scorer scored a permutation perfectly.** `Scorer.overlap` counted shared words
+  from a multiset, so the bake-off could not have caught the reordering above even in
+  principle — the measurement and the guard were blind in the same direction. It takes its
+  shared count from `WordErrorRate.measure` now (`Sources/UttrflowEval/Scorer.swift:48`), the
+  ordered primitive already on `UttrflowEval`'s dependency path, so `CaseScore.passed` is no
+  longer order-blind. Held by `ScorerTests.swift:90`.
+- **A two-character prefix decided whether a model had echoed the line.** Outside the
+  dictation path but the identical mistake: `AppleCandidateGenerator` read "busier tomorrow"
+  as an echo of "busy nahi" because both open "bu", and then declined the generous
+  continuation reading the answer had earned. It asks `MLXCandidateScorer.echoes`
+  (`Sources/UttrflowLocalModel/MLXCandidateScorer.swift:375`) now — the same reading `parse`
+  already uses. Held by `CompletionParsingTests.swift:159`.
+
+The guard's private copy of the function words is gone with the rest: it asks
+`FunctionWords.holds` (`Sources/UttrflowCore/Cleaning/FunctionWords.swift:4`), and the
+comment at that file promising a follow-up went with it. `Docs/cleanup.md` carries the order
+rule and the form relation, so the reasoning is not left in the commits alone.
+
+**Left standing, each named rather than overlooked.**
+
+- **The third face — content words the rewrite *adds* — is still unchecked.** "lets meet at
+  four" → "Let's meet at four, best regards." is still accepted, refused only by the `2n+4`
+  length cap when the invention is long, so `Docs/cleanup.md:105-106` — "a greeting, a
+  sign-off, a heading, a summary, or a bullet the speaker did not say" — still has no code
+  behind it. It has the highest false-positive risk of the four and the exemptions it needs are real
+  and untested: the caret echo is by construction a block of added words, a doubtful span read
+  as an offered reading aligns to nothing kept, and a romanised Devanagari rewrite is all
+  additions. It cannot land without `make bakeoff`.
+- **`CaseScore.isExact` is computed and never consulted.** It is reported data on a public
+  struct, and `passed` is order-aware through `similarity` now, so consulting it would change
+  the gate rather than fix it.
+- **`EvaluationCorpus` has 83 `mustKeep` lists with only 11 multi-word entries.** That is
+  corpus authoring rather than a defect, and the ordered similarity now constrains order in
+  all 89 cases rather than in the 11.
+
+**The honest limit.** `make bakeoff` was **not** run — it downloads models and needs the
+Metal toolchain — so nothing above is a corpus measurement. A refusal falls back to the raw
+transcript, so a rule that is too strict degrades good rewrites silently and no unit test
+would show it. The order rule is the one to watch: it fires on a genuine inversion of two
+aligned content words, and non-decreasing positions with reuse were chosen specifically to
+keep it off legitimate tidying, but the corpus is where that gets proven.
+
+**The guardrail, because this is a class and not an incident.** Four sites across three
+modules, all the same shape — a fixed-width prefix or a bare substring standing in for "is
+this the same word" — and #198 was this family already, facing the other way. Every one of
+them fails by *accepting*, which is why none had a failing test to find:
+`Scripts/loose_match_audit.py` counts the shape per source file against
+`Scripts/loose_match_baseline.json` and runs in `make verify` (`make match-report` lists
+what is left). It ratchets like the comment and disclosure baselines — a count may fall and
+may never rise. Run against the tree as it stood before this fix it names all four cited
+lines; run against it now it names one, `CaretEchoPass.swift:33`, where a prefix is the
+question rather than a stand-in for one, and that is what the baseline records. The three
+questions each have one home now, and the audit's failure message says which: `sameForm` for
+whether two spellings are one word, `spelledInto` and `isWritten` for whether a word is
+written out at its own boundaries, `WordErrorRate.measure` for whether it is still there in
+the order it was said.
+
 
 ## Tab-to-complete 🟡
 
@@ -1288,8 +1871,7 @@ of the ranking to be verified, `Verifier` judges it against one deadline for the
 keystroke, and the second `resolve` draws what survived — corrected silently where the
 machine knew better, dropped where it did not, and reported to the corpus either way.
 
-Still open after it: no scorer is wired into the coordinator, so gate 2 never runs on a
-real machine; nothing draws the numbers on the Insights page (phase 6b); the settings
+Still open after it: nothing draws the numbers on the Insights page (phase 6b); the settings
 window does not reach the corpus, so the per-application counts and the "forget what this
 application taught" buttons never appear (phase 8); consent per application is an `NSAlert`
 rather than anything designed; and the placement ladder is still chosen from what each
