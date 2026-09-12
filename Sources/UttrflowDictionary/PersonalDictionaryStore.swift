@@ -91,12 +91,13 @@ public actor PersonalDictionaryStore {
         try persist([])
     }
 
-    /// Forgets every inference and keeps the user's own words. See `Docs/app-dictionary-store.md`.
+    /// Forgets every inference and keeps the user's own words and this build's. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func removeLearned() throws(DictionaryStoreError) -> [DictionaryEntry] {
         // The half-counted evidence goes with the entries, or the button is a liar by one dictation.
         sightings.forgetEverything()
-        let kept = load().filter { $0.origin == .added }
+        // A shipped word was inferred from nothing, so there is nothing about it to forget.
+        let kept = load().filter { $0.origin == .added || $0.origin == .shipped }
         try persist(kept)
         return kept
     }

@@ -11,6 +11,8 @@ public enum WordOrigin: String, Sendable, Equatable, CaseIterable, Codable {
     case added
     /// It appeared often enough across successful dictations to be worth keeping.
     case observed
+    /// This build ships knowing it, the product's own name among them. See `Docs/app-dictionary-store.md`.
+    case shipped
 }
 
 /// One word this user says that a general model would not expect.

@@ -96,13 +96,13 @@ public struct SettingsPersonalisation: Sendable, Equatable {
         Set(suggestions.filter { $0.value > 0 }.keys)
     }
 
-    /// Counts a dictionary as it stands, calling anything not ``WordOrigin/added`` the app's own.
+    /// Counts a dictionary as it stands; a shipped word is neither learned nor the user's, so it is neither here.
     public init(
         entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
         suggestions: [String: Int] = [:]
     ) {
         self.init(
-            learnedWords: entries.count(where: { $0.origin != .added }),
+            learnedWords: entries.count(where: { $0.origin == .learned || $0.origin == .observed }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
             lastDictationApp: lastDictationApp, suggestions: suggestions)
