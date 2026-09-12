@@ -58,6 +58,26 @@ absent rather than as an empty string: `soundsLike` falls back to the spelling w
 and an empty string would index the word under no sound at all — never found, with nothing to say
 why.
 
+## An address for every entry
+
+The index used to key entries on Double Metaphone alone, and the coder emits nothing for any
+character outside A–Z. A spelling written in Devanagari, CJK, Cyrillic or digits alone therefore had
+no key, and `PhoneticIndex` dropped it: the row showed in the list, the entry reached the disk, and
+nothing ever looked it up, offered it or learnt from it — the same "never found, with nothing to say
+why" this page already warns about for the empty pronunciation.
+
+`PronunciationCoder` is what the index keys on now. It asks Double Metaphone first, and where that
+is silent it keys the spelling itself, folded for case and accents with marks dropped. So such a
+word is matched *exactly* rather than not at all, which is the honest ceiling for a script the coder
+cannot speak: the recogniser has to produce the same spelling. A pronunciation still beats both, and
+the editor now says so — where a spelling has no English letters and the pronunciation is blank, the
+hint tells the user what it costs instead of advising them to leave it blank.
+
+`PhoneticIndex.unaddressable` keeps whatever it could not file at all, which is now only a spelling
+with no letter and no digit anywhere in it. The list exists so that the next gap in a coder is
+visible rather than silent, and a test asserts every entry is found by its own spelling across seven
+scripts.
+
 It re-checks for an empty spelling and for a word already known even though the editor refuses both
 before its button goes live. The editor judges from the list it last drew, and that list can go
 stale while the editor is open now that a dictation finishing in another app can teach the
