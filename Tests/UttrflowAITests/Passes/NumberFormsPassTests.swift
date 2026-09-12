@@ -21,6 +21,10 @@ struct NumberFormsPassTests {
             ("fifteen,", "15,"),
             ("\"twenty\"", "\"20\""),
             ("twenty, one", "20, one"),
+            ("five dollars", "5 dollars"),
+            ("fifteen thousand dollars", "15,000 dollars"),
+            ("five, dollars", "five, dollars"),
+            ("a dollar", "a dollar"),
         ]
     )
     func wholeNumbers(input: String, expected: String) {

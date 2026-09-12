@@ -16,6 +16,11 @@ public struct WordShape: Equatable, Sendable {
     /// The word lower-cased, which is what every pass compares on.
     public var key: String { core.lowercased() }
 
+    /// Lower-cased runs of letters and digits, which is the unit every word comparison counts in.
+    public static func words(_ text: String) -> [String] {
+        text.lowercased().split(whereSeparator: isMark).map(String.init)
+    }
+
     /// Whether the word closes a clause or a sentence.
     public var endsClause: Bool { suffix.contains(where: { ",.;:!?".contains($0) }) }
 
@@ -49,6 +54,20 @@ public struct WordShape: Equatable, Sendable {
     public static func finished(_ text: String) -> String {
         guard let last = text.last, last.isLetter || last.isNumber else { return text }
         return text + "."
+    }
+
+    /// The word with `mark` on its end; a clause mark replaces one already there, a quote follows it.
+    public static func marked(_ text: String, with mark: String) -> String {
+        if mark == "\u{2014}" { return text + " " + mark }
+        if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
+            return String(text.dropLast()) + mark
+        }
+        return text + mark
+    }
+
+    /// The word with every mark of `marks` on its end, each merged in turn under `marked(_:with:)`.
+    public static func marked(_ text: String, withAll marks: some Sequence<Character>) -> String {
+        marks.reduce(text) { marked($0, with: String($1)) }
     }
 
     /// Takes back one trailing full stop; a question or exclamation mark, or an ellipsis, stays.

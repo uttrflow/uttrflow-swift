@@ -166,6 +166,12 @@ it heard is **not itself a plausible name**:
 | "thanks sara" | `Sarah Chen (DM)` | Sara ❌ |
 | "thanks jon" | `Jonathan Reed (DM)` | Jon ❌ |
 
+**These rows were taken with the candidate path switched off.** `slack-name-spelling`
+declared no doubtful run until the corpus was corrected, and a case that declares none is
+never asked of a candidate source — so the model was never handed `Marcie` and the table
+measures it noticing a spelling unaided. The case declares its run now, and the rule below
+is what the old runs suggested rather than what the shipping path does; it needs re-measuring.
+
 "Nikhel" is not a spelling anyone uses, so the title wins. "Marcy", "Sara" and "Jon" are
 all real names, and the model will not overrule a name the speaker apparently said with a
 different one it can see. Two of those three rows are the conservative answer: the person
@@ -179,6 +185,10 @@ Reproduce any row with:
 ```bash
 uttrflow-dev clean -e foundationModels "thanks marcy i'll pick up the printer quote this afternoon" --app Slack --bundle-id com.tinyspeck.slackmacgap --document "Marcie Alvarez (DM) — Northwind"
 ```
+
+A row whose case names a doubtful run needs `--doubtful "<the run>"` as well, repeated once per
+run. Being unsure is the condition for a candidate source to be asked at all, so without it the
+command runs a shorter pipeline than the app and the `seen` lines carry no readings.
 
 ### With context and without: one case in thirty-six changes
 

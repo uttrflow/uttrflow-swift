@@ -56,11 +56,14 @@ public struct DictationOutcome: Sendable, Equatable {
     public let changes: AppliedChanges
     /// Whether this comes from a kept recording rather than the microphone, and is copied, not typed.
     public let isFromRecording: Bool
+    /// Whether the words were seen to reach the caret, which is what the tick is allowed to claim.
+    public let arrival: InsertionArrival
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
-        spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false
+        spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
+        arrival: InsertionArrival = .notReported
     ) {
         self.text = text
         self.method = method
@@ -70,6 +73,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.spokenFor = spokenFor
         self.changes = changes
         self.isFromRecording = fromRecording
+        self.arrival = arrival
     }
 }
 

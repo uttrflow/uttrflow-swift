@@ -9,14 +9,21 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private let recordings: RecordingStore?
     private var writer: RecordingWriter?
     private var currentState: AudioCaptureState = .idle
+    /// Set when the microphone stops for good mid-recording, and thrown by `stop()` rather than half a recording.
+    private var failure: AudioCaptureError?
+    /// Says the microphone went during this recording, so the audio either side of the hole does not join.
+    private var isGapped = false
+    /// Played the moment the microphone closes, since this engine alone knows that instant.
+    private let cue: any RecordingCueing
 
     public init(
         source: any MicrophoneSource, accumulator: SampleAccumulator = SampleAccumulator(),
-        recordings: RecordingStore? = nil
+        recordings: RecordingStore? = nil, cue: any RecordingCueing = SilentCue()
     ) {
         self.source = source
         self.accumulator = accumulator
         self.recordings = recordings
+        self.cue = cue
     }
 
     public var state: AudioCaptureState { currentState }
@@ -36,6 +43,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         // Reset before starting, so a crash mid-recording cannot prepend audio to the next one.
         accumulator.reset()
 
+        failure = nil
+        isGapped = false
         let accumulator = self.accumulator
         // Opened before the tap, so the file holds every block the buffer does.
         let writer = await recordings?.begin()
@@ -44,6 +53,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
             try source.start { samples in
                 accumulator.append(samples)
                 writer?.append(samples)
+            } onInterruption: { [weak self] interruption in
+                Task { await self?.microphoneInterrupted(interruption) }
             }
         } catch {
             await abandonWriter()
@@ -54,13 +65,38 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
 
     public func stop() async throws(AudioCaptureError) -> AudioSamples {
         guard currentState == .recording else { throw .notRecording }
-        source.stop()
+        // Drained, so the block the hardware was still filling at key-up reaches the buffer instead of being dropped.
+        await source.stop(draining: true)
+        // After the microphone closes and before the buffer is taken, so the stop cue is heard but never recorded.
+        cue.playStop()
         currentState = .idle
         if let writer, let recordings {
             _ = await recordings.finish(writer)
         }
         writer = nil
-        return .canonical(accumulator.take())
+        let samples = accumulator.take()
+        // A microphone that died mid-recording captured only the first half, which reads as a whole sentence.
+        if let failure {
+            self.failure = nil
+            isGapped = false
+            throw failure
+        }
+        // A hole in the middle reads as a whole sentence too, because samples cannot say time passed.
+        if isGapped {
+            isGapped = false
+            throw .engineFailed(
+                description: "The microphone was away for part of this recording.")
+        }
+        return .canonical(samples)
+    }
+
+    /// Remembers what a device change did, since only `stop()` has somewhere to report it.
+    private func microphoneInterrupted(_ interruption: CaptureInterruption) {
+        guard currentState == .recording else { return }
+        switch interruption {
+        case .began: isGapped = true
+        case .ended(let error): failure = error
+        }
     }
 
     /// Everything the microphone has delivered so far, so work can begin before the key is released.
@@ -71,7 +107,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
 
     public func cancel() async {
         guard currentState == .recording else { return }
-        source.stop()
+        // Not drained: the audio is being thrown away, so waiting for more of it buys nothing.
+        await source.stop(draining: false)
         accumulator.reset()
         currentState = .idle
         await abandonWriter()

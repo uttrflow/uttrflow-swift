@@ -105,6 +105,65 @@ struct DraftTests {
         #expect(!draft.words[0].isPresent)
     }
 
+    // MARK: - Carrying the marks of a word that goes
+
+    /// The recogniser hangs a sentence's mark on whatever word it ended on, filler or not.
+    @Test(
+        "moves the marks of a removed word onto the words that stay",
+        arguments: [
+            ("shipping today, uh?", 2, "shipping today?"),
+            ("that is amazing uh!", 3, "that is amazing!"),
+            ("ready; uh?", 1, "ready?"),
+            // A comma is the pause the word stood in, so it goes with the word.
+            ("the build, um, failed", 2, "the build, failed"),
+            // Nothing stands before it, so there is nowhere for the mark to go.
+            ("uh? yes", 0, "yes"),
+        ]
+    )
+    func carriesMarksOnRemoval(input: String, index: Int, expected: String) {
+        var draft = Draft(text: input)
+        draft.remove(at: index, by: pass, carryingMarks: true)
+        #expect(draft.text == expected)
+    }
+
+    @Test("leaves the marks where they were when the caller does not ask for them")
+    func plainRemovalCarriesNothing() {
+        var draft = Draft(text: "shipping today, uh?")
+        draft.remove(at: 2, by: pass)
+        #expect(draft.text == "shipping today,")
+    }
+
+    @Test("moves an opening mark forward, onto the word the removed one stood before")
+    func carriesAnOpeningMarkForward() {
+        var draft = Draft(text: "he said \"uh we shipped")
+        draft.remove(at: 2, by: pass, carryingMarks: true)
+        #expect(draft.text == "he said \"we shipped")
+    }
+
+    /// A mark belongs to the line it was spoken on, and the word before the break ended its own.
+    @Test("does not carry a mark across a line break")
+    func doesNotCarryAcrossABreak() {
+        var draft = Draft(words: [Draft.Word("today"), Draft.Word("\n"), Draft.Word("uh?")])
+        draft.remove(at: 2, by: pass, carryingMarks: true)
+        #expect(draft.text == "today\n")
+    }
+
+    @Test("rides the mark past a word removed before it to the one that stays")
+    func carriesPastAnotherRemoval() {
+        var draft = Draft(text: "today um uh!")
+        draft.remove(at: 1, by: pass, carryingMarks: true)
+        draft.remove(at: 2, by: pass, carryingMarks: true)
+        #expect(draft.text == "today!")
+    }
+
+    @Test("owes the moved mark to the pass that removed the word")
+    func carryingIsRecordedAsAnEdit() {
+        var draft = Draft(text: "shipping today, uh?")
+        draft.remove(at: 2, by: pass, carryingMarks: true)
+        #expect(draft.words[1].state == .replaced(by: pass, from: "today,"))
+        #expect(draft.words[2].state == .removed(by: pass))
+    }
+
     @Test("records what a replaced word read before, and which pass changed it")
     func replacedWords() {
         var draft = Draft(text: "hello there")

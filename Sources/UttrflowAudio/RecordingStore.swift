@@ -13,6 +13,8 @@ public actor RecordingStore: RecordingKeeper {
     private var open: RecordingWriter?
     /// The recording written for the dictation that most recently stopped.
     private var last: KeptRecording?
+    /// Writers whose bookkeeping is done and whose last bytes are still on their way to the disk.
+    private var settling: [UUID: RecordingWriter] = [:]
 
     public init(
         directory: URL = RecordingStore.defaultDirectory(),
@@ -30,9 +32,12 @@ public actor RecordingStore: RecordingKeeper {
     // MARK: - Writing
 
     /// Opens a file for the recording that is starting, or nothing if the disk refuses.
-    public func begin(at when: Date = Date()) -> RecordingWriter? {
+    public func begin(at when: Date = Date()) async -> RecordingWriter? {
         last = nil
-        open?.abandon()
+        if let previous = open {
+            previous.abandon()
+            await previous.drained()
+        }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let id = UUID()
         let writer = try? RecordingWriter(url: url(of: id), id: id, when: when)
@@ -44,30 +49,43 @@ public actor RecordingStore: RecordingKeeper {
         return writer
     }
 
-    /// Closes the file and makes it the recording ``current()`` answers with.
+    /// Ends the recording and makes it the one ``current()`` answers with, ahead of its last bytes.
     public func finish(_ writer: RecordingWriter) -> KeptRecording {
         let recording = writer.finish()
         if open?.id == writer.id { open = nil }
         last = recording
+        settling[recording.id] = writer
         return recording
     }
 
+    /// Waits for a finished recording's bytes, which a reader of its file needs and a live dictation does not.
+    public func settle(_ id: UUID) async {
+        guard let writer = settling[id] else { return }
+        await writer.drained()
+        settling[id] = nil
+    }
+
     /// Deletes the file of a recording that was cancelled.
-    public func abandon(_ writer: RecordingWriter) {
+    public func abandon(_ writer: RecordingWriter) async {
         writer.abandon()
         if open?.id == writer.id { open = nil }
+        await writer.drained()
+        settling[writer.id] = nil
     }
 
     // MARK: - RecordingKeeper
 
     public func current() -> KeptRecording? { last }
 
-    public func discard(_ id: UUID) {
+    public func discard(_ id: UUID) async {
+        await settle(id)
         try? FileManager.default.removeItem(at: url(of: id))
         if last?.id == id { last = nil }
     }
 
-    public func waiting(now: Date) -> [KeptRecording] {
+    public func waiting(now: Date) async -> [KeptRecording] {
+        // The list is read from the files themselves, so anything still on its way to the disk has to land first.
+        for id in settling.keys { await settle(id) }
         let files =
             (try? FileManager.default.contentsOfDirectory(
                 at: directory, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey]))
@@ -81,7 +99,7 @@ public actor RecordingStore: RecordingKeeper {
             let values = try? file.resourceValues(forKeys: [.creationDateKey, .fileSizeKey])
             let when = values?.creationDate ?? now
             guard now.timeIntervalSince(when) < retention.inSeconds else {
-                discard(id)
+                await discard(id)
                 continue
             }
             let frames = WAVEncoder.frames(inFileOf: values?.fileSize ?? 0)
@@ -91,8 +109,9 @@ public actor RecordingStore: RecordingKeeper {
         return kept.sorted { $0.when > $1.when }
     }
 
-    public func audio(of id: UUID) throws(AudioCaptureError) -> AudioSamples {
-        try AudioFileReader.read(contentsOf: url(of: id))
+    public func audio(of id: UUID) async throws(AudioCaptureError) -> AudioSamples {
+        await settle(id)
+        return try AudioFileReader.read(contentsOf: url(of: id))
     }
 
     private func url(of id: UUID) -> URL {
