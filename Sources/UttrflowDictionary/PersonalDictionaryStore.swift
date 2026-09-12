@@ -28,6 +28,13 @@ public actor PersonalDictionaryStore {
         LocalStore.file("dictionary.v1.json", in: directory)
     }
 
+    /// Which shipped words this dictionary has been given, named after it so two never share one record.
+    private var seedRecord: URL {
+        file.deletingLastPathComponent().appending(
+            path: "\(file.deletingPathExtension().lastPathComponent).seeded.json",
+            directoryHint: .notDirectory)
+    }
+
     // MARK: - Reading
 
     /// Every word in the order it was added, retired ones included so the user can still see them.
@@ -72,6 +79,40 @@ public actor PersonalDictionaryStore {
                 firstSeen: moment))
     }
 
+    /// Writes the words this build ships knowing, once ever; a word the user then deletes stays deleted.
+    @discardableResult
+    public func seedShippedWords(at moment: Date) throws(DictionaryStoreError) -> [DictionaryEntry] {
+        guard seededVersion() < ShippedWords.version else { return [] }
+        let existing = load()
+        let known = Set(existing.map { $0.word.lowercased() })
+        let seeded = ShippedWords.entries(at: moment).filter { !known.contains($0.word.lowercased()) }
+        // Recorded before the entries are written, so a failed write cannot seed twice on the next launch.
+        try recordSeeded()
+        guard !seeded.isEmpty else { return [] }
+        try persist(existing + seeded)
+        return seeded
+    }
+
+    /// The newest shipped list this dictionary has been given, or zero for one that has had none.
+    private func seededVersion() -> Int {
+        guard let data = try? Data(contentsOf: seedRecord),
+            let record = try? JSONDecoder().decode([String: Int].self, from: data)
+        else { return 0 }
+        return record["version"] ?? 0
+    }
+
+    /// Notes which shipped list has been applied, which is what stops a deleted word returning.
+    private func recordSeeded() throws(DictionaryStoreError) {
+        do {
+            try FileManager.default.createDirectory(
+                at: seedRecord.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(["version": ShippedWords.version]).write(
+                to: seedRecord, options: .atomic)
+        } catch {
+            throw .couldNotWrite
+        }
+    }
+
     /// Forgets one word; an identifier that is not there is not an error.
     @discardableResult
     public func remove(_ id: UUID) throws(DictionaryStoreError) -> [DictionaryEntry] {
@@ -91,12 +132,13 @@ public actor PersonalDictionaryStore {
         try persist([])
     }
 
-    /// Forgets every inference and keeps the user's own words. See `Docs/app-dictionary-store.md`.
+    /// Forgets every inference and keeps the user's own words and this build's. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func removeLearned() throws(DictionaryStoreError) -> [DictionaryEntry] {
         // The half-counted evidence goes with the entries, or the button is a liar by one dictation.
         sightings.forgetEverything()
-        let kept = load().filter { $0.origin == .added }
+        // A shipped word was inferred from nothing, so there is nothing about it to forget.
+        let kept = load().filter { $0.origin == .added || $0.origin == .shipped }
         try persist(kept)
         return kept
     }

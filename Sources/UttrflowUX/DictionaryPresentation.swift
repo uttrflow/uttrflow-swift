@@ -265,6 +265,7 @@ public enum DictionaryPresenter {
         case .learned: "Learned"
         case .added: "Added by you"
         case .observed: "Seen on screen"
+        case .shipped: "Shipped with Uttrflow"
         }
     }
 

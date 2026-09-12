@@ -184,6 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         applyAppearance()
         applyLaunchAtLogin()
         buildPipeline()
+        seedTheDictionary()
         wireInterface()
         startWatchingForTheShortcut()
         startWatchingTheClipboard()
@@ -197,6 +198,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Last, from the setting: an update check here would race the model download.
         updates.onProgressChanged = { [weak self] in self?.refreshMenuBar() }
         updates.begin(automatically: settings.installsUpdatesAutomatically)
+    }
+
+    /// Writes the words this build ships knowing, which happens once and never blocks the launch.
+    private func seedTheDictionary() {
+        Task { [dictionary] in try? await dictionary.seedShippedWords(at: Date()) }
     }
 
     /// Loads the recogniser, saying so until it can dictate. See `Docs/startup.md`.
