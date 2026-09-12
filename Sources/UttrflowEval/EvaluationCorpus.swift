@@ -256,6 +256,24 @@ public enum EvaluationCorpus {
             expected: "The gateway listens on port 8080 in staging.",
             mustKeep: ["8080", "staging"]
         ),
+        .init(
+            id: "extension-repeated-digits", category: .technical,
+            spoken: "you can reach me on extension four four two four four two",
+            expected: "You can reach me on extension 442442.",
+            mustKeep: ["442442"]
+        ),
+        .init(
+            id: "door-code-repeated-digits", category: .technical,
+            spoken: "the door code is four seven four seven",
+            expected: "The door code is four seven four seven.",
+            mustKeep: ["four seven four seven"]
+        ),
+        .init(
+            id: "card-group-repeated-digits", category: .technical,
+            spoken: "the test card number starts four two four two four two four two",
+            expected: "The test card number starts four two four two four two four two.",
+            mustKeep: ["four two four two four two four two"]
+        ),
     ]
 
     // MARK: Utterances that are not addressed to the model
@@ -369,7 +387,8 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.tinyspeck.slackmacgap",
                 documentName: "Marcie Alvarez (DM) — Northwind"
             ),
-            mustNotAdd: ["Marcy"]
+            mustNotAdd: ["Marcy"],
+            doubtful: ["marcy"]
         ),
         .init(
             id: "notes-name-spelling", category: .contextual,
@@ -381,7 +400,8 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.apple.Notes",
                 documentName: "Errands"
             ),
-            mustNotAdd: ["Marcie"]
+            mustNotAdd: ["Marcie"],
+            doubtful: ["marcy"]
         ),
 
         // Pair three: two spoken words are one identifier only because the window title says so.
@@ -424,7 +444,8 @@ public enum EvaluationCorpus {
                 documentName: "settings_store.py — uttrflow",
                 selectedText: "setUserPrefs"
             ),
-            mustNotAdd: ["set user prefs", "savePreferences"]
+            mustNotAdd: ["set user prefs", "savePreferences"],
+            doubtful: ["set user prefs"]
         ),
 
         // Describing a function in a chat window is a message, so any keyword means the model answered it.
