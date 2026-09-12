@@ -126,6 +126,31 @@ struct MomentaryLevelTests {
         #expect(accumulator.momentaryLevel > 0.4)
     }
 
+    /// A microphone that died stops appending, and a level only blocks can lower would hold its last reading.
+    @Test("falls when no block arrives at all, so a dead microphone reads as silence")
+    func fallsWithoutBlocks() {
+        let accumulator = SampleAccumulator()
+        accumulator.append(Array(repeating: 0.8, count: 64))
+
+        let first = accumulator.momentaryLevel
+        let second = accumulator.momentaryLevel
+
+        #expect(second < first)
+        for _ in 0..<40 { _ = accumulator.momentaryLevel }
+        #expect(accumulator.momentaryLevel < 0.001)
+    }
+
+    /// The release belongs to reads that heard nothing, so a meter cannot quieten a microphone that is talking.
+    @Test("does not fall on the read that follows a block")
+    func holdsWhenABlockArrived() {
+        let accumulator = SampleAccumulator()
+
+        for _ in 0..<5 {
+            accumulator.append(Array(repeating: 0.5, count: 64))
+            #expect(abs(accumulator.momentaryLevel - 0.5) < 0.0001)
+        }
+    }
+
     @Test("rises the moment a louder block arrives")
     func attackIsImmediate() {
         let accumulator = SampleAccumulator()

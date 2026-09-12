@@ -72,10 +72,7 @@ struct Transcribe: AsyncParsableCommand {
                 !$0.isEmpty
             } ?? []
         let speech = SpeechEngineFactory.make(
-            kind: kind, model: model, modelFolder: store.location(of: model),
-            vocabulary: biasWords.isEmpty
-                ? nil : FixedVocabulary(words: biasWords)
-        )
+            kind: kind, model: model, modelFolder: store.location(of: model))
 
         let clock = ContinuousClock()
         let idleMemory = MemoryFootprint.current()
@@ -86,7 +83,9 @@ struct Transcribe: AsyncParsableCommand {
 
         let start = clock.now
         let transcription = try await speech.transcribe(
-            audio, options: TranscriptionOptions(languageHint: language.flatMap(LanguageCode.init))
+            audio,
+            options: TranscriptionOptions(
+                languageHint: language.flatMap(LanguageCode.init), vocabulary: biasWords)
         )
         let elapsed = start.duration(to: clock.now)
 
@@ -175,10 +174,4 @@ extension Duration {
     fileprivate static func / (lhs: Duration, rhs: Duration) -> Double {
         lhs.inSeconds / (rhs.inSeconds > 0 ? rhs.inSeconds : 1)
     }
-}
-
-/// A vocabulary given on the command line, so biasing can be tried without a dictionary.
-private struct FixedVocabulary: VocabularySource {
-    let words: [String]
-    func vocabulary() async -> [String] { words }
 }
