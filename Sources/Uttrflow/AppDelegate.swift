@@ -147,6 +147,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var undoable: Clip?
     private var undoTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
+    private(set) var openingEditor: Task<Void, Never>?
     /// A3, A7 — where the user was when the panel closed, while reopening still counts as undoing.
     private var resume: PanelResume?
     /// Long enough to reach for the keyboard, short enough to not undo a forgotten delete.
@@ -1446,7 +1448,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // From the store, since `knownSnippets` can be a refresh behind.
             editorGeneration += 1
             let opening = editorGeneration
-            Task { [weak self] in
+            openingEditor = Task { [weak self] in
                 guard let self,
                     let snippet = await snippets.snippets().first(where: { $0.id == id }),
                     // Anything done while the disk was read wins over this.
