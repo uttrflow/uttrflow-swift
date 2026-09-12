@@ -33,12 +33,14 @@ struct DoubtfulCorpusTests {
         }
     }
 
-    @Test("offers the identifier the screen spells for each of the three identifier cases")
+    @Test("offers the spelling the screen shows for every case whose screen shows one")
     func offersTheScreensIdentifier() async {
         let wanted = [
             "editor-identifier-casing": ("payment sheet", "PaymentSheet"),
             "code-editor-identifier-from-screen": ("fetch invoices", "fetchInvoices"),
             "sql-editor-identifier-from-screen": ("order totals", "orderTotals"),
+            "editor-selected-identifier": ("set user prefs", "setUserPrefs"),
+            "slack-name-spelling": ("marcy", "Marcie"),
         ]
         for (id, expected) in wanted {
             guard let testCase = EvaluationCorpus.all.first(where: { $0.id == id }) else {
@@ -56,6 +58,8 @@ struct DoubtfulCorpusTests {
         for id in [
             "chat-identifier-casing", "doubtful-word-heard-word-stands",
             "doubtful-word-with-nothing-on-screen",
+            // The same words in Notes, whose window says nothing about how the name is spelled.
+            "notes-name-spelling",
         ] {
             guard let testCase = EvaluationCorpus.all.first(where: { $0.id == id }) else { continue }
             #expect(await spans(for: testCase).isEmpty, "\(id)")

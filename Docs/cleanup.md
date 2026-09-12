@@ -117,7 +117,11 @@ a destination pass through the same passes under that destination's formatter
 (`RulesCorpusTests` names every case the rules must pass). The cases where the screen has to decide a
 spelling are the model's alone and are now handed the identifier by name rather than
 being left to notice it — which fixed `editor-identifier-casing` and
-`code-editor-identifier-from-screen`, and did not fix the rest. Sequence lists and
+`code-editor-identifier-from-screen`, and did not fix the rest. Two of "the rest",
+`slack-name-spelling` and `editor-selected-identifier`, were not handed anything at all
+until now: neither declared a doubtful run, and a case that declares none is never asked of
+a candidate source, so both were measuring a model noticing a spelling unaided. They declare
+one now, and every score recorded for them below predates that. Sequence lists and
 paragraph breaks still have no case, so the first step for each is a case, not a prompt
 line. `Docs/bakeoff.md` explains why: a prompt line that is not
 measured is a guess, and two of the last three guesses made the output worse.
@@ -125,7 +129,10 @@ measured is a guess, and two of the last three guesses made the output worse.
 **Seven cases fail on the shipping configuration, measured 2026-09-06 and left failing
 rather than papered over.** `sql-editor-identifier-from-screen`,
 `editor-selected-identifier` and `slack-name-spelling` — spellings the screen shows and
-the model still will not take. `spreadsheet-number-in-cell` — the model writes `12000`
+the model still will not take. Only the first of those three was measured with the spelling
+offered by name; the other two declared no doubtful run when that run was taken, so their
+rows say nothing about whether the model takes a reading it was given, and both need
+re-measuring. `spreadsheet-number-in-cell` — the model writes `12000`
 where the passes wrote `12,000`. `message-question-keeps-its-mark` and `plural-slip` —
 the model drops a question mark and will not pluralise "two more developer", and no
 prompt wording tried has moved either. `sql-editor-totals`. Each is a case that failed
