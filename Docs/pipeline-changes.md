@@ -23,9 +23,11 @@ and `DictationChanges.swift`. `Docs/pipeline.md` has the stage order.
   `NoTextChanges`, in writing, at the call site.
 - Learning is a separate seam from correcting because it happens at a different time: a word
   earns its place by surviving a dictation, so nothing is counted until the words have landed.
-  It has two methods shaped after the two stores (the dictionary counts one entry at a time, the
-  snippets in a batch), so the decision about how much failure is survivable stays in the
-  pipeline where it is tested.
+  It has two methods, one per store, and each takes the whole dictation as a batch so each store
+  rewrites its file once per dictation rather than once per entry. The dictionary is handed each
+  entry once, because it counts dictations; the snippets are handed every firing. Keeping the two
+  apart leaves the decision about how much failure is survivable in the pipeline where it is
+  tested: a refused dictionary write does not stop the snippets being counted.
 
 ## Proposals, not rewrites
 
