@@ -38,6 +38,14 @@ every 40 ms for up to 1.6 s. Whitespace is collapsed because an application may 
 it was given; the tail is compared rather than the whole because the caret sits at the end
 of it.
 
+**The 1.6 s is elapsed time, taken from the clock on entry, not a tally of forty sleeps.**
+The two are not the same figure, and the difference is the thing being budgeted: every read
+between the sleeps is a `focusedElement()` plus a whole-field value copy plus a selected-range
+copy, and in a large document that costs more than the 40 ms it follows. A budget counted in
+sleeps charges none of it, so the wait ran for 1.6 s of sleeping plus however long the reads
+took — and the dictation sits in ``DictationState/inserting`` for all of it. Only the read
+already in flight when the deadline passes can now overshoot it.
+
 Three answers, and only one of them is a fact:
 
 - **Landed** — the words are behind the caret, and how long that took is the only measurement
