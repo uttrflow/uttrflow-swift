@@ -31,12 +31,17 @@ stopped when the panel closed demonstrated a mechanism and left out the payoff.
 - Loop: 8 seconds. Long enough to read the pasted line before it resets.
 - Document width: 400 points. The finished sentence is 373 points at the footnote size plus
   ten points of padding a side; a line that wrapped would read as a paragraph appearing.
-- Layout: side by side while the document can hold its line, stacked otherwise, via
-  `ViewThatFits`. The explanation column has an *ideal* width (360, max 460), not
-  `maxWidth: .infinity`: `ViewThatFits` asks each candidate how big it would like to be, and a
-  greedy column asks for everything, so the side-by-side arrangement never fitted. At the
-  760-point minimum window, reserving 400 for the document leaves 56 for the words beside it,
-  which is why the stacked form exists.
+- Layout: side by side while the document can hold its line, stacked otherwise. The card is
+  offered a width, `onGeometryChange` records it, and
+  `ClipboardDemonstrationMetrics.arrangement(forOfferedWidth:)` answers from it: side by side
+  once 17 points of padding a side, 22 of gap, the document's 400 and 360 for the words all
+  fit — 816 points — with the words widening to 460 and no further. At the 760-point minimum
+  window, reserving 400 for the document leaves 56 for the words beside it, which is why the
+  stacked form exists.
+- `ViewThatFits` used to make that choice and does not any more. It asks every candidate how
+  big it would like to be, and it was inside the clock's closure, so both arrangements were
+  measured on every display frame — the subject of `Docs/performance.md`. The decision is
+  width in, arrangement out, and the clock only draws.
 - The animation is a pure function of the clock, so the page can redraw underneath it (on
   every keystroke in a search field) without the loop stuttering.
 - Paused when the window is not visible, which is where this card spends most of its life.
