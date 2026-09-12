@@ -59,14 +59,50 @@ public enum SettingsPresenter {
         case .general: general(settings, capabilities)
         case .languages: languages(settings, capabilities)
         case .dictation: dictation(settings, capabilities, personalisation)
-        case .suggestions: suggestions(settings, personalisation, moment)
+        case .suggestions: suggestions(settings, personalisation, capabilities, moment)
         case .privacy: privacy(settings, personalisation)
         }
     }
 
     // MARK: - General
 
+    /// Said before anything else: a key that is not claimed does nothing, whatever the row shows.
+    static let unarmed = "Uttrflow could not claim this shortcut, so it does nothing. Try another."
+
+    /// One shortcut's row, drawn the same way whichever shortcut it is.
+
+    private static func shortcutRow(
+        _ descriptor: ShortcutDescriptor, _ settings: Settings,
+        _ capabilities: SettingsCapabilities
+    ) -> SettingsRow {
+        let binding = settings.shortcuts.first(for: descriptor.action)
+        guard !capabilities.unarmedShortcuts.contains(descriptor.action) else {
+            return SettingsRow(
+                id: "shortcut.\(descriptor.action.rawValue)",
+                label: descriptor.label,
+                explanation: unarmed,
+                control: .shortcut(
+                    action: descriptor.action,
+                    keys: binding.map(SettingsShortcut.keycaps) ?? []))
+        }
+        return SettingsRow(
+            id: "shortcut.\(descriptor.action.rawValue)",
+            label: descriptor.label,
+            // Only Fn, which macOS has its own plans for. See `Docs/ux-settings-model.md`.
+            explanation: binding?.heldModifier == nil
+                ? descriptor.explanation
+                : """
+                If pressing fn also opens Emoji or Apple's dictation, \
+                set System Settings → Keyboard → "Press 🌐 key to" to \
+                Do Nothing.
+                """,
+            control: .shortcut(
+                action: descriptor.action,
+                keys: binding.map(SettingsShortcut.keycaps(for:)) ?? []))
+    }
+
     /// General: the floating button, the shortcut, sound, appearance, login and updating.
+
     private static func general(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsPane {
@@ -78,20 +114,7 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "shortcut",
                     title: nil,
-                    rows: [
-                        SettingsRow(
-                            id: "hotkey",
-                            label: "Dictation shortcut",
-                            // Only Fn, which macOS has its own plans for. See `Docs/ux-settings-model.md`.
-                            explanation: settings.hotkey.heldModifier == nil
-                                ? nil
-                                : """
-                                If pressing fn also opens Emoji or Apple's dictation, \
-                                set System Settings → Keyboard → "Press 🌐 key to" to \
-                                Do Nothing.
-                                """,
-                            control: .shortcut(keys: SettingsShortcut.keycaps(for: settings.hotkey))
-                        ),
+                    rows: [] + ShortcutRegistry.all.map { shortcutRow($0, settings, capabilities) } + [
                         SettingsRow(
                             id: "activation",
                             label: "Activation",
@@ -100,7 +123,7 @@ public enum SettingsPresenter {
                             control: .segmented(
                                 options: HotkeyActivation.allCases.map(activationOption),
                                 selectedID: settings.hotkeyActivation.rawValue)
-                        ),
+                        )
                     ]),
                 SettingsGroup(
                     id: "floatingButton",
@@ -308,12 +331,13 @@ public enum SettingsPresenter {
     private static func suggestions(
         _ settings: Settings,
         _ personalisation: SettingsPersonalisation,
+        _ capabilities: SettingsCapabilities,
         _ moment: Date
     ) -> SettingsPane {
         SettingsPane(
             tab: .suggestions,
             title: "Suggestions",
-            banner: nil,
+            banner: suggestionModelBanner(settings, capabilities),
             groups: [
                 SettingsGroup(
                     id: "suggestions",
@@ -340,6 +364,43 @@ public enum SettingsPresenter {
                 message:
                     "Completions come from what you have typed on this Mac. Nothing is uploaded, "
                     + "and a password field is never read."))
+    }
+
+    /// Says what the model is doing, since a switch that is on and silent is indistinguishable from broken.
+    static func suggestionModelBanner(
+        _ settings: Settings, _ capabilities: SettingsCapabilities
+    ) -> SettingsBanner? {
+        // Nothing to explain while the feature is off: the model is not fetched until it is asked for.
+        guard settings.suggestions.isEnabled else { return nil }
+        switch capabilities.suggestionModel {
+        case .ready, .notAsked:
+            return nil
+        case .downloading(let fraction):
+            return SettingsBanner(
+                symbolName: "arrow.down.circle",
+                title: downloadingTitle(fraction),
+                message:
+                    "Uttrflow is fetching the model that finishes your lines, about 3 GB, once. "
+                    + "Suggestions start when it lands.")
+        case .loading:
+            return SettingsBanner(
+                symbolName: "clock",
+                title: "Getting ready",
+                message: "The model is being read into memory. This happens once per launch.")
+        case .failed:
+            return SettingsBanner(
+                symbolName: "exclamationmark.triangle",
+                title: "The model could not be fetched",
+                message:
+                    "Suggestions cannot run without it. Check your connection, then turn the "
+                    + "switch off and on again to try once more.")
+        }
+    }
+
+    /// The percentage where there is one, since a bar with no number says nothing about how long.
+    private static func downloadingTitle(_ fraction: Double?) -> String {
+        guard let fraction else { return "Getting ready" }
+        return "Getting ready — \(Int((fraction * 100).rounded()))%"
     }
 
     /// The half-hour pause, which lifts itself and so is a button rather than a switch.

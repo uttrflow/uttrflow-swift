@@ -292,7 +292,7 @@ struct FakeFocus: AccessibilityFocus {
     func isSelfFrontmost() -> Bool { isSelf }
     func precedingText(_ count: Int) -> String? {
         guard let value else { return preceding }
-        return BackwardSelection.text(in: value, endingAt: value.utf16.count, covering: count)
+        return BackwardSelection.text(in: value, endingAt: value.utf16.count, exactly: count)
     }
 }
 

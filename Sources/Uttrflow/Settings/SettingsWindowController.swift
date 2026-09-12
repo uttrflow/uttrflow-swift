@@ -1,6 +1,7 @@
 // Owns the Settings window.
 
 import AppKit
+import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowSettings
@@ -12,6 +13,10 @@ import SwiftUI
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let model: SettingsViewModel
     private var window: NSWindow?
+    /// What the suggestion model is doing, kept so a capability refresh cannot drop it.
+    private var suggestionModel: SuggestionModelReadiness = .notAsked
+    /// Which shortcuts the window server refused, kept for the same reason.
+    private var unarmedShortcuts: Set<ShortcutAction> = []
 
     /// `personalisation` has no default: a fresh store here would be a second actor racing over each file.
     init(
@@ -19,12 +24,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         personalisation: any SettingsPersonalisationStore,
         capabilities: SettingsCapabilities = .thisMac(),
         onChange: @escaping (UttrflowSettings.Settings) -> Void = { _ in },
+        onRequest: @escaping (SettingsChange) -> Void = { _ in },
         onReset: @escaping (SettingsReset) -> Void = { _ in },
         onShortcutRecording: @escaping (Bool) -> Void = { _ in }
     ) {
         model = SettingsViewModel(
             store: store, personalisation: personalisation, capabilities: capabilities,
-            onChange: onChange, onReset: onReset, onShortcutRecording: onShortcutRecording)
+            onChange: onChange, onRequest: onRequest, onReset: onReset,
+            onShortcutRecording: onShortcutRecording)
     }
 
     /// Opens the window and tells it who is signed in; handed over each time, since that can change.
@@ -37,10 +44,27 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
         model.refreshPersonalisation()
 
-        Task { [model] in
-            model.session.capabilities = await SettingsCapabilities.refreshed(
+        Task { [weak self] in
+            guard let self else { return }
+            var refreshed = await SettingsCapabilities.refreshed(
                 for: model.session.settings.profile)
+            // Re-applied, because the probe asks this Mac and only the app knows about the fetch.
+            refreshed.suggestionModel = suggestionModel
+            refreshed.unarmedShortcuts = unarmedShortcuts
+            model.session.capabilities = refreshed
         }
+    }
+
+    /// Told by the app as the weights are fetched and read, so a window already open redraws.
+    func setSuggestionModel(_ readiness: SuggestionModelReadiness) {
+        suggestionModel = readiness
+        model.session.capabilities.suggestionModel = readiness
+    }
+
+    /// Told by the app when a shortcut could not be claimed, so its row stops advertising a dead key.
+    func setUnarmedShortcuts(_ unarmed: Set<ShortcutAction>) {
+        unarmedShortcuts = unarmed
+        model.session.capabilities.unarmedShortcuts = unarmed
     }
 
     func close() {

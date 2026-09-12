@@ -42,6 +42,26 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
 - The tokenizer download reports no progress. It is well under a percent of the download, and a
   second scale running from zero after the weights reached one would send the bar backwards.
 
+## The shortest clip a recogniser decodes
+
+- WhisperKit starts a decode window only while `seek < clipEnd - windowClipTime * 16000`
+  (`Core/TranscribeTask.swift`), and hands the raw array to that loop when no
+  `chunkingStrategy` is set. A clip of one second or less therefore never enters the loop and
+  decodes to an empty string: a spoken "yes" is about 0.35 s, 0.75 s once `VoiceActivity` has
+  kept its 200 ms either side, and came back as "nothing heard".
+- `windowClipTime` exists to keep a window from starting in the last second of audio, where
+  Whisper invents words, so it stays at 1.0. `VocabularyPrompt.decodingOptions` names it and
+  every other `DecodingOptions` field, so a WhisperKit upgrade that moves a default changes
+  nothing here without a diff.
+- The floor belongs to the recogniser, not to the engine. `TranscriptionBackend.minimumDuration`
+  is each backend's answer: WhisperKit's is `windowClipTime` plus one 20 ms frame, the system
+  recogniser's is zero. `BackedSpeechEngine` still refuses anything under its own 250 ms, and
+  appends silence to trimmed speech shorter than the backend's floor. The decoder already pads
+  every window to 30 seconds with silence, so the appended samples add no signal it did not
+  already see; the seek loop runs once over the real speech and stops before the padding.
+- Not yet measured against the corpus. The same padding reaches a short final piece of a long
+  dictation, which is decoded alone rather than merged into the piece before it.
+
 ## Per-word confidence
 
 - Correction's first condition is that the recogniser was unsure. Without a per-word figure the
@@ -68,7 +88,8 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
   as the transcript that came before, so text shaped like a transcript is what it conditions on.
 - The real prompt ceiling is 111 tokens, not the model's 448-token context and not half of it:
   WhisperKit trims the prompt to `(Constants.maxTokenContext / 2) - 1` and `maxTokenContext` is
-  `Int(448 / 2)` (WhisperKit 0.18, `Core/TextDecoder.swift:339` and `Core/Models.swift:1420`).
+  `Int(448 / 2)` (WhisperKit 1.1.0, `Core/TextDecoder.swift:199` and `Core/Models.swift:1340`;
+  `WhisperKitContractTests` asserts the derivation against the linked package).
   It keeps the *last* 111 tokens and drops the rest without a word, so a best-first vocabulary
   would lose precisely the words worth having; the prompt is packed word by word here instead,
   skipping a word that does not fit rather than stopping.
@@ -87,7 +108,7 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
   word, a comma-separated glossary, a sentence of prose, at nine tokens and at fifty-two.
 - `PromptPrefillGuard` holds the end token shut until the forced prefill
   (`[<|startofprev|>] + prompt + [<|startoftranscript|>, language, task, timestamps]`, minus
-  language and task for an English-only model; `Core/TextDecoder.swift:313-342`) has gone
+  language and task for an English-only model; `Core/TextDecoder.swift:163-223`) has gone
   through. The `tokens.count == sampleBegin` shape is WhisperKit's own (`SuppressBlankFilter` is
   built the same way) and works because the token array does not grow while the prompt is
   forced. It is installed through `logitsFilters`, a documented extension point, and reassigned

@@ -71,15 +71,23 @@ If the candidate does not hold up, fix it on `main` through a pull request and t
 
 1. **Checks the tag against the plist** on a Linux runner, because it costs seconds and the
    rest costs an hour.
-2. **Runs `make verify`.** A tag can point at any commit, including one that never went
+2. **Publishes the changelog entry as a release on this repository**, from
+   `Scripts/changelog.py`, marked a prerelease for an `-rc` tag. It carries no assets — the
+   disk image and the update archive live in `uttrflow/releases`, and a second copy of
+   either is a second answer to which build a version is. This job holds no secrets, so it
+   runs whether or not a Developer ID exists.
+3. **Asks whether this repository holds a Developer ID at all.** Without one, everything
+   below is skipped rather than attempted: it used to run `make verify` on a macOS runner —
+   billed at ten times a Linux one — and then fail at the certificate import.
+4. **Runs `make verify`.** A tag can point at any commit, including one that never went
    through a pull request, so this is not redundant with CI.
-3. **Imports the Developer ID certificate** into a keychain created for that job.
-4. **`make app-dist`** — hardened runtime, secure timestamp, Developer ID.
-5. **`make notarise`** — submits to Apple and staples the ticket.
-6. **`make dmg`** then **`make notarise-dmg`** — in that order, so the app carries its own
+5. **Imports the Developer ID certificate** into a keychain created for that job.
+6. **`make app-dist`** — hardened runtime, secure timestamp, Developer ID.
+7. **`make notarise`** — submits to Apple and staples the ticket.
+8. **`make dmg`** then **`make notarise-dmg`** — in that order, so the app carries its own
    ticket before the image is built around it. The other way round leaves the app depending
    on a ticket stapled to a disk image the user no longer has.
-7. **`make publish`** — builds the update archive from the app *inside the mounted image*
+9. **`make publish`** — builds the update archive from the app *inside the mounted image*
    so the two assets cannot be different builds, signs it with the Sparkle EdDSA key,
    writes the appcast, and pushes it all to `uttrflow/releases`.
 

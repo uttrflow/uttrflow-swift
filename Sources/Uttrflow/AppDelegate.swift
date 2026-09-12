@@ -21,7 +21,8 @@ import UttrflowUX
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Records which of the three insertion routes a dictation took, which nothing else can tell.
-    private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "insertion")
+    private nonisolated static let log = Logger(
+        subsystem: "com.uttrflow.Uttrflow", category: "insertion")
 
     private let settingsStore: any SettingsStore = UserDefaultsSettingsStore()
     private var settings = Settings()
@@ -75,16 +76,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let scoring: (any CandidateScoring)?
     /// The local model that invents a suggestion where the corpus has none, handed in the same way.
     private let generating: (any CandidateGenerating)?
-    /// Fetches and loads that model's weights, run when tab-to-complete is first built rather than at launch.
-    private let prepareModel: (@Sendable () async -> Void)?
+    /// Fetches and loads that model's weights, reporting progress, run when tab-to-complete is first built.
+    private let prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)?
     /// Whether the weights have been asked for already, so turning the feature off and on does not ask twice.
     private var isModelPreparing = false
+    /// Which clean-up engines answered that they could run; internal so a test can read it back.
+    private(set) var transformerAvailability: [TransformerKind: Bool] = [:]
+
+    /// How far along that fetch is; internal so a test can read back what it did.
+    private(set) var suggestionModel: SuggestionModelReadiness = .notAsked {
+        didSet {
+            guard suggestionModel != oldValue else { return }
+            settingsWindow.setSuggestionModel(suggestionModel)
+        }
+    }
 
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
         container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
         scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
-        prepareModel: (@Sendable () async -> Void)? = nil
+        prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)? = nil
     ) {
         self.container = container
         self.loginItem = loginItem
@@ -107,8 +118,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // No delegate means no idea, and no idea means do not interrupt.
         self?.updateActivity ?? UpdateActivity(isDictating: true)
     }
-    /// Its own monitor, because sharing one would mean one binding and these are two keys.
-    private let clipboardHotkeys = CarbonHotkeyMonitor()
+    /// One registration per claimed shortcut, because each one registers a single key.
+    private var claimedHotkeys: [ShortcutAction: CarbonHotkeyMonitor] = [:]
+    private var claimedTasks: [ShortcutAction: Task<Void, Never>] = [:]
+    /// The last thing dictated, so it can be put back without reopening History.
+    private var lastTranscript: String?
     /// Asked when the panel opens whether a paste can be placed, held so the answer costs one call.
     private let accessibility = AccessibilityPermissionGate()
     private let microphone = MicrophonePermissionGate()
@@ -117,9 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let formatter: any CodeFormatting = SystemCodeFormatter()
 
     /// The one pasteboard that announces its writes, so no inserter can silently forget to. See `Docs/insertion.md`.
-    private lazy var announcingPasteboard = SystemPasteboard {
-        [clipboardWatcher] in clipboardWatcher.ignoreNextWrite(of: $0)
-    }
+    private lazy var announcingPasteboard = SystemPasteboard(
+        willWrite: { [clipboardWatcher] in clipboardWatcher.ignoreNextWrite(of: $0) },
+        willWritePicture: { [clipboardWatcher] in clipboardWatcher.ignoreNextPicture($0) })
 
     /// Puts a chosen clip where the caret is, announcing the write so it is not read as a copy.
     private lazy var clipInserter = TextInsertion.coordinator(
@@ -128,12 +142,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The panel's state while it is open, held here because a window has no memory.
     private var panel: PanelSnapshot?
     private var clipboardWatchTask: Task<Void, Never>?
-    private var clipboardHotkeyTask: Task<Void, Never>?
 
     /// F7, F9 — the clip a delete removed, held by the app because the undo outlives the panel.
     private var undoable: Clip?
     private var undoTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
+    private(set) var openingEditor: Task<Void, Never>?
     /// A3, A7 — where the user was when the panel closed, while reopening still counts as undoing.
     private var resume: PanelResume?
     /// Long enough to reach for the keyboard, short enough to not undo a forgotten delete.
@@ -147,6 +162,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         personalisation: FilePersonalisationStore(
             dictionary: dictionary, history: history, clipboard: clipboard),
         onChange: { [weak self] settings in self?.settingsChanged(to: settings) },
+        // Through the same switch the main window uses, so one choice is never applied two ways.
+        onRequest: { [weak self] change in self?.apply(change) },
         onReset: { [weak self] reset in self?.forget(after: reset) },
         onShortcutRecording: { [weak self] isRecording in
             self?.shortcutRecordingChanged(to: isRecording)
@@ -172,6 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         startWatchingTheClipboard()
         startCompletingWhatIsTyped()
         loadSpeechModel()
+        probeTransformers()
         refreshAccount()
         presentOnboardingIfNeeded()
         // Shown at launch, since a menu-bar icon alone is an interface most people never find.
@@ -194,6 +212,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let self, let pipeline else { return }
             speechReadiness = await pipeline.isReady ? .ready : .notInstalled
             refreshMenuBar()
+        }
+    }
+
+    /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show.
+    func probeTransformers() {
+        Task { [weak self] in
+            guard let self else { return }
+            let ready = await SettingsCapabilities.refreshed(for: settings.profile)
+                .readyTransformers
+            transformerAvailability = Dictionary(
+                uniqueKeysWithValues: TransformerKind.allCases.map { ($0, ready.contains($0)) })
+            refreshMainWindow()
         }
     }
 
@@ -290,11 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
     private func startCompletingWhatIsTyped() {
         guard settings.suggestions.isEnabled, completions == nil else { return }
-        // Several gigabytes of weights are fetched only once somebody has asked for the feature, so a Mac that never turns it on never downloads them.
-        if let prepareModel, !isModelPreparing {
-            isModelPreparing = true
-            Task.detached { await prepareModel() }
-        }
+        prepareTheModelIfNeeded()
         do {
             let coordinator = try SuggestionCoordinator(
                 container: container, preferences: settings.suggestions, scoring: scoring,
@@ -310,6 +336,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Fetches the several gigabytes of weights once somebody has asked for the feature, saying how far along.
+    private func prepareTheModelIfNeeded() {
+        guard let prepareModel, !isModelPreparing else { return }
+        isModelPreparing = true
+        suggestionModel = .downloading(fractionCompleted: nil)
+        // Built here rather than inside the task, so it takes its own handle and not the task's.
+        let report: @Sendable (Double) -> Void = { [weak self] fraction in
+            Task { @MainActor in self?.suggestionModelProgressed(fraction) }
+        }
+        Task { [weak self] in
+            do {
+                try await prepareModel(report)
+                self?.suggestionModel = .ready
+            } catch {
+                Self.log.error(
+                    "the suggestion model did not load: \(String(describing: error), privacy: .public)")
+                // Cleared, so turning the feature off and on tries again rather than staying dead all launch.
+                self?.isModelPreparing = false
+                self?.suggestionModel = .failed
+            }
+        }
+    }
+
+    /// Moves the reading on, and to loading once every byte is down and only the reading-in is left.
+    private func suggestionModelProgressed(_ fraction: Double) {
+        guard case .downloading = suggestionModel else { return }
+        suggestionModel = fraction >= 1 ? .loading : .downloading(fractionCompleted: fraction)
+    }
+
     /// Follows the Suggestions screen: builds the loop, takes it away, or hands it what changed.
     private func suggestionsChanged() {
         guard settings.suggestions.isEnabled else {
@@ -323,6 +378,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Arms the shortcut again when it could not be armed before. See `Docs/shortcuts.md`.
     func applicationDidBecomeActive(_ notification: Notification) {
+        // Whatever held the combination may have quit while the user was away.
+        if !unarmedShortcuts.isEmpty { startWatchingForClaimedShortcuts() }
         guard shortcutFailure != nil else { return }
         startWatchingForTheShortcut()
     }
@@ -341,15 +398,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         let speech = SpeechEngineFactory.make(
             kind: settings.engines.speech, model: model,
-            modelFolder: modelStore.location(of: model),
-            vocabulary: DictionaryVocabulary { [dictionary, context] in
-                // One reading, so the words are ranked against the screen they were ranked for.
-                await (dictionary.allEntries(), context.currentContext(), Date())
-            })
+            modelFolder: modelStore.location(of: model))
+
+        // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
+        let speechWords = DictionaryVocabulary { [dictionary] in
+            await (dictionary.allEntries(), Date())
+        }
+
+        // One cue for both ends, so a stop sounds only after a start the user could have heard.
+        let cue: any RecordingCueing =
+            settings.playsSoundWhenRecordingStarts
+            ? SoundPlayingRecordingCue(player: SystemSoundPlayer()) : SilentCue()
 
         // Held so the floating button's meter reads the level without queueing behind a `stop()`.
         let microphone = AVAudioCaptureEngine(
-            source: AVAudioEngineMicrophoneSource(), recordings: recordings)
+            source: AVAudioEngineMicrophoneSource(), recordings: recordings, cue: cue)
         dock.setLevelSource { microphone.momentaryLevel }
 
         let pipeline = DictationPipeline(
@@ -358,7 +421,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             cleaner: cleaner(for: settings),
             context: context,
             // Announced, like every write this app makes. See `Docs/insertion.md`.
-            inserter: TextInsertion.coordinator(pasteboard: announcingPasteboard),
+            inserter: TextInsertion.coordinator(
+                pasteboard: announcingPasteboard, reporting: Self.logPaste),
+            speechWords: { seeing in await speechWords.vocabulary(favouring: seeing) },
             corrector: DictionaryCorrections(dictionary: dictionary),
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(dictionary: dictionary, snippets: snippets),
@@ -378,8 +443,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller = DictationController(
             pipeline: pipeline,
             monitor: ActivationMonitor(),
-            cue: settings.playsSoundWhenRecordingStarts
-                ? SoundPlayingRecordingCue(player: SystemSoundPlayer()) : SilentCue(),
+            cue: cue,
             activation: settings.hotkeyActivation,
             clock: ContinuousClock(),
             onAdvice: { [weak self] advice in
@@ -431,6 +495,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Why the shortcut is not armed, or `nil` when it is. Retried on the way back in.
     private var shortcutFailure: HotkeyError?
+    /// Claimed shortcuts the window server refused, so a row never shows a key that does nothing.
+    private var unarmedShortcuts: Set<ShortcutAction> = [] {
+        didSet {
+            guard unarmedShortcuts != oldValue else { return }
+            settingsWindow.setUnarmedShortcuts(unarmedShortcuts)
+        }
+    }
 
     private func startWatchingForTheShortcut() {
         guard let controller else { return }
@@ -471,7 +542,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             await clipboardWatcher.run(handing: arrived)
         }
 
-        startWatchingForTheClipboardShortcut()
+        startWatchingForClaimedShortcuts()
     }
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
@@ -481,22 +552,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         await refreshPanelIfOpen()
     }
 
-    /// A second registration for a second key, whose refusal is logged rather than shown as a dictation failure.
-    private func startWatchingForTheClipboardShortcut() {
-        guard let binding = settings.clipboardHotkey else { return }
-        do {
-            try clipboardHotkeys.start(binding: binding)
-        } catch {
-            Self.log.error("clipboard shortcut refused: \(error.userMessage, privacy: .public)")
-            return
-        }
-        clipboardHotkeyTask = Task { [weak self, clipboardHotkeys] in
-            for await event in clipboardHotkeys.events {
-                // Releases ignored: a window that shut on key-up would punish a slow hand.
-                guard event == .pressed else { continue }
-                await self?.toggleQuickPanel()
+    /// One registration per claimed shortcut; a refusal is logged rather than shown as a dictation failure.
+    private func startWatchingForClaimedShortcuts() {
+        for task in claimedTasks.values { task.cancel() }
+        claimedTasks.removeAll()
+        for monitor in claimedHotkeys.values { monitor.stop() }
+        claimedHotkeys.removeAll()
+
+        var refused: Set<ShortcutAction> = []
+        for descriptor in ShortcutRegistry.claimed {
+            let action = descriptor.action
+            guard let binding = settings.shortcuts.first(for: action) else { continue }
+            let monitor = CarbonHotkeyMonitor()
+            do {
+                try monitor.start(binding: binding)
+            } catch {
+                Self.log.error(
+                    "\(action.rawValue, privacy: .public) shortcut refused: \(error.userMessage, privacy: .public)"
+                )
+                refused.insert(action)
+                continue
+            }
+            claimedHotkeys[action] = monitor
+            claimedTasks[action] = Task { [weak self] in
+                for await event in monitor.events {
+                    // Releases ignored: acting on key-up would punish a slow hand.
+                    guard event == .pressed else { continue }
+                    await self?.perform(action)
+                }
             }
         }
+        unarmedShortcuts = refused
+    }
+
+    /// Does what one claimed shortcut is for; the registry decides which ones exist.
+    private func perform(_ action: ShortcutAction) async {
+        switch action {
+        case .clipboard:
+            await toggleQuickPanel()
+        case .pasteLastTranscript:
+            await pasteLastTranscript()
+        case .copyLastTranscript:
+            copyLastTranscript()
+        // Watched through the tap rather than registered, so it never arrives here.
+        case .dictate:
+            break
+        }
+    }
+
+    /// Puts the last dictation back at the caret by the route a dictation takes, never the clipboard.
+    private func pasteLastTranscript() async {
+        guard let text = lastTranscript, !text.isEmpty else {
+            Self.log.notice("paste last transcript: nothing dictated yet")
+            return
+        }
+        do {
+            _ = try await clipInserter.insert(text)
+        } catch {
+            render(.failed(DictationFailure(error)))
+        }
+    }
+
+    /// Writes the clipboard on purpose, which is the one shortcut whose whole job that is.
+    private func copyLastTranscript() {
+        guard let text = lastTranscript, !text.isEmpty else {
+            Self.log.notice("copy last transcript: nothing dictated yet")
+            return
+        }
+        announcingPasteboard.setText(text)
     }
 
     /// The shortcut is a toggle, so the same key puts the panel away again.
@@ -769,16 +892,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// K4 — pastes a picture, on its own path because the Accessibility route writes only strings.
     private func insertImage(_ clip: Clip) {
         markUsed(clip.id)
-        Task { [clipboard, clipboardWatcher] in
+        Task { [clipboard, pasteboard = announcingPasteboard] in
             guard let image = clip.image, let data = await clipboard.imageData(for: image) else {
                 // B8 from the other side: the file went between the draw and the keypress.
                 Self.log.error("picture missing at paste: \(clip.id, privacy: .public)")
                 return
             }
-            // No text to name, so the count is all this one has to go on.
-            clipboardWatcher.ignoreNextWrite()
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setData(data, forType: .png)
+            // Named by its bytes, so a copy landing in the same tick is not claimed by this write.
+            pasteboard.setImage(data)
             do {
                 try CGEventKeystrokeSender().sendPaste()
             } catch let failure as TextInsertionError {
@@ -839,14 +960,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quickPanel.update(PanelPresenter.present(snapshot))
     }
 
-    /// Announced first, so a clip put back is not read as the user copying it.
+    /// Through the one pasteboard, so the write is announced and stays on this Mac. See `Docs/insertion.md`.
     private func putOnClipboard(_ text: String, richText: String? = nil, used: Clip.ID?) {
         markUsed(used)
-        clipboardWatcher.ignoreNextWrite(of: text)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
         // E2, E3 — both flavours, so the receiving application takes the one it understands.
-        if let richText { NSPasteboard.general.setString(richText, forType: .html) }
+        announcingPasteboard.setText(text, richText: richText)
     }
 
     /// Long enough to read one short sentence and no more, since the panel is in the way.
@@ -880,6 +998,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Recorded before the menu is drawn, and kept even when insertion failed. §19.
         switch state {
         case .inserted(let outcome):
+            lastTranscript = outcome.text
             Self.log.notice(
                 """
                 dictation finished: method=\(outcome.method.rawValue, privacy: .public) \
@@ -919,7 +1038,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(DictationRecord(text: salvaged, when: Date()))
             }
-        case .idle, .recording, .transcribing, .tidying:
+        case .idle, .recording, .transcribing, .tidying, .inserting:
             break
         }
         // Whichever way it ended, the row that said "Retrying…" is not retrying any more.
@@ -953,13 +1072,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Records how long the receiving application took to take a paste, which nothing else can observe.
+    @Sendable private nonisolated static func logPaste(_ outcome: PasteConfirmation.Outcome) {
+        switch outcome {
+        case .landed(let waited):
+            log.notice(
+                "paste landed after \(waited.inSeconds, format: .fixed(precision: 2), privacy: .public)s")
+        case .notReported:
+            log.notice("paste unconfirmed: the field does not report what it holds")
+        case .gaveUp(let waited):
+            log.notice(
+                "paste not seen within \(waited.inSeconds, format: .fixed(precision: 2), privacy: .public)s")
+        }
+    }
+
     /// Translates the pipeline's state into the menu's vocabulary, deciding nothing.
     private func menuBarState(for state: DictationState) -> MenuBarState {
         let activity: DictationActivity =
             switch state {
             case .idle, .failed: .idle
             case .recording: .listening
-            case .transcribing, .tidying: .working
+            case .transcribing, .tidying, .inserting: .working
             case .inserted: .finished
             }
         var failure: FailurePresentation?
@@ -977,7 +1110,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             },
             canCheckForUpdates: UpdateController.isConfigured,
             updateProgress: updates.progress,
-            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled)
+            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled),
+            shortcuts: settings.shortcuts
         )
     }
 
@@ -1178,7 +1312,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     settings: settings, capabilities: SettingsCapabilities.everything)),
             diagnostics: DiagnosticsPresenter.page(
                 for: DiagnosticsSnapshot(
-                    engines: settings.engines, permissions: knownPermissions,
+                    engines: settings.engines,
+                    transformerAvailability: transformerAvailability,
+                    permissions: knownPermissions,
                     measurements: measurements, cleaning: lastCleaning)),
             account: AccountPagePresenter.page(
                 for: AccountPageSnapshot(
@@ -1314,7 +1450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // From the store, since `knownSnippets` can be a refresh behind.
             editorGeneration += 1
             let opening = editorGeneration
-            Task { [weak self] in
+            openingEditor = Task { [weak self] in
                 guard let self,
                     let snippet = await snippets.snippets().first(where: { $0.id == id }),
                     // Anything done while the disk was read wins over this.
@@ -1359,8 +1495,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Applies a setting through ``SettingsEditor``, so two screens cannot apply one choice two ways.
     private func apply(_ change: SettingsChange) {
         // A request to act now rather than a change, so there is no `Settings` to save.
-        if case .checkForUpdatesNow = change {
-            updates.checkForUpdates()
+        if change.isRequestToAct {
+            if case .checkForUpdatesNow = change { updates.checkForUpdates() }
             return
         }
 
@@ -1443,6 +1579,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if updated.hotkey != previous.hotkey {
             startWatchingForTheShortcut()
         }
+        // Every registered key is re-armed together, or a changed one keeps firing the old binding.
+        if updated.shortcuts != previous.shortcuts {
+            startWatchingForClaimedShortcuts()
+        }
         if updated.hotkeyActivation != previous.hotkeyActivation {
             let activation = updated.hotkeyActivation
             Task { [weak self] in await self?.controller?.setActivation(activation) }
@@ -1455,6 +1595,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations
             || updated.engines != previous.engines
         {
+            probeTransformers()
             let tidier = cleaner(for: updated)
             let overrides = updated.destinations
             Task { [weak self] in
@@ -1512,7 +1653,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // An informational notice asks nothing of the user, so it goes sooner.
         case .failed(let notice):
             linger = notice.severity == .informational ? Self.successLingers : Self.failureLingers
-        case .idle, .recording, .transcribing, .tidying: return
+        case .idle, .recording, .transcribing, .tidying, .inserting: return
         }
 
         dismissalTask = Task { [weak self] in

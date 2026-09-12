@@ -47,16 +47,6 @@ public struct UtteranceProfile: Sendable, Equatable {
         return each / audioSeconds
     }
 
-    /// Wall-clock seconds per second of speech, start-up cost included; ``ScalingAnalysis`` separates it.
-    public var costPerAudioSecond: Double {
-        audioSeconds > 0 ? endToEnd.typical.inSeconds / audioSeconds : 0
-    }
-
-    /// How many times faster than real time the whole journey ran.
-    public var realTimeFactor: Double {
-        endToEnd.typical.inSeconds > 0 ? audioSeconds / endToEnd.typical.inSeconds : 0
-    }
-
     /// Typical seconds for one stage, or end to end for `nil`; `nil` for a stage nothing timed.
     public func wallSeconds(of stage: PipelineStage?) -> Double? {
         guard let stage else { return endToEnd.typical.inSeconds }

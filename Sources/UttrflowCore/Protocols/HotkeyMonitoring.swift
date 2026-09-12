@@ -27,6 +27,12 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// ⇧⌘V, the clipboard panel's default; it shadows "paste without formatting". See `Docs/core-hotkeys.md`.
     public static let shiftCommandV = HotkeyBinding(keyCode: 9, modifiers: [.shift, .command])
 
+    /// ⌃⌘V, which puts the last dictation at the caret without going near the clipboard.
+    public static let controlCommandV = HotkeyBinding(keyCode: 9, modifiers: [.control, .command])
+
+    /// ⌃⌘C, the one shortcut whose whole job is to write the clipboard.
+    public static let controlCommandC = HotkeyBinding(keyCode: 8, modifiers: [.control, .command])
+
     /// Hold Fn to dictate; a held binding, watched through flag changes rather than registered as a hot key.
     public static let functionHold = HotkeyBinding(keyCode: functionKeyCode, modifiers: [])
 
@@ -46,8 +52,20 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// Whether the binding has a modifier or is itself a held key; a bare letter would fire while typing.
     public var isUsable: Bool { !modifiers.isEmpty || heldModifier != nil }
 
+    /// Whether the key code and the modifiers agree, since a pair that disagrees fires on the wrong key.
+    public var isCoherent: Bool {
+        guard Self.modifierKeyCodes.contains(keyCode) else { return true }
+        // Fn is named by no modifier, so a combination may not claim it alongside one.
+        if keyCode == Self.functionKeyCode { return modifiers.isEmpty }
+        // Caps Lock names no modifier, so nothing can ever see it held; it is not bindable.
+        guard let named = Self.modifier(ofKeyCode: keyCode) else { return false }
+        // Empty means the key alone; a set that omits the key's own modifier came from a key going up.
+        return modifiers.isEmpty || modifiers.contains(named)
+    }
+
     /// Whether macOS delivers this shortcut once registered; the monitor's translator keeps the same rules.
     public var isDeliverable: Bool {
+        guard isCoherent else { return false }
         // A held modifier is watched, not registered, so the modifier-key-code rule does not apply to it.
         if heldModifier != nil { return true }
         return isUsable && keyCode <= Self.highestKeyCode
@@ -56,6 +74,17 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
 
     /// The largest 7-bit virtual key code; anything above it is not from a keyboard.
     static let highestKeyCode: UInt16 = 0x7F
+
+    /// The modifier a key code names, or nil when the key is not a modifier at all.
+    public static func modifier(ofKeyCode keyCode: UInt16) -> HotkeyModifier? {
+        switch keyCode {
+        case 54, 55: .command
+        case 56, 60: .shift
+        case 58, 61: .option
+        case 59, 62: .control
+        default: nil
+        }
+    }
 
     /// The key codes that only modify another key, Caps Lock and Fn included; a binding on one is a hold.
     public static let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]

@@ -30,17 +30,33 @@ whatever the user had highlighted.
 ## Why WhisperKit's own guard does not fire
 
 `DecodingOptions.noSpeechThreshold` defaults to 0.6 and is consulted in two places —
-`DecodingFallback.init` and `SegmentSeeker` — but in WhisperKit 0.18 the value it is
+`DecodingFallback.init` and `SegmentSeeker` — but in WhisperKit 1.1.0 the value it is
 compared against is a constant:
 
 ```swift
-// WhisperKit 0.18, Core/TextDecoder.swift:993
+// WhisperKit 1.1.0, Core/TextDecoder.swift:817
 let noSpeechProb: Float = 0 // TODO: implement no speech prob
 ```
 
 `0 > 0.6` is never true, so the gate is dead in both places. Passing a different
 threshold changes nothing. This is worth knowing before anybody tries to fix silence by
 tuning the decoder: there is no value that works.
+
+## The brackets that are markers, and the ones the speaker dictated
+
+A recogniser writes what it heard instead of speech in brackets — `[BLANK_AUDIO]`,
+`(silence)`, `[ Music ]`, `(upbeat music)` — and `RawTranscript.cleaned` takes those out
+before anything else sees the text. It used to decide by shape alone: a bracket standing
+on its own, holding at most three words, all of them letters. That shape is a
+parenthesis the speaker dictated at least as often as it is a marker, and the words went
+silently — "the API (version two) is ready" arrived as "the API is ready", upstream of
+every guard the cleaning passes have.
+
+So the test is now positive. `markerWords` lists the words a recogniser actually writes
+for non-speech, and a bracket is a marker only when **every** word inside it is one of
+them. "version two" is not, so it stays. A marker whose wording is not on the list stays
+too, which is the side of the line this product errs on: an unfamiliar `[whirring]` in
+the text is visible and fixable, and a deleted clause is neither.
 
 ## What the app does instead
 
@@ -92,3 +108,10 @@ each one alone destroys real dictation:
   argument, and dictating code is a headline use of this product;
 - the contents are only letters — otherwise `[1, 2, 3]` disappears;
 - there are at most three words — otherwise a spoken aside in parentheses goes with them.
+
+A marker is removed from the recogniser's **words** as well as from its text, and where the
+words were reported the text is derived from them. The two used to be edited separately, so
+a transcript holding one marker no longer spelled its own word list, `Draft` could not line
+the confidences up with it, and it fell back to treating every word as certain — which
+silently switched off the doubtful-word repair for that piece while the per-word scores were
+still being asked for and paid for. One representation cannot disagree with itself.

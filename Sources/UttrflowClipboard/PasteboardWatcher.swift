@@ -41,14 +41,26 @@ public actor PasteboardWatcher {
     // MARK: - Ignoring ourselves
 
     /// Announces a write — call immediately before it — naming its text. See `Docs/insertion.md`.
-    public nonisolated func ignoreNextWrite(of text: String? = nil) {
-        let before = source.changeCount()
-        let at = now()
-        announced.withLock { $0 = Announcement(after: before, at: at, text: text) }
+    public nonisolated func ignoreNextWrite(of text: String) {
+        announce(.text(text))
     }
 
-    /// Whether this change is the announced write, matched on its text. See `Docs/insertion.md`.
-    private nonisolated func claims(_ count: Int, at date: Date, holding text: String?) -> Bool {
+    /// K4 — announces a picture write, named by the bytes it puts there. See `Docs/insertion.md`.
+    public nonisolated func ignoreNextPicture(_ data: Data) {
+        announce(.picture(data))
+    }
+
+    /// Records what is about to be written, reading the count before the write moves it.
+    private nonisolated func announce(_ written: Written) {
+        let before = source.changeCount()
+        let at = now()
+        announced.withLock { $0 = Announcement(after: before, at: at, wrote: written) }
+    }
+
+    /// Whether this change is the announced write, matched on what it put there. See `Docs/insertion.md`.
+    private nonisolated func claims(
+        _ count: Int, at date: Date, holding text: String?, picture: () -> Data?
+    ) -> Bool {
         announced.withLock { held -> Bool in
             guard let pending = held else { return false }
             // A write that never happened must not sit armed over somebody's copy.
@@ -57,12 +69,13 @@ public actor PasteboardWatcher {
                 return false
             }
             guard count > pending.after else { return false }
-            // A write with no text to name — a picture — has only the count to go on.
-            guard let wrote = pending.text else {
-                held = nil
-                return true
+            switch pending.wrote {
+            case .text(let wrote):
+                guard text == wrote else { return false }
+            // Read only here, so a tick that has no picture announcement pending never asks for bytes.
+            case .picture(let wrote):
+                guard text == nil, picture() == wrote else { return false }
             }
-            guard text == wrote else { return false }
             held = nil
             return true
         }
@@ -78,7 +91,9 @@ public actor PasteboardWatcher {
 
         // Fetched only now, and once, so an idle tick costs one integer read.
         let copied = source.text()
-        guard !claims(count, at: date, holding: copied) else { return nil }
+        guard !claims(count, at: date, holding: copied, picture: { source.image()?.data }) else {
+            return nil
+        }
 
         // K4 — a picture, asked first because the branch below returns for anything textless.
         if copied == nil, let picture = source.image() {
@@ -126,12 +141,18 @@ public actor PasteboardWatcher {
     }
 }
 
+/// What an announced write puts on the clipboard, so the change it makes is named rather than guessed.
+private enum Written: Sendable, Equatable {
+    case text(String)
+    case picture(Data)
+}
+
 /// An Uttrflow write that has been announced and not yet seen on the clipboard.
 private struct Announcement: Sendable {
     let after: Int
     let at: Date
-    /// What is about to be written, or `nil` for a write carrying no text.
-    let text: String?
+    /// What is about to be written, which the change is matched against.
+    let wrote: Written
 }
 
 /// A clip the watcher noticed, carrying the picture's bytes until the store can write them.

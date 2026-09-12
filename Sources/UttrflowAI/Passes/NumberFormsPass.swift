@@ -12,7 +12,18 @@ public struct NumberFormsPass: CleaningPass {
         "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
         "table", "level", "room", "floor",
     ]
+    static let currencies: Set<String> = ["rupee", "rupees", "dollar", "dollars", "euro", "euros"]
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
+    static let monthDays: [String: Int] = [
+        "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
+        "july": 31, "august": 31, "september": 30, "october": 31, "november": 30, "december": 31,
+    ]
+    static let ordinalUnits: [String: Int] = [
+        "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
+        "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13,
+        "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
+        "nineteenth": 19, "twentieth": 20, "thirtieth": 30,
+    ]
 
     /// One rendered number and how many words it replaces.
     struct Phrase: Equatable {
@@ -36,10 +47,11 @@ public struct NumberFormsPass: CleaningPass {
         var draft = draft
         let live = draft.presentIndices
         let shapes = live.map { draft.shape(at: $0) }
+        let keys = shapes.map(\.key)
         var position = 0
         while position < live.count {
             guard let phrase = Self.phrase(at: position, in: shapes, policy: policy) else {
-                position += 1
+                position += Self.parseOrdinal(at: position, keys: keys, shapes: shapes)?.count ?? 1
                 continue
             }
             let last = position + phrase.count - 1
@@ -56,9 +68,23 @@ public struct NumberFormsPass: CleaningPass {
         at position: Int, in shapes: [WordShape], policy: NumberPolicy = .fromTen
     ) -> Phrase? {
         let keys = shapes.map(\.key)
-        guard !finishesAScale(at: position, keys: keys),
-            let item = item(at: position, keys: keys, shapes: shapes)
-        else { return nil }
+
+        guard !finishesAScale(at: position, keys: keys) else { return nil }
+        if let ordinal = parseOrdinal(at: position, keys: keys, shapes: shapes) {
+            var end = position + ordinal.count
+            guard joined(end, shapes) else { return nil }
+            let hasOf = keys[end] == "of"
+            if hasOf { end += 1 }
+            guard joined(end, shapes), let limit = monthDays[keys[end]], ordinal.value <= limit else {
+                return nil
+            }
+            if !hasOf, keys[end] == "may" || keys[end] == "march" {
+                guard shapes[end].core == WordShape.capitalised(keys[end]) else { return nil }
+            }
+            guard policy == .always || ordinal.value >= 10 else { return nil }
+            return Phrase(text: String(ordinal.value), count: end - position)
+        }
+        guard let item = item(at: position, keys: keys, shapes: shapes) else { return nil }
         let inContext = position > 0 && contextWords.contains(keys[position - 1])
         var end = position + item.count
         var text = item.text
@@ -101,7 +127,8 @@ public struct NumberFormsPass: CleaningPass {
             }
         }
         if !isPhrase, item.spoken, let value = item.value {
-            guard policy == .always || inContext || value >= 10 else { return nil }
+            let beforeCurrency = joined(end, shapes) && currencies.contains(keys[end])
+            guard policy == .always || inContext || value >= 10 || beforeCurrency else { return nil }
             text = NumberWords.render(value, grouped: !inContext)
         } else if !isPhrase {
             return nil
@@ -192,5 +219,23 @@ public struct NumberFormsPass: CleaningPass {
             (10...59).contains(group.value), group.count <= 2
         else { return nil }
         return Phrase(text: String(group.value), count: group.count)
+    }
+
+    /// Reads whole ordinals, including compounds that must stay intact when they are not dates.
+    private static func parseOrdinal(
+        at position: Int, keys: [String], shapes: [WordShape]
+    ) -> (value: Int, count: Int)? {
+        let parts = keys[position].split(separator: "-", omittingEmptySubsequences: false)
+        if parts.count == 2, let ten = NumberWords.tens[String(parts[0])],
+            let unit = ordinalUnits[String(parts[1])], unit < 10
+        {
+            return (ten + unit, 1)
+        }
+        if let ten = NumberWords.tens[keys[position]], joined(position + 1, shapes),
+            let unit = ordinalUnits[keys[position + 1]], unit < 10
+        {
+            return (ten + unit, 2)
+        }
+        return ordinalUnits[keys[position]].map { ($0, 1) }
     }
 }

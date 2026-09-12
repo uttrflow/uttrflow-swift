@@ -22,6 +22,12 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// The clean-up engines above the floor that are usable now; the floor itself is always ready.
     public var readyTransformers: Set<TransformerKind>
 
+    /// How far along the model tab-to-complete needs is, so the screen can say why it is silent.
+    public var suggestionModel: SuggestionModelReadiness
+
+    /// Shortcuts the app could not claim, so a row never shows a key that does nothing.
+    public var unarmedShortcuts: Set<ShortcutAction>
+
     /// Builds the answers; updates and the version default to absent.
     public init(
         launchAtLogin: LaunchAtLoginStatus,
@@ -29,7 +35,9 @@ public struct SettingsCapabilities: Sendable, Equatable {
         canCheckForUpdates: Bool = false,
         versionDescription: String? = nil,
         readySpeechEngines: Set<SpeechEngineKind>,
-        readyTransformers: Set<TransformerKind>
+        readyTransformers: Set<TransformerKind>,
+        suggestionModel: SuggestionModelReadiness = .notAsked,
+        unarmedShortcuts: Set<ShortcutAction> = []
     ) {
         self.launchAtLogin = launchAtLogin
         self.canPlayRecordingSound = canPlayRecordingSound
@@ -37,6 +45,8 @@ public struct SettingsCapabilities: Sendable, Equatable {
         self.versionDescription = versionDescription
         self.readySpeechEngines = readySpeechEngines
         self.readyTransformers = readyTransformers
+        self.suggestionModel = suggestionModel
+        self.unarmedShortcuts = unarmedShortcuts
     }
 
     /// A Mac that can do everything: the start of a real probe, and a test's default.
@@ -46,11 +56,26 @@ public struct SettingsCapabilities: Sendable, Equatable {
         canCheckForUpdates: true,
         versionDescription: "1.0.0 (1)",
         readySpeechEngines: Set(SpeechEngineKind.allCases),
-        readyTransformers: Set(TransformerKind.selectable)
+        readyTransformers: Set(TransformerKind.selectable),
+        suggestionModel: .ready
     )
 
     /// Whether anything above the floor can tidy text; the floor is excluded, or this is true everywhere.
     public var canTidyBeyondTheFloor: Bool {
         readyTransformers.contains { $0 != SettingsEngines.floor }
     }
+}
+
+/// How far along the model tab-to-complete needs is, so a switch that is on can say what it is doing.
+public enum SuggestionModelReadiness: Sendable, Equatable {
+    /// Nothing has been asked for yet, which is every Mac where the feature was never turned on.
+    case notAsked
+    /// Being fetched, with how far along it is when that is known.
+    case downloading(fractionCompleted: Double?)
+    /// On disk, being read into memory, which is the slow part on every launch after the first.
+    case loading
+    /// Loaded, so a completion can be judged.
+    case ready
+    /// It could not be fetched or read; carries what to tell the user, never the raw error.
+    case failed
 }

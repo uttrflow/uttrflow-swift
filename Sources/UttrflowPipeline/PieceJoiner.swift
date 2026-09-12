@@ -156,9 +156,11 @@ enum PieceJoiner {
             length = 1
         }
         guard position + length < live.count else { return nil }
-        let key = draft.shape(at: live[position + length]).key
-        if let value = Self.ordinals[key] { return (value, .ordinal, length + 1) }
-        if let value = Self.cardinals[key] { return (value, .cardinal, length + 1) }
+        let head = draft.shape(at: live[position + length])
+        if let value = Self.ordinals[head.key] { return (value, .ordinal, length + 1) }
+        // A bare cardinal counts the words after it as readily as it announces an item — "one bug is still open" — so it needs the announcing word or the mark the speaker set it off with.
+        guard length > 0 || head.endsClause else { return nil }
+        if let value = Self.cardinals[head.key] { return (value, .cardinal, length + 1) }
         return nil
     }
 

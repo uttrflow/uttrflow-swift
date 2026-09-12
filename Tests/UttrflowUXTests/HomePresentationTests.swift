@@ -204,7 +204,10 @@ struct HomeDemonstrationTests {
     /// Reads the shortcut rather than naming one, so a changed shortcut is not taught wrong.
     @Test("it shows the shortcut that is actually set")
     func readsTheRealShortcut() throws {
-        let changed = Settings(clipboardHotkey: HotkeyBinding(keyCode: 9, modifiers: [.control]))
+        let changed = Settings(
+            shortcuts: ShortcutSet([
+                .dictate: [.functionHold], .clipboard: [HotkeyBinding(keyCode: 9, modifiers: [.control])],
+            ]))
         let shown = try #require(HomePresenter.demonstration(for: changed))
         #expect(shown.keys == ["⌃", "V"])
     }
@@ -212,7 +215,9 @@ struct HomeDemonstrationTests {
     /// Demonstrating a shortcut somebody has switched off is worse than silence.
     @Test("nothing is demonstrated when the shortcut is off")
     func offMeansOff() {
-        #expect(HomePresenter.demonstration(for: Settings(clipboardHotkey: nil)) == nil)
+        #expect(
+            HomePresenter.demonstration(for: Settings(shortcuts: ShortcutSet([.dictate: [.functionHold]])))
+                == nil)
     }
 
     /// Explaining the clipboard above a notice that Uttrflow cannot hear answers a question not yet asked.

@@ -156,7 +156,7 @@ struct SettingsCalloutView: View {
         .padding(.horizontal, 13)
         .padding(.vertical, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.dockAccentWash, in: .rect(cornerRadius: SettingsMetrics.cardRadius))
+        .background(Color.settingsCalloutWash, in: .rect(cornerRadius: SettingsMetrics.cardRadius))
         .accessibilityElement(children: .combine)
     }
 }

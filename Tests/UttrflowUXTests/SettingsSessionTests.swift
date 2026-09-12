@@ -112,7 +112,7 @@ struct SettingsSessionTests {
     func fieldFollowsTheSetting() {
         var session = SettingsSession(settings: .default)
         let binding = HotkeyBinding(keyCode: 8, modifiers: [.control, .option])
-        session.apply(.shortcut(binding))
+        session.apply(.shortcut(.dictate, binding))
         #expect(session.recorder.binding == binding)
     }
 

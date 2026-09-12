@@ -23,6 +23,34 @@ status. The paste then "succeeded", the borrowed clipboard was put back over the
 dictation 250 ms later, and the words were in the document, the clipboard, and nowhere
 else. Exactly what a user calls "it just does not work".
 
+## The paste that is posted and never confirmed
+
+Posting the keystroke is where the paste route used to end: `setText`, `sendPaste`, return.
+That return was read as success all the way up, so the dictation reached
+``DictationState/inserted`` — the state that draws a tick and files the history row —
+while the receiving application had not yet taken the clipboard, let alone drawn anything.
+It is the same defect as the Accessibility write above, one level up: a strategy reporting
+a success it never checked.
+
+So the paste is now read back the way that write is. `PasteConfirmation` compares the last
+24 characters of what was pasted, whitespace collapsed, against the text behind the caret,
+every 40 ms for up to 1.6 s. Whitespace is collapsed because an application may rewrap what
+it was given; the tail is compared rather than the whole because the caret sits at the end
+of it.
+
+Three answers, and only one of them is a fact:
+
+- **Landed** — the words are behind the caret, and how long that took is the only measurement
+  of this gap that exists.
+- **Not reported** — the field will not say what it holds. Nothing is proved either way, and
+  nothing is waited for, since a field that will not answer now will not answer in a second.
+- **Gave up** — the budget was spent with no sign of them.
+
+The dictation sits in ``DictationState/inserting`` throughout, which the floating button draws
+as work in progress. That state exists so that the tick is a claim about the words rather than
+about the clock: a paste into a busy application takes as long as it takes, and saying so is
+better than a tick over an empty caret.
+
 ## `clearContents()` sends your words to your iPhone
 
 The default pasteboard behaviour offers everything written to it to every Apple device
@@ -60,8 +88,23 @@ it to the top of the panel every time it is used.
 before `clearContents()` — clearing is itself what moves the change count, so an
 announcement made after it describes a change that has already happened.
 
-The announcement **names the text it is about to write**. Matching on the count alone
-meant any later change was claimed: a user copying something within the same 200 ms tick
-as an Uttrflow paste had their copy silently swallowed, which is the one thing a
-clipboard manager may not do. An announcement whose own write has not arrived is kept
-rather than spent, and lapses after two seconds so a paste that threw cannot sit armed.
+The announcement **names what it is about to write** — the text, or for a picture the PNG
+bytes. Matching on the count alone meant any later change was claimed: a user copying
+something within the same 200 ms tick as an Uttrflow paste had their copy silently
+swallowed, which is the one thing a clipboard manager may not do. The picture path had
+exactly that hole until it was given bytes to name, since it had no text. An announcement
+whose own write has not arrived is kept rather than spent, and lapses after two seconds so
+a paste that threw cannot sit armed.
+
+## One writer, one reader, and a gate that says so
+
+Every rule above — announce first, clear `.currentHostOnly`, name the write — lives in
+`SystemPasteboard`, and a call site that reaches `NSPasteboard` itself gets none of them.
+Two did: the panel's Copy, the menu's Copy of a recent dictation and `copyAndSay` went
+through `AppDelegate.putOnClipboard`, which cleared the clipboard the ordinary way and so
+offered finished transcripts to every device on the account; and the picture paste wrote
+bytes with a text-less announcement. Both now go through the `Pasteboard` port, which
+gained `setImage`. `Scripts/pasteboard_audit.sh`, in `make verify`, holds it there: only the
+writer (`SystemInput.swift`) and the reader (`ClipboardSource+System.swift`) may name
+`NSPasteboard`, which is the same argument `Docs/offline.md` makes for one module owning the
+network.

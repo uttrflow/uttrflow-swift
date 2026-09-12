@@ -13,11 +13,20 @@ public struct FillersPass: CleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
+        var previous: Int?
         for index in draft.presentIndices {
             let word = draft.words[index].text
             let bare = word.lowercased().filter(\.isLetter)
             guard Self.fillerWords.contains(bare), word.allSatisfy({ $0.isLetter || $0.isPunctuation })
-            else { continue }
+            else {
+                previous = index
+                continue
+            }
+            // A filler with a comma on both sides was bracketed by them, so the opening one goes too.
+            if word.hasSuffix(","), let before = previous, draft.words[before].text.hasSuffix(",") {
+                draft.replace(
+                    at: before, with: String(draft.words[before].text.dropLast()), by: Self.id)
+            }
             draft.remove(at: index, by: Self.id)
         }
         return draft

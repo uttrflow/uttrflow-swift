@@ -20,6 +20,8 @@ final class SettingsViewModel {
     private let store: any SettingsStore
     private let personalisation: any SettingsPersonalisationStore
     private let onChange: (UttrflowSettings.Settings) -> Void
+    /// Told about a change that asks for something to happen, which has no settings to save.
+    private let onRequest: (SettingsChange) -> Void
     private let onReset: (SettingsReset) -> Void
     /// Told when the shortcut field starts and stops listening, so the live shortcut stands down meanwhile.
     private let onShortcutRecording: (Bool) -> Void
@@ -30,12 +32,14 @@ final class SettingsViewModel {
         capabilities: SettingsCapabilities,
         tab: SettingsTab = .general,
         onChange: @escaping (UttrflowSettings.Settings) -> Void = { _ in },
+        onRequest: @escaping (SettingsChange) -> Void = { _ in },
         onReset: @escaping (SettingsReset) -> Void = { _ in },
         onShortcutRecording: @escaping (Bool) -> Void = { _ in }
     ) {
         self.store = store
         self.personalisation = personalisation
         self.onChange = onChange
+        self.onRequest = onRequest
         self.onReset = onReset
         self.onShortcutRecording = onShortcutRecording
         session = SettingsSession(
@@ -43,8 +47,8 @@ final class SettingsViewModel {
     }
 
     /// Starts listening for a new shortcut, and stands the live one down while it does.
-    func beginRecordingShortcut() {
-        session.beginRecordingShortcut()
+    func beginRecordingShortcut(_ action: ShortcutAction) {
+        session.beginRecordingShortcut(action)
         onShortcutRecording(true)
     }
 
@@ -56,7 +60,35 @@ final class SettingsViewModel {
 
     /// Saved as each change is made; nothing here is half chosen, so there is nothing for Cancel to undo.
     func apply(_ change: SettingsChange) {
+        // A request to act now is handed on whole, since saving it would store nothing and lose it.
+        guard !change.isRequestToAct else { return onRequest(change) }
         persist(session.apply(change))
+    }
+
+    /// One keystroke, which the recorder reads; this type decides nothing about keys.
+    func receive(_ stroke: KeyStroke) {
+        persist(session.receive(stroke))
+        if !session.recorder.isRecording {
+            onShortcutRecording(false)
+        }
+    }
+
+    /// Says the keyboard could not be watched, which is what a refused tap means to the user.
+    func shortcutSourceRefused() {
+        session.rejectShortcut("Uttrflow needs Accessibility to read the keyboard.")
+    }
+
+    /// A modifier going down, which the recorder holds until it knows what it is part of.
+    func hold(keyCode: UInt16, modifiers: Set<HotkeyModifier>) {
+        persist(session.hold(keyCode: keyCode, modifiers: modifiers))
+    }
+
+    /// Every modifier coming up, which settles a modifier held on its own.
+    func release() {
+        persist(session.release())
+        if !session.recorder.isRecording {
+            onShortcutRecording(false)
+        }
     }
 
     func record(keyCode: UInt16, modifiers: Set<HotkeyModifier>) {

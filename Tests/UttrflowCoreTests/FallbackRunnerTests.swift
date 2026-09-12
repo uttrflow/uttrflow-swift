@@ -78,10 +78,39 @@ struct FallbackRunnerTests {
 /// Small readers so assertions stay legible; the product switches over an outcome exhaustively instead.
 extension FallbackOutcome {
     fileprivate var successValue: Success? {
-        if case .succeeded(let value) = self { value } else { nil }
+        if case .succeeded(let value, _) = self { value } else { nil }
+    }
+
+    fileprivate var failuresBeforeSuccess: [any Error]? {
+        if case .succeeded(_, let errors) = self { errors } else { nil }
     }
 
     fileprivate var exhaustedErrors: [any Error]? {
         if case .exhausted(let errors) = self { errors } else { nil }
+    }
+}
+
+/// Why the winner won is half the story; a fallback that hides the refusals hides the reason. See #193.
+@Suite("What a fallback leaves behind")
+struct FallbackFailuresTests {
+    @Test("the outcome names what failed before the candidate that worked")
+    func carriesEarlierFailures() async {
+        struct Refused: Error, Equatable { let which: Int }
+
+        let outcome = await FallbackRunner.firstSuccess(among: [1, 2, 3]) { candidate -> String in
+            guard candidate == 3 else { throw Refused(which: candidate) }
+            return "third"
+        }
+
+        #expect(outcome.successValue == "third")
+        let refused = outcome.failuresBeforeSuccess?.compactMap { $0 as? Refused }
+        #expect(refused == [Refused(which: 1), Refused(which: 2)])
+    }
+
+    @Test("a candidate that works first leaves nothing behind")
+    func carriesNothingWhenTheFirstWorks() async {
+        let outcome = await FallbackRunner.firstSuccess(among: [1, 2]) { _ -> String in "first" }
+
+        #expect(outcome.failuresBeforeSuccess?.isEmpty == true)
     }
 }

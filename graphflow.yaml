@@ -1,0 +1,42 @@
+# How graphflow runs in this repository. The engine knows nothing about Uttrflow; this file is
+# where everything Uttrflow-specific lives. See Docs/graphflow.md.
+
+gate:
+  command: "make verify"
+
+vcs:
+  # This repository has no beta branch: releases are cut on a release branch and merged to main.
+  integration_branch: main
+  release_branch: main
+
+issues:
+  provider: github
+
+tracker:
+  path: PLAN.md
+
+rules_files:
+  - AGENTS.md
+  - Docs/shortcuts.md
+
+build:
+  components:
+    - name: keyboard
+      path: Sources/UttrflowInput
+      test: "swift test --filter 'Hotkey|SystemKeyboard|Activation'"
+    - name: settings
+      path: Sources/UttrflowUX
+      test: "swift test --filter 'Settings'"
+    - name: pipeline
+      path: Sources/UttrflowPipeline
+      test: "swift test --filter 'Dictation'"
+
+autonomy:
+  hard_stops:
+    # A stored-settings change reaches every install and cannot be taken back.
+    - schema
+    # Publishing moves latest.json and updates every install within hours.
+    - infra
+
+run:
+  max_concurrency: 4

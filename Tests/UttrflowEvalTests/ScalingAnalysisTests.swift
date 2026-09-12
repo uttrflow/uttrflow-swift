@@ -131,23 +131,6 @@ struct UtteranceProfileTests {
         unmeasuredStages: [.capture, .insertion]
     )
 
-    @Test("cost per second of speech and the real-time factor are two views of one number")
-    func perSecondFigures() {
-        #expect(profile.costPerAudioSecond == 3.5 / 14)
-        #expect(profile.realTimeFactor == 14 / 3.5)
-    }
-
-    @Test("a length with no audio does not divide by zero")
-    func noAudio() {
-        let empty = UtteranceProfile(
-            length: .short, audioSeconds: 0,
-            endToEnd: DurationSummary(
-                typical: .zero, slowest: .zero, samples: 1, failures: 0),
-            stages: [], unmeasuredStages: [])
-        #expect(empty.costPerAudioSecond == 0)
-        #expect(empty.realTimeFactor == 0)
-    }
-
     @Test("seconds are readable per stage and end to end")
     func wallSeconds() {
         #expect(profile.wallSeconds(of: nil) == 3.5)

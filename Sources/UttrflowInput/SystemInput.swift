@@ -1,16 +1,22 @@
 import AppKit
 import ApplicationServices
-import Foundation
+public import Foundation
 public import UttrflowCore
 
 /// The real clipboard, untestable by construction and so excluded from the coverage gate.
 public struct SystemPasteboard: Pasteboard {
     /// Told what this app is about to write, so the watcher can tell it from a copy. See `Docs/insertion.md`.
-    private let willWrite: @Sendable (String?) -> Void
+    private let willWrite: @Sendable (String) -> Void
+    /// Told the bytes a picture write puts there, which is what names it to the watcher.
+    private let willWritePicture: @Sendable (Data) -> Void
 
-    /// Takes the announcement the clipboard watcher needs, and by default makes none.
-    public init(willWrite: @escaping @Sendable (String?) -> Void = { _ in }) {
+    /// Takes the announcements the clipboard watcher needs, and by default makes none.
+    public init(
+        willWrite: @escaping @Sendable (String) -> Void = { _ in },
+        willWritePicture: @escaping @Sendable (Data) -> Void = { _ in }
+    ) {
         self.willWrite = willWrite
+        self.willWritePicture = willWritePicture
     }
 
     public func text() -> String? {
@@ -30,6 +36,13 @@ public struct SystemPasteboard: Pasteboard {
         willWrite(text)
         clearForThisMacOnly()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    /// K4 — the picture flavour, announced by its bytes and kept off Universal Clipboard like every other write.
+    public func setImage(_ data: Data) {
+        willWritePicture(data)
+        clearForThisMacOnly()
+        NSPasteboard.general.setData(data, forType: .png)
     }
 
     /// Clears the pasteboard and keeps what goes on it next off Universal Clipboard. See `Docs/insertion.md`.
@@ -103,9 +116,7 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        let units = Array(text.utf16)
-        for start in stride(from: 0, to: units.count, by: Self.unitsPerEvent) {
-            let chunk = Array(units[start..<min(start + Self.unitsPerEvent, units.count)])
+        for chunk in UTF16Chunking.chunks(of: text, limit: Self.unitsPerEvent) {
             try postTaggedKeyPair(from: source, keyCode: 0) { event in
                 // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
                 event.flags = []
@@ -163,7 +174,18 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
             let value = stringAttribute(kAXValueAttribute, of: element),
             let range = rangeAttribute(kAXSelectedTextRangeAttribute, of: element)
         else { return nil }
-        return BackwardSelection.text(in: value, endingAt: range.location, covering: count)
+        return BackwardSelection.text(in: value, endingAt: range.location, exactly: count)
+    }
+
+    /// As much as the field holds before the caret, so a field shorter than the request is still read.
+    public func tail(upTo count: Int) -> FieldTail {
+        guard
+            count > 0, let element = focusedElement(),
+            let value = stringAttribute(kAXValueAttribute, of: element),
+            let range = rangeAttribute(kAXSelectedTextRangeAttribute, of: element),
+            let tail = BackwardSelection.tail(in: value, endingAt: range.location, upTo: count)
+        else { return .unreadable }
+        return .text(tail)
     }
 
     public func focusedTextField() -> (any FocusedTextField)? {
@@ -203,12 +225,12 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
         }
     }
 
-    /// Grows the selection back over `characters` first, so one write replaces them and undo sees one edit.
+    /// Grows the selection back over what is replaced first, so one write replaces it and undo sees one edit.
     func replaceSelection(
-        precededBy characters: Int, with text: String
+        replacing replaced: String, with text: String
     ) throws(TextInsertionError) {
-        guard characters > 0 else { return try replaceSelection(with: text) }
-        let caret = try selectBackwards(characters)
+        guard !replaced.isEmpty else { return try replaceSelection(with: text) }
+        let caret = try selectBackwards(over: replaced)
         do {
             try replaceSelection(with: text)
         } catch {
@@ -218,16 +240,20 @@ private struct AXTextField: FocusedTextField, @unchecked Sendable {
         }
     }
 
-    /// Moves the selection's start back over `characters` and answers with the selection it replaces.
-    private func selectBackwards(_ characters: Int) throws(TextInsertionError) -> CFRange {
+    /// Moves the selection's start back over `replaced`, once it is confirmed to be there, and answers with the selection it replaces.
+    private func selectBackwards(over replaced: String) throws(TextInsertionError) -> CFRange {
         guard let whole = value(), let selection = selectedRange() else {
             throw .insertionRejected(description: "the field will not report its selection")
         }
         guard
             let widened = BackwardSelection.range(
-                in: whole, endingAt: selection.location, covering: characters)
+                in: whole, endingAt: selection.location, covering: replaced.count)
         else {
             throw .insertionRejected(description: "the field has too little text before the caret")
+        }
+        // Checked like the typed route, so a character typed since the edit was worked out is never taken back.
+        guard BackwardSelection.confirms(replaced, in: whole, endingAt: selection.location) else {
+            throw .insertionRejected(description: "the text before the caret is not what would be replaced")
         }
         try select(
             CFRange(

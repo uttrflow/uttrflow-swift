@@ -10,10 +10,14 @@ struct RulesCorpusTests {
     /// Every case the passes are answerable for; one leaving this list is a regression, not a tuning choice.
     static let rulesMustPass: Set<String> = [
         "false-start", "self-correction", "filler-heavy", "pronoun-i", "number-words", "short-yes",
-        "repeated-phrase", "i-mean-correction", "actually-between-numbers", "false-no-stays", "spoken-comma",
-        "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "period-as-a-word", "spoken-period",
-        "period-after-new-line",
+        "repeated-phrase", "i-mean-correction", "actually-between-numbers", "false-no-stays",
+        "coordinated-list-kept", "repeated-frame-kept", "emphatic-double-kept",
+        "doubled-place-name-kept", "coordinated-apology-kept", "spoken-comma",
+        "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "money",
+        "period-as-a-word", "spoken-period",
+        "period-after-new-line", "dates", "ordinal-not-date",
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",
+        "extension-repeated-digits", "door-code-repeated-digits", "card-group-repeated-digits",
         "dictated-question", "dictated-instruction", "injection", "asks-for-help", "sounds-like-a-prompt",
         "message-two-sentences-no-stop", "mid-sentence-continues-lower-case", "spreadsheet-cell-no-stop",
         "document-sentence-with-stop", "document-list-only-when-spoken", "document-sentence-not-a-list",
@@ -94,6 +98,19 @@ struct RulesCorpusTests {
         }
     }
 
+    /// Similarity alone passes a run with one copy gone, so each case must name the whole run it keeps.
+    @Test(
+        "fails a repeated-digits case that loses half its run",
+        arguments: [
+            ("door-code-repeated-digits", "The door code is four seven."),
+            ("card-group-repeated-digits", "The test card number starts four two four two."),
+            ("extension-repeated-digits", "You can reach me on extension 442."),
+        ])
+    func halvedRunFails(id: String, halved: String) throws {
+        let testCase = try #require(EvaluationCorpus.all.first { $0.id == id })
+        #expect(!Scorer.score(halved, against: testCase).passed)
+    }
+
     @Test("names only cases that exist")
     func namesRealCases() {
         let ids = Set(EvaluationCorpus.all.map(\.id))
@@ -112,10 +129,13 @@ struct RulesCorpusTests {
             ("time-of-day", "The dentist moved my appointment to 2:30 pm tomorrow."),
             ("port-number", "The gateway listens on port 8080 in staging."),
             ("percentage", "Conversion dropped by 5% after the redesign."),
+            ("money", "The taxi cost 5 dollars."),
             ("actually-between-numbers", "Let's get coffee at three."),
             ("period-as-a-word", "The trial period ended last week."),
             ("spoken-period", "Ship it."),
             ("period-after-new-line", "First line\nsecond line."),
+            ("dates", "The 25 March."),
+            ("ordinal-not-date", "The twenty first may fail."),
             ("message-two-sentences-no-stop", "Are you around yet I should be there in 10"),
             ("mid-sentence-continues-lower-case", "the deployment script timed out."),
             ("spreadsheet-cell-no-stop", "total revenue for the quarter"),

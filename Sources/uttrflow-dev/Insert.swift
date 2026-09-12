@@ -21,6 +21,18 @@ struct Insert: AsyncParsableCommand {
     @Option(name: .long, help: "Force one strategy: accessibility, paste or clipboard.")
     var via: String?
 
+    /// Says what waiting for the words found out, which is the only place the paste lag is visible.
+    @Sendable private static func report(_ outcome: PasteConfirmation.Outcome) {
+        switch outcome {
+        case .landed(let waited):
+            print("  words reached the caret after \(String(format: "%.2f", waited.inSeconds))s")
+        case .notReported:
+            print("  the field will not say what it holds, so the paste is unconfirmed")
+        case .gaveUp(let waited):
+            print("  no sign of the words after \(String(format: "%.2f", waited.inSeconds))s")
+        }
+    }
+
     func validate() throws {
         guard !text.isEmpty else { throw ValidationError("Nothing to insert.") }
         guard (0...60).contains(delay) else { throw ValidationError("--delay must be 0 to 60.") }
@@ -62,11 +74,14 @@ struct Insert: AsyncParsableCommand {
                     ClipboardTextInsertionEngine(pasteboard: SystemPasteboard())
                 ])
             default:
-                TextInsertion.coordinator()
+                TextInsertion.coordinator(reporting: Self.report)
             }
+        let clock = ContinuousClock()
+        let start = clock.now
         do {
             let method = try await coordinator.insert(text)
             print("Inserted via \(method.rawValue).")
+            print("  took \(String(format: "%.2f", start.duration(to: clock.now).inSeconds))s in all")
         } catch {
             print(error.userMessage)
             throw ExitCode.failure

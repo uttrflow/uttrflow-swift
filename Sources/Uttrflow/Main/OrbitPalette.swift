@@ -69,6 +69,11 @@ extension Color {
     }
 }
 
+extension NSColor {
+    /// The settings callout's ground, dark on dark: a fixed near-white hid the ink. See #147.
+    static let settingsCalloutWash = NSColor.orbit(dark: 0x10_1E1D, light: 0xEF_F8F7)
+}
+
 extension NSAppearance {
     /// Whether this appearance is dark, including the accessibility variants `name == .darkAqua` misses.
     var isDark: Bool {

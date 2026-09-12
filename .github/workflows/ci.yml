@@ -14,7 +14,10 @@
 name: CI
 
 on:
+  # Only pull requests into `main`. Work batched on an integration branch is verified
+  # locally with `make verify` and gated once, when that branch is proposed for `main`.
   pull_request:
+    branches: [main]
   push:
     branches: [main]
 

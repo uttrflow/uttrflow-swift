@@ -38,7 +38,7 @@ extension SettingsPane {
             switch row.control {
             case .segmented(let options, _), .menu(let options, _):
                 strings += options.map(\.title)
-            case .shortcut(let keys):
+            case .shortcut(_, let keys):
                 strings += keys
             case .removal(let removal):
                 strings += [removal.title]
@@ -153,7 +153,9 @@ struct SettingsGeneralPaneTests {
     func showsTheShortcut() {
         var settings = Settings.default
         settings.hotkey = HotkeyBinding(keyCode: 40, modifiers: [.command])
-        #expect(general(settings).row("hotkey")?.control == .shortcut(keys: ["⌘", "K"]))
+        #expect(
+            general(settings).row("shortcut.dictate")?.control
+                == .shortcut(action: .dictate, keys: ["⌘", "K"]))
     }
 
     @Test("offers both ways of activating, with the stored one selected")
@@ -607,5 +609,45 @@ struct SettingsUpdateEditingTests {
         let settings = Settings.default
         let updated = try SettingsEditor.apply(.checkForUpdatesNow, to: settings)
         #expect(updated == settings)
+    }
+
+    /// Which is why it has to be routed rather than saved; see `SettingsViewModel.apply`.
+    @Test("and says so, so a screen can hand it on instead of storing it")
+    func checkingIsARequestToAct() {
+        #expect(SettingsChange.checkForUpdatesNow.isRequestToAct)
+        #expect(!SettingsChange.toggle(.opensAtLogin, isOn: true).isRequestToAct)
+        #expect(!SettingsChange.retention(days: 7).isRequestToAct)
+        #expect(!SettingsChange.pauseSuggestions(isOn: true).isRequestToAct)
+    }
+}
+
+@Suite("A shortcut the app could not claim")
+struct UnarmedShortcutTests {
+    private func row(_ capabilities: SettingsCapabilities) -> SettingsRow? {
+        SettingsPresenter.pane(for: .general, settings: .default, capabilities: capabilities)
+            .groups.flatMap(\.rows).first { $0.id == "shortcut.clipboard" }
+    }
+
+    /// #142: the row showed ⇧⌘V as though it worked while the key fell through and pasted.
+    @Test("says so, instead of showing a key that does nothing")
+    func saysSo() throws {
+        var capabilities = SettingsCapabilities.everything
+        capabilities.unarmedShortcuts = [.clipboard]
+        let shown = try #require(row(capabilities))
+        #expect(shown.explanation == SettingsPresenter.unarmed)
+    }
+
+    @Test("and every other row is left alone")
+    func othersAreUntouched() throws {
+        var capabilities = SettingsCapabilities.everything
+        capabilities.unarmedShortcuts = [.dictate]
+        let shown = try #require(row(capabilities))
+        #expect(shown.explanation != SettingsPresenter.unarmed)
+    }
+
+    @Test("while an armed one keeps the explanation it always had")
+    func armedIsUnchanged() throws {
+        let shown = try #require(row(.everything))
+        #expect(shown.explanation != SettingsPresenter.unarmed)
     }
 }

@@ -86,6 +86,32 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A trigger heading a repeated frame coordinates a list, and the first item is not a discarded half. See `Docs/cleanup.md`.
+    @Test(
+        "leaves a coordinated list whose items are headed by the trigger word itself",
+        arguments: [
+            "I said no to the offer, no to the meeting",
+            "say sorry to John, sorry to Marcy too",
+            "say no to the offer no to the meeting",
+            "there's no room, no room at all",
+        ]
+    )
+    func leavesTriggerHeadedLists(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// One answer answering another is a pair of items, and taking the first back inverts what was said. See `Docs/cleanup.md`.
+    @Test(
+        "leaves a pair whose items are headed by different answers",
+        arguments: [
+            "I said yes to the offer no to the meeting",
+            "say thanks to John sorry to Marcy too",
+        ]
+    )
+    func leavesAnsweredPairs(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("records the discarded half and the trigger as removed by this pass")
     func provenance() {
         let draft = sut.apply(Draft(text: "at four no sorry at five"))

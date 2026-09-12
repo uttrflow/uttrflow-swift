@@ -18,6 +18,11 @@
 # with it; the first job refuses the release if it does not, because a v0.3.0 tag on a
 # build that reports 0.2.2 produces an appcast that offers everybody a downgrade.
 #
+# A tag does two things, and only one of them needs a certificate. The release entry on
+# this repository is written from the changelog by a Linux job holding no secrets, so a
+# version is recorded here, beside the code and the changelog it came from, even when the
+# build below is skipped for want of a Developer ID.
+#
 # Secrets this needs, on this repository:
 #
 #   MACOS_CERTIFICATE       Developer ID Application .p12, base64:  base64 -i cert.p12 | pbcopy
@@ -52,6 +57,9 @@ jobs:
   check-version:
     name: Tag agrees with the plist
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compare.outputs.version }}
+      prerelease: ${{ steps.compare.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -63,6 +71,7 @@ jobs:
           persist-credentials: false
 
       - name: Compare
+        id: compare
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME#v}"
@@ -77,10 +86,85 @@ jobs:
             echo "::error::Bump the plist and re-tag. A tag that disagrees with the build ships an appcast that offers a downgrade."
             exit 1
           fi
+          echo "version=$base" >> "$GITHUB_OUTPUT"
+          # Anything after the version marks a candidate, which is Semver's rule and GitHub's.
+          if [ "$tag" != "$base" ]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
+  # The half of a release that needs no certificate, so it happens whether or not one
+  # exists. Without it a version is recorded only in the downloads repository, and nothing
+  # here says it ever shipped.
+  notes:
+    name: Release notes on this repository
+    needs: check-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The tag already exists — it is what triggered this run — so nothing here creates
+      # one, and this cannot set the workflow off again.
+      - name: Publish the changelog entry as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+          PRERELEASE: ${{ needs.check-version.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$TAG is already released here; leaving it alone."
+            exit 0
+          fi
+          # Carries no assets on purpose: the disk image and the update archive live in
+          # uttrflow/releases, and a second copy of either is a second answer to which
+          # build a version is.
+          {
+            ./Scripts/changelog.py "$VERSION"
+            printf '\n---\n\n- Download: https://uttrflow.com/download\n'
+            printf '- Every build: https://github.com/uttrflow/releases/releases\n'
+          } > notes.md
+          args=(--repo "$GITHUB_REPOSITORY" --title "Uttrflow $VERSION" --notes-file notes.md)
+          if [ "$PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$TAG" "${args[@]}"
+
+  # Whether this repository holds a Developer ID at all, asked once and cheaply. A job
+  # cannot read `secrets` in its own `if`, so the answer has to arrive as an output.
+  signing:
+    name: Signing credentials present
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.look.outputs.available }}
+    steps:
+      - name: Look
+        id: look
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        run: |
+          set -euo pipefail
+          if [ -n "$CERTIFICATE" ]; then
+            echo "available=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Developer ID on this repository, so the build is skipped. RELEASING.md lists the secrets it needs."
+          fi
+
+  # Skipped rather than attempted where there is no certificate to import. It used to be
+  # attempted: the job ran `make verify` on a macOS runner, which bills at ten times a
+  # Linux one, and then failed at the import — an hour of minutes spent to learn something
+  # a Linux job can answer in a second.
   release:
     name: Build, notarise, publish
-    needs: check-version
+    needs: [check-version, signing]
+    if: needs.signing.outputs.available == 'yes'
     runs-on: macos-26
     timeout-minutes: 90
     steps:

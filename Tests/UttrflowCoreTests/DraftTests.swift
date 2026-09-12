@@ -65,6 +65,9 @@ struct DraftTests {
         #expect(Draft.Word("- ").isListMark && Draft.Word("- ").isLayoutMark)
         #expect(!Draft.Word("\n\n").isListMark && Draft.Word("\n\n").isLayoutMark)
         #expect(!Draft.Word("-").isListMark && !Draft.Word("-").isLayoutMark)
+        #expect(Draft.Word("\n1. ").isListMark && Draft.Word("\n1. ").isLayoutMark)
+        #expect(Draft.Word("\n21. ").isListMark && Draft.Word("\n21. ").isLayoutMark)
+        #expect(!Draft.Word("\n. ").isListMark && !Draft.Word("\n1.").isListMark)
     }
 
     @Test("joins the words with single spaces")

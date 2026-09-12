@@ -5,7 +5,9 @@ public import UttrflowCore
 public enum SettingsShortcut {
     /// One cap per key, modifiers first in the order macOS draws them, since a `Set` has no order.
     public static func keycaps(for binding: HotkeyBinding) -> [String] {
-        modifierCaps(for: binding) + [name(of: binding.keyCode)]
+        // A held modifier is its own key, so naming it again beside itself draws ⌥ twice.
+        if binding.heldModifier != nil { return [name(of: binding.keyCode)] }
+        return modifierCaps(for: binding) + [name(of: binding.keyCode)]
     }
 
     /// The modifier caps alone, in the order macOS draws them.
@@ -49,6 +51,8 @@ public enum SettingsShortcut {
         24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\", 43: ",", 44: "/",
         47: ".", 50: "`",
         36: "Return", 48: "Tab", 49: "Space", 51: "Delete", 53: "Escape",
+        // The modifiers a held binding may be; unnamed, each drew as its raw code, "Key 58" for ⌥.
+        54: "⌘", 55: "⌘", 56: "⇧", 57: "Caps Lock", 58: "⌥", 59: "⌃", 60: "⇧", 61: "⌥", 62: "⌃",
         // Held rather than combined: the one key that types nothing and modifies nothing on its own.
         63: "fn",
         64: "F17", 65: "Decimal", 67: "Multiply", 69: "Plus", 71: "Clear", 75: "Divide",
@@ -85,8 +89,21 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     /// Why the last attempt was refused, until the next one replaces it.
     public private(set) var rejection: String?
 
+    /// The modifiers held with nothing yet pressed against them; which shortcut they are is not yet known.
+    private var pendingModifier: PendingHold?
+
+    /// Modifiers down together, kept as the key one of them is and the set they make.
+    struct PendingHold: Sendable, Equatable {
+        let keyCode: UInt16
+        let modifiers: Set<HotkeyModifier>
+    }
+
+    /// Which shortcut is being recorded, so what it earns lands in the right place.
+    public let action: ShortcutAction
+
     /// Starts from the shortcut in force; an undeliverable one is replaced by the default.
-    public init(binding: HotkeyBinding) {
+    public init(binding: HotkeyBinding, action: ShortcutAction = .dictate) {
+        self.action = action
         self.binding = binding.isDeliverable ? binding : .optionSpace
     }
 
@@ -99,12 +116,49 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     public mutating func beginRecording() {
         isRecording = true
         rejection = nil
+        pendingModifier = nil
     }
 
     /// Stops listening, changing nothing.
     public mutating func cancel() {
         isRecording = false
         rejection = nil
+        pendingModifier = nil
+    }
+
+    /// Takes one keystroke and says what became of it; the only entry point a screen needs.
+    public mutating func receive(_ stroke: KeyStroke) -> SettingsShortcutOutcome {
+        guard isRecording else { return .ignored }
+        switch stroke.phase {
+        case .down:
+            return record(keyCode: stroke.keyCode, modifiers: stroke.modifiers)
+        case .up:
+            return .ignored
+        case .modifiersChanged:
+            if stroke.isEmptyHold { return release() }
+            // A modifier coming up is not the shortcut; its key code belongs to what is leaving.
+            guard stroke.isKeyDown else { return .ignored }
+            return hold(
+                keyCode: stroke.isFunctionDown ? HotkeyBinding.functionKeyCode : stroke.keyCode,
+                modifiers: stroke.modifiers)
+        }
+    }
+
+    /// Takes a modifier going down, which is not yet an answer: it may yet be half of a combination.
+    public mutating func hold(
+        keyCode: UInt16, modifiers: Set<HotkeyModifier>
+    ) -> SettingsShortcutOutcome {
+        guard isRecording else { return .ignored }
+        pendingModifier = PendingHold(keyCode: keyCode, modifiers: modifiers)
+        return .ignored
+    }
+
+    /// Takes every modifier coming up; what was held with nothing pressed against it was the shortcut.
+    public mutating func release() -> SettingsShortcutOutcome {
+        guard isRecording, let held = pendingModifier else { return .ignored }
+        pendingModifier = nil
+        // Every modifier that was down, so ⌃⌥ held together is that pair and not whichever came last.
+        return record(keyCode: held.keyCode, modifiers: held.modifiers)
     }
 
     /// Takes a keystroke by positional key code and modifiers, and says what became of it.
@@ -113,6 +167,8 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
         modifiers: Set<HotkeyModifier>
     ) -> SettingsShortcutOutcome {
         guard isRecording else { return .ignored }
+        // A key pressed against a held modifier makes a combination, not the modifier alone.
+        pendingModifier = nil
 
         // Escape alone means "leave it", the platform convention; checked before validation.
         if keyCode == SettingsShortcut.escapeKeyCode, modifiers.isEmpty {
@@ -129,6 +185,6 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
         binding = candidate
         isRecording = false
         rejection = nil
-        return .recorded(.shortcut(candidate))
+        return .recorded(.shortcut(action, candidate))
     }
 }

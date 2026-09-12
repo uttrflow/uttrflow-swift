@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# Reads the commit message before it is recorded.
+#
+# A commit message is published exactly as much as the code is, and it is the surface no
+# file audit can see: `Scripts/pii_audit.sh` and the disclosure audit both scan a working
+# tree, and a message is not in one. This project has already put a competitor's name in
+# a commit subject, and that subject is on `main`.
+#
+# It runs at the last moment where the fix is free. After `git commit` the message can
+# still be amended; after a push it is somebody else's clone.
+#
+# Installed by `make hooks`, with the rest.  Skip deliberately:  git commit --no-verify
+set -euo pipefail
+
+message_file="$1"
+
+# The merge and squash messages GitHub writes, and the ones `git rebase` replays, are not
+# somebody typing — they are text that already passed this gate on the way in.
+case "$(basename "$message_file")" in
+    MERGE_MSG | SQUASH_MSG) exit 0 ;;
+esac
+
+root="$(git rev-parse --show-toplevel)"
+[[ -f "$root/Scripts/disclosure_audit.py" ]] || exit 0
+
+if ! python3 "$root/Scripts/disclosure_audit.py" --text --label "the commit message" \
+        < "$message_file"; then
+    printf '\033[31m  the commit was not made\033[0m\n'
+    printf '  The message carries text that must not be published. See AGENTS.md,\n'
+    printf '  "What must never reach a tracked file". Your message is kept at\n'
+    printf '  %s — edit it and commit again.\n\n' "$message_file"
+    exit 1
+fi
