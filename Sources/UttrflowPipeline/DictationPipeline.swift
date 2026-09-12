@@ -40,8 +40,8 @@ public actor DictationPipeline {
     private var generation = 0
     private var cancelledGeneration: Int?
 
-    /// Claims the turn before the microphone opens, so two presses cannot both pass the guard.
-    private var isStarting = false
+    /// Held across every await before the state shows a dictation's next step, so no second entry slips in.
+    private var hasTurn = false
 
     /// Reads how long the microphone has been open, closing over the injected clock.
     private var stopwatch: (() -> Duration)?
@@ -158,14 +158,14 @@ public actor DictationPipeline {
 
     // MARK: The sequence
 
-    /// Whether a new dictation can begin, counting a start that has not opened the microphone yet.
-    private var isBusy: Bool { isStarting || state.isBusy }
+    /// Whether a new dictation can begin, counting one that holds the turn before its state has moved.
+    private var isBusy: Bool { hasTurn || state.isBusy }
 
     /// Begins listening. Does nothing if a dictation is already under way.
     public func startRecording() async {
         guard !isBusy else { return }
-        isStarting = true
-        defer { isStarting = false }
+        hasTurn = true
+        defer { hasTurn = false }
 
         generation += 1
         let mine = generation
@@ -191,7 +191,9 @@ public actor DictationPipeline {
 
     /// Stops listening and runs the rest: transcribe, tidy, insert.
     public func finishRecording() async {
-        guard state == .recording else { return }
+        // A second stop while the microphone drains is refused here, not sent to a microphone already closed.
+        guard state == .recording, !hasTurn else { return }
+        hasTurn = true
 
         // Carried through every stage below, so a later dictation cannot revive this one.
         let mine = generation
@@ -212,18 +214,32 @@ public actor DictationPipeline {
             spokenFor = stopwatch?()
             stopwatch = nil
         } catch {
+            hasTurn = false
+            // A cancel during the drain leaves the pipeline at rest, so no failure is published over it.
+            guard !wasCancelled(mine) else { return }
             transition(to: .failed(DictationFailure(error)))
             return
         }
 
         // Written beside the buffer while the key was held, so it exists before anything can fail.
-        openRecording = await recordings.current()?.id
+        let kept = await recordings.current()
+        // Asked after the lookup, since a cancel can arrive while it is suspended as well as before it.
+        if wasCancelled(mine) {
+            // A cancel cannot see a recording not yet looked up, so it is deleted here instead.
+            if let kept { await recordings.discard(kept.id) }
+        } else {
+            openRecording = kept?.id
+        }
+        // Released with no await before `process` moves the state on, so nothing can enter between.
+        hasTurn = false
         await process(audio, mine, delivery: .insert)
     }
 
     /// Runs a kept recording through the same stages, delivering the words to the clipboard.
     public func retry(_ recording: UUID) async {
         guard !isBusy else { return }
+        // Held while the file is read, so a dictation cannot open the microphone underneath the retry.
+        hasTurn = true
         generation += 1
         let mine = generation
 
@@ -233,9 +249,15 @@ public actor DictationPipeline {
         } catch {
             // A file that cannot be read cannot be retried, so it is not offered again.
             await recordings.discard(recording)
+            hasTurn = false
+            // A cancel during the read leaves the pipeline at rest, so no failure is published over it.
+            guard !wasCancelled(mine) else { return }
             transition(to: .failed(DictationFailure(error)))
             return
         }
+        hasTurn = false
+        // A cancel during the read abandons the retry before it claims the recording as its own.
+        guard !wasCancelled(mine) else { return }
         stopwatch = nil
         takeSettings()
         spokenFor = audio.duration
@@ -349,6 +371,8 @@ public actor DictationPipeline {
     }
 
     private func process(_ audio: AudioSamples, _ mine: Int, delivery: Delivery) async {
+        // Checked before the state moves, so an abandoned run never overwrites the rest a cancel sets.
+        guard !wasCancelled(mine) else { return }
         transition(to: .transcribing)
 
         // A piece under way is finished, not thrown away: its words are needed either way.
