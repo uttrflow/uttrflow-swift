@@ -84,9 +84,9 @@ private final class ControllerCleaner: TranscriptCleaning {
 private final class ControllerInserter: TextInserting {
     private let log = Mutex<[String]>([])
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         log.withLock { $0.append(text) }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     /// Everything that reached the user's document, in order.

@@ -34,9 +34,9 @@ private struct TimeoutTestCleaner: TranscriptCleaning {
 private final class TimeoutTestInserter: TextInserting, Sendable {
     private let placed = Mutex<[String]>([])
 
-    func insert(_ text: String) async throws(TextInsertionError) -> TextInsertionMethod {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         placed.withLock { $0.append(text) }
-        return .accessibility
+        return InsertionAttempt(.accessibility)
     }
 
     var inserted: [String] { placed.withLock { $0 } }

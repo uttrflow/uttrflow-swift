@@ -19,16 +19,18 @@ public protocol TextInsertionEngine: Sendable {
     /// Whether this strategy can insert into what is currently focused.
     func canInsert() async -> Bool
 
-    /// Puts `text` where the user is typing.
-    func insert(_ text: String) async throws(TextInsertionError)
+    /// Puts `text` where the user is typing, saying whether it was seen to arrive.
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival
 
     /// Inserts, carrying the formatted form where the strategy has a way to; only the pasteboard has one.
-    func insert(_ text: String, richText: String?) async throws(TextInsertionError)
+    func insert(_ text: String, richText: String?) async throws(TextInsertionError) -> InsertionArrival
 }
 
 extension TextInsertionEngine {
     /// Ignores the formatted form, because writing into a focused element carries no formatting.
-    public func insert(_ text: String, richText: String?) async throws(TextInsertionError) {
+    public func insert(
+        _ text: String, richText: String?
+    ) async throws(TextInsertionError) -> InsertionArrival {
         try await insert(text)
     }
 }

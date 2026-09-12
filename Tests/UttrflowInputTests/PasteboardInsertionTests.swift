@@ -87,6 +87,27 @@ final class FakeKeystrokeSender: KeystrokeSender {
     var pasteCount: Int { state.withLock(\.pasteCount) }
 }
 
+/// A caret that answers a fixed value and counts how many times it was asked, which is the point of #222.
+final class CountingFocus: AccessibilityFocus, @unchecked Sendable {
+    private let answer: String
+    private let reads = Mutex(0)
+
+    init(answer: String) {
+        self.answer = answer
+    }
+
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+
+    func tail(upTo count: Int) -> FieldTail {
+        reads.withLock { $0 += 1 }
+        return .text(answer)
+    }
+
+    var readCount: Int { reads.withLock { $0 } }
+}
+
 @Suite("PasteboardTextInsertionEngine")
 struct PasteboardTextInsertionEngineTests {
     private func engine(
@@ -119,7 +140,7 @@ struct PasteboardTextInsertionEngineTests {
         let pasteboard = FakePasteboard()
         let keystrokes = FakeKeystrokeSender()
 
-        try await engine(pasteboard, keystrokes).insert("hello there")
+        _ = try await engine(pasteboard, keystrokes).insert("hello there")
 
         #expect(pasteboard.writes.first == "hello there")
         #expect(keystrokes.pasteCount == 1)
@@ -131,7 +152,7 @@ struct PasteboardTextInsertionEngineTests {
         let paragraph = "A paragraph the user copied earlier and still needs."
         let pasteboard = FakePasteboard(text: paragraph)
 
-        try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
+        _ = try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
 
         #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
@@ -145,7 +166,7 @@ struct PasteboardTextInsertionEngineTests {
             onPaste: { pasteboard.copyFromAnotherApp("something copied since") }
         )
 
-        try await engine(pasteboard, keystrokes).insert("dictated words")
+        _ = try await engine(pasteboard, keystrokes).insert("dictated words")
 
         #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "something copied since")
@@ -156,7 +177,7 @@ struct PasteboardTextInsertionEngineTests {
     func keepsWordsWhenTheClipboardHeldNothing() async throws {
         let pasteboard = FakePasteboard(text: nil)
 
-        try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
+        _ = try await engine(pasteboard, FakeKeystrokeSender()).insert("dictated words")
 
         #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
@@ -181,7 +202,7 @@ struct PasteboardTextInsertionEngineTests {
     func emptyText() async throws {
         let pasteboard = FakePasteboard(text: "previous")
 
-        try await engine(pasteboard, FakeKeystrokeSender()).insert("")
+        _ = try await engine(pasteboard, FakeKeystrokeSender()).insert("")
 
         #expect(pasteboard.writes == [""])
     }
@@ -192,6 +213,78 @@ struct PasteboardTextInsertionEngineTests {
         #expect(sut.method == .pasteboard)
     }
 
+    /// The engine under a caret that answers, with the wait driven by a clock the test owns.
+    private func confirming(
+        _ focus: CountingFocus, reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil
+    ) -> PasteboardTextInsertionEngine {
+        PasteboardTextInsertionEngine(
+            focus: focus, pasteboard: FakePasteboard(), keystrokes: FakeKeystrokeSender(),
+            confirmation: PasteConfirmation(focus: focus, clock: ScriptedClock()),
+            reporting: reporting)
+    }
+
+    /// #222: the call was optional-chained behind the reporter, so attaching a logger switched it on.
+    @Test("waits for the paste even when nothing is listening for the answer")
+    func confirmsWithNoReporterAttached() async throws {
+        let focus = CountingFocus(answer: "and then dictated words")
+
+        _ = try await confirming(focus).insert("dictated words")
+
+        #expect(
+            focus.readCount > 0,
+            "whether a logger is attached must not decide whether the paste is checked")
+    }
+
+    /// #222: the answer reached only the optional closure, so nothing upstream could act on it.
+    @Test("reports a paste it never saw arrive as unconfirmed rather than as inserted")
+    func reportsAnUnconfirmedPaste() async throws {
+        let focus = CountingFocus(answer: "something else entirely")
+
+        #expect(try await confirming(focus).insert("dictated words") == .unconfirmed)
+    }
+
+    @Test("reports a paste it read back as confirmed")
+    func reportsAConfirmedPaste() async throws {
+        let focus = CountingFocus(answer: "and then dictated words")
+
+        #expect(try await confirming(focus).insert("dictated words") == .confirmed)
+    }
+
+    /// A field that will not say what it holds proves nothing, which is most of them.
+    @Test("proves nothing about a field that will not report what it holds")
+    func reportsNothingForAnUnreadableField() async throws {
+        let sut = engine(FakePasteboard(), FakeKeystrokeSender(), focus: FakeFocus(field: nil))
+
+        #expect(try await sut.insert("dictated words") == .notReported)
+    }
+
+    /// The reporter stays an observer: it still sees every answer, and decides none of them.
+    @Test("still hands the answer to a reporter that is attached")
+    func reportsToAnAttachedLogger() async throws {
+        let seen = Mutex<[PasteConfirmation.Outcome]>([])
+        let focus = CountingFocus(answer: "and then dictated words")
+
+        _ = try await confirming(focus, reporting: { outcome in seen.withLock { $0.append(outcome) } })
+            .insert("dictated words")
+
+        #expect(seen.withLock { $0.count } == 1)
+    }
+}
+
+@Suite("The route that is assembled without a logger")
+struct UnreportedPasteRouteTests {
+    /// #222: the clip route is built with no `reporting:`, so it was the one path that checked nothing.
+    @Test("checks the paste on the route that nothing is listening to")
+    func confirmsWithoutAReporter() async throws {
+        let focus = CountingFocus(answer: "and then dictated words")
+        let coordinator = TextInsertion.coordinator(
+            focus: focus, pasteboard: FakePasteboard(), keystrokes: FakeKeystrokeSender())
+
+        let attempt = try await coordinator.insert("dictated words")
+
+        #expect(attempt == InsertionAttempt(.pasteboard, arrival: .confirmed))
+        #expect(focus.readCount > 0, "how the route is composed must not decide what it verifies")
+    }
 }
 
 @Suite("ClipboardTextInsertionEngine")
@@ -199,7 +292,7 @@ struct ClipboardTextInsertionEngineTests {
     @Test("leaves the text on the clipboard for the user to paste")
     func setsTheText() async throws {
         let pasteboard = FakePasteboard(text: "previous")
-        try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert("dictated words")
+        _ = try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert("dictated words")
 
         #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
@@ -219,7 +312,7 @@ struct ClipboardTextInsertionEngineTests {
     @Test("copies an empty transcript without complaining")
     func emptyText() async throws {
         let pasteboard = FakePasteboard()
-        try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert("")
+        _ = try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert("")
 
         #expect(pasteboard.text() == "")
     }

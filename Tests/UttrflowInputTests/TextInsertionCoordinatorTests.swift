@@ -12,9 +12,9 @@ struct TextInsertionCoordinatorTests {
         let floor = StubInsertionEngine(method: .pasteboard)
         let coordinator = TextInsertionCoordinator(strategies: [first, floor])
 
-        let method = try await coordinator.insert("hello")
+        let attempt = try await coordinator.insert("hello")
 
-        #expect(method == .accessibility)
+        #expect(attempt.method == .accessibility)
         #expect(first.insertCount == 1)
         #expect(floor.insertCount == 0, "the floor must not run when the first strategy works")
     }
@@ -26,9 +26,9 @@ struct TextInsertionCoordinatorTests {
         let floor = StubInsertionEngine(method: .pasteboard)
         let coordinator = TextInsertionCoordinator(strategies: [declining, floor])
 
-        let method = try await coordinator.insert("hello")
+        let attempt = try await coordinator.insert("hello")
 
-        #expect(method == .pasteboard)
+        #expect(attempt.method == .pasteboard)
         #expect(declining.insertCount == 0, "a strategy that declined must not be handed the text")
     }
 
@@ -38,9 +38,9 @@ struct TextInsertionCoordinatorTests {
         let floor = StubInsertionEngine(method: .pasteboard)
         let coordinator = TextInsertionCoordinator(strategies: [failing, floor])
 
-        let method = try await coordinator.insert("hello")
+        let attempt = try await coordinator.insert("hello")
 
-        #expect(method == .pasteboard)
+        #expect(attempt.method == .pasteboard)
         #expect(failing.insertCount == 1, "it should have been tried before falling through")
     }
 
@@ -49,7 +49,20 @@ struct TextInsertionCoordinatorTests {
     func reportsSucceedingMethod(method: TextInsertionMethod) async throws {
         let coordinator = TextInsertionCoordinator(strategies: [StubInsertionEngine(method: method)])
 
-        #expect(try await coordinator.insert("hello") == method)
+        #expect(try await coordinator.insert("hello").method == method)
+    }
+
+    /// #222: what the strategy found out has to survive the fallback, or it reaches nobody.
+    @Test("carries what the strategy found out, not only which strategy ran")
+    func carriesTheArrival() async throws {
+        let coordinator = TextInsertionCoordinator(strategies: [
+            StubInsertionEngine(method: .accessibility, canInsert: false),
+            StubInsertionEngine(method: .pasteboard, arrival: .unconfirmed),
+        ])
+
+        #expect(
+            try await coordinator.insert("hello")
+                == InsertionAttempt(.pasteboard, arrival: .unconfirmed))
     }
 
     @Test("lists the strategies it will try, in the order it will try them")
@@ -146,7 +159,7 @@ struct AccessibilityTextInsertionEngineTests {
         let field = FakeTextField()
         let engine = AccessibilityTextInsertionEngine(focus: FakeFocus(field: field))
 
-        try await engine.insert("नमस्ते, world")
+        _ = try await engine.insert("नमस्ते, world")
 
         #expect(field.replacements == ["नमस्ते, world"])
     }
@@ -167,7 +180,7 @@ struct AccessibilityTextInsertionEngineTests {
         let field = FakeTextField(before: "Dear ", selected: "Bob", after: ", thanks for the note.")
         let engine = AccessibilityTextInsertionEngine(focus: FakeFocus(field: field))
 
-        try await engine.insert("Alice")
+        _ = try await engine.insert("Alice")
 
         #expect(field.contents == "Dear Alice, thanks for the note.")
         #expect(field.replacements == ["Alice"], "the selection is the only thing it may write to")
@@ -179,7 +192,7 @@ struct AccessibilityTextInsertionEngineTests {
         let field = FakeTextField(before: "Dear ", selected: "", after: ", thanks for the note.")
         let engine = AccessibilityTextInsertionEngine(focus: FakeFocus(field: field))
 
-        try await engine.insert("Alice")
+        _ = try await engine.insert("Alice")
 
         #expect(field.contents == "Dear Alice, thanks for the note.")
     }
@@ -205,9 +218,14 @@ final class StubInsertionEngine: TextInsertionEngine {
     }
 
     private let state: Mutex<State>
+    private let arrival: InsertionArrival
 
-    init(method: TextInsertionMethod, canInsert: Bool = true, error: TextInsertionError? = nil) {
+    init(
+        method: TextInsertionMethod, canInsert: Bool = true, error: TextInsertionError? = nil,
+        arrival: InsertionArrival = .notReported
+    ) {
         self.method = method
+        self.arrival = arrival
         self.state = Mutex(State(canInsert: canInsert, error: error))
     }
 
@@ -215,12 +233,13 @@ final class StubInsertionEngine: TextInsertionEngine {
         state.withLock { $0.canInsert }
     }
 
-    func insert(_ text: String) async throws(TextInsertionError) {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         let error = state.withLock { state -> TextInsertionError? in
             state.received.append(text)
             return state.error
         }
         if let error { throw error }
+        return arrival
     }
 
     var insertCount: Int { state.withLock { $0.received.count } }
@@ -307,9 +326,9 @@ struct PasteOnlyApplicationTests {
         let coordinator = TextInsertion.coordinator(
             focus: focus, pasteboard: FakePasteboard(), keystrokes: keystrokes)
 
-        let method = try await coordinator.insert("hello there")
+        let attempt = try await coordinator.insert("hello there")
 
-        #expect(method == .pasteboard, "the words should have been pasted, not abandoned")
+        #expect(attempt.method == .pasteboard, "the words should have been pasted, not abandoned")
         #expect(keystrokes.pasteCount == 1)
     }
 
@@ -320,7 +339,7 @@ struct PasteOnlyApplicationTests {
             focus: FakeFocus(field: nil, somethingFocused: false),
             pasteboard: FakePasteboard(), keystrokes: keystrokes)
 
-        #expect(try await coordinator.insert("hello there") == .clipboard)
+        #expect(try await coordinator.insert("hello there").method == .clipboard)
         #expect(keystrokes.pasteCount == 1, "it should have tried before giving up")
     }
 }
@@ -346,6 +365,6 @@ struct TextInsertionAssemblyTests {
     func endsInAGuaranteedStrategy() async throws {
         #expect(coordinator().route.last == .clipboard)
         // `.clipboard`, not `.pasteboard`: the floor says the words are waiting, not that a paste landed.
-        #expect(try await coordinator().insert("hello") == .clipboard)
+        #expect(try await coordinator().insert("hello").method == .clipboard)
     }
 }
