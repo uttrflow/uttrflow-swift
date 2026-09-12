@@ -47,6 +47,23 @@ struct RestatementTests {
         let room = reading("there's no room, no room at all")
         #expect(Restatement.discardedStart(before: 3, after: 4, in: room.live, of: room.draft) == nil)
     }
+
+    /// "Yes … no …" and "thanks … sorry …" are two items of one pair: the speaker answered twice, and took nothing back.
+    @Test("refuses the match when the trigger answers the word the half opens after")
+    func triggerAnsweringAnotherHead() {
+        let offer = reading("i said yes to the offer no to the meeting")
+        #expect(Restatement.discardedStart(before: 6, after: 7, in: offer.live, of: offer.draft) == nil)
+        let apology = reading("say thanks to john sorry to marcy too")
+        #expect(
+            Restatement.discardedStart(before: 4, after: 5, in: apology.live, of: apology.draft) == nil)
+    }
+
+    /// The frame here opens on "ship", not on an answer, so the correction still stands.
+    @Test("still matches a correction in a sentence that opens with an answer")
+    func correctionAfterAnAnswerStillMatches() {
+        let ship = reading("yes we ship on the third no sorry on the fourth")
+        #expect(Restatement.discardedStart(before: 6, after: 8, in: ship.live, of: ship.draft) == 3)
+    }
 }
 
 @Suite("Function words")
