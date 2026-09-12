@@ -48,8 +48,8 @@ would make. Safe in every register.
 | Cleaning | Example | Today |
 |---|---|---|
 | Hesitation sounds | "um", "uh", "er", "erm", "ah", "hmm", "mmm", "aah", "ahh", "mhm" | ✅ `FillersPass`; whole words only, and never "like", "well", "so" or "basically". "mm" is not on the list either: it is millimetres, and "MM" is millions |
-| Stammers — the same short word twice | "the the deployment" → "the deployment" | ✅ `StammersPass` (≤4 letters; a long repeat is emphasis). A double the language itself makes is kept — "had had", "that that", "bye bye", "no no", "so so" — and so is a repeated number word, which spells a digit of one value rather than stammering: "extension four four two" is 442, not 42 |
-| Repeated phrase — a false start restarted verbatim | "so I was I was thinking" → "so I was thinking" | ✅ `RepeatedPhrasePass`: a 2–4-word run repeated right after itself, case-insensitive, never across a punctuation mark; the first copy goes |
+| Stammers — the same function word twice | "the the deployment" → "the deployment" | ✅ `StammersPass`. Only a function word stammers, because a doubled content word is emphasis ("very very", "chop chop", "hear hear"), a name ("Bora Bora"), or a digit of one value rather than a stammer — "extension four four two" is 442, not 42. The function words English doubles on purpose are kept by name — "had had", "that that", "so so", "there there" — and a repeat split by punctuation is left alone, the comparison being on the word as it is written. A function word English also emphasises still loses a copy — "this this", "what what" — because the restart reading is the commoner one and the pass has only the word to go on |
+| Repeated phrase — a false start restarted verbatim | "so I was I was thinking" → "so I was thinking" | ✅ `RepeatedPhrasePass`: a 2–4-word run repeated right after itself, case-insensitive, never across a punctuation mark; the first copy goes. A run said twice on purpose is left alone on the same terms as the row above — one word filling the window ("ha ha ha ha", "no no no no"), or a run of content words and nothing else, which is a name said twice ("New York New York") rather than a restart |
 | Sentence capitalisation and the pronoun "I" | "i think i'll go" → "I think I'll go" | ✅ `FirstWordPass` (also "i'll", "i'm"; a new sentence after `. ! ?`, a paragraph or a bullet, not after a plain line break) and the prompt. A word carrying a stop inside itself — "p.m.", "a.m.", "e.g." — does not end a sentence, so "call me at 5 p.m. tomorrow" keeps its "tomorrow" in lower case |
 | Terminal punctuation on the last sentence | "ship it" → "Ship it." | ✅ `TerminalStopPass` and the prompt, as the destination's formatter says. Under a `paragraphs` layout (document, email, plain, messaging) the last sentence ends whatever line breaks the text holds, and every paragraph of three or more words before a blank line ends with a full stop; a list item never gets one; under `preserveNewlines` (code, SQL) a text holding a newline gets none; under `singleLine` (a cell) every line break becomes a space |
 | Whitespace and spacing around punctuation | no space before `, . ? ! : ;`; one after | ✅ `Draft.text` joins words with one space; `SpacingPass` fixes a stray mark onto the word before it and collapses doubled marks |
@@ -140,8 +140,18 @@ budget: the app, an `InsertionPoint` — up to 300 characters before the caret a
 after, from the focused field's value and selected range — and a `Destination`
 (`document`, `spreadsheet`, `sqlEditor`, `codeEditor`, `messaging`, `email`, `plain`).
 The destination is read off one table, `DestinationRules.standard`, by bundle
-identifier prefix or window title; no code branches on a bundle identifier anywhere
-else. `DestinationFormatter.registry` holds one value per destination and, so far, four decisions:
+identifier prefix, window title or a whole word of the application name, in that order;
+nothing outside `DestinationClassifier` turns an application into a destination or an
+`AppKind`, and the only table read ahead of it is the user's own `DestinationOverrides`.
+Other modules do read a bundle identifier for their own questions — `AcceptKey` and
+`SuggestionPreferences` in `UttrflowPredict` each carry a list — and none of them decides
+where the words are going. `Tests/UttrflowCoreTests/OneAppTableTests.swift` is what keeps
+that scoped claim true: every reverse-DNS literal anywhere in `Sources` must be one
+`DestinationClassifier` has an answer for, and the seven `UttrflowPredict` still owes sit
+in one list that may shrink and may never grow. A row also names the `AppKind` it
+covers — finer than the destination, since a terminal and an editor want the same
+treatment but read differently in the prompt — and that kind is where the "Typed into:"
+caption comes from, so the caption and the style block cannot name two different places. `DestinationFormatter.registry` holds one value per destination and, so far, four decisions:
 how the first word is cased, whether the last sentence gets a full stop, whether grammar
 slips are repaired (`.repair` for a document, an email and plain text; `.asSpoken`
 everywhere else), and the layout

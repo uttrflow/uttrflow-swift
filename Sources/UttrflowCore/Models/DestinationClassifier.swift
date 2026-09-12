@@ -4,17 +4,38 @@ public struct DestinationRule: Sendable, Equatable, Codable {
     public let bundlePrefixes: [String]
     /// Window-title fragments this row covers, for apps that live in a browser tab.
     public let titleContains: [String]
+    /// Whole words of the application name this row covers, for an app macOS names but will not identify.
+    public let nameWords: [String]
+    /// The sort of app this row names, or nil for a row built from a destination alone.
+    public let kind: AppKind?
     public let destination: Destination
 
-    public init(bundlePrefixes: [String] = [], titleContains: [String] = [], destination: Destination) {
+    public init(
+        bundlePrefixes: [String] = [], titleContains: [String] = [], nameWords: [String] = [],
+        destination: Destination
+    ) {
         self.bundlePrefixes = bundlePrefixes
         self.titleContains = titleContains
+        self.nameWords = nameWords
+        self.kind = nil
         self.destination = destination
     }
 
-    /// Whether the app's bundle identifier or window title falls under this row.
+    /// A row built from the sort of app it names, so its destination cannot disagree with its caption.
+    public init(
+        bundlePrefixes: [String] = [], titleContains: [String] = [], nameWords: [String] = [],
+        kind: AppKind
+    ) {
+        self.bundlePrefixes = bundlePrefixes
+        self.titleContains = titleContains
+        self.nameWords = nameWords
+        self.kind = kind
+        self.destination = kind.destination
+    }
+
+    /// Whether the app's bundle identifier, window title or name falls under this row.
     public func matches(_ app: AppContext) -> Bool {
-        matchesBundle(app) || matchesTitle(app)
+        matchesBundle(app) || matchesTitle(app) || matchesName(app)
     }
 
     /// Whether the app's bundle identifier falls under this row.
@@ -28,18 +49,38 @@ public struct DestinationRule: Sendable, Equatable, Codable {
         guard let title = app.documentName?.lowercased(), !title.isEmpty else { return false }
         return titleContains.contains { title.contains($0.lowercased()) }
     }
+
+    /// Whether a whole word of the app's name falls under this row, so "Barcode Buddy" is not an editor.
+    public func matchesName(_ app: AppContext) -> Bool {
+        guard let name = app.applicationName, !name.isEmpty, !nameWords.isEmpty else { return false }
+        let words = Set(WordShape.words(name))
+        return nameWords.contains { words.contains($0.lowercased()) }
+    }
 }
 
 /// Decides where the words are going by reading one table, so adding an app is a row.
 public enum DestinationClassifier {
-    /// The user's answer, then every row's bundle identifiers, then their titles; a title never beats an identifier.
+    /// The user's answer, then the table's, then plain text.
     public static func classify(
         _ app: AppContext, rules: [DestinationRule] = DestinationRules.standard,
         overrides: DestinationOverrides = .none
     ) -> Destination {
-        overrides.destination(for: app)
-            ?? rules.first { $0.matchesBundle(app) }?.destination
-            ?? rules.first { $0.matchesTitle(app) }?.destination
-            ?? .plain
+        overrides.destination(for: app) ?? rule(for: app, rules: rules)?.destination ?? .plain
+    }
+
+    /// Every row's bundle identifiers, then their titles, then their names; a title never beats an identifier.
+    public static func rule(
+        for app: AppContext, rules: [DestinationRule] = DestinationRules.standard
+    ) -> DestinationRule? {
+        rules.first { $0.matchesBundle(app) }
+            ?? rules.first { $0.matchesTitle(app) }
+            ?? rules.first { $0.matchesName(app) }
+    }
+
+    /// The sort of app the table calls this one, which is what the prompt's caption is written from.
+    public static func kind(
+        for app: AppContext, rules: [DestinationRule] = DestinationRules.standard
+    ) -> AppKind? {
+        rule(for: app, rules: rules)?.kind
     }
 }

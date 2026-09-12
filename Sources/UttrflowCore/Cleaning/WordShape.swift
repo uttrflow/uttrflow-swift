@@ -16,6 +16,11 @@ public struct WordShape: Equatable, Sendable {
     /// The word lower-cased, which is what every pass compares on.
     public var key: String { core.lowercased() }
 
+    /// Lower-cased runs of letters and digits, which is the unit every word comparison counts in.
+    public static func words(_ text: String) -> [String] {
+        text.lowercased().split(whereSeparator: isMark).map(String.init)
+    }
+
     /// Whether the word closes a clause or a sentence.
     public var endsClause: Bool { suffix.contains(where: { ",.;:!?".contains($0) }) }
 
