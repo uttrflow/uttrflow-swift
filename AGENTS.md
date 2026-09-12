@@ -273,6 +273,21 @@ problem: fixture data has to look real to be useful, and the most available real
 value is the one you can see from where you are sitting. **This repository is being
 open-sourced, and a published address cannot be taken back by a later commit.**
 
+**Do not do a `good first issue` yourself, and never take an issue somebody has claimed.**
+Those labels are inventory for somebody else, not a task queue. Before opening a branch for
+any issue, read its thread: if anyone outside has asked for it or said they are on it, it is
+theirs — add the `claimed` label, reply, and find other work. If it carries `good first
+issue` and nobody has claimed it, still leave it alone. `CONTRIBUTING.md` sets out what a
+claim guarantees a contributor, and that is a promise this side has to keep. If a branch is
+already open against one, take the label off the issue rather than leaving free work
+advertised that is about to be closed underneath whoever picks it up.
+
+This is a rule because the project has already broken it. #51 was labelled *good first
+issue*; a first-time contributor asked for it on the thread and got no reply; a maintainer
+branch opened shortly afterwards, did the same work as part of something larger, and closed
+the issue on merge while their pull request (#62) sat unreviewed. A README section left
+alone for a week costs nothing next to that.
+
 **CI exists now, and it is `.github/workflows/`.** This reverses a rule that was absolute
 in the private repository, so it is worth saying why rather than leaving two agents to
 argue about it. The old rule was: never add a workflow, because macOS runners bill at ten
