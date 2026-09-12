@@ -69,9 +69,10 @@ first use rather than silently winning.
 
 `TextTidy.collapseWhitespace` treats a newline as whitespace, which is right for a raw
 transcript (a recogniser's line breaks are chunking artefacts) and wrong for a model's answer,
-where dictated code comes back as several lines. Flattening before `ensureTerminalPunctuation`
-also defeated that function's "no full stop after a newline" guard, so flattened code gained a
-stray full stop. The generative path uses `collapseSpacing`, which keeps line breaks.
+where dictated code comes back as several lines. Flattening also cost the answer the one thing
+that told the final stop it was looking at code, and flattened code gained a stray full stop.
+The generative path uses `collapseSpacing`, which keeps line breaks, and the stop itself is
+`TerminalStopPass`'s alone — under `preserveNewlines` a text holding a newline gets none.
 
 ## Hindi on Apple's model
 

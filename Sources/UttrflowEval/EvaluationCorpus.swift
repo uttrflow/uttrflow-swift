@@ -573,6 +573,36 @@ public enum EvaluationCorpus {
             mustEndWith: "."
         ),
 
+        .init(
+            id: "document-sentence-ending-in-a-percentage", category: .contextual,
+            spoken: "conversion went up five percent",
+            expected: "Conversion went up 5%.",
+            mustKeep: ["5"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Board pack.docx",
+                precedingText: ""
+            ),
+            mustNotAdd: ["percent"],
+            destination: .document,
+            mustEndWith: "%."
+        ),
+        .init(
+            id: "document-sentence-ending-in-a-close-quote", category: .contextual,
+            spoken: "the brief says open quote ship on friday close quote",
+            expected: "The brief says \"ship on Friday.\"",
+            mustKeep: ["Friday"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: "com.microsoft.Word",
+                documentName: "Board pack.docx",
+                precedingText: ""
+            ),
+            destination: .document,
+            mustBeginWith: "The"
+        ),
+
         // Three or more per destination, so the bake-off can score each place's prompt block on its own.
         .init(
             id: "document-list-only-when-spoken", category: .contextual,

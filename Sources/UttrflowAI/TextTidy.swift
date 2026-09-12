@@ -18,12 +18,4 @@ public enum TextTidy {
             .joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
-
-    /// Adds a full stop to a plain sentence with no ending; code and text with a line break are untouched.
-    public static func ensureTerminalPunctuation(_ text: String) -> String {
-        guard let last = text.last, !text.contains(where: \.isNewline) else { return text }
-        let alreadyFinished: Set<Character> = [".", "!", "?", ";", ":", ")", "}", "]", ",", "\"", "'", "…"]
-        guard !alreadyFinished.contains(last), last.isLetter || last.isNumber else { return text }
-        return text + "."
-    }
 }
