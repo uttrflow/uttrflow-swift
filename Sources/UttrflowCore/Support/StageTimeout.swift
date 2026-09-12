@@ -14,7 +14,7 @@ public enum StageTimeout: Sendable {
     public static let quick = Duration.seconds(15)
 }
 
-/// Runs `work`, answering `nil` when `limit` wins; the work is abandoned, not awaited, since it may hang.
+/// Runs `work`, answering `nil` when `limit` wins; the work is cancelled then, not awaited, since it may hang.
 public func withStageTimeout<Success: Sendable>(
     _ limit: Duration,
     clock: any Clock<Duration>,
@@ -22,10 +22,11 @@ public func withStageTimeout<Success: Sendable>(
 ) async throws -> Success? {
     let race = StageRace<Success>()
     var timer: Task<Void, Never>?
+    var working: Task<Void, Never>?
     await withCheckedContinuation { continuation in
         // Armed before either racer exists, so neither can arrive at an empty race.
         race.arm(continuation)
-        Task {
+        working = Task {
             do { race.finish(.finished(try await work())) } catch { race.finish(.failed(error)) }
         }
         timer = Task { [clock] in
@@ -35,6 +36,8 @@ public func withStageTimeout<Success: Sendable>(
     }
     // Cancelled so a stage that answers in time leaves no task waiting out the limit.
     timer?.cancel()
+    // And the work, so "this stage is over" is one fact: work that has finished ignores this.
+    working?.cancel()
     return try race.result()
 }
 
