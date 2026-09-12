@@ -47,7 +47,27 @@ public struct DestinationRule: Sendable, Equatable, Codable {
     /// Whether the app's window title falls under this row, which decides only an app no row names.
     public func matchesTitle(_ app: AppContext) -> Bool {
         guard let title = app.documentName?.lowercased(), !title.isEmpty else { return false }
-        return titleContains.contains { title.contains($0.lowercased()) }
+        return titleContains.contains { DestinationRule.title(title, names: $0.lowercased()) }
+    }
+
+    /// Whether the fragment stands as whole words in the title, so "Gmail" is not read out of "gmailer".
+    static func title(_ title: String, names fragment: String) -> Bool {
+        guard !fragment.isEmpty, title.count >= fragment.count else { return false }
+        let title = Array(title)
+        let fragment = Array(fragment)
+        for start in 0...(title.count - fragment.count)
+        where Array(title[start..<(start + fragment.count)]) == fragment {
+            let end = start + fragment.count
+            let opens = start == 0 || !isWordCharacter(title[start - 1])
+            let closes = end == title.count || !isWordCharacter(title[end])
+            if opens && closes { return true }
+        }
+        return false
+    }
+
+    /// A letter or a digit, which is what the rule above counts as part of a word.
+    private static func isWordCharacter(_ character: Character) -> Bool {
+        character.isLetter || character.isNumber
     }
 
     /// Whether a whole word of the app's name falls under this row, so "Barcode Buddy" is not an editor.
