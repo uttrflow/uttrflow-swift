@@ -7,6 +7,8 @@ public final class SampleAccumulator: Sendable {
         var samples: [Float] = []
         var peak: Float = 0
         var momentary: Float = 0
+        /// Whether a block has arrived since the meter last read, which is how a dead microphone shows up.
+        var heardSinceRead = false
     }
 
     /// Per-block release of the momentary level, blocks being the only clock here. See Docs/audio-capture.md.
@@ -32,6 +34,7 @@ public final class SampleAccumulator: Sendable {
             let rms = (sumOfSquares / Float(block.count)).squareRoot()
             let released = state.momentary * Self.release
             state.momentary = rms.isFinite ? Swift.max(rms, released) : released
+            state.heardSinceRead = true
         }
     }
 
@@ -44,8 +47,18 @@ public final class SampleAccumulator: Sendable {
     /// Loudest sample since the last ``reset()``, in `0...1`; says afterwards whether the mic was muted.
     public var peakLevel: Float { state.withLock(\.peak) }
 
-    /// How loud the microphone is now as RMS, in `0...1`; the meter reads this, not the high-water mark.
-    public var momentaryLevel: Float { state.withLock(\.momentary) }
+    /// How loud the microphone is now as RMS, in `0...1`, released on a read that no block arrived for.
+    public var momentaryLevel: Float {
+        state.withLock { state in
+            // A microphone that stopped delivering would otherwise hold its last reading for ever.
+            if state.heardSinceRead {
+                state.heardSinceRead = false
+            } else {
+                state.momentary *= Self.release
+            }
+            return state.momentary
+        }
+    }
 
     /// Returns everything collected and clears the buffer, so a finished recording cannot leak into the next.
     public func take() -> [Float] {

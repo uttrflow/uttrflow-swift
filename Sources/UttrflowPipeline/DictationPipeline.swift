@@ -9,6 +9,8 @@ public actor DictationPipeline {
     /// A `var` so a clean-up step switched off takes effect on the next dictation rather than the next launch.
     private var cleaner: any TranscriptCleaning
     private let context: any ContextEngine
+    /// The dictation's words, ranked against the screen it began on; a closure so the speech module stays out of here.
+    private let speechWords: @Sendable (AppContext) async -> [String]
     private let inserter: any TextInserting
     private let corrector: any WordCorrecting
     private let snippets: any SnippetExpanding
@@ -59,6 +61,8 @@ public actor DictationPipeline {
     private var earlyCut = 0
     private var earlyWork: Task<Void, Never>?
     private var earlyContext: AppContext?
+    /// Ranked once per dictation, against the screen it began on, and given to every piece.
+    private var dictationWords: [String]?
 
     /// What the clean-up steps did to each piece of the dictation under way, reported as one when it ends.
     private var cleaningRecords: [CleaningRecord] = []
@@ -69,6 +73,7 @@ public actor DictationPipeline {
         cleaner: any TranscriptCleaning,
         context: any ContextEngine,
         inserter: any TextInserting,
+        speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] },
         corrector: any WordCorrecting = NoTextChanges(),
         snippets: any SnippetExpanding = NoTextChanges(),
         learner: any DictationLearning = NoTextChanges(),
@@ -89,6 +94,7 @@ public actor DictationPipeline {
         self.cleaner = cleaner
         self.context = context
         self.inserter = inserter
+        self.speechWords = speechWords
         self.corrector = corrector
         self.snippets = snippets
         self.learner = learner
@@ -299,6 +305,7 @@ public actor DictationPipeline {
         earlyPieces = []
         earlyCut = 0
         earlyContext = nil
+        dictationWords = nil
         earlyWork = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
             let seeing = await self.earlyContextRead(mine)
             guard self.isStillRunning(mine) else { return }
@@ -321,21 +328,31 @@ public actor DictationPipeline {
             else { continue }
 
             // A piece that fails is left for the end, where its failure can be reported.
+            let seeing = await earlyContextRead(mine)
             let heard: Transcription?
             do {
-                heard = try await transcribe(audio, earlyCut..<end, recording: NoOpMetricsRecorder())
+                heard = try await transcribe(
+                    audio, earlyCut..<end, biasedTowards: await vocabulary(seeing: seeing),
+                    recording: NoOpMetricsRecorder())
             } catch {
                 return
             }
             guard generation == mine, !wasCancelled(mine) else { return }
             if let heard {
-                let seeing = await earlyContextRead(mine)
                 let piece = await finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
                 guard generation == mine, !wasCancelled(mine) else { return }
                 earlyPieces.append(piece)
             }
             earlyCut = end
         }
+    }
+
+    /// The words every piece of this dictation is biased towards, ranked once and then remembered.
+    private func vocabulary(seeing context: AppContext) async -> [String] {
+        if let dictationWords { return dictationWords }
+        let words = await speechWords(context)
+        dictationWords = words
+        return words
     }
 
     /// The screen as it was while the key was held, read once for every early piece.
@@ -401,7 +418,10 @@ public actor DictationPipeline {
         for window in remainder {
             let heard: Transcription?
             do {
-                heard = try await transcribe(audio, window, recording: tally)
+                heard = try await transcribe(
+                    audio, window,
+                    biasedTowards: await vocabulary(seeing: earlyContext ?? AppContext()),
+                    recording: tally)
             } catch {
                 await tally.report(to: metrics)
                 await fail(DictationFailure(error))
@@ -475,7 +495,8 @@ public actor DictationPipeline {
 
     /// Recognises one window of the audio, answering `nil` when nothing was said in it.
     private func transcribe(
-        _ audio: AudioSamples, _ window: Range<Int>, recording metrics: any MetricsRecording
+        _ audio: AudioSamples, _ window: Range<Int>, biasedTowards words: [String],
+        recording metrics: any MetricsRecording
     ) async throws -> Transcription? {
         let slice =
             AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
@@ -483,7 +504,9 @@ public actor DictationPipeline {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in
                 do {
-                    return Heard.words(try await speech.transcribe(slice, options: .automatic))
+                    return Heard.words(
+                        try await speech.transcribe(
+                            slice, options: TranscriptionOptions(vocabulary: words)))
                 } catch SpeechEngineError.nothingHeard, SpeechEngineError.audioTooShort {
                     // Only when there is nothing else: alone, silence is refused below.
                     guard window != audio.samples.indices else { throw SpeechEngineError.nothingHeard }

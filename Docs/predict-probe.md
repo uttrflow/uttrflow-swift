@@ -77,16 +77,21 @@ not — and since the inline ghost is the only surface, there is nothing to fall
 
 `uttrflow-dev probe surface --seconds 120 --output Docs/predict-sweep.md`
 
-**Not yet run.** Accessibility is granted per binary, and `uttrflow-dev` does not have
-it. Granting it needs a password, and the sweep needs somebody to click into a text
-field in each application while it runs. Until then the capability table below is empty
-and the ladder decision is unmade.
+**Not yet run.** It needs somebody at the Mac to click into a text field in each
+application while it runs, and that is the whole of what it needs. Until then the
+capability table below is empty and the ladder decision is unmade.
 
-To run it: grant `.build/release/uttrflow-dev` Accessibility in System Settings ›
-Privacy & Security › Accessibility, then run the command above and click into a text
-field in each of Terminal, Chrome, Safari, Slack, Mail, Notes, Word, Cursor, VS Code,
-Xcode, Messages, Finder, Music, Preview, Numbers, Pages, Linear, Notion, Figma and
-System Settings.
+To run it: run the command above from a terminal that already holds Accessibility, then
+click into a text field in each of Terminal, Chrome, Safari, Slack, Mail, Notes, Word,
+Cursor, VS Code, Xcode, Messages, Finder, Music, Preview, Numbers, Pages, Linear,
+Notion, Figma and System Settings.
+
+The binary needs no grant of its own and no password, because Accessibility is
+attributed to the responsible process, which is the terminal. `Docs/predict-ime.md`
+holds the reading behind that, under "An aside that unblocks the pending sweeps": every
+cross-process Accessibility read in that document was made from an unsigned scratch
+binary launched that way, and `AXIsProcessTrusted()` returned true. It also quotes what
+this page used to say, so the correction can be checked rather than taken.
 
 The probe prints each new field as it sees it, so the run can be watched. It asks
 system-wide first and the application second, in that order, because apps answer one or
@@ -99,8 +104,13 @@ on a page do not collapse into one row.
 
 `uttrflow-dev probe tap --seconds 20`, and `--stall` to force the system to disable it.
 
-**Not yet run**, for the same reason: an event tap cannot be created without
-Accessibility. What it will answer:
+**Not yet run**, for the same reason: somebody has to be at the Mac while it runs. Its
+trust check is satisfied the same way, from the terminal that already holds the grant.
+Whether that is enough for the tap itself is untested: `CGEvent.tapCreate` can refuse
+after `AXIsProcessTrusted()` has returned true, and a keyboard tap may want Input
+Monitoring, which is a grant of its own. The probe tells the two apart rather than
+failing silently — "The tap could not be created even though Accessibility is granted"
+is that case, and it is the first thing this sweep will settle. What it will answer:
 
 - Tab is swallowed while the tap is armed, and other keys pass through untouched.
 - `--stall` sleeps two seconds inside the callback, which is past the system's patience,

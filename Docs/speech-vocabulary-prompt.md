@@ -14,8 +14,9 @@ Not the model's 448-token context, and not half of it either. WhisperKit trims t
 `(Constants.maxTokenContext / 2) - 1`, and `maxTokenContext` is itself `Int(448 / 2)` — 224 —
 so the real ceiling is 111.
 
-> WhisperKit 0.18: `Core/TextDecoder.swift:339` for the expression, `Core/Models.swift:1420`
-> for the constant.
+> WhisperKit 1.1.0: `Core/TextDecoder.swift:199` for the expression, `Core/Models.swift:1340`
+> for the constant. Both numbers are asserted against the linked package by
+> `WhisperKitContractTests`, so a bump that moves them fails the build rather than this page.
 
 Truncating here rather than leaving it to the decoder is the whole point. WhisperKit keeps
 the *last* 111 tokens and drops the rest without a word, so a vocabulary ranked best-first
@@ -57,7 +58,7 @@ WhisperKit forces a fixed run of tokens through the decoder before the transcrip
 
 The language and task tokens are absent when the model only knows English.
 
-> WhisperKit 0.18, `Core/TextDecoder.swift:313-342`.
+> WhisperKit 1.1.0, `Core/TextDecoder.swift:163-223`.
 
 WhisperKit ends a window the moment the sampler predicts the end token — *including* while it
 is still force-feeding the prompt, when whatever the sampler produced is thrown away anyway.

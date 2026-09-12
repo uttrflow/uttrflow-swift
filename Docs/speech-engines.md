@@ -88,7 +88,8 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
   as the transcript that came before, so text shaped like a transcript is what it conditions on.
 - The real prompt ceiling is 111 tokens, not the model's 448-token context and not half of it:
   WhisperKit trims the prompt to `(Constants.maxTokenContext / 2) - 1` and `maxTokenContext` is
-  `Int(448 / 2)` (WhisperKit 0.18, `Core/TextDecoder.swift:339` and `Core/Models.swift:1420`).
+  `Int(448 / 2)` (WhisperKit 1.1.0, `Core/TextDecoder.swift:199` and `Core/Models.swift:1340`;
+  `WhisperKitContractTests` asserts the derivation against the linked package).
   It keeps the *last* 111 tokens and drops the rest without a word, so a best-first vocabulary
   would lose precisely the words worth having; the prompt is packed word by word here instead,
   skipping a word that does not fit rather than stopping.
@@ -107,7 +108,7 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
   word, a comma-separated glossary, a sentence of prose, at nine tokens and at fifty-two.
 - `PromptPrefillGuard` holds the end token shut until the forced prefill
   (`[<|startofprev|>] + prompt + [<|startoftranscript|>, language, task, timestamps]`, minus
-  language and task for an English-only model; `Core/TextDecoder.swift:313-342`) has gone
+  language and task for an English-only model; `Core/TextDecoder.swift:163-223`) has gone
   through. The `tokens.count == sampleBegin` shape is WhisperKit's own (`SuppressBlankFilter` is
   built the same way) and works because the token array does not grow while the prompt is
   forced. It is installed through `logitsFilters`, a documented extension point, and reassigned

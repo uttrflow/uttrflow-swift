@@ -257,7 +257,10 @@ Three surfaces, so a word that went missing can be accounted for rather than gue
   3: um, uh, um", "Numbers: rewrote 1: fifteen → 15" — and a grey row for each step that
   is switched off, because a step that is off is why a word the user expected to go is
   still there. It is read off the finished draft's own record of which pass touched which
-  word (`CleaningRecord`), so it cannot claim a removal nothing made. `DictationPipeline`
+  word (`CleaningRecord`), so it cannot claim a removal nothing made. An engine whose answer
+  the meaning guard refused is named there too — "Answer refused — foundationModels: …" —
+  because a refusal is why a dictation comes out plainer than the last one, and until now it
+  reached no surface at all: the router simply moved on to the rules and the reason was lost. `DictationPipeline`
   collects one account per piece where it already reports the stage timings and hands the
   merged account to `DiagnosticsRecorder`, which keeps the last one and only the last.
   Nothing is written to disk or sent anywhere; the **Copy Diagnostics** report counts the
