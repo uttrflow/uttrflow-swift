@@ -56,8 +56,8 @@ public actor DictationPipeline {
     /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
     private var openRecording: UUID?
 
-    /// Pieces finished while the key was still held, and where the audio they cover ends. See `Docs/early-transcription.md`.
-    private var earlyPieces: [Piece] = []
+    /// Spans the early loop reached while the key was held, and where the audio it consumed ends. See `Docs/early-transcription.md`.
+    private var earlySpans: [Span] = []
     private var earlyCut = 0
     private var earlyWork: Task<Void, Never>?
     private var earlyContext: AppContext?
@@ -279,7 +279,7 @@ public actor DictationPipeline {
         cancelledGeneration = generation
         earlyWork?.cancel()
         earlyWork = nil
-        earlyPieces = []
+        earlySpans = []
         earlyCut = 0
         await capture.cancel()
         await discardOpenRecording()
@@ -302,7 +302,7 @@ public actor DictationPipeline {
 
     /// Reads the screen, warms the tidier for where the words are going, then works on the recording as it grows.
     private func beginWorkingAhead(_ mine: Int) {
-        earlyPieces = []
+        earlySpans = []
         earlyCut = 0
         earlyContext = nil
         dictationWords = nil
@@ -327,7 +327,6 @@ public actor DictationPipeline {
                     in: audio.samples, sampleRate: audio.sampleRate, from: earlyCut)
             else { continue }
 
-            // A piece that fails is left for the end, where its failure can be reported.
             let seeing = await earlyContextRead(mine)
             let heard: Transcription?
             do {
@@ -335,13 +334,17 @@ public actor DictationPipeline {
                     audio, earlyCut..<end, biasedTowards: await vocabulary(seeing: seeing),
                     recording: NoOpMetricsRecorder())
             } catch {
-                return
+                guard generation == mine, !wasCancelled(mine) else { return }
+                // A failed piece is left for the end, where it is reported; the rest still work ahead.
+                earlySpans.append(.pending(earlyCut..<end))
+                earlyCut = end
+                continue
             }
             guard generation == mine, !wasCancelled(mine) else { return }
             if let heard {
                 let piece = await finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
                 guard generation == mine, !wasCancelled(mine) else { return }
-                earlyPieces.append(piece)
+                earlySpans.append(.done(piece))
             }
             earlyCut = end
         }
@@ -381,6 +384,12 @@ public actor DictationPipeline {
 
     // MARK: Stages
 
+    /// One span of a recording: the words a pass finished it with, or audio a later pass still has to do.
+    private enum Span {
+        case done(Piece)
+        case pending(Range<Int>)
+    }
+
     /// Where the finished words go.
     private enum Delivery {
         case insert
@@ -396,47 +405,75 @@ public actor DictationPipeline {
         earlyWork?.cancel()
         await earlyWork?.value
         earlyWork = nil
-        var pieces = earlyPieces
+        var spans = earlySpans
         var cut = earlyCut
         let earlyContext = self.earlyContext
-        earlyPieces = []
+        earlySpans = []
         earlyCut = 0
         self.earlyContext = nil
         // Pieces cut from other audio than this cannot be joined to it.
         if delivery == .copy || cut > audio.samples.count {
-            pieces = []
+            spans = []
             cut = 0
             cleaningRecords = []
         }
 
         var remainder = windowing.windows(in: audio.samples, sampleRate: audio.sampleRate, from: cut)
         // Nothing at all still goes to the recogniser, whose refusal names the reason.
-        if pieces.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
+        if spans.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
 
         let tally = StageTally()
         var appContext = earlyContext
-        for window in remainder {
-            let heard: Transcription?
-            do {
-                heard = try await transcribe(
-                    audio, window,
-                    biasedTowards: await vocabulary(seeing: earlyContext ?? AppContext()),
-                    recording: tally)
-            } catch {
-                await tally.report(to: metrics)
-                await fail(DictationFailure(error))
-                return
-            }
-            guard !wasCancelled(mine) else { return }
-            guard let heard else { continue }
+        var pieces: [Piece] = []
+        var failure: DictationFailure?
+        var abandoned = false
+        // One tidy runs beside the next recognition, which the two stages allow. See `Docs/early-transcription.md`.
+        await withTaskGroup(of: Piece.self) { tidying in
+            // A span the early loop left unfinished is done here, in its place, so the words stay in order.
+            for span in spans + remainder.map(Span.pending) {
+                let window: Range<Int>
+                switch span {
+                case .done(let piece):
+                    if let earlier = await tidying.next() { pieces.append(earlier) }
+                    pieces.append(piece)
+                    continue
+                case .pending(let range):
+                    window = range
+                }
+                let heard: Transcription?
+                do {
+                    heard = try await transcribe(
+                        audio, window,
+                        biasedTowards: await vocabulary(seeing: earlyContext ?? AppContext()),
+                        recording: tally)
+                } catch {
+                    failure = DictationFailure(error)
+                    tidying.cancelAll()
+                    return
+                }
+                // The tidy that ran beside this recognition is taken before the next one starts, so one is ever in flight.
+                if let earlier = await tidying.next() { pieces.append(earlier) }
+                guard !wasCancelled(mine) else {
+                    abandoned = true
+                    tidying.cancelAll()
+                    return
+                }
+                guard let heard else { continue }
 
-            // The first piece ends transcribing, whether or not the screen was read while recording.
-            if state == .transcribing { transition(to: .tidying) }
-            if appContext == nil { appContext = await contextFor(delivery) }
-            let seeing = appContext ?? AppContext()
-            pieces.append(await finish(heard, seeing: seeing, recording: tally))
-            guard !wasCancelled(mine) else { return }
+                // The first piece ends transcribing, whether or not the screen was read while recording.
+                if state == .transcribing { transition(to: .tidying) }
+                if appContext == nil { appContext = await contextFor(delivery) }
+                let seeing = appContext ?? AppContext()
+                tidying.addTask { await self.finish(heard, seeing: seeing, recording: tally) }
+            }
+            while let last = await tidying.next() { pieces.append(last) }
         }
+        if let failure {
+            await tally.report(to: metrics)
+            await fail(failure)
+            return
+        }
+        guard !abandoned, !wasCancelled(mine) else { return }
         await tally.report(to: metrics)
         // Only when something was tidied, so silence cannot blank the last account.
         if !cleaningRecords.isEmpty {

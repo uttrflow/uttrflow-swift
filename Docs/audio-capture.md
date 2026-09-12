@@ -43,6 +43,29 @@ the one-line comments. `Docs/microphone.md` covers the hardware moving under the
 - The accumulator is reset before a recording starts, not after it stops, so a crash
   mid-recording cannot prepend audio to the next one.
 
+## Draining the tap at key-up
+
+A tap delivers whole buffers. Installed at 4096 frames, it fills for about 85 ms at 48 kHz before it
+calls back, so at the instant the key comes up the hardware is part-way through a buffer that has
+not been handed over. Removing the tap there discards it, and nothing downstream can add samples
+that were never captured — usually that falls in the gap between the last word and the key release,
+and when the user lets go quickly it takes the tail of the final word.
+
+So `MicrophoneSource.stop(draining:)` waits before tearing anything down. `TapDrain` returns as soon
+as the next block arrives and at the latest when the window closes, and the window is one tap period
+computed from the buffer size and the rate the device is actually running at — not a constant, so it
+stays right if the buffer is ever tuned. It is capped at 250 ms, because a device that misreports its
+rate would otherwise hold key-up open for as long as it liked.
+
+A cancelled recording does not drain: its audio is discarded, so waiting for more of it would only
+delay the key coming up.
+
+Measured at the seam rather than on hardware, with a fake source holding one block back: a drained
+stop returns 1,365 more canonical samples than an undrained one, which is 85.3 ms — one tap period
+at 4096 frames and 48 kHz, resampled to 16 kHz. What the converter keeps back is a separate and much
+smaller loss: `AudioResampler` reuses one stateful `AVAudioConverter` across calls, so its delay line
+is emitted on the next call and only the final residual is lost.
+
 ## Cue bleed
 
 Playing a cue around capture puts the cue into the recording. Measured on macOS 26.5, built-in
@@ -56,8 +79,8 @@ while the sound goes on for another half second: `DictationController` plays the
 the pipeline is listening, so the whole cue lands in the recording.
 
 The tail is not. `AVAudioCaptureEngine.stop()` plays the stop cue after the microphone source has
-stopped and before the buffer is taken, so the user hears it within milliseconds of letting go and
-none of it is recorded. The controller and the engine hold the same cue, which is what keeps a stop
+stopped and before the buffer is taken, so none of it is recorded. The drain below sits in front of
+that, so the cue now lands up to one tap period after the key comes up rather than immediately. The controller and the engine hold the same cue, which is what keeps a stop
 from sounding after a start that did not. A cancelled recording plays no stop cue.
 
 What mitigates it, in descending order of effect:

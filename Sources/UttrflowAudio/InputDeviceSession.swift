@@ -41,7 +41,7 @@ public final class InputDeviceSession: Sendable {
     private struct State {
         var health: DeviceHealth = .gone
         var reopening: Task<Void, Never>?
-        var report: (@Sendable (AudioCaptureError) -> Void)?
+        var report: (@Sendable (CaptureInterruption) -> Void)?
     }
 
     private let device: any InputDevice
@@ -63,7 +63,7 @@ public final class InputDeviceSession: Sendable {
 
     /// Opens the device for the first time, where a failure is the caller's to see rather than to retry.
     public func open(
-        reporting: @escaping @Sendable (AudioCaptureError) -> Void
+        reporting: @escaping @Sendable (CaptureInterruption) -> Void
     ) throws(AudioCaptureError) {
         state.withLock { $0.report = reporting }
         do {
@@ -87,12 +87,14 @@ public final class InputDeviceSession: Sendable {
 
     /// Reopens after a configuration change, retrying across the window in which a device re-enumerates.
     public func deviceChanged() {
-        let begin = state.withLock { state -> Bool in
-            guard state.health == .live else { return false }
+        let begun = state.withLock { state -> (@Sendable (CaptureInterruption) -> Void)? in
+            guard state.health == .live else { return nil }
             state.health = .reopening
-            return true
+            return state.report ?? { _ in }
         }
-        guard begin else { return }
+        guard let begun else { return }
+        // Said before the retry, because a stop landing mid-reopen would otherwise report nothing at all.
+        begun(.began)
         device.close()
         let reopening = Task { [self] in await reopen() }
         // Only if the retry has not already finished, which it can when the schedule waits for nothing.
@@ -120,7 +122,7 @@ public final class InputDeviceSession: Sendable {
                 continue
             }
         }
-        let report = state.withLock { state -> (@Sendable (AudioCaptureError) -> Void)? in
+        let report = state.withLock { state -> (@Sendable (CaptureInterruption) -> Void)? in
             guard state.health == .reopening else { return nil }
             state.health = .gone
             state.reopening = nil
@@ -128,6 +130,8 @@ public final class InputDeviceSession: Sendable {
             return state.report
         }
         // Said out loud, because the alternative is a recording that ends early and reads as complete.
-        report?(.engineFailed(description: "The microphone did not come back after the device changed."))
+        report?(
+            .ended(
+                .engineFailed(description: "The microphone did not come back after the device changed.")))
     }
 }

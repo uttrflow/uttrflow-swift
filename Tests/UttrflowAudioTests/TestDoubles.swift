@@ -9,9 +9,11 @@ import Synchronization
 final class FakeMicrophoneSource: MicrophoneSource {
     private struct State {
         var handler: (@Sendable ([Float]) -> Void)?
-        var failed: (@Sendable (AudioCaptureError) -> Void)?
+        var interrupted: (@Sendable (CaptureInterruption) -> Void)?
         var startCount = 0
         var stopCount = 0
+        var drainedCount = 0
+        var heldAtStop: [Float]?
         var startError: AudioCaptureError?
     }
 
@@ -23,13 +25,13 @@ final class FakeMicrophoneSource: MicrophoneSource {
 
     func start(
         onSamples: @escaping @Sendable ([Float]) -> Void,
-        onFailure: @escaping @Sendable (AudioCaptureError) -> Void
+        onInterruption: @escaping @Sendable (CaptureInterruption) -> Void
     ) throws(AudioCaptureError) {
         let error = state.withLock { state -> AudioCaptureError? in
             state.startCount += 1
             if state.startError == nil {
                 state.handler = onSamples
-                state.failed = onFailure
+                state.interrupted = onInterruption
             }
             return state.startError
         }
@@ -38,14 +40,27 @@ final class FakeMicrophoneSource: MicrophoneSource {
 
     /// Says the microphone stopped for good, which is what a device that never came back does.
     func die(_ error: AudioCaptureError = .engineFailed(description: "gone")) {
-        state.withLock { $0.failed }?(error)
+        state.withLock { $0.interrupted }?(.ended(error))
     }
 
-    func stop() {
+    /// Says the device went and came back, which leaves a hole in the middle of the recording.
+    func skip() {
+        state.withLock { $0.interrupted }?(.began)
+    }
+
+    /// Hands over one last block while draining, which is what a tap holding a part-filled buffer does.
+    func stop(draining: Bool) async {
+        if draining, let tail = state.withLock(\.heldAtStop) { emit(tail) }
         state.withLock { state in
             state.stopCount += 1
+            state.drainedCount += draining ? 1 : 0
             state.handler = nil
         }
+    }
+
+    /// What the hardware is still holding when the key comes up, delivered only to a stop that drains.
+    func holdAtStop(_ samples: [Float]) {
+        state.withLock { $0.heldAtStop = samples }
     }
 
     /// Delivers samples the way a real tap would, from outside the engine's actor.
@@ -56,6 +71,7 @@ final class FakeMicrophoneSource: MicrophoneSource {
     var isDelivering: Bool { state.withLock { $0.handler != nil } }
     var startCount: Int { state.withLock(\.startCount) }
     var stopCount: Int { state.withLock(\.stopCount) }
+    var drainedCount: Int { state.withLock(\.drainedCount) }
 }
 
 /// Builds a PCM buffer without touching hardware.
