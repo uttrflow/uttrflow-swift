@@ -68,6 +68,33 @@ struct TransformerRouterTests {
         #expect(failing.transformCount == 1, "it should have been tried before falling through")
     }
 
+    /// A user who suddenly gets rules-only text has no other way to learn why. See #193.
+    @Test("records the refused answer on the record of the engine that did answer")
+    func recordsARefusal() async throws {
+        let failing = StubTransformer(
+            kind: .foundationModels, error: .outputRejected(reason: "changed the meaning")
+        )
+        let router = TransformerRouter(
+            engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules]
+        )
+
+        let result = try await router.transform(request)
+
+        #expect(result.cleaning?.refusals.count == 1)
+        #expect(result.cleaning?.refusals.first?.engine == TransformerKind.foundationModels.rawValue)
+        #expect(result.cleaning?.refusals.first?.reason == "changed the meaning")
+    }
+
+    @Test("leaves the record alone when the first engine answers")
+    func recordsNoRefusalWhenNothingWasRefused() async throws {
+        let router = TransformerRouter(
+            engines: [StubTransformer(kind: .rules)], preference: [.rules])
+
+        let result = try await router.transform(request)
+
+        #expect(result.cleaning?.refusals.isEmpty != false)
+    }
+
     @Test("honours the order it was given, not the order engines were registered")
     func honoursPreferenceOrder() async throws {
         let router = TransformerRouter(
