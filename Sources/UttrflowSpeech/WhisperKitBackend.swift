@@ -15,6 +15,11 @@ public actor WhisperKitBackend: TranscriptionBackend {
         self.modelFolder = modelFolder
     }
 
+    /// One frame past the end-of-clip window it is driven with, since a clip no longer than that decodes to nothing.
+    static let shortestClip = Duration.seconds(Double(VocabularyPrompt.windowClipTime)) + .milliseconds(20)
+
+    public nonisolated var minimumDuration: Duration { Self.shortestClip }
+
     public func load() async throws(SpeechEngineError) {
         guard kit == nil else { return }
         // A missing tokenizer is "not installed", or WhisperKit visits Hugging Face instead of failing.

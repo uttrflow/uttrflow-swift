@@ -5,41 +5,68 @@ public enum DestinationRules {
         DestinationRule(
             bundlePrefixes: [
                 "at.eggerapps.Postico", "com.tinyapp.TablePlus", "com.jetbrains.datagrip",
-                "org.jkiss.dbeaver", "org.pgadmin.pgadmin4",
+                "org.jkiss.dbeaver", "org.pgadmin.pgadmin4", "com.sequelpro", "com.sequel-ace",
             ],
             titleContains: ["pgAdmin"],
-            destination: .sqlEditor
+            nameWords: ["tableplus", "postico", "datagrip", "dbeaver", "pgadmin", "sequel"],
+            kind: .sqlEditor
         ),
         DestinationRule(
             bundlePrefixes: ["com.apple.iWork.Numbers", "com.microsoft.Excel"],
             titleContains: ["Google Sheets"],
-            destination: .spreadsheet
+            nameWords: ["numbers", "excel"],
+            kind: .spreadsheet
         ),
         DestinationRule(
             bundlePrefixes: [
-                "com.microsoft.Word", "com.apple.iWork.Pages", "com.apple.Notes", "com.apple.TextEdit",
+                "com.microsoft.Word", "com.apple.iWork.Pages", "com.apple.TextEdit",
             ],
             titleContains: ["Google Docs"],
-            destination: .document
+            nameWords: ["textedit", "pages", "word"],
+            kind: .documentEditor
+        ),
+        DestinationRule(
+            bundlePrefixes: ["com.apple.Notes", "notion.id", "md.obsidian", "net.shinyfrog.bear"],
+            nameWords: ["notes", "notion", "obsidian", "bear", "craft", "drafts"],
+            kind: .notes
+        ),
+        DestinationRule(
+            bundlePrefixes: [
+                "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp",
+                "net.kovidgoyal.kitty", "org.alacritty", "com.mitchellh.ghostty",
+            ],
+            nameWords: ["terminal", "iterm", "iterm2", "warp", "kitty", "alacritty", "ghostty"],
+            kind: .terminal
         ),
         DestinationRule(
             bundlePrefixes: [
                 "com.apple.dt.Xcode", "com.todesktop.230313mzl4w4u92", "com.microsoft.VSCode",
-                "dev.zed.Zed", "com.jetbrains.", "com.apple.Terminal", "com.googlecode.iterm2",
+                "dev.zed.Zed", "com.jetbrains.", "com.sublimetext", "com.panic.Nova",
             ],
-            destination: .codeEditor
+            nameWords: [
+                "xcode", "code", "zed", "sublime", "cursor", "nova", "intellij", "pycharm", "goland",
+                "vim", "neovim", "emacs",
+            ],
+            kind: .codeEditor
         ),
         DestinationRule(
             bundlePrefixes: [
-                "com.tinyspeck.slackmacgap", "net.whatsapp.WhatsApp", "ru.keepcoder.Telegram",
-                "com.hnc.Discord", "com.apple.MobileSMS", "com.microsoft.teams2",
+                "com.tinyspeck.slackmacgap", "net.whatsapp", "desktop.whatsapp", "ru.keepcoder.Telegram",
+                "org.telegram", "com.hnc.Discord", "com.apple.MobileSMS", "com.microsoft.teams",
+                "org.whispersystems.signal",
             ],
-            destination: .messaging
+            nameWords: [
+                "slack", "discord", "messages", "whatsapp", "telegram", "teams", "signal",
+            ],
+            kind: .chat
         ),
         DestinationRule(
-            bundlePrefixes: ["com.apple.mail", "com.microsoft.Outlook", "com.superhuman.electron"],
+            bundlePrefixes: [
+                "com.apple.mail", "com.microsoft.Outlook", "com.superhuman", "com.readdle.smartemail",
+            ],
             titleContains: ["Gmail"],
-            destination: .email
+            nameWords: ["mail", "outlook", "spark", "superhuman"],
+            kind: .email
         ),
     ]
 }

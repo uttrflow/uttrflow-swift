@@ -131,9 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let formatter: any CodeFormatting = SystemCodeFormatter()
 
     /// The one pasteboard that announces its writes, so no inserter can silently forget to. See `Docs/insertion.md`.
-    private lazy var announcingPasteboard = SystemPasteboard {
-        [clipboardWatcher] in clipboardWatcher.ignoreNextWrite(of: $0)
-    }
+    private lazy var announcingPasteboard = SystemPasteboard(
+        willWrite: { [clipboardWatcher] in clipboardWatcher.ignoreNextWrite(of: $0) },
+        willWritePicture: { [clipboardWatcher] in clipboardWatcher.ignoreNextPicture($0) })
 
     /// Puts a chosen clip where the caret is, announcing the write so it is not read as a copy.
     private lazy var clipInserter = TextInsertion.coordinator(
@@ -888,16 +888,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// K4 — pastes a picture, on its own path because the Accessibility route writes only strings.
     private func insertImage(_ clip: Clip) {
         markUsed(clip.id)
-        Task { [clipboard, clipboardWatcher] in
+        Task { [clipboard, pasteboard = announcingPasteboard] in
             guard let image = clip.image, let data = await clipboard.imageData(for: image) else {
                 // B8 from the other side: the file went between the draw and the keypress.
                 Self.log.error("picture missing at paste: \(clip.id, privacy: .public)")
                 return
             }
-            // No text to name, so the count is all this one has to go on.
-            clipboardWatcher.ignoreNextWrite()
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setData(data, forType: .png)
+            // Named by its bytes, so a copy landing in the same tick is not claimed by this write.
+            pasteboard.setImage(data)
             do {
                 try CGEventKeystrokeSender().sendPaste()
             } catch let failure as TextInsertionError {
@@ -958,14 +956,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quickPanel.update(PanelPresenter.present(snapshot))
     }
 
-    /// Announced first, so a clip put back is not read as the user copying it.
+    /// Through the one pasteboard, so the write is announced and stays on this Mac. See `Docs/insertion.md`.
     private func putOnClipboard(_ text: String, richText: String? = nil, used: Clip.ID?) {
         markUsed(used)
-        clipboardWatcher.ignoreNextWrite(of: text)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
         // E2, E3 — both flavours, so the receiving application takes the one it understands.
-        if let richText { NSPasteboard.general.setString(richText, forType: .html) }
+        announcingPasteboard.setText(text, richText: richText)
     }
 
     /// Long enough to read one short sentence and no more, since the panel is in the way.
