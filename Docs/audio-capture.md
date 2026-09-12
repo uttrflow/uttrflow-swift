@@ -27,8 +27,9 @@ the one-line comments. `Docs/microphone.md` covers the hardware moving under the
 ## The level meter
 
 - A microphone tap runs on a real-time thread that must never wait on an actor, so
-  `SampleAccumulator` is a lock-guarded box. The lock is uncontended in practice: one producer,
-  one consumer, never at the same moment. `momentaryLevel` is `nonisolated` on the capture
+  `SampleAccumulator` is a lock-guarded box. One producer, one consumer, and every critical
+  section is short and allocation-free — see the block storage below, which is what keeps the
+  producer's section short now that it is read while it writes. `momentaryLevel` is `nonisolated` on the capture
   engine for the same reason: a meter on the main actor reads it twenty times a second and must
   not queue behind a `stop()` that is converting a recording.
 - The momentary level is root mean square, not the block's peak: a meter driven by peaks reads
@@ -42,6 +43,32 @@ the one-line comments. `Docs/microphone.md` covers the hardware moving under the
   microphone was muted, useless for a meter, because one loud syllable would peg it.
 - The accumulator is reset before a recording starts, not after it stops, so a crash
   mid-recording cannot prepend audio to the next one.
+
+## Why the samples are stored in blocks
+
+Working ahead reads the audio while it is still growing: `capturedSoFar()` is called once a
+second for the whole of a dictation. When the accumulator was one `[Float]`, handing that array
+out made it non-uniquely referenced, so the very next `append` — which runs on the tap's
+real-time thread, inside the same lock — had to copy the whole buffer before it could add
+anything. At canonical mono 16 kHz that is 15.4 MB at four minutes, once per read, charged to
+the one thread that must never pay for anything.
+
+So the samples live in fixed 4096-sample blocks. A block is written until it is full, then
+sealed and never touched again, and a fresh one is opened with its capacity reserved up front.
+A reader takes references to the sealed blocks and a copy of the open one — at most 16 KB —
+and lays them end to end after the lock is released. The capture thread therefore only ever
+appends into a block it uniquely owns, and its cost per block is bounded by the block size
+rather than by the length of the recording.
+
+`copiedOnAppend` counts the samples the capture thread has had to copy because its storage moved
+under it, which is what makes the invariant above checkable instead of asserted: it is zero
+across any number of reads, and on the single-array shape it grew by the whole buffer every time.
+`Tests/UttrflowAudioTests/SampleAccumulatorTests.swift` holds the measurement.
+
+**What is not measured.** Whether the old copy ever made the tap late. The block budget is 85 ms
+and a 15 MB copy is on the order of a millisecond or two, so the step from the copy to a dropped
+block and a missing syllable is plausible and has never been observed. The allocation behaviour
+is what is measured here; the latency is not.
 
 ## Draining the tap at key-up
 
