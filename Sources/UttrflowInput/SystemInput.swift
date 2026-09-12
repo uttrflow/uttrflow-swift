@@ -116,9 +116,7 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        let units = Array(text.utf16)
-        for start in stride(from: 0, to: units.count, by: Self.unitsPerEvent) {
-            let chunk = Array(units[start..<min(start + Self.unitsPerEvent, units.count)])
+        for chunk in UTF16Chunking.chunks(of: text, limit: Self.unitsPerEvent) {
             try postTaggedKeyPair(from: source, keyCode: 0) { event in
                 // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
                 event.flags = []
