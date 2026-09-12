@@ -136,3 +136,8 @@ Both counters go through one find-change-write path so they cannot drift into tw
 of what a missing entry means. Each answers with the entry as it now stands, so a caller sees the
 moment a word retires itself rather than discovering it from a lookup that has quietly stopped
 returning it; `nil` is what a caller holding a stale list should be told.
+
+A dictation's uses go through the same path as one batch: `recordUse(of:)` given a list changes
+every entry in it that is still there and writes the file once, and writes nothing at all when
+none of them is. The counts are on disk before the call returns, so nothing is held in memory for
+a crash or a quit to lose; a write the disk refuses counts none of the batch.

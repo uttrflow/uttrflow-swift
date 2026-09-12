@@ -59,8 +59,8 @@ public protocol SnippetExpanding: Sendable {
 
 /// Told what a landed dictation used, one method per store so the pipeline decides what failure survives.
 public protocol DictationLearning: Sendable {
-    /// Notes that one dictionary entry was applied to a dictation that landed.
-    func recordUse(ofEntry id: UUID) async throws(DictationChangeError)
+    /// Notes that these dictionary entries were applied to a dictation that landed, each listed once.
+    func recordUse(ofEntries ids: [UUID]) async throws(DictationChangeError)
 
     /// Notes that these snippets fired in a dictation that landed; one that fired twice appears twice.
     func recordUse(ofSnippets ids: [UUID]) async throws(DictationChangeError)
@@ -88,7 +88,7 @@ public struct NoTextChanges:
 
     public func expand(_ text: String) -> ExpandedTranscript { .unchanged(text) }
 
-    public func recordUse(ofEntry id: UUID) {}
+    public func recordUse(ofEntries ids: [UUID]) {}
 
     public func recordUse(ofSnippets ids: [UUID]) {}
 

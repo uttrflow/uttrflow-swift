@@ -132,7 +132,13 @@ public actor PersonalDictionaryStore {
     /// Notes that an entry was applied to a dictation, answering with it so a caller sees it retire.
     @discardableResult
     public func recordUse(of id: UUID) throws(DictionaryStoreError) -> DictionaryEntry? {
-        try update(id) { $0.timesUsed += 1 }
+        try recordUse(of: [id]).first
+    }
+
+    /// Counts one dictation against each distinct entry in a single write, answering with those counted.
+    @discardableResult
+    public func recordUse(of ids: [UUID]) throws(DictionaryStoreError) -> [DictionaryEntry] {
+        try update(Set(ids)) { $0.timesUsed += 1 }
     }
 
     /// Notes that the user undid a dictation this entry was applied to, which is what retires a word.
@@ -151,11 +157,20 @@ public actor PersonalDictionaryStore {
     private func update(
         _ id: UUID, _ change: (inout DictionaryEntry) -> Void
     ) throws(DictionaryStoreError) -> DictionaryEntry? {
+        try update([id], change).first
+    }
+
+    /// Changes every entry named in `ids` and writes once, or not at all when none of them is there.
+    private func update(
+        _ ids: Set<UUID>, _ change: (inout DictionaryEntry) -> Void
+    ) throws(DictionaryStoreError) -> [DictionaryEntry] {
+        guard !ids.isEmpty else { return [] }
         var entries = load()
-        guard let position = entries.firstIndex(where: { $0.id == id }) else { return nil }
-        change(&entries[position])
+        let positions = entries.indices.filter { ids.contains(entries[$0].id) }
+        guard !positions.isEmpty else { return [] }
+        for position in positions { change(&entries[position]) }
         try persist(entries)
-        return entries[position]
+        return positions.map { entries[$0] }
     }
 
     // MARK: - The file

@@ -705,12 +705,10 @@ public actor DictationPipeline {
     private func count(_ changes: AppliedChanges) async {
         guard !changes.isEmpty else { return }
 
-        // Once per entry: the store counts dictations an entry was applied to, not words.
+        // Once per entry and in one batch: the store counts dictations an entry was applied to, not words.
         var counted: Set<UUID> = []
-        for correction in changes.corrections where counted.insert(correction.entryID).inserted {
-            // Each on its own, so a store that refuses the first still counts the second.
-            try? await learner.recordUse(ofEntry: correction.entryID)
-        }
+        let entries = changes.corrections.map(\.entryID).filter { counted.insert($0).inserted }
+        if !entries.isEmpty { try? await learner.recordUse(ofEntries: entries) }
 
         guard !changes.snippets.isEmpty else { return }
         // One batch, duplicates left in, because the store counts firings not dictations.
