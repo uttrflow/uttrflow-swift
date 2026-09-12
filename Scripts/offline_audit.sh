@@ -159,17 +159,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. The known gap: WhisperKit's tokenizer is fetched separately, at load time.
+# 4. A gap this audit found, now closed: WhisperKit's tokenizer, fetched at load time.
 # ---------------------------------------------------------------------------
 #
 # WhisperKit loads a tokenizer after the model, and falls back to downloading it from
 # the hub when it cannot find `tokenizer.json` locally. `download: false` does not cover
-# that — it governs the model only. Uttrflow does not pass a `tokenizerFolder`, and the
-# store does not install one, so on a Mac that has never transcribed while online the
-# first dictation reaches for the network and fails. Docs/offline.md has the evidence.
+# that — it governs the model only. Uttrflow passed no `tokenizerFolder` and the store did
+# not install one, so on a Mac that had never transcribed while online the first dictation
+# reached for the network and failed. Docs/offline.md has the evidence.
 #
-# The check flips once somebody fixes it: while unfixed it reports, and after the fix it
-# guards, so the fix cannot be undone quietly.
+# The store now installs the tokenizer and the backend pins the folder, so this check has
+# flipped from reporting the gap to guarding the fix, and the fix cannot be undone quietly.
 printf '\nTokenizer\n'
 
 if grep -q 'tokenizerFolder' "$BACKEND" 2>/dev/null; then

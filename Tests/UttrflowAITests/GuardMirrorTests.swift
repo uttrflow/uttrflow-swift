@@ -17,6 +17,10 @@ struct GuardMirrorTests {
         ("a number said in words", "i need chairs", "I need twenty chairs."),
         ("the bulk of the words", "the quarterly report is late again and the client noticed", "Late."),
         ("every word", "hello there", ""),
+        (
+            "a word's place", "we approved the design but rejected the budget",
+            "We rejected the design but approved the budget."
+        ),
     ]
 
     /// Refusals with no mirror, each saying why; a reason may leave this list, and a new one may never join it.
