@@ -177,6 +177,13 @@ public enum EvaluationCorpus {
             mustNotAdd: ["comma"]
         ),
         .init(
+            id: "quotation-opening-the-text", category: .everyday,
+            spoken: "open quote the build is green close quote that is what he said",
+            expected: "\"The build is green\" that is what he said.",
+            mustKeep: ["build"],
+            mustNotAdd: ["quote"]
+        ),
+        .init(
             id: "comma-as-a-word", category: .everyday,
             spoken: "put a comma after the greeting",
             expected: "Put a comma after the greeting.",
