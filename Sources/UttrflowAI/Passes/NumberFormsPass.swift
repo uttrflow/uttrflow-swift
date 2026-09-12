@@ -12,7 +12,7 @@ public struct NumberFormsPass: CleaningPass {
         "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
         "table", "level", "room", "floor",
     ]
-    static let currencies: Set<String> = ["rupee", "rupees", "dollar", "dollars", "euro", "euros", "pound", "pounds"]
+    static let currencies: Set<String> = ["rupee", "rupees", "dollar", "dollars", "euro", "euros"]
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
     static let monthDays: [String: Int] = [
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
