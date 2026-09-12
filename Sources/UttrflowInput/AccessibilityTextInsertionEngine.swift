@@ -26,6 +26,6 @@ extension AccessibilityTextInsertionEngine: CompletionWriting {
     /// One write, so the field's own undo sees one edit rather than a delete and a typing run.
     public func write(_ text: String, replacing replaced: String) async throws(TextInsertionError) {
         guard let field = focus.focusedTextField() else { throw .noFocusedTextField }
-        try field.replaceSelection(precededBy: replaced.count, with: text)
+        try field.replaceSelection(replacing: replaced, with: text)
     }
 }
