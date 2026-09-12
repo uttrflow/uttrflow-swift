@@ -51,10 +51,14 @@ raised the peak level of the first 700 ms of capture by about 6 dB on average, a
 trial reached −11.5 dBFS against a −25.3 dBFS quiet mean, comfortably inside the range the
 recogniser treats as speech.
 
-The recording is exposed at both ends, because `NSSound.play()` returns immediately (0.1 ms
-warm) while the sound goes on for another half second: `DictationController` plays the start cue
-after the pipeline is listening, so the whole cue lands in the recording, and the stop cue before
-`finishRecording()`, so its onset lands in the tail.
+The head of the recording is exposed, because `NSSound.play()` returns immediately (0.1 ms warm)
+while the sound goes on for another half second: `DictationController` plays the start cue after
+the pipeline is listening, so the whole cue lands in the recording.
+
+The tail is not. `AVAudioCaptureEngine.stop()` plays the stop cue after the microphone source has
+stopped and before the buffer is taken, so the user hears it within milliseconds of letting go and
+none of it is recorded. The controller and the engine hold the same cue, which is what keeps a stop
+from sounding after a start that did not. A cancelled recording plays no stop cue.
 
 What mitigates it, in descending order of effect:
 
