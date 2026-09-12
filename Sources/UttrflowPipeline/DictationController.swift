@@ -25,9 +25,15 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private var lastTapEndedAt: ClockType.Instant?
     /// Whether the microphone was left open by a double tap, and so waits for another to close it.
     private var isHandsFree = false
+    /// A key event, or a click that has no release and is told when it has been handled.
+    private enum Gesture: Sendable {
+        case key(HotkeyEvent)
+        case control(CheckedContinuation<Void, Never>)
+    }
+
     /// Every gesture from every source, handled one at a time. See Docs/pipeline-gestures.md.
-    private let gestures: AsyncStream<HotkeyEvent>
-    private let gestureSink: AsyncStream<HotkeyEvent>.Continuation
+    private let gestures: AsyncStream<Gesture>
+    private let gestureSink: AsyncStream<Gesture>.Continuation
 
     public init(
         pipeline: DictationPipeline,
@@ -45,13 +51,23 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         self.clock = clock
         self.limit = limit
         self.onAdvice = onAdvice
-        (gestures, gestureSink) = AsyncStream<HotkeyEvent>.makeStream()
+        (gestures, gestureSink) = AsyncStream<Gesture>.makeStream()
         // Weak, like the forwarder below: a strong `self` here would never let the controller die.
         let queued = gestures
         Task { [weak self] in
-            for await event in queued {
-                guard let self else { return }
-                await handle(event)
+            for await gesture in queued {
+                guard let self else {
+                    // A click still waiting is answered, so its caller is not left suspended forever.
+                    if case .control(let handled) = gesture { handled.resume() }
+                    continue
+                }
+                switch gesture {
+                case .key(let event):
+                    await handle(event)
+                case .control(let handled):
+                    await toggleListening()
+                    handled.resume()
+                }
             }
         }
         // Forwarded once for the controller's life: an `AsyncStream` has room for one reader.
@@ -68,7 +84,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     /// Queues a gesture from any source behind whatever is in flight, and returns at once.
     public nonisolated func submit(_ event: HotkeyEvent) {
-        gestureSink.yield(event)
+        gestureSink.yield(.key(event))
     }
 
     /// Watches for the shortcut, or rebinds to another one. See Docs/pipeline-gestures.md.
@@ -109,9 +125,15 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
     }
 
-    /// Toggles a dictation from a click, which has no release. See Docs/pipeline-gestures.md.
-    public func toggleFromControl() async {
-        await toggleListening()
+    /// Toggles a dictation from a click, queued behind every other gesture; returns once handled. See Docs/pipeline-gestures.md.
+    public nonisolated func toggleFromControl() async {
+        await withCheckedContinuation { handled in
+            // A controller already gone has no queue, so the click is answered at once.
+            guard case .enqueued = gestureSink.yield(.control(handled)) else {
+                handled.resume()
+                return
+            }
+        }
     }
 
     /// Finishes the dictation under way, or begins one.
