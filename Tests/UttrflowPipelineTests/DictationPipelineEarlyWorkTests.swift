@@ -64,6 +64,81 @@ private final class ShoutingCleaner: TranscriptCleaning, Sendable {
     var seen: [String] { state.withLock(\.seen) }
 }
 
+/// When each stage of each piece ran, so the test can say whether two of them overlapped.
+private final class StageTimeline: Sendable {
+    struct Run: Sendable {
+        let stage: String
+        let started: ContinuousClock.Instant
+        let ended: ContinuousClock.Instant
+    }
+
+    private let runs = Mutex<[Run]>([])
+
+    func add(_ stage: String, _ started: ContinuousClock.Instant, _ ended: ContinuousClock.Instant) {
+        runs.withLock { $0.append(Run(stage: stage, started: started, ended: ended)) }
+    }
+
+    func all(_ stage: String) -> [Run] { runs.withLock { $0.filter { $0.stage == stage } } }
+
+    /// The number of pairs where one stage was still running when the other started.
+    func overlaps(_ one: String, _ other: String) -> Int {
+        let first = all(one)
+        let second = all(other)
+        return first.reduce(0) { count, run in
+            count + second.count { $0.started < run.ended && run.started < $0.ended }
+        }
+    }
+}
+
+/// A recogniser that takes a measurable time over every call and says when it ran.
+private actor TimedSpeechEngine: SpeechEngine {
+    let kind = SpeechEngineKind.whisperKit
+    private let timeline: StageTimeline
+    private let takes: Duration
+    private(set) var calls = 0
+
+    init(timeline: StageTimeline, takes: Duration) {
+        self.timeline = timeline
+        self.takes = takes
+    }
+
+    func prepare() async throws(SpeechEngineError) {}
+
+    func transcribe(
+        _ audio: AudioSamples, options: TranscriptionOptions
+    ) async throws(SpeechEngineError) -> Transcription {
+        calls += 1
+        let call = calls
+        let started = ContinuousClock.now
+        try? await Task.sleep(for: takes)
+        timeline.add("transcribe", started, ContinuousClock.now)
+        return Transcription(
+            text: "w\(call) x", detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
+            audioDuration: audio.duration)
+    }
+}
+
+/// A tidier that takes a measurable time over every piece and says when it ran.
+private final class TimedCleaner: TranscriptCleaning, Sendable {
+    private let timeline: StageTimeline
+    private let takes: Duration
+
+    init(timeline: StageTimeline, takes: Duration) {
+        self.timeline = timeline
+        self.takes = takes
+    }
+
+    func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
+        let started = ContinuousClock.now
+        try? await Task.sleep(for: takes)
+        timeline.add("tidy", started, ContinuousClock.now)
+        return TransformationResult(
+            text: request.transcription.text.uppercased(), producedBy: .foundationModels)
+    }
+
+    func warm(for situation: Situation?) async {}
+}
+
 private final class CollectingInserter: TextInserting, Sendable {
     private let received = Mutex<[String]>([])
 
@@ -128,8 +203,8 @@ extension DictationState {
 struct DictationPipelineEarlyWorkTests {
     private func makePipeline(
         capture: FakeAudioCaptureEngine,
-        speech: NumberingSpeechEngine = NumberingSpeechEngine(),
-        cleaner: ShoutingCleaner = ShoutingCleaner(),
+        speech: any SpeechEngine = NumberingSpeechEngine(),
+        cleaner: any TranscriptCleaning = ShoutingCleaner(),
         inserter: CollectingInserter = CollectingInserter(),
         context: FakeContextEngine = FakeContextEngine(context: .fixture()),
         corrector: any WordCorrecting = NoTextChanges(),
@@ -408,5 +483,30 @@ struct DictationPipelineEarlyWorkTests {
             "every piece is biased towards the same words")
         // Ranked against the screen the dictation began on, which is the one the tidier resolves from.
         #expect(rankings.withLock { $0.first?.applicationName } == AppContext.fixture().applicationName)
+    }
+
+    /// The release pass overlaps the two stages, which a retry is the plainest case of. See #186.
+    @Test("the tidy of one piece runs beside the recognition of the next, and the pieces stay in order")
+    func tidyingRunsBesideTheNextRecognition() async {
+        let timeline = StageTimeline()
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
+        let recordings = FakeRecordingKeeper(
+            waiting: [recording], audioOutcome: .success(Take.threePieces))
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: TimedSpeechEngine(timeline: timeline, takes: .milliseconds(60)),
+            cleaner: TimedCleaner(timeline: timeline, takes: .milliseconds(60)),
+            recordings: recordings)
+
+        await pipeline.retry(recording.id)
+
+        #expect(
+            await pipeline.currentState.outcome?.text == "W1 X W2 X W3 X",
+            "the pieces are joined in the order they were spoken")
+        #expect(timeline.all("transcribe").count == 3)
+        #expect(timeline.all("tidy").count == 3)
+        #expect(
+            timeline.overlaps("tidy", "transcribe") >= 2,
+            "every tidy but the last runs beside the next recognition")
     }
 }
