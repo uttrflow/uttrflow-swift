@@ -13,6 +13,7 @@ import Testing
 private actor NumberingSpeechEngine: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
     private(set) var sampleCounts: [Int] = []
+    private(set) var biases: [[String]] = []
     private var silentCalls: Set<Int>
     private var failingCalls: Set<Int>
 
@@ -27,6 +28,7 @@ private actor NumberingSpeechEngine: SpeechEngine {
         _ audio: AudioSamples, options: TranscriptionOptions
     ) async throws(SpeechEngineError) -> Transcription {
         sampleCounts.append(audio.samples.count)
+        biases.append(options.vocabulary)
         let call = sampleCounts.count
         if silentCalls.contains(call) { throw .nothingHeard }
         if failingCalls.contains(call) { throw .transcriptionFailed(description: "call \(call)") }
@@ -132,12 +134,13 @@ struct DictationPipelineEarlyWorkTests {
         context: FakeContextEngine = FakeContextEngine(context: .fixture()),
         corrector: any WordCorrecting = NoTextChanges(),
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
-        recordings: any RecordingKeeper = RecordingsNotKept()
+        recordings: any RecordingKeeper = RecordingsNotKept(),
+        speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] }
     ) -> DictationPipeline {
         DictationPipeline(
             capture: capture, speech: speech, cleaner: cleaner, context: context,
-            inserter: inserter, corrector: corrector, metrics: metrics, recordings: recordings,
-            windowing: quick, earlyPoll: .milliseconds(2))
+            inserter: inserter, speechWords: speechWords, corrector: corrector, metrics: metrics,
+            recordings: recordings, windowing: quick, earlyPoll: .milliseconds(2))
     }
 
     /// Waits for the recogniser to have been asked `count` times, or gives up loudly.
@@ -361,5 +364,30 @@ struct DictationPipelineEarlyWorkTests {
 
         #expect(await speech.calls == 1)
         #expect(await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+    }
+
+    /// The contract VocabularySource's own doc comment claims, which the engine used to break. See #180.
+    @Test("ranks the dictation's words once, however many pieces it is cut into")
+    func ranksTheWordsOncePerDictation() async {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = NumberingSpeechEngine()
+        let rankings = Mutex<[AppContext]>([])
+        let pipeline = makePipeline(capture: capture, speech: speech) { seeing in
+            rankings.withLock { $0.append(seeing) }
+            return ["Uttrflow"]
+        }
+
+        await pipeline.startRecording()
+        await waitForCalls(2, on: speech)
+        await pipeline.finishRecording()
+
+        #expect(await speech.calls == 3)
+        #expect(rankings.withLock(\.count) == 1, "one ranking, not one per piece")
+        #expect(
+            await speech.biases == [["Uttrflow"], ["Uttrflow"], ["Uttrflow"]],
+            "every piece is biased towards the same words")
+        // Ranked against the screen the dictation began on, which is the one the tidier resolves from.
+        #expect(rankings.withLock { $0.first?.applicationName } == AppContext.fixture().applicationName)
     }
 }
