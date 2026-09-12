@@ -206,6 +206,14 @@ struct SurroundingsTests {
         )
     }
 
+    /// "Sam" is spelled inside "Samantha", and a name is not repeated by a longer name that contains it.
+    @Test("A line the label only spells inside a longer word is read, not swallowed.")
+    func aLabelSwallowsWholeWordsOnly() {
+        #expect(Surroundings.repeats("chat with Sam", in: "Messages in chat with Sam"))
+        #expect(!Surroundings.repeats("Sam", in: "Samantha's messages"))
+        #expect(!Surroundings.repeats("notes", in: nil))
+    }
+
     @Test("A read whose time is already up settles for the title alone rather than walking anything.")
     func aSpentBudgetReadsNothing() {
         let read = Surroundings.collect(

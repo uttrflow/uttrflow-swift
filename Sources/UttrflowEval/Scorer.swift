@@ -5,13 +5,15 @@ public enum Scorer {
     public static func score(_ rewritten: String, against reference: EvaluationCase) -> CaseScore {
         let produced = tokens(rewritten)
         let wanted = tokens(reference.expected)
+        // A phrase is one run inside one sentence, so the run it is sought in keeps the sentence ends.
+        let sentences = tokens(rewritten, keepingSentenceEnds: true)
         // Matched on words only; a wordless requirement is reported as lost rather than quietly satisfied.
         let lost = reference.mustKeep.filter { required in
-            !containsPhrase(tokens(required), in: produced)
+            !containsPhrase(tokens(required, keepingSentenceEnds: true), in: sentences)
         }
         // A context case usually fails by adding what the context suggested, so both directions are checked.
         let invented = reference.mustNotAdd.filter { forbidden in
-            containsGuard(forbidden, in: rewritten, tokenised: produced)
+            containsGuard(forbidden, in: rewritten, tokenised: sentences)
         }
 
         return CaseScore(
@@ -33,11 +35,40 @@ public enum Scorer {
         return broken
     }
 
+    /// Stands where a sentence closed, so a phrase is never read as running across the end of one.
+    static let sentenceEnd = "\u{0}"
+
     /// Words, lowercased, with punctuation dropped, so a model is not punished for a comma.
-    static func tokens(_ text: String) -> [String] {
-        text.lowercased()
-            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-            .map(String.init)
+    static func tokens(_ text: String, keepingSentenceEnds: Bool = false) -> [String] {
+        var found: [String] = []
+        var word = ""
+        var closed = false
+        var spaced = false
+        // A closing mark counts only with space after it, so "p.m." is one abbreviation rather than two sentences.
+        func flush() {
+            guard !word.isEmpty else { return }
+            if keepingSentenceEnds, closed, spaced, !found.isEmpty { found.append(sentenceEnd) }
+            found.append(word)
+            word = ""
+            closed = false
+            spaced = false
+        }
+        for character in text.lowercased() {
+            guard !character.isLetter, !character.isNumber else {
+                word.append(character)
+                continue
+            }
+            flush()
+            if ".!?".contains(character) {
+                closed = true
+                spaced = false
+            } else if character.isWhitespace, closed {
+                spaced = true
+            }
+        }
+        flush()
+        if keepingSentenceEnds, closed, !found.isEmpty { found.append(sentenceEnd) }
+        return found
     }
 
     /// Harmonic mean of precision and recall over an aligned reading, so a word moved is not a word kept.
@@ -57,7 +88,7 @@ public enum Scorer {
     static func containsGuard(
         _ forbidden: String, in rewritten: String, tokenised produced: [String]
     ) -> Bool {
-        let phrase = tokens(forbidden)
+        let phrase = tokens(forbidden, keepingSentenceEnds: true)
         guard phrase.isEmpty else { return containsPhrase(phrase, in: produced) }
         // A guard holding nothing has nothing to look for, and nothing is not evidence against anybody.
         guard forbidden.contains(where: { !$0.isWhitespace }) else { return false }

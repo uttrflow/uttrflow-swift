@@ -91,13 +91,13 @@ struct VerificationTests {
     @Test("The first word of a line is vouched for by programs and shell aliases.")
     func firstWordIsAProgram() throws {
         let token = try #require(word("gi"))
-        #expect(Verification.attestingKinds(for: token) == [.executable, .alias])
+        #expect(lookups(for: token) == [Verification.Lookup("gi", [.executable, .alias])])
     }
 
     @Test("The word after git is vouched for by git's own subcommands and the user's git aliases.")
     func gitSubcommandsVouchForTheSecondWord() throws {
         let token = try #require(word("git comit"))
-        #expect(Verification.attestingKinds(for: token) == [.subcommand(of: "git"), .gitAlias])
+        #expect(lookups(for: token) == [Verification.Lookup("comit", [.subcommand(of: "git"), .gitAlias])])
     }
 
     @Test(
@@ -105,10 +105,26 @@ struct VerificationTests {
     )
     func argumentsFollowTheirCommand() throws {
         #expect(
-            Verification.attestingKinds(for: try #require(word("make verif"))) == [.subcommand(of: "make")])
-        #expect(Verification.attestingKinds(for: try #require(word("git checkout mai"))) == [.branch])
-        #expect(Verification.attestingKinds(for: try #require(word("cat READ"))) == [.file])
-        #expect(Verification.attestingKinds(for: try #require(word("echo hel"))).isEmpty)
+            lookups(for: try #require(word("make verif")))
+                == [Verification.Lookup("verif", [.subcommand(of: "make")])])
+        #expect(
+            lookups(for: try #require(word("git checkout mai")))
+                == [Verification.Lookup("mai", [.branch])])
+        #expect(lookups(for: try #require(word("cat READ"))) == [Verification.Lookup("READ", [.file])])
+        #expect(lookups(for: try #require(word("echo hel"))).isEmpty)
+    }
+
+    /// The name and the directory before it stay paired, which is what makes a path answerable at all.
+    @Test("A path is vouched for by the name it ends in, under the directory that name sits in.")
+    func aPathKeepsItsDirectory() throws {
+        #expect(
+            lookups(for: try #require(word("cat docs/guide.m")))
+                == [Verification.Lookup("guide.m", [.entries(under: "docs")], prefix: "docs/")])
+    }
+
+    /// What could vouch for a word, one lookup per name, which a flat list of kinds cannot say.
+    private func lookups(for token: CompletionToken) -> [Verification.Lookup] {
+        Verification.attestation(for: token)?.lookups ?? []
     }
 
     @Test("Programs and their verbs name everything there is; paths and branches never do.")

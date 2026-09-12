@@ -36,23 +36,57 @@ public struct MeaningPreservationGuard: Sendable {
         if case .rejected(let reason) = verdict(original: draft.text, rewritten: rewritten) {
             return .rejected(reason: reason)
         }
-        if case .rejected(let reason) = Self.candidateVerdict(doubtful, rewritten: rewritten) {
+        let alignment = RewriteAlignment(kept: draft.text, rewritten: rewritten)
+        let readings = Self.readingVerdict(doubtful, in: alignment)
+        if case .rejected(let reason) = readings.verdict {
             return .rejected(reason: reason)
         }
         if case .rejected(let reason) = Self.layoutVerdict(kept: draft.text, rewritten: rewritten) {
             return .rejected(reason: reason)
         }
         return Self.grammarVerdict(
-            kept: draft.text, rewritten: rewritten, allowing: doubtful, echoed: echoed)
+            alignment, excusing: readings.excused, echoed: echoed, allowing: doubtful)
     }
 
-    /// A doubtful run may be written as it was heard or as a reading that was offered, and as nothing else.
-    static func candidateVerdict(_ doubtful: [DoubtfulSpan], rewritten: String) -> GuardVerdict {
-        for span in doubtful
-        where !([span.heard] + span.candidates).contains(where: { isWritten($0, in: rewritten) }) {
-            return .rejected(reason: "the rewrite read '\(span.heard)' as a word it was not offered")
+    /// A doubtful run may be written where it stands as it was heard or as a reading offered for it, inflected or not, and as nothing else.
+    static func readingVerdict(
+        _ doubtful: [DoubtfulSpan], in alignment: RewriteAlignment
+    ) -> (verdict: GuardVerdict, excused: Set<Int>) {
+        var excused: Set<Int> = []
+        guard !doubtful.isEmpty else { return (.accepted, excused) }
+        for span in doubtful {
+            for place in alignment.keptRuns(spelled: DoubtfulSpan.closedUp(span.heard)) {
+                let touched = alignment.changes.filter { $0.kept.overlaps(place) }
+                // A run the rewrite left where it stood is the run as it was heard, and needs no reading.
+                guard let first = touched.first, let last = touched.last else { continue }
+                let start = min(place.lowerBound, first.kept.lowerBound)
+                let end = max(place.upperBound, last.kept.upperBound)
+                // A change reaching past the run took its neighbours with it, so they are expected here too.
+                let before = alignment.keptSpelling(of: start..<place.lowerBound)
+                let after = alignment.keptSpelling(of: place.upperBound..<end)
+                // The rewrite may inflect the run it was given — "payment sheets" for "payment sheet" — and change it no further.
+                let offered = ([span.heard] + span.candidates).flatMap { reading in
+                    let wanted = DoubtfulSpan.closedUp(reading)
+                    return inflections(of: wanted).union([wanted]).map { before + $0 + after }
+                }
+                guard offered.contains(alignment.standing(in: start..<end)) else {
+                    return (
+                        .rejected(reason: "the rewrite read '\(span.heard)' as a word it was not offered"),
+                        excused
+                    )
+                }
+                // A reading rightly written here is the one substitution the survival check must let past.
+                for change in touched { excused.formUnion(change.kept.clamped(to: place)) }
+            }
         }
-        return .accepted
+        return (.accepted, excused)
+    }
+
+    /// The same judgement over two texts, which is how a test states one.
+    static func candidateVerdict(
+        _ doubtful: [DoubtfulSpan], kept: String, rewritten: String
+    ) -> GuardVerdict {
+        readingVerdict(doubtful, in: RewriteAlignment(kept: kept, rewritten: rewritten)).verdict
     }
 
     /// Whether a reading is written out as whole words: `PaymentSheet` or "payment sheets" for "payment sheet", never "our time" inside "four times".
@@ -162,24 +196,32 @@ public struct MeaningPreservationGuard: Sendable {
     static func grammarVerdict(
         kept: String, rewritten: String, allowing doubtful: [DoubtfulSpan] = [], echoed: String = ""
     ) -> GuardVerdict {
-        let keptTokens = grammarTokens(kept)
-        let rewrittenTokens = grammarTokens(rewritten)
+        let alignment = RewriteAlignment(kept: kept, rewritten: rewritten)
+        return grammarVerdict(
+            alignment, excusing: readingVerdict(doubtful, in: alignment).excused, echoed: echoed,
+            allowing: doubtful)
+    }
+
+    /// The same check over an alignment already in hand, each word judged against what stands in its own place.
+    static func grammarVerdict(
+        _ alignment: RewriteAlignment, excusing excused: Set<Int>, echoed: String,
+        allowing doubtful: [DoubtfulSpan]
+    ) -> GuardVerdict {
+        let keptTokens = alignment.kept
+        let rewrittenTokens = alignment.rewritten
         let echoTokens = grammarTokens(echoed)
         // The echo the caret pass took back opened the model's answer, so its words count as survivors ahead of the rest.
         let written = (echoTokens + rewrittenTokens).filter(\.isPlain)
-        // A word a reading was offered for answers to the check above, a reading being by definition not what was said.
-        let offered = Set(
-            doubtful
-                .flatMap { $0.heard.split(whereSeparator: \.isWhitespace) }
-                .map { DoubtfulSpan.closedUp(String($0)) })
         // A number spoken over several words answers to the one numeral the rewrite wrote for it.
         let composed = composedNumbers(keptTokens, in: Set(written.map(\.matching)))
         let carried = keptTokens.indices.filter { index in
             let token = keptTokens[index]
-            return token.isPlain && isContent(token) && !composed.contains(index)
-                && !offered.contains(DoubtfulSpan.closedUp(token.text))
-        }.map { keptTokens[$0] }
-        if case .rejected(let reason) = survivalVerdict(carried, in: written) {
+            return token.isPlain && isContent(token) && !composed.contains(index) && !excused.contains(index)
+        }
+        if case .rejected(let reason) = survivalVerdict(carried.map { keptTokens[$0] }, in: written) {
+            return .rejected(reason: reason)
+        }
+        if case .rejected(let reason) = placeVerdict(Set(carried), in: alignment, echo: echoTokens) {
             return .rejected(reason: reason)
         }
         let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + echoTokens)
@@ -192,11 +234,26 @@ public struct MeaningPreservationGuard: Sendable {
             return .rejected(reason: "the rewrite added a negation")
         }
         let churn = functionWordChurn(keptTokens, rewrittenTokens)
-        if churn > 3 * sentenceCount(rewritten) {
+        if churn > 3 * sentenceCount(alignment.rewrittenText) {
             return .rejected(reason: "the rewrite changed \(churn) small words")
         }
         return inventionVerdict(
             kept: keptTokens, rewritten: rewrittenTokens, echo: echoTokens, allowing: doubtful)
+    }
+
+    /// Refuses a carried word that a changed run lost, judging it only against the words standing in that run's place.
+    static func placeVerdict(
+        _ carried: Set<Int>, in alignment: RewriteAlignment, echo: [GrammarToken]
+    ) -> GuardVerdict {
+        for change in alignment.changes {
+            let here = (alignment.rewritten[change.rewritten] + echo).filter(\.isPlain)
+            for index in change.kept where carried.contains(index) {
+                let token = alignment.kept[index]
+                guard !here.contains(where: { survives(token.matching, as: $0) }) else { continue }
+                return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
+            }
+        }
+        return .accepted
     }
 
     /// Refuses a content word the model brought in, an addition being the same fault as a loss read the other way.
@@ -428,22 +485,54 @@ public struct MeaningPreservationGuard: Sendable {
 
     // MARK: Checks
 
-    /// A number in the rewrite the speaker said neither in digits nor in words, or nil.
+    /// The first number the rewrite states that the speaker did not state, there and that many times, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
-        let spoken = numbers(in: original).union(spelledNumbers(in: original))
         // Read in words on the written side too, so "twenty chairs" is refused where "20 chairs" already was.
-        let written = numbers(in: rewritten)
-            .union(spelledNumbers(in: rewritten, using: englishNumberWords))
-        return written.subtracting(spoken).min()
+        var spoken = numberSequence(in: original, reading: numberWords)[...]
+        for number in numberSequence(in: rewritten, reading: englishNumberWords) {
+            guard let found = spoken.firstIndex(of: number) else { return number }
+            spoken = spoken[(found + 1)...]
+        }
+        return nil
     }
 
-    /// Every run of digits in the text.
-    private static func numbers(in text: String) -> Set<String> {
-        Set(
-            withoutThousandsSeparators(text).split(whereSeparator: { !$0.isNumber })
-                .map(String.init)
-                .filter { !$0.isEmpty }
-        )
+    /// The numbers a text states, in order and with repeats kept, each number word read through `table` and every run of them composed after it.
+    static func numberSequence(in text: String, reading table: [String: String]) -> [String] {
+        var pieces: [(text: String, isDigits: Bool)] = []
+        var run = ""
+        var runIsDigits = false
+        func flush() {
+            if !run.isEmpty { pieces.append((run, runIsDigits)) }
+            run = ""
+        }
+        for character in withoutThousandsSeparators(text) {
+            guard character.isNumber || character.isLetter else {
+                flush()
+                continue
+            }
+            if character.isNumber != runIsDigits { flush() }
+            runIsDigits = character.isNumber
+            run.append(character)
+        }
+        flush()
+        // A run of digits stands between number words, so it ends a spoken number rather than joining it.
+        let words = pieces.map { $0.isDigits ? "" : $0.text.lowercased() }
+        var found: [String] = []
+        var index = words.startIndex
+        while index < words.endIndex {
+            if pieces[index].isDigits {
+                found.append(pieces[index].text)
+                index += 1
+            } else if let read = NumberWords.cardinal(words[index...]), read.count > 1 {
+                found += words[index..<(index + read.count)].compactMap { table[$0] }
+                found.append(String(read.value))
+                index += read.count
+            } else {
+                if let digits = table[words[index]] { found.append(digits) }
+                index += 1
+            }
+        }
+        return found
     }
 
     /// Drops a comma that groups digits, so "12,000" and "1,50,000" read as the numbers they are.
@@ -497,16 +586,6 @@ public struct MeaningPreservationGuard: Sendable {
         "sixty": "60", "seventy": "70", "eighty": "80", "ninety": "90",
         "hundred": "100", "thousand": "1000",
     ]
-
-    /// The digits for every number word read through `table`, each on its own and every run of them composed.
-    private static func spelledNumbers(
-        in text: String, using table: [String: String] = numberWords
-    ) -> Set<String> {
-        let words = TextTidy.words(text)
-        var found = Set(words.compactMap { table[$0] })
-        for run in cardinalRuns(words) { found.insert(String(run.value)) }
-        return found
-    }
 
     /// The positions of every spoken number run the rewrite wrote as the one numeral it comes to.
     static func composedNumbers(_ tokens: [GrammarToken], in pool: Set<String>) -> Set<Int> {

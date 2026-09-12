@@ -447,6 +447,20 @@ public enum EvaluationCorpus {
             mustNotAdd: ["Marcie"],
             doubtful: ["marcy"]
         ),
+        // The doubted name is said again later, so only the run's own place can say what was written for it.
+        .init(
+            id: "notes-name-said-twice", category: .contextual,
+            spoken: "marcy said the printer quote came in under budget so i told marcy to go ahead",
+            expected: "Marcy said the printer quote came in under budget, so I told Marcy to go ahead.",
+            mustKeep: ["Marcy", "printer"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: "com.apple.Notes",
+                documentName: "Office supplies"
+            ),
+            mustNotAdd: ["Marcie"],
+            doubtful: ["marcy"]
+        ),
 
         // Pair three: two spoken words are one identifier only because the window title says so.
         .init(
@@ -489,6 +503,22 @@ public enum EvaluationCorpus {
                 selectedText: "setUserPrefs"
             ),
             mustNotAdd: ["set user prefs", "savePreferences"],
+            doubtful: ["set user prefs"]
+        ),
+        // The same words come back as prose, which the identifier on screen does not license.
+        .init(
+            id: "editor-identifier-then-prose", category: .contextual,
+            spoken: "we call set user prefs at launch so the settings page never has to set user prefs again",
+            expected:
+                "We call setUserPrefs at launch, so the settings page never has to set user prefs again.",
+            mustKeep: ["setUserPrefs", "launch"],
+            context: AppContext(
+                applicationName: "Visual Studio Code",
+                bundleIdentifier: "com.microsoft.VSCode",
+                documentName: "settings_store.py — uttrflow",
+                selectedText: "setUserPrefs"
+            ),
+            mustNotAdd: ["savePreferences"],
             doubtful: ["set user prefs"]
         ),
 

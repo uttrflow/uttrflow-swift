@@ -81,12 +81,36 @@ public struct EvaluationCase: Sendable, Equatable, Codable, Identifiable {
     /// One segment carrying a score for every spoken word, or none at all when nothing was doubtful.
     private var segments: [TranscriptionSegment] {
         guard !doubtful.isEmpty else { return [] }
-        let unsure = Set(doubtful.flatMap { $0.split(whereSeparator: \.isWhitespace) }.map(String.init))
-        let words = spoken.split(whereSeparator: \.isWhitespace).map {
+        let spokenWords = spoken.split(whereSeparator: \.isWhitespace).map(String.init)
+        // A run is doubted where it stands, so naming one word does not doubt every other occurrence of it.
+        var unsure: Set<Int> = []
+        for run in doubtful {
+            let wanted = run.split(whereSeparator: \.isWhitespace).map { Self.bare(String($0)) }
+            guard let start = Self.place(of: wanted, in: spokenWords, past: unsure) else { continue }
+            unsure.formUnion(start..<(start + wanted.count))
+        }
+        let words = spokenWords.enumerated().map { index, text in
             TranscribedWord(
-                text: String($0), confidence: unsure.contains(String($0)) ? Self.doubtfulConfidence : 1)
+                text: text, confidence: unsure.contains(index) ? Self.doubtfulConfidence : 1)
         }
         return [TranscriptionSegment(text: spoken, start: .zero, end: .zero, words: words)]
+    }
+
+    /// A word with its edge punctuation dropped and lowercased, so "cash," is the "cash" a case names.
+    static func bare(_ word: String) -> String {
+        let head = word.drop(while: { !$0.isLetter && !$0.isNumber })
+        return String(head.reversed().drop(while: { !$0.isLetter && !$0.isNumber }).reversed())
+            .lowercased()
+    }
+
+    /// Where a run of words first stands past what is already doubted, so naming a word twice doubts it twice.
+    private static func place(of run: [String], in words: [String], past taken: Set<Int>) -> Int? {
+        guard !run.isEmpty, run.count <= words.count else { return nil }
+        return (0...(words.count - run.count)).first { start in
+            let range = start..<(start + run.count)
+            return !range.contains(where: taken.contains)
+                && zip(run, words[range]).allSatisfy { $0 == bare($1) }
+        }
     }
 
     /// The situation the case is dictated in: its own destination, never the classifier's guess.

@@ -229,6 +229,35 @@ struct ScorerTests {
         )
         #expect(run.invented == ["ORDER BY"])
     }
+
+    /// The two words are in the text, but a full stop stands between them, so they are not one phrase.
+    @Test("does not read a guard's run across the end of a sentence")
+    func aRunStaysInsideOneSentence() {
+        let across = Scorer.score(
+            "Put in the order. By Friday it ships.",
+            against: reference(expected: "Put in the order. By Friday it ships.", mustNotAdd: ["ORDER BY"])
+        )
+        #expect(across.invented.isEmpty)
+
+        // An abbreviation's stop does not end a sentence, so a phrase either side of it is still one run.
+        let abbreviated = Scorer.score(
+            "Ship it at 4 p.m. sharp.",
+            against: reference(expected: "Ship it at 4 p.m. sharp.", mustNotAdd: ["p.m. sharp"])
+        )
+        #expect(abbreviated.invented == ["p.m. sharp"])
+    }
+
+    /// A required phrase is held to the same rule, so a sentence end does not satisfy it either.
+    @Test("does not satisfy a required phrase across the end of a sentence")
+    func aRequirementStaysInsideOneSentence() {
+        let across = Scorer.score(
+            "Put in the order. By Friday it ships.",
+            against: reference(
+                expected: "Put in the order by Friday.", mustKeep: ["order by"])
+        )
+        #expect(across.lost == ["order by"])
+        #expect(!across.keptEverythingRequired)
+    }
 }
 
 @Suite("EvaluationReport")
