@@ -70,6 +70,13 @@ public enum EvaluationCorpus {
             expected: "We should ship it today.",
             mustEndWith: "."
         ),
+        // The unwrapper's case: a quote pair the recogniser reported is the speaker's, not the model's packaging.
+        .init(
+            id: "quoted-whole-utterance", category: .everyday,
+            spoken: "\"we ship on friday\"",
+            expected: "\"We ship on Friday.\"",
+            mustKeep: ["Friday"]
+        ),
         .init(
             id: "no-punctuation", category: .everyday,
             spoken: "the build passed everything looks good ship it",
@@ -168,6 +175,13 @@ public enum EvaluationCorpus {
             expected: "We still need milk, eggs, and bread from the shop.",
             mustKeep: ["milk", "eggs", "bread"],
             mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "quotation-opening-the-text", category: .everyday,
+            spoken: "open quote the build is green close quote that is what he said",
+            expected: "\"The build is green\" that is what he said.",
+            mustKeep: ["build"],
+            mustNotAdd: ["quote"]
         ),
         .init(
             id: "comma-as-a-word", category: .everyday,
