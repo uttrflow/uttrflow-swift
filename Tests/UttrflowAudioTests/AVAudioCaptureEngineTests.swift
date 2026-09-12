@@ -70,6 +70,41 @@ struct AVAudioCaptureEngineTests {
         #expect(audio.duration == .zero)
     }
 
+    /// Half a sentence reads as a whole one, so the recording has to end as a failure rather than as audio.
+    @Test("refuses to hand back a recording the microphone died in the middle of")
+    func stopThrowsAfterTheMicrophoneDied() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit(Array(repeating: 0.5, count: 64))
+
+        source.die()
+        try await settle()
+
+        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
+    }
+
+    @Test("a microphone that died in one recording cannot fail the next one")
+    func theFailureDoesNotOutliveItsRecording() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.die()
+        try await settle()
+        _ = try? await engine.stop()
+
+        try await engine.start()
+        source.emit(Array(repeating: 0.25, count: 32))
+
+        let audio = try await engine.stop()
+        #expect(audio.samples.count == 32)
+    }
+
+    /// The report crosses onto the actor, so the test has to let that hop happen.
+    private func settle() async throws {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
     @Test("refuses to stop what is not running")
     func stopWhenIdleThrows() async {
         let engine = AVAudioCaptureEngine(source: FakeMicrophoneSource())

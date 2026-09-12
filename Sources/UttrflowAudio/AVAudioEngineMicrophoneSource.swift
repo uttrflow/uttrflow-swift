@@ -4,8 +4,8 @@ private import Foundation
 public import UttrflowCore
 private import Synchronization
 
-/// The real microphone, verifiable only by speaking into a Mac and so not covered.
-public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
+/// The engine behind the microphone, opened and closed on demand so a session can reopen it.
+private final class EngineDevice: InputDevice, @unchecked Sendable {
     /// Holds the live engine, which AVFoundation will not let cross a thread on its own.
     private final class Running: @unchecked Sendable {
         let engine: AVAudioEngine
@@ -21,24 +21,21 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
     private static let tapBufferSize: AVAudioFrameCount = 4096
 
     private let running = Mutex<Running?>(nil)
-
     /// Where samples go, kept so the tap can be rebuilt without the caller knowing.
     private let sink = Mutex<(@Sendable ([Float]) -> Void)?>(nil)
+    /// Called when macOS changes the hardware under the engine, which only the session knows what to do about.
+    private let changed = Mutex<(@Sendable () -> Void)?>(nil)
 
-    public init() {}
+    func whenChanged(_ handle: @escaping @Sendable () -> Void) {
+        changed.withLock { $0 = handle }
+    }
 
-    public func start(onSamples: @escaping @Sendable ([Float]) -> Void) throws(AudioCaptureError) {
+    func deliver(to onSamples: (@Sendable ([Float]) -> Void)?) {
         sink.withLock { $0 = onSamples }
-        do {
-            try open()
-        } catch {
-            sink.withLock { $0 = nil }
-            throw error
-        }
     }
 
     /// Builds an engine for whatever the current input device is, and starts it.
-    private func open() throws(AudioCaptureError) {
+    func open() throws(AudioCaptureError) {
         guard let onSamples = sink.withLock({ $0 }) else { throw .notRecording }
 
         let engine = AVAudioEngine()
@@ -69,30 +66,18 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
         }
 
         let live = Running(engine: engine, inputBus: inputBus)
+        let changed = changed.withLock { $0 }
         // On the main queue, not whichever thread CoreAudio noticed the change on.
         live.observer = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
-        ) { [weak self] _ in
-            self?.hardwareChanged()
+        ) { _ in
+            changed?()
         }
         running.withLock { $0 = live }
     }
 
-    /// Rebuilds the engine that macOS stopped under it. See `Docs/microphone.md`.
-    private func hardwareChanged() {
-        guard sink.withLock({ $0 }) != nil else { return }
-        close()
-        // A device gone and not replaced leaves nothing arriving, which reads as silence.
-        try? open()
-    }
-
-    public func stop() {
-        sink.withLock { $0 = nil }
-        close()
-    }
-
     /// Tears the engine down without forgetting where samples were going.
-    private func close() {
+    func close() {
         guard
             let live = running.withLock({ running -> Running? in
                 defer { running = nil }
@@ -103,5 +88,37 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
         if let observer = live.observer { NotificationCenter.default.removeObserver(observer) }
         live.engine.inputNode.removeTap(onBus: live.inputBus)
         live.engine.stop()
+    }
+}
+
+/// The real microphone, verifiable only by speaking into a Mac and so not covered.
+public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
+    private let device: EngineDevice
+    private let session: InputDeviceSession
+
+    public init() {
+        device = EngineDevice()
+        session = InputDeviceSession(device: device)
+        let session = session
+        // The notification is posted by an engine, so a failed reopen silences it: the retry replaces it.
+        device.whenChanged { session.deviceChanged() }
+    }
+
+    public func start(
+        onSamples: @escaping @Sendable ([Float]) -> Void,
+        onFailure: @escaping @Sendable (AudioCaptureError) -> Void
+    ) throws(AudioCaptureError) {
+        device.deliver(to: onSamples)
+        do {
+            try session.open(reporting: onFailure)
+        } catch {
+            device.deliver(to: nil)
+            throw error
+        }
+    }
+
+    public func stop() {
+        device.deliver(to: nil)
+        session.close()
     }
 }
