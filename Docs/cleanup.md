@@ -27,7 +27,13 @@ a different feature with a different name.
 of the words, doubles them, opens with a preamble or invents a number is refused and the
 raw transcript is used instead. Where a draft is available it also holds the grammar
 bound of Tier 2: every content word the passes kept must still be there — the same word,
-a word grown from the same stem, or another form of the same irregular verb — and the
+another form of it (a plural, a past, a progressive, or a form of the same irregular
+verb), or the word spelled into an identifier at one of its own word boundaries — **and in
+the order it was said in**, which is what carries Tier 3's ban on reordering. The kept
+content words are walked along the rewrite, each taking the earliest place still open,
+and a word whose only place lies behind one already taken has been moved rather than
+tidied. Several spoken words may share one place, because one identifier can spell them
+all ("fetch invoices" written as `fetchInvoices`). The
 function words a sentence gains and loses are capped at three. Negation is counted
 separately and may never shrink: "not" and the "n't" forms are function words, so
 nothing else would have stopped "I do not think we should ship" becoming "I think we

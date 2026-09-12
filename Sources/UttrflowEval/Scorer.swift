@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// Scores one rewrite against a reference by word overlap, since several phrasings are correct.
 public enum Scorer {
     public static func score(_ rewritten: String, against reference: EvaluationCase) -> CaseScore {
@@ -38,17 +40,12 @@ public enum Scorer {
             .map(String.init)
     }
 
-    /// Harmonic mean of precision and recall over words, counting duplicates.
+    /// Harmonic mean of precision and recall over an aligned reading, so a word moved is not a word kept.
     static func overlap(_ produced: [String], _ wanted: [String]) -> Double {
         guard !produced.isEmpty || !wanted.isEmpty else { return 1 }
         guard !produced.isEmpty, !wanted.isEmpty else { return 0 }
 
-        var remaining = counts(wanted)
-        var shared = 0
-        for token in produced where (remaining[token] ?? 0) > 0 {
-            remaining[token, default: 0] -= 1
-            shared += 1
-        }
+        let shared = WordErrorRate.measure(reference: wanted, hypothesis: produced).hits
 
         let precision = Double(shared) / Double(produced.count)
         let recall = Double(shared) / Double(wanted.count)
@@ -74,9 +71,5 @@ public enum Scorer {
         return (0...(text.count - phrase.count)).contains { start in
             Array(text[start..<start + phrase.count]) == phrase
         }
-    }
-
-    private static func counts(_ tokens: [String]) -> [String: Int] {
-        tokens.reduce(into: [:]) { $0[$1, default: 0] += 1 }
     }
 }
