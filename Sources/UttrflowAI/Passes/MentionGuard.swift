@@ -22,9 +22,11 @@ enum MentionGuard {
 
     /// Whether the mark word at `position` is mentioned; `reach` is how far the phrase's own opener may stand.
     static func isMentioned(
-        at position: Int, spanning length: Int, in live: [Int], of draft: Draft, reach: Int = 1
+        at position: Int, spanning length: Int, in live: [Int], of draft: Draft, reach: Int = 1,
+        kind: SpokenMarkKind = .trailing
     ) -> Bool {
-        guard position > 0 else { return true }
+        // An opening mark goes on the word after it, so a text beginning with one is using it, not naming it.
+        guard position > 0 else { return kind != .opening }
         if opensThePhrase(ending: position, reaching: reach, in: live, of: draft) { return true }
         let next = position + length
         return next < live.count && draft.shape(at: live[next]).key == "of"

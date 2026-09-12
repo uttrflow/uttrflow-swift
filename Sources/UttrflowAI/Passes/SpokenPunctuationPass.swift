@@ -1,16 +1,39 @@
 public import UttrflowCore
 
+/// Which side of its name a spoken mark goes, which is what decides where a mention of it could stand.
+enum SpokenMarkKind: Sendable, Equatable {
+    /// Goes on the word before it: a comma, a full stop, a question mark.
+    case trailing
+    /// Joins the words on both sides of it: a hyphen, a dash.
+    case joining
+    /// Opens a quotation, so it goes on the word after it and needs nothing before it.
+    case opening
+    /// Closes one, so it goes on the word before it as a trailing mark does.
+    case closing
+}
+
 /// Turns a punctuation mark said by name into the mark, when it is used rather than mentioned.
 public struct SpokenPunctuationPass: CleaningPass {
     public static let id: PassID = .spokenPunctuation
 
-    /// What each spoken name becomes, longest names first so "question mark" wins over nothing.
-    static let marks: [(words: [String], mark: String)] = [
-        (["full", "stop"], "."), (["question", "mark"], "?"), (["exclamation", "mark"], "!"),
-        (["exclamation", "point"], "!"), (["semi", "colon"], ";"), (["open", "quote"], "\""),
-        (["close", "quote"], "\""), (["comma"], ","), (["period"], "."), (["colon"], ":"),
-        (["semicolon"], ";"), (["hyphen"], "-"), (["dash"], "\u{2014}"),
+    /// Marks written as the pair they are, so adding one is a row rather than two rows and a guard clause.
+    static let pairs: [(open: [String], close: [String], mark: String)] = [
+        (["open", "quote"], ["close", "quote"], "\"")
     ]
+
+    /// What each spoken name becomes, longest names first so "question mark" wins over nothing.
+    static let marks: [(words: [String], mark: String, kind: SpokenMarkKind)] =
+        [
+            (["full", "stop"], ".", .trailing), (["question", "mark"], "?", .trailing),
+            (["exclamation", "mark"], "!", .trailing), (["exclamation", "point"], "!", .trailing),
+            (["semi", "colon"], ";", .trailing),
+        ]
+        + pairs.flatMap { [($0.open, $0.mark, SpokenMarkKind.opening), ($0.close, $0.mark, .closing)] }
+        + [
+            (["comma"], ",", .trailing), (["period"], ".", .trailing), (["colon"], ":", .trailing),
+            (["semicolon"], ";", .trailing), (["hyphen"], "-", .joining),
+            (["dash"], "\u{2014}", .joining),
+        ]
 
     /// The particles after which "dash" and "hyphen" are the verbs they also are: "dash off a note".
     static let particles: Set<String> = [
@@ -28,12 +51,11 @@ public struct SpokenPunctuationPass: CleaningPass {
                 let found = Self.marks.first(where: { matches($0.words, at: position, in: live, of: draft) }),
                 !MentionGuard.isMentioned(
                     at: position, spanning: found.words.count, in: live, of: draft,
-                    reach: MentionGuard.phraseReach),
+                    reach: MentionGuard.phraseReach, kind: found.kind),
                 !isVerb(found.words, at: position, in: live, of: draft),
                 isPlaced(found.mark, before: position + found.words.count, in: live, of: draft),
                 attach(
-                    found.mark, opening: found.words.first == "open", at: position,
-                    spanning: found.words.count,
+                    found.mark, kind: found.kind, at: position, spanning: found.words.count,
                     in: &live, of: &draft)
             else {
                 position += 1
@@ -69,27 +91,27 @@ public struct SpokenPunctuationPass: CleaningPass {
     /// Whether the text ends at `next`, or a layout word, a layout mark or a closing quote stands there.
     private func closes(at next: Int, in live: [Int], of draft: Draft) -> Bool {
         next == live.count || draft.words[live[next]].isLayoutMark
-            || matches(["close", "quote"], at: next, in: live, of: draft)
+            || Self.pairs.contains { matches($0.close, at: next, in: live, of: draft) }
             || LayoutWordsPass.marks.contains { matches($0.words, at: next, in: live, of: draft) }
     }
 
     /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.
     private func attach(
-        _ mark: String, opening: Bool, at position: Int, spanning length: Int, in live: inout [Int],
-        of draft: inout Draft
+        _ mark: String, kind: SpokenMarkKind, at position: Int, spanning length: Int,
+        in live: inout [Int], of draft: inout Draft
     ) -> Bool {
-        guard position > 0 else { return false }
         let after = position + length
-        let previous = live[position - 1]
-        if opening {
-            guard after < live.count else { return false }
+        // An opening mark needs the word it goes on to stand after it; every other mark needs the one before.
+        guard kind == .opening ? after < live.count : position > 0 else { return false }
+        if kind == .opening {
             draft.replace(at: live[after], with: mark + draft.words[live[after]].text, by: Self.id)
         } else if mark == "-" {
-            let joined = draft.words[previous].text + mark + draft.words[live[after]].text
-            draft.replace(at: previous, with: joined, by: Self.id)
+            let joined = draft.words[live[position - 1]].text + mark + draft.words[live[after]].text
+            draft.replace(at: live[position - 1], with: joined, by: Self.id)
             draft.remove(at: live[after], by: Self.id)
             live.remove(at: after)
         } else {
+            let previous = live[position - 1]
             draft.replace(
                 at: previous, with: WordShape.marked(draft.words[previous].text, with: mark), by: Self.id)
         }

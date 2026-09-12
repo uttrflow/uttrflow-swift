@@ -99,6 +99,29 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// An opening quote goes on the word after it, so a dictation may perfectly well begin with one.
+    @Test(
+        "wraps a quotation that opens the text",
+        arguments: [
+            (
+                "open quote the build is green close quote that is what he said",
+                "\"the build is green\" that is what he said"
+            ),
+            ("open quote ship it close quote", "\"ship it\""),
+        ]
+    )
+    func wrapsAQuotationThatOpensTheText(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// The opening half still needs a word to go on, and the closing half still needs one before it.
+    @Test(
+        "leaves a half quotation with nothing to attach to as words",
+        arguments: ["open quote", "close quote he said"])
+    func leavesAHalfQuotation(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test(
         "leaves a mark that is mentioned rather than used",
         arguments: [
