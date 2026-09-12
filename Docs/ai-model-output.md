@@ -15,9 +15,13 @@ did the thing it catches. This file keeps the observations and the numbers.
   its label. Everything before the last labelled line is the echo.
 
 The unwrapper is deliberately narrow: it strips a bare label from a known list and matched
-quotes around the whole answer, and only when the speaker did not say the label themselves
-("Output: ship it" survives). A sentence like "Sure, here is the text:" is not a bare label
-and is left for the guard to reject.
+quotes around the whole answer, and only when the speaker did not say the wrapper themselves.
+Both strippers are shown the draft the passes produced and refuse what they find in it —
+"Output: ship it" survives, and so does a quotation the recogniser reported around the whole
+utterance, which is reported speech rather than the model's packaging. A sentence like
+"Sure, here is the text:" is not a bare label and is left for the guard to reject, which is
+also the only thing that can: the guard trims punctuation off every token before comparing,
+so a deleted quote pair is invisible to it.
 
 ## Guard numbers
 
