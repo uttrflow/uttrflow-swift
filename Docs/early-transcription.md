@@ -111,6 +111,12 @@ piece, usually, or every piece for a retried recording. Those timings are added 
 stage into one measurement, so a dictation done in pieces still reports one figure for
 transcription and one for tidying.
 
+A piece the recogniser refuses while recording is not the end of working ahead. Its span
+is remembered as unfinished, the audio cursor moves past it, and the next pause is worked
+on as usual; the release pass then does every unfinished span in its own place, so a
+failure still gets reported and still costs only that piece's words rather than the whole
+recording's wait.
+
 The pieces are then joined with a space. Corrections keep their word ranges by being
 shifted past the words of the pieces before them. If any piece fell back to the rules,
 the whole dictation is reported as tidied by the rules, because "tidied by Apple's
