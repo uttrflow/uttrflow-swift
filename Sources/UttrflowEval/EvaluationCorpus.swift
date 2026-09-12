@@ -569,7 +569,7 @@ public enum EvaluationCorpus {
                 precedingText: "Overnight work\n1. "
             ),
             destination: .document,
-            mustBeginWith: "The migration",
+            mustBeginWith: "The rollback",
             mustEndWith: "."
         ),
         .init(
