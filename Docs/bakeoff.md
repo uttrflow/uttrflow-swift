@@ -246,7 +246,7 @@ sixteen point two").
 **One Hindi case may be unfair.** Everything scores badly on `hinglish-request`, which
 suggests the reference is one of several reasonable phrasings.
 
-**The corpus is 98 cases in six categories** — `everyday` 33, `contextual` 32, `grammar` 13,
+**The corpus is 105 cases in six categories** — `everyday` 36, `contextual` 36, `grammar` 13,
 `technical` 10, `multilingual` 5, `notARequest` 5 — and everything in it is synthesised or
 written by hand. Phase 8 grows it, with real recorded speech behind it.
 
