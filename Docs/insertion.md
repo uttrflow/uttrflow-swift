@@ -88,8 +88,23 @@ it to the top of the panel every time it is used.
 before `clearContents()` — clearing is itself what moves the change count, so an
 announcement made after it describes a change that has already happened.
 
-The announcement **names the text it is about to write**. Matching on the count alone
-meant any later change was claimed: a user copying something within the same 200 ms tick
-as an Uttrflow paste had their copy silently swallowed, which is the one thing a
-clipboard manager may not do. An announcement whose own write has not arrived is kept
-rather than spent, and lapses after two seconds so a paste that threw cannot sit armed.
+The announcement **names what it is about to write** — the text, or for a picture the PNG
+bytes. Matching on the count alone meant any later change was claimed: a user copying
+something within the same 200 ms tick as an Uttrflow paste had their copy silently
+swallowed, which is the one thing a clipboard manager may not do. The picture path had
+exactly that hole until it was given bytes to name, since it had no text. An announcement
+whose own write has not arrived is kept rather than spent, and lapses after two seconds so
+a paste that threw cannot sit armed.
+
+## One writer, one reader, and a gate that says so
+
+Every rule above — announce first, clear `.currentHostOnly`, name the write — lives in
+`SystemPasteboard`, and a call site that reaches `NSPasteboard` itself gets none of them.
+Two did: the panel's Copy, the menu's Copy of a recent dictation and `copyAndSay` went
+through `AppDelegate.putOnClipboard`, which cleared the clipboard the ordinary way and so
+offered finished transcripts to every device on the account; and the picture paste wrote
+bytes with a text-less announcement. Both now go through the `Pasteboard` port, which
+gained `setImage`. `Scripts/pasteboard_audit.sh`, in `make verify`, holds it there: only the
+writer (`SystemInput.swift`) and the reader (`ClipboardSource+System.swift`) may name
+`NSPasteboard`, which is the same argument `Docs/offline.md` makes for one module owning the
+network.

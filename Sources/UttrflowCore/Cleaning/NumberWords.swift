@@ -24,16 +24,6 @@ public enum NumberWords {
         value(of: key) != nil || digits(key) != nil
     }
 
-    /// Whether every word of a run is a number, so the run said twice is a value such as 4747 rather than a restart.
-    public static func isNumberRun(_ keys: some Sequence<String>) -> Bool {
-        var sawOne = false
-        for key in keys {
-            guard isNumber(key) else { return false }
-            sawOne = true
-        }
-        return sawOne
-    }
-
     /// The key when it is already a numeral such as 15, 16.2 or 2:30.
     public static func digits(_ key: String) -> String? {
         guard let first = key.first, let last = key.last, first.isNumber, last.isNumber,

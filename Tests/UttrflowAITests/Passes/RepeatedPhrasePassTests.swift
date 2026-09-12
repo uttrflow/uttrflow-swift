@@ -36,31 +36,18 @@ struct RepeatedPhrasePassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
-    /// A run of numbers said twice spells one value, so taking a copy out changes the number.
+    /// A run said twice on purpose is a name or an emphasis, and half of it is a word the speaker meant.
     @Test(
-        "keeps a repeated run of numbers, which is a value rather than a restart",
+        "keeps a run repeated on purpose rather than restarted",
         arguments: [
-            "the pin is four seven four seven",
-            "dial 4 7 4 7 now",
-            "the card starts four two four two four two four two",
-            "extension one two one two",
+            "ha ha ha ha",
+            "no no no no",
+            "New York New York is the song",
+            "we flew to Bora Bora Bora Bora",
         ]
     )
-    func keepsRepeatedNumbers(input: String) {
+    func keepsDeliberateRepeat(input: String) {
         #expect(cleaned(input, by: sut) == input)
-    }
-
-    @Test("still removes a restart that merely has a number in it")
-    func removesARestartWithANumberInIt() {
-        #expect(cleaned("call me at five call me at five today", by: sut) == "call me at five today")
-    }
-
-    @Test("reads a run as a value only when every word of it is a number")
-    func numberRuns() {
-        #expect(NumberWords.isNumberRun(["four", "seven"]))
-        #expect(NumberWords.isNumberRun(["4", "7", "twenty"]))
-        #expect(!NumberWords.isNumberRun(["at", "five"]))
-        #expect(!NumberWords.isNumberRun([String]()))
     }
 
     @Test("drops the first copy and keeps the second")

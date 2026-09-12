@@ -125,6 +125,19 @@ public enum EvaluationCorpus {
             expected: "There's no room, no room at all for another one.",
             mustKeep: ["room"]
         ),
+        // A doubled function word is the stammer; a doubled content word in the same breath is the emphasis.
+        .init(
+            id: "emphatic-double-kept", category: .everyday,
+            spoken: "the the plan is very very late and much much worse than last week",
+            expected: "The plan is very very late and much much worse than last week.",
+            mustKeep: ["very very", "much much"]
+        ),
+        .init(
+            id: "doubled-place-name-kept", category: .everyday,
+            spoken: "we flew to bora bora last year for the wedding",
+            expected: "We flew to Bora Bora last year for the wedding.",
+            mustKeep: ["Bora Bora"]
+        ),
         .init(
             id: "coordinated-apology-kept", category: .everyday,
             spoken: "say sorry to john sorry to marcy too",

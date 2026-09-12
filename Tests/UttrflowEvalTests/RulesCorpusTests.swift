@@ -11,7 +11,8 @@ struct RulesCorpusTests {
     static let rulesMustPass: Set<String> = [
         "false-start", "self-correction", "filler-heavy", "pronoun-i", "number-words", "short-yes",
         "repeated-phrase", "i-mean-correction", "actually-between-numbers", "false-no-stays",
-        "coordinated-list-kept", "repeated-frame-kept", "coordinated-apology-kept", "spoken-comma",
+        "coordinated-list-kept", "repeated-frame-kept", "emphatic-double-kept",
+        "doubled-place-name-kept", "coordinated-apology-kept", "spoken-comma",
         "comma-as-a-word", "new-paragraph", "time-of-day", "percentage", "period-as-a-word", "spoken-period",
         "period-after-new-line", "dates", "ordinal-not-date",
         "version-number", "port-number", "acronyms", "kubernetes", "function-name", "sql-terms",

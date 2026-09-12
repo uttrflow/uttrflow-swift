@@ -28,14 +28,18 @@ public struct RepeatedPhrasePass: CleaningPass {
         for length in Self.lengths.reversed() where position + 2 * length <= live.count {
             let first = live[position..<position + length]
             let second = live[position + length..<position + 2 * length]
+            let keys = first.map { draft.shape(at: $0).key }
             let sameWords = zip(first, second).allSatisfy {
                 draft.shape(at: $0).key == draft.shape(at: $1).key
             }
             let unbroken = !(first + second.dropLast()).contains { draft.shape(at: $0).endsClause }
-            // A run of numbers said twice is one value — "four seven four seven" is 4747 — not a restart.
-            let isValue = NumberWords.isNumberRun(first.map { draft.shape(at: $0).key })
-            if sameWords, unbroken, !isValue { return length }
+            if sameWords, unbroken, !Self.isDeliberate(keys) { return length }
         }
         return nil
+    }
+
+    /// Whether the run is said twice on purpose rather than restarted: one word over again, or a name and nothing else.
+    private static func isDeliberate(_ keys: [String]) -> Bool {
+        Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent)
     }
 }
