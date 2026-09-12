@@ -23,7 +23,13 @@ look like ours.
 delivers a truncated one — no error, no short return, just missing characters at the end
 of a dictation. `CGEventTypist` therefore chunks the text at 16 units and posts a pair of
 events per chunk. Chunking is in UTF-16 units rather than characters because that is what
-the API counts.
+the API counts — but the *boundary* is a character boundary, not a unit boundary. A blind
+stride of 16 splits a surrogate pair that straddles the cut, so an emoji arrives as a lone
+high surrogate in one event and a lone low surrogate in the next, and the line reads with
+one corrupted symbol in the middle of correct text. `UTF16Chunking.chunks(of:limit:)` walks
+unicode scalars and keeps each one whole, which is the rule `BackwardSelection` already
+applies on the read side. It is a pure function, so it is tested at every offset an emoji
+can sit at rather than asserted here.
 
 ## Flags are cleared on every event
 
