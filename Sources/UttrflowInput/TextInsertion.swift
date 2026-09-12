@@ -2,6 +2,9 @@ import UttrflowCore
 
 /// Builds the insertion strategies in the order they are tried, and is the one place that names them.
 public enum TextInsertion {
+    /// The words a stage that has already given up must not write; a late paste is the user's clipboard gone.
+    static let dictationEnded = "the dictation had already given up on this insertion"
+
     /// Accessibility, then pasting, then the clipboard, which cannot fail. See `Docs/insertion.md`.
     public static func coordinator(
         focus: any AccessibilityFocus = AXAccessibilityFocus(),

@@ -16,6 +16,10 @@ public struct ClipboardTextInsertionEngine: TextInsertionEngine {
 
     /// Answers `.notReported`: nothing was sent anywhere, so there is no arrival to have an opinion about.
     public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
+        // Even the floor: the words are already kept under Recent, and the clipboard is the user's.
+        guard !Task.isCancelled else {
+            throw .insertionRejected(description: TextInsertion.dictationEnded)
+        }
         pasteboard.setText(text)
         guard pasteboard.text() == text else { throw .clipboardUnavailable }
         return .notReported
