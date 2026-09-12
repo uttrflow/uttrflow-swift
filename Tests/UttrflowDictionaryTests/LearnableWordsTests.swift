@@ -55,10 +55,31 @@ struct GeneralVocabularyTests {
         #expect(GeneralVocabulary.knows("The"))
     }
 
-    @Test("Offers the homophone a recogniser confuses an ordinary word with")
-    func offersAHomophone() {
-        #expect(GeneralVocabulary.wordsSounding(like: "there").contains("their"))
-        #expect(GeneralVocabulary.wordsSounding(like: "their").contains("there"))
+    /// A function word carries the sentence's structure, so its homophone is a change of meaning rather than a reading.
+    @Test(
+        "Offers no homophone where either word is a function word",
+        arguments: [("there", "their"), ("their", "there"), ("then", "than"), ("one", "on")])
+    func refusesAFunctionWordHomophone(heard: String, homophone: String) {
+        #expect(!GeneralVocabulary.wordsSounding(like: heard).contains(homophone))
+    }
+
+    /// Refused at the query, not only filtered from the answer, so nothing at all comes back for one.
+    @Test("Offers nothing at all for a function word", arguments: ["there", "their", "than", "on"])
+    func offersNothingForAFunctionWord(heard: String) {
+        #expect(GeneralVocabulary.wordsSounding(like: heard).isEmpty)
+    }
+
+    @Test("Never offers a function word as the reading of anything")
+    func neverOffersAFunctionWord() {
+        for word in ["then", "one", "hear", "note", "kar", "hai", "wait", "mail", "week"] {
+            #expect(GeneralVocabulary.wordsSounding(like: word).allSatisfy { !FunctionWords.holds($0) })
+        }
+    }
+
+    /// Two words that both carry meaning, sound alike and open alike are still a reading worth offering.
+    @Test("Still offers a homophone between two words that carry meaning")
+    func offersAContentHomophone() {
+        #expect(GeneralVocabulary.wordsSounding(like: "hear").contains("here"))
     }
 
     /// A common word that merely rhymes is a real word and no reading of anything, so the opening must match too.

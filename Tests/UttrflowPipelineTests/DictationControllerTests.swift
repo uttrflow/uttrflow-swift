@@ -531,6 +531,18 @@ struct DictationControllerControlTests {
         await harness.controller.toggleFromControl()
         #expect(harness.cue.plays == [.start], "the stop cue is the microphone's")
     }
+
+    @Test("a click waits its turn behind a key press already queued, rather than jumping it")
+    func controlQueuesBehindAKeyPress() async {
+        let harness = makeHarness(activation: .holdToTalk)
+
+        harness.controller.submit(.pressed)
+        await harness.controller.toggleFromControl()
+
+        // The press opens the microphone first, so the click is what finishes it.
+        #expect(await harness.capture.calls.events == [.start, .stop])
+        #expect(harness.inserter.received == [controllerTidied])
+    }
 }
 
 // MARK: - Being let go of
