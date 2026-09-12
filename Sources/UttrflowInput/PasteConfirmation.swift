@@ -43,6 +43,7 @@ public struct PasteConfirmation: Sendable {
 
     /// Watches the caret until `text` sits behind it, answering how long that took.
     public func waitFor(_ text: String) async -> Outcome {
+        let elapsed = Self.stopwatch(from: clock)
         let wanted = Self.wanted(from: text)
         // A field that will not answer now will not answer in a second either, so nothing is waited for.
         guard !wanted.isEmpty, focus.tail(upTo: Self.readLength) != .unreadable else { return .notReported }
@@ -50,11 +51,18 @@ public struct PasteConfirmation: Sendable {
         var waited = Duration.zero
         while waited < budget {
             try? await clock.sleep(for: interval)
-            waited += interval
             guard case .text(let seen) = focus.tail(upTo: Self.readLength) else { return .notReported }
+            // Read from the clock rather than tallied from the sleeps, so each read is charged to the budget.
+            waited = elapsed()
             if Self.collapsed(seen).hasSuffix(wanted) { return .landed(waited) }
         }
         return .gaveUp(waited)
+    }
+
+    /// Opens the existential clock, which is what lets an instant be held on to.
+    private static func stopwatch(from clock: some Clock<Duration>) -> () -> Duration {
+        let start = clock.now
+        return { start.duration(to: clock.now) }
     }
 
     /// The end of what was pasted, which is what sits against the caret once the application takes it.
