@@ -129,6 +129,48 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip == nil)
     }
 
+    // MARK: - Too large to keep
+
+    /// The classifier reads the whole string, so the bound is asked before it, not by the store after.
+    @Test("says nothing about a copy too large to keep")
+    func refusesAnOversizeCopyWithoutReadingIt() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write(String(repeating: "a", count: 3_000_000))
+
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
+    /// Both flavours count, the way `ClipboardStore.weight(of:)` counts them.
+    @Test("counts the formatted flavour towards the bound")
+    func theRichFormCountsTowardsTheBound() async {
+        let clipboard = FakeClipboard()
+        let watcher = PasteboardWatcher(
+            source: clipboard, budget: .standard.limiting(largestClip: 20), now: { noon })
+        clipboard.write(String(repeating: "a", count: 11), html: String(repeating: "b", count: 11))
+
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
+    @Test("still notices a copy that fits")
+    func keepsACopyUnderTheBound() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write("small enough")
+
+        #expect(await watcher.newClip(at: noon)?.clip.text == "small enough")
+    }
+
+    @Test("treats a bound of zero as no bound")
+    func noBoundKeepsEverything() async {
+        let clipboard = FakeClipboard()
+        let watcher = PasteboardWatcher(
+            source: clipboard, budget: .standard.limiting(largestClip: 0), now: { noon })
+        clipboard.write("kept whatever its length")
+
+        #expect(await watcher.newClip(at: noon)?.clip.text == "kept whatever its length")
+    }
+
     @Test("ignores a copy that is nothing but whitespace")
     func blankCopy() async {
         let clipboard = FakeClipboard()
