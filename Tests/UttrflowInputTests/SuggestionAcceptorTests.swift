@@ -412,17 +412,47 @@ struct BackwardSelectionTests {
 
     @Test("The text before the caret comes back in whole characters, so an emoji is never a lone surrogate.")
     func textIsReadInCharacters() {
-        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 1) == "🙂")
-        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 2) == "b🙂")
-        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 0) == "")
-        #expect(BackwardSelection.text(in: "git comi", endingAt: 8, covering: 4) == "comi")
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, exactly: 1) == "🙂")
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, exactly: 2) == "b🙂")
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, exactly: 0) == "")
+        #expect(BackwardSelection.text(in: "git comi", endingAt: 8, exactly: 4) == "comi")
     }
 
     @Test("The text is refused for the same carets the range is, so the two readings cannot disagree.")
     func textRefusesWhatTheRangeRefuses() {
-        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 3, covering: 1) == nil)
-        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, covering: 4) == nil)
-        #expect(BackwardSelection.text(in: "git", endingAt: 9, covering: 1) == nil)
-        #expect(BackwardSelection.text(in: "git", endingAt: 3, covering: -1) == nil)
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 3, exactly: 1) == nil)
+        #expect(BackwardSelection.text(in: "ab🙂", endingAt: 4, exactly: 4) == nil)
+        #expect(BackwardSelection.text(in: "git", endingAt: 9, exactly: 1) == nil)
+        #expect(BackwardSelection.text(in: "git", endingAt: 3, exactly: -1) == nil)
+    }
+}
+
+/// A short field is short, not silent: the delete path wants an exact count, a read-back wants what is there.
+@Suite("The tail before the caret")
+struct BackwardSelectionTailTests {
+    @Test("gives back everything there is when the field holds less than was asked for")
+    func clampsToWhatExists() {
+        #expect(BackwardSelection.tail(in: "hi", endingAt: 2, upTo: 96) == "hi")
+        #expect(BackwardSelection.tail(in: "", endingAt: 0, upTo: 96) == "")
+    }
+
+    /// The distinction #223 is about: the exact-count form refuses the same field the tail form reads.
+    @Test("reads a field the exact-count form refuses")
+    func readsWhatTheExactFormRefuses() {
+        #expect(BackwardSelection.text(in: "hi", endingAt: 2, exactly: 96) == nil)
+        #expect(BackwardSelection.tail(in: "hi", endingAt: 2, upTo: 96) == "hi")
+    }
+
+    @Test("still cuts on whole characters, so an emoji never comes back half")
+    func cutsOnCharacters() {
+        #expect(BackwardSelection.tail(in: "ab🙂", endingAt: 4, upTo: 1) == "🙂")
+        #expect(BackwardSelection.tail(in: "ab🙂", endingAt: 4, upTo: 99) == "ab🙂")
+    }
+
+    @Test("says nothing when the caret itself cannot be read")
+    func refusesAnUnreadableCaret() {
+        // Inside the emoji's surrogate pair, which is not a position in the string at all.
+        #expect(BackwardSelection.tail(in: "ab🙂", endingAt: 3, upTo: 8) == nil)
+        #expect(BackwardSelection.tail(in: "ab", endingAt: 99, upTo: 8) == nil)
     }
 }

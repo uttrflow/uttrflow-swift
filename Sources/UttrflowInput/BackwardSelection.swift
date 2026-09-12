@@ -9,16 +9,33 @@ public enum BackwardSelection {
         return units.distance(from: units.startIndex, to: preceding.startIndex)..<caret
     }
 
-    /// The `characters` before `caret` as whole characters, so an emoji is never cut into a lone surrogate.
+    /// Exactly `characters` before `caret`, or `nil` when there are fewer; the delete path needs the count.
     public static func text(
-        in text: String, endingAt caret: Int, covering characters: Int
+        in text: String, endingAt caret: Int, exactly characters: Int
     ) -> String? {
         substring(in: text, endingAt: caret, covering: characters).map(String.init)
     }
 
+    /// At most `characters` before `caret`, as many as there are; `nil` only where the caret itself is unreadable.
+    public static func tail(
+        in text: String, endingAt caret: Int, upTo characters: Int
+    ) -> String? {
+        guard characters >= 0, caret >= 0 else { return nil }
+        let units = text.utf16
+        guard
+            let caretIndex = units.index(units.startIndex, offsetBy: caret, limitedBy: units.endIndex),
+            caretIndex.samePosition(in: text) != nil
+        else { return nil }
+
+        let head = text[..<caretIndex]
+        // Clamped rather than refused: a field shorter than the request is short, not silent.
+        let wanted = Swift.min(characters, head.count)
+        return String(head[head.index(head.endIndex, offsetBy: -wanted)...])
+    }
+
     /// Whether the characters before `caret` are exactly `replaced`, which a write confirms before it takes them back.
     public static func confirms(_ replaced: String, in text: String, endingAt caret: Int) -> Bool {
-        self.text(in: text, endingAt: caret, covering: replaced.count) == replaced
+        self.text(in: text, endingAt: caret, exactly: replaced.count) == replaced
     }
 
     /// The characters before a UTF-16 caret, or `nil` when the caret splits a character or reaches past the start.
