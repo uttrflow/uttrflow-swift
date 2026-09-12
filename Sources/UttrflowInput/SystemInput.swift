@@ -1,16 +1,22 @@
 import AppKit
 import ApplicationServices
-import Foundation
+public import Foundation
 public import UttrflowCore
 
 /// The real clipboard, untestable by construction and so excluded from the coverage gate.
 public struct SystemPasteboard: Pasteboard {
     /// Told what this app is about to write, so the watcher can tell it from a copy. See `Docs/insertion.md`.
-    private let willWrite: @Sendable (String?) -> Void
+    private let willWrite: @Sendable (String) -> Void
+    /// Told the bytes a picture write puts there, which is what names it to the watcher.
+    private let willWritePicture: @Sendable (Data) -> Void
 
-    /// Takes the announcement the clipboard watcher needs, and by default makes none.
-    public init(willWrite: @escaping @Sendable (String?) -> Void = { _ in }) {
+    /// Takes the announcements the clipboard watcher needs, and by default makes none.
+    public init(
+        willWrite: @escaping @Sendable (String) -> Void = { _ in },
+        willWritePicture: @escaping @Sendable (Data) -> Void = { _ in }
+    ) {
         self.willWrite = willWrite
+        self.willWritePicture = willWritePicture
     }
 
     public func text() -> String? {
@@ -30,6 +36,13 @@ public struct SystemPasteboard: Pasteboard {
         willWrite(text)
         clearForThisMacOnly()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    /// K4 — the picture flavour, announced by its bytes and kept off Universal Clipboard like every other write.
+    public func setImage(_ data: Data) {
+        willWritePicture(data)
+        clearForThisMacOnly()
+        NSPasteboard.general.setData(data, forType: .png)
     }
 
     /// Clears the pasteboard and keeps what goes on it next off Universal Clipboard. See `Docs/insertion.md`.
