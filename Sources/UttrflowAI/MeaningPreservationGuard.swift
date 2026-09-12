@@ -368,10 +368,12 @@ public struct MeaningPreservationGuard: Sendable {
         "hundred": "100", "thousand": "1000",
     ]
 
-    /// The digits for every number word in the text, each on its own and every run of them composed.
-    private static func spelledNumbers(in text: String) -> Set<String> {
+    /// The digits for every number word read through `table`, each on its own and every run of them composed.
+    private static func spelledNumbers(
+        in text: String, using table: [String: String] = numberWords
+    ) -> Set<String> {
         let words = TextTidy.words(text)
-        var found = Set(words.compactMap { numberWords[$0] })
+        var found = Set(words.compactMap { table[$0] })
         for run in cardinalRuns(words) { found.insert(String(run.value)) }
         return found
     }
