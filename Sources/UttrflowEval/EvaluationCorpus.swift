@@ -557,6 +557,36 @@ public enum EvaluationCorpus {
             mustEndWith: "."
         ),
         .init(
+            id: "document-bullet-caret-capitalises", category: .contextual,
+            spoken: "the migration finished overnight",
+            expected: "The migration finished overnight.",
+            mustKeep: ["migration"],
+            context: AppContext(
+                applicationName: "TextEdit",
+                bundleIdentifier: "com.apple.TextEdit",
+                documentName: "Incident log",
+                precedingText: "Overnight work\n- "
+            ),
+            destination: .document,
+            mustBeginWith: "The migration",
+            mustEndWith: "."
+        ),
+        .init(
+            id: "document-numbered-caret-capitalises", category: .contextual,
+            spoken: "the rollback took twenty minutes",
+            expected: "The rollback took 20 minutes.",
+            mustKeep: ["rollback"],
+            context: AppContext(
+                applicationName: "TextEdit",
+                bundleIdentifier: "com.apple.TextEdit",
+                documentName: "Incident log",
+                precedingText: "Overnight work\n1. "
+            ),
+            destination: .document,
+            mustBeginWith: "The rollback",
+            mustEndWith: "."
+        ),
+        .init(
             id: "spreadsheet-cell-no-stop", category: .contextual,
             spoken: "uh total revenue for the quarter",
             expected: "total revenue for the quarter",
