@@ -28,6 +28,13 @@ public actor PersonalDictionaryStore {
         LocalStore.file("dictionary.v1.json", in: directory)
     }
 
+    /// Which shipped words this dictionary has been given, named after it so two never share one record.
+    private var seedRecord: URL {
+        file.deletingLastPathComponent().appending(
+            path: "\(file.deletingPathExtension().lastPathComponent).seeded.json",
+            directoryHint: .notDirectory)
+    }
+
     // MARK: - Reading
 
     /// Every word in the order it was added, retired ones included so the user can still see them.
@@ -70,6 +77,40 @@ public actor PersonalDictionaryStore {
             DictionaryEntry(
                 word: spelling, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
                 firstSeen: moment))
+    }
+
+    /// Writes the words this build ships knowing, once ever; a word the user then deletes stays deleted.
+    @discardableResult
+    public func seedShippedWords(at moment: Date) throws(DictionaryStoreError) -> [DictionaryEntry] {
+        guard seededVersion() < ShippedWords.version else { return [] }
+        let existing = load()
+        let known = Set(existing.map { $0.word.lowercased() })
+        let seeded = ShippedWords.entries(at: moment).filter { !known.contains($0.word.lowercased()) }
+        // Recorded before the entries are written, so a failed write cannot seed twice on the next launch.
+        try recordSeeded()
+        guard !seeded.isEmpty else { return [] }
+        try persist(existing + seeded)
+        return seeded
+    }
+
+    /// The newest shipped list this dictionary has been given, or zero for one that has had none.
+    private func seededVersion() -> Int {
+        guard let data = try? Data(contentsOf: seedRecord),
+            let record = try? JSONDecoder().decode([String: Int].self, from: data)
+        else { return 0 }
+        return record["version"] ?? 0
+    }
+
+    /// Notes which shipped list has been applied, which is what stops a deleted word returning.
+    private func recordSeeded() throws(DictionaryStoreError) {
+        do {
+            try FileManager.default.createDirectory(
+                at: seedRecord.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(["version": ShippedWords.version]).write(
+                to: seedRecord, options: .atomic)
+        } catch {
+            throw .couldNotWrite
+        }
     }
 
     /// Forgets one word; an identifier that is not there is not an error.
