@@ -77,6 +77,9 @@ final class SuggestionPanelController {
         render()
     }
 
+    /// Whether a suggestion is on screen, which keeps the pause clock following the field.
+    var isShowing: Bool { request.suggestion != .silent }
+
     /// Exposed so a probe or a test can read back what was actually configured.
     var window: NSPanel { panel }
 

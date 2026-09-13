@@ -7,8 +7,13 @@ private import Synchronization
 
 /// Notices when the user copies something, by polling, which is the only mechanism macOS offers.
 public actor PasteboardWatcher {
-    /// How often the change count is read, set by how fast a hand moves from ⌘C to ⇧⌘V.
-    public static let pollInterval = Duration.milliseconds(200)
+    /// How often the change count is read; the panel catches up as it opens, so this is set by battery. See `Docs/performance.md`.
+    public static let pollInterval = Duration.milliseconds(500)
+
+    /// How far the system may move one poll to coalesce it with other wakeups: a fifth of the interval.
+    static func tolerance(for interval: Duration) -> Duration {
+        interval / 5
+    }
 
     /// How long an announcement stays armed, so a write that never happened cannot sit waiting.
     static let announcementLifetime: Double = 2
@@ -135,9 +140,16 @@ public actor PasteboardWatcher {
     /// Watches until cancelled, handing each new clip to `handle` in order.
     public func run(handing handle: @Sendable (NoticedClip) async -> Void) async {
         while true {
-            do { try await Task.sleep(for: interval) } catch { break }
-            if let clip = newClip(at: now()) { await handle(clip) }
+            do {
+                try await Task.sleep(for: interval, tolerance: Self.tolerance(for: interval))
+            } catch { break }
+            await catchUp(handing: handle)
         }
+    }
+
+    /// Reads the clipboard now rather than at the next poll, so a panel opening shows a copy made a moment before.
+    public func catchUp(handing handle: @Sendable (NoticedClip) async -> Void) async {
+        if let clip = newClip(at: now()) { await handle(clip) }
     }
 }
 

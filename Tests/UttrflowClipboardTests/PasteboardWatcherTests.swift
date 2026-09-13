@@ -409,10 +409,40 @@ struct PasteboardWatcherTests {
         await task.value
     }
 
-    /// Two hundred milliseconds, because the gap between ⌘C and ⇧⌘V is a hand movement.
-    @Test("polls often enough to keep up with the gesture")
+    /// The panel catches up as it opens, so the poll is set by battery rather than by the gesture. See `Docs/performance.md`.
+    @Test("polls no more than twice a second")
     func interval() {
-        #expect(PasteboardWatcher.pollInterval == .milliseconds(200))
+        #expect(PasteboardWatcher.pollInterval >= .milliseconds(500))
+    }
+
+    @Test("lets the system move a poll by a fifth of the interval, so it can coalesce wakeups")
+    func tolerance() {
+        #expect(PasteboardWatcher.tolerance(for: .milliseconds(500)) == .milliseconds(100))
+        #expect(PasteboardWatcher.tolerance(for: .milliseconds(1)) < .milliseconds(1))
+    }
+
+    @Test("catches up on a copy made since the last poll, and hands it once")
+    func catchUp() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write("copied a moment before the panel opened")
+        let handed = Mutex<[String]>([])
+
+        await watcher.catchUp { noticed in handed.withLock { $0.append(noticed.clip.text) } }
+
+        #expect(handed.withLock { $0 } == ["copied a moment before the panel opened"])
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
+    @Test("hands nothing when catching up finds no new copy")
+    func catchUpWithNothingNew() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        let handed = Mutex(0)
+
+        await watcher.catchUp { _ in handed.withLock { $0 += 1 } }
+
+        #expect(handed.withLock { $0 } == 0)
     }
 
     /// Left to itself it reads the real clock, which is what the app gets.

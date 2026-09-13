@@ -1,3 +1,5 @@
+private import Synchronization
+
 /// How a word sounds, as Double Metaphone's two codes, so an ambiguous opening never has to be guessed.
 public struct PhoneticCode: Sendable, Hashable {
     /// The likelier English reading.
@@ -28,10 +30,26 @@ extension PhoneticCode {
     func sounds(likeAnyOf sounds: Set<String>) -> Bool { keys.contains(where: sounds.contains) }
 }
 
+/// How many words were encoded while this was bound to `DoubleMetaphone.tally`.
+package final class EncodingTally: Sendable {
+    private let encoded = Mutex(0)
+
+    package init() {}
+
+    /// The encodings made so far.
+    package var count: Int { encoded.withLock { $0 } }
+
+    func record() { encoded.withLock { $0 += 1 } }
+}
+
 /// Double Metaphone, English rules only, so confusable spellings share a key. See Docs/app-dictionary.md.
 public enum DoubleMetaphone {
+    /// Counts the encodings made while bound, child tasks included, so a test can bound the work without a clock.
+    @TaskLocal package static var tally: EncodingTally?
+
     /// The sound of one word; case and anything that is not a letter make no difference.
     public static func code(for word: String) -> PhoneticCode {
+        tally?.record()
         var encoder = Encoder(word: word)
         return encoder.encode()
     }

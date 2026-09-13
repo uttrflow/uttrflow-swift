@@ -44,9 +44,6 @@ final class SuggestionCoordinator {
     /// Says why nothing is being suggested, which silence alone cannot.
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
-    /// How often the field is re-read with nothing else happening, which is what notices a pause.
-    private static let tickInterval: TimeInterval = 1
-
     private let store: PredictStore
     private let capture: CaptureSession
     private let panel = SuggestionPanelController()
@@ -79,6 +76,8 @@ final class SuggestionCoordinator {
     private var monitors: [Any] = []
     private var activations: (any NSObjectProtocol)?
     private var ticker: Timer?
+    /// Whether the pause clock should be running, which it is only shortly after activity or while something is drawn.
+    private var ticking = SuggestionTicking()
     private var swallowed: Task<Void, Never>?
     private var lastReading: FieldReading?
     /// The last field read, so the highlight can move without reading anything again.
@@ -162,6 +161,7 @@ final class SuggestionCoordinator {
         pendingWake?.cancel()
         ticker?.invalidate()
         ticker = nil
+        ticking = SuggestionTicking()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         if let activations { NSWorkspace.shared.notificationCenter.removeObserver(activations) }
@@ -180,7 +180,10 @@ final class SuggestionCoordinator {
         if let keys { monitors.append(keys) }
         // A click moves the caret or the focus without a key, so it wakes a turn the way a pause does.
         let clicks = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
-            MainActor.assumeIsolated { self?.wake(.tick) }
+            MainActor.assumeIsolated {
+                self?.noteActivity()
+                self?.wake(.tick)
+            }
         }
         if let clicks { monitors.append(clicks) }
         activations = NSWorkspace.shared.notificationCenter.addObserver(
@@ -188,15 +191,33 @@ final class SuggestionCoordinator {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.applicationChanged() }
         }
-        ticker = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) {
-            [weak self] _ in MainActor.assumeIsolated { self?.wake(.tick) }
+    }
+
+    /// Starts the pause clock if it is not running; every activity calls this.
+    private func noteActivity() {
+        guard ticking.noteActivity(at: Date()) else { return }
+        let timer = Timer.scheduledTimer(withTimeInterval: SuggestionTicking.interval, repeats: true) {
+            [weak self] _ in MainActor.assumeIsolated { self?.tick() }
         }
+        timer.tolerance = SuggestionTicking.tolerance
+        ticker = timer
+    }
+
+    /// Wakes a turn while the clock is wanted, and stops it once nothing is happening and nothing is drawn.
+    private func tick() {
+        guard ticking.tick(at: Date(), isShowing: panel.isShowing) else {
+            ticker?.invalidate()
+            ticker = nil
+            return
+        }
+        wake(.tick)
     }
 
     /// One key pressed in another application, which is the only thing that moves the caret for us.
     private func keyPressed(_ key: Key) {
         // Keys arriving while we insert are our own, so they neither reset the pause clock nor wake a turn.
         guard !isInserting else { return }
+        noteActivity()
         lastKeystroke = Date()
         // Counted in the session, so a Tab pressed before the next read cannot take an offer for the old line.
         session.keystrokeArrived()
@@ -208,6 +229,7 @@ final class SuggestionCoordinator {
 
     /// Another application came to the front, so whatever was being worked out for the last field is stale now.
     private func applicationChanged() {
+        noteActivity()
         generating?.cancel()
         pendingWake?.cancel()
         interceptor.arm([])
@@ -620,6 +642,7 @@ final class SuggestionCoordinator {
                 isInserting = true
                 await take(text, after: typed, in: reading)
                 isInserting = false
+                noteActivity()
                 // The field is re-read a moment later, since an application applies the insertion after the keys land.
                 wake(.tick, afterMilliseconds: 80)
             case .redraw(let update):

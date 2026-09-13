@@ -139,7 +139,7 @@ answer — timed from the moment after the field was read, so the cross-process 
 charged against it.
 
 `SuggestionCoordinator` in the app is the part that cannot be tested headlessly: a global
-key monitor, a one-second tick, the Accessibility read on a queue of its own, the event
+key monitor, a one-second tick that runs only shortly after activity (`SuggestionTicking`), the Accessibility read on a queue of its own, the event
 tap, the panel, and the corpus. It reads the field off the main thread, and a turn that
 takes longer than `SuggestionSession.turnBudgetInMilliseconds` draws nothing at all —
 answering a moment that has passed is worse than answering nothing.

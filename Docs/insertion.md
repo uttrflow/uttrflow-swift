@@ -141,7 +141,7 @@ announcement made after it describes a change that has already happened.
 
 The announcement **names what it is about to write** — the text, or for a picture the PNG
 bytes. Matching on the count alone meant any later change was claimed: a user copying
-something within the same 200 ms tick as an Uttrflow paste had their copy silently
+something within the same poll as an Uttrflow paste had their copy silently
 swallowed, which is the one thing a clipboard manager may not do. The picture path had
 exactly that hole until it was given bytes to name, since it had no text. An announcement
 whose own write has not arrived is kept rather than spent, and lapses after two seconds so

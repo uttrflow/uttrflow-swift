@@ -83,27 +83,46 @@ struct DoubtfulWordsTests {
         #expect(spans.first?.candidates == ["one", "two", "three"])
     }
 
-    @Test("answers fast enough that the step disappears beside the model call")
-    func answersInsideTheBudget() async {
-        let draft = Draft.heard(
-            "the ?order ?totals ?view is ?stale after ?midnight and the ?cash ?report ?failed")
-        let situation = Situation.showing(
-            title: "revenue.sql — orderTotals", selection: String(repeating: "orderTotals ", count: 40),
-            preceding: String(repeating: "select from ", count: 20))
-        // Warmed once, because the first call builds the vocabulary's index and the design budgets a dictation.
-        _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
+    @Test("reads the screen once a piece, so ten times the words on it costs one encoding each")
+    func encodesTheScreenOnce() async {
+        let draft = Self.budgetDraft
+        let runs = UncertainSpan.spans(in: draft, below: WordCorrectionEngine.certaintyThreshold).count
+        let few = await Self.encodings(for: draft, screenWords: 50)
+        let many = await Self.encodings(for: draft, screenWords: 500)
 
-        var best = Duration.seconds(1)
-        for _ in 0..<5 {
-            let taken = await ContinuousClock().measure {
-                _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
-            }
-            best = min(best, taken)
+        #expect(runs >= 10, "the draft must doubt enough runs that a per-run read of the screen shows")
+        #expect(many - few <= 450 + 45, "450 more words cost \(many - few) encodings over \(runs) runs")
+    }
+
+    @Test("costs a few encodings per doubtful run, never a pass over the screen or the vocabulary")
+    func encodesEachRunCheaply() async {
+        let one = Draft.heard("the ?order is late")
+        let manyRuns = Self.budgetDraft
+        let added =
+            UncertainSpan.spans(in: manyRuns, below: WordCorrectionEngine.certaintyThreshold).count
+            - UncertainSpan.spans(in: one, below: WordCorrectionEngine.certaintyThreshold).count
+        let few = await Self.encodings(for: one, screenWords: 200)
+        let many = await Self.encodings(for: manyRuns, screenWords: 200)
+
+        #expect(added >= 10)
+        #expect(many - few <= 4 * added, "\(added) more runs cost \(many - few) encodings")
+    }
+
+    /// Eight doubted words making fourteen runs of up to three, the shape the step was first measured against.
+    private static let budgetDraft = Draft.heard(
+        "the ?order ?totals ?view is ?stale after ?midnight and the ?cash ?report ?failed")
+
+    /// The Double Metaphone encodings one candidate step makes over a selection of distinct screen words.
+    private static func encodings(for draft: Draft, screenWords: Int) async -> Int {
+        let selection = (0..<screenWords).map { "orderTotal\($0)" }.joined(separator: " ")
+        let situation = Situation.showing(title: "revenue.sql", selection: selection)
+        // Warmed first, because the vocabulary's sound index is built once on first use and is not the step's cost.
+        _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
+        let tally = EncodingTally()
+        await DoubleMetaphone.$tally.withValue(tally) {
+            _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
         }
-        // The budget where the machine is known; an order of magnitude where it is shared. See #136.
-        let onARunner = ProcessInfo.processInfo.environment["CI"] != nil
-        let ceiling: Duration = onARunner ? .milliseconds(500) : .milliseconds(50)
-        #expect(best < ceiling, "the candidate step took \(best)")
+        return tally.count
     }
 
     @Test("asks the user's own dictionary before the screen and the general vocabulary")

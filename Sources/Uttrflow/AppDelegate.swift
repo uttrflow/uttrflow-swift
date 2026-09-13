@@ -585,7 +585,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
             await self?.clipArrived(noticed)
         }
-        clipboardWatchTask = Task { [clipboardWatcher] in
+        // Utility, because a poll nobody is waiting on should not run as the main thread's work.
+        clipboardWatchTask = Task(priority: .utility) { [clipboardWatcher] in
             await clipboardWatcher.run(handing: arrived)
         }
 
@@ -594,9 +595,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
     private func clipArrived(_ noticed: NoticedClip) async {
-        // Best-effort: a refused write loses one clip, and giving up would lose all the rest.
-        _ = try? await clipboard.record(noticed, keeping: retention)
+        await keep(noticed)
         await refreshPanelIfOpen()
+    }
+
+    /// Records one noticed clip; a refused write loses that clip, and giving up would lose all the rest.
+    private func keep(_ noticed: NoticedClip) async {
+        _ = try? await clipboard.record(noticed, keeping: retention)
     }
 
     /// One registration per claimed shortcut; a refusal is logged rather than shown as a dictation failure.
@@ -675,6 +680,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             closeQuickPanel()
             return
         }
+        // A copy made since the last poll is taken now, so the panel never opens without it.
+        await clipboardWatcher.catchUp { [weak self] noticed in await self?.keep(noticed) }
         let clips = await clipboard.clips(keeping: retention)
         let placement = await placement()
         // Built fresh, so a revealed secret cannot outlive the panel that revealed it.

@@ -168,13 +168,12 @@ struct EnvironmentIndexTests {
         #expect(await index.values(of: .branch, in: "/repo", now: moment) == ["main"])
     }
 
+    /// Waiting for the two-second read would return its answer, so an absent answer is the proof, with no clock.
     @Test("A slow machine is left behind rather than waited for.")
     func slowReadsAreAbandoned() async {
-        let index = EnvironmentIndex(
-            reader: StubEnvironment([.branch: ["main"]], delay: .seconds(2)))
-        let started = ContinuousClock.now
+        let reader = StubEnvironment([.branch: ["main"]], delay: .seconds(2))
+        let index = EnvironmentIndex(reader: reader)
         #expect(await index.values(of: .branch, in: "/repo", now: moment) == nil)
-        #expect(ContinuousClock.now - started < .milliseconds(500))
     }
 
     @Test("A burst of keystrokes asks the machine once, not once each.")

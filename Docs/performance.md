@@ -37,6 +37,41 @@ because it is much the largest thing this document has ever found.
 536 MB. An 8 GB Mac is never in danger from Uttrflow alone. Ten consecutive dictations
 left the process smaller than it started.
 
+## The energy budget
+
+Uttrflow runs all day, from login, on laptops. The Mac to design for is the smallest one it
+supports: an 8 GB M1 Air, which has no fan and slows itself down when it gets hot. Its
+performance cores do roughly 55–60% of the work of this document's M5 Pro, and it has far
+fewer of them, so the budget is written in quantities that do not depend on the machine —
+wakeups, work per event, processor-seconds per second of speech — and scaled where a figure
+has to be.
+
+| state | budget | today |
+|---|---|---|
+| idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code | clipboard poll 4.8/s (#375) |
+| idle with tab-to-complete on | nothing beyond the line above once 12 s have passed with no keystroke, click or switch and nothing drawn | a 1 Hz tick for ever, each one an Accessibility read of the frontmost app (#374) |
+| typing, suggestions on | the tap callback does one atomic load; a turn per keystroke, coalesced to one running and one waiting; a model pass only after 120 ms of quiet, cancelled by the next key | as budgeted |
+| a model suggestion pass | at utility priority; none in Low Power Mode or at serious thermal pressure; ≤ 1 processor-second per pass on M1 | user-initiated, ungated (#376); 0.65 processor-seconds per pass here, so ≈ 1.1 on M1 |
+| dictation | speech ≤ 0.1 processor-seconds per second of audio on M1; finished within 0.5× the audio's length on M1 | 0.04 here, which scales to ≈ 0.07; 0.20× wall clock here on a loaded machine |
+| animation | none continuous while nobody can see it; none decorative under Reduce Motion, Low Power Mode or serious thermal pressure | #359, #377 |
+
+How the rows were measured, on 13 September 2026, on a machine at a load average of 50–180 from
+other builds, so wall-clock figures are pessimistic and processor-seconds are the ones to trust:
+
+- **Model pass.** `uttrflow-bakeoff complete --fixtures --model gemma3`, release build, under
+  `/usr/bin/time -l`: 30 fixtures cost 22.96 processor-seconds and one cost 4.09, so each pass
+  past the first is 0.65 processor-seconds and 11.3 G instructions, p50 784 ms. A debug build
+  costs twice that (1.28 s), which is why this row is measured in release.
+- **Speech.** `uttrflow-bakeoff profile --transcribe-only`, release: 0.15, 0.51 and 2.19
+  processor-seconds for 3.4, 13.9 and 58.1 seconds of speech — 0.04 per second of audio, 0.27 G
+  instructions per second of audio.
+- **Clipboard poll.** A stand-alone loop that sleeps and reads `NSPasteboard.changeCount`, its
+  own wakeups read with `proc_pid_rusage`: 4.8 wakeups a second at 200 ms, 1.7 at 500 ms with a
+  100 ms tolerance, 1.0 at 1 s. Processor time is under 0.05% of a core in every case; the
+  wakeups are the cost.
+- **The tick.** Counted from the code, not measured: one wakeup a second and one cross-process
+  Accessibility read, for as long as the feature is on.
+
 ## The method
 
 `uttrflow-bakeoff profile` drives one process through the app's whole life and reads
@@ -423,6 +458,27 @@ with its 26% fewer wakes. What remains while animating is roughly proportional t
 of wakes, which is why the schedule is the lever and the frame rate during motion is not
 lowered.
 
+### The clipboard poll
+
+macOS offers no notification for a copy, so `PasteboardWatcher` reads the change count on a
+timer, from login, for as long as the app runs. That makes it the largest steady wakeup source in
+an idle Uttrflow, and its cost is wakeups rather than processor time. A stand-alone loop doing
+exactly this, its own wakeups read with `proc_pid_rusage` over 30 s:
+
+| cadence | wakeups a second | processor |
+|---|---|---|
+| 200 ms, no tolerance (before) | 4.8 | ≈ 0.04% of a core |
+| 500 ms, 100 ms tolerance (now) | 1.7 | ≈ 0.02% |
+| 1 s, 200 ms tolerance | 1.0 | ≈ 0.01% |
+
+The poll was 200 ms because ⌘C followed by the panel shortcut is a single hand movement. That race
+is now closed where it happens: `toggleQuickPanel` calls `PasteboardWatcher.catchUp` before it reads
+the clips, so a copy made a moment before is always in the panel whatever the cadence. The poll
+therefore runs at 500 ms, with a fifth of that as tolerance, at utility priority.
+
+What this gives up: the clipboard holds only its latest contents, so two copies inside one
+interval keep only the second. That window grew from 200 ms to 500 ms.
+
 ## What is paid before anybody speaks
 
 `AppDelegate` calls `pipeline.prepare()` at launch, which loads the speech model. So every
@@ -514,6 +570,15 @@ entries at **0.72 ms**, and asserts a 25 ms bound as an order-of-magnitude guard
 expansion has never been timed, so it has no budget: proposing one before measuring it
 would be inventing a number, which is the thing this document exists not to do.
 
+The doubtful-word candidate step is budgeted at under 5 ms a piece (`Docs/cleanup-design.md`)
+and measures around 2 ms on a quiet Mac, but **its test does not time it**: a wall-clock bound
+failed under a sanitizer build and a busy machine on changes that never touched it (#136, #373).
+`DoubtfulWordsTests` counts Double Metaphone encodings instead, through
+`DoubleMetaphone.tally`, and fails when ten times the screen words costs more than one encoding
+each, or a doubtful run costs more than four — the shape of re-reading the screen once per run,
+which is what made the step slow. A number for the step belongs in this table from a profile
+run, not in a gate.
+
 A fifteen-second dictation is finished 3.6 seconds after the speaker stops — about
 4× real time. Roughly 40% of that is transcription and 55% is Apple's clean-up pass.
 
@@ -600,6 +665,26 @@ The model is measured on disk (645.7 MB across 4 `.mlmodelc` bundles plus two JS
 files), not taken from the catalogue. The application is the signed bundle from
 `make app`. A fresh install is therefore **660 MB**, of which 98% is the speech model
 and all of it is downloaded on first launch rather than shipped.
+
+## Suggestions under Low Power Mode and thermal pressure
+
+A suggestion pass is the most expensive thing tab-to-complete does. Measured with
+`uttrflow-bakeoff complete --fixtures --model gemma3`, release build, under `/usr/bin/time -l`:
+30 fixtures cost 22.96 processor-seconds and one cost 4.09, so each pass past the first is
+**0.65 processor-seconds and 11.3 G instructions** on this machine, p50 784 ms. Scaled to an M1's
+performance cores that is about 1.1 processor-seconds per paused line. A debug build costs twice
+that, so measure this in release.
+
+It is also discretionary: the corpus still offers what it remembers without it. So the app hands
+`SuggestionCoordinator` its model wrapped in `DiscretionaryGenerator`, which:
+
+- runs every pass in a utility task, resumed through a continuation so the awaiting turn does not
+  raise the pass back to its own priority, with the caller's cancellation passed on;
+- reports itself not ready, and starts no pass, while `EnergyConditions.current()` says the Mac is
+  in Low Power Mode or at serious or critical thermal pressure.
+
+Scoring a remembered candidate is left as it was: it is one forward pass, raced against a deadline,
+and slowing it would turn a slow answer into a refused candidate.
 
 ## What these numbers are not
 
