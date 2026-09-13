@@ -1,4 +1,22 @@
-# Uttrflow
+<p align="center">
+  <a href="https://uttrflow.com">
+    <img src="Docs/media/readme-banner.png" width="880"
+         alt="Uttrflow. You just talk. It writes at the speed of sound. A glowing U-shaped line carries the words: hold ⌥Space and talk, let go, and the words land at your cursor, in any app.">
+  </a>
+</p>
+
+<p align="center"><b>Dictation, a smart clipboard and suggestions, in one native macOS app.</b></p>
+
+<p align="center">Open source. Your voice never leaves your Mac.</p>
+
+<p align="center">
+  <a href="https://uttrflow.com">uttrflow.com</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#find-your-way-around">Find your way around</a> ·
+  <a href="#-build-it-with-us">Contribute</a>
+</p>
+
+<p align="center">
 
 [![CI](https://github.com/uttrflow/uttrflow-swift/actions/workflows/ci.yml/badge.svg)](https://github.com/uttrflow/uttrflow-swift/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/uttrflow/uttrflow-swift/actions/workflows/codeql.yml/badge.svg)](https://github.com/uttrflow/uttrflow-swift/actions/workflows/codeql.yml)
@@ -7,17 +25,60 @@
 [![Download](https://img.shields.io/badge/download-latest-brightgreen.svg)](https://github.com/uttrflow/releases/releases/latest/download/Uttrflow.dmg)
 [![Website](https://img.shields.io/badge/website-uttrflow.com-0b7f76.svg)](https://uttrflow.com)
 
-**A native macOS clipboard manager, with dictation and tab-to-complete built in.** Everything
-you copy is a keystroke away, you can speak into any application instead of typing, and —
-once you ask for it — the line you are typing can be finished from what you have typed
-before. All three happen on your own Mac; nothing you copy, say or type leaves it.
-
-<p align="center">
-  <img src="Docs/media/clipboard-panel.png" width="420"
-       alt="The Uttrflow clipboard panel: a search field, kind filters for text, links, code and images, and a list of recent clips. Code rows carry a language chip, a colour row shows its hex value, and a row that looks like a secret is masked with dots.">
 </p>
 
-<p align="center"><sub>⇧⌘V opens it over whatever you are typing in. ↑↓ to choose, ⏎ to paste, Esc to close. The masked row is a token; it stays masked until you ask.</sub></p>
+## 🎙️ Dictation: talk like you'd explain it, and it lands like you wrote it
+
+<p align="center">
+  <img src="Docs/media/readme-dictation.png" width="820"
+       alt="A chat composer holding a dictated message, beside a card showing what was said, with the fillers struck out, and the cleaned sentence that landed.">
+</p>
+
+**Hold ⌥ Space** in any app and talk. Let go, and the words land at your cursor.
+
+- Recognition runs on your Mac.
+- Clean-up removes fillers, adds punctuation and applies your dictionary, matched by sound.
+- Works offline once you are signed in.
+
+**In the code:** `UttrflowAudio` → `UttrflowSpeech` → `UttrflowAI` → `UttrflowPipeline` →
+`UttrflowInput`, with the dock in `Sources/Uttrflow/Dock`. Read
+[`Docs/pipeline.md`](Docs/pipeline.md) and [`Docs/cleanup.md`](Docs/cleanup.md).
+
+## 📋 Smart clipboard: everything you copied, one shortcut away
+
+<p align="center">
+  <img src="Docs/media/readme-clipboard.png" width="720"
+       alt="The clipboard panel open over a terminal: a search for pg, kind filters, and clips for SQL, a link, a masked secret with an alias, a shell command, a colour and a file path.">
+</p>
+
+**⇧⌘V** opens it · **↑↓** choose · **⏎** paste · **⌘⏎** paste as plain text · **esc** close
+
+- It knows code (with a language chip), links, colours, images and paths.
+- It re-indents or formats code, and shows you the diff first.
+- Secrets are masked. Clips can be pinned, aliased and filed into folders.
+
+**In the code:** `UttrflowClipboard` and `Sources/Uttrflow/Panel`. Read
+[`Docs/panel.md`](Docs/panel.md) and [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
+
+## ⇥ Suggestions: get suggestions at the speed of thought
+
+<p align="center">
+  <img src="Docs/media/readme-suggestions.png" width="820"
+       alt="An SSH session in a terminal with grey ghost text finishing a journalctl command, and a right-arrow key to accept it.">
+</p>
+
+Built for the places with no autocomplete, like a shell on a server or a SQL editor. Grey
+ghost text finishes the line you're on.
+
+- **Tab** accepts. In a terminal it is **→**, because Tab is the shell's own completion, and
+  in an editor **⌥Tab**. Keep typing to ignore it; **esc** hides it.
+- Candidates come from your history in that field, then from what is on the Mac, then from
+  a local model.
+- It learns on this Mac, in SQLite, and is never uploaded. It is off until you switch it
+  on, and you choose the apps.
+
+**In the code:** `UttrflowPredict`, `UttrflowPredictStore`, `UttrflowPredictCapture` and
+`Sources/Uttrflow/Suggestion`. Read [`Docs/predict.md`](Docs/predict.md).
 
 ## Install
 
@@ -31,6 +92,9 @@ Or download [`Uttrflow.dmg`](https://github.com/uttrflow/releases/releases/lates
 and drag it to Applications. Either way the app updates itself from then on.
 [uttrflow.com/download](https://uttrflow.com/download) names the current version and its size.
 
+<details>
+<summary><b>macOS says Uttrflow "is damaged and can't be opened"</b></summary>
+
 The build is not yet notarised by Apple, so the first launch is refused with *"Uttrflow is
 damaged and can't be opened"*. It is not damaged; macOS says that about any download it has
 not seen a signature for. Clear the quarantine flag once and it opens:
@@ -41,7 +105,46 @@ xattr -dr com.apple.quarantine /Applications/Uttrflow.app
 
 Homebrew quarantines what it downloads too, so the command is needed after either install.
 
-## Use
+</details>
+
+## Find your way around
+
+| I want to work on… | Start in | Read first |
+|---|---|---|
+| Dictation accuracy or speed | `Sources/UttrflowSpeech`, `Sources/UttrflowAI` | [`Docs/cleanup.md`](Docs/cleanup.md), [`Docs/measuring-accuracy.md`](Docs/measuring-accuracy.md) |
+| The dock button | `Sources/Uttrflow/Dock` | [`Docs/app-dock.md`](Docs/app-dock.md) |
+| The clipboard panel | `Sources/UttrflowClipboard`, `Sources/Uttrflow/Panel` | [`Docs/panel.md`](Docs/panel.md) |
+| Suggestions | `Sources/UttrflowPredict`, `Sources/Uttrflow/Suggestion` | [`Docs/predict.md`](Docs/predict.md), [`Docs/predict-accept.md`](Docs/predict-accept.md) |
+| Typing into other apps | `Sources/UttrflowInput` | [`Docs/insertion.md`](Docs/insertion.md) |
+
+## 🤝 Build it with us
+
+Every merged pull request puts you on the wall below. You need no account, API key or
+server of ours, so a clone builds and runs complete.
+
+- Pick up a [good first issue](https://github.com/uttrflow/uttrflow-swift/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22):
+  small, self-contained, and checked to be real before it is filed.
+- Ask a question or share an idea in [Discussions](https://github.com/uttrflow/uttrflow-swift/discussions).
+- Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for how a change gets in.
+
+```bash
+git clone https://github.com/uttrflow/uttrflow-swift.git && cd uttrflow-swift
+make verify     # lint, audits, build, tests, coverage floor
+make app        # builds and signs dist/Uttrflow.app for this Mac
+```
+
+<p align="center">
+  <a href="https://github.com/uttrflow/uttrflow-swift/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=uttrflow/uttrflow-swift" alt="Contributors">
+  </a>
+</p>
+
+Thank you to everyone who has sent a fix, filed an issue or asked a good question.
+
+## Using it, in detail
+
+<details>
+<summary><b>Shortcuts and permissions</b></summary>
 
 - **⇧⌘V** opens the clipboard over whatever you are typing in. Type to filter, or type an
   alias you gave a clip. ↑↓ to choose, ⏎ to paste where the caret already was, **⌘⏎** to
@@ -62,7 +165,10 @@ The first dictation asks for the microphone, and typing into another app needs
 Accessibility — which tab-to-complete needs three times over: to read the field, to watch
 the keyboard, and to write the completion. The clipboard needs neither to open.
 
-## What it does
+</details>
+
+<details>
+<summary><b>What each part does</b></summary>
 
 **The clipboard** records text, links, code, colours, images and file paths, and works out
 which is which rather than asking. Code gets a language chip, can be re-indented, and can
@@ -91,6 +197,8 @@ editors ship switched off, because their own completion already reads the whole 
 **Works offline.** Sign in needs a network exactly once. After that every launch, every
 dictation and every paste works with Wi-Fi off — proven by a sandbox that fails any test
 touching the network.
+
+</details>
 
 ## It runs without an account, and without anything of ours
 
@@ -133,7 +241,10 @@ across rebuilds, but Gatekeeper will refuse the bundle on a Mac that did not bui
 `Docs/packaging.md` explains why the app is built with `xcodebuild` rather than
 `swift build`.
 
-## How the code is arranged
+## Under the hood
+
+<details>
+<summary><b>How the code is arranged</b></summary>
 
 All the deciding lives in Swift Package Manager modules; the app target holds windows,
 menu items and SwiftUI views, and no judgement at all. That split is deliberate: it means
@@ -175,7 +286,10 @@ its own module. Nothing above the protocol layer — not the pipeline, not a vie
 refers to a concrete engine. [`Docs/`](Docs/) has a page per subsystem, from
 [insertion](Docs/insertion.md) and its traps to [how accuracy is measured](Docs/measuring-accuracy.md).
 
-## Trying the pipeline from a terminal
+</details>
+
+<details>
+<summary><b>Trying the pipeline from a terminal</b></summary>
 
 ```bash
 swift run uttrflow-dev doctor                 # permissions and audio hardware
@@ -192,7 +306,10 @@ swift run uttrflow-dev insert "Hello from Uttrflow."   # needs Accessibility acc
 belongs to the terminal app rather than to Uttrflow — real first-run behaviour can only
 be checked once the app bundle exists.
 
-## Choosing engines
+</details>
+
+<details>
+<summary><b>Choosing engines</b></summary>
 
 Which implementations run is decided entirely by `EngineConfiguration`:
 
@@ -212,7 +329,10 @@ always end in `.rules`, which can handle anything, so the pipeline can never dea
 `.cloud` is compiled in only when `UTTRFLOW_CLOUD` is defined. The shipping binary
 contains no network path.
 
-## Two build paths
+</details>
+
+<details>
+<summary><b>Two build paths</b></summary>
 
 `make verify` builds, tests and gates the whole product with `swift build` — that is the
 everyday path, and the pre-push hook needs nothing else.
@@ -228,6 +348,8 @@ make bakeoff                                   # scores every clean-up engine
 
 MLX is quarantined in that one module and that one executable on purpose, so the everyday
 tools, the tests, the pre-push gate — and `make app` — never need the Metal toolchain.
+
+</details>
 
 ## Quality bar
 
@@ -303,27 +425,11 @@ imported into the app.
 
 ## Contributing
 
-Issues labelled [good first issue](https://github.com/uttrflow/uttrflow-swift/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-are small, self-contained, and checked to be real before they are filed. Questions and
-ideas go in [Discussions](https://github.com/uttrflow/uttrflow-swift/discussions).
-
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how a change gets in, and what review looks for
 - [`RELEASING.md`](RELEASING.md) — how a release is cut, and why there is no staging branch
 - [`SECURITY.md`](SECURITY.md) — reporting a vulnerability, and what runs automatically
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed, per version
 - [uttrflow.com](https://uttrflow.com) — the site, and what the app is for
-
-## Contributors
-
-Every person below has landed a change in this repository. The grid is generated from the
-commit history, so a merged pull request is all it takes to appear here.
-
-<p align="center">
-  <a href="https://github.com/uttrflow/uttrflow-swift/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=uttrflow/uttrflow-swift&columns=16"
-         alt="The avatars of everyone who has contributed to uttrflow-swift, linking to the contributors graph.">
-  </a>
-</p>
 
 ## Licence
 
