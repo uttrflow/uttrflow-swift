@@ -40,7 +40,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     public func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
         let path = (directory as NSString).expandingTildeInPath
         switch kind {
-        case .branch: return await branches(in: path)
+        case .branch: return branches(in: path)
         case .entries(let under): return entries(under: under, from: path, directoriesOnly: false)
         case .directories(let under): return entries(under: under, from: path, directoriesOnly: true)
         case .executable: return executables()
@@ -50,18 +50,9 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         }
     }
 
-    /// The repository's refs by their short names — branches, tags and remote branches — absent when the directory is not one or `git` is missing.
-    private func branches(in directory: String) async -> [String]? {
-        guard let git = Self.gitPaths.first(where: FileManager.default.isExecutableFile(atPath:)) else {
-            return nil
-        }
-        let output = await run(
-            git,
-            arguments: [
-                "-C", directory, "for-each-ref", "--count=\(Self.verbLimit)",
-                "--format=%(refname:short)", "refs/heads", "refs/tags", "refs/remotes",
-            ])
-        return output?.split(separator: "\n").map(String.init)
+    /// The repository's refs by their short names — branches, tags and remote branches — read off disk without running git, absent outside a repository.
+    private func branches(in directory: String) -> [String]? {
+        GitRepository.holding(directory, files: SystemFileSystem())?.refNames(limit: Self.verbLimit)
     }
 
     /// What one directory holds, hidden entries included since a dotfile is named on purpose; nothing where the directory does not exist, and no answer where it cannot be read.

@@ -509,8 +509,12 @@ final class SuggestionCoordinator {
         guard completions.count == 1, let leader = completions.first, turns.isCurrent(number) else { return }
         // Where the machine gave the values, the other values are the alternatives, and no pass is spent on them.
         if !choices.isEmpty {
-            let others = Verification.completed(query.typed, with: choices).filter { $0 != leader }
-            guard !others.isEmpty, let expanded = session.expandGenerated(others, for: query) else { return }
+            let listed = Verification.completed(query.typed, with: choices).filter { $0 != leader }
+            // The machine's values still pass the gate, since a listed name can be destructive or stale by now.
+            let others = await attested(listed, for: query)
+            guard turns.isCurrent(number), !others.isEmpty,
+                let expanded = session.expandGenerated(others, for: query)
+            else { return }
             lastGenerated = (query.surface, query.typed, [leader] + others)
             return await drawFresh(expanded, for: snapshot, turn: number)
         }

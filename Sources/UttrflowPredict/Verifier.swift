@@ -14,14 +14,18 @@ public actor Verifier {
     private let clock: any Clock<Duration>
     /// The verdicts already reached, so most keystrokes cost nothing at all.
     private var cache = VerdictCache()
+    /// What a terminal line has to name on disk before it is shown, asked by stat and never by running a program.
+    private let lines: TerminalLineCheck
 
     /// A verifier over one machine, with a model and a store only where there are any.
     public init(
         index: EnvironmentIndex, scoring: (any CandidateScoring)? = nil,
         supersession: (any SupersessionRecording)? = nil,
         budgetInMilliseconds: Int = Verification.budgetInMilliseconds,
-        clock: any Clock<Duration> = ContinuousClock()
+        clock: any Clock<Duration> = ContinuousClock(),
+        files: any FileSystemProbing = CachedFileSystem(SystemFileSystem())
     ) {
+        self.lines = TerminalLineCheck(files: files)
         self.index = index
         self.scoring = scoring
         self.supersession = supersession
@@ -123,6 +127,9 @@ public actor Verifier {
         _ candidate: Candidate, in surface: Surface, typed: String, now: Date,
         before deadline: Budget
     ) async -> Candidate? {
+        guard !candidate.isIrreversible, await admits(candidate.text, in: surface, now: now) else {
+            return nil
+        }
         switch await verdict(
             for: candidate, in: surface, typed: typed, now: now, before: deadline)
         {
@@ -189,6 +196,7 @@ public actor Verifier {
     private func stands(
         _ completion: String, after typed: String, in surface: Surface, now: Date
     ) async -> Bool {
+        guard await admits(completion, in: surface, now: now) else { return false }
         for token in Verification.words(of: completion, addedAfter: typed) {
             guard let attestation = Verification.attestation(for: token) else { continue }
             var vouched = false
@@ -199,6 +207,15 @@ public actor Verifier {
             guard vouched else { return false }
         }
         return true
+    }
+
+    /// Whether a whole line may be shown at all: never when it destroys, and in a terminal only when everything it names exists from there. See `Docs/predict-terminal-paths.md`.
+    private func admits(_ line: String, in surface: Surface, now: Date) async -> Bool {
+        guard !DestructiveCommand.matches(line) else { return false }
+        guard TerminalApplications.contains(surface.bundleIdentifier) else { return true }
+        // Aliases are read from the shell's configuration as text; until they are, an alias is not a command.
+        let aliases = await index.values(of: .alias, in: surface.scope ?? "~", now: now) ?? []
+        return lines.allows(line, in: surface.scope, aliases: Set(aliases))
     }
 
     /// Everything the machine vouches for among these kinds here, absent when none has answered yet or the field is not a directory.
