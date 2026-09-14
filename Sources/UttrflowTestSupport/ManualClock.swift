@@ -32,6 +32,7 @@ public final class ManualClock: Clock, Sendable {
 
     /// An advance waiting for something to sleep, so the two can happen under one lock.
     private struct ParkedAdvance {
+        let id: Int
         let duration: Duration
         let continuation: CheckedContinuation<Void, Never>
     }
@@ -67,21 +68,48 @@ public final class ManualClock: Clock, Sendable {
         for sleeper in due { sleeper.continuation.resume() }
     }
 
-    /// Advances by `duration` under the lock that finds something waiting. See `Docs/stuck-recording.md`.
+    /// Advances by `duration` under the lock that finds something waiting, or returns unadvanced once cancelled. See `Docs/stuck-recording.md`.
     public func advanceWhenSomethingIsWaiting(by duration: Duration) async {
-        await withCheckedContinuation { continuation in
-            let due = state.withLock { state -> [Sleeper]? in
-                guard !state.sleepers.isEmpty else {
-                    state.parkedAdvance = ParkedAdvance(
-                        duration: duration, continuation: continuation)
-                    return nil
-                }
-                return Self.advance(&state, by: duration)
-            }
-            guard let due else { return }
-            for sleeper in due { sleeper.continuation.resume() }
-            continuation.resume()
+        let id = state.withLock { state -> Int in
+            state.nextID += 1
+            return state.nextID
         }
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let due = state.withLock { state -> [Sleeper]? in
+                    guard !state.sleepers.isEmpty else {
+                        if Task.isCancelled { return [] }
+                        state.parkedAdvance = ParkedAdvance(
+                            id: id, duration: duration, continuation: continuation)
+                        return nil
+                    }
+                    return Self.advance(&state, by: duration)
+                }
+                guard let due else { return }
+                for sleeper in due { sleeper.continuation.resume() }
+                continuation.resume()
+            }
+        } onCancel: {
+            let parked = state.withLock { state -> ParkedAdvance? in
+                guard state.parkedAdvance?.id == id else { return nil }
+                defer { state.parkedAdvance = nil }
+                return state.parkedAdvance
+            }
+            parked?.continuation.resume()
+        }
+    }
+
+    /// Advances by `duration` only when a sleeper is due exactly that far ahead, and says whether it did; it never parks.
+    @discardableResult
+    public func advanceIfSomethingIsWaiting(exactly duration: Duration) -> Bool {
+        let due = state.withLock { state -> [Sleeper]? in
+            let target = state.now.advanced(by: duration)
+            guard state.sleepers.contains(where: { $0.deadline == target }) else { return nil }
+            return Self.advance(&state, by: duration)
+        }
+        guard let due else { return false }
+        for sleeper in due { sleeper.continuation.resume() }
+        return true
     }
 
     /// Suspends until something is waiting on this clock.

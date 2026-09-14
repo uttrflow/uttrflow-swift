@@ -7,7 +7,7 @@ import Testing
 
 private struct StubError: Error {}
 
-@Suite("Stage measurement")
+@Suite("Stage measurement", .timeLimit(.minutes(1)))
 struct MetricsTests {
     @Test("records how long a successful stage took")
     func recordsSuccessDuration() async {
@@ -78,7 +78,7 @@ struct MetricsTests {
     }
 }
 
-@Suite("ManualClock")
+@Suite("ManualClock", .timeLimit(.minutes(1)))
 struct ManualClockTests {
     @Test("starts at zero and only moves when advanced")
     func advancesOnlyOnDemand() {
@@ -101,6 +101,32 @@ struct ManualClockTests {
         try await sleeping.value
 
         #expect(ManualClock.Instant(offset: .zero).duration(to: clock.now) == .seconds(10))
+    }
+
+    @Test("advances only for a sleeper due exactly that far ahead, and never parks")
+    func advancesOnlyForTheSleeperItNames() async throws {
+        let clock = ManualClock()
+        #expect(!clock.advanceIfSomethingIsWaiting(exactly: .seconds(10)))
+
+        let sleeping = Task {
+            try await clock.sleep(until: clock.now.advanced(by: .seconds(10)), tolerance: nil)
+        }
+        await clock.waitUntilSomethingIsWaiting()
+        #expect(!clock.advanceIfSomethingIsWaiting(exactly: .seconds(5)))
+        #expect(clock.advanceIfSomethingIsWaiting(exactly: .seconds(10)))
+        try await sleeping.value
+
+        #expect(ManualClock.Instant(offset: .zero).duration(to: clock.now) == .seconds(10))
+    }
+
+    @Test("an advance waiting for a sleeper returns unadvanced when cancelled", .timeLimit(.minutes(1)))
+    func aParkedAdvanceIsCancellable() async {
+        let clock = ManualClock()
+        let parked = Task { await clock.advanceWhenSomethingIsWaiting(by: .seconds(10)) }
+        parked.cancel()
+        await parked.value
+
+        #expect(ManualClock.Instant(offset: .zero).duration(to: clock.now) == .zero)
     }
 
     @Test("returns at once when the deadline has already passed")

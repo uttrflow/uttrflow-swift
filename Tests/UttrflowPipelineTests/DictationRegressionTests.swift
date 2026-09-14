@@ -275,7 +275,7 @@ private func endOfDictation(_ stream: AsyncStream<DictationState>) async -> Dict
 
 // MARK: - Tests
 
-@Suite("Dictation regressions: gestures in order, and a cancel that really cancels")
+@Suite("Dictation regressions: gestures in order, and a cancel that really cancels", .timeLimit(.minutes(1)))
 struct DictationRegressionTests {
 
     // MARK: A hold cut short by stopping

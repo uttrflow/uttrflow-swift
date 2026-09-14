@@ -52,17 +52,45 @@ private struct NeverAnsweringCleaner: TranscriptCleaning {
     }
 }
 
-@Suite("Dictation pipeline: a stage that never answers")
+@Suite("Dictation pipeline: a stage that never answers", .timeLimit(.minutes(1)))
 struct DictationStageTimeoutTests {
-    /// Reaches `stage` and advances until it is left, since an earlier deadline may still be installed.
+    /// Reaches `stage`, then fires its own timer once it is set, never advancing after the stage has ended.
     private func expire(
         _ limit: Duration, at stage: DictationState, of pipeline: DictationPipeline,
         on clock: ManualClock
     ) async {
-        while await pipeline.currentState != stage { await Task.yield() }
-        while await pipeline.currentState == stage {
-            await clock.advanceWhenSomethingIsWaiting(by: limit)
+        while !Task.isCancelled, await pipeline.currentState != stage { await Task.yield() }
+        while !Task.isCancelled, await pipeline.currentState == stage {
+            if clock.advanceIfSomethingIsWaiting(exactly: limit) { return }
             await Task.yield()
+        }
+    }
+
+    /// Waits for `finishing`, or stops waiting once the test is cancelled, so the time limit can end a wedged run.
+    private func settle(_ finishing: Task<Void, Never>) async {
+        let waiting = Mutex<(continuation: CheckedContinuation<Void, Never>?, done: Bool)>((nil, false))
+        let wake: @Sendable () -> Void = {
+            waiting.withLock { state -> CheckedContinuation<Void, Never>? in
+                state.done = true
+                defer { state.continuation = nil }
+                return state.continuation
+            }?.resume()
+        }
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let parked = waiting.withLock { state -> Bool in
+                    guard !state.done, !Task.isCancelled else { return false }
+                    state.continuation = continuation
+                    return true
+                }
+                guard parked else { return continuation.resume() }
+                Task {
+                    await finishing.value
+                    wake()
+                }
+            }
+        } onCancel: {
+            wake()
         }
     }
 
@@ -80,7 +108,7 @@ struct DictationStageTimeoutTests {
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
         await expire(StageTimeout.transcription, at: .transcribing, of: pipeline, on: clock)
-        await finishing.value
+        await settle(finishing)
 
         guard case .failed = await pipeline.currentState else {
             Issue.record("expected the dictation to fail, got \(await pipeline.currentState)")
@@ -104,7 +132,7 @@ struct DictationStageTimeoutTests {
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
         await expire(StageTimeout.transcription, at: .transcribing, of: pipeline, on: clock)
-        await finishing.value
+        await settle(finishing)
 
         await pipeline.startRecording()
         #expect(await pipeline.currentState == .recording)
@@ -126,7 +154,7 @@ struct DictationStageTimeoutTests {
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
         await expire(StageTimeout.transformation, at: .tidying, of: pipeline, on: clock)
-        await finishing.value
+        await settle(finishing)
 
         // Untidied but inserted: §19 says tidying's failure never costs the words.
         #expect(inserter.inserted == ["what I said"])

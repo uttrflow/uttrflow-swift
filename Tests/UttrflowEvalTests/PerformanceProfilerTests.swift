@@ -37,7 +37,7 @@ private final class Calls: Sendable {
     let phases = Mutex<[PerformanceProfiler.Phase]>([])
 }
 
-@Suite("Performance profiler")
+@Suite("Performance profiler", .timeLimit(.minutes(1)))
 struct PerformanceProfilerTests {
     private let disk = DiskFootprint(speechModelBytes: 646, applicationBytes: 13)
 

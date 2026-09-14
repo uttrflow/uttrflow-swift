@@ -40,11 +40,15 @@ public struct SpokenPunctuationPass: CleaningPass {
         "off", "out", "over", "up", "down", "back", "away", "through", "in", "to", "into", "across",
     ]
 
+    /// Names that are everyday nouns too, so a mid-sentence one is a mark only on positive evidence. See `Docs/cleanup.md`.
+    static let ordinaryNames: Set<[String]> = [["comma"], ["colon"], ["dash"]]
+
     public init() {}
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
         var live = draft.presentIndices
+        let repeated = repeatedNames(in: live, of: draft)
         var position = 0
         while position < live.count {
             guard
@@ -53,6 +57,7 @@ public struct SpokenPunctuationPass: CleaningPass {
                     at: position, spanning: found.words.count, in: live, of: draft,
                     reach: MentionGuard.phraseReach, kind: found.kind),
                 !isVerb(found.words, at: position, in: live, of: draft),
+                isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated),
                 isPlaced(found.mark, before: position + found.words.count, in: live, of: draft),
                 attach(
                     found.mark, kind: found.kind, at: position, spanning: found.words.count,
@@ -71,6 +76,34 @@ public struct SpokenPunctuationPass: CleaningPass {
             && zip(words, live[position..<position + words.count]).allSatisfy {
                 $0 == draft.shape(at: $1).key
             }
+    }
+
+    /// Whether an ordinary name stands at a seam: the text closes, a mark precedes it, a small word follows, or it is said again.
+    private func isEvidenced(
+        _ words: [String], at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
+    ) -> Bool {
+        guard Self.ordinaryNames.contains(words) else { return true }
+        let next = position + words.count
+        if closes(at: next, in: live, of: draft) || repeated.contains(live[position]) { return true }
+        if position > 0 && draft.shape(at: live[position - 1]).endsClause { return true }
+        return next < live.count && FunctionWords.holds(draft.shape(at: live[next]).key)
+    }
+
+    /// The word indices of ordinary names said more than once in one sentence, which is a list rather than a noun.
+    private func repeatedNames(in live: [Int], of draft: Draft) -> Set<Int> {
+        var sentence = 0
+        var seen: [String: [Int]] = [:]
+        for (position, index) in live.enumerated() {
+            let shape = draft.shape(at: index)
+            if Self.ordinaryNames.contains([shape.key])
+                && !MentionGuard.isMentioned(
+                    at: position, spanning: 1, in: live, of: draft, reach: MentionGuard.phraseReach)
+            {
+                seen["\(sentence) \(shape.key)", default: []].append(index)
+            }
+            if shape.endsSentence { sentence += 1 }
+        }
+        return Set(seen.values.filter { $0.count > 1 }.joined())
     }
 
     /// Whether "dash" or "hyphen" is the verb rather than the mark, told by the particle after it.

@@ -38,7 +38,7 @@ private final class QuietInserter: TextInserting, Sendable {
     var inserted: [String] { placed.withLock { $0 } }
 }
 
-@Suite("Dictation controller: the soft cap on a long recording")
+@Suite("Dictation controller: the soft cap on a long recording", .timeLimit(.minutes(1)))
 struct DictationLimitWiringTests {
     private static let limit = DictationLimit(warnAfter: .seconds(180), stopAfter: .seconds(240))
 

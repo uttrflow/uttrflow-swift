@@ -70,7 +70,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
         if case .rejected(let reason) = meaningGuard.verdict(
             draft: draft, rewritten: finished, offering: readings, echoed: Self.echo(in: polished),
-            layout: formatter.layout)
+            layout: formatter.layout, grants: pipeline.grants)
         {
             throw .outputRejected(reason: reason)
         }

@@ -42,16 +42,22 @@ enum Ask: Equatable, Sendable {
     }
 }
 
-/// Lays one moment out for the model under a fixed budget, trimming the context before ever touching the line.
+/// Lays one moment out for the model under a fixed token budget for its context, the line itself never touched. See `Docs/predict-context.md`.
 enum PromptBuilder {
-    /// About 400 tokens of Gemma's vocabulary; prefilling the moment's context is the bulk of a pass, so this is the lever.
-    static let budgetInCharacters = 1_400
+    /// The most tokens the context around the line may take, headings included; prefilling it is the bulk of a pass, so this is the lever.
+    static let contextBudgetInTokens = 160
+
+    /// The most of that budget the screen may take, since a page's text is the context least likely to be the line's.
+    static let screenBudgetInTokens = 96
+
+    /// Once the field's own text before the line is this long it says enough, and the screen is not shown at all.
+    static let ownTextSufficesInTokens = 64
 
     /// A window title, field name or document longer than this names nothing more, and the rest is the context's.
     static let locatorCap = 80
 
-    /// What a heading and the blank lines around it add to a part of the context.
-    static let headingCost = 40
+    /// What a heading and the blank lines around it add to a part of the context, in tokens.
+    static let headingCost = 16
 
     /// The whole message: where the caret is, the register, what is around it, how this person writes here, the line.
     static func message(
@@ -80,26 +86,39 @@ enum PromptBuilder {
                     + "one per line:\n\(typed)"
             }
 
-        // What is fixed is paid for first; the context gets whatever is left, farthest from the line trimmed first.
-        var remaining = budgetInCharacters - opening.count - closing.count
+        let context = Self.context(for: situation)
         var parts = [opening]
-        let preceding = situation.preceding.map { Self.tail($0, within: remaining / 2) } ?? ""
-        remaining -= Self.cost(of: preceding)
-        let recent = Self.newest(situation.recentLines, within: remaining / 2).joined(separator: "\n")
-        remaining -= Self.cost(of: recent)
-        let surroundings = situation.surroundings.map { Self.tail($0, within: remaining) } ?? ""
-
-        if !surroundings.isEmpty {
-            parts.append("On screen around the field:\n\(surroundings)")
+        if !context.screen.isEmpty {
+            parts.append("On screen around the field:\n\(context.screen)")
         }
-        if !recent.isEmpty {
-            parts.append("Lines this person wrote here before:\n\(recent)")
+        if !context.recent.isEmpty {
+            parts.append("Lines this person wrote here before:\n\(context.recent)")
         }
-        if !preceding.isEmpty {
-            parts.append("The text before the line reads:\n\(preceding)")
+        if !context.preceding.isEmpty {
+            parts.append("The text before the line reads:\n\(context.preceding)")
         }
         parts.append(closing)
         return parts.joined(separator: "\n\n")
+    }
+
+    /// The context parts as they are shown: nearest the line kept first, the field's own text before the person's lines before the screen.
+    static func context(
+        for situation: GenerationSituation
+    ) -> (screen: String, recent: String, preceding: String) {
+        var remaining = contextBudgetInTokens
+        let preceding = situation.preceding.map { Self.tail($0, within: remaining / 2 - headingCost) } ?? ""
+        remaining -= Self.cost(of: preceding)
+        let recent = Self.newest(situation.recentLines, within: remaining / 2 - headingCost).joined(
+            separator: "\n")
+        remaining -= Self.cost(of: recent)
+        // A field that already holds a paragraph of its own is its own best context, and the page would only slow the pass.
+        let screen =
+            estimatedTokens(preceding) >= ownTextSufficesInTokens
+            ? ""
+            : situation.surroundings.map {
+                Self.nearestLines($0, within: min(remaining, screenBudgetInTokens) - headingCost)
+            } ?? ""
+        return (screen, recent, preceding)
     }
 
     /// The instruction at the line for one completion: it names the register's kind, and asks a reply to be finished whole rather than by a word.
@@ -108,35 +127,128 @@ enum PromptBuilder {
         return register.isConversational ? ask + ", finishing the whole message" : ask
     }
 
-    /// What a part takes from the budget: its text and its heading, or nothing once it has trimmed to nothing.
+    /// What a part takes from the budget: its tokens and its heading, or nothing once it has trimmed to nothing.
     private static func cost(of part: String) -> Int {
-        part.isEmpty ? 0 : part.count + headingCost
+        part.isEmpty ? 0 : estimatedTokens(part) + headingCost
     }
 
-    /// The start of the text, which is where a title or a name says what it is, cut to the allowance.
+    /// About how many tokens Gemma's vocabulary spends on the text, erring high: a word of letters per four, a digit, mark or newline each one.
+    static func estimatedTokens(_ text: some StringProtocol) -> Int {
+        var tokens = 0
+        var latin = 0
+        var other = 0
+        var spaces = 0
+        func settle() {
+            tokens += (latin + 3) / 4 + (other + 1) / 2 + (spaces > 1 ? 1 : 0)
+            latin = 0
+            other = 0
+        }
+        for scalar in text.unicodeScalars {
+            if scalar.isASCII, scalar.properties.isAlphabetic {
+                if spaces > 0 { settle() }
+                spaces = 0
+                latin += 1
+            } else if !scalar.isASCII, scalar.properties.isAlphabetic || Self.isMark(scalar) {
+                if spaces > 0 { settle() }
+                spaces = 0
+                other += 1
+            } else if scalar == " " || scalar == "\t" {
+                if spaces == 0 { settle() }
+                spaces += 1
+            } else {
+                settle()
+                // A space before a digit or a mark is a token of its own, since no word takes it.
+                tokens += spaces == 1 ? 2 : 1
+                spaces = 0
+            }
+        }
+        settle()
+        return tokens
+    }
+
+    /// Whether the scalar is a combining mark, which belongs to the letter before it as a vowel sign does.
+    private static func isMark(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .nonspacingMark, .spacingMark, .enclosingMark: true
+        default: false
+        }
+    }
+
+    /// The start of the text, which is where a title or a name says what it is, cut to the allowance in characters.
     static func head(_ text: String, within allowance: Int) -> String {
         guard allowance > 0 else { return "" }
         return text.count > allowance ? String(text.prefix(allowance)) : text
     }
 
-    /// The end of the text, which is the part nearest the line, cut to the allowance.
+    /// The longest end of the text whose estimate fits the allowance in tokens, which is the part nearest the line.
     static func tail(_ text: String, within allowance: Int) -> String {
         guard allowance > 0 else { return "" }
-        return text.count > allowance ? String(text.suffix(allowance)) : text
+        guard estimatedTokens(text) > allowance else { return text }
+        let characters = Array(text)
+        var low = 0
+        var high = characters.count
+        while low < high {
+            let mid = (low + high + 1) / 2
+            if estimatedTokens(String(characters[(characters.count - mid)...])) <= allowance {
+                low = mid
+            } else {
+                high = mid - 1
+            }
+        }
+        return String(characters[(characters.count - low)...])
     }
 
-    /// The newest lines that fit the allowance, oldest dropped first, and the newest alone cut down when even it does not fit.
+    /// The longest start of the text whose estimate fits the allowance in tokens.
+    static func leading(_ text: String, within allowance: Int) -> String {
+        guard allowance > 0 else { return "" }
+        guard estimatedTokens(text) > allowance else { return text }
+        let characters = Array(text)
+        var low = 0
+        var high = characters.count
+        while low < high {
+            let mid = (low + high + 1) / 2
+            if estimatedTokens(String(characters[..<mid])) <= allowance { low = mid } else { high = mid - 1 }
+        }
+        return String(characters[..<low])
+    }
+
+    /// The newest lines that fit the allowance in tokens, oldest dropped first, and the newest alone cut down when even it does not fit.
     static func newest(_ lines: [String], within allowance: Int) -> [String] {
         var kept: [String] = []
         var used = 0
         for line in lines {
-            guard used + line.count + 1 <= allowance else { break }
+            let cost = estimatedTokens(line) + 1
+            guard used + cost <= allowance else { break }
             kept.append(line)
-            used += line.count + 1
+            used += cost
         }
         if kept.isEmpty, let first = lines.first, allowance > 1 {
-            return [Self.head(first, within: allowance - 1)]
+            let cut = Self.leading(first, within: allowance - 1)
+            return cut.isEmpty ? [] : [cut]
         }
         return kept
+    }
+
+    /// The screen's lines nearest the field that fit the allowance in tokens, each said once, in reading order; the nearest alone keeps its end when it does not fit.
+    static func nearestLines(_ screen: String, within allowance: Int) -> String {
+        guard allowance > 1 else { return "" }
+        var seen: Set<Substring> = []
+        var kept: [String] = []
+        var used = 0
+        for line in screen.split(whereSeparator: \.isNewline).reversed() {
+            var text = line
+            while text.first?.isWhitespace == true { text.removeFirst() }
+            while text.last?.isWhitespace == true { text.removeLast() }
+            // A control repeated down a page, as "Reply" under every comment is, is said once, nearest the field.
+            guard !text.isEmpty, seen.insert(text).inserted else { continue }
+            let cost = estimatedTokens(text) + 1
+            guard used + cost <= allowance else {
+                if kept.isEmpty { kept.append(Self.tail(String(text), within: allowance - 1)) }
+                break
+            }
+            kept.append(String(text))
+            used += cost
+        }
+        return kept.reversed().filter { !$0.isEmpty }.joined(separator: "\n")
     }
 }

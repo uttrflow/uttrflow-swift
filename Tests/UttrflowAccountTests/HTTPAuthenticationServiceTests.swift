@@ -155,14 +155,14 @@ struct HTTPAuthenticationServiceTests {
     }
 
     /// A port left open is a socket accepting connections for as long as the app runs.
-    @Test("gives the port back when a sign-in ends, however it ends")
+    @Test("gives the port back when a sign-in ends, however it ends", .timeLimit(.minutes(1)))
     func theListenerIsAlwaysClosed() async throws {
         let refused = answering(state: "will-not-match")
         let backend = service(transport: signingIn(), listener: refused)
         let challenge = try await backend.beginSignIn(with: .google)
         _ = try? await backend.completeSignIn(challenge)
-        // The close happens in a detached task, so give it the one turn it needs.
-        await Task.yield()
+        // The close runs in its own task, so wait for it; a port never given back fails on the time limit.
+        await refused.waitUntilClosed()
         #expect(refused.wasClosed)
     }
 

@@ -13,6 +13,9 @@ struct Node: Equatable {
     var children: [Node] = []
 }
 
+/// A deadline an hour after the read starts, so only the caps decide what a test's read comes to.
+var unhurried: ContinuousClock.Instant { .now + .seconds(3_600) }
+
 /// How many elements one read visited, which only a reference can report back out of a walk.
 final class VisitCounter {
     var count = 0

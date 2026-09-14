@@ -57,21 +57,62 @@ struct PromptTests {
     }
 
     @Test(
-        "Over budget, the screen is cut first and from the front, the oldest lines next, and the line never.")
+        "Over budget, the screen is cut to its nearest lines, the oldest lines go first, and the line never.")
     func theBudgetTrimsTheFarthestContextFirst() {
-        let screen = String(repeating: "far ", count: 2_000) + "near the field"
+        let screen =
+            (0..<400).map { "far paragraph \($0) of the page, 2026-09-14" }.joined(separator: "\n")
+            + "\nnear the field"
         let lines = (0..<40).map { "line number \($0) of what this person wrote here before" }
         let situation = GenerationSituation(
-            application: "Chat", preceding: String(repeating: "p", count: 3_000) + " end",
-            surroundings: screen, recentLines: lines)
+            application: "Chat", preceding: "a short start", surroundings: screen, recentLines: lines)
         let typed = String(repeating: "t", count: 300)
         let prompt = message(typed, situation)
-        #expect(prompt.count <= PromptBuilder.budgetInCharacters + 200)
         #expect(prompt.hasSuffix("finishing the whole message:\n\(typed)"))
-        #expect(prompt.contains("near the field"))
+        #expect(prompt.contains("near the field\n\n"))
+        #expect(!prompt.contains("far paragraph 0 "))
         #expect(prompt.contains("line number 0 of"))
         #expect(!prompt.contains("line number 39 of"))
-        #expect(prompt.contains(" end\n"))
+        #expect(prompt.contains("The text before the line reads:\na short start"))
+        let context = PromptBuilder.context(for: situation)
+        #expect(
+            PromptBuilder.estimatedTokens(context.screen) + PromptBuilder.estimatedTokens(context.recent)
+                + PromptBuilder.estimatedTokens(context.preceding) + 3 * PromptBuilder.headingCost
+                <= PromptBuilder.contextBudgetInTokens)
+    }
+
+    @Test("A field whose own text before the line says enough is shown without the page around it.")
+    func ownTextLeavesThePageOut() {
+        let screen = "Home\nDocs\nPricing\nThe configuration file is read once at startup."
+        let short = GenerationSituation(application: "Browser", preceding: "Two words", surroundings: screen)
+        #expect(message("and", short).contains("On screen around the field:\nHome\nDocs"))
+        let paragraph = String(
+            repeating:
+                "The watcher resolves the path twice and registers a second watcher before the first is gone. ",
+            count: 4)
+        let long = GenerationSituation(application: "Browser", preceding: paragraph, surroundings: screen)
+        let prompt = message("and", long)
+        #expect(!prompt.contains("On screen"))
+        #expect(prompt.contains("registers a second watcher before the first is gone. \n\n"))
+    }
+
+    @Test("A control repeated down the page is shown once, where it sits nearest the field.")
+    func repeatedControlsAreShownOnce() {
+        let screen = "First comment\nReply\nShare\nSecond comment\nReply\nShare\nLeave a comment"
+        let shown = PromptBuilder.nearestLines(screen, within: 100)
+        #expect(shown == "First comment\nSecond comment\nReply\nShare\nLeave a comment")
+    }
+
+    @Test("The estimate errs high for prose and counts digits and marks one by one.")
+    func theEstimateCountsWordsDigitsAndMarks() {
+        #expect(PromptBuilder.estimatedTokens("") == 0)
+        #expect(PromptBuilder.estimatedTokens("word") == 1)
+        #expect(PromptBuilder.estimatedTokens("words") == 2)
+        #expect(PromptBuilder.estimatedTokens("a b") == 2)
+        #expect(PromptBuilder.estimatedTokens("a  b") == 3)
+        #expect(PromptBuilder.estimatedTokens("v 4.2") == 5)
+        #expect(PromptBuilder.estimatedTokens("line\n") == 2)
+        #expect(PromptBuilder.estimatedTokens("नमस्ते") == 3)
+        #expect(PromptBuilder.estimatedTokens("🙏") == 1)
     }
 
     @Test(
@@ -151,12 +192,16 @@ struct PromptTests {
         "Trimming keeps the end of a text, the start of a name and the newest lines, and nothing when there is no room."
     )
     func trimmingKeepsWhatIsNearest() {
-        #expect(PromptBuilder.tail("abcdef", within: 3) == "def")
+        #expect(PromptBuilder.tail("one two three four", within: 2) == "hree four")
         #expect(PromptBuilder.tail("abc", within: 10) == "abc")
         #expect(PromptBuilder.tail("abc", within: 0) == "")
+        #expect(PromptBuilder.leading("one two three four", within: 2) == "one two ")
+        #expect(PromptBuilder.leading("abc", within: 0) == "")
+        #expect(PromptBuilder.nearestLines("far\nnear", within: 1) == "")
+        #expect(PromptBuilder.nearestLines("far\n  \nnear", within: 5) == "far\nnear")
         #expect(PromptBuilder.head("abcdef", within: 3) == "abc")
         #expect(PromptBuilder.head("abc", within: 0) == "")
-        #expect(PromptBuilder.newest(["new", "older", "oldest"], within: 10) == ["new", "older"])
+        #expect(PromptBuilder.newest(["new", "older", "oldest"], within: 5) == ["new", "older"])
         #expect(PromptBuilder.newest(["new"], within: 1) == [])
         #expect(PromptBuilder.newest([], within: 100) == [])
     }
@@ -165,9 +210,13 @@ struct PromptTests {
         "A newest line too long for its allowance is kept cut down rather than dropped with the person's whole voice."
     )
     func theNewestLineIsCutRatherThanDropped() {
-        let long = String(repeating: "n", count: 520)
-        #expect(PromptBuilder.newest([long, "short"], within: 500) == [String(repeating: "n", count: 499)])
-        #expect(PromptBuilder.newest(["newest line"], within: 4) == ["new"])
+        let long = Array(repeating: "word", count: 60).joined(separator: " ")
+        let kept = PromptBuilder.newest([long, "short"], within: 21)
+        #expect(kept.count == 1 && long.hasPrefix(kept[0]))
+        #expect(PromptBuilder.estimatedTokens(kept[0]) == 20)
+        #expect(PromptBuilder.newest(["newest line"], within: 2) == ["newe"])
+        #expect(PromptBuilder.newest(["🙏🙏"], within: 1) == [])
+        #expect(PromptBuilder.nearestLines(long, within: 11).hasSuffix("word word"))
     }
 
     @Test(
@@ -178,7 +227,6 @@ struct PromptTests {
             application: "Safari", field: String(repeating: "f", count: 500), windowTitle: title,
             surroundings: "Search or enter website name", recentLines: ["on my way", "running late, sorry"])
         let prompt = message("yes, ", situation)
-        #expect(prompt.count <= PromptBuilder.budgetInCharacters + 200)
         #expect(
             prompt.contains(
                 "window \"" + String(repeating: "t", count: PromptBuilder.locatorCap) + "\", field"))

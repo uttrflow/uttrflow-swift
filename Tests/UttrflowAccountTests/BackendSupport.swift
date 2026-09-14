@@ -136,6 +136,10 @@ final class StubLoopbackListener: LoopbackListening {
         var closed = false
         /// How many times `awaitCallback()` ran.
         var awaited = 0
+        /// Callers of `waitUntilClosed()` still waiting for `close()`, by id.
+        var closeWaiters: [Int: CheckedContinuation<Void, Never>] = [:]
+        /// The id the next waiter takes.
+        var nextWaiter = 0
     }
 
     /// A listener answering `callback`, or failing to bind with `bindFailure`.
@@ -167,9 +171,34 @@ final class StubLoopbackListener: LoopbackListening {
         return callback
     }
 
-    /// Records the close.
+    /// Records the close and wakes everything waiting for it.
     func close() async {
-        state.withLock { $0.closed = true }
+        let waiting = state.withLock { progress -> [CheckedContinuation<Void, Never>] in
+            progress.closed = true
+            defer { progress.closeWaiters = [:] }
+            return Array(progress.closeWaiters.values)
+        }
+        for waiter in waiting { waiter.resume() }
+    }
+
+    /// Suspends until `close()` has run or the caller is cancelled, which is how a time limit ends the wait.
+    func waitUntilClosed() async {
+        let id = state.withLock { progress -> Int in
+            progress.nextWaiter += 1
+            return progress.nextWaiter
+        }
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let parked = state.withLock { progress -> Bool in
+                    guard !progress.closed, !Task.isCancelled else { return false }
+                    progress.closeWaiters[id] = continuation
+                    return true
+                }
+                if !parked { continuation.resume() }
+            }
+        } onCancel: {
+            state.withLock { $0.closeWaiters.removeValue(forKey: id) }?.resume()
+        }
     }
 }
 

@@ -219,7 +219,7 @@ struct PromptContractTests {
 }
 
 /// One engine's allowance is its own, so a hang cannot spend the floor's turn.
-@Suite("Each engine's own allowance")
+@Suite("Each engine's own allowance", .timeLimit(.minutes(1)))
 struct TransformerBudgetTests {
     /// A fixture request.
     private let request = TransformationRequest(transcription: .fixture())

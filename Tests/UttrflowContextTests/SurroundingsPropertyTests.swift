@@ -269,9 +269,6 @@ private func lines(of read: Surroundings) -> [String] {
     read.text?.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) ?? []
 }
 
-/// A deadline no test reaches, so only the caps decide what a random window comes to.
-private let unhurried = ContinuousClock.Instant.now + .seconds(60)
-
 @Suite("What is on screen around the field, over random windows")
 struct SurroundingsPropertyTests {
     @Test(
@@ -366,7 +363,8 @@ struct SurroundingsPropertyTests {
             let spoken = Node(
                 id: 2, role: role, text: own, children: [label(3, "inner #3"), label(4, "deeper #4")])
             let window = Node(id: 0, role: "AXWindow", children: [Node(id: 10, children: [spoken, compose])])
-            let read = Surroundings.collect(around: compose, in: FakeTree(root: window), windowTitle: nil)
+            let read = Surroundings.collect(
+                around: compose, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
             if own == "said #2" {
                 #expect(read.text == "said #2")
             } else {

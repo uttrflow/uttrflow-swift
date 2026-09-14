@@ -6,7 +6,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowTestSupport
 
-@Suite("withStageTimeout")
+@Suite("withStageTimeout", .timeLimit(.minutes(1)))
 struct StageTimeoutTests {
     @Test("returns the work's answer when it finishes first", .timeLimit(.minutes(1)))
     func workWinsAgainstAClockThatNeverMoves() async throws {

@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Removes the doubled function word a false start leaves behind: "the the deployment".
 public struct StammersPass: CleaningPass {
     public static let id: PassID = .stammers
+    public static let removes: RemovalGrant = .repetition
 
     /// Function words English doubles on purpose: a past perfect, a doubled relative, a conjunction, a comforting.
     static let legitimateDoubles: Set<String> = ["had", "that", "so", "there"]

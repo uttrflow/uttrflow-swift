@@ -27,7 +27,7 @@ A 1–4B model cannot answer inside a keystroke. For now that is accepted: a sug
 well under a second after a pause — measured at p50 666 ms and p95 787 ms in a Release build
 over the fixture set, the table in [predict-context.md](predict-context.md) — and the model
 that serves suggestions is the one dictation already uses. What is done so far — a 120 ms
-debounce, one line first, a warm instruction prefix, a 1 400-character prompt budget, and the
+debounce, one line first, a warm instruction prefix, a 160-token budget for the context around the line, and the
 line itself up to its last word written into the model's own turn so the answer can only
 continue it and no echo is paid for — is also there. In a terminal the machine now speaks before the
 model ([predict-agent.md](predict-agent.md)): where the next word is a directory, a file, a branch

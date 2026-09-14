@@ -16,12 +16,12 @@ struct SpokenPunctuationPassTests {
             ("ship it period", "ship it."),
             ("wow exclamation mark", "wow!"),
             ("wow exclamation point", "wow!"),
-            ("two things colon milk", "two things: milk"),
+            ("two things colon the milk", "two things: the milk"),
             ("milk semicolon eggs", "milk; eggs"),
             ("milk semi colon eggs", "milk; eggs"),
             ("ready. question mark", "ready?"),
             ("milk, comma eggs", "milk, eggs"),
-            ("done comma next", "done, next"),
+            ("done comma we move on", "done, we move on"),
         ]
     )
     func attachesMarks(input: String, expected: String) {
@@ -161,11 +161,45 @@ struct SpokenPunctuationPassTests {
         "still converts a mark the speaker used, determiner or not",
         arguments: [
             ("ship it period", "ship it."),
-            ("milk comma eggs and bread", "milk, eggs and bread"),
+            ("milk comma eggs comma and bread", "milk, eggs, and bread"),
             ("did you finish the trial period question mark", "did you finish the trial period?"),
         ]
     )
     func convertsWhatWasUsed(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// Issue 237: "comma", "colon" and "dash" are nouns that modify the word after them, so a mid-sentence one needs evidence.
+    @Test(
+        "leaves an everyday mark name with no evidence that it stands at a seam",
+        arguments: [
+            "suffering from colon cancer", "he has colon trouble again",
+            "screened for colon cancer last year", "write comma separated values please",
+            "reduce comma usage in prose", "sprint dash training starts monday",
+            "we checked dash cam footage", "he keeps writing comma splices",
+            "done comma next", "two things colon milk", "milk comma eggs and bread",
+        ]
+    )
+    func leavesAnOrdinaryNameWithoutEvidence(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "takes an everyday mark name where the text closes, a mark precedes it, a small word follows, or it is said again",
+        arguments: [
+            ("the steps are as follows colon", "the steps are as follows:"),
+            ("hi team comma", "hi team,"),
+            ("hi team comma new line thanks", "hi team, new line thanks"),
+            ("milk, comma eggs", "milk, eggs"),
+            ("however comma the build passed", "however, the build passed"),
+            ("the reason is simple colon we ran out", "the reason is simple: we ran out"),
+            ("we left early dash it was raining", "we left early \u{2014} it was raining"),
+            ("apples comma pears comma plums", "apples, pears, plums"),
+            ("red comma green. blue comma white", "red comma green. blue comma white"),
+            ("we have colon trouble. the colon comma and more", "we have colon trouble. the colon, and more"),
+        ]
+    )
+    func takesAnOrdinaryNameOnEvidence(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -186,7 +220,7 @@ struct SpokenPunctuationPassTests {
 
     @Test("records the mark on the word before and the name as removed")
     func provenance() {
-        let draft = sut.apply(Draft(text: "milk comma eggs"))
+        let draft = sut.apply(Draft(text: "milk comma and eggs"))
         #expect(draft.words[0].state == .replaced(by: SpokenPunctuationPass.id, from: "milk"))
         #expect(draft.words[1].state == .removed(by: SpokenPunctuationPass.id))
         #expect(draft.words[2].state == .kept)

@@ -77,6 +77,13 @@ public enum EvaluationCorpus {
             expected: "I took her to the ER last night.",
             mustKeep: ["ER"]
         ),
+        // No determiner stands before "ER" here, so only the meaning guard is left to notice the filler pass took a word.
+        .init(
+            id: "acronym-spelled-like-a-filler", category: .everyday,
+            spoken: "we rushed him to ER before midnight",
+            expected: "We rushed him to ER before midnight.",
+            mustKeep: ["ER"]
+        ),
         // The unwrapper's case: a quote pair the recogniser reported is the speaker's, not the model's packaging.
         .init(
             id: "quoted-whole-utterance", category: .everyday,
@@ -180,6 +187,13 @@ public enum EvaluationCorpus {
             expected: "No, I don't think so. We should wait for the results.",
             mustKeep: ["no", "wait", "results"]
         ),
+        // "no" answers here, and the words around it are said once each way, so no half was taken back.
+        .init(
+            id: "answer-no-before-a-restated-phrase", category: .everyday,
+            spoken: "tell the landlord no, the landlord has to wait",
+            expected: "Tell the landlord no, the landlord has to wait.",
+            mustKeep: ["no", "landlord", "wait"]
+        ),
         // The trigger heads each item of a list here, so neither item is a half the speaker took back.
         .init(
             id: "coordinated-list-kept", category: .everyday,
@@ -231,6 +245,153 @@ public enum EvaluationCorpus {
             spoken: "put a comma after the greeting",
             expected: "Put a comma after the greeting.",
             mustKeep: ["comma"]
+        ),
+        // Issue 237: a bare mark name said where the mark goes, which must still become the mark.
+        .init(
+            id: "spoken-comma-after-a-greeting", category: .everyday,
+            spoken: "hi team comma I wanted to check on the invoice",
+            expected: "Hi team, I wanted to check on the invoice.",
+            mustKeep: ["team", "invoice"], mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "spoken-comma-after-an-opener", category: .everyday,
+            spoken: "however comma the second build passed",
+            expected: "However, the second build passed.",
+            mustKeep: ["second build"], mustNotAdd: ["comma"]
+        ),
+        // Issue 435: this one, "around-a-clause" and "in-a-list" still fail, since a determiner before the phrase refuses the comma.
+        .init(
+            id: "spoken-comma-before-a-clause", category: .everyday,
+            spoken: "if the tests pass comma we ship tonight",
+            expected: "If the tests pass, we ship tonight.",
+            mustKeep: ["tests pass", "ship tonight"], mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "spoken-comma-after-yes", category: .everyday,
+            spoken: "yes comma that works for me",
+            expected: "Yes, that works for me.",
+            mustKeep: ["works for me"], mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "spoken-commas-around-a-clause", category: .everyday,
+            spoken: "the cafe by the station comma which opens early comma is the best one",
+            expected: "The cafe by the station, which opens early, is the best one.",
+            mustKeep: ["station", "opens early"], mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "spoken-commas-in-a-list", category: .everyday,
+            spoken: "pack the charger comma the cable comma and the adapter",
+            expected: "Pack the charger, the cable, and the adapter.",
+            mustKeep: ["charger", "cable", "adapter"], mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "spoken-commas-in-a-bare-list", category: .everyday,
+            spoken: "we need apples comma pears comma plums",
+            expected: "We need apples, pears, plums.",
+            mustKeep: ["apples", "pears", "plums"], mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "spoken-comma-before-and", category: .everyday,
+            spoken: "we stayed late comma and then we went home",
+            expected: "We stayed late, and then we went home.",
+            mustKeep: ["stayed late", "went home"], mustNotAdd: ["comma"]
+        ),
+        .init(
+            id: "spoken-colon-before-a-clause", category: .everyday,
+            spoken: "the reason is simple colon we ran out of time",
+            expected: "The reason is simple: we ran out of time.",
+            mustKeep: ["reason is simple", "ran out of time"], mustNotAdd: ["colon"]
+        ),
+        .init(
+            id: "spoken-colon-before-an-item", category: .everyday,
+            spoken: "one more thing colon the demo moves to friday",
+            expected: "One more thing: the demo moves to Friday.",
+            mustKeep: ["demo", "Friday"], mustNotAdd: ["colon"]
+        ),
+        .init(
+            id: "spoken-colon-at-the-end", category: .everyday,
+            spoken: "the steps are as follows colon",
+            expected: "The steps are as follows:",
+            mustKeep: ["as follows"], mustNotAdd: ["colon"]
+        ),
+        .init(
+            id: "spoken-dash-before-a-clause", category: .everyday,
+            spoken: "we left early dash it was raining",
+            expected: "We left early \u{2014} it was raining.",
+            mustKeep: ["left early", "raining"], mustNotAdd: ["dash"]
+        ),
+        // Issue 237: the same bare names said as ordinary words, which must survive as words.
+        .init(
+            id: "colon-cancer-as-words", category: .everyday,
+            spoken: "she was screened for colon cancer last year",
+            expected: "She was screened for colon cancer last year.",
+            mustKeep: ["colon cancer"], mustNotAdd: [":"]
+        ),
+        .init(
+            id: "colon-trouble-as-words", category: .everyday,
+            spoken: "he has colon trouble again",
+            expected: "He has colon trouble again.",
+            mustKeep: ["colon trouble"], mustNotAdd: [":"]
+        ),
+        .init(
+            id: "colon-surgery-as-words", category: .everyday,
+            spoken: "she booked colon surgery for june",
+            expected: "She booked colon surgery for June.",
+            mustKeep: ["colon surgery"], mustNotAdd: [":"]
+        ),
+        .init(
+            id: "colon-health-as-words", category: .everyday,
+            spoken: "eat more fibre for colon health",
+            expected: "Eat more fibre for colon health.",
+            mustKeep: ["colon health"], mustNotAdd: [":"]
+        ),
+        .init(
+            id: "comma-separated-as-words", category: .everyday,
+            spoken: "export the report as comma separated values",
+            expected: "Export the report as comma separated values.",
+            mustKeep: ["comma separated"], mustNotAdd: [","]
+        ),
+        .init(
+            id: "comma-usage-as-words", category: .everyday,
+            spoken: "try to reduce comma usage in formal writing",
+            expected: "Try to reduce comma usage in formal writing.",
+            mustKeep: ["comma usage"], mustNotAdd: [","]
+        ),
+        .init(
+            id: "comma-splices-as-words", category: .everyday,
+            spoken: "he keeps writing comma splices in every draft",
+            expected: "He keeps writing comma splices in every draft.",
+            mustKeep: ["comma splices"], mustNotAdd: [","]
+        ),
+        .init(
+            id: "comma-placement-as-words", category: .everyday,
+            spoken: "please fix comma placement in the second paragraph",
+            expected: "Please fix comma placement in the second paragraph.",
+            mustKeep: ["comma placement"], mustNotAdd: [","]
+        ),
+        .init(
+            id: "dash-training-as-words", category: .everyday,
+            spoken: "sprint dash training starts on monday",
+            expected: "Sprint dash training starts on Monday.",
+            mustKeep: ["dash training"], mustNotAdd: ["\u{2014}"]
+        ),
+        .init(
+            id: "dash-cam-as-words", category: .everyday,
+            spoken: "we checked dash cam footage from the night",
+            expected: "We checked dash cam footage from the night.",
+            mustKeep: ["dash cam"], mustNotAdd: ["\u{2014}"]
+        ),
+        .init(
+            id: "dash-drills-as-words", category: .everyday,
+            spoken: "our team runs dash drills before every match",
+            expected: "Our team runs dash drills before every match.",
+            mustKeep: ["dash drills"], mustNotAdd: ["\u{2014}"]
+        ),
+        .init(
+            id: "period-furniture-as-words", category: .everyday,
+            spoken: "the museum shows period furniture from the old manor",
+            expected: "The museum shows period furniture from the old manor.",
+            mustKeep: ["period furniture"]
         ),
         .init(
             id: "new-paragraph", category: .everyday,

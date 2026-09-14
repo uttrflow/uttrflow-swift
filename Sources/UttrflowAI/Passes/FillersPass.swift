@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Removes the sounds people make while thinking, and nothing that is ever a word on its own.
 public struct FillersPass: CleaningPass {
     public static let id: PassID = .fillers
+    public static let removes: RemovalGrant = .sound
 
     /// Whole words that carry no meaning; "like", "well", "so", "basically" and "mm" (millimetres) are out.
     static let fillerWords: Set<String> = [

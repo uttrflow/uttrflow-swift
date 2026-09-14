@@ -26,10 +26,9 @@ enum CachedSnapshot {
         guard requiredFiles.allSatisfy({ (size(of: snapshot.appending(path: $0)) ?? 0) > 0 }),
             let weights = weightFiles(in: snapshot)
         else { return nil }
-        let sizes = weights.map { wholeSize(of: snapshot.appending(path: $0)) }
-        guard !sizes.contains(nil), sizes.compactMap(\.self).reduce(0, +) >= minimumWeightBytes else {
-            return nil
-        }
+        guard let weighed = total(weights.map { wholeSize(of: snapshot.appending(path: $0)) }),
+            weighed >= minimumWeightBytes
+        else { return nil }
         return snapshot
     }
 
@@ -59,7 +58,25 @@ enum CachedSnapshot {
         return weights
     }
 
-    /// A safetensors file's length when it matches its own header, which a cut-off download never does.
+    /// The bytes one element of each safetensors dtype takes; a dtype not listed is checked by offsets alone.
+    static let elementBytes: [String: UInt64] = [
+        "BOOL": 1, "U8": 1, "I8": 1, "F8_E5M2": 1, "F8_E4M3": 1, "U16": 2, "I16": 2, "F16": 2, "BF16": 2,
+        "U32": 4, "I32": 4, "F32": 4, "U64": 8, "I64": 8, "F64": 8,
+    ]
+
+    /// The sum of `sizes`, or nil when any is missing or the total does not fit.
+    static func total(_ sizes: [UInt64?]) -> UInt64? {
+        var sum: UInt64 = 0
+        for size in sizes {
+            guard let size else { return nil }
+            let (added, overflow) = sum.addingReportingOverflow(size)
+            guard !overflow else { return nil }
+            sum = added
+        }
+        return sum
+    }
+
+    /// A safetensors file's length when it matches its own header, which a cut-off or corrupt file never does.
     static func wholeSize(of file: URL) -> UInt64? {
         guard let length = size(of: file), length > 8,
             let handle = try? FileHandle(forReadingFrom: file.resolvingSymlinksInPath())
@@ -69,14 +86,58 @@ enum CachedSnapshot {
         let headerLength = prefix.enumerated().reduce(UInt64(0)) {
             $0 | UInt64($1.element) << (8 * $1.offset)
         }
-        guard headerLength > 0, headerLength <= largestHeader, 8 + headerLength <= length,
+        // Compared against `length - 8`, which `length > 8` keeps from wrapping, so no sum can overflow.
+        guard headerLength > 0, headerLength <= largestHeader, headerLength <= length - 8,
             let header = try? handle.read(upToCount: Int(headerLength)), header.count == Int(headerLength),
-            let tensors = try? JSONSerialization.jsonObject(with: header) as? [String: Any]
+            let tensors = try? JSONSerialization.jsonObject(with: header) as? [String: Any],
+            tile(tensors, payload: length - 8 - headerLength)
         else { return nil }
-        let end =
-            tensors.values.compactMap { ($0 as? [String: Any])?["data_offsets"] as? [UInt64] }
-            .compactMap(\.last).max() ?? 0
-        return length == 8 + headerLength + end ? length : nil
+        return length
+    }
+
+    /// Whether the header's tensors cover exactly `payload` bytes, end to end, each as long as its shape says.
+    static func tile(_ tensors: [String: Any], payload: UInt64) -> Bool {
+        var ranges: [(begin: UInt64, end: UInt64)] = []
+        for (name, value) in tensors where name != "__metadata__" {
+            guard let tensor = value as? [String: Any], let dtype = tensor["dtype"] as? String,
+                let shape = unsignedIntegers(tensor["shape"]),
+                let offsets = unsignedIntegers(tensor["data_offsets"]), offsets.count == 2,
+                offsets[0] <= offsets[1], offsets[1] <= payload,
+                spans(offsets[1] - offsets[0], dtype: dtype, shape: shape)
+            else { return false }
+            ranges.append((offsets[0], offsets[1]))
+        }
+        var next: UInt64 = 0
+        for range in ranges.sorted(by: { ($0.begin, $0.end) < ($1.begin, $1.end) }) {
+            guard range.begin == next else { return false }
+            next = range.end
+        }
+        return next == payload
+    }
+
+    /// Whether `bytes` is what `shape` elements of `dtype` take, false when that count does not fit in 64 bits.
+    static func spans(_ bytes: UInt64, dtype: String, shape: [UInt64]) -> Bool {
+        guard let width = elementBytes[dtype] else { return true }
+        var product = width
+        for dimension in shape {
+            let (multiplied, overflow) = product.multipliedReportingOverflow(by: dimension)
+            guard !overflow else { return false }
+            product = multiplied
+        }
+        return product == bytes
+    }
+
+    /// A JSON array of whole numbers from zero to `UInt64.max`, or nil for anything else, booleans included.
+    static func unsignedIntegers(_ value: Any?) -> [UInt64]? {
+        guard let array = value as? [Any] else { return nil }
+        var numbers: [UInt64] = []
+        for element in array {
+            guard let number = element as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                let whole = element as? UInt64
+            else { return nil }
+            numbers.append(whole)
+        }
+        return numbers
     }
 
     /// The byte length of the regular file `url` names, through any symbolic link.

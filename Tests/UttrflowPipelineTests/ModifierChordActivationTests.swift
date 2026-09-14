@@ -237,7 +237,7 @@ struct ModifierChordRecognitionTests {
 
 // MARK: - Dictating
 
-@Suite("Modifiers bound alone, as the controller acts on them")
+@Suite("Modifiers bound alone, as the controller acts on them", .timeLimit(.minutes(1)))
 struct ModifierChordActivationTests {
     @Test(
         "⌃⌘⌥K opens no microphone and inserts nothing",

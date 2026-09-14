@@ -272,7 +272,10 @@ provenance:
 - every word the model added must be punctuation, layout, or a candidate;
 - the formatter's policies must hold (no trailing stop where the policy is `.never`, a
   single line for a cell);
-- the existing checks stay: no preamble, no invented number, no growth beyond a ratio.
+- the existing checks stay: no preamble, no invented number, no growth beyond a ratio;
+- a pass's removal is provenance only within the `RemovalGrant` the pass declares, and a
+  content word or negation removed beyond it is judged as if still in the draft
+  (`RemovalAudit`, `Docs/cleanup.md`).
 
 A refusal falls back to the draft after the passes — which is now a good result on its
 own, because the passes did the Tier 1 work. That is the fallback the rules engine was

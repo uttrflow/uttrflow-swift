@@ -39,7 +39,8 @@ struct SurroundingsTests {
     @Test(
         "The thread beside the compose box comes last, the sidebar first, and the field itself is left out.")
     func nearestTextComesLast() {
-        let read = Surroundings.collect(around: compose, in: FakeTree(root: chatWindow), windowTitle: "Priya")
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: chatWindow), windowTitle: "Priya", deadline: unhurried)
         #expect(read.windowTitle == "Priya")
         let lines = lines(read)
         #expect(lines.first == "Priya")
@@ -62,7 +63,8 @@ struct SurroundingsTests {
                 label(9, "collapsed pane", visible: false),
                 Node(id: 40, children: [compose, label(41, "visible label")]),
             ])
-        let read = Surroundings.collect(around: compose, in: FakeTree(root: window), windowTitle: nil)
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
         #expect(read.text == "visible label")
         #expect(read.windowTitle == nil)
     }
@@ -73,7 +75,8 @@ struct SurroundingsTests {
     func moreControlsAreSkipped(role: String) {
         let control = Node(id: 5, role: role, text: "12 pt", children: [label(6, "inside the control")])
         let window = Node(id: 0, role: "AXWindow", children: [Node(id: 40, children: [control, compose])])
-        let read = Surroundings.collect(around: compose, in: FakeTree(root: window), windowTitle: nil)
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
         #expect(read.text == nil)
     }
 
@@ -97,7 +100,8 @@ struct SurroundingsTests {
                     ])
             ])
         let read = Surroundings.collect(
-            around: compose, in: FakeTree(root: window), windowTitle: nil, windowFrame: screen)
+            around: compose, in: FakeTree(root: window), windowTitle: nil, windowFrame: screen,
+            deadline: unhurried)
         #expect(read.text == "half shown\nin view\nsays no frame")
     }
 
@@ -111,7 +115,8 @@ struct SurroundingsTests {
             children: [Node(id: 40, children: [label(41, "far off", frame: far), compose])])
         for frame in [nil, CGRect.zero] {
             let read = Surroundings.collect(
-                around: compose, in: FakeTree(root: window), windowTitle: nil, windowFrame: frame)
+                around: compose, in: FakeTree(root: window), windowTitle: nil, windowFrame: frame,
+                deadline: unhurried)
             #expect(read.text == "far off")
         }
     }
@@ -125,7 +130,8 @@ struct SurroundingsTests {
         let window = Node(id: 0, role: "AXWindow", children: [Node(id: 40, children: [newest, compose])])
         let visits = VisitCounter()
         let read = Surroundings.collect(
-            around: compose, in: FakeTree(root: window, visits: visits), windowTitle: nil)
+            around: compose, in: FakeTree(root: window, visits: visits), windowTitle: nil, deadline: unhurried
+        )
         #expect(read.text == "second to last\nlast")
         #expect(visits.count == Surroundings.maximumElements)
     }
@@ -138,7 +144,8 @@ struct SurroundingsTests {
         let window = Node(
             id: 0, role: "AXWindow",
             children: [Node(id: 40, children: [Node(id: 20, children: messages), compose])])
-        let read = Surroundings.collect(around: compose, in: FakeTree(root: window), windowTitle: nil)
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
         let lines = lines(read)
         #expect(read.text?.count == Surroundings.maximumCharacters)
         #expect(lines.last == messages[29].text)
@@ -156,7 +163,8 @@ struct SurroundingsTests {
         let after = Node(id: 30, text: "Footer", children: [label(31, "third"), label(32, "fourth")])
         let window = Node(
             id: 0, role: "AXWindow", children: [Node(id: 40, children: [before, compose, after])])
-        let read = Surroundings.collect(around: compose, in: FakeTree(root: window), windowTitle: nil)
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
         #expect(read.text == "Thread\nfirst\nsecond\nFooter\nthird\nfourth")
 
         // Two full lines leave room for 398 characters, so the 399-character third loses its last one.
@@ -165,7 +173,8 @@ struct SurroundingsTests {
         let full = Node(
             id: 0, role: "AXWindow",
             children: [Node(id: 40, children: [compose, label(50, long), label(51, long), label(52, third)])])
-        let cut = Surroundings.collect(around: compose, in: FakeTree(root: full), windowTitle: nil)
+        let cut = Surroundings.collect(
+            around: compose, in: FakeTree(root: full), windowTitle: nil, deadline: unhurried)
         #expect(cut.text?.count == Surroundings.maximumCharacters)
         #expect(lines(cut).last == String(third.dropLast()))
     }
@@ -179,7 +188,8 @@ struct SurroundingsTests {
         let window = Node(id: 0, role: "AXWindow", children: [far, Node(id: 40, children: [near, compose])])
         let visits = VisitCounter()
         let read = Surroundings.collect(
-            around: compose, in: FakeTree(root: window, visits: visits), windowTitle: nil)
+            around: compose, in: FakeTree(root: window, visits: visits), windowTitle: nil, deadline: unhurried
+        )
         #expect(visits.count == 4)
         #expect(read.text?.contains("preview") == false)
         #expect(read.text?.count == Surroundings.maximumCharacters)
@@ -199,7 +209,8 @@ struct SurroundingsTests {
             children: [Node(id: 28, text: "review notes", children: [label(29, "Design team")])])
         let window = Node(
             id: 0, role: "AXWindow", children: [Node(id: 40, children: [sticker, nested, farther, compose])])
-        let read = Surroundings.collect(around: compose, in: FakeTree(root: window), windowTitle: nil)
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
         #expect(
             read.text
                 == "Sticker\nfrom Priya\nMessages in chat with Sam\nSam: hello\nDesign team, design review\nreview notes\nDesign team"
@@ -231,7 +242,8 @@ struct SurroundingsTests {
             children: [Node(id: 40, children: [compose] + many)])
         let visits = VisitCounter()
         let read = Surroundings.collect(
-            around: compose, in: FakeTree(root: window, visits: visits), windowTitle: nil)
+            around: compose, in: FakeTree(root: window, visits: visits), windowTitle: nil, deadline: unhurried
+        )
         let lines = lines(read)
         #expect(lines.first == "row 100")
         #expect(lines.count > 0 && lines.count < many.count)
@@ -245,7 +257,8 @@ struct SurroundingsTests {
             children: [label(51, "hello"), label(52, "hello")])
         let window = Node(
             id: 0, role: "AXWindow", children: [Node(id: 40, children: [compose, field, label(53, "   ")])])
-        let read = Surroundings.collect(around: compose, in: FakeTree(root: window), windowTitle: nil)
+        let read = Surroundings.collect(
+            around: compose, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
         #expect(read.text == "hello")
     }
 
@@ -267,7 +280,7 @@ struct SurroundingsTests {
                 Node(id: 40, children: [messages, compose, Node(id: 41, role: "AXButton", text: "Send")])
             ])
         let read = Surroundings.collect(
-            around: compose, in: FakeTree(root: window), windowTitle: "\u{200E}Chat")
+            around: compose, in: FakeTree(root: window), windowTitle: "\u{200E}Chat", deadline: unhurried)
         #expect(
             read.text
                 == "Messages in chat with Sam\nmessage, are you coming tonight?\nToday\nmessage, phone off hone wala hai"

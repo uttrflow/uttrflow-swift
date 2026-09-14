@@ -138,7 +138,7 @@ extension DictationState {
 
 // MARK: - Tests
 
-@Suite("Dictation pipeline: the user's words survive")
+@Suite("Dictation pipeline: the user's words survive", .timeLimit(.minutes(1)))
 struct DictationPipelineRecoveryTests {
     private func makePipeline(
         speech: FakeSpeechEngine = FakeSpeechEngine(

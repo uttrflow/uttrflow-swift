@@ -78,12 +78,16 @@ milliseconds, not hundreds.
      end with sentence punctuation, or nothing when they have written nothing here yet.
    These are numbers and booleans, derived the same way in every application.
 4. **Assemble the prompt under a budget.** `PromptBuilder` (in `UttrflowLocalModel`,
-   deterministic, tested by character count) lays out: where the caret is and the hints →
+   deterministic, tested by estimated token count) lays out: where the caret is and the hints →
    what is on screen around the field → the lines this person wrote here before →
-   `preceding` → the line to finish. Hard cap 1 400 characters, about 400 tokens of Gemma's
-   vocabulary; the fixed parts are paid for first, `preceding` and the recent lines get up
-   to half of what remains each, and the surroundings take what is left — so the screen is
-   trimmed first, then the oldest own lines, and the line never. `maxTokens` is
+   `preceding` → the line to finish. The context around the line has a hard budget of 160
+   tokens, headings included; the fixed parts and the line itself sit outside it and are
+   never cut. The field's own text before the line is paid for first, from its end, with up
+   to half; the person's recent lines take up to half of what is left, newest first; the
+   screen takes what remains but never more than 96 tokens, as whole lines nearest the field,
+   each line said once so a "Reply" under every comment costs one. Once the field's own text
+   fills 64 tokens the screen is left out entirely. See "Page context under a token budget"
+   below for the estimate and the measurements. `maxTokens` is
    `clamp(typicalLength / 2, 24, 96)` when the register knows a typical length, else 32
    for symbolic text, 48 for a conversation and 64 otherwise; the alternatives pass gets
    three times that, and every pass is capped at 128.
@@ -177,6 +181,52 @@ drafting tokens the 4B verifies in one pass, which `ChatSession`/`generate` alre
 `SpeculativeDecodingConfig` — and after it a smaller verifier. Targets (command ≤ 400 ms, reply ≤ 600 ms)
 are not yet met; the p95 of 787 ms is within the "1–2 s is acceptable for now" the operator set for this
 stage.
+
+## Page context under a token budget
+
+A browser field hands the model a page: navigation, an article, comments, a "Reply" under each
+one. Read by `Surroundings.collect` that is up to 1 200 characters, and under the old
+1 400-character message cap it filled almost all of it, so every pass prefilled 250–360 tokens
+of page and the model answered at the length of what it had read. The context around the line
+now has a budget in tokens rather than characters (`PromptBuilder.contextBudgetInTokens`), with
+the screen held to a share of it.
+
+**The estimate.** No tokeniser runs while the prompt is laid out: `PromptBuilder.estimatedTokens`
+counts a run of Latin letters as one token per four, other letters and combining marks as one per
+two, and each digit, symbol, newline and space before a digit as one. Over 188 samples of page
+text, titles, commands, queries, addresses, Hindi, French and emoji it came to 3 684 estimated
+tokens for 2 647 real Gemma 3 tokens. Single short lines can be under-counted ("Snoozed" is 4
+real tokens against 2), which a whole section averages out; the budget holds against the
+estimate, not against the real count.
+
+**Measured** with an on-disk Gemma 3 4B QAT 4-bit, Release, seven browser-like moments (a blog
+comment box, an issue comment, a web mail reply, a docs search, a Hindi news page, a comment with
+a paragraph already typed, a bare field), 20 passes each, two alternating runs on a heavily
+loaded machine, so compare the columns rather than the absolute numbers:
+
+| Moment | Message tokens before | after | Prefill p50 before | after | Pass p50 before | after |
+|---|--:|--:|--:|--:|--:|--:|
+| blog comment | 354 | 147 | 146–236 ms | 103–116 ms | 3 019–3 608 ms | 1 455–1 677 ms |
+| issue comment | 361 | 143 | 155–248 ms | 117–125 ms | 2 431–3 060 ms | 1 088–1 292 ms |
+| web mail reply | 249 | 122 | 108–155 ms | 67–90 ms | 2 693–3 482 ms | 1 340–1 671 ms |
+| Hindi news comment | 181 | 109 | 91–125 ms | 64–80 ms | 1 329–1 556 ms | 823–1 031 ms |
+| comment with a paragraph typed | 347 | 146 | 152–215 ms | 93–99 ms | 2 071–2 666 ms | 861–1 032 ms |
+| bare field | 41 | 41 | 49–72 ms | 52–56 ms | 672–756 ms | 637–730 ms |
+| all seven, p50 | | | 143–168 ms | 82–96 ms | 2 038–2 316 ms | 902–1 160 ms |
+
+Prefill fell by about 40%, but most of the pass time saved is decode: with a page of text in
+front of it the model wrote a whole comment, and with the nearest lines it writes a line. On a
+fanless machine, where both prefill and decode run several times slower, both savings grow in
+proportion.
+
+**Quality** over `uttrflow-bakeoff complete --fixtures`: 542 of the 1 154 fixtures get a
+different message under the new layout (terminal scrollback, SQL and notes text before the line,
+chat threads and recent lines), and those were rerun; the rest are unchanged at temperature 0.
+Hits went from 968 to 965 of 1 154 and fixtures in register from 990 to 989. The three lost are
+one terminal line (`mkdir -p tests` became `mkdir -d tests`) and two notes cuts whose old answer
+was the same generic sentence; notes lost four in register (77 → 73 of the 80 changed), where a
+document's own text before the line is now held to 64 tokens. Chat, mail, SQL and robust hits
+are unchanged.
 
 ## Not doing, and why
 
