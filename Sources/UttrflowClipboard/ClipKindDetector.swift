@@ -22,7 +22,7 @@ public enum ClipKindDetector {
 /// A web address, and nothing that merely resembles one.
 enum LinkShape {
     /// A scheme is compulsory, so `example.com` and `someone@example.com` stay text; so does `file://`.
-    nonisolated(unsafe) private static let address = #/(?i)https?://[^\s/?#]+\S*/#
+    nonisolated(unsafe) static let address = #/(?i)https?://[^\s/?#]\S*/#
 
     static func matches(_ text: String) -> Bool { text.wholeMatch(of: address) != nil }
 }
@@ -34,8 +34,8 @@ enum ColourShape {
         #/#(?:[0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{3})/#
 
     /// The functional notations with no nesting inside the brackets, so a function call is not a colour.
-    nonisolated(unsafe) private static let functional =
-        #/(?i)(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(\s*[^()]+\)/#
+    nonisolated(unsafe) static let functional =
+        #/(?i)(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]+\)/#
 
     static func matches(_ text: String) -> Bool {
         text.wholeMatch(of: hex) != nil || text.wholeMatch(of: functional) != nil

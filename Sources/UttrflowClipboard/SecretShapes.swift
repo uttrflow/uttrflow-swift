@@ -4,10 +4,13 @@ import Foundation
 
 /// Recognises a credential, keener to say yes than no. See Docs/clipboard-secrets.md.
 public enum SecretShapes {
+    /// Counts the characters the single-pass readers take while bound, so a test can bound the work without a clock.
+    @TaskLocal package static var tally: ScanTally?
+
     public static func matches(_ text: String) -> Bool {
         if text.contains(pemHeader) { return true }
-        if text.firstMatch(of: jsonWebToken) != nil { return true }
-        if text.firstMatch(of: credentialledURL) != nil { return true }
+        if hasJSONWebToken(text) { return true }
+        if hasCredentialledURL(text) { return true }
         if text.firstMatch(of: vendorKey) != nil { return true }
         if hasNamedSecret(text) { return true }
         if CardNumberShape.matches(text) { return true }
@@ -20,15 +23,21 @@ public enum SecretShapes {
     private static let pemHeader = "-----BEGIN"
 
     /// A JWT anywhere in the text, so `Bearer eyJ…` is caught; the signature may be empty.
-    nonisolated(unsafe) private static let jsonWebToken =
-        #/eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*/#
+    static func hasJSONWebToken(_ text: String) -> Bool {
+        var read = 0
+        defer { tally?.record(read) }
+        return JSONWebTokenScan.matches(text, read: &read)
+    }
 
     /// A connection string carrying a password, which needs a colon in the userinfo before the `@`.
-    nonisolated(unsafe) private static let credentialledURL =
-        #/[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s:/@]+:[^\s:/@]+@\S/#
+    static func hasCredentialledURL(_ text: String) -> Bool {
+        var read = 0
+        defer { tally?.record(read) }
+        return CredentialledURLScan.matches(text, read: &read)
+    }
 
     /// Keys whose issuers gave them a prefix, each with a minimum length so prose about `sk-` is not one.
-    nonisolated(unsafe) private static let vendorKey =
+    nonisolated(unsafe) static let vendorKey =
         #/
         sk-(?:ant-)?[A-Za-z0-9_\-]{16,}          # OpenAI, Anthropic
         | (?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{10,}   # Stripe
@@ -46,27 +55,11 @@ public enum SecretShapes {
 
     // MARK: - A secret because of what it is called
 
-    /// `API_KEY=…`, `password: …`, `client_secret = …`, anchored per line so a whole `.env` is caught.
-    nonisolated(unsafe) private static let namedSecret =
-        #/
-        (?i)
-        \b(?: api[_\-]?keys? | secrets? | tokens? | passwords? | passwd | pwd
-            | credentials? | private[_\-]?key | access[_\-]?key | auth[_\-]?token
-            | client[_\-]?secret )
-        \b["']? \s* [:=] \s*
-        (?<value> "[^"\n]+" | '[^'\n]+' | [^\s"'\n]+ )
-        \s*[,;]?\s*$
-        /#
-        .anchorsMatchLineEndings()
-
-    /// Whether any line names a secret and gives one; `var password: String` supplies only a type.
-    private static func hasNamedSecret(_ text: String) -> Bool {
-        text.matches(of: namedSecret).contains { match in
-            let raw = String(match.value)
-            let isQuoted = raw.count >= 2 && (raw.hasPrefix("\"") || raw.hasPrefix("'"))
-            let value = isQuoted ? String(raw.dropFirst().dropLast()) : raw
-            return isQuoted || value.contains(where: \.isNumber) || value.count >= 12
-        }
+    /// Whether any line names a secret and gives one, as `API_KEY=…` does; `var password: String` supplies only a type.
+    static func hasNamedSecret(_ text: String) -> Bool {
+        var scan = NamedSecretScan(text)
+        defer { tally?.record(scan.read) }
+        return scan.matches()
     }
 
     // MARK: - A secret because of how it looks
@@ -81,7 +74,7 @@ public enum SecretShapes {
     private static let entropyFloor = 3.8
 
     /// Whether any word on a one-line clip looks generated; multi-line clips are documents, left alone.
-    private static func hasHighEntropyToken(_ text: String) -> Bool {
+    static func hasHighEntropyToken(_ text: String) -> Bool {
         guard !text.contains(where: \.isNewline) else { return false }
         return text.split(whereSeparator: \.isWhitespace).contains { looksGenerated(String($0)) }
     }

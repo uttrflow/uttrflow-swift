@@ -46,21 +46,21 @@ enum CodeShapes {
     }
 
     /// Something being declared: a function, a type, a binding with a value, an import with a module.
-    nonisolated(unsafe) private static let declaration =
+    nonisolated(unsafe) static let declaration =
         #/
         \b(?: func | function | def | fn | sub )\s+\w+\s*\(
         | \b(?: class | struct | enum | interface | trait | protocol | actor )\s+\w+
         | \b(?: let | var | const | val )\s+\w+\s*[:=]
         | \b(?: public | private | internal | fileprivate | static | async | await )\s+\w
-        | ^\s*(?: import | from | package | using | require | \#include | \#import )\s+\S
+        | ^\h*(?: import | from | package | using | require | \#include | \#import )\s+\S
         /#
         .anchorsMatchLineEndings()
 
     /// Control flow, independent of declarations, written so it cannot match the English word.
-    nonisolated(unsafe) private static let controlFlow =
+    nonisolated(unsafe) static let controlFlow =
         #/
         \b(?: if | for | while | switch | catch | foreach )\s*\(
-        | ^\s*(?: return | throw | break | continue | yield | else | elif | endif )\b
+        | ^\h*(?: return | throw | break | continue | yield | else | elif | endif )\b
         /#
         .anchorsMatchLineEndings()
 
@@ -68,15 +68,15 @@ enum CodeShapes {
     nonisolated(unsafe) private static let codeOperator = #/=>|->|::|!==|===|&&|\|\||\+=|-=|\+\+|!=/#
 
     /// A name immediately followed by an opening bracket: a call, or a definition.
-    nonisolated(unsafe) private static let invocation = #/\w+\((?:\)|[^\s)])/#
+    nonisolated(unsafe) static let invocation = #/\w\(\S/#
 
     /// A line that opens with a comment marker in one of the usual spellings.
-    nonisolated(unsafe) private static let commentLine = #/^\s*(?://|/\*|\*\s|\#\s|--\s)/#
+    nonisolated(unsafe) static let commentLine = #/^\h*(?://|/\*|\*\s|\#\s|--\s)/#
         .anchorsMatchLineEndings()
 
     /// SQL, which has none of the punctuation the other signals look for.
-    nonisolated(unsafe) private static let query =
-        #/(?i)^\s*(?:select|insert\s+into|update|delete\s+from|create\s+table|alter\s+table|drop\s+table)\s+/#
+    nonisolated(unsafe) static let query =
+        #/(?i)^\h*(?:select|insert\s+into|update|delete\s+from|create\s+table|alter\s+table|drop\s+table)\s+/#
         .anchorsMatchLineEndings()
 
     /// Shell punctuation: a pipe, a chained command, a substitution, a redirect, a flag.
