@@ -1,6 +1,6 @@
 # What gitleaks is allowed to find and not fail on.
 #
-# Two files in this tree contain things shaped exactly like credentials, on purpose:
+# These files in this tree contain things shaped exactly like credentials, on purpose:
 #
 #   SecretDetectionTests.swift    the fixtures for the clipboard's secret detector. Its
 #                                 whole job is to recognise an AWS key, a GitHub token, a
@@ -8,6 +8,9 @@
 #                                 and it cannot be tested without examples of each. The
 #                                 values are the vendors' own documentation examples and
 #                                 invented strings.
+#   SecretShapesOracleTests.swift the same detector's fixtures, planted into random text to
+#                                 compare it with the patterns it replaced; the same kind of
+#                                 documentation examples and invented strings.
 #   InMemoryAuthenticationService.swift
 #                                 the development sign-in stub, which mints its own
 #                                 Ed25519 key at run time and issues a profile at
@@ -24,6 +27,7 @@ useDefault = true
   description = "Files whose contents are supposed to look like secrets."
   paths = [
     '''Tests/UttrflowClipboardTests/SecretDetectionTests\.swift''',
+    '''Tests/UttrflowClipboardTests/SecretShapesOracleTests\.swift''',
     '''Sources/UttrflowAccount/InMemoryAuthenticationService\.swift''',
     '''Tests/UttrflowAccountTests/AccountSupport\.swift''',
   ]

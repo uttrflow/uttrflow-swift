@@ -5,7 +5,7 @@ import Testing
 @testable import UttrflowClipboard
 
 /// Every credential below is invented or a network's published test number; vendor prefixes are assembled so push protection does not match them.
-@Suite("The linear readers answer exactly as the backtracking patterns did")
+@Suite("The linear readers answer exactly as the backtracking patterns did", .serialized)
 struct SecretShapesOracleTests {
     /// Pieces that sit on every edge the patterns draw: separators, quotes, line ends, keywords, case folds and combining marks.
     static let pieces: [String] = [
