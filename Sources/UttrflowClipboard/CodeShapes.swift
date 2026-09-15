@@ -23,9 +23,11 @@ enum CodeShapes {
         func has(_ pattern: Regex<Substring>, needing literals: [StaticString]) -> Bool {
             ClipBytes.containsAny(text, literals) && text.firstMatch(of: pattern) != nil
         }
+        // Read once so a closing brace cannot score here and as a statement ending too.
+        let braces = text.contains("{") && text.contains("}")
         let signals: [() -> Bool] = [
-            { text.contains("{") && text.contains("}") },
-            { hasStatementEnding(text) },
+            { braces },
+            { hasStatementEnding(text, countingClosingBrace: !braces) },
             { isIndented(text) },
             { has(invocation, needing: ["("]) },
             { has(commentLine, needing: ["//", "/*", "*", "#", "--"]) },
@@ -57,11 +59,12 @@ enum CodeShapes {
         return false
     }
 
-    /// A line that ends in a semicolon or a brace; mid-line, a semicolon is punctuation people use.
-    static func hasStatementEnding(_ text: String) -> Bool {
+    /// A line that ends in a semicolon or an opening brace, and a closing one only where the braces signal did not already count it.
+    static func hasStatementEnding(_ text: String, countingClosingBrace: Bool = true) -> Bool {
         text.split(whereSeparator: \.isNewline).contains { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            return trimmed.hasSuffix(";") || trimmed.hasSuffix("{") || trimmed.hasSuffix("}")
+            return trimmed.hasSuffix(";") || trimmed.hasSuffix("{")
+                || (countingClosingBrace && trimmed.hasSuffix("}"))
         }
     }
 
