@@ -179,4 +179,11 @@ struct CompletionParsingTests {
         #expect(MLXCandidateScorer.joined("", with: "hoon") == nil)
         #expect(MLXCandidateScorer.joined("busy", with: "") == nil)
     }
+
+    @Test("A line the model wrote in another script is dropped, wherever in the line the script appears.")
+    func nonLatinLinesAreDropped() {
+        let reply = "kal मिलते हैं\nkal milte hain\nkal 见\nkal pakka, café mein"
+        #expect(MLXCandidateScorer.parse(reply, typed: "kal ") == ["kal milte hain", "kal pakka, café mein"])
+        #expect(MLXCandidateScorer.parse("नहीं जाना", typed: "नहीं ") == [])
+    }
 }

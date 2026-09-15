@@ -47,6 +47,8 @@ public enum Quieting {
         case emptyLine
         /// A line past `SuggestionSession.maximumTypedLength` is a document, not a prefix.
         case lineTooLong
+        /// The line holds another script, where nothing Uttrflow may write belongs. See `Docs/predict.md`.
+        case nonLatinLine
         /// The user pressed ⎋, so only the dot remains.
         case minimised
         /// Nothing extends the line: no candidate, none the gates allowed, or nothing usable from the model.

@@ -234,4 +234,28 @@ struct PromptTests {
         #expect(prompt.contains("Lines this person wrote here before:\non my way\nrunning late, sorry"))
         #expect(prompt.contains("On screen around the field:\nSearch or enter website name"))
     }
+
+    @Test("The person's earlier lines in another script are not shown to the model.")
+    func nonLatinRecentLinesAreNotShown() {
+        let situation = GenerationSituation(application: "Chat", recentLines: ["haan bilkul", "नहीं जाना"])
+        let prompt = message("kal ", situation)
+        #expect(prompt.contains("Lines this person wrote here before:\nhaan bilkul"))
+        #expect(!prompt.contains("नहीं"))
+    }
+
+    @Test(
+        "Another script in the context tells the model to write English or romanised Hinglish in the Latin alphabet."
+    )
+    func nonLatinContextNamesTheScript() {
+        let thread = GenerationSituation(application: "Chat", surroundings: "Rahul: कल मिलते हैं?")
+        #expect(message("haan ", thread).contains("\n" + PromptBuilder.scriptInstruction + "\n"))
+        #expect(PromptBuilder.scriptInstruction.contains("Write only English in the Latin alphabet"))
+        #expect(PromptBuilder.scriptInstruction.contains("romanised Hinglish"))
+        let titled = GenerationSituation(application: "Chat", windowTitle: "राहुल")
+        #expect(message("haan ", titled).contains(PromptBuilder.scriptInstruction))
+        let latin = GenerationSituation(
+            application: "Chat", field: "Message", preceding: "café", windowTitle: "Rahul",
+            surroundings: "Rahul: kal milte hain? 👍🏽", recentLines: ["haan bilkul"])
+        #expect(!message("haan ", latin).contains(PromptBuilder.scriptInstruction))
+    }
 }

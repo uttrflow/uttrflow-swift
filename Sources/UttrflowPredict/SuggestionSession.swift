@@ -197,6 +197,10 @@ public struct SuggestionSession: Sendable, Equatable {
         guard context.typed.count <= Self.maximumTypedLength else {
             return settled(because: .lineTooLong, rejected: rejected)
         }
+        // A line in another script is one a suggestion may neither continue in that script nor glue Latin onto.
+        guard LatinScript.writes(context.typed) else {
+            return settled(because: .nonLatinLine, rejected: rejected)
+        }
 
         let query = SuggestionQuery(surface: surface, typed: context.typed, generation: generation)
         return SuggestionTurn(step: .query(query), rejected: rejected)
@@ -220,8 +224,8 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return .settled(settle(.silent, silence: .overBudget))
         }
-        // A candidate the user has already finished typing adds nothing, and drawing it doubles the line.
-        let offerable = candidates.filter { $0.text != pending.typed }
+        // A candidate the user has already finished typing adds nothing, and one in another script is never written.
+        let offerable = candidates.filter { $0.text != pending.typed && LatinScript.writes($0.text) }
         let decided = PredictionEngine.decision(from: offerable, in: pending, now: now)
         // A turn with nothing on offer has nothing to be wrong about, so the gates are never troubled.
         guard decided.suggestion.accepting != nil else {
@@ -245,7 +249,8 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }
-        let decided = PredictionEngine.decision(from: verified, in: pending, now: now)
+        let decided = PredictionEngine.decision(
+            from: verified.filter { LatinScript.writes($0.text) }, in: pending, now: now)
         return settle(decided.suggestion, silence: decided.silence)
     }
 
@@ -290,12 +295,13 @@ public struct SuggestionSession: Sendable, Equatable {
         return update
     }
 
-    /// The model's lines that can be drawn over what is typed: each extending it, none repeated in any case, in the model's order.
+    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, in the model's order.
     private static func drawable(_ lines: [String], past typed: String) -> [String] {
         var seen: Set<String> = []
         let lowered = typed.lowercased()
         return lines.filter {
-            $0 != typed && $0.lowercased().hasPrefix(lowered) && seen.insert($0.lowercased()).inserted
+            $0 != typed && $0.lowercased().hasPrefix(lowered) && LatinScript.writes($0)
+                && seen.insert($0.lowercased()).inserted
         }
     }
 

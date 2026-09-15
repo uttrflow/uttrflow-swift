@@ -297,7 +297,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, ReleasableModel 
         // Every pass is held to the cache's cap and leaves nothing in it, however it ends. See `Docs/performance.md`.
         bufferCache.hold()
         defer { bufferCache.clear() }
-        guard let container, !Task.isCancelled,
+        guard let container, !Task.isCancelled, LatinScript.writes(typed),
             typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
         else { return nil }
         beginPass()
@@ -448,7 +448,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, ReleasableModel 
     /// A continuation longer than this is a paragraph, not the rest of a line.
     static let maximumContinuationLength = 160
 
-    /// The model's lines, kept only where they extend what was typed, in order and without repeats.
+    /// The model's lines, kept only where they extend what was typed in the Latin alphabet, in order and without repeats.
     static func parse(_ response: String, typed: String) -> [String] {
         var seen: Set<String> = []
         var results: [String] = []
@@ -465,7 +465,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, ReleasableModel 
                 !isDegenerate(continuation)
             else { continue }
             let whole = typed + continuation
-            guard seen.insert(whole).inserted else { continue }
+            guard LatinScript.writes(whole), seen.insert(whole).inserted else { continue }
             results.append(whole)
         }
         return results

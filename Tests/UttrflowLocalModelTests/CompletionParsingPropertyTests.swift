@@ -1,4 +1,5 @@
 import Testing
+import UttrflowPredict
 
 @testable import UttrflowLocalModel
 
@@ -51,7 +52,8 @@ struct ParseCase: Sendable, CustomTestStringConvertible {
             if random.chance(0.4) { line = random.pick(["- ", "* ", "• ", "1. ", "7. ", "12. "]) + line }
             line = random.pick(["", " ", "\t", "   "]) + line + random.pick(["", " ", "\t"])
             lines.append(line)
-            if let whole, !expected.contains(whole) { expected.append(whole) }
+            // A line in another script is never offered, however well it continues the typing.
+            if let whole, LatinScript.writes(whole), !expected.contains(whole) { expected.append(whole) }
             if random.chance(0.15) { lines.append(line) }
         }
         response = lines.joined(separator: random.pick(["\n", "\r\n", "\n\n"]))
