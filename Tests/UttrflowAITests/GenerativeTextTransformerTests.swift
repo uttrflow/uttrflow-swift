@@ -412,6 +412,14 @@ struct RuleBasedTransformerTests {
         #expect(try await sut.transform(request(input)).text == expected)
     }
 
+    @Test("does not overflow while checking an Int.max designator")
+    func handlesMaximumIntegerDesignator() async throws {
+        #expect(
+            try await sut.transform(request("check number 9223372036854775807 again")).text
+                == "Check number 9223372036854775807 again."
+        )
+    }
+
     @Test("runs whatever pipeline it is given")
     func usesGivenPipeline() async throws {
         let sut = RuleBasedTransformer(pipeline: CleaningPipeline(passes: [FillersPass()]))

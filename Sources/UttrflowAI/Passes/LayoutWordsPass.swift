@@ -66,7 +66,8 @@ public struct LayoutWordsPass: CleaningPass {
         guard position > 0, !draft.shape(at: live[position - 1]).endsSentence,
             let value = itemValue(at: position, in: live, of: draft)
         else { return true }
-        return numbered.contains(value - 1) || numbered.contains(value + 1)
+        return (value > 1 && numbered.contains(value - 1))
+            || (value < Int.max && numbered.contains(value + 1))
     }
 
     /// The number of the item "number" opens at `position`, or nil where no item opens.
