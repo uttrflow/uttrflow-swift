@@ -30,25 +30,25 @@ struct CandidateScorerSpanTests {
 
     @Test("Scoring starts after the tokens the typed opening shares with the whole line.")
     func startsAfterTheSharedTokens() {
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [2, 10, 11, 12], typed: [2, 10]) == 2)
+        #expect(ScoredSpan(whole: [2, 10, 11, 12], typed: [2, 10], bytes: [])?.start == 2)
     }
 
     @Test("A join that retokenises is scored from where the streams diverge, not from where the text ends.")
     func retokenisedJoinStartsAtTheDivergence() {
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [2, 10, 30, 12], typed: [2, 10, 11]) == 2)
+        #expect(ScoredSpan(whole: [2, 10, 30, 12], typed: [2, 10, 11], bytes: [])?.start == 2)
     }
 
     @Test("The first token is never scored, since nothing predicts it.")
     func firstTokenIsNeverScored() {
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [10, 11], typed: []) == 1)
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [10, 11], typed: [99]) == 1)
+        #expect(ScoredSpan(whole: [10, 11], typed: [], bytes: [])?.start == 1)
+        #expect(ScoredSpan(whole: [10, 11], typed: [99], bytes: [])?.start == 1)
     }
 
     @Test("A candidate with nothing past what was typed has nothing to be judged on.")
     func nothingLeftToScore() {
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [2, 10], typed: [2, 10]) == nil)
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [2, 10], typed: [2, 10, 11]) == nil)
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [10], typed: []) == nil)
-        #expect(MLXCandidateScorer.firstScoredIndex(whole: [], typed: []) == nil)
+        #expect(ScoredSpan(whole: [2, 10], typed: [2, 10], bytes: [])?.start == nil)
+        #expect(ScoredSpan(whole: [2, 10], typed: [2, 10, 11], bytes: [])?.start == nil)
+        #expect(ScoredSpan(whole: [10], typed: [], bytes: [])?.start == nil)
+        #expect(ScoredSpan(whole: [], typed: [], bytes: [])?.start == nil)
     }
 }
