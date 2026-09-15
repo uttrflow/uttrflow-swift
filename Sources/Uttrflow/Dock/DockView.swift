@@ -549,6 +549,9 @@ extension View {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .strokeBorder(Color.white.opacity(0.16), lineWidth: 0.5)
             )
+            // Clipped and flattened before the shadow, or the material's rectangular backing leaks a square halo.
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .compositingGroup()
             .shadow(color: .black.opacity(0.34), radius: 12, y: 5)
     }
 }
