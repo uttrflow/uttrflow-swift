@@ -97,9 +97,22 @@ struct LayoutWordsPassTests {
             "ring number 5 now", "call number 5 please", "check number 7 again",
             "shopping list number three call the bank", "we need number twenty one more of them",
             "room number 5 is free and so is room number 7", "take bus number twelve to the station",
+            "check number 9223372036854775807 again",
         ]
     )
     func leavesALoneDesignator(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "keeps boundary and unparseable numbers as ordinary text",
+        arguments: [
+            "check number 9223372036854775806 again",
+            "check number 0 again",
+            "check number 9223372036854775808 again",
+        ]
+    )
+    func keepsBoundaryNumbers(input: String) {
         #expect(cleaned(input, by: sut) == input)
     }
 
