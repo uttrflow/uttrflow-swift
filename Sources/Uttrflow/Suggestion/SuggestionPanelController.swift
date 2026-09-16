@@ -40,6 +40,7 @@ final class SuggestionPanelController {
     private var request = SuggestionRequest()
     private var panelSize = CGSize(width: 1, height: 1)
     private var appearanceObserver: (any NSObjectProtocol)?
+    private var isActuallyShowing = false
 
     init() {
         hostingView = NSHostingView(rootView: SuggestionView(presentation: .init(.silent)))
@@ -84,7 +85,7 @@ final class SuggestionPanelController {
     }
 
     /// Whether a suggestion is on screen, which keeps the pause clock following the field.
-    var isShowing: Bool { request.suggestion != .silent }
+    var isShowing: Bool { isActuallyShowing }
 
     /// Exposed so a probe or a test can read back what was actually configured.
     var window: NSPanel { panel }
@@ -106,6 +107,7 @@ final class SuggestionPanelController {
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
         guard presentation.style != .hidden else {
+            isActuallyShowing = false
             panel.orderOut(nil)
             return
         }
@@ -114,11 +116,13 @@ final class SuggestionPanelController {
             panelSize = CGSize(width: measured.width.rounded(.up), height: measured.height.rounded(.up))
         }
         guard reposition() else {
+            isActuallyShowing = false
             panel.orderOut(nil)
             return
         }
         // `orderFrontRegardless`, never `makeKeyAndOrderFront`: no keyboard is taken.
         panel.orderFrontRegardless()
+        isActuallyShowing = true
     }
 
     /// What Increase Contrast, Reduce Transparency and Reduce Motion are set to right now.
@@ -145,9 +149,16 @@ final class SuggestionPanelController {
         let wanted = CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
         guard wanted.width > 0, wanted.height > 0, wanted != panelSize else { return }
         panelSize = wanted
-        guard drawn.style != .hidden else { return }
-        guard reposition() else { return panel.orderOut(nil) }
+        guard drawn.style != .hidden else {
+            isActuallyShowing = false
+            return
+        }
+        guard reposition() else {
+            isActuallyShowing = false
+            return panel.orderOut(nil)
+        }
         panel.orderFrontRegardless()
+        isActuallyShowing = true
     }
 
     /// Places the panel at the caret, or reports that there is nowhere on the line to draw it.
