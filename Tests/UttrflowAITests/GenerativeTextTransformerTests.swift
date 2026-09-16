@@ -168,6 +168,25 @@ struct GenerativeTextTransformerTests {
     }
 
     /// The echo pass runs before the guard, so a word inside the echo is not a word the model lost.
+    @Test("preserves a faithful repeated prefix in both message and piece finishing")
+    func preservesFaithfulRepeatedPrefix() async throws {
+        let model = FakeCleanupModel { _ in "They know the password." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        let app = AppContext(precedingText: "They know ")
+        let situation = Situation(
+            app: app, insertion: app.insertionPoint, destination: .email)
+        let message = TransformationRequest(
+            transcription: .fixture(text: "they know the password", language: .english),
+            situation: situation, scope: .message)
+        let piece = TransformationRequest(
+            transcription: .fixture(text: "they know the password", language: .english),
+            situation: situation, scope: .piece)
+        let messageResult = try await sut.transform(message)
+        let pieceResult = try await sut.transform(piece)
+        #expect(messageResult.text == "they know the password.")
+        #expect(pieceResult.text == "They know the password.")
+    }
+
     @Test("keeps a tidy answer whose caret echo repeated a word the speaker also said")
     func keepsAnAnswerWhoseEchoRepeatedASpokenWord() async throws {
         let model = FakeCleanupModel { _ in "and then we go" }

@@ -7,10 +7,17 @@ public struct CaretEchoPass: CleaningPass {
     public let state: InsertionPoint.SentenceState
     /// The field's text before the caret, which the answer must not begin by repeating.
     public let precedingText: String?
+    /// The words the speaker dictated, used to preserve a faithful repeated phrase.
+    public let spokenText: String?
 
-    public init(state: InsertionPoint.SentenceState = .unknown, precedingText: String? = nil) {
+    public init(
+        state: InsertionPoint.SentenceState = .unknown,
+        precedingText: String? = nil,
+        spokenText: String? = nil
+    ) {
         self.state = state
         self.precedingText = precedingText
+        self.spokenText = spokenText
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -33,9 +40,25 @@ public struct CaretEchoPass: CleaningPass {
             guard targets.contains(where: { $0.hasPrefix(joined) }) else { break }
         }
         guard let echoed else { return draft }
+        let repeated = Self.withoutTrailingMarks(seen.joined(separator: " "))
+        if let spokenText {
+            let spokenWords = Self.words(Self.folded(TextTidy.collapseWhitespace(spokenText)))
+            let repeatedWords = Self.words(repeated)
+            let answerWords = present.map { Self.words(Self.folded(draft.words[$0].text)) }.flatMap { $0 }
+            if spokenWords.starts(with: repeatedWords),
+                answerWords == Array(spokenWords)
+            {
+                return draft
+            }
+        }
         for index in present[...echoed] { draft.remove(at: index, by: Self.id) }
         if echoed + 1 < present.count { Self.stripLeadingMarks(&draft, at: present[echoed + 1]) }
         return draft
+    }
+
+    /// Splits folded text into comparable word tokens.
+    private static func words(_ text: String) -> [Substring] {
+        text.split { $0 == " " || $0.isPunctuation }
     }
 
     /// The whole preceding text and the tail the prompt quoted, each folded, each at least two words.
