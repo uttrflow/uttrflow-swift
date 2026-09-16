@@ -54,6 +54,18 @@ struct SuggestionSurfaceTests {
         #expect(panel.drawn.style == .hidden)
     }
 
+    @Test("A suggestion with no room reports hidden and stops idle polling")
+    func noRoomReportsHidden() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let field = CGRect(x: screen.midX, y: screen.midY - 5, width: 100, height: 28)
+        let caret = CGRect(x: field.maxX, y: screen.midY, width: 0, height: 17)
+        let panel = SuggestionPanelController.shared
+        panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret, field: field)
+        defer { panel.hide() }
+        #expect(!panel.isShowing)
+        #expect(!panel.window.isVisible)
+    }
+
     @Test("A long suggestion at a caret near the edge stays inside the field and the screen")
     func aLongSuggestionStaysOnScreen() throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
