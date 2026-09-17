@@ -69,6 +69,21 @@ struct SettingsRequestWiringTests {
         #expect(changed == 0)
     }
 
+    @Test("an external settings change is present before the next unrelated edit")
+    func externalChangeIsNotOverwrittenByLaterEdit() {
+        let store = RecordingStore()
+        let model = model(store)
+        var external = Settings.default
+        external.suggestions.isEnabled = true
+        store.save(external)
+        model.synchronize(settings: external)
+
+        model.apply(.appearance(.dark))
+
+        #expect(store.load().suggestions.isEnabled)
+        #expect(store.load().appearance == .dark)
+    }
+
     @Test("an ordinary change still saves and still reports, and asks for nothing")
     func anOrdinaryChangeIsUnaffected() {
         var changed: [Settings] = []
