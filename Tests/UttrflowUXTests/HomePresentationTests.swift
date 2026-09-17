@@ -280,14 +280,31 @@ struct HomeAccountTests {
         #expect(corner == .signedIn(initials: "NB", name: "Naveen", open: .account))
     }
 
-    /// The middle name is the one nobody uses, so it is the one the monogram drops.
-    @Test("uses the first and last name, not the first two")
-    func firstAndLast() {
+    @Test("uses the same first two name words as the Account page")
+    func firstTwoWords() {
         let corner = HistoryFixture.home(
             account: HistoryFixture.account(name: "Naveen Kumar Bhatt")
         ).account
 
-        #expect(corner == .signedIn(initials: "NB", name: "Naveen", open: .account))
+        #expect(corner == .signedIn(initials: "NK", name: "Naveen", open: .account))
+    }
+
+    @Test("uses whitespace-separated words consistently")
+    func whitespaceSeparatedWords() {
+        let corner = HistoryFixture.home(
+            account: HistoryFixture.account(name: "Nadia\tStone")
+        ).account
+
+        #expect(corner == .signedIn(initials: "NS", name: "Nadia\tStone", open: .account))
+    }
+
+    @Test("uses the Account page fallback for names without letters")
+    func numericName() {
+        let corner = HistoryFixture.home(
+            account: HistoryFixture.account(name: "123 456")
+        ).account
+
+        #expect(corner == .signedIn(initials: "?", name: "123", open: .account))
     }
 
     /// One letter recognises a person with one name; inventing a second would invent part of their name.
@@ -327,7 +344,7 @@ struct HomeAccountTests {
             account: HistoryFixture.account(name: nil, email: nil), systemName: "Naveen"
         ).account
 
-        #expect(corner == .signedIn(initials: "A", name: "account-1", open: .account))
+        #expect(corner == .signedIn(initials: "?", name: "account-1", open: .account))
     }
 
     /// Once the person has chosen this Mac, a monogram is the truth; the view draws it unfilled.
