@@ -190,9 +190,8 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
             openCount: openCount)
     }
 
-    /// `esc` closes here as well as being reported, so the panel is gone within the frame.
+    /// Reports keys to the app; the resolved panel outcome decides whether Escape closes the window.
     private func relay(_ key: PanelKey) {
-        if key == .escape { hide() }
         onKey?(key, caretOwner)
     }
 
