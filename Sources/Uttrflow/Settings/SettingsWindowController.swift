@@ -73,7 +73,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     /// Keeps the window hidden rather than released, so the shortcut recorder's state survives.
     func windowWillClose(_ notification: Notification) {
-        model.session.cancelRecordingShortcut()
+        model.cancelRecordingShortcut()
         // The main window's sidebar lights its Settings row while this is open.
         onClose?()
     }
