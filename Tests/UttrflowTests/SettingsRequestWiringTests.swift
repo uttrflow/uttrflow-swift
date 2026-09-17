@@ -39,11 +39,12 @@ struct SettingsRequestWiringTests {
     private func model(
         _ store: RecordingStore,
         onChange: @escaping (Settings) -> Void = { _ in },
-        onRequest: @escaping (SettingsChange) -> Void = { _ in }
+        onRequest: @escaping (SettingsChange) -> Void = { _ in },
+        onShortcutRecording: @escaping (Bool) -> Void = { _ in }
     ) -> SettingsViewModel {
         SettingsViewModel(
             store: store, personalisation: EmptyPersonalisation(), capabilities: .everything,
-            onChange: onChange, onRequest: onRequest)
+            onChange: onChange, onRequest: onRequest, onShortcutRecording: onShortcutRecording)
     }
 
     @Test("Check Now reaches the app, which is the only thing that can ask the feed")
@@ -67,6 +68,29 @@ struct SettingsRequestWiringTests {
 
         #expect(store.saves == 0)
         #expect(changed == 0)
+    }
+
+    @Test("cancelling an active recording restores the shortcut exactly once")
+    func cancellingRecordingRestoresOnce() {
+        var callbacks: [Bool] = []
+        let model = model(RecordingStore(), onShortcutRecording: { callbacks.append($0) })
+
+        model.beginRecordingShortcut(.dictate)
+        model.cancelRecordingShortcut()
+        model.cancelRecordingShortcut()
+
+        #expect(callbacks == [true, false])
+        #expect(!model.session.recorder.isRecording)
+    }
+
+    @Test("explicit cancel remains safe when no recording is active")
+    func cancellingIdleRecordingDoesNotResumeAgain() {
+        var callbacks: [Bool] = []
+        let model = model(RecordingStore(), onShortcutRecording: { callbacks.append($0) })
+
+        model.cancelRecordingShortcut()
+
+        #expect(callbacks.isEmpty)
     }
 
     @Test("an ordinary change still saves and still reports, and asks for nothing")
