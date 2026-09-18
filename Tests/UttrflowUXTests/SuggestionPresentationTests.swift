@@ -278,6 +278,26 @@ struct SuggestionPresentationTests {
                 == SuggestionPresentation.opaqueGhostOpacity)
     }
 
+    @Test(
+        "At full strength under a display setting the ghost is underlined, so it never looks typed",
+        arguments: [highContrast, opaque])
+    func opaqueGhostIsUnderlined(appearance: SuggestionAppearance) {
+        #expect(SuggestionPresentation(.certain("Sydney"), appearance: appearance).underlinesGhost)
+        #expect(
+            SuggestionPresentation(
+                .certain("git commit -m"), typed: "gti c", appearance: appearance
+            ).underlinesGhost)
+    }
+
+    @Test("The faint grey ghost is marked by its grey alone and carries no underline")
+    func faintGhostIsNotUnderlined() {
+        #expect(!SuggestionPresentation(.certain("Sydney")).underlinesGhost)
+        #expect(
+            !SuggestionPresentation(
+                .certain("Sydney"), appearance: SuggestionAppearance(reducesMotion: true)
+            ).underlinesGhost)
+    }
+
     @Test("With no display setting, the ghost is drawn at its faint grey opacity.")
     func plainGhostIsFaint() {
         #expect(
