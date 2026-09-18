@@ -181,13 +181,20 @@ public struct CorpusUploadOutbox: Sendable {
             referenceText: passage.prompt,
             expectedTidiedText: passage.prompt,
             language: language,
-            stresses: passage.stresses,
+            stresses: Self.stresses(for: passage),
             durationMs: Int((recording.durationSeconds * 1000).rounded()),
             sampleRateHz: recording.sampleRate,
             byteSize: bytes,
             isHeldOut: false,
             cohort: recording.cohort?.id ?? cohort?.id
         )
+    }
+
+    /// The passage's stresses, with the code-switching mark a Hinglish passage needs to read back as Hinglish.
+    static func stresses(for passage: TranscriptionCase) -> [String] {
+        guard passage.language == .hinglish, !passage.stresses.contains(CorpusStress.codeSwitching)
+        else { return passage.stresses }
+        return passage.stresses + [CorpusStress.codeSwitching]
     }
 
     /// A BCP-47 tag the catalogue accepts; Hinglish files under `hi-IN` and the stress marks it.
