@@ -127,6 +127,21 @@ public enum SettingsPresenter {
             banner: nil,
             groups: [
                 SettingsGroup(
+                    id: "features",
+                    title: nil,
+                    rows: [
+                        toggleRow(
+                            .dictationEnabled,
+                            label: "Dictation",
+                            explanation: "Off, the shortcut and the floating button do nothing.",
+                            settings, capabilities),
+                        toggleRow(
+                            .clipboardEnabled,
+                            label: "Clipboard",
+                            explanation: "Off, copies are not kept and the clipboard shortcut is released.",
+                            settings, capabilities),
+                    ]),
+                SettingsGroup(
                     id: "shortcut",
                     title: nil,
                     rows: [] + ShortcutRegistry.all.map { shortcutRow($0, settings, capabilities) } + [
@@ -737,6 +752,8 @@ public enum SettingsPresenter {
     /// Where a switch reads its state from, in the one place that knows.
     static func value(of field: SettingsToggleField, in settings: Settings) -> Bool {
         switch field {
+        case .dictationEnabled: settings.dictationEnabled
+        case .clipboardEnabled: settings.clipboardEnabled
         case .showsFloatingButton: settings.showsFloatingButton
         case .shrinksToGripWhenIdle: settings.shrinksToGripWhenIdle
         case .minimisesWhileDictating: settings.minimisesWhileDictating

@@ -160,6 +160,8 @@ public struct SettingsOption: Sendable, Equatable, Identifiable {
 
 /// A switch the user can throw, named so a row and a change cannot disagree about the field.
 public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
+    case dictationEnabled
+    case clipboardEnabled
     case showsFloatingButton
     case shrinksToGripWhenIdle
     case minimisesWhileDictating

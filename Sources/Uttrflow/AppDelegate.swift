@@ -599,7 +599,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))
         dock.setShrinksToGrip(settings.shrinksToGripWhenIdle)
-        if settings.showsFloatingButton {
+        if settings.floatingButtonIsShown {
             dock.setAnchor(settings.floatingButtonAnchor)
             dock.show()
         }
@@ -630,8 +630,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Arms the dictation shortcut while dictation is on, and releases it while it is off.
     private func startWatchingForTheShortcut() {
         guard let controller else { return }
+        guard settings.dictationEnabled else {
+            shortcutFailure = nil
+            Task { await controller.stop() }
+            return
+        }
         let binding = settings.hotkey
         Task { [weak self] in
             do throws(HotkeyError) {
@@ -661,16 +667,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         quickPanel.onIntent = { [weak self] intent in self?.carryOut(intent) }
 
+        followTheClipboardSwitch()
+        startWatchingForClaimedShortcuts()
+    }
+
+    /// Records copies while the Clipboard switch is on, and stops recording the moment it is off.
+    private func followTheClipboardSwitch() {
+        guard settings.clipboardEnabled else {
+            clipboardWatchTask?.cancel()
+            clipboardWatchTask = nil
+            return
+        }
+        guard clipboardWatchTask == nil else { return }
         // Built out here: a `[weak self]` closure nested in another captures the outer binding.
         let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
             await self?.clipArrived(noticed)
         }
         // Utility, because a poll nobody is waiting on should not run as the main thread's work.
         clipboardWatchTask = Task(priority: .utility) { [clipboardWatcher] in
+            // Whatever was copied while the switch was off stays unrecorded.
+            await clipboardWatcher.passOver()
             await clipboardWatcher.run(handing: arrived)
         }
-
-        startWatchingForClaimedShortcuts()
     }
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
@@ -692,7 +710,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         claimedHotkeys.removeAll()
 
         var refused: Set<ShortcutAction> = []
-        for descriptor in ShortcutRegistry.claimed {
+        for descriptor in ShortcutRegistry.claimed(in: settings) {
             let action = descriptor.action
             guard let binding = settings.shortcuts.first(for: action) else { continue }
             let monitor = CarbonHotkeyMonitor()
@@ -761,7 +779,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         // A copy made since the last poll is taken now, so the panel never opens without it.
-        await clipboardWatcher.catchUp { [weak self] noticed in await self?.keep(noticed) }
+        if settings.clipboardEnabled {
+            await clipboardWatcher.catchUp { [weak self] noticed in await self?.keep(noticed) }
+        }
         let clips = await clipboard.clips(keeping: retention)
         let placement = await placement()
         // Built fresh, so a revealed secret cannot outlive the panel that revealed it.
@@ -1245,13 +1265,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             },
             canCheckForUpdates: UpdateController.isConfigured,
             updateProgress: updates.progress,
-            features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled),
+            features: MenuBarFeatures(settings),
             shortcuts: settings.shortcuts
         )
     }
-
-    /// The menu bar's three switches; only suggestions has a stored setting behind it, so the other two hold for this launch.
-    private var menuSwitches = MenuBarFeatures()
 
     /// Carries out whatever the menu was asked for.
     private func carryOut(_ intent: MenuBarIntent) {
@@ -1276,8 +1293,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .checkForUpdates:
             updates.checkForUpdates()
         case .setFeature(let feature, let isOn):
-            menuSwitches = menuSwitches.setting(feature, isOn: isOn)
-            if feature == .suggestions { apply(.toggle(.suggestionsEnabled, isOn: isOn)) }
+            apply(.toggle(feature.setting, isOn: isOn))
             refreshMenuBar()
         case .quit:
             NSApplication.shared.terminate(nil)
@@ -1712,12 +1728,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         applyLaunchAtLogin()
 
         // Acted on here, or the shortcut relabels itself and the old key keeps working.
-        if updated.hotkey != previous.hotkey {
+        if updated.hotkey != previous.hotkey || updated.dictationEnabled != previous.dictationEnabled {
             startWatchingForTheShortcut()
         }
         // Every registered key is re-armed together, or a changed one keeps firing the old binding.
-        if updated.shortcuts != previous.shortcuts {
+        if updated.shortcuts != previous.shortcuts || updated.clipboardEnabled != previous.clipboardEnabled {
             startWatchingForClaimedShortcuts()
+        }
+        if updated.clipboardEnabled != previous.clipboardEnabled {
+            followTheClipboardSwitch()
+        }
+        // The menu's ticks are these settings, so a change made in Settings redraws them.
+        if MenuBarFeatures(updated) != MenuBarFeatures(previous) {
+            refreshMenuBar()
         }
         if updated.hotkeyActivation != previous.hotkeyActivation {
             let activation = updated.hotkeyActivation
@@ -1749,7 +1772,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))
-        if settings.showsFloatingButton {
+        if settings.floatingButtonIsShown {
             dock.setAnchor(settings.floatingButtonAnchor)
             dock.show()
         } else {

@@ -144,6 +144,11 @@ public actor PasteboardWatcher {
         return text.utf8.count + (html?.utf8.count ?? 0) <= budget.largestClip
     }
 
+    /// Treats whatever is on the clipboard now as seen, so a copy made while recording was off is never kept.
+    public func passOver() {
+        seen = source.changeCount()
+    }
+
     // MARK: - The loop
 
     /// Watches until cancelled, handing each new clip to `handle` in order.

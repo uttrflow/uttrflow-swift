@@ -115,6 +115,20 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip.text == "copied since")
     }
 
+    /// A copy made while the Clipboard switch was off must not be kept when it is turned back on.
+    @Test("passes over what was copied while it was not watching")
+    func passOverSkipsTheCopyMadeWhileOff() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write("copied while recording was off")
+
+        await watcher.passOver()
+
+        #expect(await watcher.newClip(at: noon)?.clip == nil)
+        clipboard.write("copied once it was back on")
+        #expect(await watcher.newClip(at: noon)?.clip.text == "copied once it was back on")
+    }
+
     @Test("says nothing at all while nothing is copied")
     func quietWhenNothingChanges() async {
         let clipboard = FakeClipboard()
