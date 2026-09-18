@@ -121,6 +121,10 @@ code relies on, so the one-line comments in the source can stay short.
 - There is no queue file. The outbox is derived state: every recording on disk with no settled
   receipt. A queue would be a second copy of the truth, and the process dying between writing the
   audio and writing the queue entry is exactly the failure it would introduce.
+- A settled receipt names the take it was for, by when that take was recorded, so a passage
+  re-recorded with `--redo` after its upload is pending again, and a take replaced while its
+  upload was in flight is not settled by that upload's success. A receipt written before receipts
+  named their take settles only a take recorded before the upload was tried.
 - Rejected takes stay in the pending list on purpose. They fail again, and they should: an upload
   the backend refuses is a corpus quietly smaller than the operator believes.
 - `flush` stops at the first held-back upload rather than timing out nine hundred more times
