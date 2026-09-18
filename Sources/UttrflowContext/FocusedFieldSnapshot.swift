@@ -1,4 +1,5 @@
 public import CoreGraphics
+public import UttrflowPredict
 
 public import struct Foundation.NSRange
 
@@ -34,6 +35,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let pointSize: CGFloat?
     /// The field's own font family, so the ghost is set in the face the line is.
     public let fontFamily: String?
+    /// The field's own text colour, so the ghost reads against the field and not against Uttrflow's appearance.
+    public let textColor: TextColor?
     /// Whether the field hides what is typed into it.
     public let isSecure: Bool
     /// Whether an input method is mid-composition, which owns both the screen and the Tab key.
@@ -59,6 +62,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         field: CGRect? = nil,
         pointSize: CGFloat? = nil,
         fontFamily: String? = nil,
+        textColor: TextColor? = nil,
         isSecure: Bool = false,
         isComposing: Bool = false,
         readMicroseconds: Int = 0,
@@ -79,6 +83,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.field = field
         self.pointSize = pointSize
         self.fontFamily = fontFamily
+        self.textColor = textColor
         self.isSecure = isSecure
         self.isComposing = isComposing
         self.readMicroseconds = readMicroseconds

@@ -27,6 +27,8 @@ private struct SuggestionRequest {
     var acceptKey: AcceptKey = .tab
     /// The field's own font family, so the ghost is set in the face the line is.
     var fontFamily: String?
+    /// The field's own text colour, so the ghost reads against the field and not against Uttrflow's appearance.
+    var textColor: TextColor?
 }
 
 /// Owns the panel the suggestion is drawn in, one for the whole process so no two ghosts are ever on screen.
@@ -69,12 +71,13 @@ final class SuggestionPanelController {
         fieldPointSize: CGFloat? = nil,
         selection: SuggestionSelection = .untouched,
         acceptKey: AcceptKey = .tab,
-        fontFamily: String? = nil
+        fontFamily: String? = nil,
+        textColor: TextColor? = nil
     ) {
         request = SuggestionRequest(
             suggestion: suggestion, typed: typed, placement: placement, caret: caret,
             window: window, field: field, fieldPointSize: fieldPointSize, selection: selection,
-            acceptKey: acceptKey, fontFamily: fontFamily)
+            acceptKey: acceptKey, fontFamily: fontFamily, textColor: textColor)
         render()
     }
 
@@ -101,7 +104,8 @@ final class SuggestionPanelController {
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
-            acceptKey: request.acceptKey, fontFamily: request.fontFamily, maximumWidth: room)
+            acceptKey: request.acceptKey, fontFamily: request.fontFamily,
+            fieldTextColor: request.textColor, maximumWidth: room)
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
