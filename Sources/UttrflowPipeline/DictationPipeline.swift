@@ -292,7 +292,14 @@ public actor DictationPipeline {
         insertedIntoIdentifier = nil
         cleaningRecords = []
         openRecording = recording
+        forgetTheLastAttempt()
         await process(audio, mine, delivery: .copy)
+    }
+
+    /// Clears what one attempt learnt about its words and language, so the next asks afresh.
+    private func forgetTheLastAttempt() {
+        dictationWords = nil
+        dictationLanguage = nil
     }
 
     /// Abandons the dictation at any stage: nothing is transcribed and nothing is inserted.
@@ -326,8 +333,7 @@ public actor DictationPipeline {
         earlySpans = []
         earlyCut = 0
         earlyContext = nil
-        dictationWords = nil
-        dictationLanguage = nil
+        forgetTheLastAttempt()
         earlyWork = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
             let seeing = await self.earlyContextRead(mine)
             guard self.isStillRunning(mine) else { return }
