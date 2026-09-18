@@ -59,12 +59,25 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, ReleasableModel 
 
     /// Loads the weights from disk when they are whole there, downloading them only when they are not.
     public func prepare(onProgress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
+        try await load(downloader: { #hubDownloader() }, onProgress: onProgress)
+    }
+
+    /// Loads the weights from disk only, throwing ``WeightsNotOnDisk`` rather than fetching what is missing.
+    public func reload() async throws {
+        try await load(downloader: nil, onProgress: { _ in })
+    }
+
+    /// Reads the weights in, fetching them through `downloader` only where one is given.
+    private func load(
+        downloader: (@Sendable () -> any MLXLMCommon.Downloader)?,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws {
         guard container == nil else { return }
         // The instruction warm-up is a pass like any other, so it is held to the cap and leaves nothing cached.
         bufferCache.hold()
         defer { bufferCache.clear() }
         let directory = try await model.weightsDirectory(
-            cache: cache, downloader: { #hubDownloader() }, onProgress: onProgress)
+            cache: cache, downloader: downloader, onProgress: onProgress)
         guard let loaded = try await weights.load(from: directory) else { return }
         container = loaded
         beginPass()

@@ -445,6 +445,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Says the weights must be fetched again, after a reload found them gone from disk and did not fetch them itself.
+    func suggestionModelWentMissing() {
+        guard settings.suggestions.isEnabled, isModelPreparing else { return }
+        // Cleared, so turning the switch off and on fetches them, as it does after any failed fetch.
+        isModelPreparing = false
+        suggestionModel = .failed
+    }
+
     /// Lets the weights go once the feature is off, after any load still in flight. See `Docs/performance.md`.
     private func releaseTheModel() {
         guard isModelPreparing || suggestionModel == .failed else { return }

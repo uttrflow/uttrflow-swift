@@ -54,6 +54,11 @@ private actor InterleavedModel: ReleasableModel {
         onProgress(1)
     }
 
+    /// Races exactly as a load does, since a query's reload is one.
+    func reload() async throws {
+        try await prepare(onProgress: { _ in })
+    }
+
     func release() async {
         inside += 1
         mostInside = max(mostInside, inside)
