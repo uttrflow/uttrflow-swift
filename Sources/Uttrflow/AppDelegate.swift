@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let dictionary: PersonalDictionaryStore
     private let snippets: SnippetStore
     /// The account layer, made once and shared, because a second one signs with a different key.
-    private let account = OnboardingAccountLayer.forThisBuild()
+    private let account: OnboardingAccountLayer
     /// Whether a renewal could be attempted, which only changes what the Account page says.
     private let network: any NetworkReachability = SystemNetworkReachability()
     /// What macOS is told about starting at login, held so a test can stand in for the system.
@@ -113,12 +113,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
         container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
+        account: OnboardingAccountLayer = .forThisBuild(),
         scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
         prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)? = nil,
         releaseModel: (@Sendable () async -> Void)? = nil
     ) {
         self.container = container
         self.loginItem = loginItem
+        self.account = account
         self.scoring = scoring
         self.generating = generating
         self.prepareModel = prepareModel
@@ -1373,10 +1375,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             recents = RecentDictations(showing: kept)
             knownWords = await dictionary.allEntries()
             knownSnippets = await snippets.snippets()
-            // The signed half only. See `Docs/entitlements.md`.
-            knownEntitlement = account.profiles.load()?.entitlement
-            // Read beside the entitlement, so two surfaces cannot draw from two readings.
-            knownLocalAccount = account.local.load()
+            readAccount()
             await refreshPicture()
             await refreshPermissions()
             // A later refresh has newer state, and painting over it would leave the older reading up.
@@ -1452,14 +1451,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     transformerAvailability: transformerAvailability,
                     permissions: knownPermissions,
                     measurements: measurements, cleaning: lastCleaning)),
-            account: AccountPagePresenter.page(
-                for: AccountPageSnapshot(
-                    entitlement: knownEntitlement,
-                    access: EntitlementGate(profiles: account.profiles, local: account.local)
-                        .access(at: now, networkIsReachable: network.isReachable),
-                    now: now,
-                    picture: knownPicture?.bytes,
-                    local: knownLocalAccount)))
+            account: accountPage(at: now))
+    }
+
+    /// Reads the account the pages draw from, the entitlement and the local choice together.
+    func readAccount() {
+        // The signed half only. See `Docs/entitlements.md`.
+        knownEntitlement = account.profiles.load()?.entitlement
+        // Read beside the entitlement, so two surfaces cannot draw from two readings.
+        knownLocalAccount = account.local.load()
+    }
+
+    /// The Account page as the last reading of the account draws it.
+    func accountPage(at now: Date) -> AccountPagePresentation {
+        AccountPagePresenter.page(
+            for: AccountPageSnapshot(
+                entitlement: knownEntitlement,
+                access: EntitlementGate(profiles: account.profiles, local: account.local)
+                    .access(at: now, networkIsReachable: network.isReachable),
+                now: now,
+                picture: knownPicture?.bytes,
+                local: knownLocalAccount))
     }
 
     /// What one page is filtered by, asked per page because every page is rebuilt on each redraw.
@@ -1608,7 +1620,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .signOut:
             // Cleared first and the server told after, so signing out never waits on a network.
             account.profiles.clear()
-            Task { [account] in await account.authentication.signOut() }
+            // Read again now, so the Account page stops naming the account before any redraw.
+            readAccount()
+            intentWork = Task { [account] in await account.authentication.signOut() }
             refreshMainWindow()
 
         case .undoCorrection(let id):
