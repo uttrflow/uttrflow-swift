@@ -23,16 +23,7 @@ struct OneAppTableTests {
     ]
 
     /// Identifiers the source names that the table does not cover; an entry may leave this list, none may join.
-    static let owed: Set<String> = [
-        // Every one is `UttrflowPredict`'s own editor or terminal list, which that module cannot yet share.
-        "co.zeit.hyper",
-        "com.github.wez.wezterm",
-        "com.jetbrains",  // the family prefix, which the table spells `com.jetbrains.` to sort DataGrip first
-        "com.visualstudio.code",
-        "io.alacritty",  // Alacritty ships as `org.alacritty`, so this row reaches nothing
-        "org.tabby",
-        "org.vim.macvim",
-    ]
+    static let owed: Set<String> = []
 
     /// Where each identifier named outside the table is named, lower-cased as the classifier reads it.
     private func namedIdentifiers() throws -> [String: [String]] {
