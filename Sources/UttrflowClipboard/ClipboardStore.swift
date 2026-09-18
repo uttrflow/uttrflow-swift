@@ -177,6 +177,10 @@ public actor ClipboardStore {
         // Hashed before it is written, so a screenshot copied twice costs a counter, not another file.
         let sha = ClipboardStore.digest(of: picture.data)
         var image = alreadyKept(sha, in: noticed.clip.origin)
+        // A repeat whose file has gone brings the bytes back, under the name the kept clip already points at.
+        if let kept = image, !isOnDisk(kept) {
+            try restore(picture.data, as: kept.file)
+        }
         if image == nil {
             image = try keep(
                 picture.data, forClip: noticed.clip.id, width: picture.width,
@@ -192,6 +196,23 @@ public actor ClipboardStore {
     /// The picture already on disk for these bytes in this list, if one is there.
     private func alreadyKept(_ sha: String, in origin: ClipOrigin) -> ClipImage? {
         loaded().first { $0.origin == origin && $0.image?.sha == sha }?.image
+    }
+
+    /// Whether a picture's file is still a file where the clip expects it.
+    private func isOnDisk(_ image: ClipImage) -> Bool {
+        let url = imagesFolder.appending(path: image.file, directoryHint: .notDirectory)
+        return (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+    }
+
+    /// Writes a picture's bytes back under the file name its clip already records.
+    private func restore(_ data: Data, as name: String) throws(ClipboardStoreError) {
+        do {
+            try FileManager.default.createDirectory(
+                at: imagesFolder, withIntermediateDirectories: true)
+            try data.write(to: imagesFolder.appending(path: name, directoryHint: .notDirectory))
+        } catch {
+            throw .couldNotWrite
+        }
     }
 
     /// Keeps a picture on disk and answers with what a row needs; throws, since a missing file is forever.
