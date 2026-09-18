@@ -18,6 +18,16 @@ struct PhoneticIndexTests {
         #expect(index.candidates(soundingLike: "kubectl").isEmpty)
     }
 
+    /// Quotes or brackets a recogniser put around a word still find the entry the bare word would.
+    @Test(
+        "finds an entry when the heard word is quoted or bracketed",
+        arguments: ["\"utterflow\"", "(utterflow)", "\u{201C}utterflow\u{201D}"])
+    func findsThroughSurroundingMarks(heard: String) {
+        let index = PhoneticIndex(entries: [word("Uttrflow", from: .added), word("Knight", from: .added)])
+        #expect(index.candidates(soundingLike: heard).map(\.word) == ["Uttrflow"])
+        #expect(index.candidates(soundingLike: "\"night\"").map(\.word) == ["Knight"])
+    }
+
     /// A name spelt nothing like it is said is filed under the pronunciation.
     @Test("files a name under how it is said, not how it is written")
     func usesThePronunciation() {
