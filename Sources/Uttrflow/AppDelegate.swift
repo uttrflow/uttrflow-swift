@@ -1218,6 +1218,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .gaveUp(let waited):
             log.notice(
                 "paste not seen within \(waited.inSeconds, format: .fixed(precision: 2), privacy: .public)s")
+        case .cancelled(let waited):
+            let seconds = waited.inSeconds
+            log.notice(
+                "paste wait cancelled after \(seconds, format: .fixed(precision: 2), privacy: .public)s")
         }
     }
 
