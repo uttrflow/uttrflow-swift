@@ -1,7 +1,9 @@
 // Tests that the main window's buttons reach the stores.
 
 import Foundation
+import Synchronization
 import UttrflowAI
+import UttrflowAccount
 import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
@@ -316,6 +318,101 @@ struct MainIntentWiringTests {
         let kept = try #require(await history.records(keeping: retention).first)
         #expect(kept.changes?.corrections.first?.isUndone == true)
         #expect(kept.text == "print s q l")
+    }
+
+    // MARK: The account
+
+    @Test("signing out clears the profile before the server is told, and still tells it")
+    func signOutClearsFirst() async throws {
+        let signedIn = try await SignedInAccount()
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+
+        app.carryOut(.signOut)
+
+        #expect(signedIn.profiles.load() == nil)
+        await app.intentWork?.value
+        #expect(signedIn.authentication.signOuts == [.profileAlreadyCleared])
+    }
+
+    @Test("the Account page stops naming the account as soon as it signs out")
+    func accountPageAfterSignOut() async throws {
+        let signedIn = try await SignedInAccount()
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+        app.readAccount()
+        #expect(app.accountPage(at: .now).identity?.name == "Development User")
+
+        app.carryOut(.signOut)
+
+        let page = app.accountPage(at: .now)
+        #expect(page.identity == nil)
+        #expect(page.emptyState?.action?.intent == .signIn)
+    }
+}
+
+// MARK: - A development account held in memory
+
+/// Bytes in memory, so no profile reaches the test runner's defaults.
+private final class MemoryStorage: SessionStorage {
+    private let contents = Mutex<[String: Data]>([:])
+
+    func data(forKey key: String) -> Data? { contents.withLock { $0[key] } }
+
+    func set(_ data: Data?, forKey key: String) { contents.withLock { $0[key] = data } }
+}
+
+/// The in-memory backend, noting whether the profile was already gone each time it is told of a sign-out.
+private final class RecordingAuthentication: AuthenticationService {
+    /// What the profile cache held at one sign-out.
+    enum SignOut: Equatable {
+        case profileAlreadyCleared
+        case profileStillThere
+    }
+
+    let backend = InMemoryAuthenticationService()
+    private let recorded = Mutex<[SignOut]>([])
+    /// Set once the cache exists, which is after the backend that signs for it.
+    let profiles = Mutex<(any ProfileCache)?>(nil)
+
+    var signOuts: [SignOut] { recorded.withLock { $0 } }
+
+    func beginSignIn(with provider: SignInProvider) async throws(AccountError) -> SignInChallenge {
+        try await backend.beginSignIn(with: provider)
+    }
+
+    func completeSignIn(_ challenge: SignInChallenge) async throws(AccountError) -> Profile {
+        try await backend.completeSignIn(challenge)
+    }
+
+    func currentProfile(ifChangedFrom cached: Profile?) async throws(AccountError) -> ProfileRefresh {
+        try await backend.currentProfile(ifChangedFrom: cached)
+    }
+
+    func avatar(at path: String) async -> Data? { await backend.avatar(at: path) }
+
+    func signOut() async {
+        let cleared = profiles.withLock { $0?.load() == nil }
+        recorded.withLock { $0.append(cleared ? .profileAlreadyCleared : .profileStillThere) }
+        await backend.signOut()
+    }
+}
+
+/// A development account layer, signed in, with nothing on disk and nothing on the network.
+private struct SignedInAccount {
+    let authentication = RecordingAuthentication()
+    let profiles: UserDefaultsProfileCache
+    let layer: OnboardingAccountLayer
+
+    init() async throws {
+        profiles = UserDefaultsProfileCache(
+            storage: MemoryStorage(), verifier: authentication.backend.verifier)
+        layer = OnboardingAccountLayer(
+            authentication: authentication, profiles: profiles,
+            local: UserDefaultsLocalAccountStore(storage: MemoryStorage()))
+        authentication.profiles.withLock { [profiles] in $0 = profiles }
+        let challenge = try await authentication.beginSignIn(with: .google)
+        try profiles.save(await authentication.completeSignIn(challenge))
     }
 }
 
