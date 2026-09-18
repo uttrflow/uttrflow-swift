@@ -393,7 +393,7 @@ public struct SuggestionSession: Sendable, Equatable {
             isComposing: moment.isComposing, isSecure: moment.isSecure, isProse: moment.isProse,
             millisecondsSinceKeystroke: moment.millisecondsSinceKeystroke,
             isEnabledHere: isEnabled && !isSilencedHere, isMinimised: isMinimised,
-            rejectionsThisSession: rejectionsHere, canDraw: moment.canDraw)
+            rejectionsThisSession: rejectionsHere, canDraw: moment.canDraw, markedText: moment.markedText)
     }
 
     /// Records what is now on screen and reports it with the keys it claims and, when nothing is offered, why.

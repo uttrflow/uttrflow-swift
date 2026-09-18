@@ -242,6 +242,17 @@ struct SuggestionRejectionTests {
         #expect(session.suggestion == .silent)
     }
 
+    @Test("Marked text in the field draws nothing and claims no key, so Escape reaches the input method.")
+    func markedTextQuietsTheTurn() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        let composing = PredictionContext(typed: "git c", markedText: .present)
+        let update = try draw(&session, typing: "git c", context: composing)
+        #expect(update == .quiet(because: .composing))
+        #expect(update?.armed.isEmpty == true)
+        #expect(session.suggestion == .silent)
+    }
+
     @Test("Enough refusals in one field silence it.")
     func enoughRefusalsSilenceTheField() throws {
         var session = SuggestionSession()

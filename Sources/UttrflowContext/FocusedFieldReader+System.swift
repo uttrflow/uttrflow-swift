@@ -135,6 +135,7 @@ public enum FocusedFieldReader {
         let range = SurfaceProbe.selectedRange(field)
         let style = range.flatMap { typeStyle(field, at: $0) }
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
+        let marked = CompositionProbe.markedText(of: field)
 
         return FocusedFieldSnapshot(
             bundleIdentifier: app.bundleIdentifier,
@@ -154,8 +155,8 @@ public enum FocusedFieldReader {
             fontFamily: style?.family,
             isSecure: secure,
             isComposing: Composition.isComposing(
-                markedText: CompositionProbe.markedText(of: field),
-                inputSource: CompositionProbe.inputSourceKind()),
+                markedText: marked, inputSource: CompositionProbe.inputSourceKind()),
+            markedText: marked,
             readMicroseconds: Int((DispatchTime.now().uptimeNanoseconds - started) / 1000),
             windowTitle: windowTitle(of: field)
         )

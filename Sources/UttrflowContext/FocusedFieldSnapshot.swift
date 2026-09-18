@@ -1,4 +1,5 @@
 public import CoreGraphics
+public import UttrflowPredict
 
 public import struct Foundation.NSRange
 
@@ -38,6 +39,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let isSecure: Bool
     /// Whether an input method is mid-composition, which owns both the screen and the Tab key.
     public let isComposing: Bool
+    /// What the field itself says about an input method's marked text, before any guess from the input source.
+    public let markedText: MarkedText
     /// How long the whole reading took, in microseconds.
     public let readMicroseconds: Int
     /// The title of the window holding the field, which names the conversation, the note or the thread the field belongs to.
@@ -61,6 +64,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         fontFamily: String? = nil,
         isSecure: Bool = false,
         isComposing: Bool = false,
+        markedText: MarkedText = .unanswered,
         readMicroseconds: Int = 0,
         windowTitle: String? = nil
     ) {
@@ -81,6 +85,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.fontFamily = fontFamily
         self.isSecure = isSecure
         self.isComposing = isComposing
+        self.markedText = markedText
         self.readMicroseconds = readMicroseconds
         self.windowTitle = windowTitle
     }
