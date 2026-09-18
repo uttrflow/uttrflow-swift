@@ -190,6 +190,48 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .code)
     }
 
+    /// Configuration and one-line statements give at most one signal, so each is recognised by its own shape.
+    @Test(
+        "calls configuration and one-line statements code",
+        arguments: [
+            "select * from orders",
+            "SELECT count(*) FROM orders WHERE status = 'open'",
+            "select name from users where id = 3",
+            "insert into orders (id, total) values (1, 9.5)",
+            "delete from sessions where expires < now()",
+            "update users set name = 'Ada' where id = 1",
+            "<div class=\"card\">Hello</div>",
+            "from django.db import models",
+            "from typing import List, Optional\n\nx: List[int] = []",
+            "name: example-app\nversion: 1.0.0\ndependencies:\n  - left-pad\n  - chalk",
+            "services:\n  web:\n    image: nginx\n    ports:\n      - \"8080:80\"\n      - \"8443:443\"",
+            "[server]\nhost = \"0.0.0.0\"\nport = 8080",
+        ])
+    func configurationAndStatements(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .code)
+    }
+
+    /// Prose shaped like each of those, which must stay prose.
+    @Test(
+        "does not call prose shaped like configuration or a statement code",
+        arguments: [
+            "From: Ada Example\nTo: Grace Example\nSubject: Minutes",
+            "Name: Ada Example\nDate: 12 March",
+            "name: Ada\ndate: today",
+            "Shopping:\n- milk\n- eggs",
+            "Select the text from the page.",
+            "Select one from each row",
+            "Delete from the list anything you do not need",
+            "Update the team on progress",
+            "Insert into the slot shown",
+            "from here we go home",
+            "[Note]\nRemember the meeting.",
+            "<b>bold</b> is how you write bold",
+        ])
+    func proseShapedLikeConfiguration(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .text)
+    }
+
     /// Prose with a brace, a semicolon or a keyword is not code; one signal is never enough.
     @Test(
         "does not call prose code",
