@@ -36,9 +36,6 @@ WAKEUPS_ALLOWED = {
     ("Sources/UttrflowClipboard/CodeFormatting+System.swift", ".milliseconds(20)"): (
         "waits for a formatter a person chose to exit, bounded by KnownFormatter.timeout"
     ),
-    ("Sources/UttrflowPredict/EnvironmentReading+System.swift", ".milliseconds(10)"): (
-        "waits for one command to exit, bounded by its timeout"
-    ),
     ("Sources/UttrflowInput/PasteConfirmation.swift", "interval"): (
         "watches the caret after a paste the user made, bounded by the confirmation budget"
     ),
