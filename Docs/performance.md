@@ -286,7 +286,7 @@ on every run:
 
 | check | fails when |
 |---|---|
-| wakeups | a repeating `Timer`, repeating `DispatchSource` timer, display link or sleeping loop in product code has an interval under 500 ms, or one the audit cannot resolve, and is not listed with the reason it is not an idle cost |
+| wakeups | a repeating `Timer` (including one whose `repeats` is passed in), repeating `DispatchSource` timer, display link, sleeping loop, or function that delays (`asyncAfter`, `perform(_:with:afterDelay:)`, a sleep, a one-shot `Timer`) and then calls itself, in product code has an interval under 500 ms, or one the audit cannot resolve, and is not listed with the reason it is not an idle cost |
 | priority | the suggestion and local-model modules ask for more than utility priority, detach a task without one, or the app uses the suggestion model outside a `Discretionary` wrapper |
 | motion | a `TimelineView`, `repeatForever`, phase or keyframe animator or repeating symbol effect reads neither `MotionBudget` nor `WindowAttention`, or is paused by a literal |
 | cache | a model pass (`perform`, `generate`, `TokenIterator`, `ChatSession`) sits in no function that caps MLX's cache and clears it on exit, a `release()` does not clear it, or the cap is over 256 MB |
@@ -295,6 +295,13 @@ on every run:
 `--self-test` injects one violation per check into the tree as read and fails unless the audit
 catches it, so a rule that has stopped matching the code is found rather than trusted. A breach
 already on `main` is listed under the issue that fixes it, and fails as stale once it is gone.
+
+The wakeup check reads one file at a time and follows no calls, so it does not see a loop whose
+sleep sits in a function the loop calls, two functions that schedule each other, or a timer whose
+interval comes from another file's caller. Only a measurement catches every shape: counting an
+idle app's wakeups over a fixed period with `powermetrics` would, but it needs root and a running
+app, so it is not part of `make verify` or `make perf-budget-models`, and is the thing to reach for
+when a battery report does not match a green audit.
 
 Memory itself can only be read with the models loaded, so `make perf-budget-models` runs
 `uttrflow-bakeoff gpu-memory --release` and `uttrflow-bakeoff profile` and each exits non-zero
