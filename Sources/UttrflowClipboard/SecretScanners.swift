@@ -22,6 +22,20 @@ extension Character {
         return byte
     }
 
+    /// Whether this is one of the ASCII digits 0 to 9, which a pattern's `\d` over a secret means.
+    var isASCIIDigit: Bool { loneASCII.map { (0x30...0x39).contains($0) } ?? false }
+
+    /// Whether this is written in Latin script or is common punctuation, judged by its first scalar.
+    var isLatinScript: Bool {
+        guard let value = unicodeScalars.first?.value else { return true }
+        return value < 0x0250 || Self.latinBlocks.contains { $0.contains(value) }
+    }
+
+    /// The Latin blocks past Latin Extended-B: Additional, Extended-C, -D, -E and -F.
+    private static let latinBlocks: [ClosedRange<UInt32>] = [
+        0x1E00...0x1EFF, 0x2C60...0x2C7F, 0xA720...0xA7FF, 0xAB30...0xAB6F, 0x10780...0x107BF,
+    ]
+
     /// Whether this is U+212A KELVIN SIGN, which a case-insensitive `k` also matches.
     var isKelvinSign: Bool { utf8.elementsEqual([0xE2, 0x84, 0xAA]) }
 }
@@ -168,8 +182,8 @@ struct NamedSecretScan {
     private let text: String
     private(set) var read = 0
     private var breaks: WordBreaks
-    /// The last unquoted value read: where it started, where it stops, its length there and its last digit.
-    private var bareRun: (start: TextPosition, stop: TextPosition, lastNumber: Int?)?
+    /// The last unquoted value read: where it started, where it stops, its last ASCII digit and its last non-Latin character.
+    private var bareRun: (start: TextPosition, stop: TextPosition, lastNumber: Int?, lastNonLatin: Int?)?
     /// The last quoted value read: where its opening quote stands, and where the value ends.
     private var quotedRun: (open: String.Index, end: String.Index?)?
     /// The last line ending asked about: where the value ended, and where the pattern's `$` stands after it.
@@ -319,7 +333,7 @@ struct NamedSecretScan {
         return close
     }
 
-    /// Where an unquoted value from `start` ends its line, and whether it is long enough, or has a digit, to be a secret.
+    /// Where an unquoted value from `start` ends its line, and whether it has a digit, or is long and Latin, to be a secret.
     private mutating func bareAssignment(from start: TextPosition) -> (end: String.Index, accepted: Bool)? {
         let run = bareValue(from: start)
         guard run.stop.offset > start.offset, let lineEnd = endOfLine(from: run.stop.index) else {
@@ -330,16 +344,21 @@ struct NamedSecretScan {
         let first = String(text[start.index])
         let quoted = length >= 2 && (first.hasPrefix("\"") || first.hasPrefix("'"))
         let hasNumber = run.lastNumber.map { $0 >= start.offset } ?? false
-        return (lineEnd, quoted || hasNumber || length >= 12)
+        // A sentence in a script written without spaces is one long run, so length alone counts only in Latin.
+        let isLatin = run.lastNonLatin.map { $0 < start.offset } ?? true
+        return (lineEnd, quoted || hasNumber || (length >= 12 && isLatin))
     }
 
     /// The run of unquoted value characters that `start` stands in, read once however many keywords share it.
-    private mutating func bareValue(from start: TextPosition) -> (stop: TextPosition, lastNumber: Int?) {
+    private mutating func bareValue(
+        from start: TextPosition
+    ) -> (stop: TextPosition, lastNumber: Int?, lastNonLatin: Int?) {
         if let cached = bareRun, cached.start.offset <= start.offset, start.offset < cached.stop.offset {
-            return (cached.stop, cached.lastNumber)
+            return (cached.stop, cached.lastNumber, cached.lastNonLatin)
         }
         var position = start
         var lastNumber: Int?
+        var lastNonLatin: Int?
         while position.index < text.endIndex {
             read += 1
             let character = text[position.index]
@@ -347,11 +366,12 @@ struct NamedSecretScan {
             if let byte = character.loneASCII, byte == UInt8(ascii: "\"") || byte == UInt8(ascii: "'") {
                 break
             }
-            if character.isNumber { lastNumber = position.offset }
+            if character.isASCIIDigit { lastNumber = position.offset }
+            if !character.isLatinScript { lastNonLatin = position.offset }
             advance(&position)
         }
-        bareRun = (start, position, lastNumber)
-        return (position, lastNumber)
+        bareRun = (start, position, lastNumber, lastNonLatin)
+        return (position, lastNumber, lastNonLatin)
     }
 
     /// Where `\s*[,;]?\s*$` from `start` puts `$`, which backtracks to the last line break it can reach.

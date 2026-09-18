@@ -275,7 +275,9 @@ enum BacktrackingPatterns {
             let raw = String(match.value)
             let isQuoted = raw.count >= 2 && (raw.hasPrefix("\"") || raw.hasPrefix("'"))
             let value = isQuoted ? String(raw.dropFirst().dropLast()) : raw
-            return isQuoted || value.contains(where: \.isNumber) || value.count >= 12
+            let hasDigit = value.contains { $0.isASCII && $0.isNumber }
+            let isLatin = value.allSatisfy(\.isLatinScript)
+            return isQuoted || hasDigit || (value.count >= 12 && isLatin)
         }
     }
 

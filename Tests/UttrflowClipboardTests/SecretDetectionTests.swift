@@ -101,6 +101,8 @@ struct SecretDetectionTests {
             "export GITHUB_TOKEN=abc123def456ghi789",
             "client_secret: 'Qv7RkT2mXeL9pAz4'",
             "  \"privateKey\": \"MIIEvQIBADANBg\",",
+            "password: contraseñasecreta",
+            "password: ⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡ",
         ])
     func namedSecrets(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .secret)
@@ -127,6 +129,12 @@ struct SecretDetectionTests {
             "password = nil",
             "Change your password: now",
             "token: true",
+            "password: 忘れた場合は管理者に連絡してください",
+            "secret: 这是一个秘密不要告诉别人",
+            "APIキーの設定方法 token: 設定画面から発行してください",
+            "pwd: 三",
+            "token: 一つ目",
+            "注文番号 ００１２３４５６７８９００１２３４５６７８９００１２３４５６７８９",
         ])
     func mentionsWithoutValues(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .secret)
