@@ -238,15 +238,19 @@ struct DictationPipelineRecordingTests {
     @Test("each retry asks for the vocabulary afresh")
     func retriesReadFreshVocabulary() async {
         let words = WordsInTurn(["OldName"], ["NewName"])
-        let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
+        // The first retry fails, so the recording is kept for the second, as it is in the app.
+        let speech = FakeSpeechEngine(transcribeOutcome: .failure(.transcriptionFailed(description: "x")))
+        let recordings = FakeRecordingKeeper(waiting: [recording])
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: speech, cleaner: RecordingFakeCleaner(),
             context: FakeContextEngine(context: .fixture()), inserter: RecordingFakeInserter(),
             speechWords: { _ in words.next() },
-            recordings: FakeRecordingKeeper(waiting: [recording]),
+            recordings: recordings,
             clipboard: RecordingFakeInserter(outcome: .success(InsertionAttempt(.clipboard))))
 
         await pipeline.retry(recording.id)
+        #expect(await recordings.discarded.isEmpty)
+        await speech.setTranscribeOutcome(.success(.fixture(text: said)))
         await pipeline.retry(recording.id)
 
         #expect(words.reads == 2)
