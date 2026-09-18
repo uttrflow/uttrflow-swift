@@ -182,9 +182,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The settings window over *this* app's stores, never a second set of actors on the same files.
     private lazy var settingsWindow = SettingsWindowController(
         store: settingsStore,
-        personalisation: FilePersonalisationStore(
-            dictionary: dictionary, history: history, clipboard: clipboard,
-            met: { AppDelegate.applicationsTheLoopHasMet() }),
+        personalisation: Self.personalisation(
+            in: container, dictionary: dictionary, history: history, clipboard: clipboard),
         onChange: { [weak self] settings in self?.settingsChanged(to: settings) },
         // Through the same switch the main window uses, so one choice is never applied two ways.
         onRequest: { [weak self] change in self?.apply(change) },
@@ -230,11 +229,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Task { [dictionary] in try? await dictionary.seedShippedWords(at: Date()) }
     }
 
+    /// Everything Settings can count and forget, over the stores this app opens in this container.
+    nonisolated static func personalisation(
+        in container: URL, dictionary: PersonalDictionaryStore, history: DictationHistoryStore,
+        clipboard: ClipboardStore
+    ) -> FilePersonalisationStore {
+        FilePersonalisationStore(
+            dictionary: dictionary, history: history, clipboard: clipboard,
+            suggestions: PredictCorpus(container: container),
+            met: { AppDelegate.applicationsTheLoopHasMet(in: container) })
+    }
+
     /// Applications the completion loop has met, so the Suggestions list can offer a switch for each.
-    nonisolated static func applicationsTheLoopHasMet() -> Set<String> {
+    nonisolated static func applicationsTheLoopHasMet(in container: URL) -> Set<String> {
         let file = CapturePreferencesFile(
-            path: CapturePreferencesFile.defaultFile(in: .applicationSupportDirectory)
-                .path(percentEncoded: false))
+            path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false))
         return Set(file.load().consent.keys)
     }
 

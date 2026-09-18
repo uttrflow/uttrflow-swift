@@ -161,6 +161,24 @@ is on the AI suggestions pane beside it.
 `Uttrflow` in that path is the folder this build writes under, and a development build
 writes under its own — see [development-build.md](development-build.md).
 
+### Forgetting from Settings
+
+Settings reaches the corpus through `PredictCorpus`, which opens `predict.v1.sqlite` only
+for the question it is asked and never creates it, so forgetting works whether or not the
+suggestion loop is running.
+
+- **Forget what it learned here**, beside an application in the list, appears once that
+  application has taught at least one line, and deletes that application's surfaces and every
+  entry and succession in them. Other applications keep theirs.
+- **Reset personalisation** deletes every surface in the corpus, and the consent file with
+  them, so the list no longer names the applications the loop has met.
+- **Switching an application off** stops learning there and keeps what was already learned,
+  so switching it back on picks up where it left off. Forgetting is the row beside it, a
+  separate choice. Turning the feature off everywhere keeps the corpus the same way.
+
+Forgetting is a `DELETE`, so while the loop keeps its own connection open the deleted pages
+can stay in `predict.v1.sqlite-wal` until the next checkpoint (#642).
+
 ## The loop, once per keystroke
 
 `SuggestionSession` in `UttrflowPredict` is the whole sequence as pure code: it holds the

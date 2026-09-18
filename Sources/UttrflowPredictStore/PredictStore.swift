@@ -310,6 +310,18 @@ public actor PredictStore: PredictionStore {
         try database.execute("DELETE FROM surface")
     }
 
+    /// How many entries each application has taught, keyed by bundle identifier.
+    public func entryCountsByApplication() throws(PredictStoreError) -> [String: Int] {
+        let counted = try database.rows(
+            """
+            SELECT surface.bundle_id, COUNT(entry.id) FROM entry
+            JOIN surface ON surface.id = entry.surface_id
+            GROUP BY surface.bundle_id
+            """, { _ in }
+        ) { ($0.text(0), $0.integer(1)) }
+        return Dictionary(counted, uniquingKeysWith: +)
+    }
+
     /// How many entries the corpus holds across every surface.
     public func entryCount() throws(PredictStoreError) -> Int {
         try database.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) }.first ?? 0

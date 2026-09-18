@@ -315,6 +315,31 @@ struct ForgettingTests {
         #expect(try await store.entryCount() == 0)
     }
 
+    @Test("What each application taught is counted by application, across every field in it.")
+    func countsByApplication() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let search = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextField")
+        let elsewhere = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        try await store.record("git push", in: terminal, at: moment)
+        try await store.record("git pull", in: terminal, at: moment)
+        try await store.record("find a file", in: search, at: moment)
+        try await store.record("some prose", in: elsewhere, at: moment)
+        #expect(
+            try await store.entryCountsByApplication()
+                == ["com.example.terminal": 3, "com.example.editor": 1])
+    }
+
+    @Test("A second connection can forget while the first is still open, and the first sees it.")
+    func forgetsFromASecondConnection() async throws {
+        let corpus = Corpus()
+        let first = try store(corpus)
+        try await first.record("git push", in: terminal, at: moment)
+        try await PredictStore(path: corpus.path).forgetEverything()
+        #expect(try await first.entryCount() == 0)
+        #expect(try await first.entryCountsByApplication().isEmpty)
+    }
+
     @Test("Forgetting from a field never typed in is not an error.")
     func unknownSurface() async throws {
         let corpus = Corpus()

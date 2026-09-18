@@ -34,6 +34,8 @@ final class Database {
             throw opened == SQLITE_NOTADB ? .corrupt : .cannotOpen(path)
         }
         self.handle = handle
+        // Waits out another connection's write, since Settings forgets while the loop may be recording.
+        sqlite3_busy_timeout(handle, 2_000)
     }
 
     deinit {
