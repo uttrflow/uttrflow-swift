@@ -414,7 +414,7 @@ public enum MenuBarPresenter {
     }
 
     /// Clamped, because the menu bar is the wrong place to learn the downloader has a bug.
-    static func percentage(of fraction: Double) -> Int {
+    public static func percentage(of fraction: Double) -> Int {
         Int((min(max(fraction, 0), 1) * 100).rounded())
     }
 
