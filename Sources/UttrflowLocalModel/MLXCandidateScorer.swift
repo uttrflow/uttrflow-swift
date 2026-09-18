@@ -608,21 +608,23 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, ReleasableModel 
         guard let container, !Task.isCancelled else { return [] }
         beginPass()
         defer { endPass() }
+        let bytes = vocabulary?.bytes ?? []
         return await container.perform { loaded in
-            Self.judge(candidate, following: context, with: loaded)
+            Self.judge(candidate, following: context, bytes: bytes, with: loaded)
         }
     }
 
     /// Two neutral tokens before the line, since `uttrflow-bakeoff score` shows Gemma 3 predicting nonsense from the first two positions.
     static let leadIn = "...\n"
 
-    /// The log-probability of each of the candidate's tokens past what was typed, nothing generated.
+    /// The log-probability of each of the candidate's tokens past what was typed, nothing generated; a word cut inside a token is judged given its typed remainder.
     private static func judge(
-        _ candidate: String, following context: String, with loaded: ModelContext
+        _ candidate: String, following context: String, bytes: [[UInt8]], with loaded: ModelContext
     ) -> [JudgedToken] {
         let whole = loaded.tokenizer.encode(text: leadIn + candidate)
         let typed = loaded.tokenizer.encode(text: leadIn + typedPart(of: candidate, following: context))
-        guard let start = firstScoredIndex(whole: whole, typed: typed) else { return [] }
+        guard let span = ScoredSpan(whole: whole, typed: typed, bytes: bytes) else { return [] }
+        let start = span.start
 
         let tokens = MLXArray(whole.map(Int32.init)).expandedDimensions(axis: 0)
         let output = loaded.model(LMInput.Text(tokens: tokens), cache: nil, state: nil)
@@ -630,11 +632,15 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, ReleasableModel 
         let probabilities = logSoftmax(output.logits.asType(.float32), axis: -1)[0]
         let targets = MLXArray(whole[start...].map(Int32.init)).expandedDimensions(axis: 1)
         let taken = takeAlong(probabilities[(start - 1)..<(whole.count - 1)], targets, axis: 1)
+        let continuing = ScoredSpan.continuing(span.owed, in: bytes)
+        let rivals =
+            continuing.isEmpty ? nil : probabilities[start - 1].take(MLXArray(continuing.map(Int32.init)))
         eval(taken)
         // Read the values as Float, since Metal has no double precision and casting to Float64 errors.
-        return zip(whole[start...], taken.asArray(Float.self)).map { token, logProbability in
-            JudgedToken(
-                text: loaded.tokenizer.decode(tokenIds: [token]), logProbability: Double(logProbability))
+        let mass = rivals.flatMap { ScoredSpan.logSumExp($0.asArray(Float.self)) }
+        let scores = ScoredSpan.conditioned(taken.asArray(Float.self), onMass: mass)
+        return zip(whole[start...], scores).map { token, logProbability in
+            JudgedToken(text: loaded.tokenizer.decode(tokenIds: [token]), logProbability: logProbability)
         }
     }
 
@@ -642,18 +648,6 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, ReleasableModel 
     static func typedPart(of candidate: String, following context: String) -> String {
         guard !context.isEmpty, candidate.lowercased().hasPrefix(context.lowercased()) else { return "" }
         return String(candidate.prefix(context.count))
-    }
-
-    /// The first token the model is judged on, past the tokens the typed opening shares with the whole line.
-    static func firstScoredIndex(whole: [Int], typed: [Int]) -> Int? {
-        // Scoring starts where the two token streams actually diverge, since the join may retokenise.
-        var shared = 0
-        while shared < typed.count, shared < whole.count, typed[shared] == whole[shared] {
-            shared += 1
-        }
-        // The first token has nothing before it to be predicted from, so it is never scored.
-        let start = max(shared, 1)
-        return whole.count > start ? start : nil
     }
 }
 

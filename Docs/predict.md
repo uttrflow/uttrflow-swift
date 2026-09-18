@@ -323,12 +323,21 @@ where the two token streams diverge. It used to tokenise `context + candidate` �
   two-token lead-in (`"...\n"`) before every line. `"\n\n\n"` is one token and does not
   help; a chat-template frame puts the instruction-tuned model into peaked answer mode
   (`" commit"` -0.00, `" checkout"` -19.5) and is worse.
-- When the typed text ends inside a token (`gi` → `git status`), the divergence rule judges
-  `"git"` without knowing `gi` was typed — the cold prior for a line's first word, about
-  -10 — so such a line scores around -8 and is rejected. The correct score is
-  P(token | typed prefix) = P(token) / Σ P(tokens starting with the typed remainder), which
-  needs the vocabulary table; not built yet. Attested candidates (executables, subcommands)
-  never reach the model, which is why `lsof` and `lsbom` are unaffected in practice.
+- When the typed text ends inside a token (`gi` → `git status`), judging the line's next token
+  as it stands reads the cold prior for a line's first word, about -10, so such a line
+  scored around -8 and was rejected. `ScoredSpan` now finds the typed bytes that token still
+  owes and the first judged token is read as P(token | typed remainder) = P(token) / Σ P(every
+  token that writes the remainder first), from the vocabulary token healing already reads;
+  a line token that writes only typed bytes is passed over. Measured with `uttrflow-bakeoff
+  score`: `gi` → `git status` -8.01 → -2.85, `gi` → `git checkout main` -6.54 → -3.10,
+  `l` → `ls -la` -6.63 → -4.01, `git sta` → `git stash pop` -6.61 → -3.89, all now allowed.
+  The cost is the nonsense margin: `gi` → `gizmo --frobnicate` rose -7.29 → -5.80 and is
+  allowed, 0.2 above the floor, and `SELE` → `SELECT * FROM uzqx WHERE` rose to -6.09, 0.09
+  below it, so the margins quoted for the floor above were measured before this rule and no
+  longer hold for a prefix cut mid-word; nonsense past more of the line stays far below
+  (`git cxq` -13.60 → -13.24, `ls --zzqx-bogus` -9.15 unchanged).
+  Attested candidates (executables, subcommands) never reach the model, which is why `lsof`
+  and `lsbom` were unaffected in practice.
 
 Per-call cost is 80–115 ms warm and ~250–340 ms cold on the 4B model, so the four
 sequential passes `verifiedDepth` allows — `PredictionEngine.maximumChoices`, every
