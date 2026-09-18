@@ -52,6 +52,62 @@ private final class Reports: Sendable {
     }
 }
 
+/// A device whose numbered opens can run a step first, so a stop can land while one is in progress.
+private final class ScriptedDevice: InputDevice, Sendable {
+    struct Log {
+        var opens = 0
+        var shuts = 0
+        var isOpen = false
+    }
+
+    let log = Mutex(Log())
+    private let steps = Mutex<[Int: @Sendable () -> Bool]>([:])
+
+    /// Runs `step` inside the open with this number, before it finishes; a false return refuses the open.
+    func during(open number: Int, _ step: @escaping @Sendable () -> Bool) {
+        steps.withLock { $0[number] = step }
+    }
+
+    var opens: Int { log.withLock(\.opens) }
+    var shuts: Int { log.withLock(\.shuts) }
+    var isOpen: Bool { log.withLock(\.isOpen) }
+
+    func open() throws(AudioCaptureError) {
+        let number = log.withLock { log -> Int in
+            log.opens += 1
+            return log.opens
+        }
+        let step = steps.withLock { $0.removeValue(forKey: number) }
+        guard step?() ?? true else { throw .noInputDevice }
+        log.withLock { $0.isOpen = true }
+    }
+
+    func close() {
+        log.withLock { log in
+            if log.isOpen { log.shuts += 1 }
+            log.isOpen = false
+        }
+    }
+}
+
+/// A pause that holds each reopen attempt until the test lets it go.
+private final class Gate: Sendable {
+    private let released: AsyncStream<Void>
+    private let release: AsyncStream<Void>.Continuation
+
+    init() {
+        (released, release) = AsyncStream.makeStream()
+    }
+
+    func pause() async {
+        for await _ in released { return }
+    }
+
+    func letGo() {
+        release.yield()
+    }
+}
+
 /// The device outliving one failed reopen is the whole point: see Docs/microphone.md.
 @Suite("An input device session")
 struct InputDeviceSessionTests {
@@ -59,6 +115,13 @@ struct InputDeviceSessionTests {
     private func session(_ device: FlakyDevice, delays: Int = 5) -> (InputDeviceSession, Reports) {
         let schedule = ReopenSchedule(delays: Array(repeating: .zero, count: delays))
         return (InputDeviceSession(device: device, schedule: schedule, pause: { _ in }), Reports())
+    }
+
+    /// A session whose attempts each wait at the gate until the test lets them go.
+    private func gated(_ device: any InputDevice, _ gate: Gate, attempts: Int = 1) -> InputDeviceSession {
+        InputDeviceSession(
+            device: device, schedule: ReopenSchedule(delays: Array(repeating: .zero, count: attempts)),
+            pause: { _ in await gate.pause() })
     }
 
     @Test("opens once and reports nothing when the device is there")
@@ -92,8 +155,7 @@ struct InputDeviceSessionTests {
         try session.open { error in reported.record(error) }
 
         device.log.withLock { $0.failuresLeft = 3 }
-        session.deviceChanged()
-        try await untilSettled(session)
+        await session.deviceChanged()?.value
 
         #expect(session.health == .live)
         // One for the first open, three refused, one that took.
@@ -111,8 +173,7 @@ struct InputDeviceSessionTests {
         try session.open { interruption in reported.record(interruption) }
 
         device.log.withLock { $0.failuresLeft = 1 }
-        session.deviceChanged()
-        try await untilSettled(session)
+        await session.deviceChanged()?.value
 
         #expect(session.health == .live)
         #expect(reported.first == .began)
@@ -127,8 +188,7 @@ struct InputDeviceSessionTests {
         try session.open { error in reported.record(error) }
 
         device.log.withLock { $0.failuresLeft = 99 }
-        session.deviceChanged()
-        try await untilSettled(session)
+        await session.deviceChanged()?.value
 
         #expect(session.health == .gone)
         // The hole as it opened, then the ending when nothing filled it.
@@ -142,60 +202,123 @@ struct InputDeviceSessionTests {
     @Test("a second change while one reopen is in flight does not start another")
     func oneReopenAtATime() async throws {
         let device = FlakyDevice(failing: 0)
-        let (session, _) = session(device)
+        let gate = Gate()
+        let session = gated(device, gate, attempts: 5)
         try session.open { _ in }
 
         device.log.withLock { $0.failuresLeft = 2 }
-        session.deviceChanged()
-        session.deviceChanged()
-        try await untilSettled(session)
+        let retry = session.deviceChanged()
+        #expect(session.deviceChanged() == nil)
+        for _ in 0..<3 { gate.letGo() }
+        await retry?.value
 
         #expect(session.health == .live)
         #expect(device.log.withLock(\.opens) == 4)
     }
 
     /// A stop landing mid-reopen used to report nothing, so the truncated recording read as whole.
-    @Test("keeps the hole reported when the recording stops mid-reopen")
+    @Test("keeps the hole reported when the recording stops mid-reopen", .timeLimit(.minutes(1)))
     func closingStopsTheRetry() async throws {
-        let device = FlakyDevice(failing: 0)
-        let (session, reported) = session(device)
-        try session.open { error in reported.record(error) }
+        let device = ScriptedDevice()
+        let gate = Gate()
+        let session = gated(device, gate)
+        let reported = Reports()
+        try session.open { reported.record($0) }
 
-        device.log.withLock { $0.failuresLeft = 99 }
-        session.deviceChanged()
+        let retry = session.deviceChanged()
+        // The gate stays shut, so only the cancellation the close sends can end the pause.
         session.close()
-        try await untilSettled(session)
+        await retry?.value
 
+        #expect(retry != nil)
         #expect(session.health == .gone)
         // Said before the retry began, so the close cancelling it costs the caller nothing.
+        #expect(reported.count == 1)
         #expect(reported.first == .began)
-        #expect(reported.firstError == nil, "a stop is not the device failing")
+        #expect(device.opens == 1, "a cancelled retry never reaches the device")
+    }
+
+    /// The stop lands before the retry is recorded, so only the health check after the pause can catch it.
+    @Test("abandons the reopen when the recording stops as the hole is reported")
+    func stopAsTheHoleIsReported() async throws {
+        let device = ScriptedDevice()
+        let session = InputDeviceSession(
+            device: device, schedule: ReopenSchedule(delays: [.zero]), pause: { _ in })
+        try session.open { if $0 == .began { session.close() } }
+
+        let retry = session.deviceChanged()
+        await retry?.value
+
+        #expect(retry != nil)
+        #expect(session.health == .gone)
+        #expect(device.opens == 1, "nothing reopens a device the recording has let go of")
+        #expect(!device.isOpen)
     }
 
     /// A device opened after the recording stopped is one nothing else would ever shut: see #171.
     @Test("closes a device it opened after the close, rather than stranding it open")
     func neverStrandsADeviceOpen() async throws {
-        // Opens succeed, so every attempt leaves a device that something has to close.
-        let device = FlakyDevice(failing: 0)
-        let (session, _) = session(device)
+        let device = ScriptedDevice()
+        let gate = Gate()
+        let session = gated(device, gate)
         try session.open { _ in }
+        device.during(open: 2) {
+            session.close()
+            return true
+        }
 
-        session.deviceChanged()
-        session.close()
-        try await untilSettled(session)
+        let retry = session.deviceChanged()
+        gate.letGo()
+        await retry?.value
 
         #expect(session.health == .gone)
-        // Every open is answered by a close, whichever side of the race the reopen landed.
-        #expect(device.log.withLock(\.closes) >= device.log.withLock(\.opens))
+        #expect(device.opens == 2)
+        // Every open is answered by a close, including the one that finished after the stop.
+        #expect(device.shuts == device.opens)
+        #expect(!device.isOpen, "the microphone is left open after the recording stopped")
     }
 
-    /// Waits for the reopen task, which runs off this one.
-    private func untilSettled(_ session: InputDeviceSession) async throws {
-        let ceiling = ContinuousClock.now + .seconds(30)
-        while session.health == .reopening, ContinuousClock.now < ceiling {
-            try await Task.sleep(for: .milliseconds(5))
+    @Test("reports no ending when the recording stops while the last retry is failing")
+    func stopDuringAFailingRetry() async throws {
+        let device = ScriptedDevice()
+        let gate = Gate()
+        let session = gated(device, gate)
+        let reported = Reports()
+        try session.open { reported.record($0) }
+        device.during(open: 2) {
+            session.close()
+            return false
         }
-        // Recorded rather than waited out, so a reopen that never lands fails here instead of downstream.
-        if session.health == .reopening { Issue.record("the reopen never settled") }
+
+        let retry = session.deviceChanged()
+        gate.letGo()
+        await retry?.value
+
+        #expect(session.health == .gone)
+        #expect(reported.count == 1)
+        #expect(reported.firstError == nil, "a stop is not the device failing")
+    }
+
+    /// A retry that gives up after a stop must not end the recording that started since.
+    @Test("leaves the next recording alone when a stale retry gives up")
+    func staleRetryLeavesTheNextRecording() async throws {
+        let device = ScriptedDevice()
+        let gate = Gate()
+        let session = gated(device, gate)
+        try session.open { _ in }
+        let next = Reports()
+        device.during(open: 2) {
+            session.close()
+            try? session.open { next.record($0) }
+            return false
+        }
+
+        let retry = session.deviceChanged()
+        gate.letGo()
+        await retry?.value
+
+        #expect(session.health == .live)
+        #expect(next.count == 0, "the next recording is told it ended")
+        #expect(device.isOpen)
     }
 }
