@@ -158,7 +158,7 @@ is, it cost this:
 The field's own answer always wins in the computed value where there is one, so an AppKit
 text view under a Japanese input method that is *not* composing reads as not composing.
 That is why the state signal is gated on despite its reach: a `present` answer is a
-measured state, not a guess, and it costs a field that never answers nothing.
+measured state, not a guess, and fields that never answer keep their suggestions.
 
 ## Text Input Sources must be called on the main queue, so it is not called on the read path
 
