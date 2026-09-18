@@ -355,6 +355,22 @@ struct RetentionTests {
         #expect(superseded == [0])
         #expect(try await store.entryCount() == PredictStore.entriesPerSurface)
     }
+
+    @Test("What follows what stops growing at the same cap, and keeps the pairs followed most.")
+    func successionsStayWithinTheCap() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        for _ in 0..<5 { try await store.record("git push", in: terminal, after: "git commit", at: moment) }
+        for index in 0..<(PredictStore.entriesPerSurface + 100) {
+            try await store.record(
+                "filler \(index) end", in: terminal, after: "before \(index) end", at: moment)
+        }
+        let counts = try Database(path: corpus.path).rows(
+            "SELECT (SELECT COUNT(*) FROM entry), (SELECT COUNT(*) FROM succession)", { _ in }
+        ) { [$0.integer(0), $0.integer(1)] }
+        #expect(counts == [[PredictStore.entriesPerSurface, PredictStore.entriesPerSurface]])
+        #expect(try await store.successors(for: terminal, after: "git commit").map(\.text) == ["git push"])
+    }
 }
 
 @Suite("Writing all of a record or none of it")
