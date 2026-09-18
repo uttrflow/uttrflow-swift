@@ -74,8 +74,9 @@ ghost text finishes the line you're on.
   in an editor **⌥Tab**. Keep typing to ignore it; **esc** hides it.
 - Candidates come from your history in that field, then from what is on the Mac, then from
   a local model.
-- It learns on this Mac, in SQLite, and is never uploaded. It is off until you switch it
-  on, and you choose the apps.
+- It reads the text in and around the field you are typing in, and remembers the lines you
+  send, in SQLite. None of it leaves this Mac. It is off until you switch it on, and you
+  choose the apps.
 
 **In the code:** `UttrflowPredict`, `UttrflowPredictStore`, `UttrflowPredictCapture` and
 `Sources/Uttrflow/Suggestion`. Read [`Docs/predict.md`](Docs/predict.md).
@@ -389,6 +390,10 @@ Clips that look like secrets are masked in the panel until you ask to see them, 
 fixed width that does not reveal how long the token is, and they get no tooltip. That is
 a rule about the screen — about somebody reading over your shoulder, or a shared screen —
 and not about the disk. The text is stored in the clear like every other clip.
+
+**Tab-to-complete reads the text in and around the field you are typing in**, such as the
+thread above a reply box, and hands it to a model that runs on this Mac. None of it is
+uploaded.
 
 **Tab-to-complete learns from what you type, and that corpus is the most sensitive thing
 the app keeps.** It is `predict.v1.sqlite` in the same Application Support folder, at the
