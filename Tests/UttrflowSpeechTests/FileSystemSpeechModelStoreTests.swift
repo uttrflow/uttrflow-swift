@@ -415,10 +415,12 @@ struct FileSystemSpeechModelStoreTests {
             try await store.install(.base) { _ in }
         }
 
-        guard case .modelDownloadFailed = try #require(failure) else {
-            Issue.record("expected a download failure, got \(String(describing: failure))")
+        let reported = try #require(failure)
+        guard case .modelDownloadFailed = reported else {
+            Issue.record("expected a download failure, got \(reported)")
             return
         }
+        #expect(reported.userMessage.contains("connection"))
     }
 
     @Test("reads the free space of the volume a folder not yet made would sit on")

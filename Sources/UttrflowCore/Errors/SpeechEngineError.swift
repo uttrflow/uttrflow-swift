@@ -59,9 +59,10 @@ public enum SpeechEngineError: UttrflowFailure {
 
     /// Bytes as a person reads them, rounded up so the space asked for is never too little.
     static func readable(_ bytes: Int64) -> String {
-        let megabytes = (max(bytes, 0) + 999_999) / 1_000_000
+        let bytes = max(bytes, 0)
+        let megabytes = bytes / 1_000_000 + (bytes % 1_000_000 == 0 ? 0 : 1)
         guard megabytes >= 1_000 else { return "\(megabytes) MB" }
-        let tenths = (megabytes + 99) / 100
+        let tenths = megabytes / 100 + (megabytes % 100 == 0 ? 0 : 1)
         return "\(tenths / 10).\(tenths % 10) GB"
     }
 }

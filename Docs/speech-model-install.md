@@ -63,7 +63,7 @@ ever mistaken for a model.
 
 ## Checking the disk before downloading
 
-A missing model is about 650 MB, and a disk too full to hold it would otherwise fail partway
+The default model is about 650 MB, and a disk too full to hold it would otherwise fail partway
 through and be reported as a connection problem the user cannot fix by retrying.
 
 - Before fetching the weights, the store reads `volumeAvailableCapacityForImportantUsageKey` for

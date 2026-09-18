@@ -188,6 +188,7 @@ struct DiskSpaceMessageTests {
         #expect(SpeechEngineError.readable(999_000_000) == "999 MB")
         #expect(SpeechEngineError.readable(999_000_001) == "1.0 GB")
         #expect(SpeechEngineError.readable(1_200_000_001) == "1.3 GB")
+        #expect(SpeechEngineError.readable(.max) == "9223372036.9 GB")
     }
 }
 
