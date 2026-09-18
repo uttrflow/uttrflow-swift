@@ -662,11 +662,11 @@ struct DictationControllerControlTests {
 
 // MARK: - Being let go of
 
-@Suite("A controller nothing holds")
+@Suite("A controller nothing holds", .timeLimit(.minutes(1)))
 struct DictationControllerLifetimeTests {
     /// The tap and its thread go with the controller, so a controller that cannot die leaks both.
     @Test("is deallocated, rather than kept alive by the task reading its own gestures")
-    func isDeallocated() async {
+    func isDeallocated() async throws {
         weak var released: DictationController<ManualClock>?
         do {
             let controller = makeHarness().controller
@@ -675,10 +675,7 @@ struct DictationControllerLifetimeTests {
             await controller.stop()
         }
         // The task holds the stream, not the controller, so the drop is what has to be waited for.
-        let ceiling = ContinuousClock.now + .seconds(30)
-        while released != nil, ContinuousClock.now < ceiling {
-            try? await Task.sleep(for: .milliseconds(5))
-        }
+        try await eventually { released == nil }
         #expect(released == nil, "the controller outlived every reference to it")
     }
 }

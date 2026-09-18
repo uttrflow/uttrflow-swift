@@ -290,8 +290,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         DictationPresenter.dock(for: state, advice: recordingAdvice, speechModel: speechModelLoad)
     }
 
-    /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show.
-    func probeTransformers() {
+    /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show; the task ends once it has.
+    @discardableResult
+    func probeTransformers() -> Task<Void, Never> {
         Task { [weak self] in
             guard let self else { return }
             let ready = await SettingsCapabilities.refreshed(for: settings.profile)
