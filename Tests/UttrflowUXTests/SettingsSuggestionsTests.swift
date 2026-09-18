@@ -78,13 +78,13 @@ struct SettingsSuggestionsPaneTests {
         #expect(SettingsEditor.suggestionsAreOff == "Turn AI suggestions on before choosing how they behave.")
     }
 
-    @Test("says the switch reads the screen around the field, writes with an on-device model and remembers")
+    @Test("says the switch reads the screen around the field, writes with on-device AI and remembers")
     func theSwitchSaysWhatItReads() throws {
         let master = try #require(row("suggestionsEnabled", in: pane(.default)))
         let explanation = try #require(master.explanation)
         #expect(explanation == SettingsPresenter.suggestionsExplanation)
         #expect(explanation.contains("in and around the field you are typing in"))
-        #expect(explanation.contains("a model that runs on it"))
+        #expect(explanation.contains("written by AI that runs on it"))
         #expect(explanation.contains("Remembers the lines you send"))
         #expect(explanation.contains("Off until you ask for it"))
     }
@@ -97,9 +97,8 @@ struct SettingsSuggestionsPaneTests {
         #expect(callout?.message == SettingsPresenter.suggestionsPromise)
         #expect(callout?.symbolName == "lock")
         let message = callout?.message ?? ""
-        #expect(
-            message.contains(
-                "What it reads stays on this Mac, and so do the model and the lines it remembers"))
+        #expect(message.contains("What it reads stays on this Mac."))
+        #expect(message.contains("The lines it remembers are kept in Uttrflow's own folder."))
         #expect(message.contains("Nothing is uploaded, and a password field is never read."))
         #expect(message.contains("Turn it off for one application, or forget what it learned there"))
     }
