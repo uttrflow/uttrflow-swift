@@ -109,6 +109,8 @@ final class InterceptorTap: @unchecked Sendable {
     private let lifecycle = LifecycleLock()
     /// Called once the state is released and the thread lets go of the port, which tests wait on instead of a clock.
     private let released: @Sendable () -> Void
+    /// Runs on the tap's thread after its source is added and before its run loop runs.
+    private let beforeLoop: @Sendable () -> Void
 
     /// The lock around `Lifecycle`, in a class so the thread can hold it without holding the tap.
     private final class LifecycleLock: Sendable {
@@ -117,22 +119,24 @@ final class InterceptorTap: @unchecked Sendable {
 
     private init(
         tap: CFMachPort, source: CFRunLoopSource, held: Unmanaged<TapState>,
-        released: @escaping @Sendable () -> Void
+        released: @escaping @Sendable () -> Void, beforeLoop: @escaping @Sendable () -> Void
     ) {
         self.tap = tap
         self.source = source
         self.held = held
         self.released = released
+        self.beforeLoop = beforeLoop
     }
 
     /// Stops a tap nobody stopped, so a discarded tap still gives back its port and state.
     deinit { stop() }
 
-    /// Builds the tap, or says that the system would not; `makePort` and `released` are replaced only by tests.
+    /// Builds the tap, or says that the system would not; `makePort`, `released` and `beforeLoop` are replaced only by tests.
     static func create(
         state: TapState,
         makePort: (UnsafeMutableRawPointer) -> CFMachPort? = InterceptorTap.keyDownTap,
-        released: @escaping @Sendable () -> Void = {}
+        released: @escaping @Sendable () -> Void = {},
+        beforeLoop: @escaping @Sendable () -> Void = {}
     ) throws(KeyInterceptorFailure) -> InterceptorTap {
         let held = Unmanaged.passRetained(state)
         guard
@@ -143,7 +147,8 @@ final class InterceptorTap: @unchecked Sendable {
             throw .tapRefused
         }
         state.adopt(tap)
-        return InterceptorTap(tap: tap, source: source, held: held, released: released)
+        return InterceptorTap(
+            tap: tap, source: source, held: held, released: released, beforeLoop: beforeLoop)
     }
 
     /// The session tap on key-down that `create` uses outside tests.
@@ -166,8 +171,8 @@ final class InterceptorTap: @unchecked Sendable {
         }
         guard starting else { return }
         let loan = Loan(tap: tap, source: source)
-        let thread = Thread { [lifecycle, held, released] in
-            Self.serve(loan, lifecycle: lifecycle)
+        let thread = Thread { [lifecycle, held, released, beforeLoop] in
+            Self.serve(loan, lifecycle: lifecycle, beforeLoop: beforeLoop)
             // Callbacks run only inside this thread's run loop, so none can be in flight past this line.
             held.release()
             released()
@@ -179,7 +184,7 @@ final class InterceptorTap: @unchecked Sendable {
     }
 
     /// Runs the tap's run loop until `stop`, then empties the loan so the thread holds nothing of the tap.
-    private static func serve(_ loan: Loan, lifecycle: LifecycleLock) {
+    private static func serve(_ loan: Loan, lifecycle: LifecycleLock, beforeLoop: () -> Void) {
         guard let tap = loan.tap, let source = loan.source else { return }
         loan.tap = nil
         loan.source = nil
@@ -190,6 +195,7 @@ final class InterceptorTap: @unchecked Sendable {
             return true
         }
         guard live else { return }
+        beforeLoop()
         CGEvent.tapEnable(tap: tap, enable: true)
         CFRunLoopRun()
     }
@@ -205,7 +211,13 @@ final class InterceptorTap: @unchecked Sendable {
         held.takeUnretainedValue().relinquish(tap)
         CFRunLoopSourceInvalidate(source)
         CFMachPortInvalidate(tap)
-        if let loop { CFRunLoopStop(loop) }
+        if let loop {
+            // Queued on the loop, so it is heard even when the loop has not started running yet.
+            CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue) {
+                CFRunLoopStop(CFRunLoopGetCurrent())
+            }
+            CFRunLoopWakeUp(loop)
+        }
         if !started {
             held.release()
             released()
