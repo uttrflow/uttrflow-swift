@@ -317,10 +317,14 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private func watchTheLimit() {
         limitTask?.cancel()
         limitTask = Task { [weak self, clock, limit, onAdvice] in
+            let start = clock.now
             do {
-                try await clock.sleep(for: limit.warnAfter)
-                onAdvice(limit.advice(at: limit.warnAfter))
-                try await clock.sleep(for: limit.stopAfter - limit.warnAfter)
+                // Deadlines from the start, so a late wake-up cannot push the cap back.
+                for elapsed in limit.countdown {
+                    try await clock.sleep(until: start.advanced(by: elapsed), tolerance: nil)
+                    onAdvice(limit.advice(at: elapsed))
+                }
+                try await clock.sleep(until: start.advanced(by: limit.stopAfter), tolerance: nil)
             } catch {
                 // Cancelled, which is the ordinary end of every dictation.
                 return
