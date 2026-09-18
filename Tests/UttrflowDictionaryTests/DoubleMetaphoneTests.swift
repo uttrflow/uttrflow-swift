@@ -255,6 +255,9 @@ struct DoubleMetaphoneTests {
         #expect(sound("\"H.264\"") == sound("H.264"))
         #expect(sound("(set-user-prefs)") == sound("set-user-prefs"))
         #expect(sound("\"\"").isEmpty)
+        // A mark inside the word still parts the letters around it: C-H is not the digraph CH.
+        #expect(sound("(C-H)") == sound("C-H"))
+        #expect(sound("(C-H)") != sound("CH"))
     }
 
     // MARK: What the index is given
