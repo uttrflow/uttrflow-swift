@@ -400,9 +400,9 @@ public struct SuggestionSession: Sendable, Equatable {
     private mutating func settle(_ shown: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
         // What is drawn now carries the count its own turn's read saw, and nothing drawn earlier does.
         drawnAtKeystroke = pendingKeystroke
-        // The same line drawn again keeps the list behind it, so a tick that re-reads the corpus never disarms Down.
+        // The model's list outlives a corpus redraw of its line; a list the gates chose is replaced by their latest answer.
         if case .certain(let leader) = shown, case .choice(let current, let others) = suggestion,
-            current == leader
+            current == leader, shownIsGenerated, !isQuiet
         {
             let still = Array(Self.drawable([leader] + others, past: typed).dropFirst())
             if !still.isEmpty {
