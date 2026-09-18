@@ -33,7 +33,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     /// The names a Makefile goes by, in the order make itself tries them.
     static let makefiles = ["GNUmakefile", "makefile", "Makefile"]
 
-    /// The names a justfile goes by, which just accepts in any capitalisation.
+    /// The justfile names read, in this order: `justfile`, `Justfile`, `.justfile`.
     static let justfiles = ["justfile", "Justfile", ".justfile"]
 
     /// Runs every program a lookup needs; never in the terminal's directory. See `Docs/command-lookups.md`.

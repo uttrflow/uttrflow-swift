@@ -57,8 +57,19 @@ struct ProgramVerbsTests {
             \techo building
 
             alias b := build-app
+
+            [group('private')]
+            docs:
+            \techo public
+
+            [no-cd, private]
+            clean:
+            \techo hidden as well
             """
-        #expect(JustfileRecipes.names(in: justfile) == ["verify", "lint", "test", "serve", "build-app", "b"])
+        #expect(
+            JustfileRecipes.names(in: justfile) == [
+                "verify", "lint", "test", "serve", "build-app", "b", "docs",
+            ])
         #expect(JustfileRecipes.names(in: "") == [])
     }
 

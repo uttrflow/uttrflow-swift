@@ -37,7 +37,9 @@ enum JustfileRecipes {
                 continue
             }
             if first == "[" {
-                isPrivate = isPrivate || line.contains("private")
+                let attributes = line.dropFirst().prefix { $0 != "]" }.split(separator: ",")
+                isPrivate =
+                    isPrivate || attributes.contains { $0.trimmingCharacters(in: .whitespaces) == "private" }
                 continue
             }
             defer { isPrivate = false }
