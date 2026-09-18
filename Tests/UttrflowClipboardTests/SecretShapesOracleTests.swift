@@ -13,7 +13,8 @@ struct SecretShapesOracleTests {
         "sk" + "-", "sk" + "-ant-", "sk" + "_live_", "gh" + "p_", "AK" + "IA", "eyJ",
         "eyJhbGciOiJIUzI1NiJ9", "://", "http", "https://", "postgres", ":", "/", "@", "=", ";", ",",
         "\"", "'", " ", "\t", "\n", "\r\n", "\r", "\u{2028}", "\u{85}", "\u{A0}", "\u{0B}", ".", "-",
-        "_", "+", "password", "PASSWORD", "Password", "pwd", "passwd", "token", "tokens", "api_key",
+        "_", "+", "()", "request.token", "password", "PASSWORD", "Password", "pwd", "passwd",
+        "token", "tokens", "api_key",
         "API-KEY", "apikey", "api_keys", "secret", "Secrets", "credential", "credentials",
         "private_key", "access-key", "auth_token", "client_secret", "clientsecret", "\u{212A}",
         "api_\u{212A}ey", "\u{301}", "é", "e\u{301}", "\"\u{301}", "'\u{301}", ";\u{301}", "\u{37E}",
@@ -42,7 +43,9 @@ struct SecretShapesOracleTests {
         "3530 1113 3330 0000", "4222 222 222 222", "4111 1111 1111 1112", "https://example.com/a b",
         "http://x", "rgb(1, 2, 3)", "hsla( 0 )", "oklch()", "color(display-p3 1 0 0)",
         "func greet() {}", "  // note", "\n\n  select * from t", "if (x) return", "import Foundation",
-        "let x = 1",
+        "let x = 1", "let token = request.token", "secret = settings.SECRET_KEY;",
+        "password = getpass.getpass()", "token=a.b.c,", "pwd=f();", "token=a..bcdefghijkl",
+        "token=" + "x.deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", "token=abcdef.ghijkl()x",
     ]
 
     static func randomText(_ random: inout Seeded) -> String {
@@ -275,8 +278,20 @@ enum BacktrackingPatterns {
             let raw = String(match.value)
             let isQuoted = raw.count >= 2 && (raw.hasPrefix("\"") || raw.hasPrefix("'"))
             let value = isQuoted ? String(raw.dropFirst().dropLast()) : raw
-            return isQuoted || value.contains(where: \.isNumber) || value.count >= 12
+            return isQuoted || value.contains(where: \.isNumber)
+                || value.count >= 12 && !isReference(value)
         }
+    }
+
+    /// An identifier path or an empty call, optionally closed by `,` or `;`, that points at a secret rather than being one.
+    nonisolated(unsafe) static let reference =
+        #/^[A-Za-z_$]+(?:\.[A-Za-z_$]+)*(?:\(\))?[,;]?$/#
+
+    static func isReference(_ value: String) -> Bool {
+        guard value.wholeMatch(of: reference) != nil, value.contains(".") || value.contains("()")
+        else { return false }
+        let parts = value.split(whereSeparator: { !($0.isASCII && ($0.isLetter || $0 == "_" || $0 == "$")) })
+        return !parts.contains { $0.count >= 32 && $0.allSatisfy(\.isHexDigit) }
     }
 
     /// `CardNumberShape.matches` as it read before the runs: the pattern over the whole clip.

@@ -330,7 +330,45 @@ struct NamedSecretScan {
         let first = String(text[start.index])
         let quoted = length >= 2 && (first.hasPrefix("\"") || first.hasPrefix("'"))
         let hasNumber = run.lastNumber.map { $0 >= start.offset } ?? false
-        return (lineEnd, quoted || hasNumber || length >= 12)
+        let isLong = length >= 12 && !isReference(from: start.index, to: run.stop.index)
+        return (lineEnd, quoted || hasNumber || isLong)
+    }
+
+    /// Whether a value only points at a secret, as `a.b`, `f()` or `a.b();` do, with no part long and hex enough to be one.
+    private mutating func isReference(from start: String.Index, to stop: String.Index) -> Bool {
+        var part = 0
+        var partIsHex = true
+        var isPath = false
+        var isCall = false
+        var isClosed = false
+        var index = start
+        // A part of 32 hex letters or more would pass the entropy rule on its own, so it is not a name.
+        func endsPart() -> Bool { part > 0 && !(part >= 32 && partIsHex) }
+        while index < stop {
+            read += 1
+            let character = text[index]
+            index = text.index(after: index)
+            if isClosed { return false }
+            if character == ";" || character == "," {
+                guard isCall || endsPart() else { return false }
+                isClosed = true
+            } else if isCall {
+                return false
+            } else if character.isASCII, character.isLetter || character == "_" || character == "$" {
+                part += 1
+                partIsHex = partIsHex && character.isHexDigit
+            } else if character == "." {
+                guard endsPart() else { return false }
+                (part, partIsHex, isPath) = (0, true, true)
+            } else if character == "(", index < stop, text[index] == ")", endsPart() {
+                read += 1
+                index = text.index(after: index)
+                isCall = true
+            } else {
+                return false
+            }
+        }
+        return (isCall || isClosed || endsPart()) && (isPath || isCall)
     }
 
     /// The run of unquoted value characters that `start` stands in, read once however many keywords share it.
