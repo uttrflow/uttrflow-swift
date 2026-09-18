@@ -322,7 +322,7 @@ final class SuggestionCoordinator {
         let read = front == ownBundleIdentifier ? nil : await FocusedFieldReader.read()
         guard turns.isCurrent(number) else { return }
         Self.log.debug(
-            "TURN front=\(front, privacy: .public) read=\(read != nil) lineChars=\(read?.currentLine.count ?? -1) value=\(read?.value != nil) chars=\(read?.value?.count ?? -1) sel=\(read?.selection?.location ?? -1) caret=\(read?.caret != nil) role=\(read?.role ?? "-", privacy: .public) labelChars=\(read?.accessibilityDescription?.count ?? -1) identified=\(read?.identifier != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
+            "TURN front=\(front, privacy: .public) read=\(read != nil) lineChars=\(read?.currentLine.count ?? -1) value=\(read?.value != nil) units=\(read?.value?.utf16.count ?? -1) sel=\(read?.selection?.location ?? -1) caret=\(read?.caret != nil) role=\(read?.role ?? "-", privacy: .public) labelChars=\(read?.accessibilityDescription?.count ?? -1) identified=\(read?.identifier != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
         )
         guard front != ownBundleIdentifier, let snapshot = read else {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
@@ -564,18 +564,17 @@ final class SuggestionCoordinator {
         // The line being written is not a line written before, however long the pause that had it remembered.
         let recent = ((try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? [])
             .filter { !query.typed.hasPrefix($0) }
+        let preceding = snapshot.preceding(maxLength: Self.precedingContextLength)
         // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
         Self.log.debug(
-            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(snapshot.preceding(maxLength: Self.precedingContextLength)?.count ?? 0)"
+            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(preceding?.count ?? 0)"
         )
         return GenerationSituation(
             application: snapshot.applicationName,
             field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
-            document: snapshot.document,
-            preceding: snapshot.preceding(maxLength: Self.precedingContextLength),
+            document: snapshot.document, preceding: preceding,
             windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
-            isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole
-                || snapshot.value?.contains(where: \.isNewline) == true)
+            isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole || snapshot.holdsNewline)
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
@@ -613,7 +612,7 @@ final class SuggestionCoordinator {
         if case .applicationChanged = reason, let leaving = lastReading, leaving != reading {
             _ = try? await capture.handle(.applicationDeactivated(at: moment), in: leaving)
         }
-        let event = reason.event(holding: snapshot.currentLine, at: moment)
+        let event = reason.event(holding: snapshot.learnableLine, at: moment)
         guard let outcome = try? await capture.handle(event, in: reading) else { return }
         guard case .refused(let refusal) = outcome, refusal.asksTheUser else { return }
         // The Suggestions screen has already said yes to this application, so the capture store is told so.
