@@ -1632,7 +1632,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func apply(_ change: SettingsChange) {
         // A request to act now rather than a change, so there is no `Settings` to save.
         if change.isRequestToAct {
-            if case .checkForUpdatesNow = change { updates.checkForUpdates() }
+            switch change {
+            case .checkForUpdatesNow: updates.checkForUpdates()
+            case .chooseApplicationToTurnOffSuggestions:
+                // Applied through the Settings window, whose own copy of the settings would otherwise go stale.
+                ApplicationPicker.choose(given: settings.suggestions) { [weak self] identifier in
+                    self?.settingsWindow.apply(.suggestionsHere(application: identifier, isOn: false))
+                }
+            default: break
+            }
             return
         }
 

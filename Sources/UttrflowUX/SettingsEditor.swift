@@ -62,7 +62,7 @@ public enum SettingsEditor {
         case .pauseSuggestions(let isOn):
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
-        case .checkForUpdatesNow:
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions:
             // Named rather than left to a `default`, which would swallow the next case added.
             break
         }

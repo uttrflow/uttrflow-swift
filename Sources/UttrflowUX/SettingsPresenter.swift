@@ -456,7 +456,18 @@ public enum SettingsPresenter {
             preferences
             .knownApplications(learnedIn: personalisation.applicationsWithSuggestions)
             .flatMap { applicationRows($0, preferences, settings, personalisation) }
-        return SettingsGroup(id: "suggestionApplications", title: "Applications", rows: rows)
+        return SettingsGroup(
+            id: "suggestionApplications", title: "Applications", rows: rows + [addApplicationRow(settings)])
+    }
+
+    /// Turns suggestions off in an application before anything has been drawn or learned there.
+    static func addApplicationRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "addSuggestionApplication",
+            label: "Turn off in another application",
+            explanation: "Keeps AI suggestions out of an application before anything is learned there.",
+            control: .action(title: "Add Application…", change: .chooseApplicationToTurnOffSuggestions),
+            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff)
     }
 
     /// One application: its switch, the key that accepts there, and what it has taught.
