@@ -373,9 +373,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Finishes the dictation in flight before letting the process die, but not for ever.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let pipeline else { return .terminateNow }
+        guard let pipeline else {
+            // The clipboard's held uses are written first, so a quit does not cost the eviction order.
+            Task { [clipboard] in
+                await clipboard.flushUse()
+                NSApplication.shared.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
 
-        Task { [weak self, pipeline] in
+        Task { [weak self, pipeline, clipboard] in
+            await clipboard.flushUse()
             // A recording waits on the user, not the app, and the key may never come up.
             if await pipeline.currentState.isListening { await pipeline.finishRecording() }
 
@@ -911,18 +919,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             _ = try await clipboard.setRichText(note, of: id, keeping: retention)
         case .renameCategory(let from, let to):
             // Every clip under the old name moves; no alias is touched, because a collection is a shelf.
-            for clip in await clipboard.clips(keeping: retention) where clip.category == from {
-                _ = try await clipboard.setCategory(to, of: clip.id, keeping: retention)
-            }
+            _ = try await clipboard.moveCategory(from, to: to, keeping: retention)
         case .deleteCategory(let name, let destination):
-            for clip in await clipboard.clips(keeping: retention) where clip.category == name {
-                _ = try await clipboard.setCategory(
-                    destination, of: clip.id, keeping: retention)
-            }
+            _ = try await clipboard.moveCategory(name, to: destination, keeping: retention)
         case .deleteCategoryAndClips(let name):
-            for clip in await clipboard.clips(keeping: retention) where clip.category == name {
-                _ = try await clipboard.delete(clip.id, keeping: retention)
-            }
+            _ = try await clipboard.deleteCategory(name, keeping: retention)
         case .restore(let clip):
             _ = try await clipboard.record(clip, keeping: retention)
             undoable = nil
