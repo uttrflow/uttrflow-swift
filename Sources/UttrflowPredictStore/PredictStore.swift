@@ -58,12 +58,32 @@ public actor PredictStore: PredictionStore {
         guard !typed.isEmpty else { return [] }
         let ids = try surfaceIdentifiers(of: surface)
         guard !ids.isEmpty else { return [] }
+        let here = try identifier(of: surface, creating: false)
         var exact: [Candidate] = []
         for id in ids { exact += try exactCandidates(surfaceIdentifier: id, typed: typed) }
+        exact = try withoutRetired(exact, here: here)
         guard exact.isEmpty else { return merged(exact) }
         var fuzzy: [Candidate] = []
         for id in ids { fuzzy += try fuzzyCandidates(surfaceIdentifier: id, typed: typed) }
-        return merged(fuzzy)
+        return merged(try withoutRetired(fuzzy, here: here))
+    }
+
+    /// Drops what was retired in this folder, even where another folder still offers it.
+    private func withoutRetired(
+        _ candidates: [Candidate], here: Int64?
+    ) throws(PredictStoreError) -> [Candidate] {
+        guard let here, !candidates.isEmpty else { return candidates }
+        let texts = Array(Set(candidates.map(\.text)))
+        let placeholders = Array(repeating: "?", count: texts.count).joined(separator: ", ")
+        let retired = Set(
+            try database.rows(
+                "SELECT text FROM entry WHERE surface_id = ? AND superseded_by IS NOT NULL AND text IN (\(placeholders))",
+                { statement in
+                    statement.bind(1, here)
+                    for (offset, text) in texts.enumerated() { statement.bind(Int32(offset + 2), text) }
+                }
+            ) { $0.text(0) })
+        return retired.isEmpty ? candidates : candidates.filter { !retired.contains($0.text) }
     }
 
     /// The lines this person recently entered in this field, each once, the ones from this document first.
@@ -88,6 +108,8 @@ public actor PredictStore: PredictionStore {
         return """
             SELECT text, MAX(last_used) AS used, MAX(surface_id = ?\(surfaces + 1)) AS here FROM entry
             WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
+              AND text NOT IN (
+                SELECT text FROM entry WHERE surface_id = ?\(surfaces + 1) AND superseded_by IS NOT NULL)
             GROUP BY text ORDER BY here DESC, used DESC LIMIT ?\(surfaces + 2)
             """
     }
@@ -281,12 +303,29 @@ public actor PredictStore: PredictionStore {
         try increment(.rejected, forText: text, in: surface)
     }
 
-    /// Marks an entry wrong and points at what replaces it, so it is never proposed again.
+    /// Marks an entry wrong in this folder and points at what replaces it, so it is never proposed here again.
     public func supersede(
         _ text: String, with replacement: String, in surface: Surface
     ) throws(PredictStoreError) {
-        guard let id = try identifier(of: surface, creating: false) else { return }
-        try markSuperseded(text, by: replacement, surfaceIdentifier: id)
+        try database.transaction { () throws(PredictStoreError) in
+            guard try supplier(of: text, in: surface) != nil,
+                let id = try identifier(of: surface, creating: true)
+            else { return }
+            // A line borrowed from another folder is retired here by a row that holds no uses of its own.
+            try database.run(
+                """
+                INSERT INTO entry (surface_id, text, text_lower, count, last_used, superseded_by)
+                VALUES (?, ?, ?, 0, 0, ?)
+                ON CONFLICT (surface_id, text) DO UPDATE SET superseded_by = excluded.superseded_by
+                """,
+                {
+                    $0.bind(1, id)
+                    $0.bind(2, text)
+                    $0.bind(3, text.lowercased())
+                    $0.bind(4, replacement)
+                })
+            try evictWeakest(surfaceIdentifier: id)
+        }
     }
 
     // MARK: - Forgetting
@@ -384,16 +423,32 @@ public actor PredictStore: PredictionStore {
         case rejected
     }
 
-    /// Adds one to a tally against an entry, doing nothing where the field was never typed in.
+    /// Adds one to a tally against the one entry that supplied the text, since evidence is summed across folders.
     private func increment(
         _ tally: Tally, forText text: String, in surface: Surface
     ) throws(PredictStoreError) {
-        guard let id = try identifier(of: surface, creating: false) else { return }
+        guard let entry = try supplier(of: text, in: surface) else { return }
         let column = tally.rawValue
-        try database.run("UPDATE entry SET \(column) = \(column) + 1 WHERE surface_id = ? AND text = ?") {
-            $0.bind(1, id)
-            $0.bind(2, text)
-        }
+        try database.run("UPDATE entry SET \(column) = \(column) + 1 WHERE id = ?") { $0.bind(1, entry) }
+    }
+
+    /// The entry a read of this field would have drawn the text from, this folder's own before another folder's.
+    private func supplier(of text: String, in surface: Surface) throws(PredictStoreError) -> Int64? {
+        try database.rows(
+            """
+            SELECT entry.id FROM entry JOIN surface ON surface.id = entry.surface_id
+            WHERE surface.bundle_id = ? AND surface.role = ? AND surface.locator = ? AND entry.text = ?
+            ORDER BY surface.scope = ? DESC, entry.superseded_by IS NULL DESC, entry.last_used DESC
+            LIMIT 1
+            """,
+            {
+                $0.bind(1, surface.bundleIdentifier)
+                $0.bind(2, surface.role)
+                $0.bind(3, surface.locator ?? "")
+                $0.bind(4, text)
+                $0.bind(5, surface.scope ?? "")
+            }
+        ) { Int64($0.integer(0)) }.first
     }
 
     /// Keeps a surface within its cap, dropping superseded entries first and then the weakest.

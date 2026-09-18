@@ -30,7 +30,9 @@ role, whatever locator the field publishes, and the page host or containing dire
 Retrieval asks the store for candidates matching what has been typed on the current line,
 and the store answers from every document of the same field in the same application: the
 same text learned in two folders is one candidate with its counts summed
-(`PredictStore.candidates`). When the corpus has nothing, the machine is asked
+(`PredictStore.candidates`). Feedback follows the same pooling: taking or refusing a line
+counts once, against this folder's own entry or else the folder that supplied it, and
+retiring a line hides it in this folder while the folder it was learned in keeps it. When the corpus has nothing, the machine is asked
 (`EnvironmentSource`); when the machine has nothing either, the model generates. The engine
 scores remembered candidates against the moment and answers with one `Suggestion` —
 `.silent`, `.certain`, `.choice` or `.minimised`; generated lines are drawn in the model's
