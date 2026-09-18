@@ -189,7 +189,7 @@ struct PasteConfirmationTests {
     }
 }
 
-/// A clock whose sleep lasts until the sleeping task is cancelled, then throws as the real one does, time moving to its deadline.
+/// A clock whose sleep lasts until its task is cancelled, then throws, time moving to its deadline.
 private final class CancellableClock: Clock, Sendable {
     typealias Instant = ScriptedClock.Instant
 
@@ -214,7 +214,8 @@ private final class CancellableClock: Clock, Sendable {
     func sleep(until deadline: Instant, tolerance: Duration?) async throws {
         defer { state.withLock { $0.offset = max($0.offset, deadline.offset) } }
         try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Void, any Error>) in
                 let cancelled = state.withLock { state -> Bool in
                     if !state.cancelled { state.waiting = continuation }
                     return state.cancelled
