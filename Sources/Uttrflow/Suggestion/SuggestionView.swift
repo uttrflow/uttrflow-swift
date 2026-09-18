@@ -48,7 +48,7 @@ struct SuggestionView: View {
         }
     }
 
-    /// What the accept key will add, finishing the user's line, and nothing else: the grey itself is the hint.
+    /// What the accept key will add, finishing the user's line, and nothing else: the grey, or its underline, is the hint.
     private func inlineLine(_ row: SuggestionPresentation.Row) -> some View {
         offer(row)
             .foregroundStyle(.primary.opacity(presentation.opacity))
@@ -94,6 +94,8 @@ struct SuggestionView: View {
     /// The ghost continuation, preceded by the typed characters struck through only when Tab would consume any.
     private func offer(_ row: SuggestionPresentation.Row) -> some View {
         var text = AttributedString(row.ghost)
+        // At full strength the grey no longer marks the offer, so a dotted underline does.
+        if presentation.underlinesGhost { text.underlineStyle = Text.LineStyle(pattern: .dot) }
         if row.isReplacement {
             var consumed = AttributedString(row.consumed)
             // The strike is the whole signal, so it takes the colour of the style around it.
