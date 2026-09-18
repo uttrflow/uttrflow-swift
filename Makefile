@@ -60,7 +60,7 @@ pii-audit: ## Prove no personal data is in the tree. Needs no build.
 
 .PHONY: log-audit
 log-audit: ## Prove no log message carries text a person typed, read or said. Needs no build.
-	@python3 Scripts/log_privacy_audit.py
+	@python3 Scripts/log_privacy_audit.py --self-test
 
 .PHONY: perf-budget
 perf-budget: ## Prove the source keeps to the energy and memory budget, and that each check still bites. No build.

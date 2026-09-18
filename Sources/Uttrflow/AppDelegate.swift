@@ -411,7 +411,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             completions = coordinator
             coordinator.start()
         } catch {
-            Self.log.error("the corpus would not open: \(String(describing: error), privacy: .public)")
+            Self.log.error("the corpus would not open: \(SuggestionLog.failure(error), privacy: .public)")
         }
     }
 
@@ -436,7 +436,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.suggestionModel = .ready
             } catch {
                 Self.log.error(
-                    "the suggestion model did not load: \(String(describing: error), privacy: .public)")
+                    "the suggestion model did not load: \(SuggestionLog.failure(error), privacy: .public)")
                 guard self?.modelAsk == ask else { return }
                 // Cleared, so turning the feature off and on tries again rather than staying dead all launch.
                 self?.isModelPreparing = false
@@ -1080,7 +1080,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 Self.log.info("clip inserted by \(String(describing: method), privacy: .public)")
             } catch {
                 // Every strategy refused, including the one that cannot.
-                let why = (error as? any UttrflowFailure)?.userMessage ?? String(describing: error)
+                let why = (error as? any UttrflowFailure)?.userMessage ?? SuggestionLog.failure(error)
                 Self.log.error("clip insertion failed: \(why, privacy: .public)")
             }
         }
@@ -1650,7 +1650,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             do {
                 try await change()
             } catch {
-                Self.log.error("store change failed: \(error.localizedDescription, privacy: .public)")
+                Self.log.error("store change failed: \(SuggestionLog.failure(error), privacy: .public)")
             }
             self?.refreshMainWindow()
         }

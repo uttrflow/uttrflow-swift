@@ -145,7 +145,7 @@ final class SuggestionCoordinator {
         do {
             try interceptor.start()
         } catch {
-            Self.log.error("tab-to-complete is off: \(String(describing: error), privacy: .public)")
+            Self.log.error("tab-to-complete is off: \(SuggestionLog.failure(error), privacy: .public)")
             return
         }
         interceptor.arm([])
@@ -719,7 +719,7 @@ final class SuggestionCoordinator {
                 try interceptor.start()
                 Self.log.error("the tap is back after resting \(Self.tapRestSeconds)s")
             } catch {
-                Self.log.error("the tap could not restart: \(String(describing: error), privacy: .public)")
+                Self.log.error("the tap could not restart: \(SuggestionLog.failure(error), privacy: .public)")
             }
         }
     }
