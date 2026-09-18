@@ -11,7 +11,10 @@ enum CodeShapes {
         if text.hasPrefix("#!") { return true }
         if isImportHeader(text) { return true }
         if isShellCommand(text) { return true }
-        return hasTwoSignals(in: CodeSample.of(text))
+        if isOneLineStatement(text) { return true }
+        let sample = CodeSample.of(text)
+        if isConfiguration(sample) { return true }
+        return hasTwoSignals(in: sample)
     }
 
     // MARK: - The signals
@@ -109,7 +112,7 @@ enum CodeShapes {
     /// Shell punctuation: a pipe, a chained command, a substitution, a redirect, a flag.
     nonisolated(unsafe) static let shellFragment = #/\s\|\s|\&\&|\$\(|\s>>?\s|\s--?[a-zA-Z]/#
 
-    // MARK: - The two that stand alone
+    // MARK: - The ones that stand alone
 
     /// A clip that opens by importing something, which carries no punctuation for a score to reach.
     nonisolated(unsafe) static let importHeader =
@@ -124,9 +127,98 @@ enum CodeShapes {
         "import", "from", "package", "using", "require", "#include", "#import",
     ]
 
+    /// Matches Python's `from package.module import name`, which names more than `importHeader` allows.
+    nonisolated(unsafe) static let fromImport =
+        #/from\h+[a-z_][\w.]*\h+import\h+(?:\*|\(?[\w.]+(?:\h+as\h+\w+)?(?:\h*,\h*[\w.]+(?:\h+as\h+\w+)?)*\)?)\h*/#
+
     static func isImportHeader(_ text: String) -> Bool {
         guard importKeywords.contains(where: text.hasPrefix) else { return false }
-        return String(text.prefix(while: { !$0.isNewline })).wholeMatch(of: importHeader) != nil
+        let line = String(text.prefix(while: { !$0.isNewline }))
+        return line.wholeMatch(of: importHeader) != nil || line.wholeMatch(of: fromImport) != nil
+    }
+
+    /// Caps the single line read as a statement; a longer one is left to the signals.
+    static let statementLimit = 2_000
+
+    /// Matches one SQL statement with its clause, read as a query rather than an instruction to select.
+    nonisolated(unsafe) static let sqlStatement =
+        #/
+        (?i)
+        (?: select \h+ (?: distinct \h+ )?
+                (?: \* | [\w.]+ (?: \h* , \h* [\w.]+ )+ | \w+ \( .*? )
+                \h+ from \h+ [\w.`"\[\]]+ .*
+            | select \h+ [\w.]+ \h+ from \h+ [\w.]+
+                \h+ (?: where \h+ [\w.]+ \h* (?: = | < | > | ! | \bin\b | \blike\b | \bis\b ) | order \h+ by | group \h+ by | limit \h+ \d ) .*
+            | select \h+ [\w.]+ \h+ from \h+ [\w.]+ \h* ;
+            | insert \h+ into \h+ [\w.`"\[\]]+ \h* (?: \( | values \b | select \b ) .*
+            | delete \h+ from \h+ [\w.]+ \h* (?: ; | where \h+ [\w.]+ \h* (?: = | < | > | ! | \bin\b | \blike\b | \bis\b ) .* )
+            | update \h+ [\w.]+ \h+ set \h+ [\w.]+ \h* = .*
+        )
+        /#
+
+    /// Matches one HTML element and its closing tag, whatever is written between them.
+    nonisolated(unsafe) static let htmlElement = #/<([A-Za-z][\w-]*)(?:\h[^<>]*)?>[^<>]*</\1\h*>/#
+
+    /// Recognises a one-line SQL statement or HTML element, neither of which reaches two signals.
+    static func isOneLineStatement(_ text: String) -> Bool {
+        guard text.utf8.count <= statementLimit, !text.contains(where: \.isNewline) else { return false }
+        if text.hasPrefix("<") { return text.wholeMatch(of: htmlElement) != nil }
+        // Refuses a sentence, which ends in punctuation that a statement does not.
+        guard let last = text.last, !".!?".contains(last) else { return false }
+        return text.wholeMatch(of: sqlStatement) != nil
+    }
+
+    /// Recognises a YAML mapping or a TOML table, whose lines carry no punctuation the signals know.
+    static func isConfiguration(_ sample: String) -> Bool {
+        let lines = sample.split(whereSeparator: \.isNewline).filter {
+            let trimmed = $0.drop(while: \.isWhitespace)
+            return !trimmed.isEmpty && !trimmed.hasPrefix("#")
+        }
+        guard lines.count >= 2 else { return false }
+        return isYAML(lines) || isTOML(lines)
+    }
+
+    /// Matches a key that starts lowercase, as configuration keys do and a label in prose does not.
+    nonisolated(unsafe) static let yamlKey = #/\h*[a-z_][\w.\-]*:(?:\h.*)?/#
+
+    /// Matches an item in a YAML list.
+    nonisolated(unsafe) static let yamlItem = #/\h*-(?:\h.*)?/#
+
+    /// Requires two or more keys, some nesting or a list, and nothing else; an email header has no nesting.
+    private static func isYAML(_ lines: [Substring]) -> Bool {
+        var keys = 0
+        var nested = false
+        for line in lines {
+            if line.wholeMatch(of: yamlKey) != nil {
+                keys += 1
+                if line.first?.isWhitespace == true { nested = true }
+            } else if line.wholeMatch(of: yamlItem) != nil {
+                nested = true
+            } else {
+                return false
+            }
+        }
+        return keys >= 2 && nested
+    }
+
+    /// Matches a TOML or INI table header, `[server]` or `[[servers]]`.
+    nonisolated(unsafe) static let tomlTable = #/\h*\[\[?[\w.\-" ]+\]\]?\h*/#
+
+    /// Matches a TOML assignment, `port = 8080`.
+    nonisolated(unsafe) static let tomlPair = #/\h*[\w.\-"]+\h*=\h*\S.*/#
+
+    /// Requires a table header first, then assignments and further headers only.
+    private static func isTOML(_ lines: [Substring]) -> Bool {
+        guard let first = lines.first, first.wholeMatch(of: tomlTable) != nil else { return false }
+        var pairs = 0
+        for line in lines.dropFirst() {
+            if line.wholeMatch(of: tomlPair) != nil {
+                pairs += 1
+            } else if line.wholeMatch(of: tomlTable) == nil {
+                return false
+            }
+        }
+        return pairs >= 1
     }
 
     /// Whether a one-line clip is a command or a pipeline; the command name is the only signal there is.
