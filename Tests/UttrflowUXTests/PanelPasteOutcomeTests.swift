@@ -69,8 +69,10 @@ struct PanelPasteOutcomeTests {
         case .copyAndSay(let text, let notice, _):
             #expect(!text.isEmpty)
             #expect(!notice.message.isEmpty, "copied, and said so")
-        case .closeAndInsertImage(let clip):
+        case .closeAndInsertImage(let clip), .copyImageAndSay(let clip, _), .closeAndCopyImage(let clip):
             #expect(clip.image != nil)
+        case .closeAndCopy(let text, _, _):
+            #expect(!text.isEmpty)
         case .say(let notice):
             // B8 — there was nothing to paste, and the panel says exactly that.
             #expect(!notice.message.isEmpty)

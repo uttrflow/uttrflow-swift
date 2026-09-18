@@ -62,6 +62,8 @@ public enum PanelOutcome: Sendable, Equatable {
     case insertImage(Clip)
     /// The picture this clip refers to is missing from disk, so there is nothing to paste.
     case pictureMissing(Clip)
+    /// The row's Copy: the clip goes to the clipboard, as a picture when it is one, and the panel closes.
+    case copy(Clip)
     /// Closed with nothing chosen. Whatever the user was doing is untouched.
     case dismissed
 }
@@ -186,12 +188,23 @@ extension PanelSnapshot {
     /// The same resolution with the formatting left behind; it passes the same obstacle check.
     func resolvingPlain(_ clip: Clip?) -> PanelResponse {
         guard let clip else { return stayingOpen }
+        // A picture has no formatting to leave behind, so ⌘ changes nothing about it.
+        if clip.image != nil { return resolving(clip) }
         switch insertion {
         case .atCaret:
             return PanelResponse(state: self, outcome: .insertPlain(clip))
         case .clipboardOnly(let obstacle):
             return PanelResponse(state: self, outcome: .copyOnly(clip, obstacle))
         }
+    }
+
+    /// The row's Copy, refused for a picture that has gone, since an empty clipboard is not a copy.
+    public func copying(_ id: Clip.ID) -> PanelResponse {
+        guard let clip = clip(id) else { return stayingOpen }
+        if clip.image != nil, missingImages.contains(clip.id) {
+            return PanelResponse(state: self, outcome: .pictureMissing(clip))
+        }
+        return PanelResponse(state: self, outcome: .copy(clip))
     }
 
     /// ⌘-click, which is ⌘-Return on the row under the pointer.
