@@ -396,7 +396,9 @@ public actor ClipboardStore {
         // A clipboard written before the split keeps its saved clips in the history file.
         let fromSavedFile = read(savedFile)
         savedOnDisk = fromSavedFile
-        let stored = fromSavedFile + read(file)
+        // A move interrupted between the two writes leaves a clip in both files, and the saved copy wins.
+        let savedIDs = Set(fromSavedFile.map(\.id))
+        let stored = fromSavedFile + read(file).filter { !savedIDs.contains($0.id) }
         let list = Self.interleaving(
             saved: stored.filter(\.isKept), history: stored.filter { !$0.isKept })
         wholeList = list
@@ -457,18 +459,33 @@ public actor ClipboardStore {
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
         wholeList = clips
 
-        // The permanent file first and only when it changed, so a refusing disk leaves the collection whole.
-        if nowSaved != wasSaved {
+        // Every clip reaches its new file before leaving its old one, so a refusing disk never loses one.
+        let bridge = Self.bridging(clips, from: wasSaved, into: nowHistory)
+        if bridge != wasSaved {
+            try persist(bridge, to: savedFile)
+            savedOnDisk = bridge
+        }
+        try persist(nowHistory, to: file)
+        if nowSaved != bridge {
             try persist(nowSaved, to: savedFile)
             savedOnDisk = nowSaved
         }
-        try persist(nowHistory, to: file)
 
         // Only the files that stopped being referenced, so a picture no read could vouch for is never touched.
         for name in before.subtracting(Set(clips.compactMap(\.image?.file))) {
             try? FileManager.default.removeItem(
                 at: imagesFolder.appending(path: name, directoryHint: .notDirectory))
         }
+    }
+
+    /// What the saved file holds while clips move: the new saved list, plus the old copy of any leaving it.
+    private static func bridging(
+        _ clips: [Clip], from wasSaved: [Clip], into nowHistory: [Clip]
+    ) -> [Clip] {
+        let leaving = Set(nowHistory.map(\.id)).intersection(wasSaved.map(\.id))
+        guard !leaving.isEmpty else { return clips.filter(\.isKept) }
+        let old = Dictionary(wasSaved.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return clips.compactMap { $0.isKept ? $0 : leaving.contains($0.id) ? old[$0.id] : nil }
     }
 
     /// Writes a whole list atomically, or removes its file when nothing is left to keep.

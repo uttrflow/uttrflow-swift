@@ -49,6 +49,17 @@ and one file cannot give two answers. Salvaging clip by clip is not attempted: o
 atomic, so the realistic corruption is a whole file somebody mangled, and half a clipboard
 restored is harder to explain than none.
 
+### Moving a clip between the files
+
+Pinning, filing or naming a clip moves it into the saved file; taking the last of those off moves
+it back. Each move writes the clip's destination before the file it is leaving, so a disk that
+refuses either write leaves at least one durable copy. Unpinning therefore writes the history
+first, while the saved file still holds the old copy, and only then rewrites the saved file.
+
+A move refused between its two writes leaves the clip in both files. Reading keeps the saved
+file's copy and drops the history's, so reopening finds exactly one clip, and the next write that
+succeeds removes the stale copy from the history.
+
 ### Migration from the single file
 
 A clipboard written before the split has its saved clips inside the history file. They are
