@@ -115,6 +115,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var selection: Clip.ID?
     /// The sheet over the list, or `nil`; held here because it changes what esc and Return mean.
     public var sheet: PanelSheet?
+    /// Keeps the formatting sheet last drawn, shared by every copy of this snapshot so an update does not diff again.
+    let formattingSheets = FormattingSheetMemo()
 
     /// Whether a delete can still be taken back; set by the app, which alone still holds the clip.
     public var canUndoDelete: Bool = false
