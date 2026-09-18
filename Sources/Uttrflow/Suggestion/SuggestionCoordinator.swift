@@ -139,6 +139,11 @@ final class SuggestionCoordinator {
         }
     }
 
+    /// Forgets every answer about which applications may be learned from, which a reset asks for.
+    func forgetEveryAnswer() async throws {
+        try await capture.forgetEveryAnswer()
+    }
+
     /// Arms the tap and starts watching, or says why it cannot.
     func start() {
         isStopped = false

@@ -184,7 +184,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         store: settingsStore,
         personalisation: FilePersonalisationStore(
             dictionary: dictionary, history: history, clipboard: clipboard,
-            met: { AppDelegate.applicationsTheLoopHasMet() }),
+            met: { AppDelegate.applicationsTheLoopHasMet() },
+            elsewhere: keptElsewhere()),
         onChange: { [weak self] settings in self?.settingsChanged(to: settings) },
         // Through the same switch the main window uses, so one choice is never applied two ways.
         onRequest: { [weak self] change in self?.apply(change) },
@@ -236,6 +237,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             path: CapturePreferencesFile.defaultFile(in: .applicationSupportDirectory)
                 .path(percentEncoded: false))
         return Set(file.load().consent.keys)
+    }
+
+    /// The files a full reset reaches that the settings module has no store for.
+    private func keptElsewhere() -> KeptElsewhere {
+        KeptElsewhere(
+            recordings: { [recordings] in try await recordings.discardEverything() },
+            snippets: { [snippets] in try await snippets.deleteEverything() },
+            suggestionConsent: { [weak self] in try await self?.forgetEveryConsentAnswer() })
+    }
+
+    /// Forgets which applications completions may learn from, through the running loop when there is one.
+    private func forgetEveryConsentAnswer() async throws {
+        if let completions {
+            try await completions.forgetEveryAnswer()
+            return
+        }
+        try CapturePreferencesFile(
+            path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)
+        ).remove()
     }
 
     /// Deletes a model that is on disk but will not load, and opens setup to download it again.

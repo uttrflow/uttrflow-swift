@@ -64,6 +64,26 @@ extension LocalStore {
         return names.contains { $0.hasPrefix(prefix) }
     }
 
+    /// Deletes every copy set aside from this name, or only those stamped before `cutoff` when one is given.
+    public static func removeSetAside(_ url: URL, stampedBefore cutoff: Date? = nil) throws {
+        let prefix = url.lastPathComponent + setAsideMarker
+        let folder = url.deletingLastPathComponent()
+        let names =
+            (try? FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false)))
+            ?? []
+        for name in names where name.hasPrefix(prefix) {
+            if let cutoff {
+                // A stamp that does not parse is kept, since its age cannot be known.
+                let stamp = name.dropFirst(prefix.count).split(separator: "-").first
+                guard let seconds = stamp.flatMap({ Int($0) }),
+                    Date(timeIntervalSince1970: Double(seconds)) < cutoff
+                else { continue }
+            }
+            try FileManager.default.removeItem(
+                at: folder.appending(path: name, directoryHint: .notDirectory))
+        }
+    }
+
     /// Renames an unreadable file to a timestamped name beside it, answering `nil` when it cannot be moved.
     static func setAside(_ url: URL, now: Date) -> URL? {
         let name = url.lastPathComponent
