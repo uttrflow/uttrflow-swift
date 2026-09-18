@@ -1445,6 +1445,7 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.microsoft.Word",
                 documentName: "Handover notes.docx"
             ),
+            mustNotAdd: ["don't"],
             destination: .document,
             mustBeginWith: "He",
             mustEndWith: "yet."
@@ -1511,12 +1512,13 @@ public enum EvaluationCorpus {
             id: "preposition-slip", category: .grammar,
             spoken: "she is good in maths and physics",
             expected: "She is good at maths and physics.",
-            mustKeep: ["maths", "physics"],
+            mustKeep: ["good at", "maths", "physics"],
             context: AppContext(
                 applicationName: "Microsoft Word",
                 bundleIdentifier: "com.microsoft.Word",
                 documentName: "Reference letter.docx"
             ),
+            mustNotAdd: ["good in"],
             destination: .document,
             mustBeginWith: "She",
             mustEndWith: "physics."
