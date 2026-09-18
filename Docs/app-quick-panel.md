@@ -143,3 +143,25 @@ drag. A resize from the left or bottom border moves the origin too and sets `pla
 through `onResize`, so a resize is remembered as exactly nothing. While dragging, the origin is
 clamped to the visible frame, because a borderless panel gets none of AppKit's protection and
 goes clean under the menu bar.
+
+## After the panel has closed
+
+Choosing a clip closes the panel before the paste, because insertion declines outright while
+Uttrflow is frontmost. So whatever goes wrong after that has no panel to say it on. The floating
+button says it instead, and VoiceOver hears it as an announcement at high priority, because
+that is where a dictation's outcome already appears and where the user's eye goes when nothing
+arrives.
+
+`PanelPasteReport.after(_:)` in `UttrflowUX` is the one decision, for text and pictures alike:
+
+| What happened | What is said |
+| --- | --- |
+| Text seen to arrive, or a target that cannot say | nothing, as for a dictation |
+| Text sent and never seen to arrive (`.unconfirmed`) | "Inserted — not confirmed", the dictation's own words |
+| Text left on the clipboard, or every strategy refused | "Copied — press ⌘V" |
+| A picture on the clipboard whose ⌘V was refused | "Copied — press ⌘V" |
+| A picture whose file went before Return | "That picture is no longer on this Mac" |
+
+A dictation under way owns the floating button, so the report is spoken but not drawn over it.
+The drawn report stays for as long as a dictation failure does and then gives the button back.
+When the floating button is turned off, the announcement is the only surface.
