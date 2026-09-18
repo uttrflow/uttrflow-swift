@@ -10,8 +10,9 @@ the two things that are not obvious from the code.
 | Resting grip | 9 × 34 | Three dots drawn straight on the desktop; no slab, because a slab around nine points reads as a box somebody forgot to delete. Six points of invisible hoverable padding all round. |
 | Hovered | orb 30 + hint 30 high | The orb keeps the grip's side so it stays under the pointer |
 | Listening / working | 32 high | Identical footprint, so the panel cannot change shape at the moment the key is released |
-| Quiet outcomes (inserted, nothing heard) | 26-point disc | A success needs no words: the text is already in the document |
-| Copied, not typed | 28 high, 64 wide at rest | ⌘V at rest; the sentence and the Fix button under the pointer |
+| Inserted | 26-point disc | A success needs no words: the text is already in the document |
+| Nothing heard, too short | 28 high, words up to 200 wide | The struck level with its sentence, readable at rest; a too-short hold says to hold longer |
+| Copied, not typed | 28 high | ⌘V and "Copied, not typed" at rest, kept up as long as a failure; the reason and the Fix button under the pointer |
 | Blocked | 262 × 40 | The only wide form, so after a run of discs it is unmistakably asking for something |
 | Speech model loading | 262 × 40 | The blocked form with an hourglass, in place of the resting grip for as long as the load runs. See `Docs/startup.md` |
 

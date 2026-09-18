@@ -586,7 +586,11 @@ public actor DictationPipeline {
                         try await speech.transcribe(
                             slice,
                             options: TranscriptionOptions(languageHint: language, vocabulary: words)))
-                } catch SpeechEngineError.nothingHeard, SpeechEngineError.audioTooShort {
+                } catch SpeechEngineError.audioTooShort {
+                    // Alone, a hold too brief to transcribe says so, since the fix is to hold longer.
+                    guard window != audio.samples.indices else { throw SpeechEngineError.audioTooShort }
+                    return Heard.nothing
+                } catch SpeechEngineError.nothingHeard {
                     // Only when there is nothing else: alone, silence is refused below.
                     guard window != audio.samples.indices else { throw SpeechEngineError.nothingHeard }
                     return Heard.nothing
