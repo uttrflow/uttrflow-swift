@@ -476,10 +476,10 @@ struct RuleBasedTransformerTests {
         #expect(try await sut.transform(request(spoken, destination: destination)).text == expected)
     }
 
-    @Test("cannot invent anything, whatever it is given")
+    @Test("cannot invent anything, whatever it is given, and writes Hindi in Latin letters")
     func neverInvents() async throws {
         let result = try await sut.transform(request("नमस्ते मैं आज आऊंगा"))
-        #expect(result.text.contains("नमस्ते"))
+        #expect(result.text == "Namaste main aaj aaunga.")
     }
 
 }

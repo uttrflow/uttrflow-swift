@@ -110,7 +110,9 @@ corpus measurement; a bad rewrite still has the meaning guard and the router ben
 
 **What the guard can and cannot read there.** Its tokeniser is ASCII-shaped, so a Devanagari
 draft is left to the base checks — emptiness, a preamble, the growth ratio, invented numbers —
-and the word-survival, place and churn checks compare nothing. That is deliberate and tested:
+and the word-survival, place and churn checks compare nothing. `scriptVerdict` is the exception:
+it romanises the draft and refuses a rewrite that translates it, is in another script, or repeats
+a worked example, so the answer is always a romanisation (`Docs/latin-output.md`). That is deliberate and tested:
 romanising is the most invasive thing the model is asked to do, and a guard that refused what it
 could not read would disable the model for every Hindi user.
 

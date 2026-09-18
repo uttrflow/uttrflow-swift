@@ -72,7 +72,7 @@ public enum MenuBarFeature: String, Sendable, Equatable, CaseIterable {
         switch self {
         case .dictation: "Dictation"
         case .clipboard: "Clipboard"
-        case .suggestions: "Suggestions"
+        case .suggestions: "AI Suggestions"
         }
     }
 }

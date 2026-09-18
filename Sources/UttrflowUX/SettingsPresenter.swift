@@ -23,7 +23,7 @@ public enum SettingsPresenter {
             case .dictation:
                 SettingsTabItem(tab: tab, title: "Dictation", symbolName: "mic")
             case .suggestions:
-                SettingsTabItem(tab: tab, title: "Suggestions", symbolName: "text.cursor")
+                SettingsTabItem(tab: tab, title: "AI suggestions", symbolName: "text.cursor")
             case .privacy:
                 SettingsTabItem(tab: tab, title: "Privacy", symbolName: "lock")
             }
@@ -284,8 +284,8 @@ public enum SettingsPresenter {
                 symbolName: "globe",
                 message:
                     "Mixing English and Hindi in one sentence is expected and handled. Tidying up "
-                    + "is strongest in English today — Hindi gets punctuation and spacing, not "
-                    + "rewriting."))
+                    + "is strongest in English today. Hindi is written in Latin letters the way people "
+                    + "type it — never Devanagari, never translated."))
     }
 
     // MARK: - Dictation
@@ -351,7 +351,7 @@ public enum SettingsPresenter {
     ) -> SettingsPane {
         SettingsPane(
             tab: .suggestions,
-            title: "Suggestions",
+            title: "AI suggestions",
             banner: suggestionModelBanner(settings, capabilities),
             groups: [
                 SettingsGroup(
@@ -396,7 +396,7 @@ public enum SettingsPresenter {
                 title: downloadingTitle(fraction),
                 message:
                     "Uttrflow is fetching the model that finishes your lines, about 3 GB, once. "
-                    + "Suggestions start when it lands.")
+                    + "AI suggestions start when it lands.")
         case .loading:
             return SettingsBanner(
                 symbolName: "clock",
@@ -408,13 +408,13 @@ public enum SettingsPresenter {
                 title: "Paused to free memory",
                 message:
                     "This Mac is short of memory, so the model that finishes your lines has been "
-                    + "set aside. Suggestions come back on their own once memory frees up.")
+                    + "set aside. AI suggestions come back on their own once memory frees up.")
         case .failed:
             return SettingsBanner(
                 symbolName: "exclamationmark.triangle",
                 title: "The model could not be fetched",
                 message:
-                    "Suggestions cannot run without it. Check your connection, then turn the "
+                    "AI suggestions cannot run without it. Check your connection, then turn the "
                     + "switch off and on again to try once more.")
         }
     }
@@ -492,7 +492,7 @@ public enum SettingsPresenter {
     static func applicationSentence(_ state: SuggestionApplicationState) -> String? {
         switch state {
         case .on: nil
-        case .turnedOff: "You turned suggestions off here."
+        case .turnedOff: "You turned AI suggestions off here."
         case .offByDefault:
             "Off to begin with: its own completion already reads the whole file."
         }

@@ -284,7 +284,7 @@ startup exception, but it is no longer silently discovered only after the first 
 ## The suggestion model
 
 `MLXCandidateScorer.prepare()` loads the suggestion model, and the app calls it whenever
-Suggestions is turned on or the weights are loaded again. It used to load through
+AI suggestions is turned on or the weights are loaded again. It used to load through
 `loadModelContainer(from: #hubDownloader(), …)`. The hub client asks the model host for the
 repository's file list before it looks in the cache, and its cache-only fast path needs a
 metadata file the cache on disk did not have, so every load on an online Mac opened an IP

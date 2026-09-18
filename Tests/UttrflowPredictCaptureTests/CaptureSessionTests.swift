@@ -78,6 +78,21 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.isEmpty)
     }
 
+    @Test("An accepted suggestion in a password field is refused and never recorded.")
+    func acceptedSuggestionInSecureFieldIsRefused() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        let secure = FieldReading(
+            bundleIdentifier: "com.example.terminal", role: "AXTextField",
+            subrole: "AXSecureTextField")
+
+        #expect(
+            try await session.accepted("suggested value", in: secure, at: start)
+                == .refused(.secureField))
+        #expect(await recorder.texts.isEmpty)
+    }
+
     @Test("An application nobody has opted into is refused, and says so, so the user can be asked.")
     func unknownApplicationIsRefused() async throws {
         let scratch = Scratch()
@@ -86,6 +101,31 @@ struct CaptureSessionTests {
         _ = try await session.handle(.keystroke("git status", at: start), in: terminal)
         let outcome = try await session.handle(.returnPressed(at: start), in: terminal)
         #expect(outcome == .refused(.consentNotGiven))
+        #expect(await recorder.texts.isEmpty)
+    }
+
+    @Test("An accepted suggestion in an unasked application is refused and never recorded.")
+    func acceptedSuggestionInUnaskedApplicationIsRefused() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder)
+
+        #expect(
+            try await session.accepted("git status", in: terminal, at: start)
+                == .refused(.consentNotGiven))
+        #expect(await recorder.texts.isEmpty)
+    }
+
+    @Test("An accepted suggestion in a declined application is refused and never recorded.")
+    func acceptedSuggestionInDeclinedApplicationIsRefused() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder)
+        try await session.record(.declined, for: "com.example.terminal")
+
+        #expect(
+            try await session.accepted("git status", in: terminal, at: start)
+                == .refused(.consentDeclined))
         #expect(await recorder.texts.isEmpty)
     }
 
@@ -109,6 +149,30 @@ struct CaptureSessionTests {
         #expect(
             try await session.handle(.returnPressed(at: start), in: terminal)
                 == .refused(.looksLikeSecret))
+        #expect(await recorder.texts.isEmpty)
+    }
+
+    @Test("An accepted secret-shaped suggestion is refused and never recorded.")
+    func acceptedSecretShapedSuggestionIsRefused() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        let secret = "export API_KEY=sk-ant-abcdefghijklmnop0123"
+
+        #expect(
+            try await session.accepted(secret, in: terminal, at: start)
+                == .refused(.looksLikeSecret))
+        #expect(await recorder.texts.isEmpty)
+    }
+
+    @Test("An accepted suggestion without a surface records nothing.")
+    func acceptedSuggestionWithoutSurfaceRecordsNothing() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder)
+        let nameless = FieldReading(bundleIdentifier: "", role: "AXTextField")
+
+        #expect(try await session.accepted("hello", in: nameless, at: start) == .nothing)
         #expect(await recorder.texts.isEmpty)
     }
 

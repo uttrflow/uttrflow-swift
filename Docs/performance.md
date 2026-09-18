@@ -171,8 +171,8 @@ to 12 GB in forty minutes of typing.
 `GPUBufferCache` now caps that cache at 256 MB for the process, and every pass through
 `MLXCandidateScorer` — a generation, an alternatives pass, a score — empties it when the
 pass ends, however it ends. `MLXCleanupModel` does the same around a rewrite. So turning
-suggestions off or leaving the Mac idle leaves the weights and at most the capped cache —
-in practice nothing. Turning suggestions off also releases the weights — see [the memory budget](#the-memory-budget).
+AI suggestions off or leaving the Mac idle leaves the weights and at most the capped cache —
+in practice nothing. Turning AI suggestions off also releases the weights — see [the memory budget](#the-memory-budget).
 
 Measured with `uttrflow-bakeoff gpu-memory` (Release, Gemma 3 4B QAT, 48 GB Apple silicon):
 forty passes over invented message threads of 120–310 words, every fourth pass cancelled
@@ -215,7 +215,7 @@ Measured on Release builds with `/usr/bin/time -l` and MLX's own counters, 48 GB
 | holder | loaded when | released when | cost |
 |---|---|---|---|
 | speech model, Whisper large-v3 turbo on CoreML | launch, `loadSpeechModel()` | quit | +114 MB footprint loaded, 267 MB peak footprint and 340 MB peak resident mid-dictation; the weights are file-mapped, so macOS can drop them itself |
-| suggestion model, Gemma 3 4B QAT on MLX | launch or the moment Suggestions is turned on, only for somebody who turned it on | Suggestions turned off; no query for 3 minutes on a Mac under 16 GB, 10 minutes otherwise; or quit | 2,485 MB of GPU memory, 3,036 MB at a pass's peak, 3,464 MB peak process footprint; anonymous, so nothing but a release frees it |
+| suggestion model, Gemma 3 4B QAT on MLX | launch or the moment AI suggestions is turned on, only for somebody who turned it on | AI suggestions turned off; no query for 3 minutes on a Mac under 16 GB, 10 minutes otherwise; or quit | 2,485 MB of GPU memory, 3,036 MB at a pass's peak, 3,464 MB peak process footprint; anonymous, so nothing but a release frees it |
 | MLX's buffer cache | during a pass | the end of every pass | capped at 256 MB, 0 MB between passes |
 | the recording | the shortcut | the end of the dictation | at most 15 MB: 240 s at 16 kHz in 4-byte samples |
 | clipboard thumbnails | the panel is drawn | least recently used first | at most 32 MB, see `Docs/clipboard-budget.md` |
@@ -267,7 +267,7 @@ typing, not through a meeting or a film.
 ### Under memory pressure
 
 `MemoryPressureSource` watches the kernel's pressure events. At a warning or a critical
-reading `AppDelegate` releases the suggestion model the same way, and the Suggestions screen
+reading `AppDelegate` releases the suggestion model the same way, and the AI suggestions screen
 says it is paused to free memory rather than going quiet. Once pressure is back to normal the
 model waits for the calm to last before it loads again — two minutes the first time — and
 `SuggestionModelPressure` doubles that wait, up to thirty minutes, each time a reload is
@@ -1107,7 +1107,7 @@ Both columns are what one sheet costs: before, that was two runs of the table.
 `TextDiffScalingTests` counts steps through `TextDiff.tally` rather than timing, and compares
 the diff with the table on 20,000 random small pairs.
 
-## Suggestions under Low Power Mode and thermal pressure
+## AI suggestions under Low Power Mode and thermal pressure
 
 A suggestion pass is the most expensive thing tab-to-complete does. Measured with
 `uttrflow-bakeoff complete --fixtures --model gemma3`, release build, under `/usr/bin/time -l`:
@@ -1202,7 +1202,8 @@ What the rows say, read against the clips rather than the percentages:
 - **Hinglish loses to the alphabet, not to the words.** The recogniser writes Hinglish in
   Devanagari, "deploy" and "issue" included, so a Latin-alphabet reference scores it as nearly all
   wrong while the words are right. The tidier romanises it when Apple's model accepts the passage,
-  which takes 170% to 63%; it declines most Hindi passages outright, which is issue 445.
+  which takes 170% to 63%; it declined most Hindi passages outright (issue 445), which was measured
+  before the rules romanised too (`Docs/latin-output.md`).
 - **Numbers and names are the English errors.** "4,250 dollars and 75 cents" is written "$4,250.75"
   (fair, but counted); "Jaxvale" becomes "Jack's Vale". Code identifiers are written as the
   recogniser chose to join them; "src" is heard as "source".

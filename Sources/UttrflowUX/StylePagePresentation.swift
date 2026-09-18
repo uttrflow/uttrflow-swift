@@ -114,9 +114,9 @@ public enum StylePagePresenter {
             callout: MainCallout(
                 symbolName: "globe",
                 message: """
-                    Tidying is strongest in English. Hindi and Hinglish get punctuation and \
-                    spacing, not rewriting — and anything Uttrflow does change shows up in \
-                    Corrections.
+                    Tidying is strongest in English. Hindi and Hinglish are written in Latin \
+                    letters the way people type them — never Devanagari, never translated — \
+                    and anything Uttrflow does change shows up in Corrections.
                     """))
     }
 

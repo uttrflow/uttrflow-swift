@@ -95,7 +95,7 @@ public enum SettingsEditor {
     }
 
     /// The one sentence every suggestion control that depends on the master switch is refused with.
-    static let suggestionsAreOff = "Turn suggestions on before choosing how they behave."
+    static let suggestionsAreOff = "Turn AI suggestions on before choosing how they behave."
 
     /// Refuses a suggestion control while the feature is off, so no change is accepted unacted on.
     private static func requireSuggestionsAreOn(in settings: Settings) throws(SettingsRejection) {

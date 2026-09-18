@@ -46,7 +46,7 @@ final class SuggestionCoordinator {
 
     private let store: PredictStore
     private let capture: CaptureSession
-    private let panel = SuggestionPanelController()
+    private let panel = SuggestionPanelController.shared
     private let interceptor = KeyInterceptor()
     private let acceptor: SuggestionAcceptor
     /// What the user has decided on the Suggestions screen, which the app hands over as it changes.
@@ -75,6 +75,8 @@ final class SuggestionCoordinator {
     private var session = SuggestionSession()
     private var monitors: [Any] = []
     private var activations: (any NSObjectProtocol)?
+    /// The Space and sleep observers, each of which leaves a ghost with no field under it.
+    private var spaceObservers: [any NSObjectProtocol] = []
     private var ticker: Timer?
     /// Whether the pause clock should be running, which it is only shortly after activity or while something is drawn.
     private var ticking = SuggestionTicking()
@@ -87,6 +89,8 @@ final class SuggestionCoordinator {
     private var turns = TurnGate()
     /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
     private var isInserting = false
+    /// True once the loop is stopped, so a turn still finishing draws nothing into the shared panel.
+    private var isStopped = false
     private var again: SuggestionReason?
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
@@ -137,6 +141,7 @@ final class SuggestionCoordinator {
 
     /// Arms the tap and starts watching, or says why it cannot.
     func start() {
+        isStopped = false
         do {
             try interceptor.start()
         } catch {
@@ -152,6 +157,8 @@ final class SuggestionCoordinator {
 
     /// Takes the surface away, disarms the tap and stops watching.
     func stop() {
+        isStopped = true
+        session.invalidate()
         interceptor.arm([])
         interceptor.stop()
         panel.hide()
@@ -166,6 +173,8 @@ final class SuggestionCoordinator {
         monitors = []
         if let activations { NSWorkspace.shared.notificationCenter.removeObserver(activations) }
         activations = nil
+        for observer in spaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        spaceObservers = []
     }
 
     // MARK: What wakes the loop
@@ -182,15 +191,45 @@ final class SuggestionCoordinator {
         let clicks = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.noteActivity()
+                self?.withdraw()
                 self?.wake(.tick)
             }
         }
         if let clicks { monitors.append(clicks) }
+        // A scroll carries the caret's line away under a ghost that stays put, so the ghost goes until a tick re-reads it.
+        let scrolls = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scrolled() }
+        }
+        if let scrolls { monitors.append(scrolls) }
         activations = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.applicationChanged() }
         }
+        for name in [
+            NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.screensDidSleepNotification,
+        ] {
+            spaceObservers.append(
+                NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) {
+                    [weak self] _ in MainActor.assumeIsolated { self?.withdraw() }
+                })
+        }
+    }
+
+    /// Takes the ghost and the keys it claims away, and voids every answer in flight, because the caret may have moved under it.
+    private func withdraw() {
+        session.invalidate()
+        generating?.cancel()
+        pendingWake?.cancel()
+        interceptor.arm([])
+        panel.hide()
+    }
+
+    /// Withdraws a ghost the scroll has left behind, once, and lets the clock redraw it where the caret now is.
+    private func scrolled() {
+        guard panel.isShowing, !isInserting else { return }
+        noteActivity()
+        withdraw()
     }
 
     /// Starts the pause clock if it is not running; every activity calls this.
@@ -221,19 +260,15 @@ final class SuggestionCoordinator {
         lastKeystroke = Date()
         // Counted in the session, so a Tab pressed before the next read cannot take an offer for the old line.
         session.keystrokeArrived()
-        // The line just changed, so a pass about its old prefix and a wake booked for it are both stale.
-        generating?.cancel()
-        pendingWake?.cancel()
+        // The line just changed, so the ghost at the old caret, a pass about the old prefix and a booked wake are all stale.
+        withdraw()
         wake(key == .return ? .returnPressed : .keystroke)
     }
 
     /// Another application came to the front, so whatever was being worked out for the last field is stale now.
     private func applicationChanged() {
         noteActivity()
-        generating?.cancel()
-        pendingWake?.cancel()
-        interceptor.arm([])
-        panel.hide()
+        withdraw()
         wake(.applicationChanged)
     }
 
@@ -398,7 +433,9 @@ final class SuggestionCoordinator {
     private func drawFresh(
         _ update: SuggestionUpdate, for snapshot: FocusedFieldSnapshot, turn number: Int
     ) async {
+        let keystrokesSeen = session.keystrokes
         guard let fresh = await FocusedFieldReader.read(), turns.isCurrent(number),
+            session.keystrokes == keystrokesSeen, session.isCurrent,
             reading(of: fresh) == reading(of: snapshot), fresh.currentLine == snapshot.currentLine
         else { return }
         lastSnapshot = fresh
@@ -583,7 +620,7 @@ final class SuggestionCoordinator {
 
     /// Draws whatever a turn with no field behind it settled on, which is always nothing.
     private func draw(_ step: SuggestionStep) {
-        guard case .settled(let update) = step else { return }
+        guard !isStopped, case .settled(let update) = step else { return }
         interceptor.arm(update.armed)
         panel.hide()
         lastReading = nil
@@ -592,6 +629,12 @@ final class SuggestionCoordinator {
 
     /// Arms the tap first and draws second, so no key is claimed that nothing is offering.
     private func draw(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot?) {
+        // A stopped loop, or an answer from a read that a key, click or switch has since overtaken, draws nothing and claims no key.
+        guard !isStopped, session.isCurrent else {
+            interceptor.arm([])
+            panel.hide()
+            return
+        }
         interceptor.arm(update.armed)
         // Nothing is drawn off the caret's line, so a field that reports no inline placement is left alone.
         guard update.suggestion != .silent, let snapshot, snapshot.placement == .inlineGhost,
@@ -602,7 +645,7 @@ final class SuggestionCoordinator {
         }
         panel.show(
             update.suggestion, typed: session.typed, placement: .inlineGhost, caret: caret,
-            window: snapshot.window, fieldPointSize: snapshot.pointSize,
+            window: snapshot.window, field: snapshot.field, fieldPointSize: snapshot.pointSize,
             selection: session.selection,
             acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
             fontFamily: snapshot.fontFamily)

@@ -67,7 +67,7 @@ private let quick = SpeechWindowing(
 struct DictationPipelineLanguageTests {
     /// A pipeline over a three-piece recording and a recogniser that reports `detected`, call by call.
     private func pipeline(
-        detecting detected: [LanguageCode]
+        detecting detected: [LanguageCode], speaking languages: [LanguageCode] = [.english]
     ) async -> (DictationPipeline, DriftingSpeechEngine) {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
@@ -76,7 +76,8 @@ struct DictationPipelineLanguageTests {
             DictationPipeline(
                 capture: capture, speech: speech, cleaner: PassThroughCleaner(),
                 context: FakeContextEngine(context: .fixture()), inserter: QuietInserter(),
-                windowing: quick, earlyPoll: .milliseconds(2)),
+                profile: UserProfile(preferredLanguages: languages), windowing: quick,
+                earlyPoll: .milliseconds(2)),
             speech
         )
     }
@@ -111,5 +112,48 @@ struct DictationPipelineLanguageTests {
         #expect(hints.count > first)
         #expect(hints[first] == nil)
         #expect(hints[(first + 1)...].allSatisfy { $0 == .hindi })
+    }
+
+    /// Issue 698: a Hinglish speaker's Hindi sentence after an English one was decoded as English and translated.
+    @Test(
+        "detects every piece for a speaker of English and Hindi, rather than holding the first piece's English"
+    )
+    func detectsEachPieceForBothLanguages() async {
+        let (pipeline, speech) = await pipeline(
+            detecting: [.english, .hindi, .hindi], speaking: [.english, .hindi])
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let hints = await speech.hints
+
+        #expect(hints.count > 1)
+        #expect(hints.allSatisfy { $0 == nil })
+    }
+
+    /// Issue 699: a short Hindi reply was detected as English words.
+    @Test("decodes every piece as Hindi for a speaker of Hindi alone")
+    func pinsHindiAlone() async {
+        let (pipeline, speech) = await pipeline(
+            detecting: [.english, .english, .english], speaking: [.hindi])
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let hints = await speech.hints
+
+        #expect(hints.count > 1)
+        #expect(hints.allSatisfy { $0 == .hindi })
+    }
+
+    @Test("listens by the languages adopted since it was built, from the next dictation on")
+    func adoptsTheProfile() async {
+        let (pipeline, speech) = await pipeline(detecting: [.english, .hindi, .hindi, .hindi, .hindi, .hindi])
+
+        await pipeline.adopt(profile: UserProfile(preferredLanguages: [.hindi]))
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let hints = await speech.hints
+
+        #expect(!hints.isEmpty)
+        #expect(hints.allSatisfy { $0 == .hindi })
     }
 }

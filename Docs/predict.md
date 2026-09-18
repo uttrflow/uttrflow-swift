@@ -85,7 +85,7 @@ both scorer and generator, and `AppDelegate` builds it. `PLAN.md` tracks the pha
 
 ## Turning it on
 
-Settings → Suggestions → **Finish what I am typing**. Off for everybody who has not asked
+Settings → AI suggestions → **Finish what I am typing**. Off for everybody who has not asked
 for it, and on from the moment the switch is thrown — the app builds the loop there and
 then rather than at the next launch. The same switch takes it away again.
 
@@ -104,17 +104,17 @@ has switched off since, and everything the corpus has learned from — so a swit
 off can always be found and turned back on.
 
 Where suggestions may be offered is where typing may be learned from: one decision, made on
-the Suggestions screen. The answer is kept in
+the AI suggestions screen. The answer is kept in
 `~/Library/Application Support/Uttrflow/predict-consent.v1.json`, written the first time the
 loop meets an application the screen already allows, and rewritten when a switch there moves.
 
 **Uttrflow used to ask in a modal instead**, the first time a value was committed in each
 application, bringing itself to the front over whatever the user was writing — and asking a
-question the Suggestions screen had already answered, since the turn cannot reach that point
+question the AI suggestions screen had already answered, since the turn cannot reach that point
 unless the application is switched on. An application the loop has met appears in the
 Applications list whether or not it has taught anything yet, so the switch is there to find;
 the promise the alert carried — kept on this Mac, in Uttrflow's own folder, never uploaded —
-is on the Suggestions pane beside it.
+is on the AI suggestions pane beside it.
 
 `Uttrflow` in that path is the folder this build writes under, and a development build
 writes under its own — see [development-build.md](development-build.md).
@@ -143,6 +143,26 @@ key monitor, a one-second tick that runs only shortly after activity (`Suggestio
 tap, the panel, and the corpus. It reads the field off the main thread, and a turn that
 takes longer than `SuggestionSession.turnBudgetInMilliseconds` draws nothing at all —
 answering a moment that has passed is worse than answering nothing.
+
+### One ghost, and only while it is true
+
+**There is one panel for the process** (`SuggestionPanelController.shared`), so a loop
+rebuilt when the feature is switched off and on draws in the same window as the loop it
+replaces, and a stopped loop draws nothing. The view is not animated: a new suggestion
+replaces the old one whole, measured before the panel is placed, so the two are never
+drawn in the same spot at once.
+
+**A ghost is withdrawn by anything that may move the caret** — a key, a click, a scroll, the
+application in front changing, a Space change or the display sleeping. Each one hides the
+panel, disarms the keys and calls `SuggestionSession.invalidate`, which voids every answer
+still being worked out: `resolve`, `resolveGenerated` and `expandGenerated` return nothing
+for a turn whose field read began before the latest key or move, and the coordinator draws
+only while `SuggestionSession.isCurrent`. The next turn reads the field again and draws at
+the caret where it now is.
+
+**A model line keeps the typed case.** A generated line that matches the typing only in
+another case continues it spelled as typed, so the ghost only adds to the line and Tab
+never re-cases what the user wrote.
 
 ### What counts as a value the user finished
 

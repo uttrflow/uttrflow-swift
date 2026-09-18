@@ -110,17 +110,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
     /// Where each permission is turned on by hand; the domain holds the pane as a symbol, not a URL.
     private static func open(_ pane: SystemSettingsPane) {
-        let address =
-            switch pane {
-            case .microphone:
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-            case .accessibility:
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-            case .appleIntelligence:
-                "x-apple.systempreferences:com.apple.Siri-Settings.extension"
-            }
-        guard let url = URL(string: address) else { return }
-        NSWorkspace.shared.open(url)
+        SystemSettingsOpener().open(pane)
     }
 }
 

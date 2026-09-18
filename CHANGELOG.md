@@ -9,6 +9,13 @@ versioning.
 Each released version is a git tag and a build at
 [uttrflow/releases](https://github.com/uttrflow/releases).
 
+## [Unreleased]
+
+### Changed
+- **Suggestions is now called AI suggestions.** The Settings tab and its heading, the menu
+  bar switch, the notes on that screen and what VoiceOver reads for a suggestion all use the
+  new name. Nothing you chose there changes: every setting is kept as it was.
+
 ## [2026.9.14] — 2026-09-14
 
 The first release named by its date. Nothing about updating changes: an installed copy of

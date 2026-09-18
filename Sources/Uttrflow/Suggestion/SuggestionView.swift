@@ -8,18 +8,14 @@ struct SuggestionView: View {
     var onDesiredSize: (CGSize) -> Void = { _ in }
 
     var body: some View {
-        form
-            .fixedSize()
+        // No animation: a replaced suggestion is swapped whole, so the old text is never drawn beside the new one.
+        CappedWidth(maximum: presentation.maximumWidth) { form }
             .onGeometryChange(for: CGSize.self) {
                 $0.size
             } action: {
                 onDesiredSize($0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            // Nil under Reduce Motion, which is the whole of honouring it here.
-            .animation(
-                presentation.animates ? .easeOut(duration: 0.12) : nil, value: presentation
-            )
             .accessibilityElement(children: .combine)
             .accessibilityLabel(presentation.accessibilityLabel)
     }
@@ -73,6 +69,8 @@ struct SuggestionView: View {
         HStack(alignment: .firstTextBaseline, spacing: presentation.pointSize * 0.4) {
             Text(verbatim: SuggestionPresentation.listPrefix)
             Text(verbatim: row.candidate)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
         .font(font(at: presentation.pointSize))
         .foregroundStyle(.primary.opacity(rowOpacity(row)))
@@ -81,6 +79,8 @@ struct SuggestionView: View {
     /// The keys that work the open list, in the dimmed style so they never compete with the candidates.
     private var footer: some View {
         Text(verbatim: presentation.footer)
+            .lineLimit(1)
+            .truncationMode(.tail)
             .font(font(at: presentation.pointSize * 0.82))
             .foregroundStyle(.primary.opacity(presentation.opacity * SuggestionPresentation.dimmedShare))
             .accessibilityHidden(true)
@@ -102,6 +102,8 @@ struct SuggestionView: View {
         }
         return Text(text)
             .font(font(at: presentation.pointSize))
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 
     /// The field's own face where it names one, else the system face, monospaced where even the size is unknown.
@@ -114,5 +116,32 @@ struct SuggestionView: View {
     private var fontDesign: Font.Design {
         presentation.prefersMonospaced ? .monospaced : .default
     }
+}
 
+/// Sizes its content at its own ideal width but never wider than the maximum, whatever the window around it offers.
+struct CappedWidth: Layout {
+    let maximum: CGFloat?
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        let width = cappedWidth(of: content)
+        let measured = content.sizeThatFits(ProposedViewSize(width: width, height: nil))
+        return CGSize(width: width, height: measured.height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+    ) {
+        guard let content = subviews.first else { return }
+        content.place(
+            at: bounds.origin, anchor: .topLeading,
+            proposal: ProposedViewSize(width: cappedWidth(of: content), height: nil))
+    }
+
+    /// The content's ideal width, cut to the maximum where there is one.
+    private func cappedWidth(of content: LayoutSubview) -> CGFloat {
+        let ideal = content.sizeThatFits(.unspecified).width
+        guard let maximum else { return ideal }
+        return min(ideal, maximum)
+    }
 }

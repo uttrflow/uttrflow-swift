@@ -155,8 +155,19 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Notes one key typed in the field, which makes whatever is on offer stale until a turn reads the line again.
     public mutating func keystrokeArrived() {
+        invalidate()
+    }
+
+    /// Notes a click, scroll, switch or anything else that may have moved the caret, so neither the offer drawn nor an answer in flight is drawn again.
+    public mutating func invalidate() {
         keystrokes += 1
     }
+
+    /// Whether what was last settled was worked out from a read that saw every key and move since, which is all that may stay on screen.
+    public var isCurrent: Bool { drawnAtKeystroke == keystrokes }
+
+    /// Whether the turn being answered read the field after the latest key or move, so its answer still describes the line.
+    private var answersTheLatestRead: Bool { pendingKeystroke == keystrokes }
 
     /// Takes one moment in one field and answers with what to do about it; `sawKeystrokes` is the count as its read began.
     public mutating func turn(
@@ -202,7 +213,9 @@ public struct SuggestionSession: Sendable, Equatable {
     public mutating func resolve(
         _ candidates: [Candidate], for query: SuggestionQuery, now: Date, elapsedMilliseconds: Int
     ) -> SuggestionResolution? {
-        guard query.generation == generation, query.surface == surface, let pending else { return nil }
+        guard query.generation == generation, query.surface == surface, answersTheLatestRead,
+            let pending
+        else { return nil }
         // A slow read has already cost the user the moment it answers about.
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return .settled(settle(.silent, silence: .overBudget))
@@ -225,9 +238,9 @@ public struct SuggestionSession: Sendable, Equatable {
     public mutating func resolve(
         _ verified: [Candidate], for request: VerificationRequest, now: Date, elapsedMilliseconds: Int
     ) -> SuggestionUpdate? {
-        guard request.generation == generation, request.surface == surface, let pending else {
-            return nil
-        }
+        guard request.generation == generation, request.surface == surface, answersTheLatestRead,
+            let pending
+        else { return nil }
         // A verdict reached after the moment it judges has already cost the user that moment.
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
@@ -241,11 +254,15 @@ public struct SuggestionSession: Sendable, Equatable {
         _ completions: [String], for query: SuggestionQuery, elapsedMilliseconds: Int,
         whenEmpty silence: Quieting.Reason = .nothingOffered
     ) -> SuggestionUpdate? {
-        guard query.generation == generation, query.surface == surface, let pending else { return nil }
+        guard query.generation == generation, query.surface == surface, answersTheLatestRead,
+            let pending
+        else { return nil }
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }
-        let usable = Self.drawable(completions, past: pending.typed)
+        let usable = Self.drawable(completions, past: pending.typed).map {
+            Self.keepingTypedCase($0, typed: pending.typed)
+        }
         guard let leader = usable.first else { return settle(.silent, silence: silence) }
         let others = Array(usable.dropFirst().prefix(Self.verifiedDepth - 1))
         let update = settle(
@@ -258,12 +275,14 @@ public struct SuggestionSession: Sendable, Equatable {
     public mutating func expandGenerated(_ others: [String], for query: SuggestionQuery) -> SuggestionUpdate?
     {
         // Quiet mode never draws a list, so the alternatives have nothing to add and the line stays as it is.
-        guard query.generation == generation, query.surface == surface, let pending, shownIsGenerated,
-            !isQuiet,
+        guard query.generation == generation, query.surface == surface, isCurrent, let pending,
+            shownIsGenerated, !isQuiet,
             case .certain(let leader) = suggestion
         else { return nil }
         // The leader goes through the same sieve first, so an alternative repeating it in any case is dropped with the other repeats.
-        let usable = Self.drawable([leader] + others, past: pending.typed).dropFirst()
+        let usable = Self.drawable([leader] + others, past: pending.typed).dropFirst().map {
+            Self.keepingTypedCase($0, typed: pending.typed)
+        }
         guard !usable.isEmpty else { return nil }
         let update = settle(
             .choice(leader: leader, others: Array(usable.prefix(Self.verifiedDepth - 1))), silence: nil)
@@ -278,6 +297,14 @@ public struct SuggestionSession: Sendable, Equatable {
         return lines.filter {
             $0 != typed && $0.lowercased().hasPrefix(lowered) && seen.insert($0.lowercased()).inserted
         }
+    }
+
+    /// The line with its opening characters spelled as the user typed them, so a ghost only adds and never re-cases what is on the line.
+    private static func keepingTypedCase(_ line: String, typed: String) -> String {
+        guard line.count > typed.count,
+            zip(line, typed).allSatisfy({ String($0).lowercased() == String($1).lowercased() })
+        else { return line }
+        return typed + line.dropFirst(typed.count)
     }
 
     /// Takes one keystroke the tap swallowed and answers with what it means.

@@ -1738,6 +1738,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 await self?.pipeline?.adopt(cleaner: tidier, destinationOverrides: overrides)
             }
         }
+        // The languages the user speaks steer recognition from the next dictation on.
+        if updated.profile != previous.profile {
+            let profile = updated.profile
+            Task { [weak self] in await self?.pipeline?.adopt(profile: profile) }
+        }
         // The master switch on the Suggestions screen is what builds and unbuilds the loop.
         if updated.suggestions != previous.suggestions {
             suggestionsChanged()
@@ -1836,8 +1841,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if outcome == .granted, settings.hotkey.heldModifier != nil {
                 startWatchingForTheShortcut()
             }
-        case .microphone, .appleIntelligence:
-            _ = await MicrophonePermissionGate().request()
+        case .microphone:
+            _ = await MicrophonePermissionGate().requestOrOpenSettings()
+        case .appleIntelligence:
+            SystemSettingsOpener().open(.appleIntelligence)
         }
     }
 }

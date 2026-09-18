@@ -11,7 +11,8 @@ extension MicrophonePermissionGate {
                     for: AVCaptureDevice.authorizationStatus(for: .audio)
                 )
             },
-            requestAccess: { await AVCaptureDevice.requestAccess(for: .audio) }
+            requestAccess: { await AVCaptureDevice.requestAccess(for: .audio) },
+            openSettings: { SystemSettingsOpener().open(.microphone) }
         )
     }
 }

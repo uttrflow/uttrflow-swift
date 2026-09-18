@@ -149,6 +149,7 @@ public enum FocusedFieldReader {
             selection: range.map { NSRange(location: $0.location, length: $0.length) },
             caret: range.flatMap { caret(field, at: $0) }.map { flip($0, below: flipped) },
             window: windowFrame(of: field).map { flip($0, below: flipped) },
+            field: frame(of: field).map { flip($0, below: flipped) },
             pointSize: style?.size,
             fontFamily: style?.family,
             isSecure: secure,
@@ -185,9 +186,13 @@ public enum FocusedFieldReader {
 
     /// The window's rectangle, which is what the strip stands on when no caret can be read.
     private static func windowFrame(of field: AXUIElement) -> CGRect? {
-        guard let window = element(field, kAXWindowAttribute),
-            let origin: CGPoint = SurfaceProbe.value(window, kAXPositionAttribute, .cgPoint),
-            let size: CGSize = SurfaceProbe.value(window, kAXSizeAttribute, .cgSize)
+        element(field, kAXWindowAttribute).flatMap(frame(of:))
+    }
+
+    /// An element's rectangle as Accessibility reports it, or nothing when it gives no position or no size.
+    private static func frame(of element: AXUIElement) -> CGRect? {
+        guard let origin: CGPoint = SurfaceProbe.value(element, kAXPositionAttribute, .cgPoint),
+            let size: CGSize = SurfaceProbe.value(element, kAXSizeAttribute, .cgSize)
         else { return nil }
         return CGRect(origin: origin, size: size)
     }

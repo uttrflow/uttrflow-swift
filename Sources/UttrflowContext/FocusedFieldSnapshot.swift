@@ -28,6 +28,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let caret: CGRect?
     /// The window's rectangle, in AppKit screen coordinates, which the strip stands on.
     public let window: CGRect?
+    /// The field's own rectangle, in AppKit screen coordinates, which a long ghost must not run past.
+    public let field: CGRect?
     /// The field's own type size, so the surface reads as part of the line it sits on.
     public let pointSize: CGFloat?
     /// The field's own font family, so the ghost is set in the face the line is.
@@ -54,6 +56,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         selection: NSRange? = nil,
         caret: CGRect? = nil,
         window: CGRect? = nil,
+        field: CGRect? = nil,
         pointSize: CGFloat? = nil,
         fontFamily: String? = nil,
         isSecure: Bool = false,
@@ -73,6 +76,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.selection = selection
         self.caret = caret
         self.window = window
+        self.field = field
         self.pointSize = pointSize
         self.fontFamily = fontFamily
         self.isSecure = isSecure

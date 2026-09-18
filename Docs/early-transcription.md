@@ -151,17 +151,22 @@ whole reason the early threshold is a sentence-length pause rather than any paus
 Snippets and the blank check run over the joined text, as before, so a trigger cannot
 be assembled across a piece boundary any more than across a sentence.
 
-The language is not re-decided at a boundary. Whisper detects a language per call, and a
-piece that is short, quiet or heavy with proper nouns can be detected as another one,
-which would decode the middle of a note as that language's phonetic guesswork. So the
-first piece that reports a language sets it for the dictation and every later piece is
-given it as a hint — one language per dictation, beside the one screen read and the one
-ranked vocabulary — and the next dictation detects afresh. Nothing is taken from
-`UserProfile.preferredLanguages`: it defaults to English for everyone and no setting
-changes it, so reading the hint from there would quietly end Hindi and Hinglish
-dictation. The cost, if the first piece is the one detected wrongly, is that the whole
-dictation is decoded in that language rather than one piece of it; the gain is that the
-pieces cannot disagree, and that N−1 detection passes are not run.
+How each piece gets its language follows the Languages setting, `ListeningLanguages`:
+
+- **Hindi alone ticked**: every piece is decoded as Hindi, so a short reply cannot be heard as
+  English syllables.
+- **English and Hindi ticked**: every piece detects its own language among the two. A speaker
+  who ticks both switches between sentences, and holding a Hindi sentence to the English of
+  the first piece has Whisper translate it or drop it (issue 698).
+- **Hindi not ticked**, which is also the default: the first piece that reports a language
+  sets it for the dictation and every later piece is given it as a hint, and the next
+  dictation detects afresh. A piece that is short, quiet or heavy with proper nouns can
+  otherwise be detected as the other language. English alone cannot pin English, because it
+  is everybody's default, and pinning it would end Hindi dictation for anyone who never opened
+  Settings.
+
+Whatever is ticked, dictation is written in Latin letters: the setting steers what
+recognition listens for, never the script.
 
 ### What cancelling means
 

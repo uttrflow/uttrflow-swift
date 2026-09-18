@@ -47,7 +47,7 @@ so neither arrow nor Return is ever claimed for one — Tab is the only way to t
 |---|---|
 | ⎋ | The suggestion goes; the dot stays |
 | ⎋⎋ | This field offers nothing more |
-| ⌥⎋ | Suggestions stop everywhere until turned back on |
+| ⌥⎋ | AI suggestions stop everywhere until turned back on |
 
 ⎋ with nothing drawn is not ours: it closes the application's own dialog, and a tap that
 swallows it is a tap the user has to quit the app to escape from.
@@ -199,6 +199,20 @@ continuation on the caret's line, exactly like a `.certain`. The first ↓ opens
 under the line — every candidate as `↳ text`, the highlighted one at ghost strength and
 the rest dimmer, then `take · next · dismiss` — and the list stays open while the highlight
 walks round, collapsing again only when the suggestion changes.
+
+## A ghost longer than the room it has
+
+**The ghost never runs past the field or the screen.** `SuggestionGeometry.availableWidth`
+measures from the caret to the field's right edge — `FocusedFieldSnapshot.field`, trusted
+only when it is wider than a caret and holds it — or to the screen's `visibleFrame` edge,
+whichever is nearer. `SuggestionPresentation.maximumWidth` carries that to the view, which
+sets every line on one line and ends what does not fit in an ellipsis. With less than
+`SuggestionGeometry.minimumWidth` of room nothing is drawn, rather than pulling the panel
+back over the characters already typed.
+
+**Tab still takes the whole suggestion.** What is cut is the drawing, not the offer: the
+gates judged a whole line and the acceptance applies that line, and VoiceOver reads it in
+full. Taking only what is visible would cut a word wherever the field happens to end.
 
 ## Not settled here
 

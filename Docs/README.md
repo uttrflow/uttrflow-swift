@@ -43,6 +43,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 |---|---|
 | [cleanup.md](cleanup.md) | What the tidier may do to your words |
 | [cleanup-design.md](cleanup-design.md) | Clean-up: the low-level design |
+| [latin-output.md](latin-output.md) | Latin letters only: the romaniser, the script guard and the last check |
 | [ai-model-output.md](ai-model-output.md) | What a small model does to dictation, and the guards that catch it |
 | [ai-context-line.md](ai-context-line.md) | The context line, measured |
 | [ai-correction-thresholds.md](ai-correction-thresholds.md) | Word correction: the numbers and why they are what they are |

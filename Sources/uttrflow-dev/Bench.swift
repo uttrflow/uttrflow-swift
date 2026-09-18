@@ -15,7 +15,8 @@ struct Bench: AsyncParsableCommand {
         abstract: "Dictate a list of clips through the whole pipeline, loading the recogniser once.",
         discussion: """
             Each line of JOBS is tab-separated: id, WAV path, vocabulary (comma-separated, may be empty), \
-            mode (rt plays in real time, fast hands the file over at once), and cleaner (shipping or rules). \
+            mode (rt plays in real time, fast hands the file over at once), cleaner (shipping or rules), and \
+            the languages the speaker speaks (comma-separated codes, default en). \
             Output is one line per event on standard output, prefixed BENCH and holding JSON.
             """
     )
@@ -79,6 +80,7 @@ struct Bench: AsyncParsableCommand {
         let pipeline = DictationPipeline(
             capture: playback, speech: speech, cleaner: cleaner, context: NoScreen(),
             inserter: PrintingInserter(), speechWords: { _ in vocabulary },
+            profile: UserProfile(preferredLanguages: job.languages),
             earlyPoll: .milliseconds(Int(earlyPoll * 1000)))
         let states = await pipeline.states()
         let watcher = Task { () -> (DictationState, ContinuousClock.Instant) in
@@ -109,7 +111,8 @@ struct Bench: AsyncParsableCommand {
 
         var result: [String: Any] = [
             "event": "result", "id": job.id, "mode": job.realTime ? "rt" : "fast",
-            "cleaner": job.rulesOnly ? "rules" : "shipping", "audio": audio.duration.inSeconds,
+            "cleaner": job.rulesOnly ? "rules" : "shipping",
+            "languages": job.languages.map(\.value).joined(separator: ","), "audio": audio.duration.inSeconds,
             "wait": keyUp.duration(to: at).inSeconds, "cpu": cost?.cpuSeconds ?? -1,
             "peakMB": megabytes(peak.bytes), "events": log.events(),
         ]
@@ -133,6 +136,8 @@ struct BenchJob {
     let vocabulary: [String]
     let realTime: Bool
     let rulesOnly: Bool
+    /// The profile's languages, which decide how each piece is given its language.
+    let languages: [LanguageCode]
 
     init(line: String) throws {
         let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
@@ -150,6 +155,12 @@ struct BenchJob {
         }
         realTime = mode == "rt"
         rulesOnly = cleaner == "rules"
+        let codes =
+            fields.count > 5 && !fields[5].isEmpty ? fields[5].split(separator: ",").map(String.init) : ["en"]
+        languages = codes.compactMap(LanguageCode.init)
+        guard languages.count == codes.count else {
+            throw ValidationError("Languages must be codes like en,hi: \(line)")
+        }
     }
 }
 

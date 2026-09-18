@@ -240,9 +240,9 @@ the first time, and it happens after the bytes have arrived. The onboarding Setu
 screen currently shows only download progress, so a user would watch a completed
 progress bar for over two minutes. Phase 7 has to cover compilation as part of setup.
 
-Hindi is transcribed into Devanagari rather than romanised Hinglish. Whether that is
-what a Hinglish speaker wants is a product question, not a technical one — worth
-asking real users before choosing.
+Hindi is transcribed into Devanagari rather than romanised Hinglish. The product question
+this raised is decided: dictation writes Latin letters only, Hindi romanised the way people
+type it and never translated, on every path (`Docs/latin-output.md`).
 
 ### Language confidence is now optional
 

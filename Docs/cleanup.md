@@ -12,6 +12,13 @@ what the shipping prompt and `TextTidy` already do, what the evaluation corpus f
 and what dictation tools in general are expected to handle — so the obvious cases are
 not missed.
 
+## Latin letters only
+
+**Uttrflow writes English/Latin script only. Hindi and Hinglish speech is romanised the way
+people type it, never written in Devanagari and never translated.** "हाँ ठीक है" becomes
+"Haan thik hai." on every path: a model's rewrite, the rules, and words no tidier touched.
+`Docs/latin-output.md` has the romaniser, the guard and the measurements.
+
 ## The one rule above the others
 
 **Remove and format; never compose.** The tidier may take words out only when they were
@@ -111,8 +118,9 @@ Removals and additions that lose or invent meaning, however tempting the polish.
   formatter does not lay lists out, and a break it adds is refused where there are no
   paragraphs to add one to. Both were accepted until the guard was shown the formatter: the
   layout check could see a break dropped and nothing else.
-- Changing the alphabet except Devanagari to the Latin transliteration people type
-  ("main aaj", never a translation).
+- Changing the alphabet, except writing Devanagari in the Latin letters people type ("main
+  aaj", never "मैं आज" and never a translation). That one change is not optional: it is made on
+  every path, by the rules as well as the model (`Docs/latin-output.md`).
 - Inventing or changing a number, date, name, amount or unit.
 - Completing a sentence the speaker abandoned. A trailing fragment stays a fragment.
 - Correcting a fact, dialect, or a grammatical choice that is clearly deliberate. Only
@@ -287,7 +295,7 @@ one model call per piece — is `Docs/cleanup-design.md`. Below is where things 
   joined, not inside one piece.
 - **A reply of three words or fewer goes to the rules alone** (`RulesAlone.shortReplies`,
   applied by `TransformerRouter` whenever the rules are on its route). Only when every
-  character is ASCII, so a Devanagari reply still reaches the model that romanises it, and
+  character is ASCII, so a Devanagari reply still reaches the model before the rules romanise it, and
   only when the recogniser doubted none of the words, since choosing a doubtful word's
   reading is the model's job and not the rules'. The recogniser already capitalises and
   punctuates a short reply, question marks included, and the passes do the rest, so the

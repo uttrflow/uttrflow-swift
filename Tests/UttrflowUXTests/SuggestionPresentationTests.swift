@@ -142,10 +142,10 @@ struct SuggestionPresentationTests {
         let terminal = SuggestionPresentation(.certain("ls -l"), typed: "ls ", acceptKey: .rightArrow)
         #expect(terminal.acceptGlyph == "→")
         #expect(terminal.footer == "→ take   ↓ next   ⎋ dismiss")
-        #expect(terminal.accessibilityLabel == "Suggestion: ls -l. Right Arrow to accept.")
+        #expect(terminal.accessibilityLabel == "AI suggestion: ls -l. Right Arrow to accept.")
         let editor = SuggestionPresentation(.certain("Sydney"), acceptKey: .optionTab)
         #expect(editor.acceptGlyph == "⌥⇥")
-        #expect(editor.accessibilityLabel == "Suggestion: Sydney. Option-Tab to accept.")
+        #expect(editor.accessibilityLabel == "AI suggestion: Sydney. Option-Tab to accept.")
         #expect(SuggestionPresentation(.certain("Sydney")).acceptKey == .tab)
     }
 
@@ -292,16 +292,16 @@ struct SuggestionPresentationTests {
         #expect(SuggestionPresentation(.minimised, appearance: opaque).style == .dot)
     }
 
-    @Test("Reduce Motion is the whole of whether the surface animates")
-    func reduceMotionStopsEverythingMoving() {
-        #expect(SuggestionPresentation(.certain("Sydney")).animates)
-        #expect(
-            !SuggestionPresentation(
-                .certain("Sydney"), appearance: SuggestionAppearance(reducesMotion: true)
-            ).animates)
+    @Test("The room after the caret is carried to the view, and a width that is no width is none")
+    func carriesTheMaximumWidth() {
+        #expect(SuggestionPresentation(.certain("Sydney")).maximumWidth == nil)
+        #expect(SuggestionPresentation(.certain("Sydney"), maximumWidth: 180).maximumWidth == 180)
+        for nonsense: CGFloat in [0, -4, .nan, .infinity] {
+            #expect(SuggestionPresentation(.certain("Sydney"), maximumWidth: nonsense).maximumWidth == nil)
+        }
     }
 
-    @Test("Reduce Motion does not change what is drawn, only whether it moves")
+    @Test("Reduce Motion does not change what is drawn")
     func reduceMotionLeavesTheStyleAlone() {
         let still = SuggestionPresentation(
             .certain("Sydney"), appearance: SuggestionAppearance(reducesMotion: true))
@@ -353,7 +353,7 @@ struct SuggestionPresentationTests {
     func labelForACertainSuggestion() {
         #expect(
             SuggestionPresentation(.certain("Sydney")).accessibilityLabel
-                == "Suggestion: Sydney. Tab to accept.")
+                == "AI suggestion: Sydney. Tab to accept.")
     }
 
     @Test("A choice names its alternatives after the leader")
@@ -361,21 +361,21 @@ struct SuggestionPresentationTests {
         #expect(
             SuggestionPresentation(.choice(leader: "Sydney", others: ["Sydenham", "Soho"]))
                 .accessibilityLabel
-                == "Suggestion: Sydney. Tab to accept. Alternatives: Sydenham, Soho.")
+                == "AI suggestion: Sydney. Tab to accept. Alternatives: Sydenham, Soho.")
     }
 
     @Test("A replacement says out loud how much of the user's own typing it takes back")
     func labelForAReplacement() {
         #expect(
             SuggestionPresentation(.certain("git commit -m"), typed: "gti c").accessibilityLabel
-                == "Suggestion: git commit -m. Tab to accept, replacing 4 characters.")
+                == "AI suggestion: git commit -m. Tab to accept, replacing 4 characters.")
     }
 
     @Test("A one-character replacement is counted in the singular")
     func labelForASingleCharacterReplacement() {
         #expect(
             SuggestionPresentation(.certain("git y"), typed: "git x").accessibilityLabel
-                == "Suggestion: git y. Tab to accept, replacing 1 character.")
+                == "AI suggestion: git y. Tab to accept, replacing 1 character.")
     }
 
     @Test("VoiceOver hears the whole line on offer, not the part still to be typed")
@@ -384,7 +384,7 @@ struct SuggestionPresentationTests {
             SuggestionPresentation(
                 .choice(leader: "Sydney", others: ["Sydenham"]), typed: "Syd"
             ).accessibilityLabel
-                == "Suggestion: Sydney. Tab to accept. Alternatives: Sydenham.")
+                == "AI suggestion: Sydney. Tab to accept. Alternatives: Sydenham.")
     }
 
     @Test("Once the highlight has moved, VoiceOver names the row Tab now takes")
@@ -394,7 +394,7 @@ struct SuggestionPresentationTests {
                 .choice(leader: "Sydney", others: ["Sydenham", "Soho"]),
                 selection: SuggestionSelection(index: 2, hasMoved: true)
             ).accessibilityLabel
-                == "Suggestion: Soho. Tab to accept. Alternatives: Sydney, Sydenham.")
+                == "AI suggestion: Soho. Tab to accept. Alternatives: Sydney, Sydenham.")
     }
 
     // MARK: - Equality

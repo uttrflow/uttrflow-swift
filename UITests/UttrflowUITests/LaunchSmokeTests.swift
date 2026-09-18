@@ -25,7 +25,7 @@ final class LaunchSmokeTests: XCTestCase {
         let settings = app.windows["Uttrflow Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10), "Settings never opened")
 
-        for pane in ["General", "Languages", "Dictation", "Suggestions", "Privacy"] {
+        for pane in ["General", "Languages", "Dictation", "AI suggestions", "Privacy"] {
             settings.buttons[pane].click()
             XCTAssertTrue(
                 settings.staticTexts[pane].waitForExistence(timeout: 5), "\(pane) drew nothing")

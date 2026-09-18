@@ -18,6 +18,8 @@ private struct SuggestionRequest {
     var placement: SuggestionPlacement = .inlineGhost
     var caret: CGRect?
     var window: CGRect?
+    /// The field's own rectangle, whose right edge a long ghost is cut at.
+    var field: CGRect?
     var fieldPointSize: CGFloat?
     /// Where the arrow keys have put the highlight, and whether they have moved it at all.
     var selection: SuggestionSelection = .untouched
@@ -27,9 +29,12 @@ private struct SuggestionRequest {
     var fontFamily: String?
 }
 
-/// Owns the panel the suggestion is drawn in.
+/// Owns the panel the suggestion is drawn in, one for the whole process so no two ghosts are ever on screen.
 @MainActor
 final class SuggestionPanelController {
+    /// The one panel every suggestion loop draws in, so a loop rebuilt by a settings change cannot leave a second one behind.
+    static let shared = SuggestionPanelController()
+
     private let panel: SuggestionPanel
     private let hostingView: NSHostingView<SuggestionView>
     private var request = SuggestionRequest()
@@ -60,6 +65,7 @@ final class SuggestionPanelController {
         placement: SuggestionPlacement,
         caret: CGRect? = nil,
         window: CGRect? = nil,
+        field: CGRect? = nil,
         fieldPointSize: CGFloat? = nil,
         selection: SuggestionSelection = .untouched,
         acceptKey: AcceptKey = .tab,
@@ -67,8 +73,8 @@ final class SuggestionPanelController {
     ) {
         request = SuggestionRequest(
             suggestion: suggestion, typed: typed, placement: placement, caret: caret,
-            window: window, fieldPointSize: fieldPointSize, selection: selection, acceptKey: acceptKey,
-            fontFamily: fontFamily)
+            window: window, field: field, fieldPointSize: fieldPointSize, selection: selection,
+            acceptKey: acceptKey, fontFamily: fontFamily)
         render()
     }
 
@@ -83,16 +89,31 @@ final class SuggestionPanelController {
     /// Exposed so a probe or a test can read back what was actually configured.
     var window: NSPanel { panel }
 
-    /// Redraws from the last request and this Mac's current display settings.
+    /// What the panel is drawing right now, which a test reads back.
+    var drawn: SuggestionPresentation { hostingView.rootView.presentation }
+
+    /// Redraws from the last request, measuring the new content before the panel is placed so old and new are never on screen together.
     private func render() {
+        let screen = visibleFrame
+        let room = request.caret.flatMap {
+            SuggestionGeometry.availableWidth(caret: $0, field: request.field, screen: screen)
+        }
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
-            acceptKey: request.acceptKey, fontFamily: request.fontFamily)
+            acceptKey: request.acceptKey, fontFamily: request.fontFamily, maximumWidth: room)
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
-        guard presentation.style != .hidden, reposition() else {
+        guard presentation.style != .hidden else {
+            panel.orderOut(nil)
+            return
+        }
+        let measured = hostingView.fittingSize
+        if measured.width > 0, measured.height > 0 {
+            panelSize = CGSize(width: measured.width.rounded(.up), height: measured.height.rounded(.up))
+        }
+        guard reposition() else {
             panel.orderOut(nil)
             return
         }
@@ -124,7 +145,8 @@ final class SuggestionPanelController {
         let wanted = CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
         guard wanted.width > 0, wanted.height > 0, wanted != panelSize else { return }
         panelSize = wanted
-        guard reposition() else { return }
+        guard drawn.style != .hidden else { return }
+        guard reposition() else { return panel.orderOut(nil) }
         panel.orderFrontRegardless()
     }
 
@@ -134,7 +156,7 @@ final class SuggestionPanelController {
         guard
             let anchor = SuggestionGeometry.anchor(
                 for: request.placement, caret: request.caret, window: request.window,
-                screen: visibleFrame, size: panelSize)
+                field: request.field, screen: visibleFrame, size: panelSize)
         else { return false }
         panel.setFrame(anchor.frame, display: true)
         return true

@@ -88,8 +88,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let pointSize: CGFloat
     /// Whether to set the ghost in a monospaced face, chosen when the field would not say what its own is.
     public let prefersMonospaced: Bool
-    /// Whether a change of state is allowed to animate.
-    public let animates: Bool
+    /// The widest the surface may draw, the room from the caret to the field's or screen's edge, past which text ends in an ellipsis.
+    public let maximumWidth: CGFloat?
     /// The share of the line's colour the ghost is drawn at, raised to full under a contrast setting.
     public let opacity: Double
     /// The key that takes the suggestion in this field, which the hint after the ghost must name truthfully.
@@ -104,7 +104,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
         fieldPointSize: CGFloat? = nil,
         appearance: SuggestionAppearance = .standard,
         acceptKey: AcceptKey = .tab,
-        fontFamily: String? = nil
+        fontFamily: String? = nil,
+        maximumWidth: CGFloat? = nil
     ) {
         self.acceptKey = acceptKey
         self.fontFamily = fontFamily
@@ -121,7 +122,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
         pointSize = Self.pointSize(fieldPointSize)
         // A field that reports neither size nor face is most often a terminal, where a monospaced default lines up.
         prefersMonospaced = fieldPointSize == nil && fontFamily == nil
-        animates = !appearance.reducesMotion
+        self.maximumWidth = maximumWidth.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
         // Faint grey is the intent; a contrast setting keeps the text but drops the transparency.
         opacity = appearance.demandsOpaqueGhost ? Self.opaqueGhostOpacity : Self.ghostOpacity
     }
@@ -143,8 +144,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
         guard let leader = inline else { return "" }
         let alternatives = rows.filter { !$0.isSelected }.map(\.candidate)
         let take = "\(acceptKey.spokenName) to accept\(Self.cost(of: leader))."
-        guard !alternatives.isEmpty else { return "Suggestion: \(leader.candidate). \(take)" }
-        return "Suggestion: \(leader.candidate). \(take) Alternatives: "
+        guard !alternatives.isEmpty else { return "AI suggestion: \(leader.candidate). \(take)" }
+        return "AI suggestion: \(leader.candidate). \(take) Alternatives: "
             + alternatives.joined(separator: ", ") + "."
     }
 

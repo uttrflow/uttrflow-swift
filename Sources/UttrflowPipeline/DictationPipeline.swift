@@ -27,7 +27,7 @@ public actor DictationPipeline {
     /// Where a retried dictation's words go, since the field they were meant for is gone.
     private let clipboard: any TextInserting
     private let clock: any Clock<Duration>
-    private let profile: UserProfile
+    private var profile: UserProfile
     /// How a recording is cut into pieces the recogniser and tidier take one at a time.
     private let windowing: SpeechWindowing
     /// How often the recording is looked at for a piece to work on while the key is held.
@@ -67,7 +67,7 @@ public actor DictationPipeline {
     private(set) var earlyReadsSettled = 0
     /// Ranked once per dictation, against the screen it began on, and given to every piece.
     private var dictationWords: [String]?
-    /// Detected by the first piece that reports one, and hinted to every later piece. See `Docs/early-transcription.md`.
+    /// Detected by the first piece that reports one, and hinted to later pieces as the profile's listening says. See `Docs/early-transcription.md`.
     private var dictationLanguage: LanguageCode?
 
     /// What the clean-up steps did to each piece of the dictation under way, reported as one when it ends.
@@ -125,6 +125,11 @@ public actor DictationPipeline {
         self.destinationOverrides = destinationOverrides
         // Nothing is being spoken, so nothing is owed the choices the last dictation ran under.
         if !isBusy { inUse = nil }
+    }
+
+    /// Takes the languages the user speaks as they stand now, for every dictation after this one.
+    public func adopt(profile: UserProfile) {
+        self.profile = profile
     }
 
     /// The tidier this dictation is being run with, which a mid-dictation change does not replace.
@@ -521,15 +526,17 @@ public actor DictationPipeline {
             from: appContext ?? AppContext(), overrides: runningOverrides)
         let joined = PieceJoiner.join(pieces, under: .standard(for: joining.destination))
         let whole = await finishMessage(joined, going: joining, seeing: appContext ?? AppContext())
+        // Dictation writes Latin letters only, whichever engine tidied the words or none did. See `Docs/latin-output.md`.
+        let written = LatinScript.enforced(whole.cleaned.text)
 
         // Inserting a blank would delete the user's selection, so it is refused like silence.
-        guard !whole.cleaned.text.isBlank else {
+        guard !written.isBlank else {
             await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
         }
 
         // Snippets after the tidier, whose punctuation is what stops a trigger crossing a sentence.
-        let expanded = await expand(whole.cleaned.text)
+        let expanded = await expand(written)
         guard !wasCancelled(mine) else { return }
 
         let changes = AppliedChanges(
@@ -569,8 +576,8 @@ public actor DictationPipeline {
     ) async throws -> Transcription? {
         let slice =
             AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
-        // One speaker does not change language between two halves of one utterance, so only the first piece detects.
-        let language = dictationLanguage
+        // A profile that speaks Hindi switches language between pieces, so only it detects every piece. See `Docs/speech-engines.md`.
+        let language = ListeningLanguages(profile: profile).hint(afterFirstPiece: dictationLanguage)
         let heard = try await metrics.measuring(.transcription, clock: clock) {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in

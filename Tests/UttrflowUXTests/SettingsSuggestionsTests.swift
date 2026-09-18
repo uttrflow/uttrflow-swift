@@ -67,7 +67,15 @@ struct SettingsSuggestionsPaneTests {
     func hasItsOwnTab() {
         let tabs = SettingsPresenter.tabs()
         #expect(tabs.map(\.tab) == SettingsTab.allCases)
-        #expect(tabs.first { $0.tab == .suggestions }?.title == "Suggestions")
+        #expect(tabs.first { $0.tab == .suggestions }?.title == "AI suggestions")
+    }
+
+    @Test("names the feature AI suggestions in the sidebar, the pane heading and the menu bar")
+    func namesTheFeatureAISuggestions() {
+        #expect(SettingsPresenter.tabs().first { $0.tab == .suggestions }?.title == "AI suggestions")
+        #expect(pane(switchedOn()).title == "AI suggestions")
+        #expect(MenuBarFeature.suggestions.title == "AI Suggestions")
+        #expect(SettingsEditor.suggestionsAreOff == "Turn AI suggestions on before choosing how they behave.")
     }
 
     @Test("offers the master switch off, which is what the feature ships as")

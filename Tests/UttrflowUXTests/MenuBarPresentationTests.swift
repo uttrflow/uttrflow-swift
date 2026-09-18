@@ -165,7 +165,7 @@ struct MenuBarContentsTests {
                 twoRecents[0].title, "Copy “\(twoRecents[0].title)”",
                 twoRecents[1].title, "Copy “\(twoRecents[1].title)”",
                 // The three halves of the product, each switched on its own.
-                "Dictation", "Clipboard", "Suggestions",
+                "Dictation", "Clipboard", "AI Suggestions",
                 "Open Uttrflow", "Settings…", "Quit Uttrflow",
             ])
         guard case .status = shown.items.first else {

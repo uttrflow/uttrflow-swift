@@ -209,7 +209,8 @@ private struct Script {
         }
         settled(update, generated: true)
         let usable = distinct(
-            completions.filter { $0 != query.typed && $0.lowercased().hasPrefix(query.typed.lowercased()) })
+            completions.filter { $0 != query.typed && $0.lowercased().hasPrefix(query.typed.lowercased()) }
+        ).map { spelledAsTyped($0, typed: query.typed) }
         guard elapsed <= budget else {
             #expect(update == .quiet(because: .overBudget))
             return
@@ -233,7 +234,8 @@ private struct Script {
             alternatives.filter {
                 $0.lowercased() != leader.lowercased() && $0 != query.typed
                     && $0.lowercased().hasPrefix(query.typed.lowercased())
-            })
+            }
+        ).map { spelledAsTyped($0, typed: query.typed) }
         #expect(session.suggestion.accepting == before.accepting)
         guard case .certain(let shown) = before, shown == leader, !usable.isEmpty else {
             #expect(expanded == nil)
@@ -353,6 +355,14 @@ private struct Script {
     /// Whether a drawn line adds something to the line under it.
     private func extends(_ text: String) -> Bool {
         text.lowercased().hasPrefix(asked.lowercased()) && text != asked
+    }
+
+    /// A longer line whose opening matches the typing in any case, spelled with the typing's own case there.
+    private func spelledAsTyped(_ line: String, typed: String) -> String {
+        guard line.count > typed.count,
+            zip(line, typed).allSatisfy({ String($0).lowercased() == String($1).lowercased() })
+        else { return line }
+        return typed + line.dropFirst(typed.count)
     }
 
     /// The lines with repeats in any case dropped, first occurrence kept, which is what a list may show.

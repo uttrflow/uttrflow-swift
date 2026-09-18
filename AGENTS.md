@@ -258,6 +258,19 @@ what is not yet, what is forbidden — and every change to the prompt or the rul
 measured against the corpus before it lands (`make bakeoff`). An agent proposing "make
 the output more polished" is proposing a rewrite; the answer is no.
 
+## Latin letters only — NON-NEGOTIABLE
+
+**Uttrflow writes English/Latin script only. Hindi and Hinglish speech is romanised the way
+people type it, never written in Devanagari and never translated.**
+
+"हाँ ठीक है" is inserted as "Haan thik hai" — not in Devanagari, and not as "Yes, okay".
+Uttrflow is not a translator. This binds every path that inserts dictated text: a model's
+rewrite, the rules, and the untidied fallback. The Languages setting steers what recognition
+listens for; it never chooses the output script. `Docs/latin-output.md` is how it is enforced
+and measured: the romaniser the rules use, the guard that refuses a translation, and the last
+check before insertion. A change that lets Devanagari or a translation reach the screen is a
+bug, whatever it improves.
+
 ## Rules that are not preferences
 
 **Never put a real email address or a real postal address in a fixture.** Use
