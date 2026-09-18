@@ -598,6 +598,13 @@ public enum EvaluationCorpus {
             expected: "Kya tum aaj ka PR review kar sakte ho?",
             mustKeep: ["PR", "review"]
         ),
+        // A repeated Hindi pronoun starts a fresh clause, so "sorry" here is an apology, not a correction.
+        .init(
+            id: "hinglish-apology-kept", category: .multilingual, language: .hindi,
+            spoken: "मैं late हूँ sorry मैं अभी आता हूँ",
+            expected: "Main late hoon, sorry, main abhi aata hoon.",
+            mustKeep: ["late"]
+        ),
     ]
 
     /// A notes document, where a spoken list is laid out and a sentence stays a sentence.

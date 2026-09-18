@@ -95,6 +95,20 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A Hindi pronoun heads a fresh clause as an English one does, so it cannot anchor a correction.
+    @Test(
+        "leaves a Hinglish apology and the clause before it",
+        arguments: [
+            "main late hoon sorry main abhi aata hoon",
+            "मैं late हूँ sorry मैं अभी आता हूँ",
+            "wo nahi aa raha actually wo kal aayega",
+            "hum ready hain sorry hum thoda late honge",
+        ]
+    )
+    func leavesHinglishClauses(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// Only a trigger phrase marks a correction; a phrase said twice over is a list far more often. See `Docs/cleanup.md`.
     @Test(
         "leaves a phrase repeated with no trigger exactly as it was said",
