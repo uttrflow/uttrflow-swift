@@ -228,8 +228,6 @@ enum WholeClipDetector {
     private static func isShellCommand(_ text: String) -> Bool {
         guard !text.contains(where: \.isNewline) else { return false }
         if text.hasPrefix("$ ") || text.hasPrefix("./") { return true }
-        return text.split(whereSeparator: { "|&;".contains($0) })
-            .compactMap { $0.split(whereSeparator: \.isWhitespace).first }
-            .contains { CodeShapes.commands.contains(String($0)) }
+        return CodeShapes.isShellCommandByCharacter(text)
     }
 }
