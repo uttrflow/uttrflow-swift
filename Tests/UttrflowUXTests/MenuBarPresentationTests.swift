@@ -225,6 +225,13 @@ struct MenuBarContentsTests {
         #expect(shown.command(.recover(.downloadSpeechModel)) == nil)
     }
 
+    /// A failure with nothing to offer leaves the row to the download, so a missing model is never a dead end.
+    @Test("offers the download under a failure that has no fix of its own")
+    func setupFillsAnEmptyFix() {
+        let shown = MenuBarPresenter.present(MenuBarState(failure: noWayOut, speechModel: .notInstalled))
+        #expect(shown.command(.recover(.downloadSpeechModel))?.title == "Finish Setup")
+    }
+
     /// A row that opens something else gets an ellipsis; the banner button stays plain either way.
     @Test("adds the ellipsis only where a menu should")
     func menuTitleEllipsis() {

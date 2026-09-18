@@ -549,7 +549,7 @@ public enum MenuBarPresenter {
         return items
     }
 
-    /// The download a missing or broken speech model needs, offered before any dictation has failed.
+    /// The download a missing or broken speech model needs, offered wherever no failure brings its own fix.
     static func setupAction(for speechModel: SpeechModelReadiness) -> FailureAction? {
         switch speechModel {
         case .notInstalled, .loadFailed:
