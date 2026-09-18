@@ -128,6 +128,19 @@ public actor ClipboardStore {
         return retained(saved, keeping: retention)
     }
 
+    /// Forgets every copy of one dictation, pinned or edited; `spoken` finds copies older than the link.
+    @discardableResult
+    public func deleteCopies(
+        ofDictation id: UUID, saying spoken: String?, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        let stored = loaded()
+        let left = stored.filter { !$0.isCopy(ofDictation: id, saying: spoken) }
+        guard left.count != stored.count else { return retained(stored, keeping: retention) }
+        let kept = retained(left, keeping: retention)
+        try save(kept)
+        return kept
+    }
+
     /// Removes every clip, pinned ones included, which is what resetting personalisation promises.
     public func forgetEverything() throws(ClipboardStoreError) {
         try save([])
@@ -271,7 +284,8 @@ public actor ClipboardStore {
     ) -> Clip {
         Clip(
             id: clip.id, text: text, kind: clip.kind, copiedAt: clip.copiedAt,
-            source: clip.source, origin: clip.origin, lastUsedAt: clip.lastUsedAt,
+            source: clip.source, origin: clip.origin, dictations: clip.dictations,
+            lastUsedAt: clip.lastUsedAt,
             language: clip.language, richText: richText, image: image,
             alias: clip.alias, category: clip.category, isPinned: clip.isPinned,
             timesCopied: clip.timesCopied)
@@ -284,6 +298,11 @@ public actor ClipboardStore {
             source: arrival.source,
             // Named rather than defaulted, so a repeat cannot quietly become a ⌘C.
             origin: previous.origin,
+            // Both dictations, so deleting either one still takes this clip with it.
+            dictations: previous.dictations
+                + arrival.dictations.filter {
+                    !previous.dictations.contains($0)
+                },
             // Copying something again is reaching for it, so the eviction clock moves too.
             lastUsedAt: arrival.copiedAt,
             // The arrival's, detected from the text recorded now and from this pasteboard.
