@@ -1420,7 +1420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     permissions: knownPermissions, entries: entries, corrections: corrections,
                     query: query(for: .dictation), shortcut: shortcut,
                     settings: settings, recordings: knownRecordings, retrying: retryingRecording,
-                    now: now)),
+                    now: now, speechModel: speechModelLoad)),
             history: HistoryPresenter.page(
                 for: HistorySnapshot(
                     entries: entries, query: query(for: .history), settings: settings,

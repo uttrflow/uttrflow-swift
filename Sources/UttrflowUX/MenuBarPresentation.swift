@@ -29,7 +29,8 @@ public enum SpeechModelReadiness: Sendable, Equatable {
         switch self {
         case .loading: .loading(elapsed: start.map { $0.duration(to: now) } ?? .zero)
         case .loadFailed: .failed
-        case .ready, .downloading, .notInstalled: nil
+        case .notInstalled: .missing
+        case .ready, .downloading: nil
         }
     }
 }
@@ -386,7 +387,7 @@ public enum MenuBarPresenter {
         case .loadFailed:
             return "Speech model didn't load"
         case .notInstalled:
-            return "Setup hasn't finished"
+            return SpeechModelLoad.missing.status
         case .ready:
             return switch state.activity {
             case .idle: "Ready"

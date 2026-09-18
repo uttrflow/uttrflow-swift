@@ -210,6 +210,15 @@ public enum MainPresenter {
         return nil
     }
 
+    /// The speech model's load as a page's empty state, with the download it needs when there is one.
+    public static func obstruction(for load: SpeechModelLoad) -> MainEmptyState {
+        MainEmptyState(
+            symbolName: load.isLoading ? "hourglass" : "arrow.down.circle",
+            title: load.title,
+            message: load.message,
+            action: load.recovery.map { MainAction(title: title(for: $0), intent: .recover($0)) })
+    }
+
     /// Restricted means a device policy; only the microphone is ever reported restricted by macOS.
     static func permissionError(
         for kind: PermissionKind, status: PermissionStatus
