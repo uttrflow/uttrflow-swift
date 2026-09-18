@@ -114,17 +114,17 @@ public final class HTTPAuthenticationService: AuthenticationService {
         // Any attempt still waiting is abandoned here rather than left holding a port.
         await abandonPending()
 
+        let pkce = PKCEPair(randomBytes: randomBytes(32))
+        let state = PKCEPair.base64URL(randomBytes(24))
+
         let listener = makeListener()
         let redirectURI: URL
         do throws(AccountError) {
-            redirectURI = try await listener.bind()
+            redirectURI = try await listener.bind(expecting: state)
         } catch {
             await listener.close()
             return try await beginDeviceSignIn(with: provider)
         }
-
-        let pkce = PKCEPair(randomBytes: randomBytes(32))
-        let state = PKCEPair.base64URL(randomBytes(24))
 
         var components = URLComponents(url: url("v1/auth/authorize"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
@@ -155,7 +155,8 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
         guard response.isSuccess else { throw refusal(response) }
         guard let started = decode(StartedDeviceSignIn.self, from: response.body),
-            let verificationURL = URL(string: started.verificationUriComplete ?? started.verificationUri)
+            let verificationURL = URL(string: started.verificationUriComplete ?? started.verificationUri),
+            Self.isOpenable(verificationURL)
         else {
             throw .providerRefused(description: "the server started a sign-in we could not read")
         }
@@ -173,6 +174,11 @@ public final class HTTPAuthenticationService: AuthenticationService {
             authorisationURL: verificationURL,
             state: state,
             method: .code(userCode: started.userCode, verificationURL: verificationURL))
+    }
+
+    /// Whether a server-supplied address is safe to hand to the system to open: `https` with a host.
+    static func isOpenable(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == "https" && !(url.host() ?? "").isEmpty
     }
 
     /// Waits however long the person takes to sign in; cancelling the task closes the port and abandons it.

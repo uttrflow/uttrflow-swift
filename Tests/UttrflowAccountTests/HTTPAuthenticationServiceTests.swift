@@ -74,6 +74,8 @@ struct HTTPAuthenticationServiceTests {
 
         // The port is bound before the browser opens, so a Mac that cannot bind one finds out first.
         #expect(listener.wasBound)
+        // The listener knows the state, so a callback carrying any other is refused at the port.
+        #expect(listener.expectedState == challenge.state)
         #expect(challenge.authorisationURL.path().hasSuffix("v1/auth/authorize"))
         #expect(value("client_id") == "uttrflow-mac")
         // The provider is spelled as Swift spells it; the backend parses either.
@@ -559,6 +561,32 @@ struct DeviceGrantTests {
         await #expect(throws: AccountError.self) {
             try await service.completeSignIn(try await service.beginSignIn(with: .google))
         }
+    }
+
+    /// The address is handed to the system to open, so only a web page is accepted.
+    @Test(
+        "refuses a verification address that is not https",
+        arguments: [
+            "file:///Applications/Calculator.app",
+            "x-apple.systempreferences:com.apple.preference.security",
+            "http://api.uttrflow.test/v1/auth/device",
+            "https:///v1/auth/device",
+            "javascript:alert(1)",
+        ])
+    func refusesAnAddressThatIsNotAWebPage(_ address: String) async throws {
+        let transport = StubTransport { _, _ in
+            Stub.json(Stub.StartedDevice(verificationURI: address, verificationURIComplete: address))
+        }
+
+        await #expect(throws: AccountError.self) {
+            _ = try await service(transport: transport).beginSignIn(with: .google)
+        }
+    }
+
+    @Test("accepts an https verification address whatever its capitalisation")
+    func acceptsHTTPS() {
+        #expect(HTTPAuthenticationService.isOpenable(safeURL("HTTPS://example.com/device")))
+        #expect(!HTTPAuthenticationService.isOpenable(safeURL("mailto:someone@example.com")))
     }
 
     @Test("passes on a refusal rather than polling through it")
