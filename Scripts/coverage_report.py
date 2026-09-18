@@ -158,9 +158,8 @@ EXCLUDED_FILES = {
         "is QuantizedLayerPlan, tested against safetensors headers"
     ),
     "UttrflowLocalModel/MLXCandidateScorer.swift": (
-        "downloads gigabytes and runs GPU inference; what is done with the score — the floor "
-        "it is read against, and the budget it is raced against — is Verification and Verifier, "
-        "both of which are tested against a scripted model"
+        "loads a model and runs GPU inference; the text its answers are read through is "
+        "CompletionText, and what is done with a score is Verification and Verifier, all tested"
     ),
 }
 
