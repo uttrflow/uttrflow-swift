@@ -180,6 +180,44 @@ before this Mac is ever wiped.
 A build with `SUFeedURL` set and no usable `SUPublicEDKey` is refused by `bundle.sh`
 check 4a: a feed with nothing to verify against installs whatever it is handed.
 
+`SUVerifyUpdateBeforeExtraction` is `true` in `Resources/Uttrflow-Info.plist`, so Sparkle
+checks the archive against `SUPublicEDKey` before it unpacks anything. The only substitute
+it accepts for that signature is a Developer ID signature from the running app's own team.
+Check 4a refuses a build with a feed and without this setting, `UpdateController` does not
+start the updater without it, and `UpdateConfigurationTests` fails if it leaves the plist.
+
+## A stable signing identity
+
+Every build without a Developer ID is signed ad hoc, and its designated requirement is
+`identifier "com.uttrflow.Uttrflow"` (`bundle.sh`, the signing step): it names the bundle
+identifier only. Privacy grants and keychain access follow the designated requirement, so a
+shipped build should be identified by a certificate as well.
+
+Recommended, in order of preference:
+
+1. **A Developer ID** (see "A real release"). The requirement then pins the team, the build
+   can be notarised, and Sparkle's Developer ID fallback becomes usable.
+2. **Until then, a self-signed code-signing identity kept only in a dedicated release
+   keychain** on the release Mac:
+   1. Create a keychain for it: `security create-keychain -P ~/Library/Keychains/uttrflow-release.keychain-db`.
+   2. In Keychain Access, Certificate Assistant, "Create a Certificate": a name such as
+      "Uttrflow Release Signing", identity type "Self Signed Root", certificate type
+      "Code Signing", stored in that keychain.
+   3. Note its SHA-1: `security find-identity -p codesigning ~/Library/Keychains/uttrflow-release.keychain-db`.
+   4. Change `bundle.sh` so a release-bound ad-hoc mode signs with `--sign <SHA-1>` and the
+      requirement `designated => identifier "com.uttrflow.Uttrflow" and certificate leaf = H"<SHA-1>"`,
+      and update check 6 to expect it.
+   5. Export the identity (`.p12`) and keep it with the exported EdDSA key; if the release
+      workflow signs, add it to the repository's secrets and import it into a temporary
+      keychain in `release.yml`.
+   6. Rehearse the first such update from the current published build: it installs on the
+      EdDSA signature, and the privacy grants are asked for once more because the
+      requirement changed. Later updates keep them.
+
+Nothing in the app grants trust by bundle identifier on its own: the single-instance
+hand-off and the check that skips reading Uttrflow's own windows compare identifiers, and
+neither unlocks anything.
+
 ## Where downloads live
 
 The public repository **[uttrflow/releases](https://github.com/uttrflow/releases)**. It
