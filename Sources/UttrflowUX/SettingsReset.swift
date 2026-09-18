@@ -230,12 +230,12 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
 
     /// Hands each of the level's targets to the store that owns it.
     public func carryOut(_ reset: SettingsReset) async throws(SettingsResetFailure) {
-        do {
-            for target in reset.targets { try await remove(target) }
-        } catch {
-            // Every store fails for the same reason, and the user's next move is the same.
-            throw SettingsResetFailure()
+        // Every target is tried even after one refuses, so one stuck store cannot keep the others' data.
+        var refused = false
+        for target in reset.targets {
+            do { try await remove(target) } catch { refused = true }
         }
+        if refused { throw SettingsResetFailure() }
     }
 
     /// One target, handed to whichever store owns it; ``SettingsSession`` owns the preferences.

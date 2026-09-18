@@ -89,15 +89,15 @@ public actor RecordingStore: RecordingKeeper {
     /// Deletes every recording kept for a retry, leaving only the one still being written.
     public func discardEverything() async throws {
         for id in settling.keys { await settle(id) }
-        let files =
-            (try? FileManager.default.contentsOfDirectory(
-                at: directory, includingPropertiesForKeys: nil)) ?? []
-        for file in files where file.pathExtension == "wav" {
-            let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent)
-            guard id == nil || id != open?.id else { continue }
-            try FileManager.default.removeItem(at: file)
-        }
+        let files = try LocalStore.contents(of: directory)
+            .map { directory.appending(path: $0, directoryHint: .notDirectory) }
+            .filter { file in
+                guard file.pathExtension == "wav" else { return false }
+                let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent)
+                return id == nil || id != open?.id
+            }
         last = nil
+        try LocalStore.removeEach(files)
     }
 
     public func waiting(now: Date) async -> [KeptRecording] {

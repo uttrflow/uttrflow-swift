@@ -653,8 +653,8 @@ public enum SettingsPresenter {
             label: "Reset personalisation",
             explanation:
                 "Puts Uttrflow back to a fresh install: your dictionary, history, clipboard, "
-                + "snippets, recordings kept for a retry and every preference on this screen "
-                + "are deleted from this Mac.",
+                + "snippets, learned completions and the apps they may learn from, recordings "
+                + "kept for a retry and every preference on this screen are deleted from this Mac.",
             control: .removal(
                 SettingsRemoval(
                     reset: .everything,

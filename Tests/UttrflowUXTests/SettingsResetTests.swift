@@ -667,6 +667,25 @@ struct SettingsResetLeftoverTests {
         }
     }
 
+    @Test("an owner that refuses does not keep the others from being reached")
+    func refusalDoesNotStopTheRest() async throws {
+        try await inATemporaryDirectory { directory in
+            let calls = Calls()
+            let store = FilePersonalisationStore(
+                dictionary: PersonalDictionaryStore(file: directory.appending(path: "dictionary.json")),
+                history: DictationHistoryStore(file: directory.appending(path: "history.json")),
+                clipboard: ClipboardStore(file: directory.appending(path: "clipboard.json")),
+                elsewhere: KeptElsewhere(
+                    recordings: { throw Refused() },
+                    snippets: { await calls.add("snippets") },
+                    suggestionConsent: { await calls.add("consent") }))
+            await #expect(throws: SettingsResetFailure.self) {
+                try await store.carryOut(.everything)
+            }
+            #expect(await calls.names == ["snippets", "consent"])
+        }
+    }
+
     @Test("the defaults reach nothing and refuse nothing")
     func defaultsDoNothing() async throws {
         let elsewhere = KeptElsewhere()

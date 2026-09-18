@@ -130,4 +130,27 @@ struct StoredListTests {
         let file = URL.temporaryDirectory.appending(path: "uttrflow-absent-\(UUID().uuidString)/list.json")
         try LocalStore.removeSetAside(file)
     }
+
+    @Test("Removing several files removes every one it can before reporting the one it could not.")
+    func removeEachKeepsGoing() throws {
+        let stuckFolder = try folder()
+        let stuck = stuckFolder.appending(path: "stuck")
+        let free = try folder().appending(path: "free")
+        for file in [stuck, free] { try Data("x".utf8).write(to: file) }
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: stuckFolder.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: stuckFolder.path)
+        }
+        #expect(throws: (any Error).self) { try LocalStore.removeEach([stuck, free]) }
+        #expect(!FileManager.default.fileExists(atPath: free.path))
+        #expect(FileManager.default.fileExists(atPath: stuck.path))
+    }
+
+    @Test("A folder that cannot be listed is a failure, not an empty folder.")
+    func unlistableFolderThrows() throws {
+        let root = try folder()
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: root.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.path) }
+        #expect(throws: (any Error).self) { try LocalStore.removeSetAside(root.appending(path: "list.json")) }
+    }
 }
