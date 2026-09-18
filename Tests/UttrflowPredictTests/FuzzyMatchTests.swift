@@ -3,7 +3,7 @@ import Testing
 @testable import UttrflowPredict
 
 /// The query as the matcher wants it.
-private func bytes(_ text: String) -> [UInt8] { Array(text.utf8) }
+private func bytes(_ text: String) -> [UInt32] { FuzzyMatch.units(text) }
 
 /// Edits from one string to the nearest opening of another.
 private func distance(_ query: String, _ candidate: String, within budget: Int = 3) -> Int {
@@ -106,6 +106,21 @@ struct MaskTests {
                 #expect(!matches || survives, "\(query) against \(text) was wrongly rejected")
             }
         }
+    }
+
+    @Test(
+        "Every measure counts Unicode scalars, so two Devanagari letters get the allowance two Latin ones do."
+    )
+    func unitsAreScalars() {
+        #expect(FuzzyMatch.units("नम").count == 2)
+        #expect(FuzzyMatch.units("cé").count == 2)
+        #expect(FuzzyMatch.budget(forQueryOfLength: FuzzyMatch.units("नम").count) == 0)
+        #expect(FuzzyMatch.budget(forQueryOfLength: FuzzyMatch.units("cé").count) == 0)
+        #expect(distance("आप", "आज नहीं") == 1)
+        #expect(distance("नम", "कल मिलते हैं") == 2)
+        #expect(distance("कल मोल", "कल मिलते हैं") == 1)
+        #expect(distance("caf", "café au lait") == 0)
+        #expect(distance("cafe", "café au lait") == 1)
     }
 
     @Test("A prefix is recognised without measuring any distance at all.")

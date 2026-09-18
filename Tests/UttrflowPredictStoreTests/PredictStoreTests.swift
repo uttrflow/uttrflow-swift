@@ -256,6 +256,34 @@ struct StoreMatchingTests {
         #expect(try await store.candidates(for: terminal, matching: "gt").isEmpty)
     }
 
+    @Test("Two Devanagari letters are too few to correct, as two Latin ones are.")
+    func shortDevanagariIsNotCorrected() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("कल मिलते हैं", in: terminal, at: moment)
+        try await store.record("आज नहीं", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "नम").isEmpty)
+        #expect(try await store.candidates(for: terminal, matching: "आप").isEmpty)
+    }
+
+    @Test("One slipped letter in six typed Devanagari letters is still found.")
+    func devanagariSlipIsCorrected() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("कल मिलते हैं", in: terminal, at: moment)
+        let found = try await store.candidates(for: terminal, matching: "कल मोल")
+        #expect(found.map(\.text) == ["कल मिलते हैं"])
+        #expect(found.first?.editDistance == 1)
+    }
+
+    @Test("An accented letter counts once, so two typed letters are too few to correct.")
+    func accentedLettersCountOnce() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("cèpes farcies", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "cé").isEmpty)
+    }
+
     @Test("An entry found to be wrong is never offered again, exactly or otherwise.")
     func supersededIsNeverOffered() async throws {
         let corpus = Corpus()
