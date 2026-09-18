@@ -264,6 +264,12 @@ load, and remembered completions are unaffected. A release the caller asked for 
 turned off — is never undone by a query. So on a small Mac the 3 GB is held while somebody is
 typing, not through a meeting or a film.
 
+That reload reads the weights from disk and nothing else: `ReleasableModel.reload()` passes no
+downloader, so a cache that is no longer whole — removed, cut short, or a first download left
+unfinished — makes it throw `WeightsNotOnDisk` rather than start a fetch of several gigabytes
+nobody asked for. `IdleReleasingModel` tells the app, which shows the model as needing to be
+fetched again; only turning the switch on, which shows progress, downloads.
+
 ### Under memory pressure
 
 `MemoryPressureSource` watches the kernel's pressure events. At a warning or a critical
