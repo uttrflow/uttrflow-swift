@@ -152,6 +152,7 @@ public enum FocusedFieldReader {
             field: frame(of: field).map { flip($0, below: flipped) },
             pointSize: style?.size,
             fontFamily: style?.family,
+            textColor: style?.color,
             isSecure: secure,
             isComposing: Composition.isComposing(
                 markedText: CompositionProbe.markedText(of: field),
@@ -232,6 +233,8 @@ public enum FocusedFieldReader {
         let size: CGFloat?
         /// The font family, so the ghost is set in the face the line is.
         let family: String?
+        /// The text colour, so the ghost reads against the field rather than against Uttrflow's appearance.
+        var color: TextColor?
     }
 
     /// One element of another application, compared the way Accessibility compares them, its answers kept once asked.
@@ -350,29 +353,56 @@ public enum FocusedFieldReader {
     /// The font in an attributed string: a Core Text font where AppKit put one, else the `AXFont` dictionary most applications answer with.
     static func typeStyle(inAttributed attributed: CFAttributedString) -> TypeStyle? {
         guard CFAttributedStringGetLength(attributed) > 0 else { return nil }
+        let color = textColor(inAttributed: attributed)
         if let font = CFAttributedStringGetAttribute(attributed, 0, kCTFontAttributeName, nil),
             CFGetTypeID(font) == CTFontGetTypeID()
         {
             // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
             let font = unsafeDowncast(font, to: CTFont.self)
-            return TypeStyle(size: CTFontGetSize(font), family: CTFontCopyFamilyName(font) as String)
+            return TypeStyle(
+                size: CTFontGetSize(font), family: CTFontCopyFamilyName(font) as String, color: color)
         }
-        guard
-            let described = CFAttributedStringGetAttribute(attributed, 0, Self.axFontKey as CFString, nil),
+        var size: CGFloat?
+        var family: String?
+        if let described = CFAttributedStringGetAttribute(attributed, 0, Self.axFontKey as CFString, nil),
             CFGetTypeID(described) == CFDictionaryGetTypeID()
+        {
+            // Checked by type ID above; a Core Foundation dictionary bridges to Foundation without AppKit.
+            let font = unsafeDowncast(described, to: CFDictionary.self) as NSDictionary
+            size = (font[Self.axFontSizeKey] as? NSNumber).map { CGFloat($0.doubleValue) }
+            family = font[Self.axFontFamilyKey] as? String
+        }
+        guard size != nil || family != nil || color != nil else { return nil }
+        return TypeStyle(size: size, family: family, color: color)
+    }
+
+    /// The text colour at the start of an attributed string, from the Accessibility key or the Core Text one.
+    static func textColor(inAttributed attributed: CFAttributedString) -> TextColor? {
+        let keys = [Self.axForegroundColorKey as CFString, kCTForegroundColorAttributeName]
+        for key in keys {
+            if let color = textColor(CFAttributedStringGetAttribute(attributed, 0, key, nil)) { return color }
+        }
+        return nil
+    }
+
+    /// A Core Graphics colour as sRGB, or nothing for a value that is not one or cannot be converted.
+    static func textColor(_ value: CFTypeRef?) -> TextColor? {
+        guard let value, CFGetTypeID(value) == CGColor.typeID,
+            let sRGB = CGColorSpace(name: CGColorSpace.sRGB)
         else { return nil }
-        // Checked by type ID above; a Core Foundation dictionary bridges to Foundation without AppKit.
-        let font = unsafeDowncast(described, to: CFDictionary.self) as NSDictionary
-        let size = (font[Self.axFontSizeKey] as? NSNumber).map { CGFloat($0.doubleValue) }
-        let family = font[Self.axFontFamilyKey] as? String
-        guard size != nil || family != nil else { return nil }
-        return TypeStyle(size: size, family: family)
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        let color = unsafeDowncast(value, to: CGColor.self)
+        guard let converted = color.converted(to: sRGB, intent: .defaultIntent, options: nil),
+            let channels = converted.components, channels.count >= 3
+        else { return nil }
+        return TextColor(red: Double(channels[0]), green: Double(channels[1]), blue: Double(channels[2]))
     }
 
     /// The attribute Accessibility describes a run's font under, which is a dictionary rather than a font object.
     private static let axFontKey = "AXFont"
     private static let axFontSizeKey = "AXFontSize"
     private static let axFontFamilyKey = "AXFontFamily"
+    private static let axForegroundColorKey = "AXForegroundColor"
 
     /// The screen rectangle of the selection's text-marker range, which web content answers where it answers nothing for a character range.
     private static func markerBounds(_ field: AXUIElement) -> CGRect? {

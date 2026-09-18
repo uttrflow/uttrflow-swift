@@ -9,7 +9,7 @@ struct SuggestionView: View {
 
     var body: some View {
         // No animation: a replaced suggestion is swapped whole, so the old text is never drawn beside the new one.
-        CappedWidth(maximum: presentation.maximumWidth) { form }
+        CappedWidth(maximum: presentation.maximumWidth) { form.background(backing) }
             .onGeometryChange(for: CGSize.self) {
                 $0.size
             } action: {
@@ -31,10 +31,28 @@ struct SuggestionView: View {
         }
     }
 
+    /// Draws a surface behind the ghost only where the field's colour is unknown, so the ghost has a background it was resolved for.
+    @ViewBuilder private var backing: some View {
+        if presentation.ink == .backed, presentation.style != .hidden {
+            RoundedRectangle(cornerRadius: presentation.pointSize * 0.2)
+                .fill(.background.opacity(SuggestionPresentation.backingOpacity))
+        }
+    }
+
+    /// Returns the ghost's colour at a share of its strength: the field's text colour where known, else the primary one.
+    private func ink(_ share: Double) -> Color {
+        switch presentation.ink {
+        case .field(let color):
+            Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: share)
+        case .backed:
+            Color.primary.opacity(share)
+        }
+    }
+
     /// All that is left after the user presses escape.
     private var dot: some View {
         Circle()
-            .fill(.primary.opacity(SuggestionPresentation.ghostOpacity))
+            .fill(ink(SuggestionPresentation.ghostOpacity))
             .frame(
                 width: SuggestionPresentation.dotDiameter,
                 height: SuggestionPresentation.dotDiameter)
@@ -51,7 +69,7 @@ struct SuggestionView: View {
     /// What the accept key will add, finishing the user's line, and nothing else: the grey itself is the hint.
     private func inlineLine(_ row: SuggestionPresentation.Row) -> some View {
         offer(row)
-            .foregroundStyle(.primary.opacity(presentation.opacity))
+            .foregroundStyle(ink(presentation.opacity))
     }
 
     /// Every candidate as a whole line, the one Tab takes at ghost strength and the rest dimmer, then the keys.
@@ -73,7 +91,7 @@ struct SuggestionView: View {
                 .truncationMode(.tail)
         }
         .font(font(at: presentation.pointSize))
-        .foregroundStyle(.primary.opacity(rowOpacity(row)))
+        .foregroundStyle(ink(rowOpacity(row)))
     }
 
     /// The keys that work the open list, in the dimmed style so they never compete with the candidates.
@@ -82,7 +100,7 @@ struct SuggestionView: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .font(font(at: presentation.pointSize * 0.82))
-            .foregroundStyle(.primary.opacity(presentation.opacity * SuggestionPresentation.dimmedShare))
+            .foregroundStyle(ink(presentation.opacity * SuggestionPresentation.dimmedShare))
             .accessibilityHidden(true)
     }
 

@@ -652,7 +652,7 @@ final class SuggestionCoordinator {
             window: snapshot.window, field: snapshot.field, fieldPointSize: snapshot.pointSize,
             selection: session.selection,
             acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
-            fontFamily: snapshot.fontFamily)
+            fontFamily: snapshot.fontFamily, textColor: snapshot.textColor)
     }
 
     // MARK: Accepting
