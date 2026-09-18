@@ -576,3 +576,148 @@ struct DeviceGrantTests {
         #expect(transport.requests(to: "/device/token").count == 1)
     }
 }
+
+// MARK: - Callers that need a token at the same moment
+
+/// A server that rotates the refresh token, refuses a spent one, and holds every refresh until released.
+private final class RotatingServer: BackendTransport {
+    /// The server's view of the session and the refreshes it is holding.
+    private struct State {
+        /// The one refresh token the server will still accept.
+        var live = "old-example"
+        /// How many sessions it has issued.
+        var issued = 0
+        /// Every refresh token spent, in arrival order.
+        var spent: [String] = []
+        /// Whether held refreshes have been let go.
+        var released = false
+        /// Refreshes waiting on `release()`.
+        var held: [CheckedContinuation<Void, Never>] = []
+    }
+
+    /// The profile `/me` answers with.
+    private let profile: Profile
+    /// The server's state.
+    private let state = Mutex(State())
+
+    /// A server answering `/me` with `profile`.
+    init(profile: Profile) {
+        self.profile = profile
+    }
+
+    /// How many refreshes have arrived.
+    var refreshes: Int { state.withLock { $0.spent.count } }
+
+    /// Lets every held refresh, and every later one, through.
+    func release() {
+        let held = state.withLock { state -> [CheckedContinuation<Void, Never>] in
+            state.released = true
+            defer { state.held = [] }
+            return state.held
+        }
+        for waiter in held { waiter.resume() }
+    }
+
+    /// Returns once `count` refreshes have arrived.
+    func waitForRefreshes(_ count: Int) async {
+        while refreshes < count { await Task.yield() }
+    }
+
+    /// Rotates on a live refresh token, refuses a spent one, and answers reads bearing an issued token.
+    func perform(_ request: BackendRequest) async throws(BackendUnreachable) -> BackendResponse {
+        let path = request.url.path()
+        if path.hasSuffix("/refresh") {
+            let token = request.jsonBody["refreshToken"] as? String ?? ""
+            await withCheckedContinuation { continuation in
+                let wait = state.withLock { state -> Bool in
+                    state.spent.append(token)
+                    guard !state.released else { return false }
+                    state.held.append(continuation)
+                    return true
+                }
+                if !wait { continuation.resume() }
+            }
+            return state.withLock { state -> BackendResponse in
+                guard token == state.live else { return BackendResponse(status: 401) }
+                state.issued += 1
+                state.live = "rotated-\(state.issued)"
+                var session = Stub.IssuedSession()
+                session.accessToken = "access-\(state.issued)"
+                session.refreshToken = state.live
+                return Stub.json(session)
+            }
+        }
+        guard request.headers["Authorization"]?.hasPrefix("Bearer access-") == true else {
+            return BackendResponse(status: path.hasSuffix("/sign-out") ? 204 : 401)
+        }
+        if path.hasSuffix("/me") { return Stub.json(profile, etag: "\"v1\"") }
+        return BackendResponse(status: 200, body: Data("avatar".utf8))
+    }
+}
+
+/// Two reads that both find no access token must spend the rotating refresh token once between them.
+@Suite("Renewing once for everybody")
+struct SharedRenewalTests {
+    /// The profile `/me` answers with.
+    private let signedIn = Fixture.profile(for: Fixture.entitlement(expiring: 86_400), validator: nil)
+
+    /// The service under test, talking to `server`.
+    private func service(_ server: RotatingServer, tokens: InMemoryTokenStore) -> HTTPAuthenticationService {
+        HTTPAuthenticationService(
+            baseURL: Stub.baseURL, transport: server, tokens: tokens,
+            verifier: Fixture.verifier, now: { Fixture.noon })
+    }
+
+    /// Launch reads the profile while the window asks for the avatar; a second spend would sign the Mac out.
+    @Test("shares one refresh between a profile read and an avatar read that overlap")
+    func overlappingReadsShareOneRefresh() async throws {
+        let server = RotatingServer(profile: signedIn)
+        let tokens = InMemoryTokenStore(refreshToken: "old-example")
+        let service = service(server, tokens: tokens)
+
+        let profile = Task { try await service.currentProfile(ifChangedFrom: nil) }
+        await server.waitForRefreshes(1)
+        let avatar = Task { await service.avatar(at: "/v1/me/avatar") }
+        while service.renewalsJoined < 1 && server.refreshes < 2 { await Task.yield() }
+        server.release()
+
+        #expect(try await profile.value.updatedProfile?.account == signedIn.account)
+        #expect(await avatar.value == Data("avatar".utf8))
+        #expect(server.refreshes == 1)
+        #expect(tokens.refreshToken() == "rotated-1")
+    }
+
+    /// A renewal answered after sign-out belongs to a session that is over, so it must not bring it back.
+    @Test("drops a renewal that finishes after the Mac signed out")
+    func aLateRenewalDoesNotUndoSignOut() async throws {
+        let server = RotatingServer(profile: signedIn)
+        let tokens = InMemoryTokenStore(refreshToken: "old-example")
+        let service = service(server, tokens: tokens)
+
+        let read = Task { try await service.currentProfile(ifChangedFrom: nil) }
+        await server.waitForRefreshes(1)
+        await service.signOut()
+        server.release()
+
+        #expect(try await read.value == .noCredential)
+        #expect(tokens.refreshToken() == nil)
+        #expect(await service.avatar(at: "/v1/me/avatar") == nil)
+    }
+
+    /// A refusal for a session already ended is not a second sign-out for whatever came after it.
+    @Test("does not report a refused renewal as a sign-out once the session has moved on")
+    func aLateRefusalIsNotASignOut() async throws {
+        let server = RotatingServer(profile: signedIn)
+        let tokens = InMemoryTokenStore(refreshToken: "spent-elsewhere")
+        let service = service(server, tokens: tokens)
+
+        let read = Task { try await service.currentProfile(ifChangedFrom: nil) }
+        await server.waitForRefreshes(1)
+        await service.signOut()
+        tokens.store("from-a-new-sign-in")
+        server.release()
+
+        #expect(try await read.value == .noCredential)
+        #expect(tokens.refreshToken() == "from-a-new-sign-in")
+    }
+}

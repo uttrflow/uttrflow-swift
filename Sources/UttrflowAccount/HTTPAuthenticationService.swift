@@ -72,6 +72,19 @@ public final class HTTPAuthenticationService: AuthenticationService {
     /// The attempt in flight; a second sign-in replaces the first and closes its port.
     private let pending = Mutex<Pending?>(nil)
 
+    /// Which session is current and the renewal shared by every caller that needs a token meanwhile.
+    private struct Session {
+        /// Moves on whenever a session begins or ends, so a renewal answering an older one is dropped.
+        var generation = 0
+        /// The one renewal in flight for `generation`, if any.
+        var renewal: Task<Result<Authorisation, AccountError>, Never>?
+        /// How many callers found a renewal already running and waited on it instead of starting one.
+        var joined = 0
+    }
+
+    /// The session's generation and its renewal in flight.
+    private let session = Mutex(Session())
+
     /// Wires the transport, stores and clocks; every default is the one the shipping app uses.
     public init(
         baseURL: URL,
@@ -284,7 +297,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
             // One retry only: a second 401 after a fresh token means the session is gone, not the token.
             if response.status == 401 {
-                switch try await renew() {
+                switch try await renew(replacing: token) {
                 case .sessionOver: return .signedOut
                 // Another caller met a 401 and cleared the credential; that caller acts on it, not this one.
                 case .noCredential: return .noCredential
@@ -309,7 +322,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         else { return nil }
 
         if response.status == 401 {
-            guard let renewed = try? await renew(), case .token(let token) = renewed,
+            guard let renewed = try? await renew(replacing: token), case .token(let token) = renewed,
                 let request = onBackend(get(address, token: token)),
                 let retried = try? await send(request)
             else { return nil }
@@ -365,7 +378,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
     // MARK: The session
 
     /// What asking for an access token produces.
-    private enum Authorisation {
+    private enum Authorisation: Sendable {
         /// A usable access token.
         case token(String)
 
@@ -385,23 +398,73 @@ public final class HTTPAuthenticationService: AuthenticationService {
         return try await renew()
     }
 
-    /// Mints a session from the refresh token; a 401 means this Mac is signed out.
-    private func renew() async throws(AccountError) -> Authorisation {
-        guard let refreshToken = tokens.refreshToken() else { return .noCredential }
+    /// How many callers have waited on a renewal somebody else started; read by tests.
+    var renewalsJoined: Int { session.withLock { $0.joined } }
 
-        let response = try await send(
-            post("v1/auth/refresh", RefreshBody(refreshToken: refreshToken, device: device?.registration())))
+    /// Joins the renewal in flight or starts one, unless a token other than `rejected` is already usable.
+    private func renew(replacing rejected: String? = nil) async throws(AccountError) -> Authorisation {
+        if let rejected, let current = access.withLock({ $0 }), current.value != rejected,
+            current.expiresAt.timeIntervalSince(now()) > Self.renewalMargin
+        {
+            return .token(current.value)
+        }
+
+        let renewal = session.withLock { state -> Task<Result<Authorisation, AccountError>, Never>? in
+            if let running = state.renewal {
+                state.joined += 1
+                return running
+            }
+            // Read under the lock, so the token spent belongs to the generation the answer is checked against.
+            guard let refreshToken = tokens.refreshToken() else { return nil }
+            let generation = state.generation
+            let started = Task { await self.performRenewal(spending: refreshToken, of: generation) }
+            state.renewal = started
+            return started
+        }
+        guard let renewal else { return .noCredential }
+        let outcome = await renewal.value
+        session.withLock { state in
+            if state.renewal == renewal { state.renewal = nil }
+        }
+        return try outcome.get()
+    }
+
+    /// Spends the refresh token once; a 401 signs this Mac out, and an answer for an older session is dropped.
+    private func performRenewal(
+        spending refreshToken: String, of generation: Int
+    ) async -> Result<Authorisation, AccountError> {
+        let response: BackendResponse
+        do {
+            response = try await send(
+                post(
+                    "v1/auth/refresh", RefreshBody(refreshToken: refreshToken, device: device?.registration())
+                ))
+        } catch {
+            return .failure(error)
+        }
 
         // Revoked, replayed or expired: all three mean this Mac is signed out.
         if response.status == 401 {
-            forgetSession()
-            return .sessionOver
+            let current = session.withLock { state -> Bool in
+                guard state.generation == generation else { return false }
+                endSession(&state)
+                return true
+            }
+            return .success(current ? .sessionOver : .noCredential)
         }
-        guard response.isSuccess, let session = decode(IssuedSession.self, from: response.body) else {
-            throw refusal(response)
+        guard response.isSuccess, let issued = decode(IssuedSession.self, from: response.body) else {
+            return .failure(refusal(response))
         }
-        try adopt(session)
-        return .token(session.accessToken)
+        do {
+            let current = try session.withLock { state throws(AccountError) -> Bool in
+                guard state.generation == generation else { return false }
+                try adopt(issued)
+                return true
+            }
+            return .success(current ? .token(issued.accessToken) : .noCredential)
+        } catch {
+            return .failure(error)
+        }
     }
 
     /// Keeps a session: refresh token to the Keychain, access token to memory; a Keychain refusal throws.
@@ -416,15 +479,26 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     /// Keeps the session a sign-in was answered with, then reads the profile it unlocks.
     private func beginSession(issuedBy response: BackendResponse) async throws(AccountError) -> Profile {
-        guard let session = decode(IssuedSession.self, from: response.body) else {
+        guard let issued = decode(IssuedSession.self, from: response.body) else {
             throw .providerRefused(description: "the server issued a session we could not read")
         }
-        try adopt(session)
+        try session.withLock { state throws(AccountError) in
+            state.generation += 1
+            state.renewal = nil
+            try adopt(issued)
+        }
         return try await readProfile(validator: nil)
     }
 
     /// Drops both halves of the session, which is what signing out means on this Mac.
     private func forgetSession() {
+        session.withLock { endSession(&$0) }
+    }
+
+    /// Clears the tokens and moves the generation on, under the session lock `state` is borrowed from.
+    private func endSession(_ state: inout Session) {
+        state.generation += 1
+        state.renewal = nil
         tokens.clear()
         access.withLock { $0 = nil }
     }
