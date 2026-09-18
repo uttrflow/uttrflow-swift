@@ -116,7 +116,18 @@ public actor PredictStore: PredictionStore {
             }
             byText[candidate.text] = Self.combine(existing, candidate)
         }
-        return Array(order.compactMap { byText[$0] }.prefix(Self.candidateLimit))
+        return Self.strongest(order.compactMap { byText[$0] })
+    }
+
+    /// The candidates with the most evidence, compared across every folder before any is dropped.
+    static func strongest(_ candidates: [Candidate]) -> [Candidate] {
+        let ordered = candidates.sorted { first, second in
+            let a = first.evidence
+            let b = second.evidence
+            return (second.editDistance, a?.count ?? 0, a?.lastUsed ?? .distantPast, second.text)
+                > (first.editDistance, b?.count ?? 0, b?.lastUsed ?? .distantPast, first.text)
+        }
+        return Array(ordered.prefix(candidateLimit))
     }
 
     /// One text known in two surfaces becomes one candidate: evidence summed, the nearer edit kept.
@@ -215,7 +226,7 @@ public actor PredictStore: PredictionStore {
                     text: candidate.text, source: candidate.source, evidence: candidate.evidence,
                     editDistance: distance, isIrreversible: candidate.isIrreversible))
         }
-        return Array(matched.prefix(Self.candidateLimit))
+        return Self.strongest(matched)
     }
 
     // MARK: - Writing

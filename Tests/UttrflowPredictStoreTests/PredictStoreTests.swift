@@ -151,6 +151,28 @@ struct RecordingTests {
         #expect(found.first?.evidence?.count == 3)
     }
 
+    @Test(
+        "Sixteen matches from another folder cannot crowd out a far more frequent one, whichever came first.",
+        arguments: [false, true])
+    func otherFoldersCannotCrowdOut(frequentFirst: Bool) async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let older = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "/a")
+        let here = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "/z")
+        if frequentFirst {
+            for _ in 0..<100 { try await store.record("git status", in: here, at: moment) }
+        }
+        for index in 0..<16 {
+            try await store.record(String(format: "git old-%03d", index), in: older, at: moment)
+        }
+        if !frequentFirst {
+            for _ in 0..<100 { try await store.record("git status", in: here, at: moment) }
+        }
+        let found = try await store.candidates(for: here, matching: "git ")
+        #expect(found.count == 16)
+        #expect(found.first?.text == "git status")
+    }
+
     @Test("A suggestion taken rather than typed is recorded as ours, so it counts for less.")
     func selfSourcedIsMarked() async throws {
         let corpus = Corpus()
@@ -246,6 +268,19 @@ struct StoreMatchingTests {
         try await store.record("git commit -m", in: terminal, at: moment)
         let found = try await store.candidates(for: terminal, matching: "git p")
         #expect(found.map(\.text) == ["git push"])
+    }
+
+    @Test("Among more near misses than are returned, the most frequent one is kept.")
+    func fuzzyKeepsTheStrongest() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        for index in 0..<16 {
+            try await store.record(String(format: "git old-%03d", index), in: terminal, at: moment)
+        }
+        for _ in 0..<100 { try await store.record("git status", in: terminal, at: moment) }
+        let found = try await store.candidates(for: terminal, matching: "gti ")
+        #expect(found.count == 16)
+        #expect(found.first?.text == "git status")
     }
 
     @Test("Two characters are too few to correct, or everything would match.")
