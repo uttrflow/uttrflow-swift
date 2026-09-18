@@ -119,7 +119,7 @@ struct SignIn: AsyncParsableCommand {
 
 /// A listener that will not bind, standing in for a Mac whose security software refuses.
 private struct RefusingListener: LoopbackListening {
-    func bind() async throws(AccountError) -> URL { throw .serverUnreachable }
+    func bind(expecting state: String) async throws(AccountError) -> URL { throw .serverUnreachable }
     func awaitCallback() async throws(AccountError) -> LoopbackCallback { throw .serverUnreachable }
     func close() async {}
 }

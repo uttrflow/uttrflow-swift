@@ -55,8 +55,9 @@ EXCLUDED_FILES = {
     ),
     "UttrflowAccount/DeviceIdentity+System.swift": "reads this Mac's name from the system",
     "UttrflowAccount/LoopbackListener+System.swift": (
-        "binds a TCP port and speaks HTTP to a browser; the two parts that decide anything "
-        "— parsing the request line and the page it answers with — are tested directly"
+        "binds a TCP port and speaks HTTP to a browser; what it decides — parsing the request "
+        "line, whether a callback answers this attempt, and the page it answers with — is "
+        "tested directly, and LoopbackListenerTests drives the real port"
     ),
     "UttrflowInput/CarbonHotkeyMonitor.swift": "registers a system-wide hotkey with Carbon",
     "UttrflowInput/KeyInterceptor.swift": (
