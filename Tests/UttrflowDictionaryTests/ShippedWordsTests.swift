@@ -69,7 +69,8 @@ struct ShippedWordsTests {
     /// "Forget what Uttrflow learned" is about this Mac; a shipped word was inferred from nothing.
     @Test("keeps a shipped word when the learned ones are forgotten")
     func survivesForgettingWhatWasLearned() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.seedShippedWords(at: epoch)
         try await store.add(word("kubectl", from: .observed))
 
@@ -83,7 +84,8 @@ struct ShippedWordsTests {
         "is found by the way the name sounds, not only by its spelling",
         arguments: ["utter flow", "utterflow", "otter flow", "udder flow"])
     func isFoundBySound(heard: String) async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.seedShippedWords(at: epoch)
 
         let found = await store.index()
