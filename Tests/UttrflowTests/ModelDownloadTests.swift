@@ -57,7 +57,8 @@ struct ModelDownloadTests {
     @Test("A Mac where tab-to-complete was never turned on never asks for the weights.")
     func silenceCostsNothing() async {
         let asks = Asks()
-        let app = AppDelegate(container: Sandbox().root, prepareModel: { _ in await asks.asked() })
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, prepareModel: { _ in await asks.asked() })
         app.settingsChanged(to: settings(suggesting: false))
         #expect(app.modelPreparation == nil)
         #expect(await asks.count == 0)
@@ -66,7 +67,8 @@ struct ModelDownloadTests {
     @Test("Turning it on asks for them once, and turning it off lets them go, so on again asks again.")
     func askedForOnceWhenWanted() async {
         let asks = Asks()
-        let app = AppDelegate(container: Sandbox().root, prepareModel: { _ in await asks.asked() })
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, prepareModel: { _ in await asks.asked() })
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
         app.settingsChanged(to: settings(suggesting: true))
@@ -83,8 +85,9 @@ struct ModelDownloadTests {
     @Test("Turning it off frees the weights it loaded, once.")
     func turningOffReleases() async {
         let asks = Asks()
+        let sandbox = Sandbox()
         let app = AppDelegate(
-            container: Sandbox().root, prepareModel: { _ in await asks.asked() },
+            container: sandbox.root, prepareModel: { _ in await asks.asked() },
             releaseModel: { await asks.released() })
         app.settingsChanged(to: settings(suggesting: false))
         await app.modelPreparation?.value
@@ -100,8 +103,9 @@ struct ModelDownloadTests {
     func aLoadInFlightIsFreedAfterItLands() async {
         let asks = Asks()
         let gate = Gate()
+        let sandbox = Sandbox()
         let app = AppDelegate(
-            container: Sandbox().root,
+            container: sandbox.root,
             prepareModel: { _ in
                 await gate.pass()
                 await asks.asked()
@@ -120,8 +124,9 @@ struct ModelDownloadTests {
     @Test("A failed load that lands after the feature was turned off does not report a failure.")
     func aLateFailureIsQuiet() async {
         let gate = Gate()
+        let sandbox = Sandbox()
         let app = AppDelegate(
-            container: Sandbox().root,
+            container: sandbox.root,
             prepareModel: { _ in
                 await gate.pass()
                 throw HubRefused()
@@ -136,8 +141,9 @@ struct ModelDownloadTests {
     @Test("A fetch that failed is asked for again, rather than leaving the feature dead until a relaunch.")
     func aFailedFetchIsAskedForAgain() async {
         let asks = Asks()
+        let sandbox = Sandbox()
         let app = AppDelegate(
-            container: Sandbox().root,
+            container: sandbox.root,
             prepareModel: { _ in
                 await asks.asked()
                 throw HubRefused()
@@ -156,8 +162,9 @@ struct ModelDownloadTests {
 
     @Test("What it is doing is readable, so the screen has something to say while it is not ready.")
     func progressIsReadable() async {
+        let sandbox = Sandbox()
         let app = AppDelegate(
-            container: Sandbox().root,
+            container: sandbox.root,
             prepareModel: { report in
                 report(0.5)
                 report(1)

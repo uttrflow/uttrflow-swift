@@ -96,7 +96,8 @@ struct LaunchAtLoginWiringTests {
     @Test("the app registers a login item at launch when the preference asks for one")
     func registersWhenAsked() {
         let system = RecordedLoginItem(startingEnabled: false)
-        let app = AppDelegate(container: Sandbox().root, loginItem: system.service)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: true))
 
         #expect(system.isEnabled)
@@ -106,7 +107,8 @@ struct LaunchAtLoginWiringTests {
     @Test("turning the preference off removes the login item")
     func removesWhenTurnedOff() {
         let system = RecordedLoginItem(startingEnabled: true)
-        let app = AppDelegate(container: Sandbox().root, loginItem: system.service)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: false))
 
         #expect(!system.isEnabled)
@@ -117,7 +119,8 @@ struct LaunchAtLoginWiringTests {
     @Test("a preference that already matches the system is not re-applied")
     func doesNotRepeatItself() {
         let system = RecordedLoginItem(startingEnabled: true)
-        let app = AppDelegate(container: Sandbox().root, loginItem: system.service)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: true))
         app.settingsChanged(to: Settings(opensAtLogin: true))
 

@@ -97,8 +97,9 @@ struct MemoryPressureTests {
     }
 
     private func app(_ steps: Steps) -> AppDelegate {
+        let sandbox = Sandbox()
         let app = AppDelegate(
-            container: Sandbox().root, prepareModel: { _ in await steps.record("load") },
+            container: sandbox.root, prepareModel: { _ in await steps.record("load") },
             releaseModel: { await steps.record("release") })
         app.memoryPressure = SuggestionModelPressure(firstWait: .zero, longestWait: .seconds(1_800))
         return app
