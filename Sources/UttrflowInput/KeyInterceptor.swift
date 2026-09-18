@@ -215,17 +215,16 @@ final class InterceptorTap: @unchecked Sendable {
 
 /// Everything the C callback may touch, held where a raw pointer can reach it.
 final class TapState: @unchecked Sendable {
-    /// How many taken keystrokes may wait for the drain before the oldest are dropped.
+    /// How many taken keystrokes may wait for the drain; while it is that far behind, newer ones are dropped.
     static let capacity = 64
-
-    /// The ring value that stands for the tap giving up rather than for a key.
-    static let gaveUp: UInt32 = .max
 
     /// Which slots are being taken, and the only thing the callback loads.
     let armed = Atomic<UInt32>(0)
 
-    /// Written by the tap's thread and read by the drain, so one producer meets one consumer.
+    /// Written by the tap's thread and read by the drain; a slot is written again only once the drain has read it.
     private let ring: UnsafeMutablePointer<UInt32>
+    /// Set when the tap gives up, kept out of the ring so a full ring cannot lose it.
+    private let gaveUp = Atomic<Bool>(false)
     /// How many keystrokes have ever been written into the ring.
     private let written = Atomic<UInt64>(0)
     /// How many the drain has ever taken out of it.
@@ -272,12 +271,16 @@ final class TapState: @unchecked Sendable {
         return Unmanaged<CFMachPort>.fromOpaque(held).takeUnretainedValue()
     }
 
-    /// Records one taken keystroke, in two stores and one dispatch call.
-    func enqueue(_ slot: UInt32) {
+    /// Records one taken keystroke, or drops it and returns false when the drain is a whole ring behind.
+    @discardableResult
+    func enqueue(_ slot: UInt32) -> Bool {
         let next = written.load(ordering: .relaxed)
+        // Acquiring pairs with the drain's releasing store, so a slot is read before it is written again.
+        guard next &- read.load(ordering: .acquiring) < UInt64(Self.capacity) else { return false }
         ring[Int(next % UInt64(Self.capacity))] = slot
         written.store(next &+ 1, ordering: .releasing)
         signal.add(data: 1)
+        return true
     }
 
     /// Whether the tap should be turned back on, which it is unless it keeps being disabled within a short window.
@@ -287,27 +290,30 @@ final class TapState: @unchecked Sendable {
         let (count, reEnable) = TapDisableWindow.decide(
             last: last, now: now, count: disables.load(ordering: .relaxed))
         disables.store(count, ordering: .relaxed)
-        if !reEnable { enqueue(Self.gaveUp) }
+        if !reEnable {
+            gaveUp.store(true, ordering: .releasing)
+            signal.add(data: 1)
+        }
         return reEnable
     }
 
-    /// Everything written since the last drain, oldest first.
+    /// Everything written since the last drain, oldest first, then the tap giving up if it has.
     func take() -> [InterceptedEvent] {
+        // Read before `written`, so every keystroke taken before the tap gave up is drained with it.
+        let stopped = gaveUp.exchange(false, ordering: .acquiring)
         let end = written.load(ordering: .acquiring)
         var cursor = read.load(ordering: .relaxed)
-        // A producer this far ahead has lapped the ring, so the oldest keystrokes are gone.
-        if end &- cursor > UInt64(Self.capacity) { cursor = end &- UInt64(Self.capacity) }
         var events: [InterceptedEvent] = []
         while cursor < end {
             let slot = ring[Int(cursor % UInt64(Self.capacity))]
-            if slot == Self.gaveUp {
-                events.append(.stopped(.disabledTwice))
-            } else if let stroke = ArmedKeys.stroke(of: ArmedKeys(rawValue: slot)) {
+            if let stroke = ArmedKeys.stroke(of: ArmedKeys(rawValue: slot)) {
                 events.append(.swallowed(stroke))
             }
             cursor &+= 1
         }
-        read.store(cursor, ordering: .relaxed)
+        // Releasing, so the tap writes these slots again only after they have been read.
+        read.store(cursor, ordering: .releasing)
+        if stopped { events.append(.stopped(.disabledTwice)) }
         return events
     }
 }
