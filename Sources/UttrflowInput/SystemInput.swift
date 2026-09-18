@@ -42,9 +42,12 @@ public struct SystemPasteboard: Pasteboard {
     /// The plain flavour beside the concealed marker, which clipboard managers read as a password.
     public func setConcealedText(_ text: String) {
         willWrite(text)
+        // Built whole and written once, so no reader sees the words before the marker.
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        item.setData(Data(), forType: Self.concealedType)
         clearForThisMacOnly()
-        NSPasteboard.general.setString(text, forType: .string)
-        NSPasteboard.general.setData(Data(), forType: Self.concealedType)
+        NSPasteboard.general.writeObjects([item])
     }
 
     /// The prefix of every nspasteboard.org marker type, which names a format and not an app.
@@ -167,14 +170,13 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     /// Asks the focused element's role and names first, reading its value only when none of them says secure.
     public func focusedFieldIsSecure() -> Bool {
         guard let element = focusedElement() else { return false }
-        let declared = SecureField.isDeclaredSecure(
+        return SecureField.isSecure(
             role: stringAttribute(kAXRoleAttribute, of: element),
             subrole: stringAttribute(kAXSubroleAttribute, of: element),
             identifier: stringAttribute(kAXIdentifierAttribute, of: element),
             placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
-            description: stringAttribute(kAXDescriptionAttribute, of: element))
-        if declared { return true }
-        return stringAttribute(kAXValueAttribute, of: element).map(SecureField.looksMasked) ?? false
+            description: stringAttribute(kAXDescriptionAttribute, of: element),
+            value: { stringAttribute(kAXValueAttribute, of: element) })
     }
 
     /// The focused element, asked system-wide then per-application. See `Docs/insertion.md`.

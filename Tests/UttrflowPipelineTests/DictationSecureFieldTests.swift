@@ -146,6 +146,16 @@ struct DictationSecureFieldTests {
         #expect(vocabulary.offered.isEmpty)
     }
 
+    @Test("the dictionary learns nothing from a field found secure only at the write")
+    func learnsNothingWhenSecureAtInsertion() async {
+        let vocabulary = RememberingVocabulary()
+        _ = await dictate(
+            with: makePipeline(
+                context: .fixture(), inserter: ScriptedInserter(secure: true), vocabulary: vocabulary))
+
+        #expect(vocabulary.offered.isEmpty)
+    }
+
     @Test("the dictionary still learns from an ordinary field")
     func learnsFromOrdinary() async {
         let vocabulary = RememberingVocabulary()

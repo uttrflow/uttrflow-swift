@@ -63,13 +63,12 @@ extension MacContextEngine {
 
     /// Whether the field declares itself secure, or reads back as nothing but mask characters.
     static func isSecure(_ field: AXUIElement) -> Bool {
-        let declared = SecureField.isDeclaredSecure(
+        SecureField.isSecure(
             role: SurfaceProbe.string(field, kAXRoleAttribute),
             subrole: SurfaceProbe.string(field, kAXSubroleAttribute),
             identifier: SurfaceProbe.string(field, kAXIdentifierAttribute),
             placeholder: SurfaceProbe.string(field, kAXPlaceholderValueAttribute),
-            description: SurfaceProbe.string(field, kAXDescriptionAttribute))
-        if declared { return true }
-        return SurfaceProbe.string(field, kAXValueAttribute).map(SecureField.looksMasked) ?? false
+            description: SurfaceProbe.string(field, kAXDescriptionAttribute),
+            value: { SurfaceProbe.string(field, kAXValueAttribute) })
     }
 }

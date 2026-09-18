@@ -730,6 +730,8 @@ public actor DictationPipeline {
                 throw TextInsertionError.insertionRejected(
                     description: "the application did not respond")
             }
+            // A field found secure at the write counts from here on, before anything is learnt from it.
+            if attempt.intoSecureField { destinationIsSecure = true }
             // The words landed, so the audio has done its job.
             await discardOpenRecording()
             transition(
@@ -741,7 +743,7 @@ public actor DictationPipeline {
                             ?? insertedIntoIdentifier,
                         spokenFor: spokenFor, changes: changes,
                         fromRecording: delivery == .copy, arrival: attempt.arrival,
-                        intoSecureField: destinationIsSecure || attempt.intoSecureField)))
+                        intoSecureField: destinationIsSecure)))
             return true
         } catch {
             // The words survive the failure: the interface can still offer them.
