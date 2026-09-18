@@ -59,6 +59,9 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// Whether the window is on screen, which a closed or minimised one is not.
+    var isVisible: Bool { window?.isVisible == true }
+
     /// Whether the user has never been through this.
     var isRequired: Bool { flow.isRequired }
 
