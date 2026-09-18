@@ -301,27 +301,56 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
     /// Fetches the avatar at a path on this API, or `nil` for any failure; none is worth a message.
     public func avatar(at path: String) async -> Data? {
-        guard path.hasPrefix("/"), !path.hasPrefix("//"), URL(string: path)?.host == nil else {
-            return nil
-        }
-        guard let address = URL(string: baseURL.absoluteString + path.dropFirst()) else {
-            return nil
-        }
+        guard let address = avatarAddress(for: path) else { return nil }
 
-        guard let first = try? await authorised(), case .token(let token) = first else {
-            return nil
-        }
-        guard var response = try? await send(get(address, token: token)) else { return nil }
+        guard let first = try? await authorised(), case .token(let token) = first,
+            let request = onBackend(get(address, token: token)),
+            var response = try? await send(request)
+        else { return nil }
 
         if response.status == 401 {
             guard let renewed = try? await renew(), case .token(let token) = renewed,
-                let retried = try? await send(get(address, token: token))
+                let request = onBackend(get(address, token: token)),
+                let retried = try? await send(request)
             else { return nil }
             response = retried
         }
 
         guard response.isSuccess, !response.body.isEmpty else { return nil }
         return response.body
+    }
+
+    /// `path` below the API root, or `nil` for anything that is not a plain absolute path on this backend.
+    private func avatarAddress(for path: String) -> URL? {
+        guard path.hasPrefix("/"), !path.hasPrefix("//"), let relative = URLComponents(string: path),
+            relative.scheme == nil, relative.host == nil, relative.fragment == nil,
+            var address = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        else { return nil }
+
+        let segments = relative.percentEncodedPath.split(separator: "/", omittingEmptySubsequences: false)
+        let dotted = segments.contains { [".", ".."].contains($0.removingPercentEncoding ?? String($0)) }
+        guard !dotted else { return nil }
+
+        let root =
+            address.percentEncodedPath.hasSuffix("/")
+            ? String(address.percentEncodedPath.dropLast()) : address.percentEncodedPath
+        address.percentEncodedPath = root + relative.percentEncodedPath
+        address.percentEncodedQuery = relative.percentEncodedQuery
+        address.fragment = nil
+        guard let built = address.url, isOnBackend(built) else { return nil }
+        return built
+    }
+
+    /// Whether `address` has exactly the API root's scheme, host and port, the only origin a token may go to.
+    private func isOnBackend(_ address: URL) -> Bool {
+        address.scheme?.lowercased() == baseURL.scheme?.lowercased()
+            && address.host()?.lowercased() == baseURL.host()?.lowercased()
+            && address.port == baseURL.port
+    }
+
+    /// `request` when it is addressed to this backend, `nil` otherwise, so no bearer token leaves its origin.
+    private func onBackend(_ request: BackendRequest) -> BackendRequest? {
+        isOnBackend(request.url) ? request : nil
     }
 
     /// Signs out on this Mac first, whatever the network is doing, then tells the server without waiting.
