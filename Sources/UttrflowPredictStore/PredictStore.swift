@@ -245,7 +245,8 @@ public actor PredictStore: PredictionStore {
             ON CONFLICT (surface_id, text) DO UPDATE SET
               count = count + 1,
               self_sourced = self_sourced + excluded.self_sourced,
-              last_used = excluded.last_used
+              last_used = excluded.last_used,
+              text_lower = excluded.text_lower
             """,
             {
                 $0.bind(1, id)

@@ -1,7 +1,7 @@
 /// The tables the corpus lives in, and the one place their shape is written down.
 enum Schema {
     /// What this build expects on disk; an older file is migrated to it and a newer one is refused.
-    static let version = 3
+    static let version = 4
 
     /// Everything a fresh database needs, in the order it must be created.
     static let statements = [
@@ -69,6 +69,7 @@ enum Schema {
         guard current <= version else { throw .newerThanThisBuild(version: current) }
         if current < 2 { try migrateToLowercasedPrefix(database) }
         // Version 3 adds only `entry_recent`, which `statements` has already created above.
+        if current < 4 { try relowercase(database) }
         if current < version {
             try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(version)) }
         }
@@ -79,9 +80,21 @@ enum Schema {
         if !hasColumn("text_lower", in: "entry", database) {
             try database.execute("ALTER TABLE entry ADD COLUMN text_lower TEXT NOT NULL DEFAULT ''")
         }
-        try database.execute("UPDATE entry SET text_lower = lower(text)")
         try database.execute("DROP INDEX IF EXISTS entry_prefix")
         try database.execute("CREATE INDEX entry_prefix ON entry (surface_id, text_lower)")
+    }
+
+    /// Rewrites every key that differs from Swift's lowercasing, which SQLite's `lower` applies to ASCII only.
+    private static func relowercase(_ database: Database) throws(PredictStoreError) {
+        let rows = try database.rows("SELECT id, text, text_lower FROM entry", { _ in }) {
+            (Int64($0.integer(0)), $0.text(1), $0.text(2))
+        }
+        for (id, text, stored) in rows where text.lowercased() != stored {
+            try database.run("UPDATE entry SET text_lower = ? WHERE id = ?") {
+                $0.bind(1, text.lowercased())
+                $0.bind(2, id)
+            }
+        }
     }
 
     /// Whether a table already has a column, so a migration does not add one twice.
