@@ -659,7 +659,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quickPanel.onKey = { [weak self] key, behind in
             self?.panelAnswered(key, behind: behind)
         }
-        quickPanel.onIntent = { [weak self] intent in self?.carryOut(intent) }
+        quickPanel.onIntent = { [weak self] intent, behind in self?.carryOut(intent, behind: behind) }
 
         // Built out here: a `[weak self]` closure nested in another captures the outer binding.
         let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
@@ -820,17 +820,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// A8 — answers a keystroke, noting first whether the application underneath has quit.
-    private func panelAnswered(_ key: PanelKey, behind: NSRunningApplication?) {
-        if let behind, behind.isTerminated, panel?.insertion == .atCaret {
-            panel?.insertion = .clipboardOnly(.nothingFocused)
-        }
-        panelAnswered(key)
-    }
-
-    private func panelAnswered(_ key: PanelKey) {
+    /// A8 — answers a key or click in the panel, which only copies when the application the caret belonged to has quit.
+    private func panelAnswered(_ key: PanelKey, behind: NSRunningApplication? = nil) {
         guard let snapshot = panel else { return }
-        let response = snapshot.applying(key)
+        let response = snapshot.applying(key, caretOwnerHasQuit: behind?.isTerminated == true)
         panel = response.state
 
         switch response.outcome.effect {
@@ -943,10 +936,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// The row's own buttons, for the ones the panel cannot answer alone.
-    private func carryOut(_ intent: PanelIntent) {
-        // Insert and reveal go the path Return goes, so a click and a key mean one clip.
+    private func carryOut(_ intent: PanelIntent, behind: NSRunningApplication? = nil) {
+        // Insert and reveal go the path Return goes, quit check included, so a click and a key mean one clip.
         if let key = intent.key {
-            panelAnswered(key)
+            panelAnswered(key, behind: behind)
             return
         }
 

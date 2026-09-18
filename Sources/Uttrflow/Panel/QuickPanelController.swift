@@ -98,8 +98,8 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     /// A keystroke or its click, with the application that owned the caret when the panel opened.
     var onKey: ((PanelKey, NSRunningApplication?) -> Void)?
 
-    /// A row action the panel cannot answer itself — copy, pin, unpin — for the store to carry out.
-    var onIntent: ((PanelIntent) -> Void)?
+    /// A row action the panel cannot answer itself, with the application that owned the caret when the panel opened.
+    var onIntent: ((PanelIntent, NSRunningApplication?) -> Void)?
 
     private let panel: QuickPanel
     private let hostingView: QuickPanelHostingView<QuickPanelView>
@@ -186,7 +186,7 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
         hostingView.rootView = QuickPanelView(
             presentation: presentation,
             onKey: { [weak self] key in self?.relay(key) },
-            onIntent: { [weak self] intent in self?.onIntent?(intent) },
+            onIntent: { [weak self] intent in self?.onIntent?(intent, self?.caretOwner) },
             openCount: openCount)
     }
 

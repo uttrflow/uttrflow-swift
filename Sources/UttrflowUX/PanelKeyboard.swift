@@ -124,6 +124,14 @@ extension PanelSnapshot {
         }
     }
 
+    /// One keystroke or click, taken as copy-only when the application the caret belonged to has quit behind the panel.
+    public func applying(_ key: PanelKey, caretOwnerHasQuit: Bool) -> PanelResponse {
+        guard caretOwnerHasQuit, insertion == .atCaret else { return applying(key) }
+        var orphaned = self
+        orphaned.insertion = .clipboardOnly(.nothingFocused)
+        return orphaned.applying(key)
+    }
+
     /// A run of keystrokes answering what the last did; keys after one that closed the panel are dropped.
     public func applying(_ keys: [PanelKey]) -> PanelResponse {
         var response = PanelResponse(state: self, outcome: .open)

@@ -55,6 +55,32 @@ struct PanelPasteOutcomeTests {
         #expect(notice.action?.intent == .openAccessibilitySettings)
     }
 
+    /// A8 — the application under the panel quit, so whatever came forward in its place is not where the clip was meant to go.
+    @Test(
+        "A8 · Return and a click on insert both only copy once the caret's application has quit",
+        arguments: [PanelKey.return, PanelIntent.insert(PanelPasteOutcomeTests.clip.id).key].compactMap(
+            \.self))
+    func aQuitApplicationOnlyCopies(key: PanelKey) {
+        let quit = Self.panel(.atCaret).applying(key, caretOwnerHasQuit: true)
+        guard case .copyAndSay(let text, let notice, _) = quit.outcome.effect else {
+            Issue.record("inserted into whatever came forward")
+            return
+        }
+        #expect(text == "the words")
+        #expect(notice == PanelInsertionObstacle.nothingFocused.notice)
+        #expect(quit.state.insertion == .clipboardOnly(.nothingFocused))
+
+        let alive = Self.panel(.atCaret).applying(key, caretOwnerHasQuit: false)
+        #expect(alive.outcome.effect == .closeAndInsert("the words", used: Self.clip.id))
+    }
+
+    @Test("A8 · a panel that already could not insert keeps its own reason when the application quits")
+    func anEarlierObstacleIsKept() {
+        let response = Self.panel(.clipboardOnly(.accessibilityNotGranted))
+            .applying(.return, caretOwnerHasQuit: true)
+        #expect(response.state.insertion == .clipboardOnly(.accessibilityNotGranted))
+    }
+
     /// The forbidden outcome as a test, over every obstacle in `allCases` so a new one cannot slip past.
     @Test(
         "choosing a clip is never silent and never a no-op",
