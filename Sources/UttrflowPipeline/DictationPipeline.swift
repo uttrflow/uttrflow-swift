@@ -21,8 +21,9 @@ public actor DictationPipeline {
     private let cleaningRecorder: any CleaningRecording
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     private var destinationOverrides: DestinationOverrides
-    /// The tidier and the overrides this dictation began with, so a change made while speaking lands on the next one.
-    private var inUse: (cleaner: any TranscriptCleaning, overrides: DestinationOverrides)?
+    /// The tidier, overrides and languages this dictation began with, so a change made while speaking lands on the next one.
+    private var inUse:
+        (cleaner: any TranscriptCleaning, overrides: DestinationOverrides, profile: UserProfile)?
     private let recordings: any RecordingKeeper
     /// Where a retried dictation's words go, since the field they were meant for is gone.
     private let clipboard: any TextInserting
@@ -130,6 +131,7 @@ public actor DictationPipeline {
     /// Takes the languages the user speaks as they stand now, for every dictation after this one.
     public func adopt(profile: UserProfile) {
         self.profile = profile
+        if !isBusy { inUse = nil }
     }
 
     /// The tidier this dictation is being run with, which a mid-dictation change does not replace.
@@ -138,9 +140,12 @@ public actor DictationPipeline {
     /// The overrides this dictation is being run with, for the same reason.
     private var runningOverrides: DestinationOverrides { inUse?.overrides ?? destinationOverrides }
 
-    /// Fixes both for the dictation about to begin.
+    /// The languages this dictation is being listened for and tidied in, for the same reason.
+    private var runningProfile: UserProfile { inUse?.profile ?? profile }
+
+    /// Fixes all three for the dictation about to begin.
     private func takeSettings() {
-        inUse = (cleaner, destinationOverrides)
+        inUse = (cleaner, destinationOverrides, profile)
     }
 
     public var currentState: DictationState { state }
@@ -577,7 +582,7 @@ public actor DictationPipeline {
         let slice =
             AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
         // A profile that speaks Hindi switches language between pieces, so only it detects every piece. See `Docs/speech-engines.md`.
-        let language = ListeningLanguages(profile: profile).hint(afterFirstPiece: dictationLanguage)
+        let language = ListeningLanguages(profile: runningProfile).hint(afterFirstPiece: dictationLanguage)
         let heard = try await metrics.measuring(.transcription, clock: clock) {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in
@@ -648,7 +653,7 @@ public actor DictationPipeline {
         let text = corrected.text
         // Every piece of a dictation is tidied against the one screen read, so all see one situation.
         let request = TransformationRequest(
-            transcription: transcription.saying(corrected), context: appContext, profile: profile,
+            transcription: transcription.saying(corrected), context: appContext, profile: runningProfile,
             situation: SituationResolver.resolve(from: appContext, overrides: runningOverrides),
             scope: .piece)
         // Not `.rules`: no pass ran over these words, and a record that says otherwise cannot be read.
@@ -676,7 +681,8 @@ public actor DictationPipeline {
     ) async -> Piece {
         guard joined.cleaned.producedBy != .untidied else { return joined }
         let request = TransformationRequest(
-            transcription: joined.heard.saying(joined.corrected), context: appContext, profile: profile,
+            transcription: joined.heard.saying(joined.corrected), context: appContext,
+            profile: runningProfile,
             situation: situation)
         let finished = await runningCleaner.finishMessage(joined.cleaned.text, for: request)
         return Piece(
