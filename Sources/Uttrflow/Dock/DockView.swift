@@ -12,6 +12,8 @@ final class DockViewModel {
     var presentation: DockPresentation
     /// How the shortcut reads on a keycap, for example "⌥Space".
     var shortcut: String
+    /// Why the shortcut cannot be heard right now, shown in place of the keycap when set.
+    var shortcutUnheard: String?
     /// Which edge the button is parked on, so the button stays nearest that edge as the form grows.
     var anchor: DockAnchor
     var isHovering = false
@@ -126,15 +128,25 @@ struct DockView: View {
         let orbLeads = model.anchor == .bottomLeft
         return HStack(spacing: 9) {
             if orbLeads { orb() }
-            HStack(spacing: 8) {
-                Text("Dictate")
+            if let unheard = model.shortcutUnheard {
+                Text(unheard)
                     .font(.system(size: DockMetrics.bodySize))
-                keycap(model.shortcut)
+                    .frame(width: DockMetrics.unheardWidth, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 15)
+                    .padding(.vertical, 9)
+                    .glass(cornerRadius: DockMetrics.hintHeight / 2)
+            } else {
+                HStack(spacing: 8) {
+                    Text("Dictate")
+                        .font(.system(size: DockMetrics.bodySize))
+                    keycap(model.shortcut)
+                }
+                .fixedSize()
+                .padding(.horizontal, 15)
+                .frame(height: DockMetrics.hintHeight)
+                .glass(cornerRadius: DockMetrics.hintHeight / 2)
             }
-            .fixedSize()
-            .padding(.horizontal, 15)
-            .frame(height: DockMetrics.hintHeight)
-            .glass(cornerRadius: DockMetrics.hintHeight / 2)
             if !orbLeads { orb() }
         }
         .padding(DockMetrics.gripHitPadding)
@@ -327,6 +339,8 @@ enum DockMetrics {
     /// Invisible, hoverable margin around every form, and the room the shadow needs.
     static let gripHitPadding: CGFloat = 6
     static let hintHeight: CGFloat = 30
+    /// How wide the hint grows to say why the shortcut cannot be heard, which wraps over a few lines.
+    static let unheardWidth: CGFloat = 240
     static let orbSize: CGFloat = 30
     /// Listening and working share this, so the panel cannot change shape when the key is released.
     static let compactHeight: CGFloat = 32
