@@ -12,6 +12,17 @@ public enum SecureField {
         return [identifier, placeholder, description].contains { $0.map(namesASecret) ?? false }
     }
 
+    /// The whole rule both dictation boundaries ask: declared secure, or else a value of mask characters alone, read only then.
+    public static func isSecure(
+        role: String?, subrole: String?, identifier: String?, placeholder: String?,
+        description: String?, value: () -> String?
+    ) -> Bool {
+        let declared = isDeclaredSecure(
+            role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
+            description: description)
+        return declared || (value().map(looksMasked) ?? false)
+    }
+
     /// Whether a name betrays a password field that did not publish the secure role, as web fields do.
     static func namesASecret(_ text: String) -> Bool {
         let lower = text.lowercased()

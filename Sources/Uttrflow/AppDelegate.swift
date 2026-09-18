@@ -1133,18 +1133,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Recorded before the menu is drawn, and kept even when insertion failed. §19.
         switch state {
         case .inserted(let outcome):
-            lastTranscript = outcome.text
             Self.log.notice(
                 """
                 dictation finished: method=\(outcome.method.rawValue, privacy: .public) \
                 characters=\(outcome.text.count, privacy: .public) \
                 app=\(outcome.insertedInto ?? "unknown", privacy: .public) \
                 corrections=\(outcome.changes.corrections.count, privacy: .public) \
-                snippets=\(outcome.changes.snippets.count, privacy: .public)
+                snippets=\(outcome.changes.snippets.count, privacy: .public) \
+                secure=\(outcome.intoSecureField, privacy: .public)
                 """)
+            // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
+            guard let kept = outcome.wordsToKeep else { break }
+            lastTranscript = kept
             keep(
                 DictationRecord(
-                    text: outcome.text, when: Date(), applicationName: outcome.insertedInto,
+                    text: kept, when: Date(), applicationName: outcome.insertedInto,
                     applicationIdentifier: outcome.insertedIntoIdentifier,
                     spokenFor: outcome.spokenFor,
                     changes: RecordedChanges(
@@ -1161,7 +1164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         },
                         spokenWords: outcome.changes.spokenWords)))
             // I4 — into the clipboard too, which the watcher never sees because this is not a copy.
-            recordAsClip(outcome.text)
+            recordAsClip(kept)
         case .failed(let notice):
             Self.log.error(
                 """
@@ -1169,7 +1172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 salvaged=\(notice.transcript != nil, privacy: .public) \
                 kept=\(notice.recovery == .retryFromRecording, privacy: .public)
                 """)
-            if let salvaged = notice.transcript {
+            if let salvaged = notice.wordsToKeep {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(DictationRecord(text: salvaged, when: Date()))
             }

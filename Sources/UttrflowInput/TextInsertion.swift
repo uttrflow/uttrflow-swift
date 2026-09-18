@@ -18,7 +18,7 @@ public enum TextInsertion {
                 PasteboardTextInsertionEngine(
                     focus: focus, pasteboard: pasteboard, keystrokes: keystrokes,
                     reporting: reporting),
-                ClipboardTextInsertionEngine(pasteboard: pasteboard),
+                ClipboardTextInsertionEngine(pasteboard: pasteboard, focus: focus),
             ], focus: focus)
     }
 

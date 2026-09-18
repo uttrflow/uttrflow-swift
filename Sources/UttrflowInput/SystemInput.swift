@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 public import Foundation
 public import UttrflowCore
+import UttrflowPredict
 
 /// The real clipboard, untestable by construction and so excluded from the coverage gate.
 public struct SystemPasteboard: Pasteboard {
@@ -37,6 +38,23 @@ public struct SystemPasteboard: Pasteboard {
         clearForThisMacOnly()
         NSPasteboard.general.setString(text, forType: .string)
     }
+
+    /// The plain flavour beside the concealed marker, which clipboard managers read as a password.
+    public func setConcealedText(_ text: String) {
+        willWrite(text)
+        // Built whole and written once, so no reader sees the words before the marker.
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        item.setData(Data(), forType: Self.concealedType)
+        clearForThisMacOnly()
+        NSPasteboard.general.writeObjects([item])
+    }
+
+    /// The prefix of every nspasteboard.org marker type, which names a format and not an app.
+    private static let convention = "org.nspasteboard."
+
+    /// The marker type the clipboard-manager convention reserves for secrets.
+    private static let concealedType = NSPasteboard.PasteboardType(convention + "ConcealedType")
 
     /// K4 — the picture flavour, announced by its bytes and kept off Universal Clipboard like every other write.
     public func setImage(_ data: Data) {
@@ -147,6 +165,18 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         return InsertionDestination(
             applicationName: application.localizedName,
             bundleIdentifier: application.bundleIdentifier)
+    }
+
+    /// Asks the focused element's role and names first, reading its value only when none of them says secure.
+    public func focusedFieldIsSecure() -> Bool {
+        guard let element = focusedElement() else { return false }
+        return SecureField.isSecure(
+            role: stringAttribute(kAXRoleAttribute, of: element),
+            subrole: stringAttribute(kAXSubroleAttribute, of: element),
+            identifier: stringAttribute(kAXIdentifierAttribute, of: element),
+            placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
+            description: stringAttribute(kAXDescriptionAttribute, of: element),
+            value: { stringAttribute(kAXValueAttribute, of: element) })
     }
 
     /// The focused element, asked system-wide then per-application. See `Docs/insertion.md`.
