@@ -122,11 +122,36 @@ struct PasteboardWatcherTests {
         let watcher = watcher(clipboard)
         clipboard.write("copied while recording was off")
 
-        await watcher.passOver()
+        await watcher.passOver(upTo: watcher.changeCount)
 
         #expect(await watcher.newClip(at: noon)?.clip == nil)
         clipboard.write("copied once it was back on")
         #expect(await watcher.newClip(at: noon)?.clip.text == "copied once it was back on")
+    }
+
+    @Test("a copy made after the baseline was read is still noticed")
+    func passOverKeepsWhatCameAfterTheBaseline() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write("copied while recording was off")
+        let baseline = watcher.changeCount
+        clipboard.write("copied just after it went back on")
+
+        await watcher.passOver(upTo: baseline)
+
+        #expect(await watcher.newClip(at: noon)?.clip.text == "copied just after it went back on")
+    }
+
+    @Test("forgets a write announced while recording was off")
+    func passOverForgetsAnAnnouncement() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        watcher.ignoreNextWrite(of: "same words")
+
+        await watcher.passOver(upTo: watcher.changeCount)
+        clipboard.write("same words")
+
+        #expect(await watcher.newClip(at: noon)?.clip.text == "same words")
     }
 
     @Test("says nothing at all while nothing is copied")

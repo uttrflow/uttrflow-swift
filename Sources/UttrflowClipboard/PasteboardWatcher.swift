@@ -144,9 +144,13 @@ public actor PasteboardWatcher {
         return text.utf8.count + (html?.utf8.count ?? 0) <= budget.largestClip
     }
 
-    /// Treats whatever is on the clipboard now as seen, so a copy made while recording was off is never kept.
-    public func passOver() {
-        seen = source.changeCount()
+    /// The clipboard's change count now, read without waiting on the watcher.
+    public nonisolated var changeCount: Int { source.changeCount() }
+
+    /// Treats every change up to `count` as seen and forgets any announced write, so nothing from while recording was off is kept.
+    public func passOver(upTo count: Int) {
+        seen = count
+        announced.withLock { $0 = nil }
     }
 
     // MARK: - The loop

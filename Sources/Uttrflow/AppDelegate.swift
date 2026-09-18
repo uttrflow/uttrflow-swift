@@ -683,10 +683,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
             await self?.clipArrived(noticed)
         }
+        // Read now, so a copy made after the switch went on is recorded even if the task starts late.
+        let baseline = clipboardWatcher.changeCount
         // Utility, because a poll nobody is waiting on should not run as the main thread's work.
         clipboardWatchTask = Task(priority: .utility) { [clipboardWatcher] in
             // Whatever was copied while the switch was off stays unrecorded.
-            await clipboardWatcher.passOver()
+            await clipboardWatcher.passOver(upTo: baseline)
             await clipboardWatcher.run(handing: arrived)
         }
     }
