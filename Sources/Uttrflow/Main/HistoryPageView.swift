@@ -61,7 +61,7 @@ struct HistoryPageView: View {
                 onIntent(presentation.retentionNotice.link.intent)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color.dockAccent)
+            .foregroundStyle(Color.accentInk)
             Spacer(minLength: 0)
         }
         .font(.system(size: MainMetrics.footnoteSize))

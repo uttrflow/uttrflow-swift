@@ -82,7 +82,7 @@ struct OrbitStage: View {
                     Text(presentation.status.text.uppercased())
                         .font(.system(size: MainMetrics.footnoteSize, weight: .medium))
                         .tracking(1.4)
-                        .foregroundStyle(Color.dockWarning)
+                        .foregroundStyle(Color.warningInk)
                 }
             }
             Text(presentation.greeting)

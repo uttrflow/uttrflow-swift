@@ -28,14 +28,14 @@ enum MainMetrics {
 }
 
 extension MainTone {
-    /// What a tone is drawn in; one mapping, so two pages cannot end up with two different oranges.
+    /// What a tone's text is drawn in; one mapping, so two pages cannot end up with two different oranges.
     var foreground: Color {
         switch self {
         case .neutral: .secondary
-        case .accent: .dockAccent
-        case .warning: .dockWarning
-        case .good: .dockSuccess
-        case .critical: .dockRecording
+        case .accent: .accentInk
+        case .warning: .warningInk
+        case .good: .successInk
+        case .critical: .criticalInk
         }
     }
 
@@ -442,7 +442,7 @@ struct MainEditorFooter: View {
             if let problem {
                 Text(problem)
                     .font(.system(size: MainMetrics.footnoteSize))
-                    .foregroundStyle(Color.dockWarning)
+                    .foregroundStyle(Color.warningInk)
             }
             Spacer(minLength: 0)
             MainActionButton(action: cancel, onIntent: onIntent)

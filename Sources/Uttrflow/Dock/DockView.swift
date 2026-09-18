@@ -574,6 +574,15 @@ extension Color {
     static let dockSuccess = Color(rgb: BrandPalette.Semantic.success)
     static let dockWarning = Color(rgb: BrandPalette.Semantic.warning)
 
+    /// The accent as text on a surface that follows the appearance; `dockAccent` is for fills.
+    static let accentInk = Color(nsColor: .orbit(BrandPalette.Teal.ink))
+    /// A warning as text; `dockWarning` is for dots, icons and fills.
+    static let warningInk = Color(nsColor: .orbit(BrandPalette.Semantic.warningInk))
+    /// Success as text; `dockSuccess` is for dots, icons and fills.
+    static let successInk = Color(nsColor: .orbit(BrandPalette.Semantic.successInk))
+    /// A failure as text; `dockRecording` is for dots, icons and fills.
+    static let criticalInk = Color(nsColor: .orbit(BrandPalette.Semantic.criticalInk))
+
     /// The waveform teal, deepened on a light desktop where the bright one vanishes against the glass.
     static let dockWaveform = Color(nsColor: .orbit(BrandPalette.Teal.waveform))
 }

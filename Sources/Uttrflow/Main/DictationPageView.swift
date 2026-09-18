@@ -102,7 +102,7 @@ struct DictationRowView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(MainTone.accent.background, in: .rect(cornerRadius: 5))
-                    .foregroundStyle(Color.dockAccent)
+                    .foregroundStyle(MainTone.accent.foreground)
                     .help("See what Uttrflow changed in this dictation")
             }
             Spacer(minLength: 8)
