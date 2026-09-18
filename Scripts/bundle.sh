@@ -530,6 +530,13 @@ if [[ -n "$FEED_URL" ]]; then
         printf '  whatever it is handed. Run generate_keys and paste the public half\n'
         printf '  into Resources/Uttrflow-Info.plist — see Docs/releasing.md ("Updating").'
     )"
+    VERIFY_FIRST="$(/usr/libexec/PlistBuddy -c 'Print :SUVerifyUpdateBeforeExtraction' "$APP/Contents/Info.plist" 2>/dev/null || true)"
+    [[ "$VERIFY_FIRST" == "true" ]] || fail "$(
+        printf 'SUFeedURL is set and SUVerifyUpdateBeforeExtraction is not true.\n'
+        printf '  Sparkle then checks an update archive against SUPublicEDKey only after\n'
+        printf '  unpacking it, alongside the code signature. Set it to true in\n'
+        printf '  Resources/Uttrflow-Info.plist — see Docs/releasing.md ("Updating").'
+    )"
 fi
 
 # 4b. Every framework the shipped binary links is in Contents/Frameworks, and the

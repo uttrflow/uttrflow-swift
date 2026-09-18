@@ -52,7 +52,8 @@ final class UpdateController: NSObject {
         guard let key = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
             !key.isEmpty, !key.contains(" ")
         else { return false }
-        return true
+        // Checks the archive against the key before it is unpacked. See Docs/releasing.md ("Updating").
+        return Bundle.main.object(forInfoDictionaryKey: "SUVerifyUpdateBeforeExtraction") as? Bool == true
     }
 
     /// `https`, or `http` to this machine only, so an update can be rehearsed end to end on one Mac.
