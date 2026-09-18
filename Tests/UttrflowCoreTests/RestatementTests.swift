@@ -76,6 +76,7 @@ struct RestatementTests {
             ("ten apples actually twelve pears", 2, 3),
             ("we ordered ten boxes. no twelve boxes arrived", 4, 5),
             ("i counted ten. boxes no twelve boxes", 4, 5),
+            ("we need ten boxes no twelve. boxes", 4, 5),
             ("ten boxes no twelve", 2, 3),
             ("boxes no twelve boxes", 1, 2),
         ])

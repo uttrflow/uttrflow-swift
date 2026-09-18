@@ -79,7 +79,11 @@ public enum Restatement {
             !endsSentence(unit - 1, in: live, of: draft)
         else { return nil }
         var next = restart
-        while next < live.count, NumberWords.isNumber(draft.shape(at: live[next]).key) { next += 1 }
+        while next < live.count, NumberWords.isNumber(draft.shape(at: live[next]).key) {
+            // A unit past a stop belongs to the next sentence, not to this restatement.
+            guard !endsSentence(next, in: live, of: draft) else { return nil }
+            next += 1
+        }
         guard next < live.count, draft.shape(at: live[next]).key == unitKey else { return nil }
         return unit - 1
     }
