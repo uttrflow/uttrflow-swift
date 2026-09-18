@@ -211,6 +211,7 @@ let package = Package(
         // What the user is about to type. Pure decisions; the store and the model are elsewhere.
         .target(
             name: "UttrflowPredict",
+            dependencies: ["UttrflowCore"],
             swiftSettings: sharedSwiftSettings
         ),
 
