@@ -361,9 +361,7 @@ public enum SettingsPresenter {
                         toggleRow(
                             .suggestionsEnabled,
                             label: "Finish what I am typing",
-                            explanation:
-                                "Uttrflow completes lines you have typed on this Mac before. "
-                                + "Off until you ask for it.",
+                            explanation: suggestionsExplanation,
                             settings, .everything),
                         toggleRow(
                             .quietSuggestions,
@@ -374,12 +372,20 @@ public enum SettingsPresenter {
                     ]),
                 applicationGroup(settings, personalisation),
             ],
-            callout: SettingsCallout(
-                symbolName: "lock",
-                message:
-                    "Completions come from what you have typed on this Mac, kept in Uttrflow's own "
-                    + "folder. Nothing is uploaded, and a password field is never read."))
+            callout: SettingsCallout(symbolName: "lock", message: suggestionsPromise))
     }
+
+    /// What switching suggestions on lets Uttrflow read, write and keep.
+    static let suggestionsExplanation =
+        "Reads the text in and around the field you are typing in, and suggests the rest of the "
+        + "line from lines you have sent before, from this Mac, or written by AI that runs on it. "
+        + "Remembers the lines you send. Off until you ask for it."
+
+    /// Where everything suggestions read and keep stays, and where to turn them off or forget them.
+    static let suggestionsPromise =
+        "What it reads stays on this Mac. The lines it remembers are kept in Uttrflow's own "
+        + "folder. Nothing is uploaded, and a password field is never read. "
+        + "Turn it off for one application, or forget what it learned there, under Applications below."
 
     /// Says what the model is doing, since a switch that is on and silent is indistinguishable from broken.
     static func suggestionModelBanner(
