@@ -27,6 +27,9 @@ CACHE_CAP = 256 * 1_048_576
 
 # Wakeups below the floor that are allowed, keyed by file and interval expression, each with its reason printed on every run.
 WAKEUPS_ALLOWED = {
+    ("Sources/UttrflowPipeline/DictationController.swift", "start.advanced(by:elapsed)"): (
+        "the recording cap's countdown, every ten seconds in a recording's last minute and never at rest"
+    ),
     ("Sources/Uttrflow/Dock/DockPanelController.swift", "Self.meteringInterval"): (
         "the level meter, which runs only while a recording is in progress and stops with it"
     ),
