@@ -33,9 +33,6 @@ WAKEUPS_ALLOWED = {
     ("Sources/UttrflowInput/CarbonHotkeyMonitor.swift", ".milliseconds(Self.reconciliationMilliseconds)"): (
         "the release check, which runs only while the shortcut is held; see Docs/stuck-recording.md"
     ),
-    ("Sources/UttrflowClipboard/CodeFormatting+System.swift", ".milliseconds(20)"): (
-        "waits for a formatter a person chose to exit, bounded by KnownFormatter.timeout"
-    ),
     ("Sources/UttrflowInput/PasteConfirmation.swift", "interval"): (
         "watches the caret after a paste the user made, bounded by the confirmation budget"
     ),
