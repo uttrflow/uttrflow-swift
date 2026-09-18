@@ -20,7 +20,7 @@ public struct SystemCodeFormatter: CodeFormatting {
             let tool = executable(for: formatter)
         else { return nil }
 
-        return await run(tool, arguments: formatter.arguments, input: text)
+        return await run(tool, arguments: formatter.arguments(for: language), input: text)
     }
 
     /// The formatter's own file, or `nil` when it is not installed.
