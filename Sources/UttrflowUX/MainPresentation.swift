@@ -171,7 +171,7 @@ public enum MainPresenter {
         case .openSystemSettings: "Open Settings"
         case .retry: "Try Again"
         case .downloadSpeechModel: "Download"
-        case .pasteManually: "Paste"
+        case .pasteManually: "Dismiss"
         case .showRecentDictations: "Show Recent"
         case .retryFromRecording: "Retry"
         }

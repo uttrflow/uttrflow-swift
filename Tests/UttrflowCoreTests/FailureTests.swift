@@ -159,6 +159,21 @@ struct FailurePresentationTests {
         }
     }
 
+    /// The button only dismisses, so the sentence is what says how to paste.
+    @Test("tells the user to press Command-V wherever the recovery leaves the paste to them")
+    func pasteManuallyMessagesNameTheKeystroke() {
+        let failures: [any UttrflowFailure] = [
+            TextInsertionError.insertionRejected(description: "x"),
+            TransformationError.noCapableTransformer,
+            TransformationError.transformFailed(kind: .localModel, description: "x"),
+            TransformationError.outputRejected(reason: "x"),
+        ]
+        for failure in failures {
+            #expect(failure.recovery == .pasteManually)
+            #expect(failure.userMessage.contains("press ⌘V"))
+        }
+    }
+
     @Test("distinguishes failures that carry different detail")
     func equatable() {
         #expect(AudioCaptureError.engineFailed(description: "a") != .engineFailed(description: "b"))
