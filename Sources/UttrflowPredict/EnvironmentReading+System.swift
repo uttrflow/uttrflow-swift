@@ -33,8 +33,22 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     /// The names a Makefile goes by, in the order make itself tries them.
     static let makefiles = ["GNUmakefile", "makefile", "Makefile"]
 
+    /// Runs every program a lookup needs; never in the terminal's directory. See `Docs/command-lookups.md`.
+    private let launcher: any ProgramLaunching
+
+    /// The directories a verb lookup may run a program from.
+    private let programDirectories: [String]
+
     /// A reader over this Mac, which needs nothing to be told.
-    public init() {}
+    public init() {
+        self.init(launcher: SpawnedProgramLauncher(), programDirectories: CommandLookup.programDirectories)
+    }
+
+    /// A reader that launches through `launcher` and finds programs only in `programDirectories`.
+    init(launcher: any ProgramLaunching, programDirectories: [String]) {
+        self.launcher = launcher
+        self.programDirectories = programDirectories
+    }
 
     /// Every value of one kind here, each kind read the way that kind is read.
     public func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
@@ -113,7 +127,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     private func verbs(of program: String, in directory: String) async -> [String]? {
         switch program {
         case "git":
-            return await gitSubcommands(in: directory)
+            return await gitSubcommands()
         case "make", "just":
             return Self.makefiles.compactMap {
                 try? String(contentsOfFile: "\(directory)/\($0)", encoding: .utf8)
@@ -148,35 +162,33 @@ public struct SystemEnvironmentReader: EnvironmentReading {
             .flatMap(PackageScripts.names(in:))
     }
 
-    /// The commands a program lists when asked, absent when it is not on the search path, does not answer, or lists none.
+    /// The commands a program from a standard directory lists when asked, absent when there is none, it does not answer, or it lists none.
     private func helpCommands(of program: String, in directory: String) async -> [String]? {
         guard
-            let tool = Self.searchPaths().lazy.map({ "\($0)/\(program)" })
-                .first(where: FileManager.default.isExecutableFile(atPath:))
-        else { return nil }
-        guard
+            let tool = CommandLookup.program(named: program, in: programDirectories, outside: directory),
             let output = await run(
-                tool, arguments: Self.listingArguments(for: program), in: directory,
-                within: Self.helpTimeoutInSeconds)
+                tool, arguments: Self.listingArguments(for: program), within: Self.helpTimeoutInSeconds,
+                searchPath: CommandLookup.runnableDirectories(programDirectories, outside: directory))
         else { return nil }
         let names = HelpCommands.names(in: output)
         return names.count >= Self.fewestListedVerbs ? Array(names.prefix(Self.verbLimit)) : nil
     }
 
+    /// The first git installed at one of `gitPaths`, which every git lookup runs.
+    static func installedGit() -> String? {
+        gitPaths.first(where: FileManager.default.isExecutableFile(atPath:))
+    }
+
     /// Every subcommand this machine's git accepts, asked of git rather than written down here.
-    private func gitSubcommands(in directory: String) async -> [String]? {
-        guard let git = Self.gitPaths.first(where: FileManager.default.isExecutableFile(atPath:)) else {
-            return nil
-        }
-        let listed = await run(git, arguments: ["-C", directory, "--list-cmds=builtins,main,others,alias"])
+    private func gitSubcommands() async -> [String]? {
+        guard let git = Self.installedGit() else { return nil }
+        let listed = await run(git, arguments: ["--list-cmds=builtins,main,others,alias"])
         return listed.map { Array($0.split(separator: "\n").map(String.init).prefix(Self.verbLimit)) }
     }
 
     /// Every name the user's git configuration binds, which no typo model may be allowed to undo.
     private func gitAliases(in directory: String) async -> [String]? {
-        guard let git = Self.gitPaths.first(where: FileManager.default.isExecutableFile(atPath:)) else {
-            return nil
-        }
+        guard let git = Self.installedGit() else { return nil }
         // A configuration with no aliases is an exit status of one and an answer of none, not a failure.
         let declared =
             await run(git, arguments: ["-C", directory, "config", "--get-regexp", "^alias\\."]) ?? ""
@@ -192,41 +204,16 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         return Array(ShellAliases.names(in: text).prefix(Self.valueLimit))
     }
 
-    /// One bounded run of a program, absent for a failure, a timeout or unreadable output; both streams are read, since help goes to either.
+    /// One bounded run of a program in an empty directory, absent for a failure, a timeout or unreadable output; both streams are read, since help goes to either.
     private func run(
-        _ tool: String, arguments: [String], in directory: String? = nil,
-        within timeout: Double = SystemEnvironmentReader.timeoutInSeconds
+        _ tool: String, arguments: [String],
+        within timeout: Double = SystemEnvironmentReader.timeoutInSeconds,
+        searchPath: [String] = CommandLookup.programDirectories
     ) async -> String? {
-        let process = Process()
-        process.executableURL = URL(filePath: tool)
-        process.arguments = arguments
-        process.environment = [
-            "PATH": Self.searchPaths().joined(separator: ":"), "GIT_TERMINAL_PROMPT": "0", "NO_COLOR": "1",
-            "HOME": FileManager.default.homeDirectoryForCurrentUser.path,
-        ]
-        if let directory { process.currentDirectoryURL = URL(filePath: directory) }
-
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = output
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-
-        // Read before waiting: output that fills the pipe buffer blocks the program writing it.
-        let produced = try? output.fileHandleForReading.readToEnd()
-
-        let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning && Date() < deadline {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        guard !process.isRunning else {
-            process.terminate()
-            return nil
-        }
-        guard process.terminationStatus == 0, let produced else { return nil }
-        return String(data: produced, encoding: .utf8)
+        let environment = CommandLookup.environment(
+            searchPath: searchPath, home: FileManager.default.homeDirectoryForCurrentUser.path)
+        return await launcher.output(
+            of: ProgramLaunch(
+                executable: tool, arguments: arguments, environment: environment, timeout: timeout))
     }
 }
