@@ -12,11 +12,17 @@ the two things that are not obvious from the code.
 | Listening / working | 32 high | Identical footprint, so the panel cannot change shape at the moment the key is released |
 | Quiet outcomes (inserted, nothing heard) | 26-point disc | A success needs no words: the text is already in the document |
 | Copied, not typed | 28 high, 64 wide at rest | ⌘V at rest; the sentence and the Fix button under the pointer |
-| Blocked | 262 × 40 | The only wide form, so after a run of discs it is unmistakably asking for something |
-| Speech model loading | 262 × 40 | The blocked form with an hourglass, in place of the resting grip for as long as the load runs. See `Docs/startup.md` |
+| Blocked | 300 wide, at least 40 high | The only wide form, so after a run of discs it is unmistakably asking for something |
+| Speech model loading | 300 wide, at least 40 high | The blocked form with an hourglass, in place of the resting grip for as long as the load runs. See `Docs/startup.md` |
 
-`noticeMaxWidth` (262) applies to the blocked form alone. A single width applied to every
+`noticeMaxWidth` (300) applies to the blocked form alone. A single width applied to every
 form made the listening pill 286 points wide on every dictation, for a state it never entered.
+
+The blocked form's message wraps to at most `noticeMaxLines` (3) lines and the form grows to
+hold it; the recovery button sits under the words rather than beside them, so it never takes
+width the message needs. At one line with no button the form is the 40-point capsule it always
+was. `DockNoticeTextTests` measures every failure message at the view's font and wrap width and
+fails when one would need a fourth line, and the whole notice is on the pointer as a tooltip.
 
 ## Meter
 
