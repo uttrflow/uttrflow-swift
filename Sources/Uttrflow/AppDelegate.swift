@@ -107,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         didSet {
             guard suggestionModel != oldValue else { return }
             settingsWindow.setSuggestionModel(suggestionModel)
+            refreshMenuBar()
         }
     }
 
@@ -480,6 +481,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 memoryPressure.reloaded(at: .now)
                 prepareTheModelIfNeeded()
             }
+        }
+    }
+
+    /// Follows a reload an idle release caused, so a model being read back in says so rather than reading as ready.
+    func suggestionModelReloaded(_ event: IdleReload) {
+        guard isModelPreparing else { return }
+        switch event {
+        case .started where suggestionModel == .ready:
+            suggestionModel = .loading
+        case .finished where suggestionModel == .loading:
+            suggestionModel = .ready
+        case .failed where suggestionModel == .loading:
+            // Cleared, as a first load that fails is, so turning the feature off and on tries again.
+            isModelPreparing = false
+            suggestionModel = .failed
+        case .started, .finished, .failed:
+            break
         }
     }
 
@@ -1246,7 +1264,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             canCheckForUpdates: UpdateController.isConfigured,
             updateProgress: updates.progress,
             features: menuSwitches.setting(.suggestions, isOn: settings.suggestions.isEnabled),
-            shortcuts: settings.shortcuts
+            shortcuts: settings.shortcuts,
+            suggestionModel: suggestionModel
         )
     }
 

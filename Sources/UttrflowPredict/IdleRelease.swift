@@ -23,6 +23,16 @@ public enum IdleRelease {
     }
 }
 
+/// Where a reload that an idle release caused has got to, which is what the app shows while it runs.
+public enum IdleReload: Sendable, Equatable {
+    /// A query found the model let go and started loading it again.
+    case started
+    /// The reload finished and the model can answer.
+    case finished
+    /// The reload ended without a model that can answer.
+    case failed
+}
+
 /// Holds a model only while something keeps asking for it; a release by the caller is never undone by a query.
 public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     private let model: Model
@@ -37,10 +47,15 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     /// The latest load or release, which the next one waits for so they land in the order they were asked.
     private var work: Task<Void, Never>?
     private var watch: Task<Void, Never>?
+    /// Told how a reload after an idle release is going, so the wait is not silent.
+    private let onReload: @Sendable (IdleReload) -> Void
 
-    public init(model: Model, idleAfter: Duration) {
+    public init(
+        model: Model, idleAfter: Duration, onReload: @escaping @Sendable (IdleReload) -> Void = { _ in }
+    ) {
         self.model = model
         self.idleAfter = idleAfter
+        self.onReload = onReload
     }
 
     /// Whether the weights are loaded or on their way; internal so a test can read it.
@@ -140,6 +155,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     private func reload() {
         isHeld = true
         let asked = advance()
+        onReload(.started)
         let previous = work
         let model = model
         work = Task { [weak self] in
@@ -148,9 +164,16 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
                 try await model.prepare(onProgress: { _ in })
                 await self?.loaded(asked)
             } catch {
-                await self?.settle(asked)
+                await self?.reloadFailed(asked)
             }
         }
+    }
+
+    /// Settles a reload that failed and says so, unless something newer was asked for since.
+    private func reloadFailed(_ asked: Int) async {
+        await settle(asked)
+        guard generation == asked else { return }
+        onReload(.failed)
     }
 
     /// Starts a new generation and returns it, so every step already queued knows it is stale.
@@ -163,6 +186,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     /// Watches a background load that succeeded, unless something newer was asked for since.
     private func loaded(_ asked: Int) {
         guard generation == asked else { return }
+        onReload(.finished)
         watchForIdle()
     }
 

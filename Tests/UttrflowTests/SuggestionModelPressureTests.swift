@@ -166,6 +166,51 @@ struct MemoryPressureTests {
         #expect(app.suggestionModel == .notAsked)
     }
 
+    @Test("a reload after an idle release reads as getting ready, then ready, and the menu says so")
+    func idleReloadIsShown() async {
+        let steps = Steps()
+        let app = app(steps)
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        app.suggestionModelReloaded(.started)
+        #expect(app.suggestionModel == .loading)
+        let menu = MenuBarPresenter.present(
+            MenuBarState(features: MenuBarFeatures(suggestions: true), suggestionModel: app.suggestionModel))
+        #expect(menu.commands.contains { $0.title == "AI Suggestions — Getting ready" })
+        app.suggestionModelReloaded(.started)
+        #expect(app.suggestionModel == .loading)
+        app.suggestionModelReloaded(.finished)
+        #expect(app.suggestionModel == .ready)
+        app.suggestionModelReloaded(.finished)
+        #expect(app.suggestionModel == .ready)
+    }
+
+    @Test("a reload that fails reads as failed, and turning the feature off and on tries again")
+    func failedIdleReloadIsShown() async {
+        let steps = Steps()
+        let app = app(steps)
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        app.suggestionModelReloaded(.failed)
+        #expect(app.suggestionModel == .ready)
+        app.suggestionModelReloaded(.started)
+        app.suggestionModelReloaded(.failed)
+        #expect(app.suggestionModel == .failed)
+        app.suggestionModelReloaded(.started)
+        #expect(app.suggestionModel == .failed)
+        app.settingsChanged(to: settings(suggesting: false))
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        #expect(app.suggestionModel == .ready)
+    }
+
+    @Test("a reload reported while the feature is off changes nothing")
+    func reloadWhileOffIsIgnored() {
+        let app = app(Steps())
+        app.suggestionModelReloaded(.started)
+        #expect(app.suggestionModel == .notAsked)
+    }
+
     @Test("turning the feature off while released leaves nothing to reload")
     func offForgetsTheRelease() async {
         let steps = Steps()
