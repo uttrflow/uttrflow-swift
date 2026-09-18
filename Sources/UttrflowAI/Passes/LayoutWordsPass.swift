@@ -24,7 +24,7 @@ public struct LayoutWordsPass: CleaningPass {
             guard
                 let found = opening(mark(at: position, in: live, of: draft), at: position),
                 position + found.length < live.count,
-                isUsed(spanning: found.length, at: position, in: live, of: draft),
+                isUsed(found, at: position, in: live, of: draft),
                 isCorroborated(at: position, in: live, of: draft, among: numbered)
             else {
                 position += 1
@@ -49,12 +49,17 @@ public struct LayoutWordsPass: CleaningPass {
         return mark.isEmpty ? nil : (found.length, mark)
     }
 
-    /// Whether the phrase is dictated layout rather than named; one opening its sentence has no lookback to ask, so it needs a mark. See `Docs/cleanup.md`.
-    private func isUsed(spanning length: Int, at position: Int, in live: [Int], of draft: Draft) -> Bool {
+    /// Whether the phrase is dictated layout rather than named; an item opening its sentence needs a mark. See `Docs/cleanup.md`.
+    private func isUsed(
+        _ found: (length: Int, mark: String), at position: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        let length = found.length
         // Asked of the sentence, not the text, so a sentence before it cannot turn "number one is broken" into an item.
         guard position == 0 || draft.shape(at: live[position - 1]).endsSentence else {
             return !MentionGuard.isMentioned(at: position, spanning: length, in: live, of: draft)
         }
+        // A break straight after a sentence's stop is how people dictate one: "full stop new paragraph".
+        if position > 0, found.mark.allSatisfy(\.isNewline) { return true }
         let last = draft.shape(at: live[position + length - 1])
         return last.endsClause && !last.endsSentence
     }

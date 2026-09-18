@@ -54,6 +54,23 @@ struct LayoutWordsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// Issue 566: a break said straight after a sentence's stop is the break, however the stop arrived.
+    @Test(
+        "reads a break opening a sentence as layout, since a stop then a break is how one is dictated",
+        arguments: [
+            ("the build is green. new paragraph thanks everyone", "the build is green.\n\nthanks everyone"),
+            ("is it ready? new line yes", "is it ready?\nyes"),
+            ("the build is green. blank line thanks everyone", "the build is green.\n\nthanks everyone"),
+            ("is it ready? New paragraph. Yes", "is it ready?\n\nYes"),
+            // Still words when nothing follows, and still an item's business to be set off.
+            ("the build is green. new paragraph", "the build is green. new paragraph"),
+            ("we shipped. bullet point the milk", "we shipped. bullet point the milk"),
+        ]
+    )
+    func readsABreakAfterAStop(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// One spoken phrase cannot straddle a sentence end, so neither the phrase nor the item number reaches past one.
     @Test(
         "reads neither a layout phrase nor an item number across a sentence end",
