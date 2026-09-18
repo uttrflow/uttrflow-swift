@@ -27,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private let settingsStore: any SettingsStore = UserDefaultsSettingsStore()
     private var settings = Settings()
+    /// The pipeline's recording cue, told when the sound setting changes.
+    private var recordingSounds: RecordingSounds?
 
     private let menuBar = MenuBarController()
     private let dock = DockPanelController()
@@ -533,9 +535,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
 
         // One cue for both ends, so a stop sounds only after a start the user could have heard.
-        let cue: any RecordingCueing =
-            settings.playsSoundWhenRecordingStarts
-            ? SoundPlayingRecordingCue(player: SystemSoundPlayer()) : SilentCue()
+        let sounds = RecordingSounds(
+            player: SystemSoundPlayer(), enabled: settings.playsSoundWhenRecordingStarts)
+        recordingSounds = sounds
+        let cue = sounds.cue
 
         // Held so the floating button's meter reads the level without queueing behind a `stop()`.
         let microphone = AVAudioCaptureEngine(
@@ -1708,6 +1711,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func settingsChanged(to updated: Settings) {
         let previous = settings
         settings = updated
+        recordingSounds?.apply(updated)
         applyAppearance()
         applyLaunchAtLogin()
 
