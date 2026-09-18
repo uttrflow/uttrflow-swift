@@ -1187,9 +1187,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if !state.isListening { recordingAdvice = .keepGoing }
         menuBar.update(with: MenuBarPresenter.present(menuBarState(for: state)))
         dock.update(with: dockPresentation(for: state))
+        announce(DictationPresenter.announcement(for: state))
         refreshMainWindow()
 
         scheduleDismissal(after: state)
+    }
+
+    /// Speaks a state change through VoiceOver, since focus stays in the app being typed into.
+    private func announce(_ announcement: DictationAnnouncement?) {
+        guard let announcement else { return }
+        let priority: NSAccessibilityPriorityLevel = announcement.isUrgent ? .high : .medium
+        NSAccessibility.post(
+            element: NSApplication.shared, notification: .announcementRequested,
+            userInfo: [.announcement: announcement.text, .priority: priority.rawValue])
     }
 
     /// Keeps one dictation, echoed on screen at once because the menu cannot await the store.
