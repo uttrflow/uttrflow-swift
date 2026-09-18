@@ -40,7 +40,7 @@ ALLOWED = {
 DESCRIPTIONS = (
     re.compile(r"\bString\(\s*(?:describing|reflecting):"),
     re.compile(r"\.(?:localizedDescription|debugDescription|description)\b"),
-    re.compile(r"^(?:self\.)?[a-z]*(?:[eE]rror|[fF]ailure)s?$"),
+    re.compile(r"^(?:self\.)?[a-z]*(?:error|failure|Error|Failure)s?$"),
 )
 
 # Public descriptions of values whose every case is fixed wording, each with the reason printed on every run.
