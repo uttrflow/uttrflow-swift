@@ -179,6 +179,40 @@ struct DictationChangesTests {
         #expect(page.rows[0].changes == nil)
     }
 
+    /// Several dictations and their changes interleaved, as the list arrives, each counted to its own row.
+    @Test("counts each dictation's standing changes to its own row")
+    func countsPerDictation() {
+        let first = HistoryFixture.entry("utter flow is late")
+        let second = HistoryFixture.entry("see you at the demo")
+        let third = HistoryFixture.entry("nothing changed here")
+        let page = HistoryFixture.dictation(
+            entries: [first, second, third],
+            corrections: [
+                HistoryFixture.correction(in: first.id),
+                HistoryFixture.correction(in: second.id),
+                HistoryFixture.correction(in: first.id),
+                HistoryFixture.correction(in: second.id, isUndone: true),
+                HistoryFixture.correction(in: first.id),
+            ])
+
+        let badges = Dictionary(uniqueKeysWithValues: page.rows.map { ($0.id, $0.changes?.title) })
+        #expect(badges[first.id] == "3 changes")
+        #expect(badges[second.id] == "1 change")
+        #expect(badges[third.id] == .some(nil))
+    }
+
+    @Test("counts standing changes per dictation in one pass")
+    func appliedCorrectionCounts() {
+        let one = UUID()
+        let two = UUID()
+        let counts = DictationPresenter.appliedCorrections(in: [
+            HistoryFixture.correction(in: one),
+            HistoryFixture.correction(in: two, isUndone: true),
+            HistoryFixture.correction(in: one),
+        ])
+        #expect(counts == [one: 2])
+    }
+
     /// A dictation that kept no record shows no badge, even where a correction elsewhere claims it.
     @Test("a dictation that kept no record shows no badge")
     func withoutARecord() {

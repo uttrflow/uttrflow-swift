@@ -1187,7 +1187,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if !state.isListening { recordingAdvice = .keepGoing }
         menuBar.update(with: MenuBarPresenter.present(menuBarState(for: state)))
         dock.update(with: dockPresentation(for: state))
-        refreshMainWindow()
+        // No page shows a dictation under way, so the pages are read and built only once it has ended.
+        if !state.isBusy { refreshMainWindow() }
 
         scheduleDismissal(after: state)
     }
@@ -1318,6 +1319,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             scopes[page] = scope
             redrawMainWindow()
         }
+        window.onBecameVisible = { [weak self] in self?.catchUpMainWindow() }
         window.onDraft = { [weak self] in
             guard let self else { return }
             // A refusal describes one attempt, and describes nothing once the typing changes.
@@ -1340,7 +1342,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func redrawMainWindow() {
         updates.refresh()
         guard let mainWindow else { return }
+        guard mainWindow.isOnScreen else {
+            mainWindowIsBehind = true
+            return
+        }
+        mainWindowIsBehind = false
         mainWindow.update(mainContent(measurements: lastMeasurements))
+    }
+
+    /// Builds the pages skipped while the window was out of sight, from the last reading.
+    private func catchUpMainWindow() {
+        guard mainWindowIsBehind else { return }
+        redrawMainWindow()
     }
 
     /// Forgets what a reset removed before redrawing, so the page cannot repaint the words it took.
@@ -1381,6 +1394,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             await refreshPermissions()
             // A later refresh has newer state, and painting over it would leave the older reading up.
             guard reading == refreshGeneration else { return }
+            // Read even out of sight, since the menu's Recent list comes from this reading too.
+            guard mainWindow?.isOnScreen == true else {
+                mainWindowIsBehind = true
+                return
+            }
+            mainWindowIsBehind = false
             mainWindow?.update(mainContent(measurements: measurements))
         }
     }
@@ -1501,6 +1520,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var knownPicture: (path: String, bytes: Data)?
     /// The timings last read, so a keystroke redraws without hopping to the actor.
     private var lastMeasurements: [StageMeasurement] = []
+    /// Whether the main window's pages were last skipped because it was out of sight.
+    private var mainWindowIsBehind = false
     /// Everything the store keeps, which is not ``recents`` — that is the menu's five.
     private var kept: [DictationRecord] = []
     /// Recordings whose words were lost, as of the last refresh.
