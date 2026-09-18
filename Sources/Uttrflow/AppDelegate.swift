@@ -317,11 +317,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// Clicking the Dock icon of an app with no visible window, which must open one.
+    /// Clicking the Dock icon or reopening from Finder, which brings back a main window that is not on screen.
     func applicationShouldHandleReopen(
         _ sender: NSApplication, hasVisibleWindows: Bool
     ) -> Bool {
-        if !hasVisibleWindows { show(.main(.home)) }
+        if Reopening.showsMainWindow(
+            mainWindowIsVisible: mainWindow?.isVisible == true,
+            onboardingIsVisible: onboarding?.isVisible == true)
+        {
+            show(.main(.home))
+        }
         return true
     }
 
