@@ -135,6 +135,8 @@ public struct PanelSnapshot: Sendable, Equatable {
 
     /// The languages a formatter is installed for; asked of the machine by the app when the panel opens.
     public var formattableLanguages: Set<CodeLanguage> = []
+    /// Remembers which code clips can be re-indented, shared by every copy of this snapshot so a keystroke does not ask again.
+    let reindentOffers = ReindentOffers()
     /// The secrets the user has deliberately unmasked; a reveal never outlives the panel that asked.
     public var revealed: Set<Clip.ID>
     /// The clock the timestamps are measured against, injected so "2 minutes ago" is testable.

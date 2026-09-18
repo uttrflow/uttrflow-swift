@@ -450,7 +450,7 @@ public enum PanelPresenter {
                 PanelAction(
                     title: "Format", symbolName: "wand.and.stars", intent: .format(clip.id)))
         }
-        if clip.kind == .code, CodeReindent.reindented(clip.text) != nil {
+        if snapshot.reindentOffers.offers(clip) {
             actions.append(
                 PanelAction(
                     title: "Re-indent", symbolName: "text.alignleft", intent: .reindent(clip.id)))
