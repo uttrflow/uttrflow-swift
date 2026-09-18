@@ -143,3 +143,18 @@ drag. A resize from the left or bottom border moves the origin too and sets `pla
 through `onResize`, so a resize is remembered as exactly nothing. While dragging, the origin is
 clamped to the visible frame, because a borderless panel gets none of AppKit's protection and
 goes clean under the menu bar.
+
+## What VoiceOver is told
+
+Every notice the panel shows is also announced: the three copy-only notices ("Copied — press
+⌘V…"), a refused write, and a picture that is no longer on this Mac. So is the undo offer after a
+delete, spoken as "Deleted. Press Command-Z to put it back." A copy-only choice closes the panel
+2.5 s later, which is sooner than VoiceOver focus reaches the notice bar, so drawing it is not
+enough.
+
+`PanelPresenter` decides the words (`PanelPresentation.announcements`); the view only posts each
+line once, when it first appears, as an `AccessibilityNotification.Announcement` at high priority
+so the panel closing does not cut it off.
+
+A row's VoiceOver hint follows the same decision as Return: "Pastes where you were typing" when a
+paste can be attempted, and a hint saying it copies when the panel knows it can only copy.
