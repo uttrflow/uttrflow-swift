@@ -196,6 +196,30 @@ struct AccuracyBaselineTests {
         #expect(comparison.reason?.contains("share no samples") == true)
     }
 
+    /// A baseline of one engine, model or hinting says nothing about another's rates.
+    @Test(
+        "refuses a verdict when the run measured a different configuration",
+        arguments: [
+            "appleSpeech tiny, language detected", "whisperKit base, language detected",
+            "whisperKit tiny, language hinted",
+        ])
+    func changedConfiguration(_ other: String) {
+        let baseline = AccuracyBaseline.capture(
+            report([sample("a", errors: 5)], label: "whisperKit tiny, language detected"), at: moment)
+        let comparison = baseline.compare(with: report([sample("a", errors: 5)], label: other))
+        #expect(comparison.verdict == .incomparable)
+        #expect(comparison.reason?.contains(other) == true)
+    }
+
+    @Test("gives a verdict when the run measured the same configuration")
+    func sameConfiguration() {
+        let label = "whisperKit tiny, language detected"
+        let baseline = AccuracyBaseline.capture(report([sample("a", errors: 5)], label: label), at: moment)
+        let comparison = baseline.compare(with: report([sample("a", errors: 5)], label: label))
+        #expect(comparison.verdict == .unchanged)
+        #expect(comparison.reason == nil)
+    }
+
     /// The same transcripts score differently under different rules.
     @Test("refuses a verdict when the normalisation rules changed")
     func changedNormalisation() {
