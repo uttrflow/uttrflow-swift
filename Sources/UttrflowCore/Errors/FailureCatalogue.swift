@@ -45,7 +45,8 @@ extension SpeechEngineError: CataloguedFailure {
     public var caseAfter: Self? {
         switch self {
         case .modelNotInstalled: .modelDownloadFailed(description: "")
-        case .modelDownloadFailed: .modelLoadFailed(description: "")
+        case .modelDownloadFailed: .notEnoughSpace(neededBytes: 0)
+        case .notEnoughSpace: .modelLoadFailed(description: "")
         case .modelLoadFailed: .audioTooShort
         case .audioTooShort: .nothingHeard
         case .nothingHeard: .transcriptionFailed(description: "")

@@ -16,12 +16,12 @@ struct FailureCatalogueTests {
         #expect(AccountError.everyCase.count == 4)
         #expect(SnippetStoreError.everyCase.count == 4)
         #expect(AudioCaptureError.everyCase.count == 5)
-        #expect(SpeechEngineError.everyCase.count == 6)
+        #expect(SpeechEngineError.everyCase.count == 7)
         #expect(TransformationError.everyCase.count == 3)
         #expect(TextInsertionError.everyCase.count == 4)
         #expect(HotkeyError.everyCase.count == 2)
         #expect(DictionaryStoreError.everyCase.count == 3)
-        #expect(allFailures.count == 35)
+        #expect(allFailures.count == 36)
     }
 
     /// A backwards link loops and a repeated case hides the one it displaces; both show as a duplicate.
@@ -83,6 +83,7 @@ struct FailurePresentationTests {
 
         #expect(SpeechEngineError.modelNotInstalled.recovery == .downloadSpeechModel)
         #expect(SpeechEngineError.modelDownloadFailed(description: "x").recovery == .downloadSpeechModel)
+        #expect(SpeechEngineError.notEnoughSpace(neededBytes: 1).recovery == .downloadSpeechModel)
         #expect(SpeechEngineError.modelLoadFailed(description: "x").recovery == .retry)
         #expect(SpeechEngineError.audioTooShort.recovery == .retry)
         #expect(SpeechEngineError.transcriptionFailed(description: "x").recovery == .retry)
@@ -120,6 +121,7 @@ struct FailurePresentationTests {
 
         #expect(SpeechEngineError.modelNotInstalled.severity == .recoverable)
         #expect(SpeechEngineError.modelDownloadFailed(description: "x").severity == .recoverable)
+        #expect(SpeechEngineError.notEnoughSpace(neededBytes: 1).severity == .recoverable)
         #expect(SpeechEngineError.modelLoadFailed(description: "x").severity == .recoverable)
         #expect(SpeechEngineError.transcriptionFailed(description: "x").severity == .recoverable)
         // Not an error at all: half a second of silence, worded and drawn so it does not read like one.
@@ -167,6 +169,26 @@ struct FailurePresentationTests {
                 != .transformFailed(kind: .localModel, description: "a")
         )
         #expect(SpeechEngineError.modelNotInstalled == .modelNotInstalled)
+    }
+}
+
+@Suite("Asking for disk space")
+struct DiskSpaceMessageTests {
+    @Test("says how much space setup needs, rounded up, and not to check the connection")
+    func namesTheSpaceNeeded() {
+        let message = SpeechEngineError.notEnoughSpace(neededBytes: 845_668_913).userMessage
+        #expect(message.contains("846 MB"))
+        #expect(!message.lowercased().contains("connection"))
+    }
+
+    @Test("rounds megabytes and gigabytes up, never down")
+    func roundsUp() {
+        #expect(SpeechEngineError.readable(0) == "0 MB")
+        #expect(SpeechEngineError.readable(1) == "1 MB")
+        #expect(SpeechEngineError.readable(999_000_000) == "999 MB")
+        #expect(SpeechEngineError.readable(999_000_001) == "1.0 GB")
+        #expect(SpeechEngineError.readable(1_200_000_001) == "1.3 GB")
+        #expect(SpeechEngineError.readable(.max) == "9223372036.9 GB")
     }
 }
 
