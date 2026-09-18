@@ -452,9 +452,13 @@ rewrites the query as a `LIKE`.
 
 The fuzzy fallback rejects candidates with a 64-bit character mask before it computes any
 edit distance. The width of the window that mask covers is the whole of its strength: a
-mask over the first *n + k* bytes, where *n* is the query length and *k* its edit budget,
-measured **14.9×** faster than no prefilter at all. A fixed twelve-byte window measured
-**4.0×**.
+mask over the first *n + k* units, where *n* is the query length and *k* its edit budget,
+measured **14.9×** faster than no prefilter at all. A fixed twelve-unit window measured
+**4.0×**. Those were measured on ASCII, where a byte and a Unicode scalar are the same unit.
+
+The unit is the Unicode scalar, for the budget, the mask and the distance alike. Counted in
+UTF-8 bytes, one Devanagari letter is three units, so two typed letters earned the two-edit
+allowance meant for six, and an accented Latin letter earned an edit a plain one did not.
 
 Both are sound — a wider window can only weaken the filter, and never rejects a candidate
 that would have matched — so the fixed width fails silently, giving up most of the gain

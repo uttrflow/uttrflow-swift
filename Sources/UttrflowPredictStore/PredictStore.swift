@@ -189,7 +189,7 @@ public actor PredictStore: PredictionStore {
     private func fuzzyCandidates(
         surfaceIdentifier id: Int64, typed: String
     ) throws(PredictStoreError) -> [Candidate] {
-        let needle = Array(typed.utf8)
+        let needle = FuzzyMatch.units(typed)
         let budget = FuzzyMatch.budget(forQueryOfLength: needle.count)
         guard budget > 0 else { return [] }
         let width = FuzzyMatch.maskWidth(forQueryOfLength: needle.count, within: budget)
@@ -203,12 +203,12 @@ public actor PredictStore: PredictionStore {
 
         var matched: [Candidate] = []
         for candidate in all {
-            let bytes = Array(candidate.text.utf8)
+            let units = FuzzyMatch.units(candidate.text)
             guard
                 FuzzyMatch.couldMatch(
-                    query: queryMask, candidate: FuzzyMatch.mask(bytes.prefix(width)), within: budget)
+                    query: queryMask, candidate: FuzzyMatch.mask(units.prefix(width)), within: budget)
             else { continue }
-            let distance = FuzzyMatch.prefixDistance(needle, bytes, within: budget)
+            let distance = FuzzyMatch.prefixDistance(needle, units, within: budget)
             guard distance <= budget else { continue }
             matched.append(
                 Candidate(
