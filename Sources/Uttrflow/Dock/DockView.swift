@@ -226,7 +226,7 @@ struct DockView: View {
     private func clipboardNotice(_ presentation: DockPresentation) -> some View {
         HStack(spacing: 8) {
             keycap("⌘V")
-                .foregroundStyle(Color.dockWarning)
+                .foregroundStyle(Color.dockWarningInk)
             if model.isHovering {
                 Text("Typing is blocked — paste it")
                     .font(.system(size: DockMetrics.footnoteSize + 1))
@@ -250,7 +250,7 @@ struct DockView: View {
     /// The one state with something for the reader to do, and the only wide form.
     private func blocked(_ presentation: DockPresentation, primaryLine: String) -> some View {
         HStack(spacing: 12) {
-            Badge(symbolName: presentation.symbolName, tint: .dockWarning)
+            Badge(symbolName: presentation.symbolName, tint: .dockWarningFill)
             VStack(alignment: .leading, spacing: 2) {
                 Text(primaryLine)
                     .font(.system(size: DockMetrics.bodySize, weight: .medium))
@@ -441,7 +441,7 @@ private struct MarkTick: View {
         Tick()
             .trim(from: 0, to: drawn ? 1 : 0)
             .stroke(
-                Color.dockSuccess,
+                Color.dockSuccessInk,
                 style: StrokeStyle(
                     lineWidth: UttrflowMark.lineWidth(forHeight: DockMetrics.markTickHeight),
                     lineCap: .round, lineJoin: .round)
@@ -573,6 +573,12 @@ extension Color {
     static let dockWeightInk = Color(rgb: BrandPalette.Teal.inkOnDisc)
     static let dockSuccess = Color(rgb: BrandPalette.Semantic.success)
     static let dockWarning = Color(rgb: BrandPalette.Semantic.warning)
+    /// The warning as text on the dock's glass, which the bright tone fails on a light desktop.
+    static let dockWarningInk = Color(nsColor: .orbit(BrandPalette.Semantic.cautionInk))
+    /// The failure disc under a white glyph.
+    static let dockWarningFill = Color(rgb: BrandPalette.Semantic.warningFill)
+    /// The tick on the dock's glass, deepened on a light desktop.
+    static let dockSuccessInk = Color(nsColor: .orbit(BrandPalette.Semantic.successInk))
 
     /// The waveform teal, deepened on a light desktop where the bright one vanishes against the glass.
     static let dockWaveform = Color(nsColor: .orbit(BrandPalette.Teal.waveform))
