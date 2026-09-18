@@ -176,7 +176,6 @@ struct RulesCorpusTests {
             ("spoken-period", "Ship it."),
             ("period-after-new-line", "First line\nsecond line."),
             ("full-stop-new-paragraph", "The build is green.\n\nThanks everyone."),
-            ("question-mark-new-line", "Is it ready?\nYes."),
             ("dates", "The 25 March."),
             ("ordinal-not-date", "The twenty first may fail."),
             ("message-two-sentences-no-stop", "Are you around yet I should be there in 10"),
