@@ -135,12 +135,24 @@ struct DraftTests {
             ("costs \u{20B9}5 6", 1, "costs 6"),
             ("the fee is 40% 50%", 3, "the fee is 50%"),
             ("was it 40%?", 2, "was it?"),
+            ("a rate of 5\u{2030} 6\u{2030}", 3, "a rate of 6\u{2030}"),
+            ("a rate of 5\u{2031} 6\u{2031}", 3, "a rate of 6\u{2031}"),
+            ("set it to 40\u{00B0} 50\u{00B0}", 3, "set it to 50\u{00B0}"),
+            ("ticket #5 #6", 1, "ticket #6"),
         ]
     )
     func dropsAnAmountsOwnSign(input: String, index: Int, expected: String) {
         var draft = Draft(text: input)
         draft.remove(at: index, by: pass, carryingMarks: true)
         #expect(draft.text == expected)
+    }
+
+    /// Only a number owns its sign; on a word the same mark is the sentence's and still moves on.
+    @Test("carries a sign forward when the removed word is not a number")
+    func carriesASignOffAWord() {
+        var draft = Draft(text: "see #uh todo")
+        draft.remove(at: 1, by: pass, carryingMarks: true)
+        #expect(draft.text == "see #todo")
     }
 
     @Test("leaves the marks where they were when the caller does not ask for them")

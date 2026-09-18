@@ -215,8 +215,13 @@ public struct Draft: Sendable, Equatable {
     private mutating func carryMarks(from index: Int, by pass: PassID) {
         let shape = WordShape(words[index].text)
         // A comma is the pause the removed word stood in, so it goes with the word; every other mark is the sentence's.
-        let closing = shape.suffix.filter { $0 != "," && !$0.isWhitespace && !Self.isOwnSymbol($0) }
-        let opening = shape.prefix.filter { $0 != "," && !$0.isWhitespace && !Self.isOwnSymbol($0) }
+        let amount = shape.core.contains(where: \.isNumber)
+        let closing = shape.suffix.filter {
+            $0 != "," && !$0.isWhitespace && !(amount && Self.isOwnSymbol($0))
+        }
+        let opening = shape.prefix.filter {
+            $0 != "," && !$0.isWhitespace && !(amount && Self.isOwnSymbol($0))
+        }
         if !closing.isEmpty, let before = previousPresent(before: index) {
             replace(at: before, with: WordShape.marked(words[before].text, withAll: closing), by: pass)
         }
@@ -225,7 +230,7 @@ public struct Draft: Sendable, Equatable {
         }
     }
 
-    /// Whether a mark belongs to the word's own value, like the `$` of "$40" or the `%` of "40%", and so leaves with it.
+    /// Whether a mark on a number is part of its value, like the `$` of "$40" or the `%` of "40%", and so leaves with it.
     private static func isOwnSymbol(_ mark: Character) -> Bool {
         mark.isCurrencySymbol || unitSymbols.contains(mark)
     }
