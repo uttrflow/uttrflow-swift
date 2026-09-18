@@ -180,6 +180,21 @@ public enum EvaluationCorpus {
             mustKeep: ["coffee"],
             mustNotAdd: ["two"]
         ),
+        // The recogniser writes the amounts with their signs, and the sign goes with the amount taken back.
+        .init(
+            id: "correction-between-amounts", category: .everyday,
+            spoken: "the total is $40, no wait, $50",
+            expected: "The total is $50.",
+            mustKeep: ["$50"],
+            mustNotAdd: ["$$", "40"]
+        ),
+        .init(
+            id: "correction-between-percentages", category: .everyday,
+            spoken: "the fee is 40% actually 50%",
+            expected: "The fee is 50%.",
+            mustKeep: ["fee", "50%"],
+            mustNotAdd: ["40"]
+        ),
         // "no" opens the sentence rather than correcting one, and "wait" is a verb here.
         .init(
             id: "false-no-stays", category: .everyday,

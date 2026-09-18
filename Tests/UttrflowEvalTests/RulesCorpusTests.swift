@@ -14,6 +14,7 @@ struct RulesCorpusTests {
         "filler-carrying-a-question-mark", "filler-carrying-an-exclamation-mark",
         "filler-between-commas",
         "repeated-phrase", "i-mean-correction", "actually-between-numbers", "false-no-stays",
+        "correction-between-amounts", "correction-between-percentages",
         "coordinated-list-kept", "repeated-frame-kept", "emphatic-double-kept",
         "coordination-kept-not-restatement", "repeated-frame-for-kept",
         "doubled-place-name-kept", "coordinated-apology-kept", "spoken-comma",

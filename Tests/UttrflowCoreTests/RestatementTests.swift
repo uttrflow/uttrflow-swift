@@ -36,6 +36,14 @@ struct RestatementTests {
         #expect(Restatement.discardedStart(before: 3, after: 5, in: bare.live, of: bare.draft) == nil)
     }
 
+    @Test("anchors on an amount written with its sign")
+    func anchorsOnASignedAmount() {
+        let money = reading("the total is $40, no wait, $50.")
+        #expect(Restatement.discardedStart(before: 4, after: 6, in: money.live, of: money.draft) == 3)
+        let share = reading("the fee is 40% actually 50%.")
+        #expect(Restatement.discardedStart(before: 4, after: 5, in: share.live, of: share.draft) == 3)
+    }
+
     /// A number anchor reaches back only as far as the stop, because the number in the sentence before was not the one corrected.
     @Test("refuses a number anchor that sits on the far side of a sentence end")
     func numbersDoNotReachThroughAStop() {
