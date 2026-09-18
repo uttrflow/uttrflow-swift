@@ -52,6 +52,8 @@ public actor DictationPipeline {
     /// The application named by the context read during tidying, before the user moved on.
     private var insertedInto: String?
     private var insertedIntoIdentifier: String?
+    /// Whether the screen read found a field that hides what is typed, so nothing of this dictation is kept.
+    private var destinationIsSecure = false
 
     /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
     private var openRecording: UUID?
@@ -208,6 +210,7 @@ public actor DictationPipeline {
             spokenFor = nil
             insertedInto = nil
             insertedIntoIdentifier = nil
+            destinationIsSecure = false
             cleaningRecords = []
             transition(to: .recording)
             beginWorkingAhead(mine)
@@ -290,6 +293,7 @@ public actor DictationPipeline {
         spokenFor = audio.duration
         insertedInto = nil
         insertedIntoIdentifier = nil
+        destinationIsSecure = false
         cleaningRecords = []
         openRecording = recording
         await process(audio, mine, delivery: .copy)
@@ -394,6 +398,7 @@ public actor DictationPipeline {
         earlyContext = read
         insertedInto = read.applicationName
         insertedIntoIdentifier = read.bundleIdentifier
+        destinationIsSecure = read.isSecure
         return read
     }
 
@@ -510,8 +515,8 @@ public actor DictationPipeline {
         }
         guard !abandoned, !wasCancelled(mine) else { return }
         await tally.report(to: metrics)
-        // Only when something was tidied, so silence cannot blank the last account.
-        if !cleaningRecords.isEmpty {
+        // Only when something was tidied, so silence cannot blank the last account; never for a secure field.
+        if !cleaningRecords.isEmpty, !destinationIsSecure {
             await cleaningRecorder.record(CleaningRecord.merging(cleaningRecords))
         }
 
@@ -552,6 +557,8 @@ public actor DictationPipeline {
 
         // Both run after the words are on screen, and neither can fail the dictation. §19.
         await count(changes)
+        // A secret is not a word to learn.
+        guard !destinationIsSecure else { return }
         await learnWords(heard: whole.heard.text, wrote: expanded.text, seeing: appContext ?? AppContext())
     }
 
@@ -563,6 +570,7 @@ public actor DictationPipeline {
             // Kept from this read: by insertion time the user has often switched away.
             insertedInto = read.applicationName
             insertedIntoIdentifier = read.bundleIdentifier
+            destinationIsSecure = read.isSecure
             return read
         case .copy:
             return AppContext()
@@ -732,7 +740,8 @@ public actor DictationPipeline {
                         insertedIntoIdentifier: landedIn(attempt)?.bundleIdentifier
                             ?? insertedIntoIdentifier,
                         spokenFor: spokenFor, changes: changes,
-                        fromRecording: delivery == .copy, arrival: attempt.arrival)))
+                        fromRecording: delivery == .copy, arrival: attempt.arrival,
+                        intoSecureField: destinationIsSecure || attempt.intoSecureField)))
             return true
         } catch {
             // The words survive the failure: the interface can still offer them.
@@ -749,11 +758,12 @@ public actor DictationPipeline {
 
     /// Ends the dictation in failure, keeping the audio exactly when the words were lost. See `Docs/recordings.md`.
     private func fail(_ failure: DictationFailure) async {
-        var failure = failure
+        var failure = failure.markingSecure(destinationIsSecure)
         if let openRecording {
             self.openRecording = nil
             let wordsLost = failure.transcript == nil && failure.severity != .informational
-            if !wordsLost {
+            // A secure field's audio is not kept for a retry, since its words are a secret.
+            if !wordsLost || destinationIsSecure {
                 await recordings.discard(openRecording)
             } else if failure.recovery == nil || failure.recovery == .retry {
                 failure = failure.offering(.retryFromRecording)
