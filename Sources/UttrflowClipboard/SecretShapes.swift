@@ -147,7 +147,7 @@ public enum SecretShapes {
         guard !isPathLike(token) else { return false }
 
         // Hex has a sixteen-symbol alphabet and can never reach the general floor.
-        if token.count >= hexTokenLength, token.allSatisfy(\.isHexDigit) { return true }
+        if token.count >= hexTokenLength, token.allSatisfy({ $0.isHexDigit && $0.isASCII }) { return true }
 
         guard token.count >= entropicTokenLength,
             token.allSatisfy(isTokenCharacter),
