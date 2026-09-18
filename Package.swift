@@ -336,12 +336,12 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowLocalModelTests",
-            dependencies: ["UttrflowLocalModel"],
+            dependencies: ["UttrflowLocalModel", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowTests",
-            dependencies: ["Uttrflow"],
+            dependencies: ["Uttrflow", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

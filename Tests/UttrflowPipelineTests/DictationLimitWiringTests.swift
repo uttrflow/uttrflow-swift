@@ -69,7 +69,7 @@ struct DictationLimitWiringTests {
     }
 
     @Test("warns a minute before the cap rather than cutting the speaker off")
-    func warnsBeforeTheCap() async {
+    func warnsBeforeTheCap() async throws {
         let clock = ManualClock()
         let heard = Mutex<[DictationAdvice]>([])
         let controller = makeController(clock: clock, inserter: QuietInserter()) { advice in
@@ -78,13 +78,13 @@ struct DictationLimitWiringTests {
 
         await controller.handle(.pressed)
         await advance(clock, to: Self.limit.warnAfter)
-        while heard.withLock({ $0.isEmpty }) { await Task.yield() }
+        try await eventually { !heard.withLock { $0.isEmpty } }
 
         #expect(heard.withLock { $0.first } == .approaching(remaining: .seconds(60)))
     }
 
     @Test("finishes the dictation at the cap, keeping every word of it")
-    func finishesAtTheCap() async {
+    func finishesAtTheCap() async throws {
         let clock = ManualClock()
         let inserter = QuietInserter()
         let saw = Mutex<[DictationAdvice]>([])
@@ -96,7 +96,7 @@ struct DictationLimitWiringTests {
         await advance(clock, to: Self.limit.warnAfter)
         await advance(clock, to: Self.limit.stopAfter - Self.limit.warnAfter)
 
-        while inserter.inserted.isEmpty { await Task.yield() }
+        try await eventually { !inserter.inserted.isEmpty }
         // Kept, not discarded: a cap that threw the audio away would be worse than none.
         #expect(inserter.inserted == ["a long dictation"])
         #expect(saw.withLock { $0.contains(.finishNow) })

@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowPredict
 
@@ -30,8 +31,8 @@ private actor InterleavedModel: ReleasableModel {
         failHeld = failing
     }
 
-    /// Whether a load is waiting on the gate.
-    var isHoldingGate: Bool { gate != nil }
+    /// Fires when a load starts waiting on the gate.
+    let gateHeld = Signal()
 
     func openGate() {
         gate?.resume()
@@ -45,7 +46,10 @@ private actor InterleavedModel: ReleasableModel {
         loads += 1
         if holdNext {
             holdNext = false
-            await withCheckedContinuation { gate = $0 }
+            await withCheckedContinuation {
+                gate = $0
+                gateHeld.fire()
+            }
             if failHeld { throw CancellationError() }
         }
         for _ in 0..<yields { await Task.yield() }
@@ -78,7 +82,7 @@ private actor InterleavedModel: ReleasableModel {
     }
 }
 
-@Suite("A stale load never clobbers newer state")
+@Suite("A stale load never clobbers newer state", .timeLimit(.minutes(1)))
 struct IdleReleaseInterleavingTests {
     private let situation = GenerationSituation(application: "Notes")
 
@@ -91,22 +95,17 @@ struct IdleReleaseInterleavingTests {
         }
     }
 
-    /// Yields until `condition` holds, which each caller reaches through an actor hop it is waiting on.
-    private func until(_ condition: () async -> Bool) async {
-        while !(await condition()) { await Task.yield() }
-    }
-
     @Test("a failed prepare that lands after a release and a new prepare leaves the new load held")
     func staleFailedPrepare() async throws {
         let inner = InterleavedModel()
         let model = IdleReleasingModel(model: inner, idleAfter: .seconds(3_600))
         await inner.holdNextLoad(failing: true)
         let first = Task { try await model.prepare(onProgress: { _ in }) }
-        await until { await inner.isHoldingGate }
+        try await arrival(of: inner.gateHeld.fired)
         let releasing = Task { await model.release() }
-        await until { await !model.holdsTheModel }
+        try await eventually { await !model.holdsTheModel }
         let second = Task { try await model.prepare(onProgress: { _ in }) }
-        await until { await model.holdsTheModel }
+        try await eventually { await model.holdsTheModel }
         await inner.openGate()
         _ = await first.result
         await releasing.value
@@ -126,11 +125,11 @@ struct IdleReleaseInterleavingTests {
         #expect(await model.releaseIfIdle(at: .now + .seconds(7_200)) == false)
         await inner.holdNextLoad(failing: true)
         #expect(await model.isReady == false)
-        await until { await inner.isHoldingGate }
+        try await arrival(of: inner.gateHeld.fired)
         let releasing = Task { await model.release() }
-        await until { await !model.holdsTheModel }
+        try await eventually { await !model.holdsTheModel }
         let second = Task { try await model.prepare(onProgress: { _ in }) }
-        await until { await model.holdsTheModel }
+        try await eventually { await model.holdsTheModel }
         await inner.openGate()
         await releasing.value
         try await second.value
@@ -149,7 +148,7 @@ struct IdleReleaseInterleavingTests {
         #expect(await model.releaseIfIdle(at: .now + .seconds(7_200)) == false)
         await inner.holdNextLoad(failing: false)
         #expect(await model.isReady == false)
-        await until { await inner.isHoldingGate }
+        try await arrival(of: inner.gateHeld.fired)
         #expect(await model.isReady == false)
         await inner.openGate()
         await drain(model)
@@ -164,7 +163,7 @@ struct IdleReleaseInterleavingTests {
         try await model.prepare(onProgress: { _ in })
         await inner.holdNextLoad(failing: true)
         let failing = Task { try await model.prepare(onProgress: { _ in }) }
-        await until { await inner.isHoldingGate }
+        try await arrival(of: inner.gateHeld.fired)
         await inner.openGate()
         await #expect(throws: CancellationError.self) { try await failing.value }
         #expect(await model.holdsTheModel)
