@@ -22,6 +22,7 @@ struct SecretShapesOracleTests {
         "func ", "import ", "//", "select ", "  ", "#", "?", "{", "}", "return", "if(",
         "AAAAAAAAAAAAAAAAAAAAAAAA", "user", "pass", ":x@", "a1", "-----BEGIN", "\\", "$", "*", "-- ",
         "# ", "* ", "/*", "from ", "else", "oklab(", "OKLCH(", "o\u{212A}lab(", "Https://",
+        "DB_", "db", "Pass", "PASS", "_pass", "Token", "SMTP_", "max_", "_count", "less", "izer",
     ]
 
     /// Secrets and near-misses of every detected shape, to be planted, cut and spliced.
@@ -42,7 +43,9 @@ struct SecretShapesOracleTests {
         "3530 1113 3330 0000", "4222 222 222 222", "4111 1111 1111 1112", "https://example.com/a b",
         "http://x", "rgb(1, 2, 3)", "hsla( 0 )", "oklch()", "color(display-p3 1 0 0)",
         "func greet() {}", "  // note", "\n\n  select * from t", "if (x) return", "import Foundation",
-        "let x = 1",
+        "let x = 1", "DB_PASSWORD" + "=Kq7v2mX", "dbPassword" + ": 'x'", "SMTP_PASS" + "=a1",
+        "redis://:" + "pw1@h", "max_tokens: 4096", "token_count: 128000", "passwordless=x1",
+        "APP_ENV=prod\nGITHUB_TOKEN" + "=a1b2\nPORT=1", "aPwd=1", "a_b_pwd=1", "tokenizer: 12345",
     ]
 
     static func randomText(_ random: inout Seeded) -> String {
@@ -186,6 +189,9 @@ struct SecretShapesOracleTests {
             "client-secret" + "=abcdefghijklm", "x.password=abc123", "password.x=abc123", "PWD\t:\t1",
             // The first assignment's value holds the second keyword, which the pattern's next search starts after.
             "credential://token\r\n:x@clientsecret4111", "pwd=a;\n\n token=b1", "secret=x ,\n\npwd: 'y'",
+            // A name may start after an underscore or at a lowercase-to-uppercase step, never after an uppercase letter.
+            "DB_PASSWORD=a1", "dbPassword=a1", "PGPASSWORD=a1", "_\u{301}password=a1", "b\u{301}Password=a1",
+            "aPWD=1", "a_pass=1;\n", "x_secret_token=1", "pwd_pwd=1", "tPassword=1",
         ]
         for text in cases {
             #expect(
@@ -222,12 +228,13 @@ func offTheTestPool<Value: Sendable>(_ work: @escaping @Sendable () -> Value) as
 enum BacktrackingPatterns {
     nonisolated(unsafe) static let jsonWebToken = #/eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*/#
 
-    nonisolated(unsafe) static let credentialledURL = #/[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s:/@]+:[^\s:/@]+@\S/#
+    nonisolated(unsafe) static let credentialledURL = #/[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s:/@]*:[^\s:/@]+@\S/#
 
     nonisolated(unsafe) static let namedSecret =
         #/
         (?i)
-        \b(?: api[_\-]?keys? | secrets? | tokens? | passwords? | passwd | pwd
+        (?: \b | _ | (?-i:[a-z])(?=(?-i:[A-Z])) )
+        (?: api[_\-]?keys? | secrets? | tokens? | passwords? | passwd | pwd | pass
             | credentials? | private[_\-]?key | access[_\-]?key | auth[_\-]?token
             | client[_\-]?secret )
         \b["']? \s* [:=] \s*
