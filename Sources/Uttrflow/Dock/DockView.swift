@@ -153,9 +153,24 @@ struct DockView: View {
         .glass(cornerRadius: DockMetrics.orbSize / 2)
     }
 
-    /// Listening: the mark on the anchored edge and a live meter, with no words and no clock.
+    /// Listening: the mark on the anchored edge and a live meter, and the time left once the cap is near.
     private func listening() -> some View {
-        compact { LevelMeterView(model: model, towardsLeading: $0) }
+        compact { towardsLeading in
+            // On the far side of the meter from the mark, so the mark stays on the anchored edge.
+            if !towardsLeading { remainingTime() }
+            LevelMeterView(model: model, towardsLeading: towardsLeading)
+            if towardsLeading { remainingTime() }
+        }
+    }
+
+    /// The countdown to the cap, drawn only once the presenter has one to say.
+    @ViewBuilder private func remainingTime() -> some View {
+        if let remaining = model.presentation.secondaryLine {
+            Text(remaining)
+                .font(.system(size: DockMetrics.footnoteSize, weight: .medium))
+                .monospacedDigit()
+                .fixedSize()
+        }
     }
 
     /// Working: three dots walking left to right, for as long as there is work left to do.

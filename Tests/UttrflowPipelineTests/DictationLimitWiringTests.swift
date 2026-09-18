@@ -102,6 +102,34 @@ struct DictationLimitWiringTests {
         #expect(saw.withLock { $0.contains(.finishNow) })
     }
 
+    @Test("counts the last minute down every ten seconds, then finishes")
+    func countsDownBeforeTheCap() async {
+        let clock = ManualClock()
+        let inserter = QuietInserter()
+        let saw = Mutex<[DictationAdvice]>([])
+        let controller = makeController(clock: clock, inserter: inserter) { advice in
+            saw.withLock { $0.append(advice) }
+        }
+
+        await controller.handle(.pressed)
+        await advance(clock, to: Self.limit.warnAfter)
+        for _ in 0..<6 { await advance(clock, to: .seconds(10)) }
+        while inserter.inserted.isEmpty { await Task.yield() }
+
+        let said = saw.withLock { $0 }
+        let countdown = said.compactMap { advice -> Int? in
+            guard case .approaching(let remaining) = advice else { return nil }
+            return Int(remaining.components.seconds)
+        }
+        #expect(countdown == [60, 50, 40, 30, 20, 10])
+        // The cap comes after the last warning, not instead of it.
+        #expect(said.last { $0 != .keepGoing } == .finishNow)
+        #expect(
+            countdown.map { RemainingTime.phrase(for: .approaching(remaining: .seconds($0))) } == [
+                "1 min left", "50 sec left", "40 sec left", "30 sec left", "20 sec left", "10 sec left",
+            ])
+    }
+
     @Test("says nothing about a limit for a dictation that ends normally")
     func ordinaryDictationIsUnaffected() async {
         let clock = ManualClock()
@@ -117,6 +145,20 @@ struct DictationLimitWiringTests {
 
         #expect(inserter.inserted == ["a long dictation"])
         #expect(heard.withLock { $0.allSatisfy { $0 == .keepGoing } })
+    }
+}
+
+@Suite("When a recording is told how long it has left")
+struct DictationLimitCountdownTests {
+    @Test("says it at the warning and every ten seconds after, never at the cap")
+    func countdown() {
+        let limit = DictationLimit(warnAfter: .seconds(180), stopAfter: .seconds(240))
+        #expect(limit.countdown == [180, 190, 200, 210, 220, 230].map { .seconds($0) })
+    }
+
+    @Test("says nothing when the warning would come at or after the cap")
+    func noRoomToWarn() {
+        #expect(DictationLimit(warnAfter: .seconds(60), stopAfter: .seconds(60)).countdown.isEmpty)
     }
 }
 
