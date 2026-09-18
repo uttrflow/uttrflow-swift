@@ -150,6 +150,11 @@ final class DockPanelController {
         model.shortcut = shortcut
     }
 
+    /// Says why the shortcut cannot be heard in place of the keycap hint, or nil to show the keycap again.
+    func setShortcutUnheard(_ reason: String?) {
+        model.shortcutUnheard = reason
+    }
+
     // MARK: - Geometry
 
     /// Follows the size the view reports, so the resting grip claims no more of the screen than it draws.

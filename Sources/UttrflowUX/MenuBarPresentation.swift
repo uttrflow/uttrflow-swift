@@ -131,6 +131,9 @@ public struct MenuBarState: Sendable, Equatable {
     /// What the user actually bound, so the menu never advertises a key that does nothing.
     public var shortcuts: ShortcutSet
 
+    /// Why the dictation shortcut cannot be heard right now, or nil when it can.
+    public var shortcutUnheard: String?
+
     public init(
         activity: DictationActivity = .idle,
         failure: FailurePresentation? = nil,
@@ -140,7 +143,8 @@ public struct MenuBarState: Sendable, Equatable {
         canCheckForUpdates: Bool = false,
         updateProgress: UpdateProgress = .idle,
         features: MenuBarFeatures = MenuBarFeatures(),
-        shortcuts: ShortcutSet = .default
+        shortcuts: ShortcutSet = .default,
+        shortcutUnheard: String? = nil
     ) {
         self.activity = activity
         self.failure = failure
@@ -151,6 +155,7 @@ public struct MenuBarState: Sendable, Equatable {
         self.updateProgress = updateProgress
         self.features = features
         self.shortcuts = shortcuts
+        self.shortcutUnheard = shortcutUnheard
     }
 }
 
@@ -432,6 +437,10 @@ public enum MenuBarPresenter {
         for state: MenuBarState, statusLine: String, emphasis: MenuBarEmphasis
     ) -> [MenuBarItem] {
         var items: [MenuBarItem] = [.status(text: statusLine, emphasis: emphasis)]
+        // Under the status line, so the reason the shortcut does nothing sits above the item that still works.
+        if let unheard = state.shortcutUnheard, state.features.dictation {
+            items.append(.status(text: unheard, emphasis: .attention))
+        }
 
         // The problem and its fix together at the top, with nothing between them.
         if let action = state.failure?.action {

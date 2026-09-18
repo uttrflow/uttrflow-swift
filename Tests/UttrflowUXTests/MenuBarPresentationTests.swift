@@ -492,3 +492,28 @@ struct MenuBarPrintedShortcutTests {
         #expect(MenuBarShortcut.forBinding(.shiftCommandV)?.key == "v")
     }
 }
+
+@Suite("A shortcut that cannot be heard")
+struct MenuBarUnheardShortcutTests {
+    private let reason = "Another app has turned on secure keyboard entry, so the shortcut can't be heard."
+
+    @Test("is said under the status line, and Start Dictation still works")
+    func saysWhyAndKeepsTheMenuPath() {
+        let shown = MenuBarPresenter.present(MenuBarState(shortcutUnheard: reason))
+
+        #expect(shown.items.prefix(2).last == .status(text: reason, emphasis: .attention))
+        #expect(shown.command(.startDictation)?.isEnabled == true)
+    }
+
+    @Test("says nothing when the shortcut can be heard")
+    func silentWhenHeard() {
+        let shown = MenuBarPresenter.present(MenuBarState())
+        #expect(shown.items.filter { if case .status = $0 { true } else { false } }.count == 1)
+    }
+
+    @Test("says nothing while dictation is switched off, since there is no shortcut to miss")
+    func silentWhenDictationIsOff() {
+        let state = MenuBarState(features: MenuBarFeatures(dictation: false), shortcutUnheard: reason)
+        #expect(!MenuBarPresenter.present(state).items.contains(.status(text: reason, emphasis: .attention)))
+    }
+}
