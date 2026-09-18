@@ -18,7 +18,11 @@ calls.
    itself one.
 5. A named secret per line (`API_KEY=…`, `password: …`, `client_secret = …`) whose value is
    quoted, or has a digit, or is at least 12 characters, so `var password: String` does not
-   count.
+   count. A long bare value that only points at a secret is not one: an identifier path or an
+   empty call (`request.token`, `process.env.API_KEY;`, `getpass.getpass()`), made of letters,
+   `_` and `$` with no digit and no part of 32 or more hex letters, is code that loads a
+   credential rather than the credential. A quoted value or one with a digit still counts,
+   and so does a single long bare word, which is what a letters-only password looks like.
 6. A payment card number (below).
 7. The statistical rule below.
 
