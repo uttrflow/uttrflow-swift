@@ -75,7 +75,7 @@ private func isRejection(_ error: TextInsertionError?) -> Bool {
 struct SelectionWriterTests {
     @Test("replaces the selection with the text")
     func replacesTheSelection() throws {
-        let field = FakeSelectionField("Hello wrld", caret: 6, length: 4)
+        let field = FakeSelectionField("Hello earth", caret: 6, length: 5)
         try SelectionWriter(field: field).replaceSelection(with: "world")
         #expect(field.text == "Hello world")
         #expect(field.selection == 11..<11)
@@ -119,52 +119,52 @@ struct SelectionWriterTests {
 
     @Test("widens the selection back over the replaced words and writes once")
     func replacesOverTheWordsBeforeTheCaret() throws {
-        let field = FakeSelectionField("I wnt")
-        try SelectionWriter(field: field).replaceSelection(replacing: "wnt", with: "want")
-        #expect(field.text == "I want")
-        #expect(field.selectionWrites == [2..<5])
-        #expect(field.textWrites == ["want"])
+        let field = FakeSelectionField("I want")
+        try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
+        #expect(field.text == "I need")
+        #expect(field.selectionWrites == [2..<6])
+        #expect(field.textWrites == ["need"])
     }
 
     @Test("takes a selection after the caret in with the words before it")
     func replacesOverASelection() throws {
-        let field = FakeSelectionField("I wnt it", caret: 5, length: 3)
-        try SelectionWriter(field: field).replaceSelection(replacing: "wnt", with: "want")
-        #expect(field.text == "I want")
-        #expect(field.selectionWrites == [2..<8])
+        let field = FakeSelectionField("I want it", caret: 6, length: 3)
+        try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
+        #expect(field.text == "I need")
+        #expect(field.selectionWrites == [2..<9])
     }
 
     @Test("puts the caret back when the field takes the selection and refuses the text")
     func refusedWriteRestoresTheCaret() {
-        let field = FakeSelectionField("I wnt") { $0.refusesText = true }
+        let field = FakeSelectionField("I want") { $0.refusesText = true }
         let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(replacing: "wnt", with: "want")
+            try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
         }
         #expect(isRejection(error))
-        #expect(field.text == "I wnt")
-        #expect(field.selectionWrites == [2..<5, 5..<5])
-        #expect(field.selection == 5..<5)
+        #expect(field.text == "I want")
+        #expect(field.selectionWrites == [2..<6, 6..<6])
+        #expect(field.selection == 6..<6)
     }
 
     @Test("refuses when the text before the caret is not what would be replaced")
     func changedTextIsNotTakenBack() {
-        let field = FakeSelectionField("I wan")
+        let field = FakeSelectionField("I was")
         let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(replacing: "wnt", with: "want")
+            try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
         }
         #expect(
             error
                 == .insertionRejected(description: "the text before the caret is not what would be replaced"))
         #expect(field.selectionWrites.isEmpty)
         #expect(field.textWrites.isEmpty)
-        #expect(field.text == "I wan")
+        #expect(field.text == "I was")
     }
 
     @Test("refuses when there is less text before the caret than would be replaced")
     func tooLittleText() {
-        let field = FakeSelectionField("nt")
+        let field = FakeSelectionField("at")
         let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(replacing: "wnt", with: "want")
+            try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
         }
         #expect(error == .insertionRejected(description: "the field has too little text before the caret"))
         #expect(field.textWrites.isEmpty)
@@ -172,9 +172,9 @@ struct SelectionWriterTests {
 
     @Test("refuses a field that will not report its selection")
     func hiddenSelection() {
-        let field = FakeSelectionField("I wnt") { $0.reportsSelection = false }
+        let field = FakeSelectionField("I want") { $0.reportsSelection = false }
         let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(replacing: "wnt", with: "want")
+            try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
         }
         #expect(error == .insertionRejected(description: "the field will not report its selection"))
         #expect(field.textWrites.isEmpty)
@@ -182,13 +182,13 @@ struct SelectionWriterTests {
 
     @Test("refuses a field that will not take the selection, writing nothing")
     func refusedSelection() {
-        let field = FakeSelectionField("I wnt") { $0.refusesSelection = true }
+        let field = FakeSelectionField("I want") { $0.refusesSelection = true }
         let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(replacing: "wnt", with: "want")
+            try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
         }
         #expect(isRejection(error))
         #expect(field.textWrites.isEmpty)
-        #expect(field.text == "I wnt")
+        #expect(field.text == "I want")
     }
 
     @Test("writes at the caret when nothing is to be replaced")
