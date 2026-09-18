@@ -1749,6 +1749,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))
+        dock.setShrinksToGrip(settings.shrinksToGripWhenIdle)
         if settings.showsFloatingButton {
             dock.setAnchor(settings.floatingButtonAnchor)
             dock.show()
@@ -1757,6 +1758,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         refreshMainWindow()
     }
+
+    /// Whether the floating button collapses to a grip when idle, as the running button has it now.
+    var dockShrinksToGrip: Bool { dock.shrinksToGrip }
 
     /// Hides the main window while the user speaks, and deliberately does not bring it back.
     private func getOutOfTheWay(for state: DictationState) {

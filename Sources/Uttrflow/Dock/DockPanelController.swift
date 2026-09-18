@@ -145,6 +145,9 @@ final class DockPanelController {
         model.shrinksToGrip = shrinks
     }
 
+    /// Whether the idle button collapses to a grip, as the view will next draw it.
+    var shrinksToGrip: Bool { model.shrinksToGrip }
+
     /// Says which keys the keycap shows; the shortcut is configurable, so it cannot be fixed at construction.
     func setShortcut(_ shortcut: String) {
         model.shortcut = shortcut
