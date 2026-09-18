@@ -127,6 +127,10 @@ code relies on, so the one-line comments in the source can stay short.
   against a backend that is down. A rejection is about one sample and does not stop the run.
 - A receipt that cannot be written is not worth failing an upload over: the backend upserts by
   slug, so the worst case is one repeated transfer.
+- Hinglish has no BCP-47 tag, so it files under `hi-IN` and the outbox adds the `code-switching`
+  stress, which is what the catalogue reads it back as Hinglish by. Rows uploaded before the outbox
+  added it read back as Hindi: delete those recordings' receipts under `uploads/` and flush again,
+  and the backend's upsert by slug rewrites their stresses.
 - Catalogue rows are a faithful mirror of the database. Several tools read that database, and a
   client that renamed or dropped fields would be the reason two of them disagree.
 

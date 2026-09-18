@@ -78,6 +78,42 @@ struct CorpusUploadOutboxTests {
         #expect(byLanguage["hinglish-numbers"]?.contains("hi-IN") == true)
     }
 
+    /// The catalogue reads a sample's language back from its tag and stresses, so each of the three must survive the trip.
+    @Test(
+        "a built-in passage reads back from the catalogue in the language it was recorded in",
+        arguments: ["hinglish-standup", "hinglish-numbers"] + TranscriptionCorpus.english.prefix(1).map(\.id)
+            + TranscriptionCorpus.hindi.prefix(1).map(\.id))
+    func languageSurvivesTheCatalogue(id: String) async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let passage = try #require(TranscriptionCorpus.passage(id))
+        let recordings = TranscriptionCorpusStore(directory: directory)
+        let take = RecordedPassage(
+            passage: passage, recordedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            durationSeconds: 1, sampleRate: 16_000)
+        try recordings.save(take, audio: Data([1]))
+        let uploader = FakeUploader()
+
+        _ = await outbox(recordings, uploader).send(take)
+
+        let sample = try #require(uploader.uploads.first?.sample)
+        #expect(sample.passage.language == passage.language)
+        #expect(Set(passage.stresses).isSubset(of: Set(sample.stresses)))
+    }
+
+    @Test("a passage already marked as code-switching is not marked twice")
+    func markedOnce() {
+        let marked = TranscriptionCase(
+            id: "mixed", language: .hinglish, stressor: .everyday, romanised: "kal ka plan confirm hai",
+            stresses: ["everyday", CorpusStress.codeSwitching])
+        let unmarked = TranscriptionCase(
+            id: "plain", language: .hinglish, stressor: .everyday, romanised: "kal ka plan confirm hai",
+            stresses: ["everyday"])
+
+        #expect(CorpusUploadOutbox.stresses(for: marked) == ["everyday", CorpusStress.codeSwitching])
+        #expect(CorpusUploadOutbox.stresses(for: unmarked) == ["everyday", CorpusStress.codeSwitching])
+    }
+
     // MARK: Surviving failure
 
     /// The property the whole recording session rests on.
