@@ -84,7 +84,7 @@ struct FailurePresentationTests {
         #expect(SpeechEngineError.modelNotInstalled.recovery == .downloadSpeechModel)
         #expect(SpeechEngineError.modelDownloadFailed(description: "x").recovery == .downloadSpeechModel)
         #expect(SpeechEngineError.modelLoadFailed(description: "x").recovery == .retry)
-        #expect(SpeechEngineError.audioTooShort.recovery == .retry)
+        #expect(SpeechEngineError.audioTooShort.recovery == nil)
         #expect(SpeechEngineError.transcriptionFailed(description: "x").recovery == .retry)
 
         #expect(TextInsertionError.noFocusedTextField.recovery == .retry)

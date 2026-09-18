@@ -553,6 +553,20 @@ struct DictationPipelineStateTests {
         #expect(await pipeline.currentState == .recording)
     }
 
+    /// A tap too brief to transcribe is told how to fix it, rather than that nothing was heard.
+    @Test("says a hold was too short when the whole recording was")
+    func tooShortSaysSo() async {
+        let pipeline = makePipeline(
+            speech: FakeSpeechEngine(transcribeOutcome: .failure(.audioTooShort)))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(
+            await pipeline.currentState
+                == .failed(DictationFailure(SpeechEngineError.audioTooShort)))
+    }
+
     /// "um" tidies to nothing, and inserting nothing over a selection deletes it.
     @Test(
         "inserts nothing when tidying leaves nothing, rather than deleting the selection",

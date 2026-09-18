@@ -199,14 +199,14 @@ struct DockView: View {
 
     // MARK: - Notices
 
-    /// Finished: a 26-point disc for the quiet outcomes, and the wide form for the one that needs an action.
+    /// Finished: a 26-point disc for an insertion, a small pill with words for the quiet outcomes, and the wide form for the one that needs an action.
     @ViewBuilder
     private func notice(_ presentation: DockPresentation, primaryLine: String) -> some View {
         switch presentation.symbolName {
         case "checkmark":
             badgeForm { MarkTick() }
         case "waveform.slash":
-            badgeForm { StruckLevel() }
+            quietNotice(Self.restingWords(for: presentation) ?? primaryLine)
         case "doc.on.clipboard":
             clipboardNotice(presentation)
         default:
@@ -214,7 +214,34 @@ struct DockView: View {
         }
     }
 
-    /// The 26-point disc the quiet outcomes are drawn in.
+    /// The words a quiet outcome shows without the pointer over it, or `nil` for a form that shows none.
+    static func restingWords(for presentation: DockPresentation) -> String? {
+        switch presentation.symbolName {
+        case "waveform.slash": presentation.primaryLine
+        case "doc.on.clipboard": "Copied, not typed"
+        default: nil
+        }
+    }
+
+    /// Nothing heard, or too little: the struck level with the sentence that says so, readable at rest.
+    private func quietNotice(_ words: String) -> some View {
+        HStack(spacing: 8) {
+            StruckLevel()
+            Text(words)
+                .font(.system(size: DockMetrics.footnoteSize + 1))
+                .opacity(0.72)
+                .lineLimit(2)
+                .frame(maxWidth: DockMetrics.quietTextMaxWidth, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .frame(minHeight: DockMetrics.clipboardHeight)
+        .glass(cornerRadius: DockMetrics.clipboardHeight / 2)
+        .padding(DockMetrics.gripHitPadding)
+    }
+
+    /// The 26-point disc an insertion is drawn in.
     private func badgeForm(@ViewBuilder _ content: () -> some View) -> some View {
         content()
             .frame(width: DockMetrics.badgeSize, height: DockMetrics.badgeSize)
@@ -222,22 +249,25 @@ struct DockView: View {
             .padding(DockMetrics.gripHitPadding)
     }
 
-    /// Copied rather than typed: ⌘V at rest, with the reason and the fix under the pointer.
+    /// Copied rather than typed: ⌘V and the words saying so at rest, with the reason and the fix under the pointer.
     private func clipboardNotice(_ presentation: DockPresentation) -> some View {
         HStack(spacing: 8) {
             keycap("⌘V")
                 .foregroundStyle(Color.dockWarning)
-            if model.isHovering {
+            if model.isHovering, let action = presentation.action {
                 Text("Typing is blocked — paste it")
                     .font(.system(size: DockMetrics.footnoteSize + 1))
                     .opacity(0.6)
                     .fixedSize()
-                if let action = presentation.action {
-                    Button("Fix") { onRecovery(action) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .fixedSize()
-                }
+                Button("Fix") { onRecovery(action) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .fixedSize()
+            } else if let words = Self.restingWords(for: presentation) {
+                Text(words)
+                    .font(.system(size: DockMetrics.footnoteSize + 1))
+                    .opacity(0.72)
+                    .fixedSize()
             }
         }
         .padding(.horizontal, 9)
@@ -332,9 +362,11 @@ enum DockMetrics {
     static let compactHeight: CGFloat = 32
     static let weightSize: CGFloat = 22
     static let weightMarkHeight: CGFloat = 10
-    /// The quiet outcomes — inserted, and nothing heard.
+    /// The disc an insertion is drawn in.
     static let badgeSize: CGFloat = 26
     static let clipboardHeight: CGFloat = 28
+    /// The widest a quiet outcome's words run before they wrap to a second line.
+    static let quietTextMaxWidth: CGFloat = 200
     /// The width of the one wide form, and of no other.
     static let noticeMaxWidth: CGFloat = 262
     static let noticeHeight: CGFloat = 40

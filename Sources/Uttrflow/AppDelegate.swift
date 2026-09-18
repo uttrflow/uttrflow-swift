@@ -198,9 +198,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var scopes: [MainTab: String] = [:]
 
     /// How long a finished result stays up, so the last dictation does not sit over every app.
-    private static let successLingers = Duration.seconds(2)
+    static let successLingers = Duration.seconds(2)
     /// Longer, because a failure asks something of the user — but it still goes.
-    private static let failureLingers = Duration.seconds(10)
+    static let failureLingers = Duration.seconds(10)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         settings = settingsStore.load()
@@ -1785,17 +1785,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// How long a finished state stays up, or `nil` for a state that is not finished.
+    static func linger(after state: DictationState) -> Duration? {
+        switch state {
+        // Copied rather than typed asks the user to paste, so it stays as long as a failure.
+        case .inserted(let outcome) where outcome.method == .clipboard: failureLingers
+        case .inserted: successLingers
+        // An informational notice asks nothing of the user, so it goes sooner.
+        case .failed(let notice):
+            notice.severity == .informational ? successLingers : failureLingers
+        case .idle, .recording, .transcribing, .tidying, .inserting: nil
+        }
+    }
+
     /// Returns the interface to rest once the user has had time to read the result.
     private func scheduleDismissal(after state: DictationState) {
         dismissalTask?.cancel()
-        let linger: Duration
-        switch state {
-        case .inserted: linger = Self.successLingers
-        // An informational notice asks nothing of the user, so it goes sooner.
-        case .failed(let notice):
-            linger = notice.severity == .informational ? Self.successLingers : Self.failureLingers
-        case .idle, .recording, .transcribing, .tidying, .inserting: return
-        }
+        guard let linger = Self.linger(after: state) else { return }
 
         dismissalTask = Task { [weak self] in
             try? await Task.sleep(for: linger)
