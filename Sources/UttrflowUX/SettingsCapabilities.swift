@@ -80,4 +80,16 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
     case releasedForMemory
     /// It could not be fetched or read; carries what to tell the user, never the raw error.
     case failed
+
+    /// What the model is doing in a few words, the same in Settings and the menu bar, or nothing when it is ready or not asked for.
+    public var headline: String? {
+        switch self {
+        case .notAsked, .ready: nil
+        case .downloading(let fraction):
+            fraction.map { "Getting ready — \(MenuBarPresenter.percentage(of: $0))%" } ?? "Getting ready"
+        case .loading: "Getting ready"
+        case .releasedForMemory: "Paused to free memory"
+        case .failed: "The model could not be fetched"
+        }
+    }
 }
