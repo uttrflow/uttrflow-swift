@@ -14,7 +14,11 @@
 #                                 @uttrflow.invalid. Nothing it produces exists off the
 #                                 machine that ran it.
 #
-# These are allowed by path and by path alone. Nothing else in the tree is exempt, so a
+# One value is allowed by itself: the updater's EdDSA public key, which ships in every
+# app's Info.plist and which UpdateConfigurationTests pins. It is the public half, the
+# exact string and nothing near it, so any other value in any file still fails.
+#
+# The files above are allowed by path and by path alone. Nothing else in the tree is exempt, so a
 # real key committed anywhere — including into a different test file — still fails the
 # build. If a fixture ever needs to move, move the entry with it rather than widening it.
 [extend]
@@ -26,4 +30,7 @@ useDefault = true
     '''Tests/UttrflowClipboardTests/SecretDetectionTests\.swift''',
     '''Sources/UttrflowAccount/InMemoryAuthenticationService\.swift''',
     '''Tests/UttrflowAccountTests/AccountSupport\.swift''',
+  ]
+  regexes = [
+    '''^apWgly8fYgdo1U2MUj56SuqUqZ4QHv5GRZIbuLT0PGE=$''',
   ]
