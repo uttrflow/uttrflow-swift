@@ -67,10 +67,6 @@ final class SuggestionCoordinator {
     private var pendingWake: Task<Void, Never>?
     /// How long a burst of keystrokes must pause before the model is asked about its last prefix.
     private static let generationDebounceInMilliseconds = 120
-    /// How much of the text before the caret's line the model is shown, enough for the sentence or command before it.
-    private static let precedingContextLength = 400
-    /// How many of this person's recent lines in the field the model is shown, enough to hear their voice in it.
-    private static let recentLinesShown = 6
 
     private var session = SuggestionSession()
     private var monitors: [Any] = []
@@ -556,26 +552,20 @@ final class SuggestionCoordinator {
         return standing
     }
 
-    /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.
+    /// Reads what is on screen and what this person wrote here, then maps them with ``SuggestionMoment``.
     private static func situation(
         of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore
     ) async -> GenerationSituation {
         let around = await FocusedFieldReader.surroundings()
-        // The line being written is not a line written before, however long the pause that had it remembered.
-        let recent = ((try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? [])
-            .filter { !query.typed.hasPrefix($0) }
+        let remembered =
+            (try? await store.recent(in: query.surface, limit: SuggestionMoment.recentLinesShown)) ?? []
+        let recent = SuggestionMoment.recentLines(remembered, typing: query.typed)
+        let situation = SuggestionMoment.situation(of: snapshot, surroundings: around, recentLines: recent)
         // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
         Self.log.debug(
-            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(snapshot.preceding(maxLength: Self.precedingContextLength)?.count ?? 0)"
+            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(situation.preceding?.count ?? 0)"
         )
-        return GenerationSituation(
-            application: snapshot.applicationName,
-            field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
-            document: snapshot.document,
-            preceding: snapshot.preceding(maxLength: Self.precedingContextLength),
-            windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
-            isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole
-                || snapshot.value?.contains(where: \.isNewline) == true)
+        return situation
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
@@ -754,21 +744,12 @@ final class SuggestionCoordinator {
 
     /// What the field publishes about itself, in the shape the corpus keys entries by.
     private func reading(of snapshot: FocusedFieldSnapshot) -> FieldReading {
-        FieldReading(
-            bundleIdentifier: snapshot.bundleIdentifier, role: snapshot.role,
-            subrole: snapshot.subrole, identifier: snapshot.identifier,
-            placeholder: snapshot.placeholder,
-            accessibilityDescription: snapshot.accessibilityDescription, document: snapshot.document,
-            windowTitle: snapshot.windowTitle, applicationName: snapshot.applicationName)
+        SuggestionMoment.reading(of: snapshot)
     }
 
     /// Everything about this moment that can silence a suggestion.
     private func context(of snapshot: FocusedFieldSnapshot, at moment: Date) -> PredictionContext {
-        PredictionContext(
-            typed: snapshot.currentLine, caretAtLineEnd: snapshot.caretAtLineEnd,
-            hasSelection: snapshot.hasSelection, isComposing: snapshot.isComposing,
-            isSecure: snapshot.isSecure, isProse: snapshot.isProse,
-            millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000),
-            canDraw: snapshot.placement == .inlineGhost)
+        SuggestionMoment.context(
+            of: snapshot, millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000))
     }
 }
