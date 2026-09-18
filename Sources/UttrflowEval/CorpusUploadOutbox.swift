@@ -28,13 +28,27 @@ public struct UploadReceipt: Sendable, Equatable, Codable, Identifiable {
     public let attempts: Int
     public let lastAttemptAt: Date
     public let outcome: Outcome
+    /// When the take this receipt is for was recorded; absent on a receipt written before takes were told apart.
+    public let recordedAt: Date?
 
-    public init(passageID: String, slug: String, attempts: Int, lastAttemptAt: Date, outcome: Outcome) {
+    public init(
+        passageID: String, slug: String, attempts: Int, lastAttemptAt: Date, outcome: Outcome,
+        recordedAt: Date? = nil
+    ) {
         self.passageID = passageID
         self.slug = slug
         self.attempts = attempts
         self.lastAttemptAt = lastAttemptAt
         self.outcome = outcome
+        self.recordedAt = recordedAt
+    }
+
+    /// Whether this receipt says `recording` itself is on the server, rather than a take it replaced.
+    public func settles(_ recording: RecordedPassage) -> Bool {
+        guard outcome.isSettled, passageID == recording.id else { return false }
+        // An older receipt names no take, so it settles only one recorded before the upload was tried.
+        guard let recordedAt else { return recording.recordedAt <= lastAttemptAt }
+        return recordedAt == recording.recordedAt
     }
 }
 
@@ -74,13 +88,14 @@ public struct CorpusUploadOutbox: Sendable {
         try receipts.all().sorted { $0.passageID < $1.passageID }
     }
 
-    /// Everything recorded that the corpus service has not accepted, rejected takes included.
+    /// Every take on disk the corpus service has not accepted, rejected takes and replaced ones included.
     public func pending() throws(EvaluationStoreError) -> [RecordedPassage] {
-        let settled = Set(try receipts.all().filter(\.outcome.isSettled).map(\.passageID))
-        return try recordings.all().filter { !settled.contains($0.id) }
+        let byPassage = Dictionary(
+            try receipts.all().map { ($0.passageID, $0) }, uniquingKeysWith: { first, _ in first })
+        return try recordings.all().filter { byPassage[$0.id]?.settles($0) != true }
     }
 
-    /// Offers one recording to the corpus service and writes a receipt; never throws.
+    /// Offers one take to the corpus service and writes a receipt naming that take, so one replaced mid-upload stays pending.
     public func send(_ recording: RecordedPassage) async -> UploadReceipt {
         let previous = try? receipt(for: recording.id)
         let attempts = (previous?.attempts ?? 0) + 1
@@ -91,7 +106,7 @@ public struct CorpusUploadOutbox: Sendable {
             write(
                 UploadReceipt(
                     passageID: recording.id, slug: slug, attempts: attempts, lastAttemptAt: now(),
-                    outcome: outcome))
+                    outcome: outcome, recordedAt: recording.recordedAt))
         }
 
         guard CorpusSlug.isValid(slug) else {
@@ -160,7 +175,8 @@ public struct CorpusUploadOutbox: Sendable {
                             passageID: $0.id,
                             slug: CorpusSlug.make(passage: $0.id, cohort: $0.cohort?.id ?? cohort?.id),
                             attempts: 0, lastAttemptAt: receipt.lastAttemptAt,
-                            outcome: .heldBack("not attempted — the previous upload was held back"))
+                            outcome: .heldBack("not attempted — the previous upload was held back"),
+                            recordedAt: $0.recordedAt)
                     })
                 outstanding = []
             }
