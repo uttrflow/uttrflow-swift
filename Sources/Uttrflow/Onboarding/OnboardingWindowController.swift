@@ -25,8 +25,8 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     /// `account` has no default because `OnboardingAccountLayer.development()` mints a fresh key per call.
     init(
         settingsStore: any SettingsStore,
-        modelStore: any SpeechModelStore = FileSystemSpeechModelStore.whisperKit(),
-        speechModel: SpeechModel = .default,
+        installer: any OnboardingModelInstaller = SpeechModelInstall(
+            store: FileSystemSpeechModelStore.whisperKit(), model: .default),
         record: any OnboardingRecordStore = UserDefaultsOnboardingRecordStore(),
         account: OnboardingAccountLayer,
         network: any NetworkReachability = SystemNetworkReachability()
@@ -34,7 +34,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         flow = OnboardingFlow(
             microphone: MicrophonePermissionGate(),
             accessibility: AccessibilityPermissionGate(),
-            installer: SpeechModelInstall(store: modelStore, model: speechModel),
+            installer: installer,
             settingsStore: settingsStore,
             record: record,
             authentication: account.authentication,
@@ -115,7 +115,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 }
 
 /// The app's model store, narrowed to the one thing onboarding does with it.
-private struct SpeechModelInstall: OnboardingModelInstaller {
+struct SpeechModelInstall: OnboardingModelInstaller {
     let store: any SpeechModelStore
     let model: SpeechModel
 
