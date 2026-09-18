@@ -492,7 +492,7 @@ struct QueryPlanTests {
         let corpus = Corpus()
         try seed(corpus.path, surfaces: 4, each: 500)
         let database = try Database(path: corpus.path)
-        let plan = try database.plan(of: PredictStore.recentQuery(surfaces: 2)).joined(separator: " | ")
+        let plan = try database.plan(of: PredictStore.recentQuery).joined(separator: " | ")
         #expect(plan.contains("USING INDEX entry_recent"), "the plan was: \(plan)")
         #expect(!plan.contains("SCAN entry"), "the plan was: \(plan)")
     }

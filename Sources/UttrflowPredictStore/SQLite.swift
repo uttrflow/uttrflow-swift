@@ -41,6 +41,9 @@ final class Database {
         sqlite3_close_v2(handle)
     }
 
+    /// How many compiled statements are kept.
+    var cachedStatements: Int { cached.count }
+
     /// Runs a statement that returns nothing, such as a schema change or a pragma.
     func execute(_ sql: String) throws(PredictStoreError) {
         var message: UnsafeMutablePointer<CChar>?
