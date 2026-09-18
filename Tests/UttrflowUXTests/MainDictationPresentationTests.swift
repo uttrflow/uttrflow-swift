@@ -439,6 +439,21 @@ struct DictationFiguresTests {
         #expect(page.figures.first { $0.caption == DictationPresenter.accuracyTitle }?.value == "75.0%")
     }
 
+    /// A record whose stored count is damaged is left out of the figure rather than trapping or counting as silence.
+    @Test("a damaged word count leaves its dictation out of the accuracy figure")
+    func accuracySkipsADamagedCount() throws {
+        let damaged = try JSONDecoder().decode(
+            RecordedChanges.self,
+            from: Data(#"{"corrections":[],"snippets":[],"spokenWords":-1}"#.utf8))
+        let page = HistoryFixture.dictation(entries: [
+            HistoryFixture.measured(
+                "one two three four", spokenWords: 4,
+                changes: [HistoryFixture.change("one", "One", over: 0..<1)]),
+            HistoryFixture.entry("damaged", changes: damaged),
+        ])
+        #expect(page.figures.first { $0.caption == DictationPresenter.accuracyTitle }?.value == "75.0%")
+    }
+
     @Test("nothing said means no accuracy either")
     func accuracyNeedsWords() {
         #expect(DictationPresenter.accuracy(of: []) == nil)
