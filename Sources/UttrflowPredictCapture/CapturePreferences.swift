@@ -90,4 +90,10 @@ public struct CapturePreferencesFile: Sendable {
             atPath: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(preferences).write(to: URL(fileURLWithPath: path), options: .atomic)
     }
+
+    /// Deletes the file, so every application is asked about again; nothing to delete is success.
+    public func remove() throws {
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        try FileManager.default.removeItem(atPath: path)
+    }
 }
