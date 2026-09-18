@@ -80,7 +80,7 @@ struct DictionaryRowView: View {
                 .opacity(descriptionOpacity)
             Text(row.timesUndone)
                 .monospacedDigit()
-                .foregroundStyle(row.undoneIsConcerning ? Color.dockRecording : .secondary)
+                .foregroundStyle(row.undoneIsConcerning ? Color.criticalInk : .secondary)
                 .frame(width: columns[5].width, alignment: .trailing)
                 .opacity(descriptionOpacity)
 
