@@ -30,7 +30,6 @@ public struct PanelPasteReport: Sendable, Equatable {
         case .text(let attempt) where attempt.method == .clipboard:
             copied
         case .text(let attempt) where attempt.arrival == .unconfirmed:
-            // The dictation outcome's own words, since it is the same doubt about the same paste.
             PanelPasteReport(
                 symbolName: "questionmark.circle", primaryLine: "Inserted — not confirmed",
                 secondaryLine: "Still on the clipboard — press ⌘V if it is missing",

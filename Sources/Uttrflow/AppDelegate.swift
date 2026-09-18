@@ -171,6 +171,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var noticeTask: Task<Void, Never>?
     /// Puts the floating button back once a panel paste's report has been read.
     private var pasteReportTask: Task<Void, Never>?
+    /// What the idle floating button shows while a panel paste's report lingers.
+    private var pasteReport: DockPresentation?
     /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
     private(set) var openingEditor: Task<Void, Never>?
     /// The store work the last main-window intent set going, so a test awaits it rather than a clock.
@@ -290,7 +292,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// The floating button for a state, with the speech model's load drawn in.
     private func dockPresentation(for state: DictationState) -> DockPresentation {
-        DictationPresenter.dock(for: state, advice: recordingAdvice, speechModel: speechModelLoad)
+        if case .idle = state, let pasteReport { return pasteReport }
+        return DictationPresenter.dock(for: state, advice: recordingAdvice, speechModel: speechModelLoad)
     }
 
     /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show.
@@ -1105,14 +1108,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         AccessibilityNotification.Announcement(spoken).post()
         // A dictation under way owns the button, and its own outcome is the newer news.
         guard case .idle = lastDictationState else { return }
-        dock.update(
-            with: DictationPresenter.dock(
-                notice: report.symbolName, primaryLine: report.primaryLine,
-                secondaryLine: report.secondaryLine, accessibilityLabel: report.spoken))
+        pasteReport = DictationPresenter.dock(
+            notice: report.symbolName, primaryLine: report.primaryLine,
+            secondaryLine: report.secondaryLine, accessibilityLabel: report.spoken)
+        dock.update(with: dockPresentation(for: lastDictationState))
         pasteReportTask?.cancel()
         pasteReportTask = Task { [weak self] in
             try? await Task.sleep(for: Self.failureLingers)
-            guard !Task.isCancelled, let self, case .idle = self.lastDictationState else { return }
+            guard !Task.isCancelled, let self else { return }
+            self.pasteReport = nil
             self.dock.update(with: self.dockPresentation(for: self.lastDictationState))
         }
     }
@@ -1213,6 +1217,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         // Kept here, where every change already arrives, so the updater need not ask the pipeline.
         lastDictationState = state
+        // A dictation's own outcome is newer than any panel paste's report.
+        if state != .idle { pasteReport = nil }
 
         // Cleared as soon as the recording ends, so a countdown cannot outlive it.
         if !state.isListening { recordingAdvice = .keepGoing }

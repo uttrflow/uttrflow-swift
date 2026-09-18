@@ -53,12 +53,15 @@ struct PanelPasteReportTests {
 
     @Test("every sentence is spoken with the key spelled out, never as a symbol")
     func spokenWithoutSymbols() {
-        let results: [PanelPasteResult] = [
-            .text(InsertionAttempt(.pasteboard, arrival: .unconfirmed)), .textRefused,
-            .pictureRefused, .pictureMissing,
+        let recoverable: [PanelPasteResult] = [
+            .text(InsertionAttempt(.pasteboard, arrival: .unconfirmed)),
+            .text(InsertionAttempt(.clipboard)), .textRefused, .pictureRefused,
         ]
-        for result in results {
-            #expect(PanelPasteReport.after(result)?.spoken.contains("⌘") == false)
+        for result in recoverable {
+            let spoken = PanelPasteReport.after(result)?.spoken
+            #expect(spoken?.contains("Command V") == true)
+            #expect(spoken?.contains("⌘") == false)
         }
+        #expect(PanelPasteReport.after(.pictureMissing)?.spoken.contains("⌘") == false)
     }
 }
