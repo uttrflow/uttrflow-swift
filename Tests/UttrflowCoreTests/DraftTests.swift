@@ -126,6 +126,23 @@ struct DraftTests {
         #expect(draft.text == expected)
     }
 
+    /// A currency or percent sign is part of the amount, so it leaves with it rather than landing on a neighbour.
+    @Test(
+        "takes an amount's own sign away with it and still carries the sentence's mark",
+        arguments: [
+            ("the total is $40 50", 3, "the total is 50"),
+            ("costs \u{20AC}5 6", 1, "costs 6"),
+            ("costs \u{20B9}5 6", 1, "costs 6"),
+            ("the fee is 40% 50%", 3, "the fee is 50%"),
+            ("was it 40%?", 2, "was it?"),
+        ]
+    )
+    func dropsAnAmountsOwnSign(input: String, index: Int, expected: String) {
+        var draft = Draft(text: input)
+        draft.remove(at: index, by: pass, carryingMarks: true)
+        #expect(draft.text == expected)
+    }
+
     @Test("leaves the marks where they were when the caller does not ask for them")
     func plainRemovalCarriesNothing() {
         var draft = Draft(text: "shipping today, uh?")

@@ -43,6 +43,20 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "takes back the sign of an amount along with its number",
+        arguments: [
+            ("The total is $40, no wait, $50.", "The total is $50."),
+            ("The total is $40 no wait $50.", "The total is $50."),
+            ("It costs $5 sorry $6.", "It costs $6."),
+            ("It costs \u{00A3}5 sorry \u{00A3}6.", "It costs \u{00A3}6."),
+            ("The fee is 40% actually 50%.", "The fee is 50%."),
+        ]
+    )
+    func takesBackAnAmountsSign(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A number anchor may not reach back through a full stop, because the number in the sentence before was not the one corrected. See `Docs/cleanup.md`.
     @Test(
         "leaves a number the speaker said in the sentence before the correction",
