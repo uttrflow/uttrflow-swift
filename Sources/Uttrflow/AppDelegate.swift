@@ -172,6 +172,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var openingEditor: Task<Void, Never>?
     /// The store work the last main-window intent set going, so a test awaits it rather than a clock.
     private(set) var intentWork: Task<Void, Never>?
+    /// The last sweep of expired recordings and transcripts, so a test awaits it rather than a clock.
+    private(set) var sweeping: Task<Void, Never>?
     /// A3, A7 — where the user was when the panel closed, while reopening still counts as undoing.
     private var resume: PanelResume?
     /// Long enough to reach for the keyboard, short enough to not undo a forgotten delete.
@@ -209,6 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         applyLaunchAtLogin()
         buildPipeline()
         seedTheDictionary()
+        sweepExpired()
         wireInterface()
         startWatchingForTheShortcut()
         startWatchingTheClipboard()
@@ -223,6 +226,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Last, from the setting: an update check here would race the model download.
         updates.onProgressChanged = { [weak self] in self?.refreshMenuBar() }
         updates.begin(automatically: settings.installsUpdatesAutomatically)
+    }
+
+    /// Deletes recordings and transcripts past their retention, with or without a window. See `Docs/recordings.md`.
+    func sweepExpired(now: Date = Date()) {
+        let retention = Retention(days: settings.transcriptRetentionDays, now: now)
+        let previous = sweeping
+        sweeping = Task { [recordings, history] in
+            await previous?.value
+            _ = await recordings.waiting(now: now)
+            _ = await history.records(keeping: retention)
+        }
     }
 
     /// Writes the words this build ships knowing, which happens once and never blocks the launch.
@@ -1128,7 +1142,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     // MARK: Relaying
 
-    private func render(_ state: DictationState) {
+    /// Internal so a test can end a dictation without a microphone.
+    func render(_ state: DictationState) {
         getOutOfTheWay(for: state)
         // Recorded before the menu is drawn, and kept even when insertion failed. §19.
         switch state {
@@ -1179,6 +1194,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Whichever way it ended, the row that said "Retrying…" is not retrying any more.
         if case .inserted = state { retryingRecording = nil }
         if case .failed = state { retryingRecording = nil }
+        // After each dictation, since a menu-bar-only user may never open the window that lists them.
+        if case .inserted = state { sweepExpired() }
+        if case .failed = state { sweepExpired() }
 
         // Kept here, where every change already arrives, so the updater need not ask the pipeline.
         lastDictationState = state
