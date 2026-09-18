@@ -138,10 +138,19 @@ enum CodeShapes {
     static func isShellCommandByCharacter(_ text: String) -> Bool {
         guard !text.contains(where: \.isNewline) else { return false }
         if text.hasPrefix("$ ") || text.hasPrefix("./") { return true }
-        return text.split(whereSeparator: { "|&;".contains($0) }).contains { segment in
-            let word = segment.drop(while: \.isWhitespace).prefix(while: { !$0.isWhitespace })
-            return !word.isEmpty && commands.contains(String(word))
+        var start = text.startIndex
+        while start <= text.endIndex {
+            let end = text[start...].firstIndex(where: { "|&;".contains($0) }) ?? text.endIndex
+            let segment = text[start..<end].drop(while: \.isWhitespace)
+            let word = segment.prefix(while: { !$0.isWhitespace })
+            let piped = end < text.endIndex && text[end] == "|"
+            if !word.isEmpty, isCommand(String(word), rest: segment[word.endIndex...], piped: piped) {
+                return true
+            }
+            guard end < text.endIndex else { break }
+            start = text.index(after: end)
         }
+        return false
     }
 
     /// `isShellCommand` read over the bytes of an ASCII clip, where a byte is a character; `nil` for any other clip.
@@ -150,6 +159,9 @@ enum CodeShapes {
         guard !bytes.contains(where: { (0x0A...0x0D).contains($0) }) else { return false }
         if bytes.starts(with: "$ ".utf8) || bytes.starts(with: "./".utf8) { return true }
         func isSpace(_ byte: UInt8) -> Bool { byte == 0x20 || byte == 0x09 }
+        func text(_ range: Range<Int>) -> String {
+            String(decoding: UnsafeBufferPointer(rebasing: bytes[range]), as: UTF8.self)
+        }
         var start = 0
         for offset in 0...bytes.count {
             guard offset == bytes.count || "|&;".utf8.contains(bytes[offset]) else { continue }
@@ -158,17 +170,86 @@ enum CodeShapes {
             var wordEnd = wordStart
             while wordEnd < offset, !isSpace(bytes[wordEnd]) { wordEnd += 1 }
             // No command is longer than twelve letters, so a longer word is never copied to be looked up.
-            if wordEnd > wordStart, wordEnd - wordStart <= 12,
-                commands.contains(
-                    String(decoding: UnsafeBufferPointer(rebasing: bytes[wordStart..<wordEnd]), as: UTF8.self)
-                )
-            {
-                return true
+            if wordEnd > wordStart, wordEnd - wordStart <= 12 {
+                let word = text(wordStart..<wordEnd)
+                let piped = offset < bytes.count && bytes[offset] == UInt8(ascii: "|")
+                // The rest is copied out only for a word that is also English, which needs it read.
+                if commands.contains(word),
+                    ambiguous[word] == nil
+                        || isCommand(word, rest: Substring(text(wordEnd..<offset)), piped: piped)
+                {
+                    return true
+                }
             }
             start = offset + 1
         }
         return false
     }
+
+    /// Whether a segment opening with `word` is a command; a word that is also English needs the rest to look like one.
+    static func isCommand(_ word: String, rest: Substring, piped: Bool) -> Bool {
+        guard commands.contains(word) else { return false }
+        guard let subcommands = ambiguous[word] else { return true }
+        if piped { return true }
+        let tokens = rest.split(whereSeparator: \.isWhitespace)
+        if tokens.contains(where: looksLikeArgument) { return true }
+        // `pip install requests` is a command and `pip install is slow today` is a sentence.
+        guard let first = tokens.first, subcommands.contains(String(first)) else { return false }
+        return !tokens.dropFirst().contains { proseWords.contains($0.lowercased()) }
+    }
+
+    /// Words a sentence is held together with, which an argument list never contains.
+    private static let proseWords: Set<String> = [
+        "is", "are", "was", "were", "be", "been", "the", "a", "an", "to", "of", "and", "or", "but", "for",
+        "with", "my", "me", "i", "you", "we", "it", "this", "that", "so", "too", "very", "not", "by", "in",
+        "on", "at", "again", "today",
+    ]
+
+    /// A flag, a path, an assignment, a redirect or a file name, which prose does not put after a word.
+    private static func looksLikeArgument(_ token: Substring) -> Bool {
+        if token.count > 1, token.hasPrefix("-") { return true }
+        if token.contains("/") || token.contains("=") || token.hasPrefix("~") || token.hasPrefix(".") {
+            return true
+        }
+        if token.hasPrefix(">") || token.hasPrefix("<") { return true }
+        // `notes.txt`, `app.js`: a name, a full stop and a short lowercase extension.
+        guard let dot = token.lastIndex(of: "."), dot > token.startIndex else { return false }
+        let fileExtension = token[token.index(after: dot)...]
+        return (1...4).contains(fileExtension.count)
+            && fileExtension.allSatisfy { $0.isASCII && ($0.isLowercase || $0.isNumber) }
+    }
+
+    /// Command words that are also everyday English, each with the subcommands that make it a command alone.
+    static let ambiguous: [String: Set<String>] = [
+        "git": [
+            "status", "add", "commit", "push", "pull", "clone", "checkout", "switch", "branch", "merge",
+            "rebase", "log", "diff", "fetch", "stash", "reset", "init", "remote", "tag", "show", "restore",
+            "cherry-pick", "worktree", "bisect", "blame", "config",
+        ],
+        "sudo": commands,
+        "pip": ["install", "uninstall", "freeze", "list", "show"],
+        "apt": ["install", "update", "upgrade", "remove", "search", "purge", "autoremove"],
+        "cargo": [
+            "build", "run", "test", "new", "add", "install", "check", "clippy", "fmt", "publish", "update",
+            "bench", "doc",
+        ],
+        "swift": ["build", "test", "run", "package", "format"],
+        "node": [],
+        "bun": ["install", "run", "add", "remove", "x", "test", "build", "create", "init", "upgrade"],
+        "kill": [],
+        "defaults": ["read", "write", "delete", "domains", "find", "export", "import"],
+        "tar": ["xf", "xzf", "xvf", "xvzf", "xjf", "cf", "czf", "cvf", "cvzf", "cjf", "tf", "tvf"],
+        "ps": ["aux", "ax", "axu", "ef"],
+        "cd": [],
+        "rm": [],
+        "brew": [
+            "install", "uninstall", "update", "upgrade", "list", "info", "search", "services", "tap",
+            "doctor", "cleanup",
+        ],
+        "yarn": ["add", "install", "build", "dev", "start", "test", "run", "remove", "upgrade"],
+        "curl": [],
+        "yum": ["install", "update", "remove"],
+    ]
 
     static let commands: Set<String> = [
         "sudo", "git", "npm", "npx", "yarn", "pnpm", "brew", "docker", "kubectl", "curl",

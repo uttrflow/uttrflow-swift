@@ -185,6 +185,10 @@ struct ClipKindDetectorTests {
             "$ swift build",
             "cat log.txt | grep error",
             "curl -s https://example.com/api > out.json",
+            "git status", "pip install requests", "cd ~/Projects", "rm -rf build", "tar xzf archive.tar.gz",
+            "kill -9 1234", "swift build", "sudo apt install jq", "ps aux | grep node", "node server.js",
+            "defaults write com.example.app Key -bool true", "cargo build --release", "bun install",
+            "Tom & Jerry; git push", "kubectl apply", "xcodebuild", "launchctl list",
         ])
     func shell(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .code)
@@ -201,6 +205,10 @@ struct ClipKindDetectorTests {
             "Please return the book to the library.",
             "She let the dog out.",
             "Sort by name (ascending) and then export.",
+            "defaults are fine by me", "tar and feathers", "cargo ship arrives Monday",
+            "bun with butter please", "git gud", "rm 204 is booked", "Tom & Jerry; kill time",
+            "pip install is slow today", "swift reply needed", "node of the network", "cd player broke",
+            "brew some tea", "curl up with a book",
         ])
     func notCode(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .code)
