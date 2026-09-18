@@ -206,90 +206,32 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
                 candidate, kAXSelectedTextAttribute as CFString, &selection) == .success
         else { return nil }
 
-        return AXTextField(element: candidate)
+        return SelectionWriter(field: AXSelectionAttributes(element: candidate))
     }
 }
 
-/// Writes into one focused field, holding an `AXUIElement` that is safe to pass between threads.
-private struct AXTextField: FocusedTextField, @unchecked Sendable {
-    /// The focused element this writes into.
+/// A focused field's selection attributes, holding an `AXUIElement` that is safe to pass between threads.
+private struct AXSelectionAttributes: SelectionAttributes, @unchecked Sendable {
+    /// The focused element this reads and writes.
     let element: AXUIElement
 
-    func replaceSelection(with text: String) throws(TextInsertionError) {
-        // Read first so the write can be checked; a field that will not answer is trusted.
-        let before = value()
-
-        // Replaces the selection, or inserts at the caret when there is none.
-        let result = AXUIElementSetAttributeValue(
-            element, kAXSelectedTextAttribute as CFString, text as CFString)
-        guard result == .success else {
-            throw .insertionRejected(description: "the field refused the text (\(result.rawValue))")
-        }
-
-        // A success that changed nothing is the failure this catches. See `Docs/insertion.md`.
-        if let before, let after = value(), before == after, !text.isEmpty {
-            throw .insertionRejected(
-                description: "the field accepted the text and did not change")
-        }
+    func value() -> String? {
+        stringAttribute(kAXValueAttribute, of: element)
     }
 
-    /// Grows the selection back over what is replaced first, so one write replaces it and undo sees one edit.
-    func replaceSelection(
-        replacing replaced: String, with text: String
-    ) throws(TextInsertionError) {
-        guard !replaced.isEmpty else { return try replaceSelection(with: text) }
-        let caret = try selectBackwards(over: replaced)
-        do {
-            try replaceSelection(with: text)
-        } catch {
-            // A field that takes the selection and refuses the text keeps its caret, not a selection.
-            _ = try? select(caret)
-            throw error
-        }
-    }
-
-    /// Moves the selection's start back over `replaced`, once it is confirmed to be there, and answers with the selection it replaces.
-    private func selectBackwards(over replaced: String) throws(TextInsertionError) -> CFRange {
-        guard let whole = value(), let selection = selectedRange() else {
-            throw .insertionRejected(description: "the field will not report its selection")
-        }
-        guard
-            let widened = BackwardSelection.replacing(
-                in: whole, location: selection.location, length: selection.length,
-                covering: replaced.count)
-        else {
-            throw .insertionRejected(description: "the field has too little text before the caret")
-        }
-        // Checked like the typed route, so a character typed since the edit was worked out is never taken back.
-        guard BackwardSelection.confirms(replaced, in: whole, endingAt: selection.location) else {
-            throw .insertionRejected(description: "the text before the caret is not what would be replaced")
-        }
-        try select(CFRange(location: widened.lowerBound, length: widened.count))
-        return selection
-    }
-
-    /// Sets the selection, which a field that hides its range refuses.
-    private func select(_ range: CFRange) throws(TextInsertionError) {
-        var range = range
-        guard let value = AXValueCreate(.cfRange, &range) else {
-            throw .insertionRejected(description: "could not describe the selection")
-        }
-        let result = AXUIElementSetAttributeValue(
-            element, kAXSelectedTextRangeAttribute as CFString, value)
-        guard result == .success else {
-            throw .insertionRejected(
-                description: "the field refused the selection (\(result.rawValue))")
-        }
-    }
-
-    /// Where the caret is, in UTF-16 units, when the field will say.
-    private func selectedRange() -> CFRange? {
+    func selectedRange() -> CFRange? {
         rangeAttribute(kAXSelectedTextRangeAttribute, of: element)
     }
 
-    /// The field's whole contents, when it will say.
-    private func value() -> String? {
-        stringAttribute(kAXValueAttribute, of: element)
+    func setSelectedText(_ text: String) -> AXError {
+        AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, text as CFString)
+    }
+
+    /// A range that cannot be described is reported as an illegal argument, which the writer refuses.
+    func setSelectedRange(_ range: CFRange) -> AXError {
+        var range = range
+        guard let value = AXValueCreate(.cfRange, &range) else { return .illegalArgument }
+        return AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, value)
     }
 }
 
