@@ -109,7 +109,7 @@ final class InterceptorTap: @unchecked Sendable {
     private let lifecycle = LifecycleLock()
     /// Called once the state is released and the thread lets go of the port, which tests wait on instead of a clock.
     private let released: @Sendable () -> Void
-    /// Called on the tap's thread after its source is added and before its run loop runs, which tests stop the tap from.
+    /// Runs on the tap's thread after its source is added and before its run loop runs.
     private let beforeLoop: @Sendable () -> Void
 
     /// The lock around `Lifecycle`, in a class so the thread can hold it without holding the tap.
@@ -212,7 +212,7 @@ final class InterceptorTap: @unchecked Sendable {
         CFRunLoopSourceInvalidate(source)
         CFMachPortInvalidate(tap)
         if let loop {
-            // Queued on the loop rather than sent to it, so a stop that lands before the loop runs is still heard.
+            // Queued on the loop, so it is heard even when the loop has not started running yet.
             CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue) {
                 CFRunLoopStop(CFRunLoopGetCurrent())
             }
