@@ -1,10 +1,10 @@
-// The formatting sheet, drawn once per pair of texts for as long as the panel is open.
+// Draws the formatting sheet once per pair of texts for as long as the panel is open.
 private import Synchronization
 import UttrflowClipboard
 
 /// Remembers the last formatting sheet drawn, so a panel update does not compare the texts again.
 final class FormattingSheetMemo: Sendable, Equatable {
-    /// The two texts compared, and the sheet drawn from them.
+    /// Holds the two texts compared and the sheet drawn from them.
     private struct Drawn {
         let original: String
         let formatted: String
@@ -15,7 +15,7 @@ final class FormattingSheetMemo: Sendable, Equatable {
 
     init() {}
 
-    /// The sheet for this pair, comparing them only when this pair has not been drawn before.
+    /// Returns the sheet for this pair, comparing the texts only when this pair has not been drawn before.
     func sheet(from original: String, to formatted: String) -> PanelSheetPresentation {
         if let last = drawn.withLock({ $0 }), last.original == original, last.formatted == formatted {
             return last.sheet
@@ -26,6 +26,6 @@ final class FormattingSheetMemo: Sendable, Equatable {
         return sheet
     }
 
-    /// Always equal, because a cache is not part of what the panel shows.
+    /// Compares equal to any other memo, because a cache is not part of what the panel shows.
     static func == (lhs: FormattingSheetMemo, rhs: FormattingSheetMemo) -> Bool { true }
 }
