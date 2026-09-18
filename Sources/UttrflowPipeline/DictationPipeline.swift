@@ -228,7 +228,7 @@ public actor DictationPipeline {
         let audio: AudioSamples
         do {
             // Draining and converting the buffer, which is the part Uttrflow costs the user.
-            let captured = try await metrics.measuring(.capture, clock: clock) {
+            let captured = try await metrics.measuringInTime(.capture, clock: clock) {
                 try await withStageTimeout(StageTimeout.quick, clock: clock) { [capture] in
                     try await capture.stop()
                 }
@@ -578,7 +578,7 @@ public actor DictationPipeline {
             AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
         // A profile that speaks Hindi switches language between pieces, so only it detects every piece. See `Docs/speech-engines.md`.
         let language = ListeningLanguages(profile: profile).hint(afterFirstPiece: dictationLanguage)
-        let heard = try await metrics.measuring(.transcription, clock: clock) {
+        let heard = try await metrics.measuringInTime(.transcription, clock: clock) {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in
                 do {
@@ -624,17 +624,15 @@ public actor DictationPipeline {
         recording metrics: any MetricsRecording
     ) async -> CorrectedTranscript {
         do {
-            return try await metrics.measuring(.correction, clock: clock) {
-                let proposed =
+            let proposed =
+                try await metrics.measuringInTime(.correction, clock: clock) {
                     try await withStageTimeout(StageTimeout.quick, clock: clock) { [corrector] in
                         try await corrector.corrections(for: transcription, seeing: appContext)
-                    } ?? []
-                // The commonest answer, and not worth rebuilding a string to arrive at itself.
-                guard !proposed.isEmpty else {
-                    return CorrectedTranscript.unchanged(transcription.text)
-                }
-                return DictationCorrection.applying(proposed, to: transcription.text)
-            }
+                    }
+                } ?? []
+            // The commonest answer, and not worth rebuilding a string to arrive at itself.
+            guard !proposed.isEmpty else { return .unchanged(transcription.text) }
+            return DictationCorrection.applying(proposed, to: transcription.text)
         } catch {
             return .unchanged(transcription.text)
         }
@@ -655,7 +653,7 @@ public actor DictationPipeline {
         let untidied = TransformationResult(text: text, producedBy: .untidied)
 
         do {
-            let tidied = try await metrics.measuring(.transformation, clock: clock) {
+            let tidied = try await metrics.measuringInTime(.transformation, clock: clock) {
                 try await withStageTimeout(StageTimeout.transformation, clock: clock) {
                     [cleaner = runningCleaner] in
                     try await cleaner.clean(request)
@@ -689,16 +687,13 @@ public actor DictationPipeline {
     /// Expands the user's snippets, treating a blank expansion as nothing to do.
     private func expand(_ text: String) async -> ExpandedTranscript {
         do {
-            return try await metrics.measuring(.expansion, clock: clock) {
-                let expanded =
-                    try await withStageTimeout(StageTimeout.quick, clock: clock) { [snippets] in
-                        try await snippets.expand(text)
-                    }
-                guard let expanded, !expanded.text.isBlank else {
-                    return ExpandedTranscript.unchanged(text)
+            let expanded = try await metrics.measuringInTime(.expansion, clock: clock) {
+                try await withStageTimeout(StageTimeout.quick, clock: clock) { [snippets] in
+                    try await snippets.expand(text)
                 }
-                return expanded
             }
+            guard let expanded, !expanded.text.isBlank else { return .unchanged(text) }
+            return expanded
         } catch {
             return .unchanged(text)
         }
@@ -712,7 +707,7 @@ public actor DictationPipeline {
         // Said before the words are handed over, because the app takes its own time to show them.
         transition(to: .inserting)
         do {
-            let inserted = try await metrics.measuring(.insertion, clock: clock) {
+            let inserted = try await metrics.measuringInTime(.insertion, clock: clock) {
                 try await withStageTimeout(StageTimeout.quick, clock: clock) {
                     try await inserter.insert(text)
                 }
