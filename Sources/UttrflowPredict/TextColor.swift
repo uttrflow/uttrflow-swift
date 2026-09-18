@@ -1,6 +1,6 @@
 import func Foundation.pow
 
-/// A field's own text colour in sRGB, which the ghost is drawn in so it reads against whatever the field is drawn on.
+/// Holds a field's own text colour in sRGB, which the ghost is drawn in so it reads against the field's background.
 public struct TextColor: Sendable, Equatable {
     public let red: Double
     public let green: Double
@@ -13,12 +13,12 @@ public struct TextColor: Sendable, Equatable {
         self.blue = Self.clamped(blue)
     }
 
-    /// The WCAG relative luminance, 0 for black and 1 for white.
+    /// Returns the WCAG relative luminance, 0 for black and 1 for white.
     public var luminance: Double {
         0.2126 * Self.linear(red) + 0.7152 * Self.linear(green) + 0.0722 * Self.linear(blue)
     }
 
-    /// This colour laid at the given share over a background, which is what the eye sees of the ghost.
+    /// Returns this colour laid at the given share over a background, which is what the eye sees of the ghost.
     public func blended(_ share: Double, over background: TextColor) -> TextColor {
         let share = Self.clamped(share)
         return TextColor(
@@ -27,7 +27,7 @@ public struct TextColor: Sendable, Equatable {
             blue: blue * share + background.blue * (1 - share))
     }
 
-    /// The WCAG contrast ratio between two colours, 1 for none and 21 for black on white.
+    /// Returns the WCAG contrast ratio between two colours, 1 for none and 21 for black on white.
     public static func contrast(_ first: TextColor, _ second: TextColor) -> Double {
         let (light, dark) = (max(first.luminance, second.luminance), min(first.luminance, second.luminance))
         return (light + 0.05) / (dark + 0.05)
@@ -40,7 +40,7 @@ public struct TextColor: Sendable, Equatable {
         channel.isNaN ? 0 : min(max(channel, 0), 1)
     }
 
-    /// An sRGB channel as linear light, per the sRGB transfer function.
+    /// Converts an sRGB channel to linear light with the sRGB transfer function.
     private static func linear(_ channel: Double) -> Double {
         channel <= 0.040_45 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
     }

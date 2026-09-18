@@ -31,7 +31,7 @@ struct SuggestionView: View {
         }
     }
 
-    /// A surface behind the ghost only where the field's colour is unknown, so the ghost is read against something it was resolved for.
+    /// Draws a surface behind the ghost only where the field's colour is unknown, so the ghost has a background it was resolved for.
     @ViewBuilder private var backing: some View {
         if presentation.ink == .backed, presentation.style != .hidden {
             RoundedRectangle(cornerRadius: presentation.pointSize * 0.2)
@@ -39,7 +39,7 @@ struct SuggestionView: View {
         }
     }
 
-    /// The ghost's colour at a share of its strength: the field's own text colour where known, else the primary one over the backing.
+    /// Returns the ghost's colour at a share of its strength: the field's text colour where known, else the primary one.
     private func ink(_ share: Double) -> Color {
         switch presentation.ink {
         case .field(let color):

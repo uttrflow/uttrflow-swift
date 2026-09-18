@@ -24,6 +24,7 @@ struct TextColorTests {
         #expect(TextColor.white.blended(0, over: .black) == .black)
         #expect(TextColor.white.blended(0.5, over: .black) == TextColor(red: 0.5, green: 0.5, blue: 0.5))
         #expect(TextColor.white.blended(3, over: .black) == .white)
+        #expect(TextColor.white.blended(-1, over: .black) == .black)
     }
 
     @Test("A dark channel is linear below the sRGB knee")
