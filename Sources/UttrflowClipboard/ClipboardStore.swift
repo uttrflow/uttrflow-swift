@@ -10,6 +10,19 @@ public import struct Foundation.UUID
 public import struct Foundation.Data
 public import class Foundation.FileManager
 public import class Foundation.JSONEncoder
+private import Synchronization
+
+/// Counts the files a store writes while this is bound to `ClipboardStore.writes`.
+package final class StoreWriteTally: Sendable {
+    private let files = Mutex(0)
+
+    package init() {}
+
+    /// Answers how many files have been written or removed so far.
+    package var count: Int { files.withLock { $0 } }
+
+    func record() { files.withLock { $0 += 1 } }
+}
 
 /// Everything the user has copied, kept on this Mac between launches. See `Docs/clipboard-store.md`.
 public actor ClipboardStore {
@@ -37,12 +50,26 @@ public actor ClipboardStore {
     /// Files that could not be read or moved aside, which no write may replace.
     private var unreplaceable: Set<URL> = []
 
+    /// Records that a use is in memory and not yet on disk; the next write, or `flushUse`, carries it.
+    private var hasUnwrittenUse = false
+
+    /// Sets how long a use waits in memory for another write before it is written on its own.
+    private let useFlushDelay: Duration
+
+    /// Holds the pending write of a use, so a run of pastes costs one write rather than one each.
+    private var useFlush: Task<Void, Never>?
+
+    /// Counts the files written while bound, so a test can bound the writing without a clock.
+    @TaskLocal package static var writes: StoreWriteTally?
+
     public init(
         file: URL = ClipboardStore.defaultFile(),
-        budget: ClipboardBudget = ClipboardStore.defaultBudget
+        budget: ClipboardBudget = ClipboardStore.defaultBudget,
+        useFlushDelay: Duration = .seconds(30)
     ) {
         self.file = file
         self.budget = budget
+        self.useFlushDelay = useFlushDelay
     }
 
     /// Where the clipboard lives by default; versioned in the name so a new shape can sit beside it.
@@ -89,7 +116,7 @@ public actor ClipboardStore {
         return kept
     }
 
-    /// Notes that a clip has just been reached for, so the eviction policy ranks it as recently used.
+    /// Notes that a clip has just been reached for, in memory; the disk hears of it with the next write.
     @discardableResult
     public func markUsed(
         _ id: UUID, at moment: Date, keeping retention: ClipRetention
@@ -100,9 +127,34 @@ public actor ClipboardStore {
         }
         clips[index] = clips[index].used(at: moment)
         let kept = retained(clips, keeping: retention)
-        // Bookkeeping for a later eviction, so a disk that refuses must not fail somebody's paste.
-        try? save(kept)
+        // A clip that aged out is a real change, written now; a use alone is bookkeeping for a later eviction.
+        guard kept.count == clips.count else {
+            try? save(kept)
+            return kept
+        }
+        wholeList = kept
+        hasUnwrittenUse = true
+        scheduleUseFlush()
         return kept
+    }
+
+    /// Writes a use still held in memory; a disk that refuses costs only the eviction order.
+    public func flushUse() {
+        useFlush?.cancel()
+        useFlush = nil
+        guard hasUnwrittenUse, let wholeList else { return }
+        try? save(wholeList)
+    }
+
+    /// Writes held uses after a quiet spell, unless another write carries them first.
+    private func scheduleUseFlush() {
+        guard useFlush == nil else { return }
+        let flushAfter = useFlushDelay
+        useFlush = Task { [weak self] in
+            try? await Task.sleep(for: flushAfter)
+            guard !Task.isCancelled else { return }
+            await self?.flushUse()
+        }
     }
 
     /// Forgets one clip and answers with what is left; an identifier that is not there is not an error.
@@ -250,6 +302,30 @@ public actor ClipboardStore {
         _ category: String?, of id: UUID, keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
         try change(id, keeping: retention) { $0.category = category }
+    }
+
+    /// Moves every clip in one collection to another, or out of any when `destination` is `nil`, in one write.
+    @discardableResult
+    public func moveCategory(
+        _ name: String, to destination: String?, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        var clips = loaded()
+        for index in clips.indices where clips[index].category == name {
+            clips[index].category = destination
+        }
+        let kept = retained(clips, keeping: retention)
+        try save(kept)
+        return kept
+    }
+
+    /// Deletes a collection and every clip filed in it, in one write.
+    @discardableResult
+    public func deleteCategory(
+        _ name: String, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        let kept = retained(loaded().filter { $0.category != name }, keeping: retention)
+        try save(kept)
+        return kept
     }
 
     // MARK: - The rules
@@ -456,6 +532,10 @@ public actor ClipboardStore {
 
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
         wholeList = clips
+        // This write carries every use held in memory, so none is left waiting for its own.
+        hasUnwrittenUse = false
+        useFlush?.cancel()
+        useFlush = nil
 
         // The permanent file first and only when it changed, so a refusing disk leaves the collection whole.
         if nowSaved != wasSaved {
@@ -475,6 +555,7 @@ public actor ClipboardStore {
     private func persist(_ clips: [Clip], to url: URL) throws(ClipboardStoreError) {
         // A file that could be neither read nor moved aside is the user's only copy, so it is not replaced.
         guard !unreplaceable.contains(url) else { throw .couldNotWrite }
+        Self.writes?.record()
         do {
             guard !clips.isEmpty else {
                 try removeFile(url)

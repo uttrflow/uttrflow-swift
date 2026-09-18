@@ -194,7 +194,15 @@ Memory is updated first and unconditionally, so a disk that refuses does not als
 the pin they just set for as long as the app stays open. The error still reaches them: what they
 lose is the change surviving a quit, not the change.
 
-`markUsed` is the one write allowed to fail silently — it is bookkeeping for a future eviction,
+`markUsed` does not write at all. It moves `lastUsedAt` in memory and the next real write — a
+copy, a pin, a delete — carries it to disk; with no other write, `flushUse` writes it after 30
+seconds, and quitting writes it before the process exits. A paste therefore costs no rewrite of
+the history file. If the app is killed before any of those, the uses since the last write are
+lost, and all that costs is an eviction order that many seconds stale: no clip, pin or name is
+ever held back this way. A collection is renamed, emptied or deleted by one store call
+(`moveCategory`, `deleteCategory`), which is one write per file however many clips it holds.
+
+A held use is the one write allowed to fail silently — it is bookkeeping for a future eviction,
 and refusing somebody's paste because the note about it could not be filed would trade the thing
 they asked for against the record of it. Dropping aged-out clips on the read path is best-effort
 for the same reason: refusing to open the panel over a disk that would not accept a tidy-up would
