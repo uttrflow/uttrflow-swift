@@ -194,8 +194,8 @@ struct MenuBarContentsTests {
     @Test("adds the ellipsis only where a menu should")
     func menuTitleEllipsis() {
         let shown = MenuBarPresenter.present(MenuBarState(failure: clipboardFallback))
-        #expect(shown.command(.recover(.pasteManually))?.title == "Paste")
-        #expect(clipboardFallback.action?.title == "Paste")
+        #expect(shown.command(.recover(.pasteManually))?.title == "Dismiss")
+        #expect(clipboardFallback.action?.title == "Dismiss")
     }
 
     @Test("offers nothing extra for a failure that has no fix")
