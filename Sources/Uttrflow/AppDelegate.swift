@@ -1,3 +1,4 @@
+import Accessibility
 import AppKit
 import OSLog
 import UttrflowAI
@@ -168,6 +169,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var undoable: Clip?
     private var undoTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    /// Puts the floating button back once a panel paste's report has been read.
+    private var pasteReportTask: Task<Void, Never>?
+    /// What the idle floating button shows while a panel paste's report lingers.
+    private var pasteReport: DockPresentation?
     /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
     private(set) var openingEditor: Task<Void, Never>?
     /// The store work the last main-window intent set going, so a test awaits it rather than a clock.
@@ -287,7 +292,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// The floating button for a state, with the speech model's load drawn in.
     private func dockPresentation(for state: DictationState) -> DockPresentation {
-        DictationPresenter.dock(for: state, advice: recordingAdvice, speechModel: speechModelLoad)
+        if case .idle = state, let pasteReport { return pasteReport }
+        return DictationPresenter.dock(for: state, advice: recordingAdvice, speechModel: speechModelLoad)
     }
 
     /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show.
@@ -1027,10 +1033,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// K4 — pastes a picture, on its own path because the Accessibility route writes only strings.
     private func insertImage(_ clip: Clip) {
         markUsed(clip.id)
-        Task { [clipboard, pasteboard = announcingPasteboard] in
+        Task { [weak self, clipboard, pasteboard = announcingPasteboard] in
             guard let image = clip.image, let data = await clipboard.imageData(for: image) else {
                 // B8 from the other side: the file went between the draw and the keypress.
                 Self.log.error("picture missing at paste: \(clip.id, privacy: .public)")
+                self?.reportPanelPaste(.pictureMissing)
                 return
             }
             // Named by its bytes, so a copy landing in the same tick is not claimed by this write.
@@ -1041,6 +1048,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // On the clipboard either way, which is the floor the text path lands on too.
                 Self.log.error(
                     "picture paste refused: \(failure.userMessage, privacy: .public)")
+                self?.reportPanelPaste(.pictureRefused)
             }
         }
     }
@@ -1074,15 +1082,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Puts text where the caret is, through the coordinator whose last strategy cannot fail.
     private func insert(_ text: String, richText: String? = nil, used: Clip.ID?) {
         markUsed(used)
-        Task { [clipInserter] in
+        Task { [weak self, clipInserter] in
             do {
-                let method = try await clipInserter.insert(text, richText: richText)
-                Self.log.info("clip inserted by \(String(describing: method), privacy: .public)")
+                let attempt = try await clipInserter.insert(text, richText: richText)
+                Self.log.info(
+                    """
+                    clip inserted by \(attempt.method.rawValue, privacy: .public) \
+                    arrival=\(attempt.arrival.rawValue, privacy: .public)
+                    """)
+                self?.reportPanelPaste(.text(attempt))
             } catch {
                 // Every strategy refused, including the one that cannot.
                 let why = (error as? any UttrflowFailure)?.userMessage ?? String(describing: error)
                 Self.log.error("clip insertion failed: \(why, privacy: .public)")
+                self?.reportPanelPaste(.textRefused)
             }
+        }
+    }
+
+    /// Says on the floating button, and aloud, what a panel paste left undone; the panel has already gone.
+    private func reportPanelPaste(_ result: PanelPasteResult) {
+        guard let report = PanelPasteReport.after(result) else { return }
+        var spoken = AttributedString(report.spoken)
+        spoken.accessibilitySpeechAnnouncementPriority = .high
+        AccessibilityNotification.Announcement(spoken).post()
+        // A dictation under way owns the button, and its own outcome is the newer news.
+        guard case .idle = lastDictationState else { return }
+        pasteReport = DictationPresenter.dock(
+            notice: report.symbolName, primaryLine: report.primaryLine,
+            secondaryLine: report.secondaryLine, accessibilityLabel: report.spoken)
+        dock.update(with: dockPresentation(for: lastDictationState))
+        pasteReportTask?.cancel()
+        pasteReportTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.failureLingers)
+            guard !Task.isCancelled, let self else { return }
+            self.pasteReport = nil
+            self.dock.update(with: self.dockPresentation(for: self.lastDictationState))
         }
     }
 
@@ -1182,6 +1217,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         // Kept here, where every change already arrives, so the updater need not ask the pipeline.
         lastDictationState = state
+        // A dictation's own outcome is newer than any panel paste's report.
+        if state != .idle { pasteReport = nil }
 
         // Cleared as soon as the recording ends, so a countdown cannot outlive it.
         if !state.isListening { recordingAdvice = .keepGoing }
