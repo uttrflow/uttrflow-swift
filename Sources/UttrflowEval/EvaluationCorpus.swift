@@ -180,6 +180,14 @@ public enum EvaluationCorpus {
             mustKeep: ["coffee"],
             mustNotAdd: ["two"]
         ),
+        // The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.
+        .init(
+            id: "trigger-as-its-own-sentence", category: .everyday,
+            spoken: "Meet me at four. Scratch that. At five.",
+            expected: "Meet me at five.",
+            mustKeep: ["Meet me", "five"],
+            mustNotAdd: ["four", "Scratch"]
+        ),
         // "no" opens the sentence rather than correcting one, and "wait" is a verb here.
         .init(
             id: "false-no-stays", category: .everyday,

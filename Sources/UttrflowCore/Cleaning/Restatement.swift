@@ -42,8 +42,9 @@ public enum Restatement {
     ) -> Int? {
         let earliest = max(0, trigger - reach)
         let firstAfter = draft.shape(at: live[restart]).key
+        let through = standsAlone(trigger, before: restart, in: live, of: draft)
         if NumberWords.isNumber(firstAfter), NumberWords.isNumber(draft.shape(at: live[trigger - 1]).key) {
-            guard !endsSentence(trigger - 1, in: live, of: draft) else { return nil }
+            guard through || !endsSentence(trigger - 1, in: live, of: draft) else { return nil }
             var start = trigger - 1
             while start > earliest, NumberWords.isNumber(draft.shape(at: live[start - 1]).key),
                 !endsSentence(start - 1, in: live, of: draft)
@@ -61,9 +62,30 @@ public enum Restatement {
                 else { return nil }
                 return candidate
             }
-            if endsSentence(candidate, in: live, of: draft) { return nil }
+            if endsSentence(candidate, in: live, of: draft), !(through && candidate == trigger - 1) {
+                return nil
+            }
         }
         return nil
+    }
+
+    /// Whether the trigger is a sentence of its own after a full stop ("Tuesday. Scratch that. Wednesday"), which is a pause rather than two sentences.
+    public static func standsAlone(
+        _ trigger: Int, before restart: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard trigger > 0, restart > trigger, restart <= live.count else { return false }
+        let phrase = (trigger..<restart).map { draft.shape(at: live[$0]) }
+        // A bare "No." is an answer far more often than a correction.
+        guard phrase.map(\.key) != ["no"] else { return false }
+        return closesWithAStop(trigger - 1, in: live, of: draft)
+            && closesWithAStop(restart - 1, in: live, of: draft)
+            && phrase.allSatisfy { !$0.suffix.contains(where: { "?!".contains($0) }) }
+    }
+
+    /// Whether the word ends its sentence with a full stop, rather than a question or an exclamation.
+    private static func closesWithAStop(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
+        let suffix = draft.shape(at: live[position]).suffix
+        return suffix.contains(".") && !suffix.contains(where: { "?!".contains($0) })
     }
 
     /// Whether the word at `position` closes a sentence, which no anchor may reach past to take words out of the sentence before.
