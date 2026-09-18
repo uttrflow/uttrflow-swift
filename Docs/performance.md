@@ -1088,6 +1088,9 @@ limit.
 
 `TextDiff.compare` refuses up front a text over 20,000 lines or 1 MB, and stops looking past
 4,000 changed lines; the sheet then states both line counts instead of a diff.
+A line ends at LF, CRLF or CR, counted the same way by the split and by the byte-limit count,
+and a CR or CRLF ending is part of the line after it for comparison, so a change of endings shows
+as a change.
 
 Release build, best single run, peak footprint from `/usr/bin/time -l`, on a machine at load
 average 80 to 250. "Every line" indents all of them, "one in fifty" indents every fiftieth:
