@@ -102,6 +102,70 @@ struct DictationLimitWiringTests {
         #expect(saw.withLock { $0.contains(.finishNow) })
     }
 
+    /// Two taps inside the slip threshold, which open or close a hands-free dictation.
+    private func doubleTap(_ controller: DictationController<ManualClock>, clock: ManualClock) async {
+        for _ in 0..<2 {
+            await controller.handle(.pressed)
+            clock.advance(by: DictationController<ManualClock>.minimumHold - .milliseconds(1))
+            await controller.handle(.released)
+        }
+    }
+
+    /// Leaves a double-tap dictation listening, then lets it run to the cap and waits until the cap has finished it.
+    private func runHandsFreeToTheCap(
+        _ controller: DictationController<ManualClock>, clock: ManualClock,
+        finished: () -> Bool
+    ) async {
+        await doubleTap(controller, clock: clock)
+        await advance(clock, to: Self.limit.warnAfter)
+        await advance(clock, to: Self.limit.stopAfter - Self.limit.warnAfter)
+        while !finished() { await Task.yield() }
+    }
+
+    /// Whether the cap's finish has run to its end, which it marks by standing the advice down.
+    private static func capFinished(_ advice: [DictationAdvice]) -> Bool {
+        guard let finish = advice.firstIndex(of: .finishNow) else { return false }
+        return advice[finish...].contains(.keepGoing)
+    }
+
+    @Test("a double-tap dictation finished at the cap leaves the hold working")
+    func holdWorksAfterHandsFreeReachesTheCap() async {
+        let clock = ManualClock()
+        let inserter = QuietInserter()
+        let heard = Mutex<[DictationAdvice]>([])
+        let controller = makeController(clock: clock, inserter: inserter) { advice in
+            heard.withLock { $0.append(advice) }
+        }
+        await runHandsFreeToTheCap(controller, clock: clock) {
+            heard.withLock { Self.capFinished($0) }
+        }
+
+        await controller.handle(.pressed)
+        clock.advance(by: .seconds(5))
+        await controller.handle(.released)
+
+        #expect(inserter.inserted == ["a long dictation", "a long dictation"])
+    }
+
+    @Test("a double-tap dictation finished at the cap leaves the double tap working")
+    func doubleTapWorksAfterHandsFreeReachesTheCap() async {
+        let clock = ManualClock()
+        let inserter = QuietInserter()
+        let heard = Mutex<[DictationAdvice]>([])
+        let controller = makeController(clock: clock, inserter: inserter) { advice in
+            heard.withLock { $0.append(advice) }
+        }
+        await runHandsFreeToTheCap(controller, clock: clock) {
+            heard.withLock { Self.capFinished($0) }
+        }
+
+        await doubleTap(controller, clock: clock)
+        clock.advance(by: .seconds(2))
+        await doubleTap(controller, clock: clock)
+
+        #expect(inserter.inserted == ["a long dictation", "a long dictation"], "opened and closed again")
+    }
+
     @Test("says nothing about a limit for a dictation that ends normally")
     func ordinaryDictationIsUnaffected() async {
         let clock = ManualClock()

@@ -658,6 +658,70 @@ struct DictationControllerControlTests {
         #expect(await harness.capture.calls.events == [.start, .stop])
         #expect(harness.inserter.received == [controllerTidied])
     }
+
+    /// Leaves a double-tap dictation listening, as the shortcut does.
+    private func goHandsFree(_ harness: ControllerHarness) async {
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+    }
+
+    @Test("a click that stops a double-tap dictation leaves the hold working")
+    func clickStopsHandsFreeThenAHoldWorks() async {
+        let harness = makeHarness()
+        await goHandsFree(harness)
+        await harness.controller.toggleFromControl()
+        #expect(harness.inserter.received == [controllerTidied], "the click finished it")
+
+        harness.clock.advance(by: .seconds(2))
+        await harness.controller.handle(.pressed)
+        #expect(await harness.pipeline.currentState.isListening, "the hold opens the microphone")
+        harness.clock.advance(by: .seconds(3))
+        await harness.controller.handle(.released)
+        #expect(harness.inserter.received == [controllerTidied, controllerTidied])
+    }
+
+    @Test("a click that stops a double-tap dictation leaves the double tap working")
+    func clickStopsHandsFreeThenADoubleTapWorks() async {
+        let harness = makeHarness()
+        await goHandsFree(harness)
+        await harness.controller.toggleFromControl()
+
+        harness.clock.advance(by: .seconds(2))
+        await goHandsFree(harness)
+        #expect(await harness.pipeline.currentState.isListening, "the double tap opens it again")
+
+        harness.clock.advance(by: .seconds(2))
+        await goHandsFree(harness)
+        #expect(await harness.pipeline.currentState.isListening == false, "and another closes it")
+        #expect(harness.inserter.received == [controllerTidied, controllerTidied])
+    }
+
+    @Test("a double-tap dictation ended by the pipeline itself leaves the hold working")
+    func handsFreeEndedElsewhereThenAHoldWorks() async {
+        let harness = makeHarness()
+        await goHandsFree(harness)
+        await harness.pipeline.cancel()
+
+        harness.clock.advance(by: .seconds(2))
+        await harness.controller.handle(.pressed)
+        #expect(await harness.pipeline.currentState.isListening)
+    }
+
+    @Test("a double-tap dictation ended elsewhere leaves a modifier-only double tap working")
+    func handsFreeEndedElsewhereThenAModifierDoubleTapWorks() async throws {
+        let harness = makeHarness()
+        try await harness.controller.start(
+            binding: HotkeyBinding(keyCode: 58, modifiers: [.option, .command, .control]))
+        await goHandsFree(harness)
+        #expect(await harness.pipeline.currentState.isListening, "two taps inside the settle go hands-free")
+        await harness.pipeline.cancel()
+
+        harness.clock.advance(by: .seconds(2))
+        await goHandsFree(harness)
+        #expect(await harness.pipeline.currentState.isListening, "the next double tap opens it again")
+        await harness.controller.stop()
+    }
 }
 
 // MARK: - Being let go of
