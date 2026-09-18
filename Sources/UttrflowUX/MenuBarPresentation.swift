@@ -434,7 +434,7 @@ public enum MenuBarPresenter {
         var items: [MenuBarItem] = [.status(text: statusLine, emphasis: emphasis)]
 
         // The problem and its fix together at the top, with nothing between them.
-        if let action = state.failure?.action {
+        if let action = state.failure?.action ?? setupAction(for: state.speechModel) {
             items.append(
                 .command(MenuBarCommand(title: menuTitle(for: action), intent: .recover(action.recovery))))
         }
@@ -547,6 +547,17 @@ public enum MenuBarPresenter {
                         isEnabled: isEnabled, isAlternate: true, tooltip: recent.fullText)))
         }
         return items
+    }
+
+    /// The download a missing or broken speech model needs, offered before any dictation has failed.
+    static func setupAction(for speechModel: SpeechModelReadiness) -> FailureAction? {
+        switch speechModel {
+        case .notInstalled, .loadFailed:
+            FailureAction(
+                title: FailurePresenter.title(for: .downloadSpeechModel), recovery: .downloadSpeechModel)
+        case .downloading, .loading, .ready:
+            nil
+        }
     }
 
     static func isBusy(_ activity: DictationActivity) -> Bool {
