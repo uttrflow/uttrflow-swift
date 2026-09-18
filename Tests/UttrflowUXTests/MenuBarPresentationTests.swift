@@ -190,6 +190,48 @@ struct MenuBarContentsTests {
         #expect(fix.isEnabled)
     }
 
+    /// A missing or broken model has its download offered before any dictation has failed.
+    @Test(
+        "offers the model download when the model is missing or did not load",
+        arguments: [
+            SpeechModelReadiness.notInstalled, .loadFailed,
+        ])
+    func setupIsOfferedWithoutAFailure(speechModel: SpeechModelReadiness) {
+        let shown = MenuBarPresenter.present(MenuBarState(speechModel: speechModel))
+        guard case .command(let fix) = shown.items[1] else {
+            Issue.record("the download is not the row under the status line")
+            return
+        }
+        #expect(fix.title == "Finish Setup")
+        #expect(fix.intent == .recover(.downloadSpeechModel))
+        #expect(fix.isEnabled)
+    }
+
+    @Test(
+        "offers no download while the model is ready, loading or downloading",
+        arguments: [
+            SpeechModelReadiness.ready, .loading, .downloading(fractionCompleted: 0.5),
+        ])
+    func noSetupRowOnceUnderWay(speechModel: SpeechModelReadiness) {
+        let shown = MenuBarPresenter.present(MenuBarState(speechModel: speechModel))
+        #expect(shown.command(.recover(.downloadSpeechModel)) == nil)
+    }
+
+    /// A failure's own fix wins the row, so the menu never offers two at once.
+    @Test("puts a failure's fix ahead of the download")
+    func failureFixWinsOverSetup() {
+        let shown = MenuBarPresenter.present(MenuBarState(failure: microphoneOff, speechModel: .notInstalled))
+        #expect(shown.command(.recover(.openSystemSettings(.microphone))) != nil)
+        #expect(shown.command(.recover(.downloadSpeechModel)) == nil)
+    }
+
+    /// A failure with nothing to offer leaves the row to the download, so a missing model is never a dead end.
+    @Test("offers the download under a failure that has no fix of its own")
+    func setupFillsAnEmptyFix() {
+        let shown = MenuBarPresenter.present(MenuBarState(failure: noWayOut, speechModel: .notInstalled))
+        #expect(shown.command(.recover(.downloadSpeechModel))?.title == "Finish Setup")
+    }
+
     /// A row that opens something else gets an ellipsis; the banner button stays plain either way.
     @Test("adds the ellipsis only where a menu should")
     func menuTitleEllipsis() {

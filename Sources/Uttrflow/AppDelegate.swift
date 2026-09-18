@@ -1818,8 +1818,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .downloadSpeechModel where speechReadiness == .loadFailed:
             repairSpeechModel()
         case .downloadSpeechModel:
-            // Installing a model needs a window to show progress in. It has one now.
-            show(.settings(.dictation))
+            // Onboarding's setup page is the one surface that downloads the model and shows progress.
+            show(.onboarding)
         case .pasteManually:
             // Already on the clipboard, put there by the insertion floor before it reported failure.
             Task { await pipeline?.acknowledge() }
