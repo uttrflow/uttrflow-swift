@@ -217,7 +217,7 @@ struct InputDeviceSessionTests {
     }
 
     /// A stop landing mid-reopen used to report nothing, so the truncated recording read as whole.
-    @Test("keeps the hole reported when the recording stops mid-reopen")
+    @Test("keeps the hole reported when the recording stops mid-reopen", .timeLimit(.minutes(1)))
     func closingStopsTheRetry() async throws {
         let device = ScriptedDevice()
         let gate = Gate()
@@ -226,8 +226,8 @@ struct InputDeviceSessionTests {
         try session.open { reported.record($0) }
 
         let retry = session.deviceChanged()
+        // The gate stays shut, so only the cancellation the close sends can end the pause.
         session.close()
-        gate.letGo()
         await retry?.value
 
         #expect(retry != nil)
