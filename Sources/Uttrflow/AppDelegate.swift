@@ -1045,26 +1045,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// Removes Uttrflow's own clipboard copies of a forgotten transcript, matched on the words.
-    private func forgetClips(saying spoken: String) async {
+    /// Removes Uttrflow's own clipboard copies of a forgotten dictation, found by its identifier.
+    private func forgetClips(of dictation: DictationRecord.ID, saying spoken: String?) async {
         let retention = ClipRetention(
             days: settings.clipboardRetentionDays, now: Date(),
             dictationDays: settings.transcriptRetentionDays)
-        let copies = await clipboard.clips(keeping: retention)
-            .filter { $0.origin == .uttrflow && $0.text == spoken }
-        for copy in copies {
-            _ = try? await clipboard.delete(copy.id, keeping: retention)
-        }
+        _ = try? await clipboard.deleteCopies(
+            ofDictation: dictation, saying: spoken, keeping: retention)
         await refreshPanelIfOpen()
     }
 
-    private func recordAsClip(_ text: String) {
+    private func recordAsClip(_ text: String, of dictation: DictationRecord.ID) {
         Task { [clipboard] in
             let classified = await ClipKindDetector.classify(text)
             let clip = Clip(
                 text: text, kind: classified.kind, copiedAt: Date(), source: ClipOrigin.dictationSource,
                 // Which keeps it out of History, where it would be the newest thing every time.
-                origin: .uttrflow,
+                origin: .uttrflow, dictations: [dictation],
                 language: classified.language)
             _ = try? await clipboard.record(clip, keeping: retention)
             await refreshPanelIfOpen()
@@ -1142,26 +1139,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 corrections=\(outcome.changes.corrections.count, privacy: .public) \
                 snippets=\(outcome.changes.snippets.count, privacy: .public)
                 """)
-            keep(
-                DictationRecord(
-                    text: outcome.text, when: Date(), applicationName: outcome.insertedInto,
-                    applicationIdentifier: outcome.insertedIntoIdentifier,
-                    spokenFor: outcome.spokenFor,
-                    changes: RecordedChanges(
-                        corrections: outcome.changes.corrections.compactMap {
-                            RecordedCorrection(
-                                heard: $0.heard, wrote: $0.wrote, wordRange: $0.wordRange,
-                                entryID: $0.entryID, reason: $0.reason,
-                                heardConfidence: $0.heardConfidence)
-                        },
-                        snippets: outcome.changes.snippets.map {
-                            RecordedSnippet(
-                                snippetID: $0.snippetID, matched: $0.matched,
-                                expansion: $0.expansion)
-                        },
-                        spokenWords: outcome.changes.spokenWords)))
+            let record = DictationRecord(
+                text: outcome.text, when: Date(), applicationName: outcome.insertedInto,
+                applicationIdentifier: outcome.insertedIntoIdentifier,
+                spokenFor: outcome.spokenFor,
+                changes: RecordedChanges(
+                    corrections: outcome.changes.corrections.compactMap {
+                        RecordedCorrection(
+                            heard: $0.heard, wrote: $0.wrote, wordRange: $0.wordRange,
+                            entryID: $0.entryID, reason: $0.reason,
+                            heardConfidence: $0.heardConfidence)
+                    },
+                    snippets: outcome.changes.snippets.map {
+                        RecordedSnippet(
+                            snippetID: $0.snippetID, matched: $0.matched,
+                            expansion: $0.expansion)
+                    },
+                    spokenWords: outcome.changes.spokenWords))
+            keep(record)
             // I4 — into the clipboard too, which the watcher never sees because this is not a copy.
-            recordAsClip(outcome.text)
+            recordAsClip(outcome.text, of: record.id)
         case .failed(let notice):
             Self.log.error(
                 """
@@ -1566,7 +1563,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 let spoken = await self.history.records(keeping: retention)
                     .first { $0.id == id }?.text
                 try await self.history.delete(id, keeping: retention)
-                if let spoken { await self.forgetClips(saying: spoken) }
+                await self.forgetClips(of: id, saying: spoken)
             }
 
         case .addWord:
