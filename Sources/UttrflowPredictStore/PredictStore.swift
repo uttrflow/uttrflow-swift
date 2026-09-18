@@ -56,6 +56,7 @@ public actor PredictStore: PredictionStore {
         for surface: Surface, matching typed: String
     ) throws(PredictStoreError) -> [Candidate] {
         guard !typed.isEmpty else { return [] }
+        let typed = Spelling.canonical(typed)
         let ids = try surfaceIdentifiers(of: surface)
         guard !ids.isEmpty else { return [] }
         var exact: [Candidate] = []
@@ -141,6 +142,7 @@ public actor PredictStore: PredictionStore {
         for surface: Surface, after previous: String
     ) throws(PredictStoreError) -> [Candidate] {
         guard let id = try identifier(of: surface, creating: false) else { return [] }
+        let previous = Spelling.canonical(previous)
         let texts = try database.rows(
             """
             SELECT next FROM succession WHERE surface_id = ? AND previous = ?
@@ -227,7 +229,9 @@ public actor PredictStore: PredictionStore {
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         try database.transaction { () throws(PredictStoreError) in
-            try write(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
+            try write(
+                Spelling.canonical(text), in: surface, after: previous.map(Spelling.canonical),
+                selfSourced: selfSourced, at: moment)
         }
     }
 
@@ -286,7 +290,8 @@ public actor PredictStore: PredictionStore {
         _ text: String, with replacement: String, in surface: Surface
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: false) else { return }
-        try markSuperseded(text, by: replacement, surfaceIdentifier: id)
+        try markSuperseded(
+            Spelling.canonical(text), by: Spelling.canonical(replacement), surfaceIdentifier: id)
     }
 
     // MARK: - Forgetting
@@ -301,7 +306,7 @@ public actor PredictStore: PredictionStore {
         guard let id = try identifier(of: surface, creating: false) else { return }
         try database.run("DELETE FROM entry WHERE surface_id = ? AND text = ?") {
             $0.bind(1, id)
-            $0.bind(2, text)
+            $0.bind(2, Spelling.canonical(text))
         }
     }
 
@@ -392,7 +397,7 @@ public actor PredictStore: PredictionStore {
         let column = tally.rawValue
         try database.run("UPDATE entry SET \(column) = \(column) + 1 WHERE surface_id = ? AND text = ?") {
             $0.bind(1, id)
-            $0.bind(2, text)
+            $0.bind(2, Spelling.canonical(text))
         }
     }
 
