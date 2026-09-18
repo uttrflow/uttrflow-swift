@@ -30,6 +30,56 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// The comma before the trigger went with the discarded half, so its partner after the restatement separates nothing.
+    @Test(
+        "drops the comma that closed a correction set off by commas",
+        arguments: [
+            (
+                "Send the file to Alex, I mean to Sam, before lunch.",
+                "Send the file to Sam before lunch."
+            ),
+            (
+                "Book a table for six, actually eight, at the usual place.",
+                "Book a table for eight at the usual place."
+            ),
+            ("We need six, no sorry, eight, chairs.", "We need eight chairs."),
+        ]
+    )
+    func dropsTheClosingComma(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a comma the sentence needs after the restatement",
+        arguments: [
+            // The comma closes the clause "if" opened, which the correction sat inside.
+            (
+                "If it's six, actually eight, we need more chairs.",
+                "If it's eight, we need more chairs."
+            ),
+            // Nothing set the correction off, so the comma after it is the speaker's own.
+            (
+                "Send the file to Alex I mean to Sam, then call me.",
+                "Send the file to Sam, then call me."
+            ),
+            // A comma past the restatement belongs to the next clause, not to the correction.
+            (
+                "Send it to Alex, I mean to Sam today, and call me.",
+                "Send it to Sam today, and call me."
+            ),
+            // A sentence that ends on the restatement keeps its full stop.
+            ("Book a table for six, actually eight.", "Book a table for eight."),
+            // A comma already closed the opening clause, so the one after the restatement is stray again.
+            (
+                "If it rains, bring six, actually eight, umbrellas.",
+                "If it rains, bring eight umbrellas."
+            ),
+        ]
+    )
+    func keepsANeededComma(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "replaces a number with the number said after the trigger",
         arguments: [

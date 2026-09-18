@@ -173,6 +173,14 @@ public enum EvaluationCorpus {
             mustKeep: ["invoice", "Wednesday"],
             mustNotAdd: ["Tuesday"]
         ),
+        // The recogniser set the correction off with commas, and the comma that closed it goes with it.
+        .init(
+            id: "correction-between-commas", category: .everyday,
+            spoken: "Send the file to Alex, I mean to Sam, before lunch.",
+            expected: "Send the file to Sam before lunch.",
+            mustKeep: ["file", "Sam", "lunch"],
+            mustNotAdd: ["Alex"]
+        ),
         .init(
             id: "actually-between-numbers", category: .everyday,
             spoken: "let's get coffee at two actually three",
