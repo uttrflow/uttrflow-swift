@@ -193,6 +193,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             self?.shortcutRecordingChanged(to: isRecording)
         })
     private var onboarding: OnboardingWindowController?
+    /// The speech model's one download, which every onboarding window joins and closing one does not stop.
+    private lazy var speechInstall: SharedModelInstall = {
+        let install = SharedModelInstall(wrapping: SpeechModelInstall(store: modelStore, model: .default))
+        install.onProgress = { [weak self] in self?.speechModelDownloaded($0) }
+        install.onEnd = { [weak self] _ in self?.speechModelDownloadEnded() }
+        return install
+    }()
     /// What is typed into each page's search field, kept per page because six of them have one.
     private var queries: [MainTab: String] = [:]
     private var scopes: [MainTab: String] = [:]
@@ -250,6 +257,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func loadSpeechModelIfItArrived() {
         guard speechReadiness == .notInstalled || speechReadiness == .loadFailed else { return }
         loadSpeechModel()
+    }
+
+    /// Shows the download everywhere a person might try to dictate, redrawing once per whole percent.
+    private func speechModelDownloaded(_ fraction: Double) {
+        guard speechReadiness != .ready, speechReadiness != .loading else { return }
+        let shown = speechReadiness
+        speechReadiness = .downloading(fractionCompleted: fraction)
+        if case .downloading(let before?) = shown,
+            MenuBarPresenter.percentage(of: before) == MenuBarPresenter.percentage(of: fraction)
+        {
+            return
+        }
+        refreshSpeechModelSurfaces()
+    }
+
+    /// Loads the model once its download ends, whether or not a window is still showing it.
+    private func speechModelDownloadEnded() {
+        if case .downloading = speechReadiness { speechReadiness = .notInstalled }
+        loadSpeechModelIfItArrived()
+        refreshSpeechModelSurfaces()
     }
 
     /// Loads the recogniser, saying so until it can dictate. See `Docs/startup.md`.
@@ -343,14 +370,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Shows the first-run flow, which the rest of the app is deliberately not gated behind.
     private func presentOnboardingIfNeeded() {
-        guard OnboardingWindowController(settingsStore: settingsStore, account: account).isRequired
+        guard
+            OnboardingWindowController(
+                settingsStore: settingsStore, installer: speechInstall, account: account
+            ).isRequired
         else { return }
         presentOnboarding(skippingWelcome: false)
     }
 
     /// Builds the flow fresh each time, because a finished one would open on its last page.
     private func presentOnboarding(skippingWelcome: Bool, askingToSignIn: Bool = false) {
-        let onboarding = OnboardingWindowController(settingsStore: settingsStore, account: account)
+        let onboarding = OnboardingWindowController(
+            settingsStore: settingsStore, installer: speechInstall, account: account)
         self.onboarding = onboarding
         onboarding.onFinish = { [weak self] _ in
             guard let self else { return }
@@ -361,9 +392,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             refreshMainWindow()
         }
         // However the window goes, including the red button, which changes the Account page.
-        onboarding.onClose = { [weak self] in
-            self?.refreshMainWindow()
-            self?.loadSpeechModelIfItArrived()
+        onboarding.onClose = { [weak self, weak onboarding] in
+            guard let self else { return }
+            // Cleared here too, so a window shut with the red button no longer holds updates back.
+            if self.onboarding === onboarding { self.onboarding = nil }
+            refreshMainWindow()
+            loadSpeechModelIfItArrived()
         }
         onboarding.present(skippingWelcome: skippingWelcome, askingToSignIn: askingToSignIn)
     }
