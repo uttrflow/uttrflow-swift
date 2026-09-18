@@ -97,6 +97,7 @@ EXCLUDED_FILES = {
     "Uttrflow/Settings/SettingsControlView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Settings/SettingsControlStyles.swift": "SwiftUI; appearance only, and every control it restyles keeps the behaviour the platform gives it",
     "Uttrflow/Settings/SettingsCapabilities+System.swift": "reads what this Mac can do from the system",
+    "Uttrflow/Settings/ApplicationPicker+System.swift": "asks the user to pick an application through a system menu and open panel",
     "Uttrflow/Main/MainWindowController.swift": "owns an on-screen window",
     "Uttrflow/Brand/UttrflowMarkView.swift": (
         "SwiftUI; the geometry it draws is UttrflowMark, which is tested"

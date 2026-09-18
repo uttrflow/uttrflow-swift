@@ -67,6 +67,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         model.session.capabilities.unarmedShortcuts = unarmed
     }
 
+    /// Applies a change the app worked out on the window's behalf, through the window's own session.
+    func apply(_ change: SettingsChange) {
+        model.apply(change)
+    }
+
     func close() {
         window?.performClose(nil)
     }
