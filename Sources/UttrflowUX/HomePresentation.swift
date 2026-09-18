@@ -295,7 +295,10 @@ public enum HomePresenter {
 
         return HomePresentation(
             greeting: greeting(for: snapshot, calendar: calendar),
-            subtitle: subtitle(today: today, kept: kept, blocked: blocked != nil, locale: locale),
+            // A model that is not ready blocks dictation as surely as a permission, so neither invites talking.
+            subtitle: subtitle(
+                today: today, kept: kept, blocked: blocked != nil || snapshot.speechModel != nil,
+                locale: locale),
             // No figures while a permission is missing; numbers above "cannot listen" argue with themselves.
             figures: blocked == nil
                 ? DictationPresenter.figures(
@@ -374,11 +377,11 @@ public enum HomePresenter {
 
     // MARK: - Whether it can hear you
 
-    /// Listening or not, with the model's load named, since a ring lit during it would promise dictation.
+    /// Ready or not, with the model named when it is the reason; never "Listening", which means the microphone is open.
     static func status(blocked: Bool, speechModel: SpeechModelLoad? = nil) -> HomeStatus {
-        if blocked { return HomeStatus(text: "Not listening", isReady: false) }
+        if blocked { return HomeStatus(text: "Not ready", isReady: false) }
         if let speechModel { return HomeStatus(text: speechModel.status, isReady: false) }
-        return HomeStatus(text: "Listening · ready", isReady: true)
+        return HomeStatus(text: "Ready", isReady: true)
     }
 
     // MARK: - Who is here

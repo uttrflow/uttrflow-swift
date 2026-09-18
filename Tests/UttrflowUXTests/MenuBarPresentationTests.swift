@@ -112,7 +112,7 @@ struct MenuBarStatusTests {
             ).statusLine == "Setting up… 42%")
         #expect(
             MenuBarPresenter.present(MenuBarState(speechModel: .notInstalled)).statusLine
-                == "Setup hasn't finished")
+                == "Speech model not downloaded")
     }
 
     /// A downloader reporting 140% is the downloader's bug, and not the menu bar's to show.

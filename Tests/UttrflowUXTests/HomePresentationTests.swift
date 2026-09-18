@@ -246,24 +246,25 @@ struct HomeDemonstrationTests {
 
 @Suite("Whether it can hear you")
 struct HomeStatusTests {
-    /// The lit ring is a claim, and this is the sentence that has to agree with it.
-    @Test("says it is listening when nothing is in the way")
+    /// The lit ring is a claim, and "Listening" means an open microphone everywhere else, so rest never says it.
+    @Test("says it is ready when nothing is in the way, without claiming to listen")
     func ready() {
         let page = HistoryFixture.home()
 
         #expect(page.status.isReady)
-        #expect(page.status.text == "Listening · ready")
+        #expect(page.status.text == "Ready")
+        #expect(!page.status.text.contains("Listening"))
     }
 
     /// The same condition that empties the figures also puts the ring out.
-    @Test("says it is not listening while the microphone is refused")
+    @Test("says it is not ready while the microphone is refused")
     func blocked() {
         let page = HistoryFixture.home(permissions: [
             .microphone: .denied, .accessibility: .granted,
         ])
 
         #expect(!page.status.isReady)
-        #expect(page.status.text == "Not listening")
+        #expect(page.status.text == "Not ready")
         #expect(page.figures.isEmpty, "the figures already go when dictation cannot happen")
     }
 }
