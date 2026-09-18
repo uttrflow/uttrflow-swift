@@ -42,9 +42,11 @@ public enum Restatement {
     ) -> Int? {
         let earliest = max(0, trigger - reach)
         let firstAfter = draft.shape(at: live[restart]).key
-        if NumberWords.isNumber(firstAfter), NumberWords.isNumber(draft.shape(at: live[trigger - 1]).key) {
+        if NumberWords.isNumber(firstAfter),
+            let end = numberEnd(before: trigger, after: restart, in: live, of: draft)
+        {
             guard !endsSentence(trigger - 1, in: live, of: draft) else { return nil }
-            var start = trigger - 1
+            var start = end
             while start > earliest, NumberWords.isNumber(draft.shape(at: live[start - 1]).key),
                 !endsSentence(start - 1, in: live, of: draft)
             {
@@ -64,6 +66,22 @@ public enum Restatement {
             if endsSentence(candidate, in: live, of: draft) { return nil }
         }
         return nil
+    }
+
+    /// The last word of the number taken back, stepping over a unit the restatement repeats ("twelve boxes i mean fifteen boxes").
+    private static func numberEnd(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
+    ) -> Int? {
+        let unit = trigger - 1
+        let unitKey = draft.shape(at: live[unit]).key
+        if NumberWords.isNumber(unitKey) { return unit }
+        guard unit > 0, NumberWords.isNumber(draft.shape(at: live[unit - 1]).key),
+            !endsSentence(unit - 1, in: live, of: draft)
+        else { return nil }
+        var next = restart
+        while next < live.count, NumberWords.isNumber(draft.shape(at: live[next]).key) { next += 1 }
+        guard next < live.count, draft.shape(at: live[next]).key == unitKey else { return nil }
+        return unit - 1
     }
 
     /// Whether the word at `position` closes a sentence, which no anchor may reach past to take words out of the sentence before.
