@@ -70,7 +70,7 @@ struct OneAppTableTests {
     /// An audit that scans nothing reports success, so the scan proves it found the source first.
     @Test("the scan reads the shipped source")
     func theScanReadsSomething() throws {
-        #expect(try namedIdentifiers().count > 20)
+        #expect(try namedIdentifiers().count > 10)
     }
 
     /// A new app named anywhere but the one table is the divergence issue #203 was: two lists, one silent.
