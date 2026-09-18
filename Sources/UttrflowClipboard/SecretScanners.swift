@@ -344,23 +344,30 @@ struct NamedSecretScan {
         var index = start
         // A part of 32 hex letters or more would pass the entropy rule on its own, so it is not a name.
         func endsPart() -> Bool { part > 0 && !(part >= 32 && partIsHex) }
+        func isName(_ byte: UInt8) -> Bool {
+            (UInt8(ascii: "a")...UInt8(ascii: "z")).contains(byte | 0x20) || byte == UInt8(ascii: "_")
+                || byte == UInt8(ascii: "$")
+        }
         while index < stop {
             read += 1
             let character = text[index]
             index = text.index(after: index)
             if isClosed { return false }
-            if character == ";" || character == "," {
+            let byte = character.loneASCII
+            if byte == UInt8(ascii: ";") || byte == UInt8(ascii: ",") {
                 guard isCall || endsPart() else { return false }
                 isClosed = true
             } else if isCall {
                 return false
-            } else if character.isASCII, character.isLetter || character == "_" || character == "$" {
+            } else if let byte, isName(byte) {
                 part += 1
                 partIsHex = partIsHex && character.isHexDigit
-            } else if character == "." {
+            } else if byte == UInt8(ascii: ".") {
                 guard endsPart() else { return false }
                 (part, partIsHex, isPath) = (0, true, true)
-            } else if character == "(", index < stop, text[index] == ")", endsPart() {
+            } else if byte == UInt8(ascii: "("), index < stop, text[index].loneASCII == UInt8(ascii: ")"),
+                endsPart()
+            {
                 read += 1
                 index = text.index(after: index)
                 isCall = true

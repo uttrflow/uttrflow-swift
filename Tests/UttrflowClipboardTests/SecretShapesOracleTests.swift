@@ -46,6 +46,7 @@ struct SecretShapesOracleTests {
         "let x = 1", "let token = request.token", "secret = settings.SECRET_KEY;",
         "password = getpass.getpass()", "token=a.b.c,", "pwd=f();", "token=a..bcdefghijkl",
         "token=" + "x.deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", "token=abcdef.ghijkl()x",
+        "pwd=getpass.getpass()\u{37E}", "pwd=getpass.getpass.\u{301}x",
     ]
 
     static func randomText(_ random: inout Seeded) -> String {
@@ -283,15 +284,25 @@ enum BacktrackingPatterns {
         }
     }
 
-    /// An identifier path or an empty call, optionally closed by `,` or `;`, that points at a secret rather than being one.
-    nonisolated(unsafe) static let reference =
-        #/^[A-Za-z_$]+(?:\.[A-Za-z_$]+)*(?:\(\))?[,;]?$/#
-
+    /// An identifier path or an empty call, optionally closed by `,` or `;`, read scalar by scalar so `;` means only U+003B.
     static func isReference(_ value: String) -> Bool {
-        guard value.wholeMatch(of: reference) != nil, value.contains(".") || value.contains("()")
+        var scalars = Array(value.unicodeScalars.map(\.value))
+        if let last = scalars.last, last == 0x2C || last == 0x3B { scalars.removeLast() }
+        let isCall = scalars.count >= 2 && scalars.suffix(2) == [0x28, 0x29]
+        if isCall { scalars.removeLast(2) }
+        func isName(_ scalar: UInt32) -> Bool {
+            (0x41...0x5A).contains(scalar) || (0x61...0x7A).contains(scalar) || scalar == 0x5F
+                || scalar == 0x24
+        }
+        let parts = scalars.split(separator: 0x2E, omittingEmptySubsequences: false)
+        guard parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(isName) }), parts.count > 1 || isCall
         else { return false }
-        let parts = value.split(whereSeparator: { !($0.isASCII && ($0.isLetter || $0 == "_" || $0 == "$")) })
-        return !parts.contains { $0.count >= 32 && $0.allSatisfy(\.isHexDigit) }
+        return !parts.contains { part in
+            part.count >= 32
+                && part.allSatisfy {
+                    (0x30...0x39).contains($0) || (0x41...0x46).contains($0) || (0x61...0x66).contains($0)
+                }
+        }
     }
 
     /// `CardNumberShape.matches` as it read before the runs: the pattern over the whole clip.
