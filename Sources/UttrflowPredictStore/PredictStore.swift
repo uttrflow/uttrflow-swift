@@ -68,29 +68,30 @@ public actor PredictStore: PredictionStore {
 
     /// The lines this person recently entered in this field, each once, the ones from this document first.
     public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
-        let ids = try surfaceIdentifiers(of: surface)
-        guard !ids.isEmpty, limit > 0 else { return [] }
+        guard limit > 0 else { return [] }
         let here = try identifier(of: surface, creating: false) ?? -1
         return try database.rows(
-            Self.recentQuery(surfaces: ids.count),
+            Self.recentQuery,
             { statement in
-                for (offset, id) in ids.enumerated() { statement.bind(Int32(offset + 1), id) }
-                statement.bind(Int32(ids.count + 1), here)
-                statement.bind(Int32(ids.count + 2), Int64(limit))
+                statement.bind(1, surface.bundleIdentifier)
+                statement.bind(2, surface.role)
+                statement.bind(3, surface.locator ?? "")
+                statement.bind(4, here)
+                statement.bind(5, Int64(limit))
             }
         ) { $0.text(0) }
     }
 
-    /// The recency read `entry_recent` serves; the surface bound last of all is the document in hand.
-    static func recentQuery(surfaces: Int) -> String {
-        // Every placeholder is numbered, since one numbered among anonymous ones shifts the rest.
-        let placeholders = (1...surfaces).map { "?\($0)" }.joined(separator: ", ")
-        return """
-            SELECT text, MAX(last_used) AS used, MAX(surface_id = ?\(surfaces + 1)) AS here FROM entry
-            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
-            GROUP BY text ORDER BY here DESC, used DESC LIMIT ?\(surfaces + 2)
-            """
-    }
+    /// How many compiled statements the open file keeps.
+    var cachedStatements: Int { database.cachedStatements }
+
+    /// The recency read `entry_recent` serves, one SQL text however many documents the field has been in.
+    static let recentQuery = """
+        SELECT text, MAX(last_used) AS used, MAX(surface_id = ?4) AS here FROM entry
+        WHERE surface_id IN (SELECT id FROM surface WHERE bundle_id = ?1 AND role = ?2 AND locator = ?3)
+        AND superseded_by IS NULL AND count > self_sourced
+        GROUP BY text ORDER BY here DESC, used DESC LIMIT ?5
+        """
 
     /// Every surface that is the same field in the same application, whatever document it was in.
     private func surfaceIdentifiers(of surface: Surface) throws(PredictStoreError) -> [Int64] {
