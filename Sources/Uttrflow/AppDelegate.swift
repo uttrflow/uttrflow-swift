@@ -832,10 +832,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard let snapshot = panel else { return }
         let response = snapshot.applying(key)
         panel = response.state
+        perform(response.outcome.effect)
+    }
 
-        switch response.outcome.effect {
+    /// Carries out what an answered keystroke or row button asks, against the panel as it now stands.
+    private func perform(_ effect: PanelEffect) {
+        switch effect {
         case .redraw:
-            quickPanel.update(PanelPresenter.present(response.state))
+            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         case .close:
             closeQuickPanel()
         case .closeAndInsertImage(let clip):
@@ -859,10 +863,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             panel?.notice = notice
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             closeAfterReading()
+        case .copyImageAndSay(let clip, let notice):
+            Task { [weak self] in
+                guard let self else { return }
+                let copied = await putImageOnClipboard(clip)
+                // A picture that went between the draw and the keypress is said, never claimed as copied.
+                panel?.notice = copied ? notice : Self.pictureMissingNotice(clip)
+                if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+                closeAfterReading()
+            }
+        case .closeAndCopy(let text, let richText, let used):
+            // Onto the clipboard and no further: the user will paste it somewhere else.
+            putOnClipboard(text, richText: richText, used: used)
+            closeQuickPanel()
+        case .closeAndCopyImage(let clip):
+            closeQuickPanel()
+            Task { [weak self] in _ = await self?.putImageOnClipboard(clip) }
         case .applyAndRedraw(let change):
-            quickPanel.update(PanelPresenter.present(response.state))
+            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             apply(change)
         }
+    }
+
+    /// The notice for a picture whose file has gone, worded as Return words it.
+    private static func pictureMissingNotice(_ clip: Clip) -> PanelNotice? {
+        guard case .say(let notice) = PanelOutcome.pictureMissing(clip).effect else { return nil }
+        return notice
     }
 
     /// Carries out a change and redraws from what the store hands back, never from what was asked.
@@ -954,10 +980,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .pin(let id): setPinned(true, of: id)
         case .unpin(let id): setPinned(false, of: id)
         case .copy(let id):
-            // Onto the clipboard and no further: the user will paste it somewhere else.
-            guard let clip = panel?.clips.first(where: { $0.id == id }) else { return }
-            putOnClipboard(clip.text, richText: clip.richText, used: clip.id)
-            closeQuickPanel()
+            // Through the panel, so a picture is copied as a picture and a missing one is said.
+            guard let response = panel?.copying(id) else { return }
+            panel = response.state
+            perform(response.outcome.effect)
         case .keepQuery(let text):
             apply(.create(text))
         case .dictate:
@@ -1022,6 +1048,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Task { [clipboard] in
             await clipboard.markUsed(id, at: Date(), keeping: window)
         }
+    }
+
+    /// Puts a picture's PNG on the clipboard through the one pasteboard; false when its file has gone.
+    private func putImageOnClipboard(_ clip: Clip) async -> Bool {
+        guard let image = clip.image, let data = await clipboard.imageData(for: image) else {
+            Self.log.error("picture missing at copy: \(clip.id, privacy: .public)")
+            return false
+        }
+        markUsed(clip.id)
+        announcingPasteboard.setImage(data)
+        return true
     }
 
     /// K4 — pastes a picture, on its own path because the Accessibility route writes only strings.
