@@ -62,6 +62,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [predict-ime.md](predict-ime.md) | Detecting a composing input method |
 | [predict-llm.md](predict-llm.md) | The LLM-arbitrated design |
 | [predict-agent.md](predict-agent.md) | The machine as the agent's tools |
+| [command-lookups.md](command-lookups.md) | Command lookups in a terminal: where, what and how long |
 | [predict-reliability.md](predict-reliability.md) | Reliability loop for tab-to-complete |
 | [predict-precision.md](predict-precision.md) | Accuracy is the product |
 | [predict-terminal-paths.md](predict-terminal-paths.md) | In a terminal, only what exists from here |
