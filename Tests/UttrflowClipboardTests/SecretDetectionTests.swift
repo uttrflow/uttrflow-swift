@@ -102,6 +102,7 @@ struct SecretDetectionTests {
             "client_secret: 'Qv7RkT2mXeL9pAz4'",
             "  \"privateKey\": \"MIIEvQIBADANBg\",",
             "password: contraseñasecreta",
+            "password: ⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡ",
         ])
     func namedSecrets(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .secret)

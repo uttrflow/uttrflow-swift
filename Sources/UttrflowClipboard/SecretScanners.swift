@@ -28,8 +28,13 @@ extension Character {
     /// Whether this is written in Latin script or is common punctuation, judged by its first scalar.
     var isLatinScript: Bool {
         guard let value = unicodeScalars.first?.value else { return true }
-        return value < 0x0250 || (0x1E00...0x1EFF).contains(value)
+        return value < 0x0250 || Self.latinBlocks.contains { $0.contains(value) }
     }
+
+    /// The Latin blocks past Latin Extended-B: Additional, Extended-C, -D, -E and -F.
+    private static let latinBlocks: [ClosedRange<UInt32>] = [
+        0x1E00...0x1EFF, 0x2C60...0x2C7F, 0xA720...0xA7FF, 0xAB30...0xAB6F, 0x10780...0x107BF,
+    ]
 
     /// Whether this is U+212A KELVIN SIGN, which a case-insensitive `k` also matches.
     var isKelvinSign: Bool { utf8.elementsEqual([0xE2, 0x84, 0xAA]) }
