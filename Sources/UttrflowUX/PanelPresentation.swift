@@ -260,6 +260,10 @@ public struct PanelPresentation: Sendable, Equatable {
     public let microphone: PanelMicrophone
     /// H7 — what the list is scoped to when that differs from the chip last pressed.
     public let scope: String?
+    /// What VoiceOver is told, each line once when it first appears, since the panel may close before focus reaches it.
+    public let announcements: [String]
+    /// What VoiceOver says choosing a row will do, which is a copy when the panel cannot paste.
+    public let rowHint: String
 
     public init(
         rows: [PanelRow],
@@ -275,7 +279,9 @@ public struct PanelPresentation: Sendable, Equatable {
         emptyAction: PanelAction? = nil,
         notice: PanelNotice? = nil,
         microphone: PanelMicrophone = PanelPresenter.microphone(for: .ready),
-        scope: String? = nil
+        scope: String? = nil,
+        announcements: [String] = [],
+        rowHint: String = PanelPresenter.pasteRowHint
     ) {
         self.rows = rows
         self.filters = filters
@@ -291,6 +297,8 @@ public struct PanelPresentation: Sendable, Equatable {
         self.notice = notice
         self.microphone = microphone
         self.scope = scope
+        self.announcements = announcements
+        self.rowHint = rowHint
     }
 
     /// The row Return would insert, so neither the view nor the app counts rows itself.
@@ -309,6 +317,23 @@ public enum PanelPresenter {
     public static let sheetHint = "⏎ to save · esc to go back"
     /// Offered rather than merely available, because F7 traded the dialog away for it.
     public static let undoHint = "Deleted · ⌘Z to put it back"
+
+    /// The undo offer as VoiceOver says it, with the key spelled out rather than drawn.
+    public static let undoAnnouncement = "Deleted. Press Command-Z to put it back."
+    /// What choosing a row does when the panel can paste.
+    public static let pasteRowHint = "Pastes where you were typing"
+    /// What choosing a row does when the panel can only copy.
+    public static let copyRowHint = "Copies to the clipboard, to paste yourself with Command-V"
+
+    /// The notice and the undo offer, as spoken; the view posts each one once. See `Docs/app-quick-panel.md`.
+    static func announcements(for snapshot: PanelSnapshot) -> [String] {
+        [snapshot.notice?.message, snapshot.canUndoDelete ? undoAnnouncement : nil].compactMap { $0 }
+    }
+
+    /// What VoiceOver says a row does, so a copy-only panel never promises a paste.
+    static func rowHint(for insertion: PanelInsertion) -> String {
+        insertion == .atCaret ? pasteRowHint : copyRowHint
+    }
 
     /// Which line goes under the list, undo first because it expires. See `Docs/panel.md`.
     static func hint(for snapshot: PanelSnapshot, isEmpty: Bool) -> String {
@@ -346,7 +371,9 @@ public enum PanelPresenter {
             emptyAction: rows.isEmpty ? emptyAction(for: snapshot) : nil,
             notice: snapshot.notice,
             microphone: microphone(for: snapshot.dictation),
-            scope: scope(for: snapshot)
+            scope: scope(for: snapshot),
+            announcements: announcements(for: snapshot),
+            rowHint: rowHint(for: snapshot.insertion)
         )
     }
 
