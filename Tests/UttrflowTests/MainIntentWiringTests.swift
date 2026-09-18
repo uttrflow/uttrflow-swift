@@ -296,6 +296,8 @@ struct MainIntentWiringTests {
         try await clipboard.setText("Right, drafting done.", of: editedClip.id, keeping: window)
         app.carryOut(.undoCorrection(correction.id))
         await app.intentWork?.value
+        let afterUndo = await history.records(keeping: retention).first { $0.id == undone.id }
+        #expect(afterUndo?.text == "print s q l")
 
         app.carryOut(.forgetDictation(undone.id))
         await app.intentWork?.value

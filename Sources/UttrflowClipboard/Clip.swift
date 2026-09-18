@@ -113,7 +113,8 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     /// Whether this is the copy of that dictation; a clip older than the link is matched on its words.
     public func isCopy(ofDictation id: UUID, saying spoken: String?) -> Bool {
         guard origin == .uttrflow else { return false }
-        if dictations.isEmpty { return spoken == text }
+        // A clip typed into the panel is Uttrflow's too, and only a dictation's copy is labelled as one.
+        if dictations.isEmpty { return source == ClipOrigin.dictationSource && spoken == text }
         return dictations.contains(id)
     }
 

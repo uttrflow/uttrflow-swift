@@ -1046,12 +1046,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Removes Uttrflow's own clipboard copies of a forgotten dictation, found by its identifier.
-    private func forgetClips(of dictation: DictationRecord.ID, saying spoken: String?) async {
+    private func forgetClips(of dictation: DictationRecord.ID, saying spoken: String?) async throws {
         let retention = ClipRetention(
             days: settings.clipboardRetentionDays, now: Date(),
             dictationDays: settings.transcriptRetentionDays)
-        _ = try? await clipboard.deleteCopies(
-            ofDictation: dictation, saying: spoken, keeping: retention)
+        try await clipboard.deleteCopies(ofDictation: dictation, saying: spoken, keeping: retention)
         await refreshPanelIfOpen()
     }
 
@@ -1559,11 +1558,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let retention = Retention(days: settings.transcriptRetentionDays, now: Date())
             act { [weak self] in
                 guard let self else { return }
-                // Both files, or the words are still one shortcut away in the panel.
+                // Both files, the copy first, so a refused write leaves the record to delete again.
                 let spoken = await self.history.records(keeping: retention)
                     .first { $0.id == id }?.text
+                try await self.forgetClips(of: id, saying: spoken)
                 try await self.history.delete(id, keeping: retention)
-                await self.forgetClips(of: id, saying: spoken)
             }
 
         case .addWord:

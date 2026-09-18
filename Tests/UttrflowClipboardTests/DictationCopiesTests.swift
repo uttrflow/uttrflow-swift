@@ -62,12 +62,18 @@ struct DictationCopiesTests {
         let old = Clip(
             text: "print SQL", kind: .text, copiedAt: Date(), source: ClipOrigin.dictationSource,
             origin: .uttrflow)
+        let typed = Clip(text: "print SQL", kind: .code, copiedAt: Date(), origin: .uttrflow)
         _ = try await folder.store.record(old, keeping: folder.retention)
 
-        _ = try await folder.store.deleteCopies(
+        let left = try await folder.store.deleteCopies(
             ofDictation: UUID(), saying: "print SQL", keeping: folder.retention)
+        #expect(left.isEmpty)
 
-        #expect(await folder.store.clips(keeping: folder.retention).isEmpty)
+        // A clip typed into the panel has no dictation behind it, whatever its words.
+        _ = try await folder.store.record(typed, keeping: folder.retention)
+        let kept = try await folder.store.deleteCopies(
+            ofDictation: UUID(), saying: "print SQL", keeping: folder.retention)
+        #expect(kept.map(\.id) == [typed.id])
     }
 
     @Test("the same words dictated twice are one clip that either dictation deletes")
@@ -102,7 +108,7 @@ struct DictationCopiesTests {
         #expect(unlinked.dictations.isEmpty)
     }
 
-    @Test("nothing to delete writes nothing and answers with what is there")
+    @Test("nothing to delete keeps every clip and answers with what is there")
     func nothingToDelete() async throws {
         let folder = try TemporaryFolder()
         let clip = Clip(text: "kept", kind: .text, copiedAt: Date())
