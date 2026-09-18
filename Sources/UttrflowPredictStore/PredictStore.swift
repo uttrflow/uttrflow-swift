@@ -398,6 +398,7 @@ public actor PredictStore: PredictionStore {
 
     /// Keeps a surface within its cap, dropping superseded entries first and then the weakest.
     private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
+        try evictWeakestSuccessions(surfaceIdentifier: id)
         let held = try database.rows(
             "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
         ) { $0.integer(0) }
@@ -407,6 +408,24 @@ public actor PredictStore: PredictionStore {
             DELETE FROM entry WHERE id IN (
               SELECT id FROM entry WHERE surface_id = ?
               ORDER BY (superseded_by IS NOT NULL) DESC, count ASC, last_used ASC LIMIT ?
+            )
+            """,
+            {
+                $0.bind(1, id)
+                $0.bind(2, Int64(held - Self.entriesPerSurface))
+            })
+    }
+
+    /// Keeps a surface's successions within the same cap as its entries, dropping the least followed and then the oldest.
+    private func evictWeakestSuccessions(surfaceIdentifier id: Int64) throws(PredictStoreError) {
+        let held = try database.rows(
+            "SELECT COUNT(*) FROM succession WHERE surface_id = ?", { $0.bind(1, id) }
+        ) { $0.integer(0) }
+        guard let held = held.first, held > Self.entriesPerSurface else { return }
+        try database.run(
+            """
+            DELETE FROM succession WHERE rowid IN (
+              SELECT rowid FROM succession WHERE surface_id = ? ORDER BY count ASC, rowid ASC LIMIT ?
             )
             """,
             {
