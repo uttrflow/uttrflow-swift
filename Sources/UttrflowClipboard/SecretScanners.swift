@@ -74,7 +74,7 @@ enum JSONWebTokenScan {
     }
 }
 
-/// Reads `scheme://user:password@host` the way the connection-string pattern matches it, in one pass.
+/// Reads `scheme://user:password@host`, or `scheme://:password@host`, the way the connection-string pattern matches it, in one pass.
 enum CredentialledURLScan {
     static func matches(_ text: String, read: inout Int) -> Bool {
         // Whether the run of scheme characters that ends here holds a letter, which a scheme must start with.
@@ -112,9 +112,11 @@ enum CredentialledURLScan {
         return cursor
     }
 
-    /// Whether `user:password@` and one more visible character follow; each run stops at the next `:`, `/` or `@`.
+    /// Whether `user:password@`, the user possibly empty, and one visible character follow; runs stop at `:`, `/`, `@`.
     private static func carriesPassword(_ text: String, from start: String.Index, read: inout Int) -> Bool {
-        guard let colon = run(in: text, from: start, read: &read), isByte(text[colon], ":") else {
+        guard let colon = run(in: text, from: start, allowingEmpty: true, read: &read),
+            isByte(text[colon], ":")
+        else {
             return false
         }
         guard let at = run(in: text, from: text.index(after: colon), read: &read), isByte(text[at], "@")
@@ -125,8 +127,10 @@ enum CredentialledURLScan {
         return !text[host].isWhitespace
     }
 
-    /// Where a non-empty run of userinfo characters from `start` ends, when something follows it.
-    private static func run(in text: String, from start: String.Index, read: inout Int) -> String.Index? {
+    /// Where a run of userinfo characters from `start` ends, when something follows it and it may be that long.
+    private static func run(
+        in text: String, from start: String.Index, allowingEmpty: Bool = false, read: inout Int
+    ) -> String.Index? {
         var index = start
         while index < text.endIndex {
             read += 1
@@ -138,7 +142,7 @@ enum CredentialledURLScan {
             }
             index = text.index(after: index)
         }
-        return index > start && index < text.endIndex ? index : nil
+        return (allowingEmpty || index > start) && index < text.endIndex ? index : nil
     }
 
     private static func isByte(_ character: Character, _ ascii: Unicode.Scalar) -> Bool {
@@ -180,7 +184,7 @@ struct NamedSecretScan {
         breaks = WordBreaks(text)
     }
 
-    /// The spellings `\b(?:api[_-]?keys?|secrets?|…)\b` accepts, lowercase, as bytes.
+    /// The spellings `(?:api[_-]?keys?|secrets?|…|pass)\b` accepts, lowercase, as bytes.
     static let keywords: [[UInt8]] = {
         func joined(_ first: String, _ second: String) -> [String] {
             ["", "_", "-"].map { first + $0 + second }
@@ -189,7 +193,8 @@ struct NamedSecretScan {
             [$0, $0 + "s"]
         }
         let singulars =
-            ["passwd", "pwd"] + joined("private", "key") + joined("access", "key") + joined("auth", "token")
+            ["passwd", "pwd", "pass"] + joined("private", "key") + joined("access", "key")
+            + joined("auth", "token")
             + joined("client", "secret")
         return (plurals + singulars).map { Array($0.utf8) }
     }()
@@ -199,24 +204,37 @@ struct NamedSecretScan {
         var position = TextPosition(index: text.startIndex, offset: 0)
         // Where the pattern's next search starts, since its matches never overlap.
         var resume = text.startIndex
+        // The lone ASCII byte of the character before `position`, which decides whether a name can start there.
+        var previous: UInt8?
         while position.index < text.endIndex {
             read += 1
-            if position.index >= resume, let first = text[position.index].loneASCII.map(Self.lowered),
-                Self.initials.contains(first)
-            {
-                for end in keywordEnds(at: position, first: first)
-                where breaks.isBoundary(position.index, from: position.index)
-                    && breaks.isBoundary(end.index, from: position.index)
+            let current = text[position.index].loneASCII
+            if position.index >= resume, let current, Self.initials.contains(Self.lowered(current)) {
+                let ends = keywordEnds(at: position, first: Self.lowered(current))
+                if !ends.isEmpty,
+                    Self.opensName(after: previous, at: current)
+                        || breaks.isBoundary(position.index, from: position.index)
                 {
-                    guard let assignment = assignment(after: end) else { continue }
-                    if assignment.accepted { return true }
-                    resume = assignment.end
-                    break
+                    for end in ends where breaks.isBoundary(end.index, from: position.index) {
+                        guard let assignment = assignment(after: end) else { continue }
+                        if assignment.accepted { return true }
+                        resume = assignment.end
+                        break
+                    }
                 }
             }
+            previous = current
             advance(&position)
         }
         return false
+    }
+
+    /// Whether a keyword may start after `_` or at a lowercase-to-uppercase step, as in `DB_PASSWORD`.
+    private static func opensName(after previous: UInt8?, at current: UInt8) -> Bool {
+        guard let previous else { return false }
+        return previous == UInt8(ascii: "_")
+            || (UInt8(ascii: "a")...UInt8(ascii: "z")).contains(previous)
+                && (UInt8(ascii: "A")...UInt8(ascii: "Z")).contains(current)
     }
 
     /// The letters a keyword can start with.
