@@ -16,9 +16,16 @@ public enum Restatement {
     ]
 
     /// Words a restated phrase may not anchor on, because a fresh clause starts with them far more often.
-    public static let weakAnchors: Set<String> = [
+    public static let weakAnchors = Set([
         "i", "i'm", "i'll", "i've", "i'd", "we", "you", "he", "she", "they", "it", "it's", "that",
         "this", "there", "yes", "yeah", "ok", "okay", "oh", "well",
+    ]).union(hindiSubjects)
+
+    /// Hindi pronouns and subject words, romanised and in Devanagari, which start a fresh clause as English ones do.
+    static let hindiSubjects: Set<String> = [
+        "main", "mai", "maine", "mujhe", "hum", "humne", "tum", "aap", "wo", "woh", "ye", "yeh",
+        "mera", "meri", "mere", "मैं", "मैंने", "मुझे", "हम", "तुम", "आप", "वो", "वह", "ये", "यह",
+        "मेरा", "मेरी", "मेरे",
     ]
 
     /// How many words at `position` are trigger phrases run together, such as "no wait".

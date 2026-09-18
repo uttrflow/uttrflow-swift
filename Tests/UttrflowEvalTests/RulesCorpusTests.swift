@@ -51,7 +51,7 @@ struct RulesCorpusTests {
         "number-flight-not-an-item", "number-room-not-an-item", "number-press-not-an-item",
         "number-jersey-not-an-item",
         "hinglish-late", "hinglish-trailing-english", "hinglish-false-start", "hinglish-request",
-        "hinglish-question",
+        "hinglish-question", "hinglish-apology-kept",
     ]
 
     /// Destination cases only the model can pass: a spelling off the screen, or a question mark from a sentence's shape.
