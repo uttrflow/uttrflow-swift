@@ -314,9 +314,9 @@ public actor PredictStore: PredictionStore {
     public func entryCountsByApplication() throws(PredictStoreError) -> [String: Int] {
         let counted = try database.rows(
             """
-            SELECT surface.bundle_id, COUNT(entry.id) FROM entry
+            SELECT bundle_id, COUNT(*) FROM entry
             JOIN surface ON surface.id = entry.surface_id
-            GROUP BY surface.bundle_id
+            GROUP BY bundle_id
             """, { _ in }
         ) { ($0.text(0), $0.integer(1)) }
         return Dictionary(counted, uniquingKeysWith: +)

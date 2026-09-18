@@ -93,7 +93,10 @@ public struct CapturePreferencesFile: Sendable {
 
     /// Deletes every answer, so the applications the loop has met are forgotten with what it learned.
     public func remove() throws {
-        guard FileManager.default.fileExists(atPath: path) else { return }
-        try FileManager.default.removeItem(atPath: path)
+        do {
+            try FileManager.default.removeItem(atPath: path)
+        } catch CocoaError.fileNoSuchFile {
+            // Already gone, which is what removing it asks for.
+        }
     }
 }
