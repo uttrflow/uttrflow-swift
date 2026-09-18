@@ -247,33 +247,44 @@ struct DockView: View {
         .padding(DockMetrics.gripHitPadding)
     }
 
-    /// The one state with something for the reader to do, and the only wide form.
+    /// The one state with something for the reader to do, and the only wide form; the message wraps rather than truncates.
     private func blocked(_ presentation: DockPresentation, primaryLine: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DockMetrics.noticeSpacing) {
             Badge(symbolName: presentation.symbolName, tint: .dockWarning)
             VStack(alignment: .leading, spacing: 2) {
                 Text(primaryLine)
                     .font(.system(size: DockMetrics.bodySize, weight: .medium))
-                    .lineLimit(1)
+                    .lineLimit(DockMetrics.noticeMaxLines)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let secondary = presentation.secondaryLine {
                     Text(secondary)
                         .font(.system(size: DockMetrics.footnoteSize))
                         .opacity(0.58)
                         .lineLimit(1)
                 }
+                // Under the words, so the button never takes width the message needs.
+                if let action = presentation.action {
+                    Button(Self.title(for: action)) { onRecovery(action) }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .fixedSize()
+                        .padding(.top, 4)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if let action = presentation.action {
-                Button(Self.title(for: action)) { onRecovery(action) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .fixedSize()
-            }
         }
-        .padding(.horizontal, 14)
-        .frame(width: DockMetrics.noticeMaxWidth, height: DockMetrics.noticeHeight)
+        .padding(.horizontal, DockMetrics.noticeHorizontalPadding)
+        .padding(.vertical, DockMetrics.noticeVerticalPadding)
+        .frame(width: DockMetrics.noticeMaxWidth)
+        .frame(minHeight: DockMetrics.noticeHeight)
         .glass(cornerRadius: DockMetrics.noticeHeight / 2)
+        .help(Self.hoverText(for: presentation, primaryLine: primaryLine))
         .padding(DockMetrics.gripHitPadding)
+    }
+
+    /// Everything the wide form says, for the pointer, so a shortened line is still readable in full.
+    static func hoverText(for presentation: DockPresentation, primaryLine: String) -> String {
+        [primaryLine, presentation.secondaryLine].compactMap(\.self).joined(separator: "\n")
     }
 
     // MARK: - Pieces
@@ -336,8 +347,18 @@ enum DockMetrics {
     static let badgeSize: CGFloat = 26
     static let clipboardHeight: CGFloat = 28
     /// The width of the one wide form, and of no other.
-    static let noticeMaxWidth: CGFloat = 262
+    static let noticeMaxWidth: CGFloat = 300
+    /// The wide form's height with one line of text; it grows when the message wraps.
     static let noticeHeight: CGFloat = 40
+    static let noticeHorizontalPadding: CGFloat = 14
+    static let noticeVerticalPadding: CGFloat = 8
+    static let noticeSpacing: CGFloat = 12
+    static let noticeBadgeSize: CGFloat = 22
+    /// The most lines a message may wrap to; every failure message is measured against it in the tests.
+    static let noticeMaxLines = 3
+    /// The width the message wraps within, beside the badge.
+    static let noticeTextWidth: CGFloat =
+        noticeMaxWidth - 2 * noticeHorizontalPadding - noticeBadgeSize - noticeSpacing
     static let bodySize: CGFloat = 13
     static let footnoteSize: CGFloat = 10
 }
@@ -485,7 +506,7 @@ private struct Badge: View {
     var body: some View {
         Circle()
             .fill(tint)
-            .frame(width: 22, height: 22)
+            .frame(width: DockMetrics.noticeBadgeSize, height: DockMetrics.noticeBadgeSize)
             .overlay(
                 Image(systemName: symbolName)
                     .font(.system(size: 12, weight: .semibold))
