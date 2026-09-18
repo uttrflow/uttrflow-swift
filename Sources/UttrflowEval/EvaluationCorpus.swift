@@ -180,6 +180,13 @@ public enum EvaluationCorpus {
             mustKeep: ["coffee"],
             mustNotAdd: ["two"]
         ),
+        .init(
+            id: "number-correction-with-unit", category: .everyday,
+            spoken: "we need twelve boxes i mean fifteen boxes",
+            expected: "We need 15 boxes.",
+            mustKeep: ["15", "boxes"],
+            mustNotAdd: ["12"]
+        ),
         // "no" opens the sentence rather than correcting one, and "wait" is a verb here.
         .init(
             id: "false-no-stays", category: .everyday,
