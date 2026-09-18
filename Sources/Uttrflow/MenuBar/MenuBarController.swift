@@ -9,7 +9,8 @@ final class MenuBarController: NSObject {
     var onCommand: ((MenuBarIntent) -> Void)?
 
     private let statusItem: NSStatusItem
-    private var presentation: MenuBarPresentation
+    /// What the menu bar shows now; readable so a test can check what the app drew.
+    private(set) var presentation: MenuBarPresentation
 
     init(
         statusBar: NSStatusBar = .system,

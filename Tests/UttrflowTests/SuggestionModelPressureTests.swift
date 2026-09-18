@@ -174,13 +174,12 @@ struct MemoryPressureTests {
         await app.modelPreparation?.value
         app.suggestionModelReloaded(.started)
         #expect(app.suggestionModel == .loading)
-        let menu = MenuBarPresenter.present(
-            MenuBarState(features: MenuBarFeatures(suggestions: true), suggestionModel: app.suggestionModel))
-        #expect(menu.commands.contains { $0.title == "AI Suggestions — Getting ready" })
+        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions — Getting ready" })
         app.suggestionModelReloaded(.started)
         #expect(app.suggestionModel == .loading)
         app.suggestionModelReloaded(.finished)
         #expect(app.suggestionModel == .ready)
+        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions" })
         app.suggestionModelReloaded(.finished)
         #expect(app.suggestionModel == .ready)
     }

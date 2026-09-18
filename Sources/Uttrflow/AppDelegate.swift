@@ -303,6 +303,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// What the menu bar shows now, internal so a test can read what the app drew.
+    var menuBarPresentation: MenuBarPresentation { menuBar.presentation }
+
     /// Redraws the menu bar from whatever the app currently knows.
     private func refreshMenuBar() {
         menuBar.update(with: MenuBarPresenter.present(menuBarState(for: lastDictationState)))
@@ -484,7 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// Follows a reload an idle release caused, so a model being read back in says so rather than reading as ready.
+    /// Shows the model as getting ready while an idle reload runs, then as ready or failed by how it ends.
     func suggestionModelReloaded(_ event: IdleReload) {
         guard isModelPreparing else { return }
         switch event {
@@ -493,7 +496,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .finished where suggestionModel == .loading:
             suggestionModel = .ready
         case .failed where suggestionModel == .loading:
-            // Cleared, as a first load that fails is, so turning the feature off and on tries again.
+            // Cleared so that turning the feature off and on loads the model again.
             isModelPreparing = false
             suggestionModel = .failed
         case .started, .finished, .failed:

@@ -86,7 +86,7 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
         switch self {
         case .notAsked, .ready: nil
         case .downloading(let fraction):
-            fraction.map { "Getting ready — \(Int(($0 * 100).rounded()))%" } ?? "Getting ready"
+            fraction.map { "Getting ready — \(MenuBarPresenter.percentage(of: $0))%" } ?? "Getting ready"
         case .loading: "Getting ready"
         case .releasedForMemory: "Paused to free memory"
         case .failed: "The model could not be fetched"

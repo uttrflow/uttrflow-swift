@@ -498,6 +498,7 @@ struct MenuBarPrintedShortcutTests {
             (SuggestionModelReadiness.loading, "AI Suggestions — Getting ready"),
             (.downloading(fractionCompleted: nil), "AI Suggestions — Getting ready"),
             (.downloading(fractionCompleted: 0.42), "AI Suggestions — Getting ready — 42%"),
+            (.downloading(fractionCompleted: 1.7), "AI Suggestions — Getting ready — 100%"),
             (.releasedForMemory, "AI Suggestions — Paused to free memory"),
             (.failed, "AI Suggestions — The model could not be fetched"),
             (.ready, "AI Suggestions"),
