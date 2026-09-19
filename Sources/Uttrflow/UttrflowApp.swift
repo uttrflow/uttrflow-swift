@@ -19,11 +19,17 @@ enum UttrflowApp {
         let model = IdleReleasingModel(
             model: MLXCandidateScorer(model: .gemma3),
             idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory))
-        // Every use is discretionary: utility priority, and no pass in Low Power Mode or under thermal pressure.
+        // Every use is discretionary: utility priority, and no pass in Low Power Mode, under thermal pressure or while dictating.
         let generating = DiscretionaryGenerator(
-            model, mayRun: { EnergyConditions.current().allowsDiscretionaryWork })
+            model,
+            mayRun: {
+                EnergyConditions.current().allowsDiscretionaryWork && !DictationInProgress.shared.isDictating
+            })
         let scoring = DiscretionaryModel(
-            model, mayRun: { EnergyConditions.current().allowsDiscretionaryWork })
+            model,
+            mayRun: {
+                EnergyConditions.current().allowsDiscretionaryWork && !DictationInProgress.shared.isDictating
+            })
         let delegate = AppDelegate(
             scoring: scoring, generating: generating,
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },

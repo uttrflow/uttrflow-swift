@@ -91,6 +91,8 @@ final class SuggestionCoordinator {
     private var isInserting = false
     /// True once the loop is stopped, so a turn still finishing draws nothing into the shared panel.
     private var isStopped = false
+    /// Set while a dictation is under way, when no turn may start.
+    private var isDictating = DictationInProgress.shared.isDictating
     private var again: SuggestionReason?
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
@@ -216,6 +218,14 @@ final class SuggestionCoordinator {
         }
     }
 
+    /// Withdraws the ghost and holds every turn while a dictation is under way, so its models have the GPU.
+    func dictationChanged(isDictating: Bool) {
+        self.isDictating = isDictating
+        guard isDictating else { return }
+        again = nil
+        withdraw()
+    }
+
     /// Takes the ghost and the keys it claims away, and voids every answer in flight, because the caret may have moved under it.
     private func withdraw() {
         session.invalidate()
@@ -284,6 +294,7 @@ final class SuggestionCoordinator {
 
     /// Runs one turn, or notes that another is wanted, so two never run at once and a stuck one never ends the loop.
     private func wake(_ reason: SuggestionReason) {
+        guard !isDictating else { return }
         switch turns.begin(at: Date()) {
         case .busy:
             // A Return or a switch waiting its turn is never overwritten by the tick that follows it.

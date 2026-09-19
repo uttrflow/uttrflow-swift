@@ -1182,6 +1182,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         // Kept here, where every change already arrives, so the updater need not ask the pipeline.
         lastDictationState = state
+        DictationInProgress.shared.set(dictating: state.isBusy)
+        completions?.dictationChanged(isDictating: state.isBusy)
 
         // Cleared as soon as the recording ends, so a countdown cannot outlive it.
         if !state.isListening { recordingAdvice = .keepGoing }
