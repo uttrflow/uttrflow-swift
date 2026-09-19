@@ -2,8 +2,7 @@
 import Foundation
 
 extension StringProtocol {
-    /// Whether `needle` occurs here ignoring case and accents, which is how every search in the app matches.
-    /// Curly quotes, dashes and runs of whitespace are folded on both sides too, so `don't` finds `don’t` (#900).
+    /// Whether `needle` occurs here ignoring case, accents, curly quotes, dash kinds and whitespace runs.
     func contains(_ needle: String, ignoringCaseAndAccentsIn locale: Locale) -> Bool {
         let haystack = SearchFolding.folded(self) ?? String(self)
         let needle = SearchFolding.folded(needle) ?? needle
@@ -22,8 +21,7 @@ enum SearchFolding {
         "\u{2010}", "\u{2011}", "\u{2012}", "\u{2013}", "\u{2014}", "\u{2212}",
     ]
 
-    /// The text with ’ ‘ as `'`, “ ” as `"`, dashes as `-` and each whitespace run as one space;
-    /// `nil` when there is nothing to fold, so most text is scanned once and not copied.
+    /// The text with curly quotes straightened, dashes as `-` and whitespace runs as one space; `nil` if unchanged.
     static func folded<S: StringProtocol>(_ text: S) -> String? {
         var needsFolding = false
         var previousWasSpace = false
