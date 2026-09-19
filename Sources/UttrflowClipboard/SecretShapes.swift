@@ -158,15 +158,13 @@ public enum SecretShapes {
         return entropy(of: token) >= entropyFloor && !isJoinedWords(token)
     }
 
-    /// Words joined by `-`, `_` or `/` — a branch, a slug, a dated file name — which reach the floor
-    /// because English does, not because they were generated. See Docs/clipboard-secrets.md.
+    /// Whether a token is words joined by `-`, `_` or `/`, like a branch or slug; see Docs/clipboard-secrets.md.
     static func isJoinedWords(_ token: String) -> Bool {
         let segments = token.split(separator: /[-_\/]/, omittingEmptySubsequences: false)
         return segments.count >= 3 && segments.allSatisfy(isWordLike)
     }
 
-    /// One piece of a joined run: a word in one case, optionally numbered (`v2`, `utf8`), or a number
-    /// with at most a two-letter suffix (`2nd`, `4k`). A random piece mixes case and digits.
+    /// A one-case word optionally numbered (`v2`), or a number with a short suffix (`2nd`); random pieces mix case.
     private static func isWordLike(_ segment: Substring) -> Bool {
         let letters = segment.prefix(while: \.isLetter)
         let rest = segment.dropFirst(letters.count)
