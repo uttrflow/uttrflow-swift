@@ -129,6 +129,11 @@ default — `isBusy` the whole time, so no further dictation can start either. T
 here is generous next to the context engine's 100 ms, because this read *is* the
 dictation rather than a nicety alongside it.
 
+The 2 s is set on the focused element itself, never on the system-wide element. A timeout set
+on the system-wide element is process-wide and read when each message is sent, so an AI
+suggestion read on another queue setting its own 100 ms would cut the insertion's write short
+mid-dictation (#887). The system-wide focus query itself runs under the system default.
+
 ## Announcing Uttrflow's own writes
 
 Pasting a clip puts it on the clipboard and never takes it back, so the clipboard
