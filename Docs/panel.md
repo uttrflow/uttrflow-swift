@@ -114,3 +114,11 @@ self-correcting.
 A change to *what is listed* puts the selection back at the top; a change to *the world*
 — something copied while the panel is open — leaves it where it was, because the
 selection is held by identity.
+
+## Six rows of each kind of match
+
+While searching, each group (name, collection, contents) draws at most six rows and counts the
+rest as "N more · keep typing to narrow it". Browsing is never capped. Two cases would make that
+advice impossible to follow, so the cap bends for them (#898): a clip whose whole text is the
+query leads its group, since nothing more can be typed to reach it, and a collection named
+exactly lists every clip in it, since a picture has no text to narrow by.
