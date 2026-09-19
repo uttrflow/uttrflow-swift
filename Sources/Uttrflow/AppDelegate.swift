@@ -167,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// F7, F9 — the clip a delete removed, held by the app because the undo outlives the panel.
     private var undoable: Clip?
     private var undoTask: Task<Void, Never>?
-    private var noticeTask: Task<Void, Never>?
+    private let noticeLinger = NoticeLinger()
     /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
     private(set) var openingEditor: Task<Void, Never>?
     /// The store work the last main-window intent set going, so a test awaits it rather than a clock.
@@ -830,6 +830,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private func panelAnswered(_ key: PanelKey) {
         guard let snapshot = panel else { return }
+        // Any key means the panel is in use; a notice below starts the wait again.
+        noticeLinger.interrupt()
         let response = snapshot.applying(key)
         panel = response.state
 
@@ -944,6 +946,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// The row's own buttons, for the ones the panel cannot answer alone.
     private func carryOut(_ intent: PanelIntent) {
+        noticeLinger.interrupt()
         // Insert and reveal go the path Return goes, so a click and a key mean one clip.
         if let key = intent.key {
             panelAnswered(key)
@@ -1102,14 +1105,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         announcingPasteboard.setText(text, richText: richText)
     }
 
-    /// Long enough to read one short sentence and no more, since the panel is in the way.
-    private static let noticeLingers = Duration.seconds(2.5)
-
     private func closeAfterReading() {
-        noticeTask?.cancel()
-        noticeTask = Task { [weak self] in
-            try? await Task.sleep(for: AppDelegate.noticeLingers)
-            guard !Task.isCancelled else { return }
+        noticeLinger.start { [weak self] in
+            // A sheet opened meanwhile is work in progress, never closed under the person.
+            guard self?.panel?.sheet == nil else { return }
             self?.closeQuickPanel()
         }
     }
@@ -1121,7 +1120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 scope: $0.scope, category: $0.category, selection: $0.selection,
                 sheet: $0.sheet, closedAt: Date())
         }
-        noticeTask?.cancel()
+        noticeLinger.interrupt()
         quickPanel.hide()
         panel = nil
     }
