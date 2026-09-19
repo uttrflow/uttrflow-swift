@@ -98,8 +98,15 @@ opens like a path is left to the general rules.
 Measured over three thousand random base64 strings at each length: a floor of 4.0 catches 96%
 of 24-character tokens and everything longer; 3.8 catches 99.8%. The difference is the
 shortest, unluckiest, most repetitive keys, and a key is no less live for a repeated character.
-The cost, paid knowingly: long identifiers with a digit score between 3.7 and 4.1, so
-`invoice_2024_q3_final_v2_signed` and a deep source path are masked.
+Long identifiers with a digit score between 3.7 and 4.1, because English spread over a few words
+does, so a run of words joined by `-`, `_` or `/` is exempt (#919): three or more pieces, each a
+word in one case (`paste`, `Screenshot`, `HDR`), optionally numbered (`v2`, `utf8`), or a number
+with at most a two-letter suffix (`2024`, `2nd`). That lets branch names
+(`fix/796-paste-confirmation-cancel`), slugs, dated file names and test names through. A random
+piece mixes case and digits, so across three thousand random base64 and base64url tokens at 24,
+32 and 40 characters none was exempted and the catch rate did not move. Still masked, paid
+knowingly: a long camelCase identifier with a digit, and a deep source path that does not open
+like one.
 
 ## Card numbers
 

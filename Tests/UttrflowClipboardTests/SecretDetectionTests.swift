@@ -182,6 +182,15 @@ struct SecretDetectionTests {
             "#ff00aa",
             "brew install jq",
             "func greet() { print(\"hi\") }",
+            "fix/796-paste-confirmation-cancel",
+            "feature/1234-add-dark-mode-toggle",
+            "git checkout -b fix/796-paste-confirmation-cancel",
+            "how-to-build-a-2024-garden-shed-in-7-steps",
+            "2024-09-18-release-notes-draft-v2",
+            "Screenshot-2024-09-18-at-14-30-12",
+            "IMG_20240918_143012_HDR_edited",
+            "test_parses_utf8_strings_with_bom_2",
+            "Q3-2024-marketing-budget-final-v7",
         ])
     func ordinaryThings(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .secret)

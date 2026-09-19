@@ -140,7 +140,8 @@ public enum SecretShapes {
             let share = Double(count) / length
             total -= share * log2(share)
         }
-        return bits >= entropyFloor
+        // Decoded only past the floor, which few tokens reach, so the common path stays byte-wise.
+        return bits >= entropyFloor && !isJoinedWords(String(decoding: token, as: UTF8.self))
     }
 
     private static func looksGenerated(_ token: String) -> Bool {
@@ -154,7 +155,27 @@ public enum SecretShapes {
             token.contains(where: \.isNumber),
             token.contains(where: \.isLetter)
         else { return false }
-        return entropy(of: token) >= entropyFloor
+        return entropy(of: token) >= entropyFloor && !isJoinedWords(token)
+    }
+
+    /// Whether a token is words joined by `-`, `_` or `/`, like a branch or slug; see Docs/clipboard-secrets.md.
+    static func isJoinedWords(_ token: String) -> Bool {
+        let segments = token.split(separator: /[-_\/]/, omittingEmptySubsequences: false)
+        return segments.count >= 3 && segments.allSatisfy(isWordLike)
+    }
+
+    /// A one-case word optionally numbered (`v2`), or a number with a short suffix (`2nd`); random pieces mix case.
+    private static func isWordLike(_ segment: Substring) -> Bool {
+        let letters = segment.prefix(while: \.isLetter)
+        let rest = segment.dropFirst(letters.count)
+        if letters.isEmpty {
+            let digits = rest.prefix(while: \.isNumber)
+            let suffix = rest.dropFirst(digits.count)
+            return !digits.isEmpty && suffix.count <= 2 && suffix.allSatisfy(\.isLowercase)
+        }
+        guard rest.allSatisfy(\.isNumber) else { return false }
+        let tail = letters.dropFirst()
+        return tail.allSatisfy(\.isLowercase) || letters.allSatisfy(\.isUppercase)
     }
 
     /// The alphabet every generated token is drawn from; a full stop or comma anywhere disqualifies.
