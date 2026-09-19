@@ -88,6 +88,17 @@ extension PanelSnapshot {
 extension PanelSnapshot {
     /// One keystroke, as a pure function of state, so which clip Return means is computed, not accumulated.
     public func applying(_ key: PanelKey) -> PanelResponse {
+        // A sheet with nothing to type into holds the list still: the row it asks about must stay listed.
+        if let sheet, !sheet.takesTyping {
+            switch key {
+            case .up, .down, .search: return stayingOpen
+            default: break
+            }
+        }
+        return acting(on: key)
+    }
+
+    private func acting(on key: PanelKey) -> PanelResponse {
         switch key {
         case .down: PanelResponse(state: moving(by: 1), outcome: .open)
         case .up: PanelResponse(state: moving(by: -1), outcome: .open)
