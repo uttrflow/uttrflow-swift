@@ -22,6 +22,8 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **Typing over an AI suggestion no longer waits half a second per key.** The ghost panel hides
+  without AppKit's fade, which held the main thread until it finished; Tab inserts at once (#954).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
   left the stack a little deeper, so after about 2,500 presses — and again when the
   keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
