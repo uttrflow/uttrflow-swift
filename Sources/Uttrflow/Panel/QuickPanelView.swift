@@ -58,7 +58,14 @@ struct QuickPanelView: View {
         .task(id: openCount) {
             query = presentation.query
             hovered = nil
-            isSearchFocused = true
+            // A resumed sheet with a field keeps the caret; its `onAppear` does not run again (#920).
+            guard presentation.sheet?.takesTyping == true else {
+                isSearchFocused = true
+                return
+            }
+            isSearchFocused = false
+            await Task.yield()
+            isSheetFocused = true
         }
     }
 
