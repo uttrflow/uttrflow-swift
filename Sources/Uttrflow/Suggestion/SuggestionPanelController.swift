@@ -79,6 +79,8 @@ final class SuggestionPanelController {
     }
 
     func hide() {
+        // Already hidden and already drawn hidden: redrawing would change nothing and costs a screen lookup per key.
+        if request.suggestion == .silent, !panel.isVisible, drawn.style == .hidden { return }
         request.suggestion = .silent
         render()
     }
@@ -92,12 +94,18 @@ final class SuggestionPanelController {
     /// What the panel is drawing right now, which a test reads back.
     var drawn: SuggestionPresentation { hostingView.rootView.presentation }
 
+    /// How many times the view has been replaced, so a test can see that a redundant hide changes nothing.
+    private(set) var renders = 0
+
     /// Redraws from the last request, measuring the new content before the panel is placed so old and new are never on screen together.
     private func render() {
-        let screen = visibleFrame
-        let room = request.caret.flatMap {
-            SuggestionGeometry.availableWidth(caret: $0, field: request.field, screen: screen)
-        }
+        // Nothing to place means no screen to look up.
+        let room =
+            request.suggestion == .silent
+            ? nil
+            : request.caret.flatMap {
+                SuggestionGeometry.availableWidth(caret: $0, field: request.field, screen: visibleFrame)
+            }
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
@@ -105,6 +113,7 @@ final class SuggestionPanelController {
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
+        renders += 1
         guard presentation.style != .hidden else {
             panel.orderOut(nil)
             return
