@@ -153,8 +153,8 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     private func focusedElement() -> AXUIElement? {
         guard AXIsProcessTrusted() else { return nil }
 
+        // The timeout goes on the element itself: set on the system-wide element it is process-wide, and a suggestion read could lower it mid-insertion (#887).
         let system = AXUIElementCreateSystemWide()
-        _ = AXUIElementSetMessagingTimeout(system, Self.messagingTimeout)
         if let element = focusedElement(of: system) { return element }
 
         guard let frontmost = NSWorkspace.shared.frontmostApplication else { return nil }
@@ -172,7 +172,9 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         else { return nil }
 
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
-        return unsafeDowncast(element, to: AXUIElement.self)
+        let field = unsafeDowncast(element, to: AXUIElement.self)
+        _ = AXUIElementSetMessagingTimeout(field, Self.messagingTimeout)
+        return field
     }
 
     /// The `count` characters before the caret, when the field will report both its value and its caret.
