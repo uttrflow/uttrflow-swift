@@ -598,7 +598,14 @@ public enum PanelPresenter {
                     : "Everything Uttrflow made is pinned or filed.")
         }
 
-        // A search spans everything, so naming a tab would describe a constraint not applied.
+        // The kind chip is the one narrowing a search keeps, so an empty search names it and the way out.
+        if !query.isEmpty, snapshot.filter != .all {
+            return .noMatches(
+                "Nothing under \(snapshot.filter.title) mentions “\(query)”. Choose All to search everything."
+            )
+        }
+
+        // A search spans every tab and collection, so naming one would describe a constraint not applied.
         if !query.isEmpty {
             // Not "nothing you have copied": a search spans what Uttrflow made too.
             return .noMatches("Nothing on your clipboard mentions “\(query)”.")

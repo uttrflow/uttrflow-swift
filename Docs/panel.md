@@ -24,8 +24,10 @@ does not stop. Reusing one for the other made every collection past the ninth se
 which the snapshot rejects — so the tenth chip drew like the others, said nothing about
 being different, and did nothing when clicked.
 
-**While there is a query, the active chip is All.** A search spans every collection and
-every tab, so drawing the open tab as chosen would tell the user their search had been
+**While there is a query, the active chip is All** — unless a kind chip (Text, Links, Code,
+Images) is on. That is the one narrowing a search keeps: the kind chip stays lit, and an empty
+search says "Nothing under Code mentions …" and points at All, rather than claiming the whole
+clipboard was searched (#899). A search otherwise spans every collection and every tab, so drawing the open tab as chosen would tell the user their search had been
 narrowed when it had not, and the rows from elsewhere would read as a bug. The snapshot
 keeps its collection regardless — this is only what is *shown*, and emptying the field
 brings it back.
