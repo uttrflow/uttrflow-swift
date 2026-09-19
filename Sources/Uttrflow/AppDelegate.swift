@@ -770,8 +770,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         snapshot.dictation = await voice()
         // K4, B8 — asked once on the way in, so the presenter stays a function of its input.
         snapshot.imagesFolder = await clipboard.imagesFolder
-        snapshot.missingImages = await missingPictures(among: clips)
-        snapshot.formattableLanguages = await formattable(among: clips)
+        let facts = await facts(about: clips)
+        snapshot.install(
+            clips, missingImages: facts.missing, formattableLanguages: facts.formattable)
         // A4 — said on the way in, not after Return, when there is nowhere left to say it.
         if case .clipboardOnly(let obstacle) = placement, obstacle == .accessibilityNotGranted {
             snapshot.notice = obstacle.notice
@@ -786,6 +787,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         await PanelInsertion.decided(
             isAccessibilityGranted: accessibility.status() == .granted,
             isSelfFrontmost: focus.isSelfFrontmost())
+    }
+
+    /// B8, D5 — what only the machine knows about a list, asked on opening and on every refresh alike.
+    private func facts(
+        about clips: [Clip]
+    ) async -> (missing: Set<Clip.ID>, formattable: Set<CodeLanguage>) {
+        (await missingPictures(among: clips), await formattable(among: clips))
     }
 
     /// D5 — which languages present in the list have a formatter, asked per language and not per clip.
@@ -1090,7 +1098,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func refreshPanelIfOpen() async {
         guard panel != nil, quickPanel.isVisible else { return }
         let clips = await clipboard.clips(keeping: retention)
-        panel?.clips = clips
+        let facts = await facts(about: clips)
+        panel?.install(
+            clips, missingImages: facts.missing, formattableLanguages: facts.formattable)
         guard let snapshot = panel else { return }
         quickPanel.update(PanelPresenter.present(snapshot))
     }
