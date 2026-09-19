@@ -100,9 +100,12 @@ final class SuggestionPanelController {
     /// Redraws from the last request, measuring the new content before the panel is placed so old and new are never on screen together.
     private func render() {
         // Nothing to place means no screen to look up.
-        let room = request.suggestion == .silent ? nil : request.caret.flatMap {
-            SuggestionGeometry.availableWidth(caret: $0, field: request.field, screen: visibleFrame)
-        }
+        let room =
+            request.suggestion == .silent
+            ? nil
+            : request.caret.flatMap {
+                SuggestionGeometry.availableWidth(caret: $0, field: request.field, screen: visibleFrame)
+            }
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
