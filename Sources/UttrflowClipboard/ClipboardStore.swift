@@ -30,6 +30,8 @@ public actor ClipboardStore {
 
     /// Whether this process has already reconciled the pictures folder; see ``sweepOnce(against:)``.
     private var hasSwept = false
+    /// Pictures of deleted clips an undo can still bring back, left on disk until ``forgetHeldPictures()``.
+    private var heldPictures: Set<String> = []
 
     /// Whether a file this process read was there and could not be read, so its pictures are unknown.
     private var hasUnreadableIndex = false
@@ -108,8 +110,11 @@ public actor ClipboardStore {
     /// Forgets one clip and answers with what is left; an identifier that is not there is not an error.
     @discardableResult
     public func delete(
-        _ id: UUID, keeping retention: ClipRetention
+        _ id: UUID, keeping retention: ClipRetention, holdingPicture: Bool = false
     ) throws(ClipboardStoreError) -> [Clip] {
+        if holdingPicture, let file = loaded().first(where: { $0.id == id })?.image?.file {
+            heldPictures.insert(file)
+        }
         let kept = retained(loaded().filter { $0.id != id }, keeping: retention)
         try save(kept)
         return kept
@@ -222,6 +227,16 @@ public actor ClipboardStore {
             contentsOf: imagesFolder.appending(path: image.file, directoryHint: .notDirectory))
     }
 
+    /// Releases the pictures held for an undo, deleting each one no clip has taken back.
+    public func forgetHeldPictures() {
+        let wanted = Set(loaded().compactMap(\.image?.file))
+        for name in heldPictures.subtracting(wanted) {
+            try? FileManager.default.removeItem(
+                at: imagesFolder.appending(path: name, directoryHint: .notDirectory))
+        }
+        heldPictures = []
+    }
+
     /// Deletes pictures no clip refers to any more; best-effort, so a stuck file cannot cost a write.
     public func forgetOrphanedImages() {
         guard indexesAreTrustworthy else { return }
@@ -229,7 +244,8 @@ public actor ClipboardStore {
         let onDisk =
             (try? FileManager.default.contentsOfDirectory(
                 at: imagesFolder, includingPropertiesForKeys: nil)) ?? []
-        for file in onDisk where !wanted.contains(file.lastPathComponent) {
+        for file in onDisk
+        where !wanted.contains(file.lastPathComponent) && !heldPictures.contains(file.lastPathComponent) {
             try? FileManager.default.removeItem(at: file)
         }
     }
@@ -465,7 +481,7 @@ public actor ClipboardStore {
         try persist(nowHistory, to: file)
 
         // Only the files that stopped being referenced, so a picture no read could vouch for is never touched.
-        for name in before.subtracting(Set(clips.compactMap(\.image?.file))) {
+        for name in before.subtracting(Set(clips.compactMap(\.image?.file))).subtracting(heldPictures) {
             try? FileManager.default.removeItem(
                 at: imagesFolder.appending(path: name, directoryHint: .notDirectory))
         }

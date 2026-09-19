@@ -894,7 +894,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Self.log.info(
                 "delete: undoable=\(self.undoable != nil, privacy: .public) flag=\(self.panel?.canUndoDelete == true, privacy: .public)"
             )
-            _ = try await clipboard.delete(id, keeping: retention)
+            // Only the latest delete can be undone, so an earlier one's picture is let go first.
+            await clipboard.forgetHeldPictures()
+            _ = try await clipboard.delete(id, keeping: retention, holdingPicture: undoable != nil)
             await startForgettingTheUndo()
         case .create(let text):
             // Detected here, off the main actor: the panel knows what was typed, not what a string is.
@@ -925,6 +927,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             }
         case .restore(let clip):
             _ = try await clipboard.record(clip, keeping: retention)
+            await clipboard.forgetHeldPictures()
             undoable = nil
             panel?.canUndoDelete = false
         }
@@ -936,6 +939,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         undoTask = Task { [weak self] in
             try? await Task.sleep(for: AppDelegate.undoWindow)
             guard !Task.isCancelled else { return }
+            await self?.clipboard.forgetHeldPictures()
             self?.undoable = nil
             self?.panel?.canUndoDelete = false
             await self?.refreshPanelIfOpen()
