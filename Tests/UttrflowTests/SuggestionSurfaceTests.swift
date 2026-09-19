@@ -68,4 +68,9 @@ struct SuggestionSurfaceTests {
         #expect(screen.contains(panel.window.frame))
         #expect(panel.drawn.maximumWidth == field.maxX - caret.maxX)
     }
+
+    @Test("The panel has no window animation, so hiding a ghost does not wait out a fade")
+    func thePanelDoesNotFade() {
+        #expect(SuggestionPanelController.shared.window.animationBehavior == .none)
+    }
 }
