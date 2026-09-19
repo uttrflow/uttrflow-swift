@@ -23,6 +23,12 @@ is applied against a responder chain the field is not yet in and is dropped sile
 The panel's `.task(id: presentation.sheet == nil)` does the reverse: when the sheet closes it
 releases the sheet's focus and hands the search field back its caret.
 
+A sheet resumed on reopen is the exception to "`onAppear` claims it": the panel's view is built
+once, so a sheet open when the panel hid never left the tree and its field does not appear
+again. The `.task(id: openCount)` that runs on every show therefore checks the snapshot: with a
+sheet that takes typing it releases the search and claims the sheet field after a yield, and
+only otherwise gives the search its caret (#920).
+
 ## Hover while another application is frontmost
 
 `.onHover` only reports while Uttrflow is the active application, and the quick panel never
