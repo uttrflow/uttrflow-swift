@@ -314,12 +314,21 @@ final class SuggestionCoordinator {
 
     // MARK: One turn
 
+    /// Whether a turn may read the focused field at all: never in Uttrflow, nor where suggestions are off or paused.
+    nonisolated static func shouldRead(
+        front: String, own: String?, preferences: SuggestionPreferences, at moment: Date
+    ) -> Bool {
+        front != own && preferences.isEnabled(in: front, at: moment)
+    }
+
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
     private func turn(_ number: Int, because reason: SuggestionReason) async {
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
         // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
         let keystrokesSeen = session.keystrokes
-        let read = front == ownBundleIdentifier ? nil : await FocusedFieldReader.read()
+        let shouldRead = Self.shouldRead(
+            front: front, own: ownBundleIdentifier, preferences: preferences, at: Date())
+        let read = shouldRead ? await FocusedFieldReader.read() : nil
         guard turns.isCurrent(number) else { return }
         Self.log.debug(
             "TURN front=\(front, privacy: .public) read=\(read != nil) lineChars=\(read?.currentLine.count ?? -1) value=\(read?.value != nil) chars=\(read?.value?.count ?? -1) sel=\(read?.selection?.location ?? -1) caret=\(read?.caret != nil) role=\(read?.role ?? "-", privacy: .public) labelChars=\(read?.accessibilityDescription?.count ?? -1) identified=\(read?.identifier != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
