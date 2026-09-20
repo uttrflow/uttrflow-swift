@@ -10,6 +10,19 @@ public import struct Foundation.UUID
 public import struct Foundation.Data
 public import class Foundation.FileManager
 public import class Foundation.JSONEncoder
+private import Synchronization
+
+/// Counts the files a store writes while this is bound to `ClipboardStore.writes`.
+package final class StoreWriteTally: Sendable {
+    private let files = Mutex(0)
+
+    package init() {}
+
+    /// Answers how many files have been written or removed so far.
+    package var count: Int { files.withLock { $0 } }
+
+    func record() { files.withLock { $0 += 1 } }
+}
 
 /// Everything the user has copied, kept on this Mac between launches. See `Docs/clipboard-store.md`.
 public actor ClipboardStore {
@@ -39,12 +52,26 @@ public actor ClipboardStore {
     /// Files that could not be read or moved aside, which no write may replace.
     private var unreplaceable: Set<URL> = []
 
+    /// Records that a use is in memory and not yet on disk; the next write, or `flushUse`, carries it.
+    private var hasUnwrittenUse = false
+
+    /// Sets how long a use waits in memory for another write before it is written on its own.
+    private let useFlushDelay: Duration
+
+    /// Holds the pending write of a use, so a run of pastes costs one write rather than one each.
+    private var useFlush: Task<Void, Never>?
+
+    /// Counts the files written while bound, so a test can bound the writing without a clock.
+    @TaskLocal package static var writes: StoreWriteTally?
+
     public init(
         file: URL = ClipboardStore.defaultFile(),
-        budget: ClipboardBudget = ClipboardStore.defaultBudget
+        budget: ClipboardBudget = ClipboardStore.defaultBudget,
+        useFlushDelay: Duration = .seconds(30)
     ) {
         self.file = file
         self.budget = budget
+        self.useFlushDelay = useFlushDelay
     }
 
     /// Where the clipboard lives by default; versioned in the name so a new shape can sit beside it.
@@ -91,7 +118,7 @@ public actor ClipboardStore {
         return kept
     }
 
-    /// Notes that a clip has just been reached for, so the eviction policy ranks it as recently used.
+    /// Notes that a clip has just been reached for, in memory; the disk hears of it with the next write.
     @discardableResult
     public func markUsed(
         _ id: UUID, at moment: Date, keeping retention: ClipRetention
@@ -102,9 +129,34 @@ public actor ClipboardStore {
         }
         clips[index] = clips[index].used(at: moment)
         let kept = retained(clips, keeping: retention)
-        // Bookkeeping for a later eviction, so a disk that refuses must not fail somebody's paste.
-        try? save(kept)
+        // A clip that aged out is a real change, written now; a use alone is bookkeeping for a later eviction.
+        guard kept.count == clips.count else {
+            try? save(kept)
+            return kept
+        }
+        wholeList = kept
+        hasUnwrittenUse = true
+        scheduleUseFlush()
         return kept
+    }
+
+    /// Writes a use still held in memory; a disk that refuses costs only the eviction order.
+    public func flushUse() {
+        useFlush?.cancel()
+        useFlush = nil
+        guard hasUnwrittenUse, let wholeList else { return }
+        try? save(wholeList)
+    }
+
+    /// Writes held uses after a quiet spell, unless another write carries them first.
+    private func scheduleUseFlush() {
+        guard useFlush == nil else { return }
+        let flushAfter = useFlushDelay
+        useFlush = Task { [weak self] in
+            try? await Task.sleep(for: flushAfter)
+            guard !Task.isCancelled else { return }
+            await self?.flushUse()
+        }
     }
 
     /// Forgets one clip and answers with what is left; an identifier that is not there is not an error.
@@ -131,6 +183,19 @@ public actor ClipboardStore {
         // Reaches the disk here rather than at the next write: clearing and then quitting must stick.
         try save(saved)
         return retained(saved, keeping: retention)
+    }
+
+    /// Forgets every copy of one dictation, pinned or edited; `spoken` finds copies older than the link.
+    @discardableResult
+    public func deleteCopies(
+        ofDictation id: UUID, saying spoken: String?, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        let stored = loaded()
+        let left = stored.filter { !$0.isCopy(ofDictation: id, saying: spoken) }
+        guard left.count != stored.count else { return retained(stored, keeping: retention) }
+        let kept = retained(left, keeping: retention)
+        try save(kept)
+        return kept
     }
 
     /// Removes every clip, pinned ones included, which is what resetting personalisation promises.
@@ -182,6 +247,10 @@ public actor ClipboardStore {
         // Hashed before it is written, so a screenshot copied twice costs a counter, not another file.
         let sha = ClipboardStore.digest(of: picture.data)
         var image = alreadyKept(sha, in: noticed.clip.origin)
+        // A repeat whose file has gone brings the bytes back, under the name the kept clip already points at.
+        if let kept = image, !isOnDisk(kept) {
+            try restore(picture.data, as: kept.file)
+        }
         if image == nil {
             image = try keep(
                 picture.data, forClip: noticed.clip.id, width: picture.width,
@@ -197,6 +266,23 @@ public actor ClipboardStore {
     /// The picture already on disk for these bytes in this list, if one is there.
     private func alreadyKept(_ sha: String, in origin: ClipOrigin) -> ClipImage? {
         loaded().first { $0.origin == origin && $0.image?.sha == sha }?.image
+    }
+
+    /// Whether a picture's file is still a file where the clip expects it.
+    private func isOnDisk(_ image: ClipImage) -> Bool {
+        let url = imagesFolder.appending(path: image.file, directoryHint: .notDirectory)
+        return (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+    }
+
+    /// Writes a picture's bytes back under the file name its clip already records.
+    private func restore(_ data: Data, as name: String) throws(ClipboardStoreError) {
+        do {
+            try FileManager.default.createDirectory(
+                at: imagesFolder, withIntermediateDirectories: true)
+            try data.write(to: imagesFolder.appending(path: name, directoryHint: .notDirectory))
+        } catch {
+            throw .couldNotWrite
+        }
     }
 
     /// Keeps a picture on disk and answers with what a row needs; throws, since a missing file is forever.
@@ -268,6 +354,30 @@ public actor ClipboardStore {
         try change(id, keeping: retention) { $0.category = category }
     }
 
+    /// Moves every clip in one collection to another, or out of any when `destination` is `nil`, in one write.
+    @discardableResult
+    public func moveCategory(
+        _ name: String, to destination: String?, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        var clips = loaded()
+        for index in clips.indices where clips[index].category == name {
+            clips[index].category = destination
+        }
+        let kept = retained(clips, keeping: retention)
+        try save(kept)
+        return kept
+    }
+
+    /// Deletes a collection and every clip filed in it, in one write.
+    @discardableResult
+    public func deleteCategory(
+        _ name: String, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        let kept = retained(loaded().filter { $0.category != name }, keeping: retention)
+        try save(kept)
+        return kept
+    }
+
     // MARK: - The rules
 
     /// The clip this arrival is another copy of, if the same list already holds it.
@@ -287,7 +397,8 @@ public actor ClipboardStore {
     ) -> Clip {
         Clip(
             id: clip.id, text: text, kind: clip.kind, copiedAt: clip.copiedAt,
-            source: clip.source, origin: clip.origin, lastUsedAt: clip.lastUsedAt,
+            source: clip.source, origin: clip.origin, dictations: clip.dictations,
+            lastUsedAt: clip.lastUsedAt,
             language: clip.language, richText: richText, image: image,
             alias: clip.alias, category: clip.category, isPinned: clip.isPinned,
             timesCopied: clip.timesCopied)
@@ -300,6 +411,11 @@ public actor ClipboardStore {
             source: arrival.source,
             // Named rather than defaulted, so a repeat cannot quietly become a ⌘C.
             origin: previous.origin,
+            // Both dictations, so deleting either one still takes this clip with it.
+            dictations: previous.dictations
+                + arrival.dictations.filter {
+                    !previous.dictations.contains($0)
+                },
             // Copying something again is reaching for it, so the eviction clock moves too.
             lastUsedAt: arrival.copiedAt,
             // The arrival's, detected from the text recorded now and from this pasteboard.
@@ -412,7 +528,9 @@ public actor ClipboardStore {
         // A clipboard written before the split keeps its saved clips in the history file.
         let fromSavedFile = read(savedFile)
         savedOnDisk = fromSavedFile
-        let stored = fromSavedFile + read(file)
+        // A move interrupted between the two writes leaves a clip in both files, and the saved copy wins.
+        let savedIDs = Set(fromSavedFile.map(\.id))
+        let stored = fromSavedFile + read(file).filter { !savedIDs.contains($0.id) }
         let list = Self.interleaving(
             saved: stored.filter(\.isKept), history: stored.filter { !$0.isKept })
         wholeList = list
@@ -472,13 +590,22 @@ public actor ClipboardStore {
 
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
         wholeList = clips
+        // This write carries every use held in memory, so none is left waiting for its own.
+        hasUnwrittenUse = false
+        useFlush?.cancel()
+        useFlush = nil
 
-        // The permanent file first and only when it changed, so a refusing disk leaves the collection whole.
-        if nowSaved != wasSaved {
+        // Every clip reaches its new file before leaving its old one, so a refusing disk never loses one.
+        let bridge = Self.bridging(clips, from: wasSaved, into: nowHistory)
+        if bridge != wasSaved {
+            try persist(bridge, to: savedFile)
+            savedOnDisk = bridge
+        }
+        try persist(nowHistory, to: file)
+        if nowSaved != bridge {
             try persist(nowSaved, to: savedFile)
             savedOnDisk = nowSaved
         }
-        try persist(nowHistory, to: file)
 
         // Only the files that stopped being referenced, so a picture no read could vouch for is never touched.
         for name in before.subtracting(Set(clips.compactMap(\.image?.file))).subtracting(heldPictures) {
@@ -487,10 +614,21 @@ public actor ClipboardStore {
         }
     }
 
+    /// What the saved file holds while clips move: the new saved list, plus the old copy of any leaving it.
+    private static func bridging(
+        _ clips: [Clip], from wasSaved: [Clip], into nowHistory: [Clip]
+    ) -> [Clip] {
+        let leaving = Set(nowHistory.map(\.id)).intersection(wasSaved.map(\.id))
+        guard !leaving.isEmpty else { return clips.filter(\.isKept) }
+        let old = Dictionary(wasSaved.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return clips.compactMap { $0.isKept ? $0 : leaving.contains($0.id) ? old[$0.id] : nil }
+    }
+
     /// Writes a whole list atomically, or removes its file when nothing is left to keep.
     private func persist(_ clips: [Clip], to url: URL) throws(ClipboardStoreError) {
         // A file that could be neither read nor moved aside is the user's only copy, so it is not replaced.
         guard !unreplaceable.contains(url) else { throw .couldNotWrite }
+        Self.writes?.record()
         do {
             guard !clips.isEmpty else {
                 try removeFile(url)

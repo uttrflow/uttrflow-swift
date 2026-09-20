@@ -313,6 +313,124 @@ struct FileSystemSpeechModelStoreTests {
         #expect(!store.isInstalled(.base))
     }
 
+    // MARK: Disk space
+
+    /// The free space an install of `.base` asks for when nothing is staged yet.
+    private var baseNeeds: Int64 { SpeechModel.base.downloadBytes + FileSystemSpeechModelStore.installMargin }
+
+    @Test("refuses to start a download the disk cannot hold, and says how much space it needs")
+    func refusesWhenTheDiskIsTooFull() async {
+        let sandbox = Sandbox()
+        let fetched = Mutex(0)
+        let inner = writingDownloader()
+        let store = FileSystemSpeechModelStore(
+            root: sandbox.root,
+            download: { model, component, destination, progress in
+                fetched.withLock { $0 += 1 }
+                try await inner(model, component, destination, progress)
+            },
+            availableCapacity: { [baseNeeds] _ in baseNeeds - 1 })
+
+        await #expect(throws: SpeechEngineError.notEnoughSpace(neededBytes: baseNeeds)) {
+            try await store.install(.base) { _ in }
+        }
+        #expect(fetched.withLock { $0 } == 0, "nothing is downloaded onto a full disk")
+    }
+
+    @Test("starts the download when the disk holds exactly what it needs, or cannot say")
+    func startsWhenItFits() async throws {
+        for capacity in [baseNeeds, nil] {
+            let sandbox = Sandbox()
+            let store = FileSystemSpeechModelStore(
+                root: sandbox.root, download: writingDownloader(), availableCapacity: { _ in capacity })
+
+            try await store.install(.base) { _ in }
+
+            #expect(store.isInstalled(.base))
+        }
+    }
+
+    @Test("counts what an earlier attempt already staged against the space it asks for")
+    func creditsStagedBytes() async throws {
+        let sandbox = Sandbox()
+        let staged = FileSystemSpeechModelStore(root: sandbox.root, download: writingDownloader())
+        try writeWeights(into: staged.stagingLocation(of: .base), files: [weightFiles[1]], bytesEach: 1_000)
+        let store = FileSystemSpeechModelStore(
+            root: sandbox.root, download: writingDownloader(),
+            availableCapacity: { [baseNeeds] _ in baseNeeds - 1_000 })
+
+        try await store.install(.base) { _ in }
+
+        #expect(store.isInstalled(.base))
+    }
+
+    @Test(
+        "reports a disk that fills up mid-download as a full disk, not a connection",
+        arguments: [
+            NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError),
+            NSError(domain: NSPOSIXErrorDomain, code: Int(ENOSPC)),
+            NSError(
+                domain: NSURLErrorDomain, code: NSURLErrorCannotWriteToFile,
+                userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(ENOSPC))]),
+        ])
+    func outOfSpaceMidDownload(error: NSError) async {
+        let sandbox = Sandbox()
+        let store = FileSystemSpeechModelStore(
+            root: sandbox.root, download: { _, _, _, _ in throw error }, availableCapacity: { _ in nil })
+
+        await #expect(throws: SpeechEngineError.notEnoughSpace(neededBytes: baseNeeds)) {
+            try await store.install(.base) { _ in }
+        }
+    }
+
+    @Test("reports a full disk while fetching the tokenizer the same way")
+    func outOfSpaceFetchingTheTokenizer() async {
+        let sandbox = Sandbox()
+        let inner = writingDownloader()
+        let store = FileSystemSpeechModelStore(
+            root: sandbox.root,
+            download: { model, component, destination, progress in
+                guard component == .tokenizer else {
+                    return try await inner(model, component, destination, progress)
+                }
+                throw NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError)
+            },
+            availableCapacity: { _ in nil })
+
+        await #expect(
+            throws: SpeechEngineError.notEnoughSpace(neededBytes: FileSystemSpeechModelStore.installMargin)
+        ) {
+            try await store.install(.base) { _ in }
+        }
+    }
+
+    @Test("keeps the connection message for a network failure")
+    func networkFailureKeepsItsWording() async throws {
+        let sandbox = Sandbox()
+        let store = FileSystemSpeechModelStore(
+            root: sandbox.root, download: { _, _, _, _ in throw URLError(.notConnectedToInternet) },
+            availableCapacity: { _ in nil })
+
+        let failure = await #expect(throws: SpeechEngineError.self) {
+            try await store.install(.base) { _ in }
+        }
+
+        let reported = try #require(failure)
+        guard case .modelDownloadFailed = reported else {
+            Issue.record("expected a download failure, got \(reported)")
+            return
+        }
+        #expect(reported.userMessage.contains("connection"))
+    }
+
+    @Test("reads the free space of the volume a folder not yet made would sit on")
+    func readsTheRealVolume() {
+        let sandbox = Sandbox()
+        let missing = sandbox.root.appending(path: "Models/not-yet", directoryHint: .isDirectory)
+
+        #expect((FileSystemSpeechModelStore.availableCapacity(at: missing) ?? 0) > 0)
+    }
+
     @Test("removing a model also discards its half-finished download")
     func removeDiscardsStaging() throws {
         let sandbox = Sandbox()

@@ -30,14 +30,25 @@ public enum KnownFormatter: String, Sendable, CaseIterable {
         }
     }
 
-    /// The arguments that read standard input and write standard output; the clip is never an argument.
-    public var arguments: [String] {
+    /// The arguments that read standard input as `language` and write standard output; the clip is never an argument.
+    public func arguments(for language: CodeLanguage) -> [String] {
         switch self {
         case .swiftFormat: ["format"]
-        case .prettier: ["--stdin-filepath", "clip.ts"]
+        case .prettier: ["--stdin-filepath", Self.prettierFilename(for: language)]
         case .black: ["-q", "-"]
         case .rustfmt: ["--emit", "stdout"]
         case .gofmt: []
+        }
+    }
+
+    /// The file name prettier is told the clip has, from which it chooses its parser.
+    static func prettierFilename(for language: CodeLanguage) -> String {
+        switch language {
+        case .javascript: "clip.js"
+        case .json: "clip.json"
+        case .css: "clip.css"
+        case .html: "clip.html"
+        default: "clip.ts"
         }
     }
 
