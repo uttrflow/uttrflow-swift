@@ -4,9 +4,17 @@ public import struct Foundation.Data
 public import struct Foundation.Date
 
 private import Synchronization
+private import Dispatch
+private import os
 
 /// Notices when the user copies something, by polling, which is the only mechanism macOS offers.
 public actor PasteboardWatcher {
+    private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
+
+    /// Where a clipboard read runs, so a writer that never answers holds no thread the app needs.
+    private static let readQueue = DispatchQueue(
+        label: "com.uttrflow.clipboard-read", qos: .userInitiated, attributes: .concurrent)
+
     /// How often the change count is read; the panel catches up as it opens, so this is set by battery. See `Docs/performance.md`.
     public static let pollInterval = Duration.milliseconds(500)
 
@@ -30,15 +38,26 @@ public actor PasteboardWatcher {
     /// The last change count dealt with, read at construction so neither launch case is wrong.
     private var seen: Int
 
+    /// How long a promised or Universal Clipboard read may take before the copy is given up on.
+    public static let defaultReadLimit = Duration.seconds(2)
+
+    /// This watcher's limit on one clipboard read, which a test shortens.
+    private let readLimit: Duration
+
+    /// Set while a read is outstanding, so a blocked one cannot be started again by the next tick.
+    private var isReading = false
+
     public init(
         source: any ClipboardSource,
         interval: Duration = PasteboardWatcher.pollInterval,
         budget: ClipboardBudget = .standard,
+        readLimit: Duration = PasteboardWatcher.defaultReadLimit,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.source = source
         self.interval = interval
         self.budget = budget
+        self.readLimit = readLimit
         self.now = now
         self.seen = source.changeCount()
     }
@@ -89,25 +108,29 @@ public actor PasteboardWatcher {
     // MARK: - One tick
 
     /// Reads the clipboard once, answering a clip only when the user has copied something new.
-    public func newClip(at date: Date) -> NoticedClip? {
+    public func newClip(at date: Date) async -> NoticedClip? {
+        // A read another process has to answer is still running; a second one would only queue behind it.
+        guard !isReading else { return nil }
         let count = source.changeCount()
         guard count != seen else { return nil }
         seen = count
 
+        isReading = true
+        defer { isReading = false }
         // Fetched only now, and once, so an idle tick costs one integer read.
-        let copied = source.text()
+        guard let copied = await bounded({ [source] in source.text() }) else { return nil }
         guard !claims(count, at: date, holding: copied, picture: { source.image()?.data }) else {
             return nil
         }
 
         // A copy its writer marked as not for history is never recorded, text or picture.
-        let markers = source.markers()
+        guard let markers = await bounded({ [source] in source.markers() }) else { return nil }
         guard markers.allowsRecording else { return nil }
         // A write between the reads pairs one copy with another's markers; the next tick reads it whole.
         guard source.changeCount() == count else { return nil }
 
         // K4 — a picture, asked first because the branch below returns for anything textless.
-        if copied == nil, let picture = source.image() {
+        if copied == nil, let picture = await bounded({ [source] in source.image() }) ?? nil {
             return NoticedClip(
                 clip: Clip(
                     text: "", kind: .image, copiedAt: date,
@@ -115,7 +138,7 @@ public actor PasteboardWatcher {
                 picture: picture)
         }
 
-        let html = source.html()
+        guard let html = await bounded({ [source] in source.html() }) else { return nil }
         // E1 — the plain form is derived only here, where the alternative is no clip at all.
         guard let text = copied ?? html.map(RichTextPlainForm.plainText(fromHTML:)),
             ClipContent.isWorthKeeping(text)
@@ -138,10 +161,43 @@ public actor PasteboardWatcher {
                 richText: html))
     }
 
+    /// One clipboard read, given up on once ``readLimit`` has passed, since the writing app answers it.
+    private func bounded<Value: Sendable>(_ read: @escaping @Sendable () -> Value) async -> Value? {
+        let race = Mutex<ClipboardRead<Value>>(.waiting)
+        // Whichever arrives first answers; the loser finds the answer already given.
+        let settle: @Sendable (Value?) -> Void = { value in
+            race.withLock { state in
+                if case .listening(let continuation) = state { continuation.resume(returning: value) }
+                guard case .answered = state else { return state = .answered(value) }
+            }
+        }
+        // On its own thread, never the cooperative pool: a promised read blocks until the writer answers.
+        Self.readQueue.async { settle(read()) }
+        // The limit is a dispatch timer for the same reason: a busy pool must not delay giving up.
+        Self.readQueue.asyncAfter(deadline: .now() + readLimit.inSeconds) { settle(nil) }
+        let value = await withCheckedContinuation { (continuation: CheckedContinuation<Value?, Never>) in
+            race.withLock { state in
+                if case .answered(let value) = state { return continuation.resume(returning: value) }
+                state = .listening(continuation)
+            }
+        }
+        if value == nil { Self.log.notice("a clipboard read passed its limit; this copy is skipped") }
+        return value
+    }
+
     /// Whether a clip is small enough to keep, counting both flavours as `ClipboardStore.weight(of:)` does.
     private func fitsTheBound(_ text: String, _ html: String?) -> Bool {
         guard budget.largestClip > 0 else { return true }
         return text.utf8.count + (html?.utf8.count ?? 0) <= budget.largestClip
+    }
+
+    /// The clipboard's change count now, read without waiting on the watcher.
+    public nonisolated var changeCount: Int { source.changeCount() }
+
+    /// Treats every change up to `count` as seen and forgets any announced write, so nothing from while recording was off is kept.
+    public func passOver(upTo count: Int) {
+        seen = count
+        announced.withLock { $0 = nil }
     }
 
     // MARK: - The loop
@@ -158,7 +214,7 @@ public actor PasteboardWatcher {
 
     /// Reads the clipboard now rather than at the next poll, so a panel opening shows a copy made a moment before.
     public func catchUp(handing handle: @Sendable (NoticedClip) async -> Void) async {
-        if let clip = newClip(at: now()) { await handle(clip) }
+        if let clip = await newClip(at: now()) { await handle(clip) }
     }
 }
 
@@ -192,4 +248,11 @@ public struct NoticedClip: Sendable, Equatable {
             && lhs.picture?.width == rhs.picture?.width
             && lhs.picture?.height == rhs.picture?.height
     }
+}
+
+/// Where one bounded clipboard read has got to: nobody waiting yet, somebody waiting, or answered.
+private enum ClipboardRead<Value: Sendable>: Sendable {
+    case waiting
+    case listening(CheckedContinuation<Value?, Never>)
+    case answered(Value?)
 }

@@ -29,7 +29,8 @@ public enum SpeechModelReadiness: Sendable, Equatable {
         switch self {
         case .loading: .loading(elapsed: start.map { $0.duration(to: now) } ?? .zero)
         case .loadFailed: .failed
-        case .ready, .downloading, .notInstalled: nil
+        case .notInstalled: .missing
+        case .ready, .downloading: nil
         }
     }
 }
@@ -391,7 +392,7 @@ public enum MenuBarPresenter {
         case .loadFailed:
             return "Speech model didn't load"
         case .notInstalled:
-            return "Setup hasn't finished"
+            return SpeechModelLoad.missing.status
         case .ready:
             return switch state.activity {
             case .idle: "Ready"
@@ -419,7 +420,7 @@ public enum MenuBarPresenter {
     }
 
     /// Clamped, because the menu bar is the wrong place to learn the downloader has a bug.
-    static func percentage(of fraction: Double) -> Int {
+    public static func percentage(of fraction: Double) -> Int {
         Int((min(max(fraction, 0), 1) * 100).rounded())
     }
 
@@ -443,7 +444,7 @@ public enum MenuBarPresenter {
         }
 
         // The problem and its fix together at the top, with nothing between them.
-        if let action = state.failure?.action {
+        if let action = state.failure?.action ?? setupAction(for: state.speechModel) {
             items.append(
                 .command(MenuBarCommand(title: menuTitle(for: action), intent: .recover(action.recovery))))
         }
@@ -556,6 +557,17 @@ public enum MenuBarPresenter {
                         isEnabled: isEnabled, isAlternate: true, tooltip: recent.fullText)))
         }
         return items
+    }
+
+    /// The download a missing or broken speech model needs, offered wherever no failure brings its own fix.
+    static func setupAction(for speechModel: SpeechModelReadiness) -> FailureAction? {
+        switch speechModel {
+        case .notInstalled, .loadFailed:
+            FailureAction(
+                title: FailurePresenter.title(for: .downloadSpeechModel), recovery: .downloadSpeechModel)
+        case .downloading, .loading, .ready:
+            nil
+        }
     }
 
     static func isBusy(_ activity: DictationActivity) -> Bool {

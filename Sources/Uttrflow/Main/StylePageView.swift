@@ -67,7 +67,7 @@ struct StyleRowView: View {
                 if let unavailability = row.unavailability {
                     Text(unavailability)
                         .font(.system(size: MainMetrics.subheadSize))
-                        .foregroundStyle(Color.dockWarning)
+                        .foregroundStyle(Color.warningInk)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
