@@ -33,6 +33,9 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     /// The names a Makefile goes by, in the order make itself tries them.
     static let makefiles = ["GNUmakefile", "makefile", "Makefile"]
 
+    /// The justfile names read, in this order: `justfile`, `Justfile`, `.justfile`.
+    static let justfiles = ["justfile", "Justfile", ".justfile"]
+
     /// Runs every program a lookup needs; never in the terminal's directory. See `Docs/command-lookups.md`.
     private let launcher: any ProgramLaunching
 
@@ -123,16 +126,15 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         return contents.filter { !$0.hasPrefix(".") }
     }
 
-    /// The verbs one program takes here: git's from git, make's from the Makefile, a runner's from the project, the rest from the program's help.
+    /// The verbs one program takes here: git's from git, make's from the Makefile, just's from the justfile, a runner's from the project, the rest from the program's help.
     private func verbs(of program: String, in directory: String) async -> [String]? {
         switch program {
         case "git":
             return await gitSubcommands()
-        case "make", "just":
-            return Self.makefiles.compactMap {
-                try? String(contentsOfFile: "\(directory)/\($0)", encoding: .utf8)
-            }
-            .first.map(MakefileTargets.names(in:))
+        case "make":
+            return Self.firstReadable(of: Self.makefiles, in: directory).map(MakefileTargets.names(in:))
+        case "just":
+            return Self.firstReadable(of: Self.justfiles, in: directory).map(JustfileRecipes.names(in:))
         case let runner where runner.hasSuffix(" run"):
             return scripts(in: directory)
         case let runner where CommandGrammar.scriptRunners.contains(runner):
@@ -141,6 +143,11 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         default:
             return await helpCommands(of: program, in: directory)
         }
+    }
+
+    /// The text of the first of `names` that can be read in `directory`, or nothing.
+    private static func firstReadable(of names: [String], in directory: String) -> String? {
+        names.lazy.compactMap { try? String(contentsOfFile: "\(directory)/\($0)", encoding: .utf8) }.first
     }
 
     /// How a program is asked to list its verbs, which is `--help` for most and a listing command for the few that keep one.

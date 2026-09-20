@@ -164,6 +164,21 @@ struct SettingsTests {
         #expect(settings.transcriptRetentionDays == 21)
     }
 
+    /// The menu's Dictation and Clipboard ticks are stored, so they survive a relaunch.
+    @Test("keeps Dictation and Clipboard switched off, and has them on when a file predates them")
+    func keepsTheFeatureSwitches() throws {
+        var settings = Settings.default
+        settings.dictationEnabled = false
+        settings.clipboardEnabled = false
+        let stored = try JSONEncoder().encode(settings)
+        let restored = try JSONDecoder().decode(Settings.self, from: stored)
+
+        #expect(!restored.dictationEnabled)
+        #expect(!restored.clipboardEnabled)
+        #expect(try decode("{}").dictationEnabled)
+        #expect(try decode("{}").clipboardEnabled)
+    }
+
     @Test("defaults an anchor this build has never heard of")
     func unknownAnchor() throws {
         #expect(try decode(#"{"floatingButtonAnchor": "topLeft"}"#).floatingButtonAnchor == .bottomRight)

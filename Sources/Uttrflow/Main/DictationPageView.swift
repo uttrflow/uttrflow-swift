@@ -51,6 +51,10 @@ struct DictationRowView: View {
     var onIntent: (MainIntent) -> Void
 
     @State private var isHovered = false
+    @FocusState private var focusedControl: String?
+
+    /// The More menu's focus identity, kept apart from the action titles.
+    private static let moreControl = "the More menu"
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -116,9 +120,13 @@ struct DictationRowView: View {
         .frame(height: 24)
     }
 
+    /// Hidden, not removed, and still hit-testable, so a VoiceOver user can activate these.
     private var actions: some View {
         HStack(spacing: 5) {
-            ForEach(row.actions) { MainIconButton(action: $0, onIntent: onIntent) }
+            ForEach(row.actions) { action in
+                MainIconButton(action: action, onIntent: onIntent)
+                    .revealedInRow(action.id, isHovered: isHovered, focusedControl: $focusedControl)
+            }
             Menu {
                 ForEach(row.more) { action in
                     Button(action.title, role: action.isDestructive ? .destructive : nil) {
@@ -132,8 +140,7 @@ struct DictationRowView: View {
             .menuIndicator(.hidden)
             .frame(width: 22, height: 22)
             .accessibilityLabel("More")
+            .revealedInRow(Self.moreControl, isHovered: isHovered, focusedControl: $focusedControl)
         }
-        // Hidden, not removed, and still hit-testable, so a VoiceOver user can activate these.
-        .opacity(isHovered ? 1 : 0)
     }
 }

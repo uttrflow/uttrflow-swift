@@ -1,7 +1,7 @@
 /// The tables the corpus lives in, and the one place their shape is written down.
 enum Schema {
     /// What this build expects on disk; an older file is migrated to it and a newer one is refused.
-    static let version = 3
+    static let version = 4
 
     /// Everything a fresh database needs, in the order it must be created.
     static let statements = [
@@ -69,6 +69,11 @@ enum Schema {
         guard current <= version else { throw .newerThanThisBuild(version: current) }
         if current < 2 { try migrateToLowercasedPrefix(database) }
         // Version 3 adds only `entry_recent`, which `statements` has already created above.
+        if current < 4 {
+            try database.transaction { () throws(PredictStoreError) in
+                try migrateToCanonicalSpelling(database)
+            }
+        }
         if current < version {
             try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(version)) }
         }
@@ -82,6 +87,85 @@ enum Schema {
         try database.execute("UPDATE entry SET text_lower = lower(text)")
         try database.execute("DROP INDEX IF EXISTS entry_prefix")
         try database.execute("CREATE INDEX entry_prefix ON entry (surface_id, text_lower)")
+    }
+
+    /// Rewrites every stored line in its canonical encoding, folding the rows that turn out to be one line into one.
+    private static func migrateToCanonicalSpelling(_ database: Database) throws(PredictStoreError) {
+        let entries = try database.rows(
+            "SELECT id, surface_id, text, count, accepted, rejected, self_sourced, last_used FROM entry",
+            { _ in }
+        ) { row in
+            (
+                id: Int64(row.integer(0)), surface: Int64(row.integer(1)), text: row.text(2),
+                count: Int64(row.integer(3)),
+                accepted: Int64(row.integer(4)), rejected: Int64(row.integer(5)),
+                selfSourced: Int64(row.integer(6)),
+                lastUsed: row.double(7)
+            )
+        }
+        for entry in entries where !Spelling.isCanonical(entry.text) {
+            let text = Spelling.canonical(entry.text)
+            let merged = try database.run(
+                """
+                UPDATE entry SET count = count + ?, accepted = accepted + ?, rejected = rejected + ?,
+                  self_sourced = self_sourced + ?, last_used = MAX(last_used, ?)
+                WHERE surface_id = ? AND text = ?
+                """,
+                {
+                    $0.bind(1, entry.count)
+                    $0.bind(2, entry.accepted)
+                    $0.bind(3, entry.rejected)
+                    $0.bind(4, entry.selfSourced)
+                    $0.bind(5, entry.lastUsed)
+                    $0.bind(6, entry.surface)
+                    $0.bind(7, text)
+                })
+            if merged > 0 {
+                try database.run("DELETE FROM entry WHERE id = ?") { $0.bind(1, entry.id) }
+            } else {
+                try database.run("UPDATE entry SET text = ?, text_lower = ? WHERE id = ?") {
+                    $0.bind(1, text)
+                    $0.bind(2, text.lowercased())
+                    $0.bind(3, entry.id)
+                }
+            }
+        }
+        let replacements = try database.rows(
+            "SELECT DISTINCT superseded_by FROM entry WHERE superseded_by IS NOT NULL", { _ in }
+        ) { $0.text(0) }
+        for replacement in replacements where !Spelling.isCanonical(replacement) {
+            try database.run("UPDATE entry SET superseded_by = ? WHERE superseded_by = ?") {
+                $0.bind(1, Spelling.canonical(replacement))
+                $0.bind(2, replacement)
+            }
+        }
+        let successions = try database.rows(
+            "SELECT surface_id, previous, next, count FROM succession", { _ in }
+        ) {
+            (
+                surface: Int64($0.integer(0)), previous: $0.text(1), next: $0.text(2),
+                count: Int64($0.integer(3))
+            )
+        }
+        for pair in successions where !Spelling.isCanonical(pair.previous) || !Spelling.isCanonical(pair.next)
+        {
+            try database.run("DELETE FROM succession WHERE surface_id = ? AND previous = ? AND next = ?") {
+                $0.bind(1, pair.surface)
+                $0.bind(2, pair.previous)
+                $0.bind(3, pair.next)
+            }
+            try database.run(
+                """
+                INSERT INTO succession (surface_id, previous, next, count) VALUES (?, ?, ?, ?)
+                ON CONFLICT (surface_id, previous, next) DO UPDATE SET count = count + excluded.count
+                """,
+                {
+                    $0.bind(1, pair.surface)
+                    $0.bind(2, Spelling.canonical(pair.previous))
+                    $0.bind(3, Spelling.canonical(pair.next))
+                    $0.bind(4, pair.count)
+                })
+        }
     }
 
     /// Whether a table already has a column, so a migration does not add one twice.

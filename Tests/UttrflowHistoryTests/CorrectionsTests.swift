@@ -403,6 +403,19 @@ struct RecordedChangesDecodingTests {
         #expect(try changes("{}").corrections.isEmpty)
     }
 
+    /// A damaged count retires the figure like a missing one, and the corrections beside it survive.
+    @Test("a negative word count reads as no count, keeping the corrections")
+    func negativeSpokenWords() throws {
+        let decoded = try changes("{\"corrections\":[\(Self.stored())],\"snippets\":[],\"spokenWords\":-1}")
+        #expect(decoded.spokenWords == nil)
+        #expect(decoded.correctedWords == 0)
+        #expect(decoded.corrections.count == 1)
+        let built = RecordedChanges(corrections: [made()], spokenWords: -4)
+        #expect(built.spokenWords == nil)
+        #expect(built.correctedWords == 0)
+        #expect(RecordedChanges(spokenWords: 0).spokenWords == 0)
+    }
+
     @Test("the utterance's length survives being written down and read back")
     func roundTripsTheCount() throws {
         let changes = RecordedChanges(corrections: [made()], spokenWords: 12)
