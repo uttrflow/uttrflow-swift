@@ -79,6 +79,16 @@ moment the person returns, because it shares their keyboard.
 
 ## Scorecards
 
+**How a run is scored, from run 11 on.** A fixture whose expectation takes any continuation
+(`Determinacy.any`, the default for chat, notes and mail) has nothing to check a hit against,
+so the report counts its hits as *unjudged*, prints them apart (`hits judged … unjudged …`),
+and leaves them out of precision, which is now read over judged fixtures only. An address or
+search fixture, where `Register.answersFromHistoryAlone` makes the generator refuse by design,
+expects `<none>` instead of the host or phrase. Runs 1 to 10 were scored the old way: their
+precision includes unjudged prose continuations, and their hit rate counts every address and
+search refusal as a miss (138 of the 189 misses in run 10). The next Release run records the
+baseline under this scoring.
+
 | Run | Cases | Hit | In register | p50 | p95 | Reading |
 |---|---|---|---|---|---|---|
 | 1 — 2026-09-05, Release, Gemma 3 4B | 1 090 | 849 (78 %) | 901 (83 %) | 764 ms | 941 ms | chat 87 %, mail 92 %, terminal 85 %; notes 60 %, URL 63 %, SQL 74 %, code 77 %. Of 248 failures, 180 are the model answering with **nothing usable** (`first "-"`) — concentrated on commands, SQL and notes, the shapes a model wraps in backticks or a code fence, which the parser did not strip and the one-line stop cut at; 68 are wrong answers, half of them an address bar treated like a shell (`git` → `git commit -m`, `news.ycombinat` → `news.ycombinator`), which the register now names (`writesAddresses`). The CLI aborts at exit in MLX/Metal teardown (`std::mutex::lock` in a static destructor) after writing its JSON; harmless to the app, noted here so nobody chases it as a run failure. |

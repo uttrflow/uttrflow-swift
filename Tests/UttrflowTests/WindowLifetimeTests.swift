@@ -8,6 +8,7 @@ import UttrflowAccount
 import UttrflowCore
 import UttrflowHistory
 import UttrflowSettings
+import UttrflowTestSupport
 import UttrflowUX
 
 @testable import Uttrflow
@@ -58,7 +59,7 @@ private func drawOffscreen(_ view: some View, size: CGSize) {
 }
 
 @MainActor
-@Suite("A window's model is released with its window")
+@Suite("A window's model is released with its window", .timeLimit(.minutes(1)))
 struct WindowLifetimeTests {
     /// The controller the app builds at launch, over stores that touch nothing on this Mac.
     private func onboardingController() -> OnboardingWindowController {
@@ -91,7 +92,7 @@ struct WindowLifetimeTests {
     }
 
     @Test("an onboarding window drawn five times releases its flow")
-    func drawnOnboardingReleasesItsFlow() async {
+    func drawnOnboardingReleasesItsFlow() async throws {
         weak var flow: OnboardingFlow?
         weak var model: OnboardingModel?
         do {
@@ -108,7 +109,7 @@ struct WindowLifetimeTests {
             }
         }
         // The view's start task holds the flow until it returns, which is a wait and not a cycle.
-        for _ in 0..<200 where flow != nil { try? await Task.sleep(for: .milliseconds(10)) }
+        try await eventually { flow == nil }
         #expect(flow == nil)
         #expect(model == nil)
     }

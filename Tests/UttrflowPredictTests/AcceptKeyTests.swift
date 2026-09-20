@@ -1,4 +1,5 @@
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 
@@ -13,7 +14,7 @@ struct AcceptKeyTests {
         "A terminal gets the right arrow, because Tab there is the shell's own completion.",
         arguments: [
             "com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty",
-            "net.kovidgoyal.kitty", "io.alacritty", "com.github.wez.wezterm",
+            "net.kovidgoyal.kitty", "org.alacritty", "com.github.wez.wezterm",
             "dev.warp.Warp-Stable", "co.zeit.hyper", "org.tabby",
         ])
     func terminalsGetTheRightArrow(bundleIdentifier: String) {
@@ -47,6 +48,40 @@ struct AcceptKeyTests {
         ])
     func editorsGetOptionTab(bundleIdentifier: String) {
         #expect(AcceptKeys.standard.key(forBundleIdentifier: bundleIdentifier) == .optionTab)
+    }
+
+    @Test(
+        "A query editor gets Option-Tab too, since its Tab indents or completes SQL.",
+        arguments: ["com.jetbrains.datagrip", "com.tinyapp.TablePlus", "org.jkiss.dbeaver.core.product"])
+    func queryEditorsGetOptionTab(bundleIdentifier: String) {
+        #expect(AcceptKeys.standard.key(forBundleIdentifier: bundleIdentifier) == .optionTab)
+    }
+
+    @Test(
+        "Every terminal to AI suggestions is a terminal to dictation, and every terminal row is one to suggestions."
+    )
+    func terminalsAgreeWithTheDestinationTable() {
+        for prefix in TerminalApplications.bundleIdentifierPrefixes {
+            #expect(
+                DestinationClassifier.rule(for: AppContext(bundleIdentifier: prefix))?.kind == .terminal,
+                "\(prefix) is a terminal to suggestions and not to dictation")
+        }
+        let rows = DestinationRules.standard.filter { $0.kind == .terminal }
+        for prefix in rows.flatMap(\.bundlePrefixes) {
+            #expect(TerminalApplications.contains(prefix), "\(prefix) is a terminal to dictation only")
+        }
+    }
+
+    @Test(
+        "Every editor to AI suggestions is an editor to dictation, so a dictation there is laid out as code.")
+    func editorsAgreeWithTheDestinationTable() {
+        let editors = DestinationRules.bundlePrefixes(of: [.codeEditor, .sqlEditor])
+        #expect(!editors.isEmpty)
+        for prefix in editors {
+            #expect(AcceptKeys.standard.key(forBundleIdentifier: prefix) == .optionTab)
+            let kind = DestinationClassifier.rule(for: AppContext(bundleIdentifier: prefix))?.kind
+            #expect(kind == .codeEditor || kind == .sqlEditor, "\(prefix) is an editor to suggestions only")
+        }
     }
 
     @Test("A bundle identifier is matched whatever its case, since macOS is inconsistent about it.")

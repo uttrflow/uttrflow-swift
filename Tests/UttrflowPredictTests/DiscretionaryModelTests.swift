@@ -31,6 +31,8 @@ private final class RecordingModel: ReleasableModel, Sendable {
         onProgress(1)
     }
 
+    func reload() async throws { note("reload") }
+
     func release() async { note("release") }
 }
 
@@ -77,5 +79,20 @@ struct DiscretionaryModelTests {
         try await model.prepare(onProgress: { _ in })
         await model.release()
         #expect(inner.seen.map(\.0) == ["prepare", "release"])
+    }
+
+    @Test("scores nothing while a dictation is under way, and scores again once it ends")
+    func refusesScoresWhileDictating() async {
+        let inner = RecordingModel()
+        let activity = DictationInProgress()
+        let model = DiscretionaryModel(inner, mayRun: { !activity.isDictating })
+
+        activity.set(dictating: true)
+        #expect(await model.logLikelihood(of: "see you soon", following: "see you") == nil)
+        #expect(inner.seen.isEmpty)
+
+        activity.set(dictating: false)
+        #expect(await model.logLikelihood(of: "see you soon", following: "see you") != nil)
+        #expect(inner.seen.map(\.0) == ["score"])
     }
 }

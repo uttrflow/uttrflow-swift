@@ -50,6 +50,10 @@ match-audit: ## Prove no source file gained a word match decided by shape. Needs
 match-report: ## List the word matches still decided by shape, with the line.
 	@python3 Scripts/loose_match_audit.py --report
 
+.PHONY: ratchet-test
+ratchet-test: ## Prove the comment and word-match baselines refuse a rise without --after-merge. Needs no build.
+	@python3 Scripts/audit_ratchet_test.py
+
 .PHONY: docs-audit
 docs-audit: ## Prove the documentation still describes this tree. Needs no build.
 	./Scripts/docs_audit.sh
@@ -60,7 +64,7 @@ pii-audit: ## Prove no personal data is in the tree. Needs no build.
 
 .PHONY: log-audit
 log-audit: ## Prove no log message carries text a person typed, read or said. Needs no build.
-	@python3 Scripts/log_privacy_audit.py
+	@python3 Scripts/log_privacy_audit.py --self-test
 
 .PHONY: perf-budget
 perf-budget: ## Prove the source keeps to the energy and memory budget, and that each check still bites. No build.
@@ -102,7 +106,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit disclosure-audit docs-audit comment-audit match-audit log-audit pasteboard-audit perf-budget lint build coverage offline-audit ## The whole gate: PII, disclosure, docs, comments, word matches, log privacy, clipboard, energy and memory budget, lint, build, tests, coverage floor, offline audit.
+verify: pii-audit disclosure-audit docs-audit comment-audit match-audit ratchet-test log-audit pasteboard-audit perf-budget lint build coverage offline-audit ## The whole gate: PII, disclosure, docs, comments, word matches, log privacy, clipboard, energy and memory budget, lint, build, tests, coverage floor, offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.

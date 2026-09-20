@@ -13,8 +13,10 @@ private let vocabulary = [
 private let marks = [
     "\u{200E}", "\u{200F}", "\u{202A}", "\u{202C}", "\u{FEFF}", "\u{00AD}", "\u{0007}", "\u{000E}",
     "\u{200B}",
-    "\t", "\n",
 ]
+
+/// Line breaks and tabs, which part two words as a space does.
+private let separators = ["\t", "\n", "\r\n", "\r", "\u{000B}", "\u{000C}", "\u{0085}"]
 
 /// Every role a random window may hand out, text roles and skipped roles among them.
 private let roles: [String?] = [
@@ -116,7 +118,9 @@ private struct Window {
             var text = random.pick(["", " ", "  ", "\t"])
             for _ in 0..<count {
                 text += random.pick(vocabulary)
-                text += random.chance(0.2) ? random.pick(marks) : " "
+                text +=
+                    random.chance(0.2)
+                    ? random.pick(marks) : random.chance(0.2) ? random.pick(separators) : " "
             }
             return text + "#\(id)" + random.pick(["", " ", "\n", "\u{200E}"])
         }
@@ -246,13 +250,17 @@ private struct Oracle {
         if direction == .backward, let said, !read.isDone { runs.append(read.take(said, direction)) }
     }
 
-    /// The text as a person reads it: no control or format marks, no surrounding whitespace, the tail kept.
+    /// The text as a person reads it: separators as one space, no other control or format marks, trimmed, the tail kept.
     private static func cleaned(_ text: String?) -> String? {
         guard let text else { return nil }
+        let breaks: Set<Unicode.Scalar> = ["\t", "\n", "\r", "\u{000B}", "\u{000C}", "\u{0085}"]
         let scalars = text.unicodeScalars.filter {
-            $0.properties.generalCategory != .control && $0.properties.generalCategory != .format
+            breaks.contains($0)
+                || ($0.properties.generalCategory != .control && $0.properties.generalCategory != .format)
         }
-        var clean = Substring(String(scalars))
+        // Every run of breaks between two pieces of text becomes one space.
+        let pieces = String.UnicodeScalarView(scalars).split(whereSeparator: breaks.contains)
+        var clean = Substring(pieces.map { String(String.UnicodeScalarView($0)) }.joined(separator: " "))
         while clean.first?.isWhitespace == true { clean.removeFirst() }
         while clean.last?.isWhitespace == true { clean.removeLast() }
         return clean.isEmpty ? nil : String(clean.suffix(Surroundings.maximumCharactersPerElement))

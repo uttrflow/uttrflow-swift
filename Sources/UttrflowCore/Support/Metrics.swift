@@ -41,6 +41,14 @@ public struct StageMeasurement: Sendable, Equatable {
 public protocol MetricsRecording: Sendable {
     /// Keeps one measurement.
     func record(_ measurement: StageMeasurement) async
+
+    /// Keeps what one piece cost the recogniser beyond a single decode.
+    func recordDecoding(_ effort: DecodeEffort) async
+}
+
+extension MetricsRecording {
+    /// Most recorders care only about timings, so reporting decode effort is optional.
+    public func recordDecoding(_ effort: DecodeEffort) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -70,6 +78,25 @@ extension MetricsRecording {
             throw error
         }
     }
+
+    /// Times a stage run under `withStageTimeout`, recording its `nil` for an expiry as a failure.
+    public func measuringInTime<Success, Failure: Error>(
+        _ stage: PipelineStage,
+        clock: some Clock<Duration>,
+        isolation: isolated (any Actor)? = #isolation,
+        operation: () async throws(Failure) -> Success?
+    ) async throws(Failure) -> Success? {
+        let start = clock.now
+        do {
+            let value = try await operation()
+            await record(
+                .init(stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil))
+            return value
+        } catch {
+            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            throw error
+        }
+    }
 }
 
 /// Adds up every measurement of a stage, so a dictation done in pieces reports one figure per stage.
@@ -90,6 +117,13 @@ public actor StageTally: MetricsRecording {
             succeeded: (previous?.succeeded ?? true) && measurement.succeeded)
     }
 
+    /// What each piece cost the recogniser beyond one decode, kept per piece rather than added up.
+    private var decoding: [DecodeEffort] = []
+
+    public func recordDecoding(_ effort: DecodeEffort) {
+        decoding.append(effort)
+    }
+
     /// One total per stage that was measured, in the order the journey runs.
     public var measurements: [StageMeasurement] {
         PipelineStage.allCases.compactMap { totals[$0] }
@@ -98,6 +132,7 @@ public actor StageTally: MetricsRecording {
     /// Hands every total on as a single measurement.
     public func report(to recorder: any MetricsRecording) async {
         for measurement in measurements { await recorder.record(measurement) }
+        for effort in decoding { await recorder.recordDecoding(effort) }
     }
 }
 

@@ -60,3 +60,12 @@ member, through aliases such as `Color.panelAccent` or `Color.mainBackground`; n
 Where two views draw the same value they point at the same member, so the dock's live accent
 and the quick panel's accent cannot drift apart. `NSColor.orbit(_:)` in `OrbitPalette.swift`
 resolves a pair per appearance. `BrandPaletteTests` pins the primary teal and secondary purple.
+
+Text that carries a status is drawn in an ink, never in a fill. The semantic fills — `warning`,
+`success`, `recording` and the teal `deep` — are bright single values that sit near 2:1 on a
+light card, which is fine for a dot, an icon or a filled button and unreadable as words. The inks
+`Semantic.warningInk`, `successInk`, `criticalInk` and `Teal.ink` are pairs that clear WCAG AA's
+4.5:1 on a card, on the ground and on their own 16% pill wash in both appearances, reached as
+`Color.warningInk`, `successInk`, `criticalInk` and `accentInk` and through `MainTone.foreground`.
+`SemanticInkContrastTests` computes those ratios, so a palette edit that drops one below 4.5:1
+fails.
