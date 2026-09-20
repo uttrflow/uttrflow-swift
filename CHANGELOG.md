@@ -22,6 +22,8 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **The first dictation after an idle spell is tidied by a session warmed during that dictation.**
+  A prepared session older than a minute is replaced at key-down instead of being used cold (#876).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
   left the stack a little deeper, so after about 2,500 presses — and again when the
   keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
