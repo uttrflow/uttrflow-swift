@@ -165,7 +165,9 @@ struct ModelDownloadTests {
     )
     func weightsGoneMissingAreAskedForAgain() async {
         let asks = Asks()
-        let app = AppDelegate(container: Sandbox().root, prepareModel: { _ in await asks.asked() })
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, prepareModel: { _ in await asks.asked() })
         app.suggestionModelWentMissing()
         #expect(app.suggestionModel == .notAsked)
 

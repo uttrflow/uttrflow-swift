@@ -30,7 +30,8 @@ struct DiagnosticsEngineProbeTests {
 
     @Test("and every kind gets an answer, not only the ones that said yes")
     func everyKindIsAnswered() async {
-        let app = AppDelegate(container: Sandbox().root)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
         let answered = await probed(app)
 
         for kind in TransformerKind.allCases {

@@ -43,4 +43,18 @@ struct FuzzyScanBoundTests {
 
         #expect(found.map(\.text) == ["git status"])
     }
+
+    /// Query and candidate are both measured in scalars, so a line of multi-byte characters is scanned at its own length (#1026).
+    @Test("a typo in a line of multi-byte characters still matches what was learned")
+    func aTypoInMultiByteTextStillMatches() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record(
+            "café naïve résumé commit", in: Self.surface("/work/1"), at: Self.moment)
+
+        let found = try await store.candidates(
+            for: Self.surface("/work/1"), matching: "café naïve résumé comit")
+
+        #expect(found.map(\.text) == ["café naïve résumé commit"])
+    }
 }
