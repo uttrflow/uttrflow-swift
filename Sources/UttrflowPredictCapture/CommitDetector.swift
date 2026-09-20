@@ -73,26 +73,28 @@ public struct CommitDetector: Sendable, Equatable {
         text.contains(" ")
     }
 
-    /// Takes one event and answers with the value to record, which is nothing almost every time.
-    public mutating func receive(_ event: CaptureEvent) -> Commit? {
+    /// Takes one event and answers with the value to record, remembering only an ending `admits` lets through.
+    public mutating func receive(
+        _ event: CaptureEvent, admitting admits: (CommitReason) -> Bool = { _ in true }
+    ) -> Commit? {
         switch event {
         case .keystroke(let text, let moment):
             pending = text.trimmingCharacters(in: .whitespacesAndNewlines)
             lastKeystroke = moment
             return nil
         case .returnPressed:
-            return finish(.returnPressed)
+            return finish(.returnPressed, admits)
         case .focusLeft:
-            return finish(.focusLeft)
+            return finish(.focusLeft, admits)
         case .applicationDeactivated:
-            return finish(.applicationDeactivated)
+            return finish(.applicationDeactivated, admits)
         case .tick(let moment):
             guard let lastKeystroke,
                 moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval,
                 // A fragment still being typed is left to Return or a focus change, not to the timer.
                 Self.looksComplete(pending)
             else { return nil }
-            return commit(.wentIdle)
+            return commit(.wentIdle, admits)
         }
     }
 
@@ -104,14 +106,14 @@ public struct CommitDetector: Sendable, Equatable {
     }
 
     /// Commits and then forgets, for the three events that end the field's life.
-    private mutating func finish(_ reason: CommitReason) -> Commit? {
+    private mutating func finish(_ reason: CommitReason, _ admits: (CommitReason) -> Bool) -> Commit? {
         defer { reset() }
-        return commit(reason)
+        return commit(reason, admits)
     }
 
-    /// Emits what is pending, unless it is nothing or is exactly what was emitted last.
-    private mutating func commit(_ reason: CommitReason) -> Commit? {
-        guard !pending.isEmpty, pending != committed else { return nil }
+    /// Emits what is pending, unless it is nothing, is exactly what was emitted last, or ended in a way not admitted.
+    private mutating func commit(_ reason: CommitReason, _ admits: (CommitReason) -> Bool) -> Commit? {
+        guard !pending.isEmpty, pending != committed, admits(reason) else { return nil }
         // An idle draft is retired by whatever the line became, even after it was backspaced away.
         let superseded = committed
         committed = pending

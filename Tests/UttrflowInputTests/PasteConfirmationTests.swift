@@ -188,3 +188,121 @@ struct PasteConfirmationTests {
         #expect(await confirmation.waitFor("dictated words") == .landed(.milliseconds(520)))
     }
 }
+
+/// A clock whose sleep lasts until its task is cancelled, then throws, time moving to its deadline.
+private final class CancellableClock: Clock, Sendable {
+    typealias Instant = ScriptedClock.Instant
+
+    private struct State {
+        var waiting: CheckedContinuation<Void, any Error>?
+        var cancelled = false
+        var offset = Duration.zero
+    }
+
+    private let state = Mutex(State())
+    /// Yields each time a sleep begins, which is when a test may cancel.
+    let sleeps: AsyncStream<Void>
+    private let started: AsyncStream<Void>.Continuation
+
+    init() {
+        (sleeps, started) = AsyncStream.makeStream()
+    }
+
+    var now: Instant { Instant(offset: state.withLock { $0.offset }) }
+    var minimumResolution: Duration { .nanoseconds(1) }
+
+    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+        defer { state.withLock { $0.offset = max($0.offset, deadline.offset) } }
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Void, any Error>) in
+                let cancelled = state.withLock { state -> Bool in
+                    if !state.cancelled { state.waiting = continuation }
+                    return state.cancelled
+                }
+                if cancelled { continuation.resume(throwing: CancellationError()) }
+                started.yield()
+            }
+        } onCancel: {
+            let waiting = state.withLock { state -> CheckedContinuation<Void, any Error>? in
+                state.cancelled = true
+                defer { state.waiting = nil }
+                return state.waiting
+            }
+            waiting?.resume(throwing: CancellationError())
+        }
+    }
+}
+
+/// A field that never takes the paste and cancels the task reading it on the given read.
+private final class CancellingFocus: AccessibilityFocus, @unchecked Sendable {
+    private let reads = Mutex(0)
+    private let cancelOn: Int
+
+    init(cancelOn: Int) { self.cancelOn = cancelOn }
+
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func precedingText(_ count: Int) -> String? { nil }
+
+    func tail(upTo count: Int) -> FieldTail {
+        let read = reads.withLock { reads -> Int in
+            reads += 1
+            return reads
+        }
+        if read == cancelOn { withUnsafeCurrentTask { $0?.cancel() } }
+        return .text("what was already there")
+    }
+
+    var readCount: Int { reads.withLock { $0 } }
+}
+
+@Suite("PasteConfirmation, cancelled")
+struct PasteConfirmationCancellationTests {
+    @Test("a task cancelled before it starts reads nothing")
+    func cancelledOnEntry() async {
+        let focus = CancellingFocus(cancelOn: 0)
+        let confirmation = PasteConfirmation(focus: focus, clock: CancellableClock())
+        let task = Task { () -> PasteConfirmation.Outcome in
+            while !Task.isCancelled { await Task.yield() }
+            return await confirmation.waitFor("dictated words")
+        }
+        task.cancel()
+
+        #expect(await task.value == .cancelled(.zero))
+        #expect(focus.readCount == 0)
+    }
+
+    @Test("cancelling during the wait between reads stops it without another read")
+    func cancelledWhileSleeping() async {
+        let focus = CancellingFocus(cancelOn: 0)
+        let clock = CancellableClock()
+        let confirmation = PasteConfirmation(focus: focus, clock: clock)
+        let task = Task { await confirmation.waitFor("dictated words") }
+        for await _ in clock.sleeps { break }
+        task.cancel()
+
+        #expect(await task.value == .cancelled(PasteConfirmation.interval))
+        #expect(focus.readCount == 1, "only the read before the first wait")
+    }
+
+    @Test("a clock that does not throw on cancellation still stops the reads")
+    func cancelledWithAQuietClock() async {
+        let focus = CancellingFocus(cancelOn: 2)
+        let clock = ScriptedClock()
+        let confirmation = PasteConfirmation(focus: focus, clock: clock)
+        let outcome = await Task { await confirmation.waitFor("dictated words") }.value
+
+        guard case .cancelled = outcome else {
+            Issue.record("expected a cancelled wait, got \(outcome)")
+            return
+        }
+        #expect(focus.readCount == 2)
+    }
+
+    @Test("a cancelled wait is reported upwards as unconfirmed, never as confirmed")
+    func cancelledIsUnconfirmed() {
+        #expect(InsertionArrival(.cancelled(.milliseconds(40))) == .unconfirmed)
+    }
+}

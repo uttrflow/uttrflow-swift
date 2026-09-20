@@ -79,6 +79,77 @@ struct PromptAlignedSegmentSeekerTests {
         #expect(try PromptAlignedSegmentSeeker.rows(of: weights, from: 0) === weights)
     }
 
+    // MARK: Padded rows
+
+    /// A width WhisperKit's own buffers use, which an IOSurface pads to 1504 elements a row.
+    static let paddedColumns = 1500
+
+    /// A float16 buffer made the way WhisperKit makes its alignment weights, each row's first element its row number.
+    private static func upstreamWeights(rows: Int, columns: Int) throws -> MLMultiArray {
+        let weights = try MLMultiArray(
+            shape: [NSNumber(value: rows), NSNumber(value: columns)], dataType: .float16,
+            initialValue: FloatType(0))
+        for row in 0..<rows {
+            weights[[NSNumber(value: row), 0]] = NSNumber(value: row)
+            weights[[NSNumber(value: row), NSNumber(value: columns - 1)]] = NSNumber(value: row + 1000)
+        }
+        return weights
+    }
+
+    @Test("reads a padded upstream buffer by its rows, keeping every retained row and zeroing the tail")
+    func shiftsPaddedRows() throws {
+        let rows = 224
+        let first = 4
+        let weights = try Self.upstreamWeights(rows: rows, columns: Self.paddedColumns)
+        let shifted = try PromptAlignedSegmentSeeker.rows(of: weights, from: first)
+
+        #expect(weights.strides[0].intValue > Self.paddedColumns, "the fixture must have padded rows")
+        #expect(shifted.shape == weights.shape)
+        for row in 0..<(rows - first) {
+            #expect(shifted[[NSNumber(value: row), 0]].intValue == row + first)
+            #expect(
+                shifted[[NSNumber(value: row), NSNumber(value: Self.paddedColumns - 1)]].intValue
+                    == row + first + 1000)
+        }
+        for row in (rows - first)..<rows {
+            #expect(shifted[[NSNumber(value: row), 0]].intValue == 0)
+            #expect(shifted[[NSNumber(value: row), NSNumber(value: Self.paddedColumns - 1)]].intValue == 0)
+        }
+    }
+
+    @Test("reads a column-major buffer element by element")
+    func shiftsAColumnMajorBuffer() throws {
+        let rows = 5
+        let columns = 3
+        let storage = UnsafeMutablePointer<Float>.allocate(capacity: rows * columns)
+        for row in 0..<rows {
+            for column in 0..<columns { storage[column * rows + row] = Float(row * 10 + column) }
+        }
+        let weights = try MLMultiArray(
+            dataPointer: storage, shape: [NSNumber(value: rows), NSNumber(value: columns)],
+            dataType: .float32, strides: [1, NSNumber(value: rows)],
+            deallocator: { $0.deallocate() })
+        let shifted = try PromptAlignedSegmentSeeker.rows(of: weights, from: 2)
+
+        for row in 0..<3 {
+            for column in 0..<columns {
+                #expect(
+                    shifted[[NSNumber(value: row), NSNumber(value: column)]].floatValue
+                        == Float((row + 2) * 10 + column))
+            }
+        }
+        #expect(shifted[[4, 2]].floatValue == 0)
+    }
+
+    @Test(
+        "sizes an element from its data type",
+        arguments: [
+            (MLMultiArrayDataType.float16, 2), (.float32, 4), (.double, 8), (.int32, 4),
+        ])
+    func elementSizes(dataType: MLMultiArrayDataType, bytes: Int) {
+        #expect(PromptAlignedSegmentSeeker.elementBytes(of: dataType) == bytes)
+    }
+
     // MARK: What the user gets
 
     /// WhisperKit reads row zero as the transcript's first token, which behind a prompt is the start-of-previous token.
@@ -89,6 +160,21 @@ struct PromptAlignedSegmentSeekerTests {
         let prompted = try Self.words(
             seeker: PromptAlignedSegmentSeeker(transcriptStart: Self.transcriptStart),
             weights: Self.weights(transcriptAt: Self.transcriptStart))
+
+        #expect(!unprompted.isEmpty)
+        #expect(prompted == unprompted)
+    }
+
+    /// The same timings when the prompted weights come in WhisperKit's own padded buffer, as they do in the app.
+    @Test("times a prompted transcript's words the same from a padded upstream buffer")
+    func timesWordsFromAPaddedBuffer() throws {
+        let unprompted = try Self.words(
+            seeker: SegmentSeeker(),
+            weights: Self.weights(transcriptAt: 0, columns: Self.paddedColumns))
+        let prompted = try Self.words(
+            seeker: PromptAlignedSegmentSeeker(transcriptStart: Self.transcriptStart),
+            weights: Self.weights(
+                transcriptAt: Self.transcriptStart, columns: Self.paddedColumns, upstream: true))
 
         #expect(!unprompted.isEmpty)
         #expect(prompted == unprompted)
@@ -138,6 +224,25 @@ struct PromptAlignedSegmentSeekerTests {
             appendPunctuations: Constants.defaultAppendPunctuations, lastSpeechTimestamp: 0,
             options: DecodingOptions(), timings: TranscriptionTimings())
         return segments?.flatMap { $0.words ?? [] } ?? []
+    }
+
+    /// The fixture's weights in a buffer `columns` wide, written by logical index so a padded upstream buffer holds the same values.
+    private static func weights(
+        transcriptAt start: Int, columns: Int, upstream: Bool = false
+    ) throws -> MLMultiArray {
+        let shape = [NSNumber(value: rowCount), NSNumber(value: columns)]
+        let weights =
+            upstream
+            ? try MLMultiArray(shape: shape, dataType: .float16, initialValue: FloatType(0))
+            : try MLMultiArray(shape: shape, dataType: .float16)
+        for row in 0..<rowCount {
+            for column in 0..<columns { weights[[NSNumber(value: row), NSNumber(value: column)]] = 0 }
+        }
+        for row in 0..<start { weights[[NSNumber(value: row), NSNumber(value: columns - 1)]] = 1 }
+        for token in 0..<segmentTokens.count {
+            weights[[NSNumber(value: start + token), NSNumber(value: 12 * token)]] = 1
+        }
+        return weights
     }
 
     /// Alignment weights with the transcript's tokens marching across the audio from `start`, and a prompt looking at the end before it.

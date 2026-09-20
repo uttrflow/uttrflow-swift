@@ -89,7 +89,7 @@ public enum Verification {
 
     /// The nearest name the machine knows, when one slip cheap enough explains the difference.
     public static func nearestNeighbour(of word: String, among known: Set<String>) -> String? {
-        let typed = Array(word.utf8)
+        let typed = FuzzyMatch.units(word)
         guard FuzzyMatch.budget(forQueryOfLength: typed.count) > 0 else { return nil }
         let width = FuzzyMatch.maskWidth(forQueryOfLength: typed.count, within: 1)
         let queryMask = FuzzyMatch.mask(typed)
@@ -100,8 +100,7 @@ public enum Verification {
         for candidate in known.sorted() {
             // A difference only of case is not a typo, so it is never corrected or superseded.
             guard candidate.lowercased() != lowered else { continue }
-            let bytes = Array(candidate.utf8)
-            let mask = FuzzyMatch.mask(bytes.prefix(width))
+            let mask = FuzzyMatch.mask(FuzzyMatch.units(candidate).prefix(width))
             guard FuzzyMatch.couldMatch(query: queryMask, candidate: mask, within: 1) else { continue }
             let score = TypoModel.logLikelihood(typed: word, meant: candidate)
             guard score >= -correctionCeiling, score > bestScore else { continue }

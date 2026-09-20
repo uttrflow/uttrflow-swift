@@ -31,6 +31,8 @@ private final class RecordingModel: ReleasableModel, Sendable {
         onProgress(1)
     }
 
+    func reload() async throws { note("reload") }
+
     func release() async { note("release") }
 }
 

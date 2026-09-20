@@ -51,28 +51,31 @@ private final class WatchingCleaner: TranscriptCleaning, Sendable {
 private actor GatedContextEngine: ContextEngine {
     private let first: AppContext
     private let then: AppContext
-    private var open = false
+    private let gate: AsyncStream<Void>
+    private let opener: AsyncStream<Void>.Continuation
     private(set) var reads = 0
-    private(set) var answered = 0
+    /// Fires each time a read answers.
+    let answered = Signal()
 
     init(first: AppContext, then: AppContext) {
         self.first = first
         self.then = then
+        (gate, opener) = AsyncStream.makeStream()
     }
 
     func currentContext() async -> AppContext {
         reads += 1
         guard reads == 1 else {
-            answered += 1
+            answered.fire()
             return then
         }
-        while !open { try? await Task.sleep(for: .milliseconds(1)) }
-        answered += 1
+        for await _ in gate { break }
+        answered.fire()
         return first
     }
 
     func release() {
-        open = true
+        opener.yield()
     }
 }
 
@@ -127,7 +130,7 @@ extension DictationState {
 
 // MARK: - Tests
 
-@Suite("Dictation pipeline: the settings a dictation runs under")
+@Suite("Dictation pipeline: the settings a dictation runs under", .timeLimit(.minutes(1)))
 struct DictationPipelineSettingsTests {
     private let slack = AppContext.fixture(
         applicationName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap",
@@ -195,7 +198,7 @@ struct DictationPipelineSettingsTests {
 
     /// The screen read for a dictation the user gave up on must not decide the words of the next one.
     @Test("a screen read for an abandoned dictation does not land in the one that follows it")
-    func earlyReadCannotOutliveItsDictation() async {
+    func earlyReadCannotOutliveItsDictation() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.onePiece))
         await capture.setCaptured(Take.onePiece)
         let cleaner = WatchingCleaner()
@@ -218,10 +221,10 @@ struct DictationPipelineSettingsTests {
         await pipeline.cancel()
         await pipeline.startRecording()
         // The second dictation reads its own screen; only then is the abandoned read let go.
-        while await context.answered < 1 { try? await Task.sleep(for: .milliseconds(1)) }
+        try await arrival(of: context.answered.fired)
         await context.release()
         // Both reads kept or dropped, so the abandoned one has had its chance to land.
-        while await pipeline.earlyReadsSettled < 2 { try? await Task.sleep(for: .milliseconds(1)) }
+        try await eventually { await pipeline.earlyReadsSettled >= 2 }
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.outcome?.insertedInto == "Notes")
