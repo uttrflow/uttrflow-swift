@@ -12,6 +12,8 @@ final class DockViewModel {
     var presentation: DockPresentation
     /// How the shortcut reads on a keycap, for example "⌥Space".
     var shortcut: String
+    /// Why the shortcut cannot be heard right now, shown in place of the keycap when set.
+    var shortcutUnheard: String?
     /// Which edge the button is parked on, so the button stays nearest that edge as the form grows.
     var anchor: DockAnchor
     var isHovering = false
@@ -126,15 +128,25 @@ struct DockView: View {
         let orbLeads = model.anchor == .bottomLeft
         return HStack(spacing: 9) {
             if orbLeads { orb() }
-            HStack(spacing: 8) {
-                Text("Dictate")
+            if let unheard = model.shortcutUnheard {
+                Text(unheard)
                     .font(.system(size: DockMetrics.bodySize))
-                keycap(model.shortcut)
+                    .frame(width: DockMetrics.unheardWidth, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 15)
+                    .padding(.vertical, 9)
+                    .glass(cornerRadius: DockMetrics.hintHeight / 2)
+            } else {
+                HStack(spacing: 8) {
+                    Text("Dictate")
+                        .font(.system(size: DockMetrics.bodySize))
+                    keycap(model.shortcut)
+                }
+                .fixedSize()
+                .padding(.horizontal, 15)
+                .frame(height: DockMetrics.hintHeight)
+                .glass(cornerRadius: DockMetrics.hintHeight / 2)
             }
-            .fixedSize()
-            .padding(.horizontal, 15)
-            .frame(height: DockMetrics.hintHeight)
-            .glass(cornerRadius: DockMetrics.hintHeight / 2)
             if !orbLeads { orb() }
         }
         .padding(DockMetrics.gripHitPadding)
@@ -153,9 +165,24 @@ struct DockView: View {
         .glass(cornerRadius: DockMetrics.orbSize / 2)
     }
 
-    /// Listening: the mark on the anchored edge and a live meter, with no words and no clock.
+    /// Listening: the mark on the anchored edge and a live meter, and the time left once the cap is near.
     private func listening() -> some View {
-        compact { LevelMeterView(model: model, towardsLeading: $0) }
+        compact { towardsLeading in
+            // On the far side of the meter from the mark, so the mark stays on the anchored edge.
+            if !towardsLeading { remainingTime() }
+            LevelMeterView(model: model, towardsLeading: towardsLeading)
+            if towardsLeading { remainingTime() }
+        }
+    }
+
+    /// The countdown to the cap, drawn only once the presenter has one to say.
+    @ViewBuilder private func remainingTime() -> some View {
+        if let remaining = model.presentation.secondaryLine {
+            Text(remaining)
+                .font(.system(size: DockMetrics.footnoteSize, weight: .medium))
+                .monospacedDigit()
+                .fixedSize()
+        }
     }
 
     /// Working: three dots walking left to right, for as long as there is work left to do.
@@ -199,14 +226,14 @@ struct DockView: View {
 
     // MARK: - Notices
 
-    /// Finished: a 26-point disc for the quiet outcomes, and the wide form for the one that needs an action.
+    /// Finished: a 26-point disc for an insertion, a small pill with words for the quiet outcomes, and the wide form for the one that needs an action.
     @ViewBuilder
     private func notice(_ presentation: DockPresentation, primaryLine: String) -> some View {
         switch presentation.symbolName {
         case "checkmark":
             badgeForm { MarkTick() }
         case "waveform.slash":
-            badgeForm { StruckLevel() }
+            quietNotice(Self.restingWords(for: presentation) ?? primaryLine)
         case "doc.on.clipboard":
             clipboardNotice(presentation)
         default:
@@ -214,7 +241,34 @@ struct DockView: View {
         }
     }
 
-    /// The 26-point disc the quiet outcomes are drawn in.
+    /// The words a quiet outcome shows without the pointer over it, or `nil` for a form that shows none.
+    static func restingWords(for presentation: DockPresentation) -> String? {
+        switch presentation.symbolName {
+        case "waveform.slash": presentation.primaryLine
+        case "doc.on.clipboard": "Copied, not typed"
+        default: nil
+        }
+    }
+
+    /// Nothing heard, or too little: the struck level with the sentence that says so, readable at rest.
+    private func quietNotice(_ words: String) -> some View {
+        HStack(spacing: 8) {
+            StruckLevel()
+            Text(words)
+                .font(.system(size: DockMetrics.footnoteSize + 1))
+                .opacity(0.72)
+                .lineLimit(2)
+                .frame(maxWidth: DockMetrics.quietTextMaxWidth, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .frame(minHeight: DockMetrics.clipboardHeight)
+        .glass(cornerRadius: DockMetrics.clipboardHeight / 2)
+        .padding(DockMetrics.gripHitPadding)
+    }
+
+    /// The 26-point disc an insertion is drawn in.
     private func badgeForm(@ViewBuilder _ content: () -> some View) -> some View {
         content()
             .frame(width: DockMetrics.badgeSize, height: DockMetrics.badgeSize)
@@ -222,22 +276,25 @@ struct DockView: View {
             .padding(DockMetrics.gripHitPadding)
     }
 
-    /// Copied rather than typed: ⌘V at rest, with the reason and the fix under the pointer.
+    /// Copied rather than typed: ⌘V and the words saying so at rest, with the reason and the fix under the pointer.
     private func clipboardNotice(_ presentation: DockPresentation) -> some View {
         HStack(spacing: 8) {
             keycap("⌘V")
-                .foregroundStyle(Color.dockWarning)
-            if model.isHovering {
+                .foregroundStyle(Color.dockWarningInk)
+            if model.isHovering, let action = presentation.action {
                 Text("Typing is blocked — paste it")
                     .font(.system(size: DockMetrics.footnoteSize + 1))
                     .opacity(0.6)
                     .fixedSize()
-                if let action = presentation.action {
-                    Button("Fix") { onRecovery(action) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .fixedSize()
-                }
+                Button("Fix") { onRecovery(action) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .fixedSize()
+            } else if let words = Self.restingWords(for: presentation) {
+                Text(words)
+                    .font(.system(size: DockMetrics.footnoteSize + 1))
+                    .opacity(0.72)
+                    .fixedSize()
             }
         }
         .padding(.horizontal, 9)
@@ -250,7 +307,7 @@ struct DockView: View {
     /// The one state with something for the reader to do, and the only wide form; the message wraps rather than truncates.
     private func blocked(_ presentation: DockPresentation, primaryLine: String) -> some View {
         HStack(spacing: DockMetrics.noticeSpacing) {
-            Badge(symbolName: presentation.symbolName, tint: .dockWarning)
+            Badge(symbolName: presentation.symbolName, tint: .dockWarningFill)
             VStack(alignment: .leading, spacing: 2) {
                 Text(primaryLine)
                     .font(.system(size: DockMetrics.bodySize, weight: .medium))
@@ -318,7 +375,7 @@ struct DockView: View {
         case .openSystemSettings: "Open Settings"
         case .retry: "Try Again"
         case .downloadSpeechModel: "Download"
-        case .pasteManually: "Paste"
+        case .pasteManually: "Dismiss"
         case .showRecentDictations: "Show Recent"
         case .retryFromRecording: "Retry"
         }
@@ -338,14 +395,18 @@ enum DockMetrics {
     /// Invisible, hoverable margin around every form, and the room the shadow needs.
     static let gripHitPadding: CGFloat = 6
     static let hintHeight: CGFloat = 30
+    /// How wide the hint grows to say why the shortcut cannot be heard, which wraps over a few lines.
+    static let unheardWidth: CGFloat = 240
     static let orbSize: CGFloat = 30
     /// Listening and working share this, so the panel cannot change shape when the key is released.
     static let compactHeight: CGFloat = 32
     static let weightSize: CGFloat = 22
     static let weightMarkHeight: CGFloat = 10
-    /// The quiet outcomes — inserted, and nothing heard.
+    /// The disc an insertion is drawn in.
     static let badgeSize: CGFloat = 26
     static let clipboardHeight: CGFloat = 28
+    /// The widest a quiet outcome's words run before they wrap to a second line.
+    static let quietTextMaxWidth: CGFloat = 200
     /// The width of the one wide form, and of no other.
     static let noticeMaxWidth: CGFloat = 300
     /// The wide form's height with one line of text; it grows when the message wraps.
@@ -462,7 +523,7 @@ private struct MarkTick: View {
         Tick()
             .trim(from: 0, to: drawn ? 1 : 0)
             .stroke(
-                Color.dockSuccess,
+                Color.dockSuccessInk,
                 style: StrokeStyle(
                     lineWidth: UttrflowMark.lineWidth(forHeight: DockMetrics.markTickHeight),
                     lineCap: .round, lineJoin: .round)
@@ -594,6 +655,21 @@ extension Color {
     static let dockWeightInk = Color(rgb: BrandPalette.Teal.inkOnDisc)
     static let dockSuccess = Color(rgb: BrandPalette.Semantic.success)
     static let dockWarning = Color(rgb: BrandPalette.Semantic.warning)
+    /// The warning as text on the dock's glass, which the bright tone fails on a light desktop.
+    static let dockWarningInk = Color(nsColor: .orbit(BrandPalette.Semantic.cautionInk))
+    /// The failure disc under a white glyph.
+    static let dockWarningFill = Color(rgb: BrandPalette.Semantic.warningFill)
+    /// The tick on the dock's glass, deepened on a light desktop.
+    static let dockSuccessInk = Color(nsColor: .orbit(BrandPalette.Semantic.successInk))
+
+    /// The accent as text on a surface that follows the appearance; `dockAccent` is for fills.
+    static let accentInk = Color(nsColor: .orbit(BrandPalette.Teal.ink))
+    /// A warning as text; `dockWarning` is for dots, icons and fills.
+    static let warningInk = Color(nsColor: .orbit(BrandPalette.Semantic.warningInk))
+    /// Success as text; `dockSuccess` is for dots, icons and fills.
+    static let successInk = Color(nsColor: .orbit(BrandPalette.Semantic.successInk))
+    /// A failure as text; `dockRecording` is for dots, icons and fills.
+    static let criticalInk = Color(nsColor: .orbit(BrandPalette.Semantic.criticalInk))
 
     /// The waveform teal, deepened on a light desktop where the bright one vanishes against the glass.
     static let dockWaveform = Color(nsColor: .orbit(BrandPalette.Teal.waveform))

@@ -10,6 +10,8 @@ public struct PasteConfirmation: Sendable {
         case notReported
         /// The budget ran out with no sign of them.
         case gaveUp(Duration)
+        /// The task waiting was cancelled, so it stopped looking; nothing was proved either way.
+        case cancelled(Duration)
     }
 
     /// How long to wait before giving up, generous enough that a busy app is not called a failure.
@@ -44,13 +46,16 @@ public struct PasteConfirmation: Sendable {
     /// Watches the caret until `text` sits behind it, answering how long that took.
     public func waitFor(_ text: String) async -> Outcome {
         let elapsed = Self.stopwatch(from: clock)
+        guard !Task.isCancelled else { return .cancelled(.zero) }
         let wanted = Self.wanted(from: text)
         // A field that will not answer now will not answer in a second either, so nothing is waited for.
         guard !wanted.isEmpty, focus.tail(upTo: Self.readLength) != .unreadable else { return .notReported }
 
         var waited = Duration.zero
         while waited < budget {
-            try? await clock.sleep(for: interval)
+            // A cancelled sleep returns at once, so without this the loop reads the field as fast as it can.
+            do { try await clock.sleep(for: interval) } catch { return .cancelled(elapsed()) }
+            guard !Task.isCancelled else { return .cancelled(elapsed()) }
             guard case .text(let seen) = focus.tail(upTo: Self.readLength) else { return .notReported }
             // Read from the clock rather than tallied from the sleeps, so each read is charged to the budget.
             waited = elapsed()

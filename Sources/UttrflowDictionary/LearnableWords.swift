@@ -13,20 +13,26 @@ enum LearnableWords {
     // MARK: - Seen on screen
 
     /// The terms in the window title that were also spoken, judged by sound and opening; never the selection or app name.
-    static func seenAndSaid(heard: String, seeing context: AppContext) -> [String] {
+    static func seenAndSaid(
+        heard: String, seeing context: AppContext,
+        encoding encode: (String) -> PhoneticCode = DoubleMetaphone.code(for:)
+    ) -> [String] {
         guard let title = context.documentName else { return [] }
         let said = Utterance(heard: heard, confidence: 1).spans(upTo: PhoneticIndex.maximumWordsPerEntry)
         guard !said.isEmpty else { return [] }
 
+        // Each span encoded once, and only once a title term is worth comparing against them.
+        var spoken: [(text: String, sound: PhoneticCode)]?
         var found: [String] = []
         var already: Set<String> = []
         for term in words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
         where GeneralVocabulary.isWorthLearning(term) && already.insert(term.lowercased()).inserted {
-            let sound = DoubleMetaphone.code(for: term)
+            let sound = encode(term)
+            let spans = spoken ?? said.map { (text: $0.text, sound: encode($0.text)) }
+            spoken = spans
             guard
-                said.contains(where: {
-                    sound.sounds(like: DoubleMetaphone.code(for: $0.text))
-                        && ReadingRestraint.opensAlike(term, heard: $0.text)
+                spans.contains(where: {
+                    sound.sounds(like: $0.sound) && ReadingRestraint.opensAlike(term, heard: $0.text)
                 })
             else { continue }
             found.append(term)

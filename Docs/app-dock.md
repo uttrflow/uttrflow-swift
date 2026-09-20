@@ -10,8 +10,9 @@ the two things that are not obvious from the code.
 | Resting grip | 9 × 34 | Three dots drawn straight on the desktop; no slab, because a slab around nine points reads as a box somebody forgot to delete. Six points of invisible hoverable padding all round. |
 | Hovered | orb 30 + hint 30 high | The orb keeps the grip's side so it stays under the pointer |
 | Listening / working | 32 high | Identical footprint, so the panel cannot change shape at the moment the key is released |
-| Quiet outcomes (inserted, nothing heard) | 26-point disc | A success needs no words: the text is already in the document |
-| Copied, not typed | 28 high, 64 wide at rest | ⌘V at rest; the sentence and the Fix button under the pointer |
+| Inserted | 26-point disc | A success needs no words: the text is already in the document |
+| Nothing heard, too short | 28 high, words up to 200 wide | The struck level with its sentence, readable at rest; a too-short hold says to hold longer |
+| Copied, not typed | 28 high | ⌘V and "Copied, not typed" at rest, kept up as long as a failure; the reason and the Fix button under the pointer |
 | Blocked | 300 wide, at least 40 high | The only wide form, so after a run of discs it is unmistakably asking for something |
 | Speech model loading | 300 wide, at least 40 high | The blocked form with an hourglass, in place of the resting grip for as long as the load runs. See `Docs/startup.md` |
 
@@ -78,6 +79,19 @@ the pill a few points to its left; the tick's job is to be unmistakable.
 
 - `dockAccent` `#128077` is capped at 29% lightness so white 13-point text clears 4.5:1 on it.
   The mark's own teal is lighter than that and never carries text.
+- The status colours are held to the same minimums on both desktops, measured with the WCAG
+  formula against the glass over a light desktop (about `#EEEEEE`) and a dark one (about
+  `#262626`), and checked by `DockContrastTests`:
+
+  | Where | Colour | Against | Ratio | Needed |
+  | --- | --- | --- | --- | --- |
+  | Failure disc | `dockWarningFill` `#C25E00` | its white glyph | 4.29:1 | 3:1 |
+  | Failure disc | `#C25E00` | light / dark glass | 3.70:1 / 3.53:1 | 3:1 |
+  | Copied keycap text | `dockWarningInk` `#9A4E00` light, `#FFB05C` dark | light / dark glass | 5.23:1 / 8.37:1 | 4.5:1 |
+  | Inserted tick | `dockSuccessInk` `#1F8A3A` light, `#34C759` dark | light / dark glass | 3.81:1 / 6.82:1 | 3:1 |
+
+  The bright `dockWarning` `#FF8D28` and `dockSuccess` `#34C759` measure 2.31:1 under white
+  and about 2:1 on light glass, so the dock never draws with them.
 - `dockWeightInk` is fixed, not `.primary`: the weight's disc is the same teal in both
   appearances, so ink that followed the appearance would vanish in one of them.
 - The panel's own `hasShadow` is off: AppKit draws a shadow around a transparent panel's
