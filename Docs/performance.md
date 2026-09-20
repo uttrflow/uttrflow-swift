@@ -1369,6 +1369,15 @@ cat .build/bench/jobs-fast.tsv .build/bench/jobs-rt.tsv > .build/bench/jobs.tsv
 python3 Scripts/dictation_bench.py score .build/bench/run.out
 ```
 
+```
+.build/release/uttrflow-dev bench .build/bench/jobs.tsv --idle-before 300 > .build/bench/run-cold.out
+```
+
+`--idle-before` waits that many seconds before each job and emits an `idle` event, so the tidier's
+kept session goes cold between dictations as it does in use (#876); without it every tidy in a run
+is warm. Each `clean` line also names the steps that changed something (`steps`) and any answer
+refused before the one kept (`refused`).
+
 The corpus names each clip's audio by its voice and words, so changing either speaks it again. Run one `bench` at a time: two processes compete for the Neural Engine and each other's compile.
 The run above took about half an hour, its first load included.
 
