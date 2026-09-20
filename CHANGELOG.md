@@ -22,6 +22,9 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **AI suggestions in a terminal stop re-scanning PATH and re-listing a program's verbs in every
+  directory.** Those answers are now cached once for the machine, and a listing that keeps timing
+  out is left alone for longer each time, up to ten minutes (#890).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
   left the stack a little deeper, so after about 2,500 presses — and again when the
   keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
