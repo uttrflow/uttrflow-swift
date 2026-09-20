@@ -63,3 +63,16 @@ Both the download and the sign-in outlive the click that started them. Each is g
 a generation counter bumped when the user walks away, so a late result cannot redraw a page
 that is no longer on screen. The one exception is a sign-in that completes after Cancel:
 the user is signed in, and the page moves on regardless.
+
+## Closing the window during the download
+
+Closing the onboarding window, with its red button or otherwise, does not stop the speech
+model's download: it keeps running and stays visible. The app owns the one download
+(`SharedModelInstall`), and every onboarding window joins it rather than starting another, so
+reopening setup mid-download shows the same download instead of writing a second copy into
+staging. While it runs, the menu bar and the floating button show "Setting up…" with the
+percentage; when it lands the model is loaded without a relaunch, and when it fails they go
+back to saying setup has not finished. Only the page's Cancel button stops it.
+
+The app forgets the onboarding window however it closes, so an update waiting for a quiet
+moment is not held back by a window that is no longer on screen.

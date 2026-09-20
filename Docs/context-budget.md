@@ -45,7 +45,9 @@ not 0.
 When the budget runs out the reading is left behind, not stopped. By then it is blocked inside a
 synchronous Accessibility call that will not notice a cancellation; the point is only that the
 dictation stops waiting, and the Accessibility layer's own messaging timeout is what eventually
-frees the thread. The loser turning up late must therefore be harmless — `Deadline` resumes the
+frees the thread. That timeout is set on each element read — the application, its focused
+window and its focused field — and never on the system-wide element, whose timeout is
+process-wide and would be overwritten by whichever caller set it last (#887). The loser turning up late must therefore be harmless — `Deadline` resumes the
 caller once and ignores whichever side arrives second.
 
 That blocking read runs on a dispatch queue of its own rather than the cooperative pool, because a

@@ -120,6 +120,17 @@ struct CommitDetectorTests {
         #expect(detector.receive(.returnPressed(at: start.addingTimeInterval(61))) == nil)
     }
 
+    @Test("An idle the caller will not admit is not remembered, so Return still commits the same value.")
+    func refusedIdleLeavesReturnFree() {
+        var detector = CommitDetector()
+        _ = typing("git status", into: &detector)
+        let pause = start.addingTimeInterval(9)
+        #expect(detector.receive(.tick(at: pause)) { $0 != .wentIdle } == nil)
+        #expect(detector.receive(.tick(at: pause.addingTimeInterval(9))) { $0 != .wentIdle } == nil)
+        let commit = detector.receive(.returnPressed(at: pause.addingTimeInterval(10))) { $0 != .wentIdle }
+        #expect(commit == Commit(text: "git status", reason: .returnPressed))
+    }
+
     @Test("Carrying on typing after an idle commit replaces the half-written value rather than adding to it.")
     func continuingSupersedesThePrefix() {
         var detector = CommitDetector()

@@ -182,7 +182,7 @@ struct ErrorPresentationTests {
         #expect(FailurePresenter.title(for: .openSystemSettings(.microphone)) == "Open System Settings")
         #expect(FailurePresenter.title(for: .retry) == "Try Again")
         #expect(FailurePresenter.title(for: .downloadSpeechModel) == "Finish Setup")
-        #expect(FailurePresenter.title(for: .pasteManually) == "Paste")
+        #expect(FailurePresenter.title(for: .pasteManually) == "Dismiss")
         #expect(FailurePresenter.title(for: .showRecentDictations) == "Show Recent")
     }
 

@@ -160,6 +160,8 @@ public struct SettingsOption: Sendable, Equatable, Identifiable {
 
 /// A switch the user can throw, named so a row and a change cannot disagree about the field.
 public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
+    case dictationEnabled
+    case clipboardEnabled
     case showsFloatingButton
     case shrinksToGripWhenIdle
     case minimisesWhileDictating
@@ -204,9 +206,14 @@ public enum SettingsChange: Sendable, Equatable {
     /// Asks the update feed now rather than waiting for the next scheduled check.
     case checkForUpdatesNow
 
+    /// Asks the user to pick an application to turn suggestions off in, which stores nothing until one is picked.
+    case chooseApplicationToTurnOffSuggestions
+
     /// Whether this asks for something to happen now rather than for something to be stored.
     public var isRequestToAct: Bool {
-        if case .checkForUpdatesNow = self { return true }
-        return false
+        switch self {
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions: true
+        default: false
+        }
     }
 }
