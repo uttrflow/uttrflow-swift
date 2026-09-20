@@ -436,32 +436,35 @@ public enum DiagnosticsPresenter {
     /// What one step did, in the first few words it did it to and a count of the rest.
     static func detail(of change: CleaningRecord.Change) -> String {
         var parts: [String] = []
-        if !change.removed.isEmpty {
-            parts.append("removed \(change.removed.count): \(listed(change.removed))")
+        if change.removedCount > 0 {
+            parts.append(
+                "removed \(change.removedCount): \(listed(change.removed, of: change.removedCount))")
         }
-        if !change.replaced.isEmpty {
+        if change.replacedCount > 0 {
             let rewrites = change.replaced.map { "\($0.from) → \($0.to)" }
-            parts.append("rewrote \(rewrites.count): \(listed(rewrites))")
+            parts.append(
+                "rewrote \(change.replacedCount): \(listed(rewrites, of: change.replacedCount))")
         }
-        if !change.inserted.isEmpty {
-            parts.append("added \(change.inserted.count): \(listed(change.inserted))")
+        if change.insertedCount > 0 {
+            parts.append(
+                "added \(change.insertedCount): \(listed(change.inserted, of: change.insertedCount))")
         }
         return parts.joined(separator: "; ")
     }
 
-    /// The first few words, then how many more there were, because the row is one line of a page.
-    static func listed(_ words: [String]) -> String {
-        guard words.count > quoted else { return words.joined(separator: ", ") }
-        return words.prefix(quoted).joined(separator: ", ") + " and \(words.count - quoted) more"
+    /// The first few words, then how many more of `total` there were, because the row is one line of a page.
+    static func listed(_ words: [String], of total: Int) -> String {
+        guard total > quoted else { return words.joined(separator: ", ") }
+        return words.prefix(quoted).joined(separator: ", ") + " and \(total - quoted) more"
     }
 
     /// The same steps counted rather than quoted, for the report that leaves this Mac by hand.
     static func countedCleanUp(_ record: CleaningRecord) -> [String] {
         reported(record).map { change in
             let counts = [
-                change.removed.isEmpty ? nil : "removed \(change.removed.count)",
-                change.replaced.isEmpty ? nil : "rewrote \(change.replaced.count)",
-                change.inserted.isEmpty ? nil : "added \(change.inserted.count)",
+                change.removedCount == 0 ? nil : "removed \(change.removedCount)",
+                change.replacedCount == 0 ? nil : "rewrote \(change.replacedCount)",
+                change.insertedCount == 0 ? nil : "added \(change.insertedCount)",
             ].compactMap(\.self)
             return "  \(CleaningSteps.name(of: change.step)): \(counts.joined(separator: ", "))"
         }

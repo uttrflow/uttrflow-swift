@@ -52,6 +52,14 @@ private struct NeverAnsweringCleaner: TranscriptCleaning {
     }
 }
 
+/// A ``TextInserting`` that takes the text and never answers, the way a hung application does.
+private struct NeverAnsweringInserter: TextInserting {
+    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
+        await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
+        return InsertionAttempt(.accessibility)
+    }
+}
+
 @Suite("Dictation pipeline: a stage that never answers", .timeLimit(.minutes(1)))
 struct DictationStageTimeoutTests {
     /// Reaches `stage`, then fires its own timer once it is set, never advancing after the stage has ended.
@@ -97,12 +105,14 @@ struct DictationStageTimeoutTests {
     @Test("a recogniser that never answers ends the dictation instead of wedging it")
     func transcriptionThatNeverAnswers() async {
         let clock = ManualClock()
+        let metrics = RecordingMetricsRecorder()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: NeverAnsweringSpeechEngine(),
             cleaner: TimeoutTestCleaner(),
             context: FakeContextEngine(),
             inserter: TimeoutTestInserter(),
+            metrics: metrics,
             clock: clock)
 
         await pipeline.startRecording()
@@ -116,6 +126,8 @@ struct DictationStageTimeoutTests {
         }
         // The point of the whole thing: not busy, so the next dictation can start.
         #expect(await pipeline.currentState.isBusy == false)
+        // An expired stage is a failed one, or the failure counts never see a hung recogniser.
+        #expect(await metrics.measurements(for: .transcription).map(\.succeeded) == [false])
     }
 
     @Test("a dictation can begin again after a stage timed out")
@@ -141,6 +153,7 @@ struct DictationStageTimeoutTests {
     @Test("a tidier that never answers costs the tidying, never the words")
     func tidyingThatNeverAnswers() async {
         let clock = ManualClock()
+        let metrics = RecordingMetricsRecorder()
         let inserter = TimeoutTestInserter()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
@@ -149,6 +162,7 @@ struct DictationStageTimeoutTests {
             cleaner: NeverAnsweringCleaner(),
             context: FakeContextEngine(),
             inserter: inserter,
+            metrics: metrics,
             clock: clock)
 
         await pipeline.startRecording()
@@ -162,5 +176,36 @@ struct DictationStageTimeoutTests {
             Issue.record("expected the words to land, got \(await pipeline.currentState)")
             return
         }
+        // The words still landed, and the tidying is still counted as the failure it was.
+        #expect(await metrics.measurements(for: .transformation).map(\.succeeded) == [false])
+        #expect(await metrics.measurements(for: .insertion).map(\.succeeded) == [true])
+    }
+
+    @Test("an application that never takes the words fails the dictation and counts the insertion failed")
+    func insertionThatNeverAnswers() async {
+        let clock = ManualClock()
+        let metrics = RecordingMetricsRecorder()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
+            speech: FakeSpeechEngine(
+                transcribeOutcome: .success(Transcription(text: "what I said"))),
+            cleaner: TimeoutTestCleaner(),
+            context: FakeContextEngine(),
+            inserter: NeverAnsweringInserter(),
+            metrics: metrics,
+            clock: clock)
+
+        await pipeline.startRecording()
+        let finishing = Task { await pipeline.finishRecording() }
+        await expire(StageTimeout.quick, at: .inserting, of: pipeline, on: clock)
+        await settle(finishing)
+
+        guard case .failed(let failure) = await pipeline.currentState else {
+            Issue.record("expected the dictation to fail, got \(await pipeline.currentState)")
+            return
+        }
+        #expect(failure.transcript == "Tidied.")
+        #expect(await metrics.measurements(for: .insertion).map(\.succeeded) == [false])
+        #expect(await metrics.measurements(for: .transcription).map(\.succeeded) == [true])
     }
 }

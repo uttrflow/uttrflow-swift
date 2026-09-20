@@ -520,3 +520,40 @@ struct CorpusIndependenceTests {
         }
     }
 }
+
+/// A grammar case that asks for a repair must fail the sentence as spoken, or it credits a repair nobody made.
+@Suite("Grammar cases require their repair")
+struct GrammarRepairTests {
+    /// The spoken words as a sentence, capitalised and closed the way the reference is, with nothing repaired.
+    private static func unrepaired(_ testCase: EvaluationCase) -> String {
+        let spoken = testCase.spoken.prefix(1).uppercased() + testCase.spoken.dropFirst()
+        return testCase.expected.hasSuffix(".") ? spoken + "." : spoken
+    }
+
+    /// Whether the reference changes a word the speaker said, rather than only case and punctuation.
+    private static func asksForARepair(_ testCase: EvaluationCase) -> Bool {
+        Scorer.tokens(testCase.expected) != Scorer.tokens(testCase.spoken)
+    }
+
+    @Test(
+        "fails the unrepaired sentence for every case that asks for a repair",
+        arguments: EvaluationCorpus.cases(in: .grammar))
+    func theSlipItselfFails(testCase: EvaluationCase) {
+        // Dialect and messaging cases keep the speaker's grammar on purpose, so there is no slip to leave in.
+        guard Self.asksForARepair(testCase) else { return }
+        let score = Scorer.score(Self.unrepaired(testCase), against: testCase)
+        #expect(!score.passed, "\(testCase.id) passes with the slip left in")
+    }
+
+    @Test("counts eight grammar cases as asking for a repair, so the check above is not vacuous")
+    func repairCasesAreCounted() {
+        #expect(EvaluationCorpus.cases(in: .grammar).filter(Self.asksForARepair).count == 8)
+    }
+
+    @Test(
+        "passes the reference itself for every grammar case",
+        arguments: EvaluationCorpus.cases(in: .grammar))
+    func theReferencePasses(testCase: EvaluationCase) {
+        #expect(Scorer.score(testCase.expected, against: testCase).passed, "\(testCase.id)")
+    }
+}
