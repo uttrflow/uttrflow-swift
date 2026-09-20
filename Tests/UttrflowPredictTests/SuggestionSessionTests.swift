@@ -242,6 +242,17 @@ struct SuggestionRejectionTests {
         #expect(session.suggestion == .silent)
     }
 
+    @Test("Marked text in the field draws nothing and claims no key, so Escape reaches the input method.")
+    func markedTextQuietsTheTurn() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        let composing = PredictionContext(typed: "git c", markedText: .present)
+        let update = try draw(&session, typing: "git c", context: composing)
+        #expect(update == .quiet(because: .composing))
+        #expect(update?.armed.isEmpty == true)
+        #expect(session.suggestion == .silent)
+    }
+
     @Test("Enough refusals in one field silence it.")
     func enoughRefusalsSilenceTheField() throws {
         var session = SuggestionSession()
@@ -317,6 +328,44 @@ struct SuggestionRejectionTests {
         // A different line is a different answer, and takes the list with it.
         let other = try draw(&session, typing: "git c", candidates: lone("git clone"))
         #expect(other?.suggestion == .certain("git clone"))
+    }
+
+    @Test(
+        "A verified answer that dropped an alternative takes it off the list, so Down and Tab cannot reach it."
+    )
+    func aVerificationDropsTheAlternativeItRemoved() throws {
+        var session = SuggestionSession()
+        let both = [remembered("git commit", count: 5), remembered("git checkout", count: 4)]
+        let first = try draw(&session, typing: "git c", candidates: both)
+        #expect(first?.suggestion == .choice(leader: "git commit", others: ["git checkout"]))
+
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        guard
+            case .verify(let request) = session.resolve(both, for: asked, now: moment, elapsedMilliseconds: 0)
+        else {
+            Issue.record("expected a verification request")
+            return
+        }
+        let second = session.resolve(
+            [remembered("git commit", count: 5)], for: request, now: moment, elapsedMilliseconds: 0)
+
+        #expect(second?.suggestion == .certain("git commit"))
+        #expect(second?.armed.contains(.downArrow) == false)
+        _ = session.route(KeyStroke(.downArrow))
+        #expect(session.route(KeyStroke(.tab)) != .accept("git checkout"))
+    }
+
+    @Test("Quiet mode keeps no list across a redraw, even the model's.")
+    func quietModeKeepsNoList() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git commit -m"], for: asked, elapsedMilliseconds: 0)
+        _ = session.expandGenerated(["git checkout main"], for: asked)
+
+        let again = try draw(&session, typing: "git c", isQuiet: true)
+
+        #expect(again?.suggestion == .certain("git commit -m"))
+        #expect(again?.armed.contains(.downArrow) == false)
     }
 
     @Test("Alternatives that add nothing, or arrive after the user has typed on, change nothing.")

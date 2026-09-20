@@ -33,7 +33,8 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
     /// Reads the sentence state off the line the caret sits on, since a list marker is not a word.
     public static func sentenceState(before text: String?) -> SentenceState {
         guard let text else { return .unknown }
-        let line = text.split(separator: "\n", omittingEmptySubsequences: false).last ?? ""
+        // Any line break ends the line, and a CRLF pair is one `Character`, so it is one break.
+        let line = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
         guard let last = withoutOpeningMarker(line).last(where: { !$0.isWhitespace }) else {
             // Only a marker, a blank line or an empty field stands here; a line break still opened a line.
             let isBlank = line.allSatisfy(\.isWhitespace)

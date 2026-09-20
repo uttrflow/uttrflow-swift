@@ -101,22 +101,54 @@ public enum TextDiff {
         return all.indices.filter { wanted[$0] }.map { all[$0] }
     }
 
-    /// The lines of a text, a trailing newline making an empty last line.
-    private static func split(_ text: String) -> [Substring] {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
+    /// One line: the text shown, and the key it is compared by, which keeps the CR ending before it.
+    private struct Piece {
+        let text: Substring
+        let key: Substring
     }
 
-    /// How many lines a text has, counted without splitting it.
+    /// The lines of a text split at LF, CRLF or CR, a trailing ending making an empty last line.
+    private static func split(_ text: String) -> [Piece] {
+        var pieces: [Piece] = []
+        var start = text.startIndex
+        // Where the next line's key begins: its own start after LF, the ending itself after CR or CRLF.
+        var keyStart = start
+        var index = start
+        while index < text.endIndex {
+            let character = text[index]
+            let next = text.index(after: index)
+            if character == "\n" || character == "\r\n" || character == "\r" {
+                pieces.append(Piece(text: text[start..<index], key: text[keyStart..<index]))
+                start = next
+                keyStart = character == "\n" ? next : index
+            }
+            index = next
+        }
+        pieces.append(Piece(text: text[start...], key: text[keyStart...]))
+        return pieces
+    }
+
+    /// How many lines a text has, counted as `split` counts them but without splitting it.
     private static func lineCount(_ text: String) -> Int {
-        text.utf8.count { $0 == UInt8(ascii: "\n") } + 1
+        var count = 1
+        var previous: UInt8 = 0
+        for byte in text.utf8 {
+            if byte == UInt8(ascii: "\n") {
+                if previous != UInt8(ascii: "\r") { count += 1 }
+            } else if byte == UInt8(ascii: "\r") {
+                count += 1
+            }
+            previous = byte
+        }
+        return count
     }
 
     /// The diff of two runs of lines, or nothing when more than `changeLimit` lines changed.
-    private static func lines(from old: [Substring], to new: [Substring], changeLimit: Int) -> [Line]? {
+    private static func lines(from old: [Piece], to new: [Piece], changeLimit: Int) -> [Line]? {
         var numbers: [Substring: Int] = [:]
-        func number(_ line: Substring) -> Int {
-            if let known = numbers[line] { return known }
-            numbers[line] = numbers.count
+        func number(_ line: Piece) -> Int {
+            if let known = numbers[line.key] { return known }
+            numbers[line.key] = numbers.count
             return numbers.count - 1
         }
         let oldNumbers = old.map(number)
@@ -128,9 +160,9 @@ public enum TextDiff {
         result.reserveCapacity(script.count)
         for step in script {
             switch step {
-            case .same(let index): result.append(Line(kind: .same, text: String(old[index])))
-            case .removed(let index): result.append(Line(kind: .removed, text: String(old[index])))
-            case .added(let index): result.append(Line(kind: .added, text: String(new[index])))
+            case .same(let index): result.append(Line(kind: .same, text: String(old[index].text)))
+            case .removed(let index): result.append(Line(kind: .removed, text: String(old[index].text)))
+            case .added(let index): result.append(Line(kind: .added, text: String(new[index].text)))
             }
         }
         return result

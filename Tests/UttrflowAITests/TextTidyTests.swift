@@ -51,6 +51,13 @@ struct TextTidyTests {
         #expect(TextTidy.collapseSpacing(modelAnswer).contains("\n"), "the line break was flattened away")
     }
 
+    @Test("recognizes CRLF and CR without flattening blank or mixed lines")
+    func alternateNewlines() {
+        #expect(TextTidy.collapseSpacing("hello\r\n\r\nthere") == "hello\r\n\r\nthere")
+        #expect(TextTidy.collapseSpacing("hello\rthere") == "hello\nthere")
+        #expect(TextTidy.collapseSpacing("hello\r\ntwo\nthree\rfour") == "hello\r\ntwo\nthree\nfour")
+    }
+
     @Test("does nothing to empty text")
     func emptyText() {
         #expect(TextTidy.collapseSpacing("") == "")
