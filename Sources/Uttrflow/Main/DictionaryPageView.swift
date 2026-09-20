@@ -56,6 +56,7 @@ struct DictionaryRowView: View {
     var onIntent: (MainIntent) -> Void
 
     @State private var isHovered = false
+    @FocusState private var focusedControl: String?
 
     /// Dimmed for a retired word.
     private var descriptionOpacity: Double { row.isRetired ? 0.45 : 1 }
@@ -80,7 +81,7 @@ struct DictionaryRowView: View {
                 .opacity(descriptionOpacity)
             Text(row.timesUndone)
                 .monospacedDigit()
-                .foregroundStyle(row.undoneIsConcerning ? Color.dockRecording : .secondary)
+                .foregroundStyle(row.undoneIsConcerning ? Color.criticalInk : .secondary)
                 .frame(width: columns[5].width, alignment: .trailing)
                 .opacity(descriptionOpacity)
 
@@ -88,7 +89,9 @@ struct DictionaryRowView: View {
                 Spacer(minLength: 0)
                 ForEach(row.actions) { action in
                     MainActionButton(action: action, onIntent: onIntent)
-                        .opacity(isHovered || isDrawnAtRest(action) ? 1 : 0)
+                        .revealedInRow(
+                            action.id, isHovered: isHovered || isDrawnAtRest(action),
+                            focusedControl: $focusedControl)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)

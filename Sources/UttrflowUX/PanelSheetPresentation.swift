@@ -163,8 +163,7 @@ extension PanelPresenter {
 
         case .formatting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return formattingSheet(
-                TextDiff.compare(from: original, to: formatted), changes: original != formatted)
+            return snapshot.formattingSheets.sheet(from: original, to: formatted)
 
         case .confirmingDelete:
             return PanelSheetPresentation(

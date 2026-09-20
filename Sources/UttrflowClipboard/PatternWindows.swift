@@ -35,29 +35,48 @@ struct ClipBytes {
         !bytes.contains { $0 >= 0x80 }
     }
 
-    /// The start of the character holding the byte at `offset`.
+    /// Counts each character-boundary check, so a test can bound the walk without a clock.
+    @TaskLocal package static var boundaryTally: ScanTally?
+
+    /// How many bytes the walks test for a character boundary before settling for a scalar one.
+    static let characterSteps = 8
+
+    /// The start of the character holding the byte at `offset`, or of its scalar inside a very long character.
     func character(atOrBefore offset: Int) -> String.Index {
-        var offset = offset
-        while offset > 0 {
-            if let index = text.utf8.index(text.utf8.startIndex, offsetBy: offset).samePosition(in: text) {
-                return index
-            }
-            offset -= 1
+        var probe = offset
+        while probe > 0, offset - probe < Self.characterSteps {
+            if let index = characterIndex(at: probe) { return index }
+            probe -= 1
         }
-        return text.startIndex
+        guard probe > 0 else { return text.startIndex }
+        var scalar = offset
+        while scalar > 0, isContinuation(scalar) { scalar -= 1 }
+        return text.utf8.index(text.utf8.startIndex, offsetBy: scalar)
     }
 
-    /// The first character boundary at or after the byte at `offset`.
+    /// The first character boundary at or after the byte at `offset`, or scalar boundary inside a very long character.
     func boundary(atOrAfter offset: Int) -> String.Index {
         let count = text.utf8.count
-        var offset = offset
-        while offset < count {
-            if let index = text.utf8.index(text.utf8.startIndex, offsetBy: offset).samePosition(in: text) {
-                return index
-            }
-            offset += 1
+        var probe = offset
+        while probe < count, probe - offset < Self.characterSteps {
+            if let index = characterIndex(at: probe) { return index }
+            probe += 1
         }
-        return text.endIndex
+        guard probe < count else { return text.endIndex }
+        var scalar = offset
+        while scalar < count, isContinuation(scalar) { scalar += 1 }
+        return text.utf8.index(text.utf8.startIndex, offsetBy: scalar)
+    }
+
+    /// The character index at a byte offset, when a character starts there.
+    private func characterIndex(at offset: Int) -> String.Index? {
+        Self.boundaryTally?.record(1)
+        return text.utf8.index(text.utf8.startIndex, offsetBy: offset).samePosition(in: text)
+    }
+
+    /// Whether the byte at `offset` continues a scalar rather than starting one.
+    private func isContinuation(_ offset: Int) -> Bool {
+        text.utf8[text.utf8.index(text.utf8.startIndex, offsetBy: offset)] & 0xC0 == 0x80
     }
 
     func byteOffset(of index: String.Index) -> Int {

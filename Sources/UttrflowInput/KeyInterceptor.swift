@@ -109,6 +109,8 @@ final class InterceptorTap: @unchecked Sendable {
     private let lifecycle = LifecycleLock()
     /// Called once the state is released and the thread lets go of the port, which tests wait on instead of a clock.
     private let released: @Sendable () -> Void
+    /// Runs on the tap's thread after its source is added and before its run loop runs.
+    private let beforeLoop: @Sendable () -> Void
 
     /// The lock around `Lifecycle`, in a class so the thread can hold it without holding the tap.
     private final class LifecycleLock: Sendable {
@@ -117,22 +119,24 @@ final class InterceptorTap: @unchecked Sendable {
 
     private init(
         tap: CFMachPort, source: CFRunLoopSource, held: Unmanaged<TapState>,
-        released: @escaping @Sendable () -> Void
+        released: @escaping @Sendable () -> Void, beforeLoop: @escaping @Sendable () -> Void
     ) {
         self.tap = tap
         self.source = source
         self.held = held
         self.released = released
+        self.beforeLoop = beforeLoop
     }
 
     /// Stops a tap nobody stopped, so a discarded tap still gives back its port and state.
     deinit { stop() }
 
-    /// Builds the tap, or says that the system would not; `makePort` and `released` are replaced only by tests.
+    /// Builds the tap, or says that the system would not; `makePort`, `released` and `beforeLoop` are replaced only by tests.
     static func create(
         state: TapState,
         makePort: (UnsafeMutableRawPointer) -> CFMachPort? = InterceptorTap.keyDownTap,
-        released: @escaping @Sendable () -> Void = {}
+        released: @escaping @Sendable () -> Void = {},
+        beforeLoop: @escaping @Sendable () -> Void = {}
     ) throws(KeyInterceptorFailure) -> InterceptorTap {
         let held = Unmanaged.passRetained(state)
         guard
@@ -143,7 +147,8 @@ final class InterceptorTap: @unchecked Sendable {
             throw .tapRefused
         }
         state.adopt(tap)
-        return InterceptorTap(tap: tap, source: source, held: held, released: released)
+        return InterceptorTap(
+            tap: tap, source: source, held: held, released: released, beforeLoop: beforeLoop)
     }
 
     /// The session tap on key-down that `create` uses outside tests.
@@ -166,8 +171,8 @@ final class InterceptorTap: @unchecked Sendable {
         }
         guard starting else { return }
         let loan = Loan(tap: tap, source: source)
-        let thread = Thread { [lifecycle, held, released] in
-            Self.serve(loan, lifecycle: lifecycle)
+        let thread = Thread { [lifecycle, held, released, beforeLoop] in
+            Self.serve(loan, lifecycle: lifecycle, beforeLoop: beforeLoop)
             // Callbacks run only inside this thread's run loop, so none can be in flight past this line.
             held.release()
             released()
@@ -179,7 +184,7 @@ final class InterceptorTap: @unchecked Sendable {
     }
 
     /// Runs the tap's run loop until `stop`, then empties the loan so the thread holds nothing of the tap.
-    private static func serve(_ loan: Loan, lifecycle: LifecycleLock) {
+    private static func serve(_ loan: Loan, lifecycle: LifecycleLock, beforeLoop: () -> Void) {
         guard let tap = loan.tap, let source = loan.source else { return }
         loan.tap = nil
         loan.source = nil
@@ -190,6 +195,7 @@ final class InterceptorTap: @unchecked Sendable {
             return true
         }
         guard live else { return }
+        beforeLoop()
         CGEvent.tapEnable(tap: tap, enable: true)
         CFRunLoopRun()
     }
@@ -205,7 +211,13 @@ final class InterceptorTap: @unchecked Sendable {
         held.takeUnretainedValue().relinquish(tap)
         CFRunLoopSourceInvalidate(source)
         CFMachPortInvalidate(tap)
-        if let loop { CFRunLoopStop(loop) }
+        if let loop {
+            // Queued on the loop, so it is heard even when the loop has not started running yet.
+            CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue) {
+                CFRunLoopStop(CFRunLoopGetCurrent())
+            }
+            CFRunLoopWakeUp(loop)
+        }
         if !started {
             held.release()
             released()
@@ -215,17 +227,16 @@ final class InterceptorTap: @unchecked Sendable {
 
 /// Everything the C callback may touch, held where a raw pointer can reach it.
 final class TapState: @unchecked Sendable {
-    /// How many taken keystrokes may wait for the drain before the oldest are dropped.
+    /// How many taken keystrokes may wait for the drain; while it is that far behind, newer ones are dropped.
     static let capacity = 64
-
-    /// The ring value that stands for the tap giving up rather than for a key.
-    static let gaveUp: UInt32 = .max
 
     /// Which slots are being taken, and the only thing the callback loads.
     let armed = Atomic<UInt32>(0)
 
-    /// Written by the tap's thread and read by the drain, so one producer meets one consumer.
+    /// Written by the tap's thread and read by the drain; a slot is written again only once the drain has read it.
     private let ring: UnsafeMutablePointer<UInt32>
+    /// Set when the tap gives up, kept out of the ring so a full ring cannot lose it.
+    private let gaveUp = Atomic<Bool>(false)
     /// How many keystrokes have ever been written into the ring.
     private let written = Atomic<UInt64>(0)
     /// How many the drain has ever taken out of it.
@@ -272,12 +283,16 @@ final class TapState: @unchecked Sendable {
         return Unmanaged<CFMachPort>.fromOpaque(held).takeUnretainedValue()
     }
 
-    /// Records one taken keystroke, in two stores and one dispatch call.
-    func enqueue(_ slot: UInt32) {
+    /// Records one taken keystroke, or drops it and returns false when the drain is a whole ring behind.
+    @discardableResult
+    func enqueue(_ slot: UInt32) -> Bool {
         let next = written.load(ordering: .relaxed)
+        // Acquiring pairs with the drain's releasing store, so a slot is read before it is written again.
+        guard next &- read.load(ordering: .acquiring) < UInt64(Self.capacity) else { return false }
         ring[Int(next % UInt64(Self.capacity))] = slot
         written.store(next &+ 1, ordering: .releasing)
         signal.add(data: 1)
+        return true
     }
 
     /// Whether the tap should be turned back on, which it is unless it keeps being disabled within a short window.
@@ -287,27 +302,30 @@ final class TapState: @unchecked Sendable {
         let (count, reEnable) = TapDisableWindow.decide(
             last: last, now: now, count: disables.load(ordering: .relaxed))
         disables.store(count, ordering: .relaxed)
-        if !reEnable { enqueue(Self.gaveUp) }
+        if !reEnable {
+            gaveUp.store(true, ordering: .releasing)
+            signal.add(data: 1)
+        }
         return reEnable
     }
 
-    /// Everything written since the last drain, oldest first.
+    /// Everything written since the last drain, oldest first, then the tap giving up if it has.
     func take() -> [InterceptedEvent] {
+        // Read before `written`, so every keystroke taken before the tap gave up is drained with it.
+        let stopped = gaveUp.exchange(false, ordering: .acquiring)
         let end = written.load(ordering: .acquiring)
         var cursor = read.load(ordering: .relaxed)
-        // A producer this far ahead has lapped the ring, so the oldest keystrokes are gone.
-        if end &- cursor > UInt64(Self.capacity) { cursor = end &- UInt64(Self.capacity) }
         var events: [InterceptedEvent] = []
         while cursor < end {
             let slot = ring[Int(cursor % UInt64(Self.capacity))]
-            if slot == Self.gaveUp {
-                events.append(.stopped(.disabledTwice))
-            } else if let stroke = ArmedKeys.stroke(of: ArmedKeys(rawValue: slot)) {
+            if let stroke = ArmedKeys.stroke(of: ArmedKeys(rawValue: slot)) {
                 events.append(.swallowed(stroke))
             }
             cursor &+= 1
         }
-        read.store(cursor, ordering: .relaxed)
+        // Releasing, so the tap writes these slots again only after they have been read.
+        read.store(cursor, ordering: .releasing)
+        if stopped { events.append(.stopped(.disabledTwice)) }
         return events
     }
 }

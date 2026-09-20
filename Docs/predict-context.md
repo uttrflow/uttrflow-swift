@@ -147,8 +147,8 @@ the live log; p50 and p95 reported per phase, regressions block the phase.
 
 Surroundings are read into memory for one pass and never written anywhere — not to the
 corpus, not to the log (the log names lengths and the application, not the text; see [logging.md](logging.md)). Recent
-lines come only from surfaces the user allowed learning from, and `forget(bundleIdentifier:)`
-already removes them. Everything runs on the Mac; no network is touched (`make verify`'s
+lines come only from surfaces the user allowed learning from, and **Forget what it learned
+here** in Settings removes them through `forget(bundleIdentifier:)`. Everything runs on the Mac; no network is touched (`make verify`'s
 offline audit still holds).
 
 ## Phases
