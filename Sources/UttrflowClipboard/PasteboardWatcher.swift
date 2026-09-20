@@ -173,17 +173,14 @@ public actor PasteboardWatcher {
         }
         // On its own thread, never the cooperative pool: a promised read blocks until the writer answers.
         Self.readQueue.async { settle(read()) }
-        let limit = Task {
-            try? await Task.sleep(for: readLimit)
-            settle(nil)
-        }
+        // The limit is a dispatch timer for the same reason: a busy pool must not delay giving up.
+        Self.readQueue.asyncAfter(deadline: .now() + readLimit.inSeconds) { settle(nil) }
         let value = await withCheckedContinuation { (continuation: CheckedContinuation<Value?, Never>) in
             race.withLock { state in
                 if case .answered(let value) = state { return continuation.resume(returning: value) }
                 state = .listening(continuation)
             }
         }
-        limit.cancel()
         if value == nil { Self.log.notice("a clipboard read passed its limit; this copy is skipped") }
         return value
     }
