@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import UttrflowPredict
@@ -18,6 +19,75 @@ struct ProgramVerbsTests {
             # release: not yet
             """
         #expect(MakefileTargets.names(in: makefile) == ["verify", "build", "test"])
+    }
+
+    @Test(
+        "A justfile's recipes are its public recipe heads and aliases, without settings, variables or modules."
+    )
+    func justfileRecipes() {
+        let justfile = """
+            set shell := ["zsh", "-cu"]
+            export PATH := "bin:" + env_var('PATH')
+            version := "1.0"
+            import 'common.just'
+            mod deploy
+
+            # Runs every check.
+            verify: lint test
+            \tswift test
+
+            @lint:
+            \tswiftlint
+
+            test filter="": build
+            \tswift test --filter {{filter}}
+
+            serve addr="127.0.0.1:8080" *args:
+            \t./serve {{addr}} {{args}}
+
+            [private]
+            helper:
+            \techo hidden
+
+            _setup:
+            \techo hidden too
+
+            [group('release')]
+            build-app:
+            \techo building
+
+            alias b := build-app
+
+            [group('private')]
+            docs:
+            \techo public
+
+            [no-cd, private]
+            clean:
+            \techo hidden as well
+            """
+        #expect(
+            JustfileRecipes.names(in: justfile) == [
+                "verify", "lint", "test", "serve", "build-app", "b", "docs",
+            ])
+        #expect(JustfileRecipes.names(in: "") == [])
+    }
+
+    /// `just` and `make` each read their own file, so a project with both offers each only its own verbs.
+    @Test("just reads the justfile and make the Makefile, in a project with one or both")
+    func justAndMakeReadTheirOwnFiles() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "verbs-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let reader = SystemEnvironmentReader()
+
+        try Data("verify-just:\n\techo just\n".utf8).write(to: directory.appending(path: "justfile"))
+        #expect(await reader.values(of: .subcommand(of: "just"), in: directory.path) == ["verify-just"])
+        #expect(await reader.values(of: .subcommand(of: "make"), in: directory.path) == nil)
+
+        try Data("verify-make:\n\techo make\n".utf8).write(to: directory.appending(path: "Makefile"))
+        #expect(await reader.values(of: .subcommand(of: "just"), in: directory.path) == ["verify-just"])
+        #expect(await reader.values(of: .subcommand(of: "make"), in: directory.path) == ["verify-make"])
     }
 
     @Test("A manifest's scripts are the keys of its scripts object, whatever their commands hold.")

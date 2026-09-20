@@ -193,6 +193,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         switch activation {
         case .holdToTalk:
             pressedAt = instant
+            await forgetHandsFreeIfEnded()
             // Hands-free is already listening; pressing again is the start of the gesture that ends it.
             guard !isHandsFree else {
                 pressOpenedTheMicrophone = false
@@ -297,6 +298,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Finishes the dictation under way, or begins one.
     private func toggleListening() async {
         if await pipeline.currentState.isListening {
+            isHandsFree = false
             stopWatchingTheLimit()
             await pipeline.finishRecording()
         } else {
@@ -333,6 +335,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Ends a dictation that reached the cap, keeping every word of it.
     private func finishAtTheLimit() async {
         guard await pipeline.currentState.isListening else { return }
+        isHandsFree = false
         await pipeline.finishRecording()
         stopWatchingTheLimit()
     }
@@ -377,12 +380,19 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             return
         }
         lastTapEndedAt = nil
+        await forgetHandsFreeIfEnded()
         guard !isHandsFree else { return await stopHandsFree() }
         await beginListening()
         isHandsFree = await pipeline.currentState.isListening
     }
 
-    /// Closes a microphone a double tap left open, which another double tap is the only way to do.
+    /// Forgets hands-free once its dictation has ended some other way, so the next hold and double tap work.
+    private func forgetHandsFreeIfEnded() async {
+        guard isHandsFree, !(await pipeline.currentState.isListening) else { return }
+        isHandsFree = false
+    }
+
+    /// Closes a microphone a double tap left open, as the second double tap does.
     private func stopHandsFree() async {
         isHandsFree = false
         stopWatchingTheLimit()
