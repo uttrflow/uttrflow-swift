@@ -22,6 +22,8 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **The recent-lines read for AI suggestions no longer groups every learned line of every folder or
+  conversation.** Each scope is read through its index and the few lines shown are chosen in Swift (#880).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
   left the stack a little deeper, so after about 2,500 presses — and again when the
   keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
