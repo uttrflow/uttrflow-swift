@@ -4,11 +4,16 @@ public import struct Foundation.Data
 public import struct Foundation.Date
 
 private import Synchronization
+private import Dispatch
 private import os
 
 /// Notices when the user copies something, by polling, which is the only mechanism macOS offers.
 public actor PasteboardWatcher {
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
+
+    /// Where a clipboard read runs, so a writer that never answers holds no thread the app needs.
+    private static let readQueue = DispatchQueue(
+        label: "com.uttrflow.clipboard-read", qos: .userInitiated, attributes: .concurrent)
 
     /// How often the change count is read; the panel catches up as it opens, so this is set by battery. See `Docs/performance.md`.
     public static let pollInterval = Duration.milliseconds(500)
@@ -166,8 +171,8 @@ public actor PasteboardWatcher {
                 guard case .answered = state else { return state = .answered(value) }
             }
         }
-        // Left running rather than cancelled: it is inside a synchronous call another process answers.
-        Task.detached(priority: .userInitiated) { settle(read()) }
+        // On its own thread, never the cooperative pool: a promised read blocks until the writer answers.
+        Self.readQueue.async { settle(read()) }
         let limit = Task {
             try? await Task.sleep(for: readLimit)
             settle(nil)

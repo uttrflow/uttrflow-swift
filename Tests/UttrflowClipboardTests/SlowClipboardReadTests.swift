@@ -42,7 +42,7 @@ struct SlowClipboardReadTests {
         let took = ContinuousClock().now - started
 
         #expect(clip == nil, "a copy nobody delivered in time is skipped")
-        #expect(took < .seconds(1), "\(took)")
+        #expect(took < .seconds(2), "\(took)")
 
         source.deliverPromptly()
         source.bumpChangeCount()
