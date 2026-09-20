@@ -167,9 +167,9 @@ extension LocalModel {
     /// The least cached weights may weigh to be believed whole: nine tenths of the recorded download.
     var minimumWeightBytes: UInt64 { UInt64(max(0, downloadBytes)) / 10 * 9 }
 
-    /// Where the weights load from: the cache's copy when whole, otherwise what `downloader` fetches.
+    /// Where the weights load from: the cache's copy when whole, otherwise what `downloader` fetches, or a throw with no downloader.
     func weightsDirectory(
-        cache: URL, downloader: @Sendable () -> any MLXLMCommon.Downloader,
+        cache: URL, downloader: (@Sendable () -> any MLXLMCommon.Downloader)?,
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws -> URL {
         if let snapshot = CachedSnapshot.complete(
@@ -178,9 +178,16 @@ extension LocalModel {
             onProgress(1)
             return snapshot
         }
+        guard let downloader else { throw WeightsNotOnDisk(identifier: identifier) }
         let resolved = try await resolve(
             configuration: ModelConfiguration(id: identifier), from: downloader(), useLatest: false,
             progressHandler: { onProgress($0.fractionCompleted) })
         return resolved.modelDirectory
     }
+}
+
+/// The weights are not whole on disk and nothing was allowed to fetch them.
+public struct WeightsNotOnDisk: Error, Equatable {
+    /// The model whose weights are missing.
+    public let identifier: String
 }

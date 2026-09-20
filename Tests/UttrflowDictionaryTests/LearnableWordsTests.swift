@@ -174,6 +174,92 @@ struct SeenAndSaidTests {
     }
 }
 
+/// The comparison as it reads with nothing reused: every span encoded again for every title term.
+private func seenAndSaidByBruteForce(heard: String, title: String) -> [String] {
+    let said = Utterance(heard: heard, confidence: 1).spans(upTo: PhoneticIndex.maximumWordsPerEntry)
+    var found: [String] = []
+    var already: Set<String> = []
+    for term in LearnableWords.words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
+    where GeneralVocabulary.isWorthLearning(term) && already.insert(term.lowercased()).inserted {
+        let sound = DoubleMetaphone.code(for: term)
+        if said.contains(where: {
+            sound.sounds(like: DoubleMetaphone.code(for: $0.text))
+                && ReadingRestraint.opensAlike(term, heard: $0.text)
+        }) {
+            found.append(term)
+        }
+    }
+    return found
+}
+
+/// Counts every encoding asked for, so the work is measured in calls rather than time.
+private final class CountingEncoder: @unchecked Sendable {
+    private(set) var calls = 0
+
+    func encode(_ text: String) -> PhoneticCode {
+        calls += 1
+        return DoubleMetaphone.code(for: text)
+    }
+}
+
+@Suite("Terms that were on screen and were said, encoded once")
+struct SeenAndSaidEncodingTests {
+    /// A long dictation under a title full of learnable terms, the shape the product of the two blew up on.
+    private static let heard =
+        Array(repeating: "calibrate the zorvaab and the zorvaac", count: 40).joined(separator: " ")
+    private static let letters = Array("abcdefghijklmnopqrstuvwxyz")
+    /// Sixty-four distinct invented terms, "Zorvaaa" to "Zorvalc", the most a title is read for.
+    private static let title = (0..<64).map { "Zorva\(letters[$0 % 26])\(letters[$0 / 26])" }
+        .joined(separator: " ")
+
+    @Test("encodes each spoken span once and each title term once, not one per pairing")
+    func encodingGrowsWithTheSum() {
+        let spans = Utterance(heard: Self.heard, confidence: 1)
+            .spans(upTo: PhoneticIndex.maximumWordsPerEntry).count
+        let terms = LearnableWords.words(in: Self.title, atMost: WorkingSet.maximumWordsOnScreen)
+            .filter(GeneralVocabulary.isWorthLearning).count
+        let counter = CountingEncoder()
+
+        _ = LearnableWords.seenAndSaid(
+            heard: Self.heard, seeing: .fixture(documentName: Self.title), encoding: counter.encode)
+
+        #expect(terms > 1)
+        #expect(counter.calls == spans + terms)
+    }
+
+    @Test("finds exactly what comparing every pairing afresh finds, in the same order")
+    func sameCandidatesAsBruteForce() {
+        let found = LearnableWords.seenAndSaid(heard: Self.heard, seeing: .fixture(documentName: Self.title))
+
+        #expect(!found.isEmpty)
+        #expect(found == seenAndSaidByBruteForce(heard: Self.heard, title: Self.title))
+    }
+
+    @Test(
+        "agrees with comparing every pairing afresh on the existing cases",
+        arguments: [
+            ("add a total to the payment sheet", "PaymentSheet.swift — Acme"),
+            ("pgvector again", "pgvector — pgvector"),
+            ("meeting notes for tomorrow", "Meeting notes — tomorrow"),
+            ("let us start", "pgvector migration"),
+        ])
+    func sameCandidatesOnExistingCases(heard: String, title: String) {
+        #expect(
+            LearnableWords.seenAndSaid(heard: heard, seeing: .fixture(documentName: title))
+                == seenAndSaidByBruteForce(heard: heard, title: title))
+    }
+
+    @Test("encodes no spoken span when no title term is worth comparing")
+    func encodesNothingForAnOrdinaryTitle() {
+        let counter = CountingEncoder()
+
+        _ = LearnableWords.seenAndSaid(
+            heard: Self.heard, seeing: .fixture(documentName: "Meeting notes"), encoding: counter.encode)
+
+        #expect(counter.calls == 0)
+    }
+}
+
 @Suite("A dictation made over a selection")
 struct CorrectedWordTests {
     /// The user highlighted the wrong spelling, said the word again, and let the new spelling stand.

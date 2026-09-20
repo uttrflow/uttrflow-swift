@@ -24,8 +24,10 @@ does not stop. Reusing one for the other made every collection past the ninth se
 which the snapshot rejects — so the tenth chip drew like the others, said nothing about
 being different, and did nothing when clicked.
 
-**While there is a query, the active chip is All.** A search spans every collection and
-every tab, so drawing the open tab as chosen would tell the user their search had been
+**While there is a query, the active chip is All** — unless a kind chip (Text, Links, Code,
+Images) is on. That is the one narrowing a search keeps: the kind chip stays lit, and an empty
+search says "Nothing under Code mentions …" and points at All, rather than claiming the whole
+clipboard was searched (#899). A search otherwise spans every collection and every tab, so drawing the open tab as chosen would tell the user their search had been
 narrowed when it had not, and the rows from elsewhere would read as a bug. The snapshot
 keeps its collection regardless — this is only what is *shown*, and emptying the field
 brings it back.
@@ -114,3 +116,11 @@ self-correcting.
 A change to *what is listed* puts the selection back at the top; a change to *the world*
 — something copied while the panel is open — leaves it where it was, because the
 selection is held by identity.
+
+## Six rows of each kind of match
+
+While searching, each group (name, collection, contents) draws at most six rows and counts the
+rest as "N more · keep typing to narrow it". Browsing is never capped. Two cases would make that
+advice impossible to follow, so the cap bends for them (#898): a clip whose whole text is the
+query leads its group, since nothing more can be typed to reach it, and a collection named
+exactly lists every clip in it, since a picture has no text to narrow by.
