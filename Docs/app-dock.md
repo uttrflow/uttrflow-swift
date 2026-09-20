@@ -72,6 +72,19 @@ the pill a few points to its left; the tick's job is to be unmistakable.
 
 - `dockAccent` `#128077` is capped at 29% lightness so white 13-point text clears 4.5:1 on it.
   The mark's own teal is lighter than that and never carries text.
+- The status colours are held to the same minimums on both desktops, measured with the WCAG
+  formula against the glass over a light desktop (about `#EEEEEE`) and a dark one (about
+  `#262626`), and checked by `DockContrastTests`:
+
+  | Where | Colour | Against | Ratio | Needed |
+  | --- | --- | --- | --- | --- |
+  | Failure disc | `dockWarningFill` `#C25E00` | its white glyph | 4.29:1 | 3:1 |
+  | Failure disc | `#C25E00` | light / dark glass | 3.70:1 / 3.53:1 | 3:1 |
+  | Copied keycap text | `dockWarningInk` `#9A4E00` light, `#FFB05C` dark | light / dark glass | 5.23:1 / 8.37:1 | 4.5:1 |
+  | Inserted tick | `dockSuccessInk` `#1F8A3A` light, `#34C759` dark | light / dark glass | 3.81:1 / 6.82:1 | 3:1 |
+
+  The bright `dockWarning` `#FF8D28` and `dockSuccess` `#34C759` measure 2.31:1 under white
+  and about 2:1 on light glass, so the dock never draws with them.
 - `dockWeightInk` is fixed, not `.primary`: the weight's disc is the same teal in both
   appearances, so ink that followed the appearance would vanish in one of them.
 - The panel's own `hasShadow` is off: AppKit draws a shadow around a transparent panel's

@@ -116,6 +116,41 @@ struct PanelFormatTests {
                 == false)
     }
 
+    /// How many diff steps `work` took.
+    static func diffSteps(_ work: () -> Void) -> Int {
+        let tally = DiffTally()
+        TextDiff.$tally.withValue(tally) { work() }
+        return tally.count
+    }
+
+    @Test("D6 · an update while the sheet is open does not compare the texts again")
+    func sheetIsComparedOnce() {
+        var snapshot = Self.panel()
+        snapshot.sheet = .formatting(Self.swiftCode.id, formatted: "func a() {\n    let x = 1\n}")
+        var first: PanelSheetPresentation?
+        #expect(Self.diffSteps { first = PanelPresenter.present(snapshot).sheet } > 0)
+
+        let arrowed = snapshot.applying(.down).state
+        var again: [PanelSheetPresentation?] = []
+        let later = Self.diffSteps {
+            again = [snapshot, arrowed].map { PanelPresenter.present($0).sheet }
+        }
+        #expect(later == 0)
+        #expect(again.allSatisfy { $0 == first })
+    }
+
+    @Test("a different formatted text is compared afresh")
+    func newFormattedTextIsCompared() {
+        var snapshot = Self.panel()
+        snapshot.sheet = .formatting(Self.swiftCode.id, formatted: "func a() {\n    let x = 1\n}")
+        _ = PanelPresenter.present(snapshot)
+        snapshot.sheet = .formatting(Self.swiftCode.id, formatted: Self.swiftCode.text)
+
+        var sheet: PanelSheetPresentation?
+        #expect(Self.diffSteps { sheet = PanelPresenter.present(snapshot).sheet } > 0)
+        #expect(sheet?.isConfirmEnabled == false)
+    }
+
     /// The result is carried on the sheet, since running the formatter twice could answer differently.
     @Test("keeping it writes exactly what was shown")
     func keepsWhatWasShown() {

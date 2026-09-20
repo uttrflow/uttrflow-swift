@@ -54,6 +54,18 @@ struct SuggestionSurfaceTests {
         #expect(panel.drawn.style == .hidden)
     }
 
+    @Test("A suggestion with no room reports hidden and stops idle polling")
+    func noRoomReportsHidden() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let field = CGRect(x: screen.midX, y: screen.midY - 5, width: 100, height: 28)
+        let caret = CGRect(x: field.maxX, y: screen.midY, width: 0, height: 17)
+        let panel = SuggestionPanelController.shared
+        panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret, field: field)
+        defer { panel.hide() }
+        #expect(!panel.isShowing)
+        #expect(!panel.window.isVisible)
+    }
+
     @Test("A long suggestion at a caret near the edge stays inside the field and the screen")
     func aLongSuggestionStaysOnScreen() throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
@@ -72,5 +84,20 @@ struct SuggestionSurfaceTests {
     @Test("The panel has no window animation, so hiding a ghost does not wait out a fade")
     func thePanelDoesNotFade() {
         #expect(SuggestionPanelController.shared.window.animationBehavior == .none)
+    }
+
+    @Test("Hiding a panel that is already hidden does not replace the view")
+    func aRedundantHideDoesNothing() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
+        let panel = SuggestionPanelController.shared
+        panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
+        panel.hide()
+        #expect(!panel.window.isVisible)
+        let before = panel.renders
+        panel.hide()
+        panel.hide()
+        #expect(panel.renders == before)
+        #expect(panel.drawn.style == .hidden)
     }
 }

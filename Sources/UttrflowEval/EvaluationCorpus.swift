@@ -173,12 +173,42 @@ public enum EvaluationCorpus {
             mustKeep: ["invoice", "Wednesday"],
             mustNotAdd: ["Tuesday"]
         ),
+        // The recogniser set the correction off with commas, and the comma that closed it goes with it.
+        .init(
+            id: "correction-between-commas", category: .everyday,
+            spoken: "Send the file to Alex, I mean to Sam, before lunch.",
+            expected: "Send the file to Sam before lunch.",
+            mustKeep: ["file", "Sam", "lunch"],
+            mustNotAdd: ["Alex"]
+        ),
         .init(
             id: "actually-between-numbers", category: .everyday,
             spoken: "let's get coffee at two actually three",
             expected: "Let's get coffee at three.",
             mustKeep: ["coffee"],
             mustNotAdd: ["two"]
+        ),
+        // The recogniser writes the amounts with their signs, and the sign goes with the amount taken back.
+        .init(
+            id: "correction-between-amounts", category: .everyday,
+            spoken: "the total is $40, no wait, $50",
+            expected: "The total is $50.",
+            mustKeep: ["$50"],
+            mustNotAdd: ["$$", "40"]
+        ),
+        .init(
+            id: "correction-between-percentages", category: .everyday,
+            spoken: "the fee is 40% actually 50%",
+            expected: "The fee is 50%.",
+            mustKeep: ["fee", "50%"],
+            mustNotAdd: ["40"]
+        ),
+        .init(
+            id: "number-correction-with-unit", category: .everyday,
+            spoken: "we need twelve boxes i mean fifteen boxes",
+            expected: "We need 15 boxes.",
+            mustKeep: ["15", "boxes"],
+            mustNotAdd: ["12"]
         ),
         // "no" opens the sentence rather than correcting one, and "wait" is a verb here.
         .init(
@@ -421,6 +451,20 @@ public enum EvaluationCorpus {
             mustNotAdd: ["new", "period"]
         ),
         .init(
+            id: "full-stop-new-paragraph", category: .everyday,
+            spoken: "the build is green full stop new paragraph thanks everyone",
+            expected: "The build is green.\n\nThanks everyone.",
+            mustKeep: ["build is green", "thanks everyone"],
+            mustNotAdd: ["paragraph", "full stop"]
+        ),
+        .init(
+            id: "question-mark-new-line", category: .everyday,
+            spoken: "is it ready question mark new line yes",
+            expected: "Is it ready?\nYes.",
+            mustKeep: ["is it ready", "yes"],
+            mustNotAdd: ["new line", "question mark"]
+        ),
+        .init(
             id: "time-of-day", category: .everyday,
             spoken: "the dentist moved my appointment to two thirty pm tomorrow",
             expected: "The dentist moved my appointment to 2:30 pm tomorrow.",
@@ -597,6 +641,13 @@ public enum EvaluationCorpus {
             spoken: "क्या तुम आज का PR review कर सकते हो",
             expected: "Kya tum aaj ka PR review kar sakte ho?",
             mustKeep: ["PR", "review"]
+        ),
+        // A repeated Hindi pronoun starts a fresh clause, so "sorry" here is an apology, not a correction.
+        .init(
+            id: "hinglish-apology-kept", category: .multilingual, language: .hindi,
+            spoken: "मैं late हूँ sorry मैं अभी आता हूँ",
+            expected: "Main late hoon, sorry, main abhi aata hoon.",
+            mustKeep: ["late"]
         ),
     ]
 
@@ -1445,6 +1496,7 @@ public enum EvaluationCorpus {
                 bundleIdentifier: "com.microsoft.Word",
                 documentName: "Handover notes.docx"
             ),
+            mustNotAdd: ["don't"],
             destination: .document,
             mustBeginWith: "He",
             mustEndWith: "yet."
@@ -1511,12 +1563,13 @@ public enum EvaluationCorpus {
             id: "preposition-slip", category: .grammar,
             spoken: "she is good in maths and physics",
             expected: "She is good at maths and physics.",
-            mustKeep: ["maths", "physics"],
+            mustKeep: ["good at", "maths", "physics"],
             context: AppContext(
                 applicationName: "Microsoft Word",
                 bundleIdentifier: "com.microsoft.Word",
                 documentName: "Reference letter.docx"
             ),
+            mustNotAdd: ["good in"],
             destination: .document,
             mustBeginWith: "She",
             mustEndWith: "physics."

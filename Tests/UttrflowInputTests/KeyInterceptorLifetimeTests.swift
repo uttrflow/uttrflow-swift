@@ -5,6 +5,12 @@ import Testing
 
 @testable import UttrflowInput
 
+/// Lets the tap's own thread reach the tap it is running, which only exists once `create` returns.
+private final class TapBox: @unchecked Sendable {
+    var tap: InterceptorTap?
+    var alive: CFRunLoopSource?
+}
+
 @Suite("The key interceptor's tap lifetime", .timeLimit(.minutes(1)))
 struct KeyInterceptorLifetimeTests {
     /// A plain Mach port, which stands in for an event tap without needing Accessibility.
@@ -111,6 +117,27 @@ struct KeyInterceptorLifetimeTests {
         await release.wait()
         #expect(weakState == nil, "the state outlived its stopped tap")
         withExtendedLifetime(tap) {}
+    }
+
+    @Test("a stop that lands after the source is added but before the run loop runs still ends the thread")
+    func stoppingBeforeTheLoopRunsEndsTheThread() async throws {
+        let port = try #require(Self.makePort())
+        let keepAlive = try #require(Self.makePort())
+        let release = Release()
+        let box = TapBox()
+        box.alive = try #require(CFMachPortCreateRunLoopSource(nil, keepAlive, 0))
+        let tap = try InterceptorTap.create(
+            state: Self.makeState(), makePort: { _ in port }, released: release.fire,
+            beforeLoop: {
+                // A second live source means the loop would run on even though the tap's own source is gone.
+                CFRunLoopAddSource(CFRunLoopGetCurrent(), box.alive, .commonModes)
+                box.tap?.stop()
+            })
+        box.tap = tap
+        tap.run()
+        await release.wait()
+        box.tap = nil
+        CFMachPortInvalidate(keepAlive)
     }
 
     @Test("a tap stopped before it runs still releases its state")
