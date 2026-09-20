@@ -51,6 +51,16 @@ nowhere to return to, so the port is bound first, and a Mac that cannot bind one
 by RFC 8628 device code instead: the flow a television uses, needing no port, URL scheme or
 operating-system permission.
 
+The listener is told the attempt's `state` when it binds. Anything else on this Mac can
+reach a loopback port, so a request carrying another state, or none, is answered with the
+failure page and the port keeps waiting for the browser; only the matching callback is
+answered as signed in and handed on. One attempt accepts at most 32 connections, and the
+port is not opened for address reuse.
+
+The device flow's verification address comes from the server and is handed to the system
+to open, so anything but an `https` address with a host refuses the sign-in before it is
+opened.
+
 While polling for device approval, `authorization_pending` is the ordinary answer rather
 than a failure (RFC 8628 spells it as an error because a token endpoint has no other
 vocabulary), and `slow_down` lengthens the interval by five seconds.

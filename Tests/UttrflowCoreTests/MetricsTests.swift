@@ -44,6 +44,40 @@ struct MetricsTests {
         #expect(measurements.first?.duration == .milliseconds(20))
     }
 
+    @Test("records a stage that ran out of time as failed, and still answers nothing")
+    func recordsExpiryAsFailure() async {
+        let recorder = RecordingMetricsRecorder()
+        let clock = ManualClock()
+
+        let value: String? = await recorder.measuringInTime(.transcription, clock: clock) {
+            clock.advance(by: .seconds(120))
+            return nil
+        }
+
+        #expect(value == nil)
+        #expect(
+            await recorder.measurements
+                == [.init(stage: .transcription, duration: .seconds(120), succeeded: false)])
+        let summary = StageLatency.summarise(await recorder.measurements)
+        #expect(summary.first?.failures == 1)
+    }
+
+    @Test("records a stage that answered in time as succeeded, and one that threw as failed")
+    func recordsInTimeAnswers() async {
+        let recorder = RecordingMetricsRecorder()
+        let clock = ManualClock()
+
+        let value = await recorder.measuringInTime(.insertion, clock: clock) { () -> String? in "text" }
+        await #expect(throws: StubError.self) {
+            try await recorder.measuringInTime(.insertion, clock: clock) { () throws(StubError) -> Int? in
+                throw StubError()
+            }
+        }
+
+        #expect(value == "text")
+        #expect(await recorder.measurements.map(\.succeeded) == [true, false])
+    }
+
     @Test("measures each stage separately so a regression can be attributed")
     func measuresEveryStageIndependently() async {
         let recorder = RecordingMetricsRecorder()

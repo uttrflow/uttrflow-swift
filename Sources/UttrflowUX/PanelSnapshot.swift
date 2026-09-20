@@ -115,6 +115,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var selection: Clip.ID?
     /// The sheet over the list, or `nil`; held here because it changes what esc and Return mean.
     public var sheet: PanelSheet?
+    /// Keeps the formatting sheet last drawn, shared by every copy of this snapshot so an update does not diff again.
+    let formattingSheets = FormattingSheetMemo()
 
     /// Whether a delete can still be taken back; set by the app, which alone still holds the clip.
     public var canUndoDelete: Bool = false
@@ -135,6 +137,8 @@ public struct PanelSnapshot: Sendable, Equatable {
 
     /// The languages a formatter is installed for; asked of the machine by the app when the panel opens.
     public var formattableLanguages: Set<CodeLanguage> = []
+    /// Remembers which code clips can be re-indented, shared by every copy of this snapshot so a keystroke does not ask again.
+    let reindentOffers = ReindentOffers()
     /// The secrets the user has deliberately unmasked; a reveal never outlives the panel that asked.
     public var revealed: Set<Clip.ID>
     /// The clock the timestamps are measured against, injected so "2 minutes ago" is testable.
@@ -203,5 +207,16 @@ public struct PanelSnapshot: Sendable, Equatable {
             !trimmed.isEmpty
         else { return nil }
         return trimmed
+    }
+}
+
+extension PanelSnapshot {
+    /// Takes a new clip list with what the machine said about it, the one path for opening and refreshing.
+    public mutating func install(
+        _ clips: [Clip], missingImages: Set<Clip.ID>, formattableLanguages: Set<CodeLanguage>
+    ) {
+        self.clips = clips
+        self.missingImages = missingImages
+        self.formattableLanguages = formattableLanguages
     }
 }

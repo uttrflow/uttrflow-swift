@@ -80,6 +80,19 @@ struct FieldReadingTests {
         #expect(scope("/") == "/")
     }
 
+    @Test(
+        "A terminal in a directory whose name has a dot is scoped to that directory, not its parent.",
+        arguments: ["com.apple.Terminal", "com.googlecode.iterm2"])
+    func terminalDottedDirectoryIsItsOwnScope(bundleIdentifier: String) {
+        func scope(_ document: String) -> String? {
+            FieldReading(bundleIdentifier: bundleIdentifier, role: "AXTextArea", document: document).scope
+        }
+        #expect(scope("file:///Users/someone/site.example.io") == "/Users/someone/site.example.io")
+        #expect(scope("/Users/someone/Library/Tool.app") == "/Users/someone/Library/Tool.app")
+        #expect(scope("~/projects/v1.2") == "~/projects/v1.2")
+        #expect(scope("/Users/someone/work/") == "/Users/someone/work")
+    }
+
     @Test("A document is scoped to the folder it sits in, so a project's files share one corpus.")
     func documentScopeIsTheContainingDirectory() {
         func scope(_ document: String) -> String? {

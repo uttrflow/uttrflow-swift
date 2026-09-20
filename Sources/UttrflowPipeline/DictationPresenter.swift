@@ -114,7 +114,8 @@ public enum DictationPresenter {
         for state: DictationState, advice: DictationAdvice = .keepGoing, speechModel: SpeechModelLoad?
     ) -> DockPresentation {
         let drawn = dock(for: state, advice: advice)
-        guard let load = speechModel else { return drawn }
+        // A missing model is setup's to fetch, and the button stays out of the way while setup runs.
+        guard let load = speechModel, load != .missing else { return drawn }
         switch state {
         case .idle:
             return DockPresentation(

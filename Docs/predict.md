@@ -161,6 +161,24 @@ is on the AI suggestions pane beside it.
 `Uttrflow` in that path is the folder this build writes under, and a development build
 writes under its own — see [development-build.md](development-build.md).
 
+### Forgetting from Settings
+
+Settings reaches the corpus through `PredictCorpus`, which opens `predict.v1.sqlite` only
+for the question it is asked and never creates it, so forgetting works whether or not the
+suggestion loop is running.
+
+- **Forget what it learned here**, beside an application in the list, appears once that
+  application has taught at least one line, and deletes that application's surfaces and every
+  entry and succession in them. Other applications keep theirs.
+- **Reset personalisation** deletes every surface in the corpus, and the consent file with
+  them, so the list no longer names the applications the loop has met.
+- **Switching an application off** stops learning there and keeps what was already learned,
+  so switching it back on picks up where it left off. Forgetting is the row beside it, a
+  separate choice. Turning the feature off everywhere keeps the corpus the same way.
+
+Forgetting is a `DELETE`, so while the loop keeps its own connection open the deleted pages
+can stay in `predict.v1.sqlite-wal` until the next checkpoint (#642).
+
 ## The loop, once per keystroke
 
 `SuggestionSession` in `UttrflowPredict` is the whole sequence as pure code: it holds the
@@ -454,9 +472,13 @@ rewrites the query as a `LIKE`.
 
 The fuzzy fallback rejects candidates with a 64-bit character mask before it computes any
 edit distance. The width of the window that mask covers is the whole of its strength: a
-mask over the first *n + k* bytes, where *n* is the query length and *k* its edit budget,
-measured **14.9×** faster than no prefilter at all. A fixed twelve-byte window measured
-**4.0×**.
+mask over the first *n + k* units, where *n* is the query length and *k* its edit budget,
+measured **14.9×** faster than no prefilter at all. A fixed twelve-unit window measured
+**4.0×**. Those were measured on ASCII, where a byte and a Unicode scalar are the same unit.
+
+The unit is the Unicode scalar, for the budget, the mask and the distance alike. Counted in
+UTF-8 bytes, one Devanagari letter is three units, so two typed letters earned the two-edit
+allowance meant for six, and an accented Latin letter earned an edit a plain one did not.
 
 Both are sound — a wider window can only weaken the filter, and never rejects a candidate
 that would have matched — so the fixed width fails silently, giving up most of the gain
