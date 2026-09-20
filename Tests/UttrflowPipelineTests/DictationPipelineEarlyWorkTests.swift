@@ -525,6 +525,24 @@ struct DictationPipelineEarlyWorkTests {
         #expect(outcome?.cleanedBy == .rules)
     }
 
+    @Test("what a piece cost the recogniser beyond one decode reaches the recorder")
+    func decodeEffortIsRecorded() async {
+        let metrics = RecordingMetricsRecorder()
+        let effort = DecodeEffort(
+            fallbacks: 3, fallbackSeconds: 1.5, encoderRuns: 2, retriedWithoutPrompt: true)
+        let speech = FakeSpeechEngine(
+            transcribeOutcome: .success(
+                Transcription(text: "hello there", audioDuration: .seconds(1), effort: effort)))
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: speech, metrics: metrics)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await metrics.decoding == [effort, effort, effort], "one per recognised piece")
+    }
+
     @Test("a dictation done in pieces still reports one figure per stage")
     func metricsAreOnePerStage() async {
         let metrics = RecordingMetricsRecorder()

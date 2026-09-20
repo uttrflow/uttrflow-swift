@@ -41,6 +41,14 @@ public struct StageMeasurement: Sendable, Equatable {
 public protocol MetricsRecording: Sendable {
     /// Keeps one measurement.
     func record(_ measurement: StageMeasurement) async
+
+    /// Keeps what one piece cost the recogniser beyond a single decode.
+    func recordDecoding(_ effort: DecodeEffort) async
+}
+
+extension MetricsRecording {
+    /// Most recorders care only about timings, so reporting decode effort is optional.
+    public func recordDecoding(_ effort: DecodeEffort) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -90,6 +98,13 @@ public actor StageTally: MetricsRecording {
             succeeded: (previous?.succeeded ?? true) && measurement.succeeded)
     }
 
+    /// What each piece cost the recogniser beyond one decode, kept per piece rather than added up.
+    private var decoding: [DecodeEffort] = []
+
+    public func recordDecoding(_ effort: DecodeEffort) {
+        decoding.append(effort)
+    }
+
     /// One total per stage that was measured, in the order the journey runs.
     public var measurements: [StageMeasurement] {
         PipelineStage.allCases.compactMap { totals[$0] }
@@ -98,6 +113,7 @@ public actor StageTally: MetricsRecording {
     /// Hands every total on as a single measurement.
     public func report(to recorder: any MetricsRecording) async {
         for measurement in measurements { await recorder.record(measurement) }
+        for effort in decoding { await recorder.recordDecoding(effort) }
     }
 }
 

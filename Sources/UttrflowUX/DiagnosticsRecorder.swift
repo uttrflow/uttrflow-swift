@@ -26,6 +26,15 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
         }
     }
 
+    /// What each recognised piece cost beyond one decode, newest last and bounded like the measurements.
+    public private(set) var decoding: [DecodeEffort] = []
+
+    public func recordDecoding(_ effort: DecodeEffort) async {
+        guard capacity > 0 else { return }
+        decoding.append(effort)
+        if decoding.count > capacity { decoding.removeFirst(decoding.count - capacity) }
+    }
+
     /// Oldest first, which is the order they were measured in.
     public var recorded: [StageMeasurement] {
         measurements

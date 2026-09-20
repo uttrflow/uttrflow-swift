@@ -598,6 +598,8 @@ public actor DictationPipeline {
             throw SpeechEngineError.transcriptionFailed(description: "the recogniser did not answer")
         }
         guard case .words(let transcription) = heard, !transcription.isBlank else { return nil }
+        // Kept beside the timing, since a re-decode is most of what a long transcription time is.
+        await metrics.recordDecoding(transcription.effort)
         if dictationLanguage == nil { dictationLanguage = transcription.detectedLanguage?.code }
         return transcription
     }
