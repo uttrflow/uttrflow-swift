@@ -153,3 +153,124 @@ struct SavedClipsTests {
         #expect(clips.map(\.text) == ["newest", "saved", "oldest"])
     }
 }
+
+/// A collection is one gesture, so it is one write per file however many clips it holds.
+@Suite("Collection changes and pastes write as little as they can")
+struct ClipboardWriteCountTests {
+    /// How many files `work` wrote.
+    static func writes(_ work: () async throws -> Void) async rethrows -> Int {
+        let tally = StoreWriteTally()
+        try await ClipboardStore.$writes.withValue(tally) { try await work() }
+        return tally.count
+    }
+
+    /// A store holding a collection of `count` clips and one clip outside it.
+    static func store(at url: URL, filing count: Int, into name: String) async throws -> ClipboardStore {
+        let store = ClipboardStore(file: url)
+        for index in 0..<count {
+            let filed = Clip(
+                text: "filed \(index)", kind: .text, copiedAt: noon.addingTimeInterval(Double(index)))
+            try await store.record(filed, keeping: week())
+            try await store.setCategory(name, of: filed.id, keeping: week())
+        }
+        try await store.record(
+            Clip(text: "loose", kind: .text, copiedAt: noon.addingTimeInterval(-60)), keeping: week())
+        return store
+    }
+
+    @Test("renaming a collection of forty clips writes each file once")
+    func renameIsOneWrite() async throws {
+        let file = TemporaryFile()
+        let store = try await Self.store(at: file.url, filing: 40, into: "Work")
+
+        let written = try await Self.writes {
+            try await store.moveCategory("Work", to: "Jobs", keeping: week())
+        }
+
+        #expect(written <= 2)
+        let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
+        #expect(reopened.filter { $0.category == "Jobs" }.count == 40)
+        #expect(!reopened.contains { $0.category == "Work" })
+        #expect(reopened.contains { $0.text == "loose" && $0.category == nil })
+    }
+
+    @Test("deleting a collection and keeping its clips writes each file once")
+    func moveOutIsOneWrite() async throws {
+        let file = TemporaryFile()
+        let store = try await Self.store(at: file.url, filing: 40, into: "Work")
+
+        let written = try await Self.writes { try await store.moveCategory("Work", to: nil, keeping: week()) }
+
+        #expect(written <= 2)
+        let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
+        #expect(reopened.count == 41)
+        #expect(reopened.allSatisfy { $0.category == nil })
+    }
+
+    @Test("deleting a collection with its clips writes each file once")
+    func deleteIsOneWrite() async throws {
+        let file = TemporaryFile()
+        let store = try await Self.store(at: file.url, filing: 40, into: "Work")
+
+        let written = try await Self.writes { try await store.deleteCategory("Work", keeping: week()) }
+
+        #expect(written <= 2)
+        let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
+        #expect(reopened.map(\.text) == ["loose"])
+    }
+
+    @Test("a paste writes nothing, and the next real write carries it")
+    func pasteIsCarriedByTheNextWrite() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let pasted = Clip(text: "pasted", kind: .text, copiedAt: noon)
+        try await store.record(pasted, keeping: week())
+        let later = noon.addingTimeInterval(600)
+
+        let written = await Self.writes { _ = await store.markUsed(pasted.id, at: later, keeping: week()) }
+
+        #expect(written == 0)
+        #expect(await store.clips(keeping: week()).first?.lastUsedAt == later, "in memory at once")
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()).first?.lastUsedAt == noon)
+
+        let next = Clip(text: "next", kind: .text, copiedAt: noon.addingTimeInterval(60))
+        try await store.record(next, keeping: week())
+        let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
+        #expect(reopened.first { $0.id == pasted.id }?.lastUsedAt == later)
+    }
+
+    @Test("a held use is written by a flush, and a second flush writes nothing")
+    func flushWritesHeldUse() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let pasted = Clip(text: "pasted", kind: .text, copiedAt: noon)
+        try await store.record(pasted, keeping: week())
+        let later = noon.addingTimeInterval(600)
+        _ = await store.markUsed(pasted.id, at: later, keeping: week())
+
+        let first = await Self.writes { await store.flushUse() }
+        let second = await Self.writes { await store.flushUse() }
+
+        #expect(first == 1)
+        #expect(second == 0)
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()).first?.lastUsedAt == later)
+    }
+
+    @Test("a use that drops an aged-out clip is written at once")
+    func agingIsWrittenAtOnce() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let old = Clip(text: "old", kind: .text, copiedAt: noon)
+        let fresh = Clip(text: "fresh", kind: .text, copiedAt: noon.addingTimeInterval(6 * 86_400))
+        try await store.record(old, keeping: week())
+        try await store.record(fresh, keeping: week())
+        let eightDaysOn = week(from: noon.addingTimeInterval(8 * 86_400))
+
+        let written = await Self.writes {
+            _ = await store.markUsed(fresh.id, at: eightDaysOn.now, keeping: eightDaysOn)
+        }
+
+        #expect(written >= 1)
+        #expect(await ClipboardStore(file: file.url).clips(keeping: eightDaysOn).map(\.text) == ["fresh"])
+    }
+}
