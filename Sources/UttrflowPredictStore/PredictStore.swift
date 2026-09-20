@@ -251,12 +251,12 @@ public actor PredictStore: PredictionStore {
         ) { row -> Candidate? in
             Self.rowsScanned.withLock { $0 += 1 }
             let text = row.text(0)
-            let bytes = Array(text.utf8)
+            let units = FuzzyMatch.units(text)
             guard
                 FuzzyMatch.couldMatch(
-                    query: queryMask, candidate: FuzzyMatch.mask(bytes.prefix(width)), within: budget)
+                    query: queryMask, candidate: FuzzyMatch.mask(units.prefix(width)), within: budget)
             else { return nil }
-            let distance = FuzzyMatch.prefixDistance(needle, bytes, within: budget)
+            let distance = FuzzyMatch.prefixDistance(needle, units, within: budget)
             guard distance <= budget else { return nil }
             return Candidate(
                 text: text, source: .personal,

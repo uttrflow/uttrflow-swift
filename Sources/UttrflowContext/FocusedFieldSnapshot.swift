@@ -2,7 +2,6 @@ public import CoreGraphics
 public import UttrflowPredict
 
 public import struct Foundation.NSRange
-private import UttrflowPredict
 
 /// One reading of the focused field: what identifies it, what it holds, and where its caret is.
 public struct FocusedFieldSnapshot: Sendable, Equatable {
