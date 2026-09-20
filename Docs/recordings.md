@@ -63,9 +63,16 @@ than typed, because the field they were meant for is gone. The outcome carries
 
 ## Retention
 
-A waiting recording is deleted when the list is next read if it is older than
-`RecordingStore.defaultRetention`, 24 hours. There is no setting for it: the window
-exists to bound what a crash can leave behind, not to be a preference.
+A waiting recording is deleted once it is older than `RecordingStore.defaultRetention`,
+24 hours. There is no setting for it: the window exists to bound what a crash can leave
+behind, not to be a preference.
+
+`AppDelegate.sweepExpired` does the deleting, at launch and after every dictation that
+finishes or fails, whether or not a window is open — a menu-bar-only user may never open
+the page that lists recordings. The same sweep drops transcripts past the History
+retention setting. Opening the main window reads the list too, and deletes as it reads.
+There is no timer: launch plus each dictation bounds a stale file to one day and one
+dictation, at no idle cost (`Docs/performance.md`).
 
 ## What is not here
 

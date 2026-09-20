@@ -28,7 +28,7 @@ struct MainPresentationTests {
         #expect(MainPresenter.title(for: .openSystemSettings(.microphone)) == "Open Settings")
         #expect(MainPresenter.title(for: .retry) == "Try Again")
         #expect(MainPresenter.title(for: .downloadSpeechModel) == "Download")
-        #expect(MainPresenter.title(for: .pasteManually) == "Paste")
+        #expect(MainPresenter.title(for: .pasteManually) == "Dismiss")
         #expect(MainPresenter.title(for: .showRecentDictations) == "Show Recent")
     }
 

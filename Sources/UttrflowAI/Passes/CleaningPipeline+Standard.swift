@@ -38,15 +38,16 @@ extension CleaningPipeline {
         for formatter: DestinationFormatter, situation: Situation, heard: String? = nil
     ) -> CleaningPipeline {
         CleaningPipeline(
-            passes: afterModelPiece(situation: situation).passes
+            passes: afterModelPiece(situation: situation, heard: heard).passes
                 + message(for: formatter, situation: situation, heard: heard).passes)
     }
 
     /// What finishes a model's answer to one piece: only the caret's echo, since each piece's prompt quotes the caret.
-    public static func afterModelPiece(situation: Situation) -> CleaningPipeline {
+    public static func afterModelPiece(situation: Situation, heard: String? = nil) -> CleaningPipeline {
         CleaningPipeline(passes: [
             CaretEchoPass(
-                state: situation.insertion.sentenceState, precedingText: situation.insertion.precedingText)
+                state: situation.insertion.sentenceState, precedingText: situation.insertion.precedingText,
+                spokenText: heard)
         ])
     }
 

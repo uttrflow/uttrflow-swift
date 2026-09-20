@@ -69,7 +69,8 @@ extension FieldReading {
             return Self.conversation(windowTitle, of: applicationName)
         }
         if let host = Self.host(of: document) { return host }
-        return Self.directory(of: document) ?? Self.conversation(windowTitle, of: applicationName)
+        return Self.directory(of: document, isDirectory: TerminalApplications.contains(bundleIdentifier))
+            ?? Self.conversation(windowTitle, of: applicationName)
     }
 
     /// How many characters of a window title name the thread; past this it is a document's first line rather than a name.
@@ -110,14 +111,15 @@ extension FieldReading {
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
-    /// The directory a path names, so every document of one project shares one corpus.
-    private static func directory(of document: String) -> String? {
+    /// The directory a path names, taking the path itself when it is known to be one, so every document of one project shares one corpus.
+    private static func directory(of document: String, isDirectory: Bool) -> String? {
         let path = document.hasPrefix("file://") ? URL(string: document)?.path() ?? "" : document
         let decoded = path.removingPercentEncoding ?? path
         guard decoded.hasPrefix("/") || decoded.hasPrefix("~") else { return nil }
         guard decoded.count > 1 else { return trimmed(decoded) }
         guard !decoded.hasSuffix("/") else { return trimmed(String(decoded.dropLast())) }
-        guard !(decoded as NSString).pathExtension.isEmpty else { return trimmed(decoded) }
+        // A terminal's document is its working directory, whatever its name looks like.
+        guard !isDirectory, !(decoded as NSString).pathExtension.isEmpty else { return trimmed(decoded) }
         return trimmed((decoded as NSString).deletingLastPathComponent)
     }
 

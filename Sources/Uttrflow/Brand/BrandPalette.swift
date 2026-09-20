@@ -107,5 +107,9 @@ enum BrandPalette {
         static let warning: UInt32 = 0xFF_8D28
         /// Ink on a page reporting a failure.
         static let cautionInk = BrandTone(dark: 0xFF_B05C, light: 0x9A_4E00)
+        /// The dock's failure disc, deep enough that its white glyph clears 3:1. See `Docs/app-dock.md`.
+        static let warningFill: UInt32 = 0xC2_5E00
+        /// The dock's tick, deepened on a light desktop so it clears 3:1 against the glass.
+        static let successInk = BrandTone(dark: success, light: 0x1F_8A3A)
     }
 }
