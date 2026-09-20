@@ -85,6 +85,15 @@ struct OrbitPaletteTests {
     }
 
     /// The three greys are within a few points, and a swapped pair would look like a rendering bug.
+    @Test("the fixed stage text remains bright against its dark ground")
+    func stageTextContrast() {
+        let text = NSColor(.stageText).usingColorSpace(.sRGB)
+        let ground = NSColor(rgb: BrandPalette.Surface.ground.dark).usingColorSpace(.sRGB)
+        #expect(text?.redComponent ?? 0 > ground?.redComponent ?? 1)
+        #expect(text?.greenComponent ?? 0 > ground?.greenComponent ?? 1)
+        #expect(text?.blueComponent ?? 0 > ground?.blueComponent ?? 1)
+    }
+
     @Test("the rail is darker than the page, and a card lighter")
     func surfacesStack() {
         func luminance(_ colour: Color) -> CGFloat {

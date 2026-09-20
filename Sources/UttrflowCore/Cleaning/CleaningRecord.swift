@@ -11,26 +11,37 @@ public struct CleaningRecord: Sendable, Equatable {
         }
     }
 
-    /// What one step changed, in the order the words were said.
+    /// What one step changed, in the order the words were said; the lists are capped and the counts are exact.
     public struct Change: Sendable, Equatable, Identifiable {
         public let step: PassID
         public let removed: [String]
         public let replaced: [Rewrite]
         public let inserted: [String]
+        /// How many words the step removed, which the capped `removed` list may undercount.
+        public let removedCount: Int
+        /// How many words the step rewrote, which the capped `replaced` list may undercount.
+        public let replacedCount: Int
+        /// How many words the step added, which the capped `inserted` list may undercount.
+        public let insertedCount: Int
 
         public var id: PassID { step }
 
+        /// A count left out, or smaller than its list, is taken from the list.
         public init(
             step: PassID, removed: [String] = [], replaced: [Rewrite] = [],
-            inserted: [String] = []
+            inserted: [String] = [], removedCount: Int = 0, replacedCount: Int = 0,
+            insertedCount: Int = 0
         ) {
             self.step = step
             self.removed = removed
             self.replaced = replaced
             self.inserted = inserted
+            self.removedCount = max(removedCount, removed.count)
+            self.replacedCount = max(replacedCount, replaced.count)
+            self.insertedCount = max(insertedCount, inserted.count)
         }
 
-        public var isEmpty: Bool { removed.isEmpty && replaced.isEmpty && inserted.isEmpty }
+        public var isEmpty: Bool { removedCount == 0 && replacedCount == 0 && insertedCount == 0 }
     }
 
     /// An engine's answer that was thrown away before this one, and the reason it was refused.
@@ -85,7 +96,10 @@ public struct CleaningRecord: Sendable, Equatable {
                     step: change.step,
                     removed: trimmed(existing.removed + change.removed),
                     replaced: trimmed(existing.replaced + change.replaced),
-                    inserted: trimmed(existing.inserted + change.inserted))
+                    inserted: trimmed(existing.inserted + change.inserted),
+                    removedCount: existing.removedCount + change.removedCount,
+                    replacedCount: existing.replacedCount + change.replacedCount,
+                    insertedCount: existing.insertedCount + change.insertedCount)
             } else {
                 order.append(change.step)
                 merged[change.step] = change
@@ -128,7 +142,9 @@ public struct CleaningRecord: Sendable, Equatable {
         return order.map { pass in
             Change(
                 step: pass, removed: trimmed(removed[pass] ?? []),
-                replaced: trimmed(replaced[pass] ?? []), inserted: trimmed(inserted[pass] ?? []))
+                replaced: trimmed(replaced[pass] ?? []), inserted: trimmed(inserted[pass] ?? []),
+                removedCount: removed[pass]?.count ?? 0, replacedCount: replaced[pass]?.count ?? 0,
+                insertedCount: inserted[pass]?.count ?? 0)
         }
     }
 

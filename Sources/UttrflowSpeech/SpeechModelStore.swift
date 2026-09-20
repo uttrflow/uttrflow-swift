@@ -65,15 +65,37 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         @Sendable (SpeechModel, ModelComponent, URL, @escaping @Sendable (Double) -> Void)
         async throws -> Void
 
+    /// Answers how many bytes the volume holding a URL can still take, or `nil` when it cannot say.
+    public typealias CapacityReader = @Sendable (URL) -> Int64?
+
+    /// Free space asked for beyond the download itself, so the disk is not left completely full.
+    static let installMargin: Int64 = 200_000_000
+
     /// The directory every model's folder sits in.
     public let root: URL
     /// How one component of one model is fetched.
     private let download: Downloader
+    /// How much the disk can take, checked before a download starts.
+    private let availableCapacity: CapacityReader
 
-    /// Puts models under `root` and fetches them with `download`.
-    public init(root: URL, download: @escaping Downloader) {
+    /// Puts models under `root` and fetches them with `download`, once `availableCapacity` says they fit.
+    public init(
+        root: URL, download: @escaping Downloader,
+        availableCapacity: @escaping CapacityReader = FileSystemSpeechModelStore.availableCapacity(at:)
+    ) {
         self.root = root
         self.download = download
+        self.availableCapacity = availableCapacity
+    }
+
+    /// The space the system will free for an important write on the volume holding `url`, read from its nearest existing folder.
+    public static func availableCapacity(at url: URL) -> Int64? {
+        var folder = url
+        while !FileManager.default.fileExists(atPath: folder.path), folder.pathComponents.count > 1 {
+            folder = folder.deletingLastPathComponent()
+        }
+        let values = try? folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage
     }
 
     /// Named rather than held, because `FileManager` is not `Sendable` though the shared one is safe here.
@@ -159,12 +181,16 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws(SpeechEngineError) {
         let staging = stagingLocation(of: model)
+        let needed = spaceNeeded(for: model, stagedIn: staging)
+        if let available = availableCapacity(root), available < needed {
+            throw .notEnoughSpace(neededBytes: needed)
+        }
         do {
             try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
             // Staging is kept on failure, so asking again resumes from the files already fetched.
             try await download(model, .weights, staging, onProgress)
         } catch {
-            throw .modelDownloadFailed(description: error.localizedDescription)
+            throw Self.failure(error, needing: needed)
         }
 
         // Checked here, or a download that reports success and produces nothing surfaces a launch later.
@@ -177,8 +203,32 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
         do {
             try commit(staging, into: destination)
         } catch {
-            throw .modelDownloadFailed(description: error.localizedDescription)
+            throw Self.failure(error, needing: needed)
         }
+    }
+
+    /// The rest of the download plus the margin, counting what an earlier attempt already staged.
+    private func spaceNeeded(for model: SpeechModel, stagedIn staging: URL) -> Int64 {
+        let staged = files(in: staging).reduce(Int64(0)) { total, url in
+            total + Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        }
+        return max(model.downloadBytes - staged, 0) + Self.installMargin
+    }
+
+    /// Says the disk is full when it is, and that the download failed otherwise.
+    static func failure(_ error: any Error, needing neededBytes: Int64) -> SpeechEngineError {
+        isOutOfSpace(error)
+            ? .notEnoughSpace(neededBytes: neededBytes)
+            : .modelDownloadFailed(description: error.localizedDescription)
+    }
+
+    /// Whether `error`, or any error beneath it, is the disk running out of room.
+    static func isOutOfSpace(_ error: any Error) -> Bool {
+        let error = error as NSError
+        if error.domain == NSCocoaErrorDomain, error.code == NSFileWriteOutOfSpaceError { return true }
+        if error.domain == NSPOSIXErrorDomain, error.code == Int(ENOSPC) { return true }
+        guard let underlying = error.userInfo[NSUnderlyingErrorKey] as? any Error else { return false }
+        return isOutOfSpace(underlying)
     }
 
     /// Swaps complete staged weights in for the model's directory, carrying over a tokenizer already there.
@@ -208,7 +258,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
             try await download(model, .tokenizer, destination, onProgress)
         } catch {
             TokenizerAssets.remove(from: destination)
-            throw .modelDownloadFailed(description: error.localizedDescription)
+            throw Self.failure(error, needing: Self.installMargin)
         }
 
         guard TokenizerAssets.arePresent(in: destination) else {

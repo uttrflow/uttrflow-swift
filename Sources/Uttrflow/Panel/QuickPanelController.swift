@@ -98,8 +98,8 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     /// A keystroke or its click, with the application that owned the caret when the panel opened.
     var onKey: ((PanelKey, NSRunningApplication?) -> Void)?
 
-    /// A row action the panel cannot answer itself — copy, pin, unpin — for the store to carry out.
-    var onIntent: ((PanelIntent) -> Void)?
+    /// A row action the panel cannot answer itself, with the application that owned the caret when the panel opened.
+    var onIntent: ((PanelIntent, NSRunningApplication?) -> Void)?
 
     private let panel: QuickPanel
     private let hostingView: QuickPanelHostingView<QuickPanelView>
@@ -115,19 +115,13 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     /// The origin `show(_:)` last set, compared in `windowDidMove` because AppKit reports that move late.
     private var placedOrigin: CGPoint?
 
-    /// Where the user last dragged the panel; two keys, because the size is the design's and never restored.
-    private static let originXKey = "com.uttrflow.panel.origin.x"
-    private static let originYKey = "com.uttrflow.panel.origin.y"
+    /// Names the defaults key holding each display's dragged origin; only the origin, since the size is the design's.
+    private static let spotsKey = "com.uttrflow.panel.origins"
+    /// Names the keys of the single origin kept before each display had its own, removed when a spot is saved.
+    private static let legacyOriginKeys = ["com.uttrflow.panel.origin.x", "com.uttrflow.panel.origin.y"]
 
-    private var rememberedOrigin: CGPoint? {
-        let defaults = UserDefaults.standard
-        // `object(forKey:)`: `double(forKey:)` answers 0 for a key never written, and 0,0 is a real corner.
-        guard defaults.object(forKey: Self.originXKey) != nil,
-            defaults.object(forKey: Self.originYKey) != nil
-        else { return nil }
-        return CGPoint(
-            x: defaults.double(forKey: Self.originXKey),
-            y: defaults.double(forKey: Self.originYKey))
+    private var rememberedSpots: PanelSpots {
+        PanelSpots(propertyList: UserDefaults.standard.object(forKey: Self.spotsKey))
     }
 
     init(presentation: PanelPresentation = .placeholder) {
@@ -186,13 +180,12 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
         hostingView.rootView = QuickPanelView(
             presentation: presentation,
             onKey: { [weak self] key in self?.relay(key) },
-            onIntent: { [weak self] intent in self?.onIntent?(intent) },
+            onIntent: { [weak self] intent in self?.onIntent?(intent, self?.caretOwner) },
             openCount: openCount)
     }
 
-    /// `esc` closes here as well as being reported, so the panel is gone within the frame.
+    /// Reports keys to the app; the resolved panel outcome decides whether Escape closes the window.
     private func relay(_ key: PanelKey) {
-        if key == .escape { hide() }
         onKey?(key, caretOwner)
     }
 
@@ -244,14 +237,19 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
             ?? NSScreen.main ?? NSScreen.screens.first
     }
 
-    /// Where the panel goes: where the user left it, or the top-right corner, via `PanelPlacement`.
+    /// Answers the display's number, which stays the same while it is attached however the displays are arranged.
+    private static func displayNumber(of screen: NSScreen) -> UInt32? {
+        (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+    }
+
+    /// Places the panel where the user left it on this display, or in the top-right corner, via `PanelSpots`.
     private func placedFrame(on screen: NSScreen?) -> CGRect {
         // The design's size on every open; a resize lasts only while the panel is on screen.
         let size = CGSize(width: QuickPanelMetrics.width, height: QuickPanelMetrics.height)
         // With no screen at all, a rectangle at the origin beats a crash.
-        guard let visible = screen?.visibleFrame else { return CGRect(origin: .zero, size: size) }
-        let origin = PanelPlacement.origin(
-            remembered: rememberedOrigin, size: size, in: visible)
+        guard let screen else { return CGRect(origin: .zero, size: size) }
+        let origin = rememberedSpots.origin(
+            on: Self.displayNumber(of: screen), size: size, in: screen.visibleFrame)
         return CGRect(
             x: origin.x.rounded(), y: origin.y.rounded(), width: size.width, height: size.height)
     }
@@ -260,8 +258,9 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     func windowDidMove(_ notification: Notification) {
         guard panel.isVisible, panel.frame.origin != placedOrigin else { return }
 
-        // Clamped to the screen while dragging: a borderless panel goes clean under the menu bar otherwise.
-        let visible = Self.activeScreen()?.visibleFrame
+        // Clamps to the screen the panel is on, not the pointer's, so a drag across displays is not pulled back.
+        let screen = panel.screen ?? Self.activeScreen()
+        let visible = screen?.visibleFrame
         let clamped =
             visible.map {
                 PanelPlacement.clamped(panel.frame.origin, size: panel.frame.size, in: $0)
@@ -271,8 +270,11 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
             placedOrigin = clamped
             panel.setFrameOrigin(clamped)
         }
-        UserDefaults.standard.set(Double(clamped.x), forKey: Self.originXKey)
-        UserDefaults.standard.set(Double(clamped.y), forKey: Self.originYKey)
+        guard let display = screen.flatMap(Self.displayNumber) else { return }
+        var spots = rememberedSpots
+        spots.remember(clamped, on: display)
+        UserDefaults.standard.set(spots.propertyList, forKey: Self.spotsKey)
+        for key in Self.legacyOriginKeys { UserDefaults.standard.removeObject(forKey: key) }
     }
 
     /// Applied whole, because every line follows from the one rule: never activate.
