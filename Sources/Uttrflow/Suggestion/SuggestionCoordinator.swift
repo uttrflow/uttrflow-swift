@@ -87,6 +87,8 @@ final class SuggestionCoordinator {
     private var lastKeystroke = Date.distantPast
     /// One turn at a time, with a turn that never returns left behind so the loop cannot die with it.
     private var turns = TurnGate()
+    /// What this turn has already been told about the moment, so one line costs one walk.
+    private let contextCache = SuggestionContextCache()
     /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
     private var isInserting = false
     /// True once the loop is stopped, so a turn still finishing draws nothing into the shared panel.
@@ -461,12 +463,14 @@ final class SuggestionCoordinator {
             // The model's last word on this exact line was nothing, and a tick changes nothing about the line.
             return
         } else {
-            let pass = Task { [generator, store] in
+            let pass = Task { [generator, store, contextCache] in
                 // A short quiet first, so a burst of keystrokes costs one pass for its last prefix rather than one per key.
                 try? await Task.sleep(for: .milliseconds(Self.generationDebounceInMilliseconds))
                 guard !Task.isCancelled else { return [String]() }
                 // The context is read only once a pass is certain, so a cancelled burst never pays for it.
-                let situation = await Self.situation(of: snapshot, for: query, store: store).choosing(choices)
+                let situation = await Self.situation(
+                    of: snapshot, for: query, store: store, cache: contextCache, turn: number
+                ).choosing(choices)
                 return try await generator.completions(for: query.typed, in: situation)
             }
             generating = pass
@@ -518,8 +522,9 @@ final class SuggestionCoordinator {
             lastGenerated = (query.surface, query.typed, [leader] + others)
             return await drawFresh(expanded, for: snapshot, turn: number)
         }
-        let more = Task { [generator, store] in
-            let situation = await Self.situation(of: snapshot, for: query, store: store)
+        let more = Task { [generator, store, contextCache] in
+            let situation = await Self.situation(
+                of: snapshot, for: query, store: store, cache: contextCache, turn: number)
             return try await generator.alternatives(for: query.typed, in: situation, excluding: leader)
         }
         generating = more
@@ -558,9 +563,14 @@ final class SuggestionCoordinator {
 
     /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.
     private static func situation(
-        of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore
+        of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore,
+        cache: SuggestionContextCache, turn: Int
     ) async -> GenerationSituation {
-        let around = await FocusedFieldReader.surroundings()
+        // The alternatives pass asks about the same line in the same turn, so it is told what the first pass was.
+        if let built = await cache.situation(forTurn: turn) { return built }
+        let around = await cache.surroundings(for: Self.windowKey(of: snapshot)) {
+            await FocusedFieldReader.surroundings()
+        }
         // The line being written is not a line written before, however long the pause that had it remembered.
         let recent = ((try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? [])
             .filter { !query.typed.hasPrefix($0) }
@@ -568,7 +578,7 @@ final class SuggestionCoordinator {
         Self.log.debug(
             "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(snapshot.preceding(maxLength: Self.precedingContextLength)?.count ?? 0)"
         )
-        return GenerationSituation(
+        let situation = GenerationSituation(
             application: snapshot.applicationName,
             field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
             document: snapshot.document,
@@ -576,6 +586,13 @@ final class SuggestionCoordinator {
             windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
             isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole
                 || snapshot.value?.contains(where: \.isNewline) == true)
+        await cache.remember(situation, forTurn: turn)
+        return situation
+    }
+
+    /// Which window a walk belongs to, from what the field read already says about it.
+    static func windowKey(of snapshot: FocusedFieldSnapshot) -> String {
+        "\(snapshot.bundleIdentifier)\u{1F}\(snapshot.document ?? "")"
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
