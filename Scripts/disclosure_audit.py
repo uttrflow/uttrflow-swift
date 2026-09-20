@@ -81,6 +81,7 @@ import base64
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 
@@ -362,11 +363,12 @@ def update_baseline(counts, absorb=False):
     return 0
 
 
-def scan_range(rev_range):
-    """Every commit message and every added line in a range of commits."""
-    shas = [s for s in git("log", "--format=%H", rev_range).split("\n") if s]
+def scan_range(named):
+    """Every commit message and every added line in a range of commits, however git names it."""
+    revisions = shlex.split(named)
+    shas = [s for s in git("log", "--format=%H", *revisions).split("\n") if s]
     if not shas:
-        print(f"  ✓ {rev_range} adds no commits")
+        print(f"  ✓ {named} adds no commits")
         return 0
     bad = False
     for sha in shas:
@@ -378,7 +380,7 @@ def scan_range(rev_range):
         if scan_diff(patch, f"commit {sha[:8]} diff ({subject})"):
             bad = True
     if not bad:
-        print(f"  ✓ {len(shas)} commit(s) in {rev_range}: messages and diffs clean")
+        print(f"  ✓ {len(shas)} commit(s) in {named}: messages and diffs clean")
     return 1 if bad else 0
 
 
@@ -434,7 +436,9 @@ def scan_hook():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--range", help="commit messages and added lines in A..B")
+    group.add_argument(
+        "--range", help="commit messages and added lines in a revision range, as git names it"
+    )
     group.add_argument("--history", action="store_true", help="every commit on every ref")
     group.add_argument("--text", action="store_true", help="scan stdin as new writing")
     group.add_argument("--hook", action="store_true", help="Claude Code PreToolUse gate")

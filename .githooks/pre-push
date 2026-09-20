@@ -64,9 +64,8 @@ done
 if ((${#pushed[@]})) && [[ -f Scripts/disclosure_audit.py ]]; then
     printf '\n\033[1mpre-push: checking what is about to be published\033[0m\n'
     for range in "${pushed[@]}"; do
-        # Deliberately unquoted: a new-branch range is three arguments, not one.
-        # shellcheck disable=SC2086
-        if ! python3 Scripts/disclosure_audit.py --range $range; then
+        # Quoted: a new-branch range carries git's own flags, which the script splits itself.
+        if ! python3 Scripts/disclosure_audit.py --range "$range"; then
             printf '\n\033[31m  nothing was pushed\033[0m\n'
             printf '  A commit message or an added line carries text that must not be\n'
             printf '  published. See AGENTS.md, "What must never reach a tracked file".\n'
