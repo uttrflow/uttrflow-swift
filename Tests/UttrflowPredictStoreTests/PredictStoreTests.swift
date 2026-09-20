@@ -151,6 +151,28 @@ struct RecordingTests {
         #expect(found.first?.evidence?.count == 3)
     }
 
+    @Test(
+        "Sixteen matches from another folder cannot crowd out a far more frequent one, whichever came first.",
+        arguments: [false, true])
+    func otherFoldersCannotCrowdOut(frequentFirst: Bool) async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let older = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "/a")
+        let here = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "/z")
+        if frequentFirst {
+            for _ in 0..<100 { try await store.record("git status", in: here, at: moment) }
+        }
+        for index in 0..<16 {
+            try await store.record(String(format: "git old-%03d", index), in: older, at: moment)
+        }
+        if !frequentFirst {
+            for _ in 0..<100 { try await store.record("git status", in: here, at: moment) }
+        }
+        let found = try await store.candidates(for: here, matching: "git ")
+        #expect(found.count == 16)
+        #expect(found.first?.text == "git status")
+    }
+
     @Test("A suggestion taken rather than typed is recorded as ours, so it counts for less.")
     func selfSourcedIsMarked() async throws {
         let corpus = Corpus()
@@ -248,12 +270,53 @@ struct StoreMatchingTests {
         #expect(found.map(\.text) == ["git push"])
     }
 
+    @Test("Among more near misses than are returned, the most frequent one is kept.")
+    func fuzzyKeepsTheStrongest() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        for index in 0..<16 {
+            try await store.record(String(format: "git old-%03d", index), in: terminal, at: moment)
+        }
+        for _ in 0..<100 { try await store.record("git status", in: terminal, at: moment) }
+        let found = try await store.candidates(for: terminal, matching: "gti ")
+        #expect(found.count == 16)
+        #expect(found.first?.text == "git status")
+    }
+
     @Test("Two characters are too few to correct, or everything would match.")
     func shortQueriesAreNotCorrected() async throws {
         let corpus = Corpus()
         let store = try store(corpus)
         try await store.record("git commit -m", in: terminal, at: moment)
         #expect(try await store.candidates(for: terminal, matching: "gt").isEmpty)
+    }
+
+    @Test("Two Devanagari letters are too few to correct, as two Latin ones are.")
+    func shortDevanagariIsNotCorrected() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("कल मिलते हैं", in: terminal, at: moment)
+        try await store.record("आज नहीं", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "नम").isEmpty)
+        #expect(try await store.candidates(for: terminal, matching: "आप").isEmpty)
+    }
+
+    @Test("One slipped letter in six typed Devanagari letters is still found.")
+    func devanagariSlipIsCorrected() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("कल मिलते हैं", in: terminal, at: moment)
+        let found = try await store.candidates(for: terminal, matching: "कल मोल")
+        #expect(found.map(\.text) == ["कल मिलते हैं"])
+        #expect(found.first?.editDistance == 1)
+    }
+
+    @Test("An accented letter counts once, so two typed letters are too few to correct.")
+    func accentedLettersCountOnce() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("cèpes farcies", in: terminal, at: moment)
+        #expect(try await store.candidates(for: terminal, matching: "cé").isEmpty)
     }
 
     @Test("An entry found to be wrong is never offered again, exactly or otherwise.")
@@ -315,6 +378,31 @@ struct ForgettingTests {
         #expect(try await store.entryCount() == 0)
     }
 
+    @Test("What each application taught is counted by application, across every field in it.")
+    func countsByApplication() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let search = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextField")
+        let elsewhere = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        try await store.record("git push", in: terminal, at: moment)
+        try await store.record("git pull", in: terminal, at: moment)
+        try await store.record("find a file", in: search, at: moment)
+        try await store.record("some prose", in: elsewhere, at: moment)
+        #expect(
+            try await store.entryCountsByApplication()
+                == ["com.example.terminal": 3, "com.example.editor": 1])
+    }
+
+    @Test("A second connection can forget while the first is still open, and the first sees it.")
+    func forgetsFromASecondConnection() async throws {
+        let corpus = Corpus()
+        let first = try store(corpus)
+        try await first.record("git push", in: terminal, at: moment)
+        try await PredictStore(path: corpus.path).forgetEverything()
+        #expect(try await first.entryCount() == 0)
+        #expect(try await first.entryCountsByApplication().isEmpty)
+    }
+
     @Test("Forgetting from a field never typed in is not an error.")
     func unknownSurface() async throws {
         let corpus = Corpus()
@@ -354,6 +442,22 @@ struct RetentionTests {
         ) { $0.integer(0) }
         #expect(superseded == [0])
         #expect(try await store.entryCount() == PredictStore.entriesPerSurface)
+    }
+
+    @Test("What follows what stops growing at the same cap, and keeps the pairs followed most.")
+    func successionsStayWithinTheCap() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        for _ in 0..<5 { try await store.record("git push", in: terminal, after: "git commit", at: moment) }
+        for index in 0..<(PredictStore.entriesPerSurface + 100) {
+            try await store.record(
+                "filler \(index) end", in: terminal, after: "before \(index) end", at: moment)
+        }
+        let counts = try Database(path: corpus.path).rows(
+            "SELECT (SELECT COUNT(*) FROM entry), (SELECT COUNT(*) FROM succession)", { _ in }
+        ) { [$0.integer(0), $0.integer(1)] }
+        #expect(counts == [[PredictStore.entriesPerSurface, PredictStore.entriesPerSurface]])
+        #expect(try await store.successors(for: terminal, after: "git commit").map(\.text) == ["git push"])
     }
 }
 

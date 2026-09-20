@@ -4,18 +4,25 @@ import Network
 private import Synchronization
 public import UttrflowCore
 
-/// Binds an OS-chosen port on `127.0.0.1` only, answers exactly one request, and closes.
+/// Binds an OS-chosen port on `127.0.0.1` only, waits for the callback carrying this attempt's state, and closes.
 public actor SystemLoopbackListener: LoopbackListening {
     /// The path the redirect arrives on; fixed, so a stray request to `/` is distinguishable in a log.
     public static let callbackPath = "/callback"
+
+    /// The most connections one attempt accepts; a browser needs two or three.
+    static let connectionLimit = 32
 
     /// The refusal for a wait that ended with no browser having arrived.
     private static let noAnswer = AccountError.providerRefused(description: "that sign-in did not come back")
 
     /// The bound listener, until closed.
     private var listener: NWListener?
-    /// Connections accepted and not yet cancelled.
+    /// Connections accepted this attempt, cancelled on close.
     private var connections: [NWConnection] = []
+    /// How many connections this attempt has accepted, including those refused over the limit.
+    private var accepted = 0
+    /// The state a callback must carry to be answered as signed in and handed to the waiter.
+    private var expectedState: String?
     /// The caller waiting for the callback, if any.
     private var waiting: CheckedContinuation<LoopbackCallback, any Error>?
     /// The callback that arrived, kept in case the wait begins after it.
@@ -25,12 +32,12 @@ public actor SystemLoopbackListener: LoopbackListening {
     public init() {}
 
     /// Binds a port and returns the redirect URI; ``AccountError/serverUnreachable`` when none binds.
-    public func bind() async throws(AccountError) -> URL {
+    public func bind(expecting state: String) async throws(AccountError) -> URL {
+        expectedState = state
         do {
             let parameters = NWParameters.tcp
             // Loopback only, or the port is reachable from the local network.
             parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: .any)
-            parameters.allowLocalEndpointReuse = true
 
             let listener = try NWListener(using: parameters)
             self.listener = listener
@@ -66,7 +73,7 @@ public actor SystemLoopbackListener: LoopbackListening {
         }
     }
 
-    /// Waits for the first callback; cancellation throws the no-answer refusal.
+    /// Waits for the callback carrying the expected state; cancellation throws the no-answer refusal.
     public func awaitCallback() async throws(AccountError) -> LoopbackCallback {
         if let received { return received }
 
@@ -93,6 +100,11 @@ public actor SystemLoopbackListener: LoopbackListening {
 
     /// Starts a connection and reads its first request.
     private func accept(_ connection: NWConnection) {
+        accepted += 1
+        guard accepted <= Self.connectionLimit else {
+            connection.cancel()
+            return
+        }
         connections.append(connection)
         connection.start(queue: .global(qos: .userInitiated))
         connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, _, _ in
@@ -101,17 +113,27 @@ public actor SystemLoopbackListener: LoopbackListening {
         }
     }
 
-    /// Parses the request, answers it, and hands a valid callback to the waiter.
+    /// Parses the request, answers it, and hands the callback carrying the expected state to the waiter.
     private func handle(_ request: String, on connection: NWConnection) {
-        let callback = Self.parse(request)
+        let callback = Self.parse(request).flatMap { callback in
+            Self.answers(callback, expecting: expectedState, received: received) ? callback : nil
+        }
         respond(to: connection, signedIn: callback != nil)
 
-        guard let callback else { return }
+        guard let callback, received == nil else { return }
         received = callback
         if let waiting {
             self.waiting = nil
             waiting.resume(returning: callback)
         }
+    }
+
+    /// Whether `callback` carries the expected state and is the first such callback, or a repeat of it.
+    static func answers(
+        _ callback: LoopbackCallback, expecting state: String?, received: LoopbackCallback?
+    ) -> Bool {
+        guard let state, callback.state == state else { return false }
+        return received == nil || received == callback
     }
 
     /// Pulls the query out of a request line: `GET /callback?code=…&state=… HTTP/1.1`.

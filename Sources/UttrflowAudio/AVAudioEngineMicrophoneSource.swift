@@ -141,14 +141,14 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
 /// The real microphone, verifiable only by speaking into a Mac and so not covered.
 public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
     private let device: EngineDevice
-    private let session: InputDeviceSession
+    /// Internal so a test can see it go when the source does.
+    let session: InputDeviceSession
 
     public init() {
         device = EngineDevice()
         session = InputDeviceSession(device: device)
-        let session = session
-        // The notification is posted by an engine, so a failed reopen silences it: the retry replaces it.
-        device.whenChanged { session.deviceChanged() }
+        // Weak, as the session owns the device; a failed reopen silences the notice and the retry replaces it.
+        device.whenChanged { [weak session] in session?.deviceChanged() }
     }
 
     public func start(

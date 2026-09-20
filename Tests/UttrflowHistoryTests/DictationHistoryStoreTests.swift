@@ -424,7 +424,8 @@ struct DictationHistoryStoreTests {
     /// The caller holds a list that does not match the disk, and is told rather than quietly succeeding.
     @Test("says nothing was flagged when the dictation is not there")
     func flaggingSomethingGone() async throws {
-        let store = DictationHistoryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = DictationHistoryStore(file: sandbox.file)
         #expect(try await store.toggleFlag(UUID(), keeping: week) == nil)
     }
 

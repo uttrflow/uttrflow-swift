@@ -2,6 +2,7 @@
 
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowPredict
 
@@ -72,13 +73,13 @@ struct DiscretionaryGeneratorTests {
     }
 
     @Test("still stops the pass when the caller is cancelled", .timeLimit(.minutes(1)))
-    func cancellationReachesThePass() async {
+    func cancellationReachesThePass() async throws {
         let inner = RecordingGenerator(holds: true)
         let generator = DiscretionaryGenerator(inner, mayRun: { true })
         let situation = situation
 
         let pass = Task { try await generator.completions(for: "see you", in: situation) }
-        while inner.seen.isEmpty { await Task.yield() }
+        try await eventually { !inner.seen.isEmpty }
         pass.cancel()
 
         await #expect(throws: CancellationError.self) { try await pass.value }
