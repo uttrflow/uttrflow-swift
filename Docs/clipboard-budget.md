@@ -41,6 +41,24 @@ clip it was going to refuse, with the poll loop stopped meanwhile. Both count th
 plain text plus the formatted flavour, as `ClipboardStore.weight(of:)` does. The store still asks
 too, because a clip also reaches it from dictation and from the panel.
 
+## A copied picture
+
+A picture is read as PNG without an uncompressed copy in between. When the clipboard carries
+PNG already, which a screenshot copied with the keyboard does, those bytes are kept as they are
+and the size is read from the header, so nothing is decoded. Any other flavour ImageIO reads
+(TIFF, HEIC, JPEG) is decoded once and encoded once as PNG. `NSImage` is left for the flavours
+ImageIO cannot read. Before this, every picture went through `tiffRepresentation`. Measured
+headlessly on a 5120 × 2880 PNG of 0.3 MB: the TIFF in between was 56 MB and peak memory rose by
+about 233 MB for each picture copied, whether or not the panel was ever opened. Reading the same
+bytes as they are and the size from the header raises it by about 3 MB.
+
+There is no size cap on a picture, and this is deliberate. `largestClip` bounds text because a
+long clip is rewritten into the history file on every copy; a picture is a file of its own,
+written once and never rewritten, and its pool is bounded on disk by `disk`, which evicts the
+least recently used pictures. With the uncompressed copy gone, what a large picture costs is its
+own compressed size, and declining to remember a screenshot because it is big would be a
+surprise nobody could explain.
+
 ## Kept
 
 A clip the user named, filed or pinned has no quota, no window and no replacement policy.

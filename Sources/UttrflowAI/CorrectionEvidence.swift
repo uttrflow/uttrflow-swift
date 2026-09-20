@@ -14,7 +14,7 @@ struct CorrectionEvidence: Sendable {
 
     /// The words the frontmost app is showing.
     private let onScreen: Haystack
-    /// The words of the utterance the recogniser was sure of.
+    /// The contiguous certain runs of the utterance; uncertain words keep runs from joining.
     private let saidClearly: Haystack
 
     /// Reads both haystacks once per utterance; only words at or above `certainAt` may corroborate.
@@ -27,10 +27,17 @@ struct CorrectionEvidence: Sendable {
                     .compactMap { $0 }
                     .joined(separator: " ")
             ).prefix(Self.maximumWordsOnScreen))
-        saidClearly = Haystack(
-            utterance.words
-                .filter { $0.confidence >= threshold }
-                .flatMap { TextTidy.words($0.text) })
+        var certainRuns: [[String]] = []
+        var current: [String] = []
+        for word in utterance.words {
+            guard word.confidence >= threshold else {
+                if !current.isEmpty { certainRuns.append(current); current = [] }
+                continue
+            }
+            current.append(contentsOf: TextTidy.words(word.text))
+        }
+        if !current.isEmpty { certainRuns.append(current) }
+        saidClearly = Haystack(certainRuns)
     }
 
     /// The best signal the candidate has and the heard reading lacks, or nil when the margin is not cleared.
@@ -88,6 +95,12 @@ extension CorrectionEvidence {
             unique = Set(self.words)
         }
 
+        /// Keeps each contiguous run separate while retaining one-word lookup across all runs.
+        init(_ runs: [[String]]) {
+            self.words = runs.flatMap { $0 + ["\u{0000}"] }
+            unique = Set(runs.flatMap { $0 })
+        }
+
         /// Whether the needle appears consecutively and in order; an empty needle is never contained.
         func contains(_ needle: [String]) -> Bool {
             // A first word that appears nowhere settles it without a scan, single-word needles included.
@@ -95,7 +108,9 @@ extension CorrectionEvidence {
             guard needle.count > 1 else { return true }
             guard needle.count <= words.count else { return false }
             return words.indices.dropLast(needle.count - 1).contains { start in
-                needle.indices.allSatisfy { words[start + $0] == needle[$0] }
+                needle.indices.allSatisfy {
+                    words[start + $0] != "\u{0000}" && words[start + $0] == needle[$0]
+                }
             }
         }
     }
