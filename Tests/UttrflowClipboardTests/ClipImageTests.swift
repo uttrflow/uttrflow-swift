@@ -71,6 +71,79 @@ struct ClipImageTests {
         #expect(await folder.store.clips(keeping: folder.retention).count == 1)
     }
 
+    @Test("copying the same picture again restores a file that has gone, keeping the clip as it was")
+    func repeatRestoresTheFile() async throws {
+        let folder = try TemporaryFolder()
+        let first = NoticedClip(
+            clip: Clip(text: "", kind: .image, copiedAt: Date()), picture: (Self.bytes, 10, 10))
+        _ = try await folder.store.record(first, keeping: folder.retention)
+        let kept = try #require(await folder.store.clips(keeping: folder.retention).first)
+        _ = try await folder.store.setCategory("Screens", of: kept.id, keeping: folder.retention)
+        let image = try #require(kept.image)
+        try FileManager.default.removeItem(
+            at: await folder.store.imagesFolder.appending(path: image.file))
+
+        let again = NoticedClip(
+            clip: Clip(text: "", kind: .image, copiedAt: Date()), picture: (Self.bytes, 10, 10))
+        _ = try await folder.store.record(again, keeping: folder.retention)
+
+        let clips = await folder.store.clips(keeping: folder.retention)
+        #expect(clips.count == 1)
+        #expect(clips.first?.id == kept.id)
+        #expect(clips.first?.category == "Screens")
+        #expect(clips.first?.timesCopied == kept.timesCopied + 1)
+        #expect(clips.first?.image?.file == image.file)
+        #expect(await folder.store.imageData(for: image) == Self.bytes)
+    }
+
+    @Test("a picture copied again while its file is healthy is not written a second time")
+    func healthyRepeatWritesNothing() async throws {
+        let folder = try TemporaryFolder()
+        let noticed = NoticedClip(
+            clip: Clip(text: "", kind: .image, copiedAt: Date()), picture: (Self.bytes, 10, 10))
+        _ = try await folder.store.record(noticed, keeping: folder.retention)
+        let image = try #require(await folder.store.clips(keeping: folder.retention).first?.image)
+        let url = await folder.store.imagesFolder.appending(path: image.file)
+        let written = try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+        let marker = Date(timeIntervalSince1970: 1_000_000_000)
+        try FileManager.default.setAttributes([.modificationDate: marker], ofItemAtPath: url.path)
+
+        _ = try await folder.store.record(
+            NoticedClip(
+                clip: Clip(text: "", kind: .image, copiedAt: Date()), picture: (Self.bytes, 10, 10)),
+            keeping: folder.retention)
+
+        #expect(written != nil)
+        let after = try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+        #expect(after == marker)
+        let files = try FileManager.default.contentsOfDirectory(
+            atPath: await folder.store.imagesFolder.path)
+        #expect(files == [image.file])
+    }
+
+    @Test("a repair the disk refuses is reported rather than recorded as a copy")
+    func refusedRepairThrows() async throws {
+        let folder = try TemporaryFolder()
+        let noticed = NoticedClip(
+            clip: Clip(text: "", kind: .image, copiedAt: Date()), picture: (Self.bytes, 10, 10))
+        _ = try await folder.store.record(noticed, keeping: folder.retention)
+        let kept = try #require(await folder.store.clips(keeping: folder.retention).first)
+        let image = try #require(kept.image)
+        let url = await folder.store.imagesFolder.appending(path: image.file)
+        // A folder where the picture belongs is a write the disk will refuse.
+        try FileManager.default.removeItem(at: url)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await folder.store.record(
+                NoticedClip(
+                    clip: Clip(text: "", kind: .image, copiedAt: Date()),
+                    picture: (Self.bytes, 10, 10)),
+                keeping: folder.retention)
+        }
+        #expect(await folder.store.clips(keeping: folder.retention).first?.timesCopied == kept.timesCopied)
+    }
+
     /// A picture left behind by a clip that aged out would sit on disk for ever.
     @Test("pictures no clip refers to are swept up")
     func orphansAreForgotten() async throws {
