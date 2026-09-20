@@ -864,8 +864,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             closeQuickPanel()
             return
         }
-        // A copy made since the last poll is taken now, so the panel never opens without it — started,
-        // not waited for, since a read another app answers would hold the panel shut (#895).
+        // A copy since the last poll is taken now, started not awaited, so no read holds the panel shut (#895).
         if settings.clipboardEnabled {
             let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
                 await self?.clipArrived(noticed)
