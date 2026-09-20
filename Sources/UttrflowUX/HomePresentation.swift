@@ -408,7 +408,6 @@ public enum HomePresenter {
             open: MainAction(title: "Account", intent: .show(.account)))
     }
 
-
     /// The first word of the name, because the chip is a greeting and not a directory entry.
     static func firstWord(of name: String) -> String {
         name.split(separator: " ").first.map(String.init) ?? name
