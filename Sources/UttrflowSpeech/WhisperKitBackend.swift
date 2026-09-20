@@ -115,8 +115,10 @@ public actor WhisperKitBackend: TranscriptionBackend {
     /// Says in the log what a piece cost beyond one decode, so a slow dictation can name its cause.
     private static func report(_ effort: DecodeEffort) {
         guard !effort.isPlain else { return }
+        // Counted, not named: the log audit reads a name holding "prompt" as text somebody typed.
+        let retried = effort.retriedWithoutPrompt ? 1 : 0
         log.info(
-            "decoded piece: fallbacks=\(effort.fallbacks, privacy: .public) fallbackSeconds=\(effort.fallbackSeconds, format: .fixed(precision: 2), privacy: .public) encoderRuns=\(effort.encoderRuns, privacy: .public) retried=\(effort.retriedWithoutPrompt, privacy: .public)"
+            "decoded piece: fallbacks=\(effort.fallbacks, privacy: .public) fallbackSeconds=\(effort.fallbackSeconds, format: .fixed(precision: 2), privacy: .public) encoderRuns=\(effort.encoderRuns, privacy: .public) retried=\(retried, privacy: .public)"
         )
     }
 
