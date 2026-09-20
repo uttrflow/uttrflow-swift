@@ -278,6 +278,26 @@ struct SuggestionPresentationTests {
                 == SuggestionPresentation.opaqueGhostOpacity)
     }
 
+    @Test(
+        "At full strength under a display setting the ghost is underlined, so it never looks typed",
+        arguments: [highContrast, opaque])
+    func opaqueGhostIsUnderlined(appearance: SuggestionAppearance) {
+        #expect(SuggestionPresentation(.certain("Sydney"), appearance: appearance).underlinesGhost)
+        #expect(
+            SuggestionPresentation(
+                .certain("git commit -m"), typed: "gti c", appearance: appearance
+            ).underlinesGhost)
+    }
+
+    @Test("The faint grey ghost is marked by its grey alone and carries no underline")
+    func faintGhostIsNotUnderlined() {
+        #expect(!SuggestionPresentation(.certain("Sydney")).underlinesGhost)
+        #expect(
+            !SuggestionPresentation(
+                .certain("Sydney"), appearance: SuggestionAppearance(reducesMotion: true)
+            ).underlinesGhost)
+    }
+
     @Test("With no display setting, the ghost is drawn at its faint grey opacity.")
     func plainGhostIsFaint() {
         #expect(
@@ -395,6 +415,45 @@ struct SuggestionPresentationTests {
                 selection: SuggestionSelection(index: 2, hasMoved: true)
             ).accessibilityLabel
                 == "AI suggestion: Soho. Tab to accept. Alternatives: Sydney, Sydenham.")
+    }
+
+    // MARK: - Colour follows the field
+
+    /// A dark editor or terminal background, the common light-on-dark field.
+    private static let darkField = TextColor(red: 0x1E / 255, green: 0x1E / 255, blue: 0x1E / 255)
+
+    /// The contrast of the ghost against the field it is drawn on, given the colour the presentation chose.
+    private static func contrast(of presentation: SuggestionPresentation, on background: TextColor) -> Double
+    {
+        guard case .field(let text) = presentation.ink else {
+            Issue.record("the ghost did not take the field's colour")
+            return 1
+        }
+        return TextColor.contrast(text.blended(presentation.opacity, over: background), background)
+    }
+
+    @Test(
+        "Light text on a dark field gives a light ghost that reads against it, whatever Uttrflow's appearance"
+    )
+    func lightOnDarkReads() {
+        let presentation = SuggestionPresentation(.certain("Sydney"), fieldTextColor: .white)
+        #expect(presentation.ink == .field(.white))
+        #expect(Self.contrast(of: presentation, on: Self.darkField) >= 3)
+    }
+
+    @Test(
+        "Dark text on a white page gives a dark ghost that reads against it, whatever Uttrflow's appearance")
+    func darkOnLightReads() {
+        let presentation = SuggestionPresentation(.certain("Sydney"), fieldTextColor: .black)
+        #expect(presentation.ink == .field(.black))
+        #expect(Self.contrast(of: presentation, on: .white) >= 3)
+    }
+
+    @Test("A field that will not say its colour gets a backing the ghost is resolved against")
+    func unknownColourIsBacked() {
+        #expect(SuggestionPresentation(.certain("Sydney")).ink == .backed)
+        #expect(SuggestionPresentation(.minimised).ink == .backed)
+        #expect(SuggestionPresentation.backingOpacity >= 0.9)
     }
 
     // MARK: - Equality

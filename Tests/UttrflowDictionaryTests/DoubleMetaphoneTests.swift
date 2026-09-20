@@ -229,6 +229,37 @@ struct DoubleMetaphoneTests {
         #expect(sound("H.264") == "")
     }
 
+    /// A recogniser that quotes or brackets a word must not move its first letter away from the opening rules.
+    @Test(
+        "sounds a word the same with quotes or brackets around it",
+        arguments: [
+            "\"utterflow\"", "(utterflow)", "[utterflow]", "\u{201C}utterflow\u{201D}", "'utterflow'",
+            "utterflow,", "...utterflow",
+        ])
+    func ignoresSurroundingMarks(marked: String) {
+        #expect(sound(marked) == sound("utterflow"))
+        #expect(sound(marked) == "ATRFL")
+    }
+
+    @Test(
+        "keeps the silent and sounded openings behind a quote",
+        arguments: [
+            ("\"knight\"", "knight"), ("(wright)", "wright"), ("\"xavier\"", "xavier"), ("'psalm'", "psalm"),
+        ])
+    func openingsBehindAQuote(marked: String, bare: String) {
+        #expect(sound(marked) == sound(bare))
+    }
+
+    @Test("leaves the marks inside a word where they were")
+    func keepsInnerMarks() {
+        #expect(sound("\"H.264\"") == sound("H.264"))
+        #expect(sound("(set-user-prefs)") == sound("set-user-prefs"))
+        #expect(sound("\"\"").isEmpty)
+        // A mark inside the word still parts the letters around it: C-H is not the digraph CH.
+        #expect(sound("(C-H)") == sound("C-H"))
+        #expect(sound("(C-H)") != sound("CH"))
+    }
+
     // MARK: What the index is given
 
     @Test("files an unambiguous word under one key and an ambiguous one under both")

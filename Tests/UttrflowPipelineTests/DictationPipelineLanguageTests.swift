@@ -67,7 +67,8 @@ private let quick = SpeechWindowing(
 struct DictationPipelineLanguageTests {
     /// A pipeline over a three-piece recording and a recogniser that reports `detected`, call by call.
     private func pipeline(
-        detecting detected: [LanguageCode], speaking languages: [LanguageCode] = [.english]
+        detecting detected: [LanguageCode], speaking languages: [LanguageCode] = [.english],
+        recordings: any RecordingKeeper = RecordingsNotKept()
     ) async -> (DictationPipeline, DriftingSpeechEngine) {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
@@ -76,8 +77,8 @@ struct DictationPipelineLanguageTests {
             DictationPipeline(
                 capture: capture, speech: speech, cleaner: PassThroughCleaner(),
                 context: FakeContextEngine(context: .fixture()), inserter: QuietInserter(),
-                profile: UserProfile(preferredLanguages: languages), windowing: quick,
-                earlyPoll: .milliseconds(2)),
+                recordings: recordings, profile: UserProfile(preferredLanguages: languages),
+                windowing: quick, earlyPoll: .milliseconds(2)),
             speech
         )
     }
@@ -112,6 +113,24 @@ struct DictationPipelineLanguageTests {
         #expect(hints.count > first)
         #expect(hints[first] == nil)
         #expect(hints[(first + 1)...].allSatisfy { $0 == .hindi })
+    }
+
+    /// A retry is its own attempt, so it detects its own language rather than the last dictation's.
+    @Test("detects again for a retry rather than keeping the last dictation's language")
+    func forgetsBeforeARetry() async {
+        let kept = KeptRecording(id: UUID(), when: Date(), duration: .seconds(4))
+        let (pipeline, speech) = await pipeline(
+            detecting: [.english, .english, .english, .hindi, .hindi, .hindi],
+            recordings: FakeRecordingKeeper(waiting: [kept], audioOutcome: .success(Take.threePieces)))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let first = await speech.hints.count
+        await pipeline.retry(kept.id)
+        let hints = await speech.hints
+
+        #expect(hints.count > first)
+        #expect(hints[first] == nil)
     }
 
     /// Issue 698: a Hinglish speaker's Hindi sentence after an English one was decoded as English and translated.

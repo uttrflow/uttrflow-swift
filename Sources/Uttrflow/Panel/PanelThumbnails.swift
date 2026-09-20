@@ -40,8 +40,13 @@ final class PanelThumbnails {
     static func bytes(of image: NSImage?) -> Int {
         guard let image else { return 0 }
         return image.representations.reduce(0) { total, representation in
-            guard let bitmap = representation as? NSBitmapImageRep else { return total }
-            return total + bitmap.bytesPerRow * bitmap.pixelsHigh
+            if let bitmap = representation as? NSBitmapImageRep {
+                return total + bitmap.bytesPerRow * bitmap.pixelsHigh
+            }
+            if let cgImage = representation.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                return total + cgImage.bytesPerRow * cgImage.height
+            }
+            return total
         }
     }
 

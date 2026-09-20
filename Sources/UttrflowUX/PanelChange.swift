@@ -40,6 +40,14 @@ public enum PanelSheet: Sendable, Equatable {
     /// A formatter's result awaiting agreement, carried here because a second run could differ.
     case formatting(Clip.ID, formatted: String)
 
+    /// Whether this sheet has a field to type into; one that has none keeps the list behind it still (#946).
+    public var takesTyping: Bool {
+        switch self {
+        case .aliasing, .moving, .renamingCategory: true
+        case .confirmingDelete, .deletingCategory, .formatting: false
+        }
+    }
+
     /// The clip this sheet is about; `nil` for the two sheets that are about a collection.
     public var clip: Clip.ID? {
         switch self {
@@ -160,7 +168,7 @@ extension PanelSnapshot {
 
     /// Gives a plain clip a rich form; refuses one that has it, so a written note is never overwritten.
     func promoting(_ id: Clip.ID) -> PanelResponse {
-        guard let clip = clip(id), clip.richText == nil else { return stayingOpen }
+        guard let clip = clip(id), clip.richText == nil, clip.image == nil else { return stayingOpen }
         return PanelResponse(
             state: self, outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
     }
