@@ -19,6 +19,14 @@ public struct CompletionExpectation: Sendable, Equatable {
     /// Whether the right answer here is silence.
     public var expectsNothing: Bool { acceptable == [Self.nothing] }
 
+    /// Whether a hit here is checked against a named answer, which an expectation that takes any continuation is not.
+    public var isJudged: Bool { !acceptable.isEmpty }
+
+    /// The same expectation with silence as the only right answer, for a line the product refuses to guess by design.
+    public var refused: CompletionExpectation {
+        CompletionExpectation(acceptable: [Self.nothing], band: lengthBand, forbidden: forbidden)
+    }
+
     /// Whether any completion continues the typed text the way this expects.
     public func hits(_ completions: [String], typed: String) -> Bool {
         if expectsNothing { return completions.isEmpty }

@@ -23,6 +23,58 @@ enum MakefileTargets {
     }
 }
 
+/// Reads the recipes a justfile declares, which is what `just` takes.
+enum JustfileRecipes {
+    /// Every public recipe and alias the text declares, in order, without settings, variables, modules or private recipes.
+    static func names(in justfile: String) -> [String] {
+        var names: [String] = []
+        var seen: Set<String> = []
+        var isPrivate = false
+        for line in justfile.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
+            guard let first = line.first, !first.isWhitespace, first != "#" else {
+                // A blank line or comment keeps the attributes above it; a recipe body line ends them.
+                if line.first?.isWhitespace == true { isPrivate = false }
+                continue
+            }
+            if first == "[" {
+                let attributes = line.dropFirst().prefix { $0 != "]" }.split(separator: ",")
+                isPrivate =
+                    isPrivate || attributes.contains { $0.trimmingCharacters(in: .whitespaces) == "private" }
+                continue
+            }
+            defer { isPrivate = false }
+            guard let name = declared(by: line), !isPrivate, !name.hasPrefix("_") else { continue }
+            if seen.insert(name).inserted { names.append(name) }
+        }
+        return names
+    }
+
+    /// The recipe or alias a line at the margin declares, or nothing for a setting, variable, import or module.
+    private static func declared(by line: Substring) -> String? {
+        let words = line.split(separator: " ", omittingEmptySubsequences: true)
+        guard let head = words.first else { return nil }
+        if head == "alias", words.count >= 3, words[2] == ":=" {
+            return isName(words[1]) ? String(words[1]) : nil
+        }
+        if ["set", "export", "import", "import?", "mod", "mod?", "unexport"].contains(head) { return nil }
+        let recipe = line.drop { $0 == "@" }
+        let name = recipe.prefix { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+        let rest = recipe.dropFirst(name.count)
+        // A recipe's name is followed by its parameters or its colon; a `:=` makes it a variable.
+        guard isName(name), let colon = rest.firstIndex(of: ":"), !rest[colon...].hasPrefix(":=") else {
+            return nil
+        }
+        guard rest.first == ":" || rest.first == " " else { return nil }
+        return String(name)
+    }
+
+    /// What just accepts as a name: a letter or underscore, then letters, digits, dashes and underscores.
+    private static func isName(_ text: Substring) -> Bool {
+        guard let first = text.first, first.isLetter || first == "_" else { return false }
+        return text.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+    }
+}
+
 /// Reads the scripts a `package.json` declares, which is what `npm run` and its kin take.
 enum PackageScripts {
     /// Every script name the manifest declares, sorted; absent when the manifest is not JSON.

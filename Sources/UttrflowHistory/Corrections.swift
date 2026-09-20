@@ -116,7 +116,7 @@ public struct RecordedChanges: Sendable, Equatable, Codable {
     ) {
         self.corrections = corrections
         self.snippets = snippets
-        self.spokenWords = spokenWords
+        self.spokenWords = Self.counted(spokenWords)
     }
 
     /// Distinct in-range spoken positions still replaced; undone changes and snippets do not count.
@@ -140,7 +140,13 @@ public struct RecordedChanges: Sendable, Equatable, Codable {
         snippets =
             try values.decodeIfPresent([Salvaged<RecordedSnippet>].self, forKey: .snippets)?
             .compactMap(\.value) ?? []
-        spokenWords = try values.decodeIfPresent(Int.self, forKey: .spokenWords)
+        spokenWords = Self.counted(try values.decodeIfPresent(Int.self, forKey: .spokenWords))
+    }
+
+    /// A word count that can be one, or `nil` so a damaged count retires the figure instead of trapping.
+    private static func counted(_ words: Int?) -> Int? {
+        guard let words, words >= 0 else { return nil }
+        return words
     }
 }
 

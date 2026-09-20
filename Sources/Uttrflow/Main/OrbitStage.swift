@@ -87,11 +87,11 @@ struct OrbitStage: View {
             }
             Text(presentation.greeting)
                 .font(.system(size: 42, weight: .bold))
-                .foregroundStyle(Color.mainText)
+                .foregroundStyle(Color.stageText)
                 .multilineTextAlignment(.center)
             Text(presentation.subtitle)
                 .font(.system(size: MainMetrics.bodySize))
-                .foregroundStyle(Color.mainText.opacity(0.78))
+                .foregroundStyle(Color.stageText.opacity(0.78))
                 .multilineTextAlignment(.center)
             hint
                 .padding(.top, 2)
@@ -122,7 +122,7 @@ struct OrbitStage: View {
             Text(presentation.hint.trail)
         }
         .font(.system(size: MainMetrics.bodySize))
-        .foregroundStyle(Color.mainText.opacity(0.72))
+        .foregroundStyle(Color.stageText.opacity(0.72))
     }
 }
 
@@ -208,6 +208,8 @@ extension Color {
     static let stageGround = Color(rgb: BrandPalette.Surface.ground.dark)
     static let stagePanel = Color(rgb: BrandPalette.Surface.card.dark)
     static let stageWell = Color(rgb: BrandPalette.Surface.well)
+    /// Text on the stage's fixed dark ground; unlike page text, it must not follow Light appearance ink.
+    static let stageText = Color(rgb: BrandPalette.Text.primary.dark)
     /// The brand teal deepened until white sits legibly on it, for the monogram.
     static let stageTealDeep = Color(rgb: BrandPalette.Teal.deeper)
 }

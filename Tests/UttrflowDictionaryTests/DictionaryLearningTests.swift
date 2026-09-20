@@ -30,7 +30,8 @@ struct DictionaryLearningTests {
     /// The whole feature driven as it will run: `pgvector` is learnt, and nothing else is.
     @Test("Learns the term that keeps coming back, and nothing else")
     func learnsWhatKeepsComingBack() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
 
         #expect(
             try await dictate(
@@ -62,7 +63,8 @@ struct DictionaryLearningTests {
     /// A filter tuned only to English would learn half of Hinglish; the place name is the user's own.
     @Test("Learns a Hinglish speaker's own words and not their ordinary ones")
     func learnsHinglishWithoutTheFillers() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         var learnt: [String] = []
         for _ in 1...LearnableWords.sightingsBeforeLearning {
             learnt += try await dictate(
@@ -75,7 +77,8 @@ struct DictionaryLearningTests {
     /// Learning a deleted word again is the app arguing with the person using it.
     @Test("a word the user deletes is not learnt again")
     func deletingRefusesTheWord() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         for _ in 1...LearnableWords.sightingsBeforeLearning {
             try await dictate(into: store, saying: "the pgvector migration", titled: "pgvector — notes")
         }
@@ -94,7 +97,8 @@ struct DictionaryLearningTests {
     /// A reset is the user asking to start again, deleted words included.
     @Test("a reset lets a deleted word be learnt again")
     func resettingLiftsTheRefusal() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         for _ in 1...LearnableWords.sightingsBeforeLearning {
             try await dictate(into: store, saying: "the pgvector migration", titled: "pgvector — notes")
         }
@@ -110,7 +114,8 @@ struct DictionaryLearningTests {
     /// A word the user typed in and then deleted is theirs to change their mind about.
     @Test("deleting a word you added yourself does not refuse it")
     func deletingAnAddedWordDoesNotRefuseIt() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word: "pgvector", pronunciation: "", at: epoch)
         try await store.remove(#require(await store.allEntries().first).id)
 
@@ -123,7 +128,8 @@ struct DictionaryLearningTests {
     /// The one path where the user is telling us; one dictation is enough because it is deliberate.
     @Test("Learns a correction the first time the user makes one")
     func learnsACorrectionAtOnce() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let learnt = try await dictate(
             into: store, saying: "Uttrflow", writing: "Uttrflow", titled: "notes",
             over: "utter flow")
@@ -135,7 +141,8 @@ struct DictionaryLearningTests {
     /// The loop closing: what one dictation taught, the next is conditioned on.
     @Test("Puts what it learnt in front of the recogniser next time")
     func closesTheLoop() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await dictate(into: store, saying: "Uttrflow", titled: "notes", over: "utter flow")
 
         let ranked = WorkingSet.words(from: await store.allEntries(), now: epoch)
@@ -199,7 +206,8 @@ struct DictionaryLearningTests {
     /// Half-counted evidence surviving the reset would learn a word one dictation later.
     @Test("Forgets the half-counted evidence too, not just the words")
     func theResetForgetsWhatWasNearlyLearnt() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         for _ in 1..<LearnableWords.sightingsBeforeLearning {
             try await dictate(into: store, saying: "try pgvector", titled: "pgvector — notes")
         }
@@ -213,7 +221,8 @@ struct DictionaryLearningTests {
 
     @Test("Forgets the half-counted evidence when everything goes as well")
     func removingEverythingForgetsTheEvidence() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         for _ in 1..<LearnableWords.sightingsBeforeLearning {
             try await dictate(into: store, saying: "try pgvector", titled: "pgvector — notes")
         }

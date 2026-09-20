@@ -38,3 +38,11 @@ public struct DiscretionaryModel<Model: ReleasableModel>: CandidateScoring {
         _ = try? await DiscretionaryGenerator.discretionary { [model] in await model.release() }
     }
 }
+
+extension DiscretionaryModel {
+    /// Sets what the idle-releasing model inside tells when a query's reload finds the weights gone from disk.
+    public func whenReloadFails<Inner>(_ handler: @escaping @Sendable () -> Void) async
+    where Model == IdleReleasingModel<Inner> {
+        await model.whenReloadFails(handler)
+    }
+}

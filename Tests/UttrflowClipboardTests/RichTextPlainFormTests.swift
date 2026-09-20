@@ -87,6 +87,49 @@ struct RichTextPlainFormTests {
         #expect(out == "1. one\n  1. inner\n  2. inner\n2. two")
     }
 
+    /// The numbers are the list's content when it is a ranking or a run of steps carried on from earlier.
+    @Test(
+        "numbers an ordered list the way its start, reversed and value say",
+        arguments: [
+            ("<ol start=\"4\"><li>Review</li><li>Publish</li></ol>", "4. Review\n5. Publish"),
+            ("<ol><li value=\"7\">Review</li><li>Publish</li></ol>", "7. Review\n8. Publish"),
+            ("<ol reversed><li>Review</li><li>Publish</li></ol>", "2. Review\n1. Publish"),
+            ("<ol reversed start=\"10\"><li>Review</li><li>Publish</li></ol>", "10. Review\n9. Publish"),
+            ("<ol start=\"0\"><li>Review</li><li>Publish</li></ol>", "0. Review\n1. Publish"),
+            ("<ol start=\"-2\"><li>Review</li><li>Publish</li></ol>", "-2. Review\n-1. Publish"),
+            (
+                "<ol><li>Draft</li><li value=\"5\">Review</li><li>Publish</li></ol>",
+                "1. Draft\n5. Review\n6. Publish"
+            ),
+            (
+                "<ol reversed><li>Draft</li><li value=\"9\">Review</li><li>Publish</li></ol>",
+                "3. Draft\n9. Review\n8. Publish"
+            ),
+            ("<ol start=\"soon\"><li>Review</li></ol>", "1. Review"),
+            ("<ol start=\" 3rd\"><li>Review</li></ol>", "3. Review"),
+        ])
+    func orderedListOrdinals(_ html: String, _ expected: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
+    }
+
+    @Test(
+        "counts a reversed list's own items, not those of a list nested in it, and keeps each level's numbers"
+    )
+    func nestedReversedList() {
+        let html = """
+            <ol reversed><li>three<ol start="5"><li>a</li><li>b</li><li>c</li></ol></li>\
+            <li>two</li><li>one</li></ol>
+            """
+        let out = RichTextPlainForm.plainText(fromHTML: html)
+        #expect(out == "3. three\n  5. a\n  6. b\n  7. c\n2. two\n1. one")
+    }
+
+    @Test("gives a bulleted item's value no number")
+    func valueOnABullet() {
+        #expect(
+            RichTextPlainForm.plainText(fromHTML: "<ul><li value=\"4\">Milk</li></ul>") == "\u{2022} Milk")
+    }
+
     /// A bullet with nothing after it is rubbish somebody has to delete.
     @Test("gives an empty item no line of its own")
     func emptyItem() {

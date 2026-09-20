@@ -230,3 +230,57 @@ private enum TableDiff {
         return (result, old.count + new.count - 2 * common[0][0])
     }
 }
+
+/// Text copied from another system ends its lines in CRLF or CR, and a line is still a line.
+@Suite("D6 · line endings other than LF")
+struct TextDiffLineEndingTests {
+    private func rows(_ comparison: TextDiff.Comparison) -> [TextDiff.Line] {
+        guard case .lines(let rows) = comparison else { return [] }
+        return rows
+    }
+
+    @Test("text in any ending keeps its unchanged lines", arguments: ["\n", "\r\n", "\r"])
+    func unchangedLinesSurvive(_ ending: String) {
+        let before = ["one", "two", "three"].joined(separator: ending)
+        let after = ["one", "changed", "three"].joined(separator: ending)
+        #expect(
+            rows(TextDiff.compare(from: before, to: after)) == [
+                .init(kind: .same, text: "one"), .init(kind: .removed, text: "two"),
+                .init(kind: .added, text: "changed"), .init(kind: .same, text: "three"),
+            ])
+    }
+
+    @Test("a trailing ending makes an empty last line whatever the ending", arguments: ["\n", "\r\n", "\r"])
+    func trailingEnding(_ ending: String) {
+        #expect(
+            rows(TextDiff.compare(from: "one", to: "one\(ending)")) == [
+                .init(kind: .same, text: "one"), .init(kind: .added, text: ""),
+            ])
+    }
+
+    @Test("mixed endings split at each of them")
+    func mixedEndings() {
+        let text = "a\nb\r\nc\rd"
+        #expect(rows(TextDiff.compare(from: text, to: text)).map(\.text) == ["a", "b", "c", "d"])
+    }
+
+    @Test("changing only the line endings is a change on every line that ended differently")
+    func endingsOnlyAreAChange() {
+        let comparison = TextDiff.compare(from: "one\r\ntwo\r\nthree", to: "one\ntwo\nthree")
+        #expect(TextDiff.changedLines(in: rows(comparison)) == 4)
+        #expect(rows(comparison).first == .init(kind: .same, text: "one"))
+    }
+
+    @Test("the line limit counts CRLF and CR lines", arguments: ["\r\n", "\r"])
+    func lineLimitCountsEveryEnding(_ ending: String) {
+        let long = Array(repeating: "x", count: TextDiff.lineLimit + 1).joined(separator: ending)
+        #expect(TextDiff.compare(from: long, to: "x") == .tooLarge(before: TextDiff.lineLimit + 1, after: 1))
+    }
+
+    @Test("the byte limit's line count agrees with the split", arguments: ["\n", "\r\n", "\r"])
+    func byteLimitCountAgrees(_ ending: String) {
+        let lines = TextDiff.byteLimit / 2 + 1
+        let long = Array(repeating: "x", count: lines).joined(separator: ending)
+        #expect(TextDiff.compare(from: long, to: "a\r\nb\nc") == .tooLarge(before: lines, after: 3))
+    }
+}

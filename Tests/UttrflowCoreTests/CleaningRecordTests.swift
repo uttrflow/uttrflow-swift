@@ -74,6 +74,37 @@ struct CleaningRecordTests {
         #expect(record.changes.first?.removed.count == CleaningRecord.wordLimit)
     }
 
+    @Test("counts every word a step touched, past the words it lists")
+    func exactCountsPastTheLimit() {
+        var draft = Draft(text: String(repeating: "one ", count: 60))
+        for index in 0..<20 { draft.remove(at: index, by: .fillers) }
+        for index in 20..<35 { draft.replace(at: index, with: "1", by: .numberForms) }
+        for index in stride(from: 59, to: 43, by: -1) {
+            draft.insert(",", at: index, by: .spokenPunctuation)
+        }
+        let record = CleaningRecord(draft: draft, ran: [PassID.fillers])
+        let fillers = record.changes.first { $0.step == .fillers }
+        let numbers = record.changes.first { $0.step == .numberForms }
+        let commas = record.changes.first { $0.step == .spokenPunctuation }
+        #expect(fillers?.removedCount == 20)
+        #expect(fillers?.removed.count == CleaningRecord.wordLimit)
+        #expect(numbers?.replacedCount == 15)
+        #expect(numbers?.replaced.count == CleaningRecord.wordLimit)
+        #expect(commas?.insertedCount == 16)
+        #expect(commas?.inserted.count == CleaningRecord.wordLimit)
+    }
+
+    @Test("a count that is left out or too small is read off the list")
+    func countsFallBackToTheList() {
+        let change = CleaningRecord.Change(
+            step: .fillers, removed: ["um", "uh"], replaced: [.init(from: "a", to: "b")],
+            inserted: [","], removedCount: 1)
+        #expect(change.removedCount == 2)
+        #expect(change.replacedCount == 1)
+        #expect(change.insertedCount == 1)
+        #expect(!CleaningRecord.Change(step: .fillers, removedCount: 3).isEmpty)
+    }
+
     @Test("a dictation done in pieces reports one account, step by step")
     func merging() {
         var first = Draft(text: "um yes")
@@ -99,6 +130,18 @@ struct CleaningRecordTests {
         let record = CleaningRecord(draft: piece, ran: [PassID.fillers])
         let merged = CleaningRecord.merging([record, record, record])
         #expect(merged.changes.first?.removed.count == CleaningRecord.wordLimit)
+        #expect(merged.changes.first?.removedCount == 30)
+    }
+
+    @Test("a merged account adds up each piece's full counts, not its listed words")
+    func mergingSumsFullCounts() {
+        var piece = Draft(text: String(repeating: "um ", count: 14) + "yes")
+        for index in 0..<14 { piece.remove(at: index, by: .fillers) }
+        piece.replace(at: 14, with: "Yes", by: .firstWord)
+        let record = CleaningRecord(draft: piece, ran: [PassID.fillers])
+        let merged = CleaningRecord.merging([record, record])
+        #expect(merged.changes.first { $0.step == .fillers }?.removedCount == 28)
+        #expect(merged.changes.first { $0.step == .firstWord }?.replacedCount == 2)
     }
 
     @Test("a word a step put in and then took out is named by what it reads as")

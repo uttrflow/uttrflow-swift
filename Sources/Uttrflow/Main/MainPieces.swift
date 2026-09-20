@@ -514,7 +514,24 @@ struct MainRowsCard<Row: Identifiable, Content: View>: View {
     }
 }
 
+/// When a row's hover-revealed controls are drawn.
+enum RowReveal {
+    /// While the pointer is over the row or any of its controls has keyboard focus.
+    static func isDrawn(isHovered: Bool, focusedControl: String?) -> Bool {
+        isHovered || focusedControl != nil
+    }
+}
+
 extension View {
+    /// Draws a hover-revealed control while its row is hovered or any control in the row has keyboard focus.
+    func revealedInRow(
+        _ id: String, isHovered: Bool, focusedControl: FocusState<String?>.Binding
+    ) -> some View {
+        focused(focusedControl, equals: id)
+            .opacity(
+                RowReveal.isDrawn(isHovered: isHovered, focusedControl: focusedControl.wrappedValue) ? 1 : 0)
+    }
+
     /// Offers a row's hover-revealed controls to VoiceOver through the actions rotor, once per row.
     func rowActions(
         _ actions: [MainAction], onIntent: @escaping (MainIntent) -> Void

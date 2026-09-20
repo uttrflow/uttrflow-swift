@@ -76,6 +76,24 @@ struct CompletionCaseTests {
         #expect(!open.hits([], typed: "git c"))
     }
 
+    @Test("Only a named answer or silence judges a hit; taking any continuation judges nothing.")
+    func judged() {
+        #expect(CompletionExpectation(acceptable: ["ommit"], band: 1...40).isJudged)
+        #expect(CompletionExpectation(acceptable: [CompletionExpectation.nothing], band: 1...40).isJudged)
+        #expect(!CompletionExpectation(band: 1...40).isJudged)
+    }
+
+    @Test("A refused line expects silence, keeping its band and what it must never echo.")
+    func refused() {
+        let expected = CompletionExpectation(acceptable: ["hub.com"], band: 3...60, forbidden: ["Me:"])
+        let refused = expected.refused
+        #expect(refused.expectsNothing)
+        #expect(refused.lengthBand == 3...60)
+        #expect(refused.forbidden == ["Me:"])
+        #expect(refused.hits([], typed: "git"))
+        #expect(!refused.hits(["github.com"], typed: "git"))
+    }
+
     @Test("Expecting nothing is hit and in register only by silence.")
     func nothing() {
         let silent = CompletionExpectation(acceptable: [CompletionExpectation.nothing], band: 1...40)

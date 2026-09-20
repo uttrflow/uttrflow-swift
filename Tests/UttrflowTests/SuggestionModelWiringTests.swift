@@ -30,4 +30,11 @@ struct SuggestionModelWiringTests {
         #expect(text.contains("IdleReleasingModel("))
         #expect(text.contains("IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory)"))
     }
+
+    @Test("tells the app when an idle reload finds the weights gone, rather than fetching them")
+    func missingWeightsReachTheApp() throws {
+        let text = try source
+        #expect(text.contains("scoring.whenReloadFails"))
+        #expect(text.contains("suggestionModelWentMissing()"))
+    }
 }
