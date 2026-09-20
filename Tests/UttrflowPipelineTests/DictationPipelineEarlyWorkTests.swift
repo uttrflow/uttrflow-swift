@@ -123,12 +123,9 @@ private final class StageRendezvous: Sendable {
         var recognitionsInFlight = 0
         var recognitions = 0
         var besides = 0
-        /// Set once any wait runs out, so a serial pipeline pays the limit once rather than at every stage.
+        /// Set once the test gives up, so every wait ends rather than only the one that noticed.
         var gaveUp = false
     }
-
-    /// Long enough that only a pipeline that never overlaps the stages reaches it.
-    private static let limit = Duration.seconds(20)
 
     private let state = Mutex(State())
 
@@ -146,7 +143,7 @@ private final class StageRendezvous: Sendable {
             return state.besides
         }
         // Waits to be noticed rather than for a tidy to be in flight, which a prompt tidy is only briefly.
-        if waits { await until(within: Self.limit) { $0.besides > noticed } }
+        if waits { await until { $0.besides > noticed } }
         let answer = await work()
         state.withLock { $0.recognitionsInFlight -= 1 }
         return answer
@@ -155,23 +152,23 @@ private final class StageRendezvous: Sendable {
     /// Holds a tidy open until a recognition is running beside it, which a serial pass can never provide.
     func tidy(waitsForARecognition waits: Bool) async {
         guard waits else { return }
-        if await until(within: Self.limit, { $0.recognitionsInFlight > 0 }) {
+        if await until({ $0.recognitionsInFlight > 0 }) {
             state.withLock { $0.besides += 1 }
         }
     }
 
-    /// Polls until the condition holds, answering whether it ever did; after one wait runs out, none waits again.
+    /// Ends every wait, which the test does when its time limit cancels it.
+    func giveUp() { state.withLock { $0.gaveUp = true } }
+
+    /// Yields until the condition holds or the test gives up, answering whether it held.
     @discardableResult
-    private func until(within limit: Duration, _ holds: @Sendable (borrowing State) -> Bool) async -> Bool {
-        let deadline = ContinuousClock.now + limit
-        repeat {
+    private func until(_ holds: @Sendable (borrowing State) -> Bool) async -> Bool {
+        while true {
             let (held, gaveUp) = state.withLock { (holds($0), $0.gaveUp) }
             if held { return true }
             if gaveUp { return false }
-            try? await Task.sleep(for: .milliseconds(2))
-        } while ContinuousClock.now < deadline
-        state.withLock { $0.gaveUp = true }
-        return false
+            await Task.yield()
+        }
     }
 }
 
@@ -192,7 +189,7 @@ private actor TimedSpeechEngine: SpeechEngine {
     ) async throws(SpeechEngineError) -> Transcription {
         calls += 1
         let call = calls
-        // The first recognition has no tidy before it to run beside, so waiting for one would only spend the limit.
+        // The first recognition has no tidy before it to run beside, so waiting for one would never end.
         return await rendezvous.recognition(waitsForATidy: call > 1) {
             Transcription(
                 text: "w\(call) x", detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
@@ -217,7 +214,7 @@ private final class TimedCleaner: TranscriptCleaning, Sendable {
             calls += 1
             return calls
         }
-        // The last piece has no recognition left to run beside, so waiting for one would only spend the limit.
+        // The last piece has no recognition left to run beside, so waiting for one would never end.
         await rendezvous.tidy(waitsForARecognition: call < pieces)
         return TransformationResult(
             text: request.transcription.text.uppercased(), producedBy: .foundationModels)
@@ -289,7 +286,7 @@ extension DictationState {
 
 // MARK: - Tests
 
-@Suite("Dictation pipeline: working ahead while the key is held")
+@Suite("Dictation pipeline: working ahead while the key is held", .timeLimit(.minutes(1)))
 struct DictationPipelineEarlyWorkTests {
     private func makePipeline(
         capture: FakeAudioCaptureEngine,
@@ -308,16 +305,13 @@ struct DictationPipelineEarlyWorkTests {
             recordings: recordings, windowing: quick, earlyPoll: .milliseconds(2))
     }
 
-    /// Waits for the recogniser to have been asked `count` times, or gives up loudly.
-    private func waitForCalls(_ count: Int, on speech: NumberingSpeechEngine) async {
-        for _ in 0..<2000 where await speech.calls < count {
-            try? await Task.sleep(for: .milliseconds(2))
-        }
-        #expect(await speech.calls >= count, "the recogniser was never asked \(count) times")
+    /// Waits for the recogniser to have been asked `count` times.
+    private func waitForCalls(_ count: Int, on speech: NumberingSpeechEngine) async throws {
+        try await eventually { await speech.calls >= count }
     }
 
     @Test("pieces ended by a pause are recognised and tidied before the key is released")
-    func worksAheadWhileRecording() async {
+    func worksAheadWhileRecording() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine()
@@ -326,7 +320,7 @@ struct DictationPipelineEarlyWorkTests {
         let pipeline = makePipeline(capture: capture, speech: speech, cleaner: cleaner, inserter: inserter)
 
         await pipeline.startRecording()
-        await waitForCalls(2, on: speech)
+        try await waitForCalls(2, on: speech)
         #expect(await pipeline.currentState == .recording)
         #expect(cleaner.seen.count >= 1, "the first piece is tidied while recording")
         await pipeline.finishRecording()
@@ -347,7 +341,7 @@ struct DictationPipelineEarlyWorkTests {
     @Test(
         "the tidier is warmed for where the screen says the words are going, and for plain text when it says nothing"
     )
-    func warmsForTheDestination() async {
+    func warmsForTheDestination() async throws {
         for (context, destination) in [
             (
                 AppContext.fixture(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
@@ -363,7 +357,7 @@ struct DictationPipelineEarlyWorkTests {
             let pipeline = makePipeline(capture: capture, speech: speech, cleaner: cleaner, context: engine)
 
             await pipeline.startRecording()
-            await waitForCalls(1, on: speech)
+            try await waitForCalls(1, on: speech)
             await pipeline.finishRecording()
 
             #expect(cleaner.warmed == [destination])
@@ -372,7 +366,7 @@ struct DictationPipelineEarlyWorkTests {
     }
 
     @Test("the screen read while recording names where the words went")
-    func earlyContextNamesTheApp() async {
+    func earlyContextNamesTheApp() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine()
@@ -380,7 +374,7 @@ struct DictationPipelineEarlyWorkTests {
         let pipeline = makePipeline(capture: capture, speech: speech, context: context)
 
         await pipeline.startRecording()
-        await waitForCalls(1, on: speech)
+        try await waitForCalls(1, on: speech)
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.outcome?.insertedInto == "Notes")
@@ -388,14 +382,14 @@ struct DictationPipelineEarlyWorkTests {
     }
 
     @Test("pieces cut from audio the stop did not return are thrown away, not joined")
-    func mismatchedAudioStartsOver() async {
+    func mismatchedAudioStartsOver() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 0.5)))
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine()
         let pipeline = makePipeline(capture: capture, speech: speech)
 
         await pipeline.startRecording()
-        await waitForCalls(2, on: speech)
+        try await waitForCalls(2, on: speech)
         await pipeline.finishRecording()
 
         let state = await pipeline.currentState
@@ -404,7 +398,7 @@ struct DictationPipelineEarlyWorkTests {
     }
 
     @Test("cancelling while a piece is under way inserts nothing")
-    func cancelDropsEarlyPieces() async {
+    func cancelDropsEarlyPieces() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine()
@@ -412,7 +406,7 @@ struct DictationPipelineEarlyWorkTests {
         let pipeline = makePipeline(capture: capture, speech: speech, inserter: inserter)
 
         await pipeline.startRecording()
-        await waitForCalls(1, on: speech)
+        try await waitForCalls(1, on: speech)
         await pipeline.cancel()
         await pipeline.finishRecording()
 
@@ -421,14 +415,14 @@ struct DictationPipelineEarlyWorkTests {
     }
 
     @Test("a piece that fails while recording is left for the end, where its failure is reported")
-    func earlyFailureIsReportedAtTheEnd() async {
+    func earlyFailureIsReportedAtTheEnd() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine(failingCalls: Set(1...12))
         let pipeline = makePipeline(capture: capture, speech: speech)
 
         await pipeline.startRecording()
-        await waitForCalls(1, on: speech)
+        try await waitForCalls(1, on: speech)
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.failure != nil)
@@ -436,14 +430,14 @@ struct DictationPipelineEarlyWorkTests {
     }
 
     @Test("a piece that fails while recording does not stop the later pieces being worked ahead")
-    func earlyFailureLeavesTheRestWorkingAhead() async {
+    func earlyFailureLeavesTheRestWorkingAhead() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine(failingCalls: [1])
         let pipeline = makePipeline(capture: capture, speech: speech)
 
         await pipeline.startRecording()
-        await waitForCalls(2, on: speech)
+        try await waitForCalls(2, on: speech)
         #expect(
             await pipeline.currentState == .recording,
             "the piece after the failed one is worked ahead, not left to the release")
@@ -554,7 +548,7 @@ struct DictationPipelineEarlyWorkTests {
 
     /// The contract VocabularySource's own doc comment claims, which the engine used to break. See #180.
     @Test("ranks the dictation's words once, however many pieces it is cut into")
-    func ranksTheWordsOncePerDictation() async {
+    func ranksTheWordsOncePerDictation() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine()
@@ -565,7 +559,7 @@ struct DictationPipelineEarlyWorkTests {
         }
 
         await pipeline.startRecording()
-        await waitForCalls(2, on: speech)
+        try await waitForCalls(2, on: speech)
         await pipeline.finishRecording()
 
         #expect(await speech.calls == 3)
@@ -590,7 +584,13 @@ struct DictationPipelineEarlyWorkTests {
             cleaner: TimedCleaner(rendezvous: rendezvous, pieces: 3),
             recordings: recordings)
 
-        await pipeline.retry(recording.id)
+        // The time limit cancels a serial pipeline's wait, which then ends every stage's wait with it.
+        let retrying = Task { await pipeline.retry(recording.id) }
+        await withTaskCancellationHandler {
+            await retrying.value
+        } onCancel: {
+            rendezvous.giveUp()
+        }
 
         #expect(
             await pipeline.currentState.outcome?.text == "W1 X. W2 X. W3 X",
@@ -605,30 +605,25 @@ struct DictationPipelineEarlyWorkTests {
     /// Releases the key while `holding` is true of the first piece, then lets that piece finish once the release is waiting on it.
     private func releaseMidPiece(
         _ pipeline: DictationPipeline, holding: @Sendable () async -> Bool, letGo: @Sendable () async -> Void
-    ) async {
+    ) async throws {
         await pipeline.startRecording()
-        for _ in 0..<2000 where await !holding() {
-            try? await Task.sleep(for: .milliseconds(2))
-        }
-        #expect(await holding(), "the first piece never reached the stage being held")
+        try await eventually { await holding() }
         let finishing = Task { await pipeline.finishRecording() }
-        for _ in 0..<2000 where await pipeline.currentState != .transcribing {
-            try? await Task.sleep(for: .milliseconds(2))
-        }
+        try await eventually { await pipeline.currentState == .transcribing }
         await letGo()
         await finishing.value
     }
 
     /// The drain begins when the key comes up, so the user waits through it and Diagnostics must say so.
     @Test("charges the wait to the drain when the key comes up while the piece is being tidied")
-    func measuresTheDrain() async {
+    func measuresTheDrain() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let cleaner = HeldCleaner()
         let metrics = RecordingMetricsRecorder()
         let pipeline = makePipeline(capture: capture, cleaner: cleaner, metrics: metrics)
 
-        await releaseMidPiece(
+        try await releaseMidPiece(
             pipeline, holding: { await cleaner.isHolding }, letGo: { await cleaner.release() })
 
         #expect(await metrics.measurements.contains { $0.stage == .drain })
@@ -636,14 +631,14 @@ struct DictationPipelineEarlyWorkTests {
 
     /// Issue 344: recognition is usually the longer half of the in-flight piece, and was the half the drain missed.
     @Test("charges the wait to the drain when the key comes up while the piece is still being recognised")
-    func measuresTheDrainDuringRecognition() async {
+    func measuresTheDrainDuringRecognition() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let speech = HeldSpeechEngine()
         let metrics = RecordingMetricsRecorder()
         let pipeline = makePipeline(capture: capture, speech: speech, metrics: metrics)
 
-        await releaseMidPiece(
+        try await releaseMidPiece(
             pipeline, holding: { await speech.isHolding }, letGo: { await speech.release() })
 
         #expect(await metrics.measurements.contains { $0.stage == .drain })

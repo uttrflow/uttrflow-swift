@@ -22,6 +22,9 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **Hiding an AI suggestion that is already hidden no longer redraws the panel.** Each keystroke
+  with nothing drawn used to rebuild the view and look up the screens two or three times on the
+  main thread (#889).
 - **Dictating into a slow field while AI suggestions are on no longer times out after 100 ms.**
   Each Accessibility caller now sets its timeout on its own elements, so a suggestion read can no
   longer shorten an insertion write to 0.1 s, and the context read keeps its budget (#887).

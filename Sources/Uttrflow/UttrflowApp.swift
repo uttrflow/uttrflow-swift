@@ -29,6 +29,10 @@ enum UttrflowApp {
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
             releaseModel: { await scoring.release() })
         application.delegate = delegate
+        // A reload that finds the weights gone asks for them again in Settings rather than fetching them unasked.
+        Task { [weak delegate] in
+            await scoring.whenReloadFails { Task { @MainActor in delegate?.suggestionModelWentMissing() } }
+        }
         // Regular, not accessory: Uttrflow has a Dock icon and its window opens at launch.
         application.setActivationPolicy(.regular)
         // A regular app with no main menu loses ⌘C, ⌘V, ⌘A and ⌘Z in every text field.

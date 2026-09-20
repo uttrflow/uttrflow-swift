@@ -160,7 +160,7 @@ extension PanelSnapshot {
 
     /// Gives a plain clip a rich form; refuses one that has it, so a written note is never overwritten.
     func promoting(_ id: Clip.ID) -> PanelResponse {
-        guard let clip = clip(id), clip.richText == nil else { return stayingOpen }
+        guard let clip = clip(id), clip.richText == nil, clip.image == nil else { return stayingOpen }
         return PanelResponse(
             state: self, outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
     }

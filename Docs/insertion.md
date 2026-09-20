@@ -61,13 +61,16 @@ sleeps charges none of it, so the wait ran for 1.6 s of sleeping plus however lo
 took — and the dictation sits in ``DictationState/inserting`` for all of it. Only the read
 already in flight when the deadline passes can now overshoot it.
 
-Three answers, and only one of them is a fact:
+Four answers, and only one of them is a fact:
 
 - **Landed** — the words are behind the caret, and how long that took is the only measurement
   of this gap that exists.
 - **Not reported** — the field will not say what it holds. Nothing is proved either way, and
   nothing is waited for, since a field that will not answer now will not answer in a second.
 - **Gave up** — the budget was spent with no sign of them.
+- **Cancelled** — the task waiting was cancelled, which is what a stage timeout does. It stops
+  at once, between reads or in the middle of a wait, without reading the field again, and is
+  reported upwards as unconfirmed, never as landed.
 
 The dictation sits in ``DictationState/inserting`` throughout, which the floating button draws
 as work in progress. That state exists so that the tick is a claim about the words rather than

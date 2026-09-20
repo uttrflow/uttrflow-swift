@@ -57,7 +57,7 @@ extension InsertionArrival {
         switch outcome {
         case .landed: self = .confirmed
         case .notReported: self = .notReported
-        case .gaveUp: self = .unconfirmed
+        case .gaveUp, .cancelled: self = .unconfirmed
         }
     }
 }

@@ -193,11 +193,22 @@ public struct Surroundings: Sendable, Equatable {
         return String(clean.suffix(maximumCharactersPerElement))
     }
 
-    /// The text without the control and direction marks accessibility labels are padded with, which a model would only read as noise.
+    /// The text without control and direction marks, each run of line breaks and tabs kept as one space between words.
     public static func cleaned(_ text: String) -> String {
-        String(
-            text.unicodeScalars.filter {
-                !($0.properties.generalCategory == .control || $0.properties.generalCategory == .format)
-            })
+        var kept = String.UnicodeScalarView()
+        var separated = false
+        for scalar in text.unicodeScalars {
+            switch scalar.properties.generalCategory {
+            case .control where scalar.properties.isWhitespace:
+                if !separated { kept.append(" ") }
+                separated = true
+            case .control, .format:
+                continue
+            default:
+                kept.append(scalar)
+                separated = false
+            }
+        }
+        return String(kept)
     }
 }

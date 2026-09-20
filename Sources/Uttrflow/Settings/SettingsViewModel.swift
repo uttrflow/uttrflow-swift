@@ -52,10 +52,13 @@ final class SettingsViewModel {
         onShortcutRecording(true)
     }
 
-    /// Stops listening and brings the live shortcut back; called from Cancel and from a successful recording.
+    /// Stops listening and brings the live shortcut back; called from Cancel and navigation cleanup.
     func cancelRecordingShortcut() {
+        let wasRecording = session.recorder.isRecording
         session.cancelRecordingShortcut()
-        onShortcutRecording(false)
+        if wasRecording {
+            onShortcutRecording(false)
+        }
     }
 
     /// Saved as each change is made; nothing here is half chosen, so there is nothing for Cancel to undo.

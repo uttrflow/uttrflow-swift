@@ -7,14 +7,11 @@ import UttrflowCore
 @testable import Uttrflow
 
 @MainActor
-@Suite("The clean-up engines Diagnostics reports on")
+@Suite("The clean-up engines Diagnostics reports on", .timeLimit(.minutes(1)))
 struct DiagnosticsEngineProbeTests {
-    /// Waits for the probe, which runs beside the test rather than inside it.
-    private func settled(_ app: AppDelegate) async -> [TransformerKind: Bool] {
-        let ceiling = ContinuousClock.now + .seconds(30)
-        while app.transformerAvailability.isEmpty, ContinuousClock.now < ceiling {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
+    /// Starts the probe and waits for it to finish, which it does on a task of its own.
+    private func probed(_ app: AppDelegate) async -> [TransformerKind: Bool] {
+        await app.probeTransformers().value
         return app.transformerAvailability
     }
 
@@ -24,9 +21,7 @@ struct DiagnosticsEngineProbeTests {
         let app = AppDelegate(container: Sandbox().root)
         #expect(app.transformerAvailability.isEmpty)
 
-        app.probeTransformers()
-
-        let answered = await settled(app)
+        let answered = await probed(app)
         #expect(!answered.isEmpty, "nothing was asked, so the page would say Not checked yet")
         // The floor can always run, whatever else this Mac has.
         #expect(answered[.rules] == true)
@@ -35,8 +30,7 @@ struct DiagnosticsEngineProbeTests {
     @Test("and every kind gets an answer, not only the ones that said yes")
     func everyKindIsAnswered() async {
         let app = AppDelegate(container: Sandbox().root)
-        app.probeTransformers()
-        let answered = await settled(app)
+        let answered = await probed(app)
 
         for kind in TransformerKind.allCases {
             #expect(answered[kind] != nil, "\(kind.rawValue) was left unanswered")
