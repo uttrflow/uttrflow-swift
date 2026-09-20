@@ -154,6 +154,28 @@ struct ModelDownloadTests {
         #expect(await asks.count == 2)
     }
 
+    @Test(
+        "Weights found missing by a reload are asked for again in Settings, and switching off and on fetches them."
+    )
+    func weightsGoneMissingAreAskedForAgain() async {
+        let asks = Asks()
+        let app = AppDelegate(container: Sandbox().root, prepareModel: { _ in await asks.asked() })
+        app.suggestionModelWentMissing()
+        #expect(app.suggestionModel == .notAsked)
+
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        app.suggestionModelWentMissing()
+        #expect(app.suggestionModel == .failed)
+        #expect(await asks.count == 1)
+
+        app.settingsChanged(to: settings(suggesting: false))
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        #expect(await asks.count == 2)
+        #expect(app.suggestionModel == .ready)
+    }
+
     @Test("What it is doing is readable, so the screen has something to say while it is not ready.")
     func progressIsReadable() async {
         let app = AppDelegate(

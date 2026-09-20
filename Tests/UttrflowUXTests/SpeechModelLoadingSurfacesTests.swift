@@ -47,7 +47,7 @@ struct SpeechModelLoadingSurfacesTests {
         let page = home(nil)
 
         #expect(page.speechModel == nil)
-        #expect(page.status == HomeStatus(text: "Listening · ready", isReady: true))
+        #expect(page.status == HomeStatus(text: "Ready", isReady: true))
         #expect(page.nextStep == nil)
     }
 
@@ -71,7 +71,7 @@ struct SpeechModelLoadingSurfacesTests {
             calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
 
         #expect(page.speechModel == nil)
-        #expect(page.status.text == "Not listening")
+        #expect(page.status.text == "Not ready")
     }
 
     @Test("readiness tells the load from the injected clock, and nothing once ready")
@@ -86,9 +86,76 @@ struct SpeechModelLoadingSurfacesTests {
         #expect(SpeechModelReadiness.loading.load(since: nil, now: now) == .loading(elapsed: .zero))
         #expect(SpeechModelReadiness.loadFailed.load(since: started, now: now) == .failed)
         #expect(SpeechModelReadiness.ready.load(since: started, now: now) == nil)
-        #expect(SpeechModelReadiness.notInstalled.load(since: started, now: now) == nil)
+        #expect(SpeechModelReadiness.notInstalled.load(since: started, now: now) == .missing)
         #expect(
             SpeechModelReadiness.downloading(fractionCompleted: 0.5).load(since: started, now: now) == nil)
+    }
+
+    @Test("a missing model shows a card with Download, puts the ring out and invites no talking")
+    func homeShowsTheMissingModel() throws {
+        let page = home(.missing)
+        let notice = try #require(page.speechModel)
+
+        #expect(!notice.isLoading)
+        #expect(notice.title == "The speech model isn’t downloaded")
+        #expect(notice.action == MainAction(title: "Download", intent: .recover(.downloadSpeechModel)))
+        #expect(page.status == HomeStatus(text: "Speech model not downloaded", isReady: false))
+        #expect(page.subtitle == "Uttrflow cannot listen yet.")
+    }
+
+    /// The Dictation page with every permission granted, nothing dictated, and the model at one point.
+    private func dictation(_ load: SpeechModelLoad?) -> DictationPresentation {
+        DictationPresenter.page(
+            for: DictationSnapshot(
+                permissions: [.microphone: .granted, .accessibility: .granted],
+                shortcut: "⌥Space", now: HistoryFixture.now, speechModel: load),
+            calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
+    }
+
+    @Test("the Dictation page says the model is missing in place of the invitation to talk")
+    func dictationShowsTheMissingModel() throws {
+        let empty = try #require(dictation(.missing).emptyState)
+
+        #expect(empty.title == "The speech model isn’t downloaded")
+        #expect(empty.action == MainAction(title: "Download", intent: .recover(.downloadSpeechModel)))
+        #expect(!empty.message.contains("anywhere and talk"))
+    }
+
+    @Test("the Dictation page says a load is under way, with nothing to press")
+    func dictationShowsTheLoad() throws {
+        let empty = try #require(dictation(.loading(elapsed: .seconds(1))).emptyState)
+
+        #expect(empty.title == "Loading the speech model…")
+        #expect(empty.symbolName == "hourglass")
+        #expect(empty.action == nil)
+    }
+
+    @Test("the Dictation page invites talking once the model is ready")
+    func dictationInvitesOnceReady() throws {
+        let empty = try #require(dictation(nil).emptyState)
+
+        #expect(empty.message.contains("anywhere and talk"))
+    }
+
+    /// Two surfaces that disagree about whether dictation works leave the person to find out by trying.
+    @Test(
+        "home, the Dictation page and the menu bar agree on whether the model can dictate",
+        arguments: [
+            SpeechModelReadiness.notInstalled, .loading, .loadFailed, .ready,
+        ])
+    func surfacesAgree(readiness: SpeechModelReadiness) {
+        let load = readiness.load(since: nil as ContinuousClock.Instant?, now: .now)
+        let homeReady = home(load).status.isReady
+        let dictationInvites = dictation(load).emptyState?.message.contains("anywhere and talk") == true
+        let menuReady = MenuBarPresenter.canStartDictation(in: MenuBarState(speechModel: readiness))
+
+        #expect(homeReady == (readiness == .ready))
+        #expect(dictationInvites == homeReady)
+        #expect(menuReady == homeReady)
+        if let load {
+            #expect(MenuBarPresenter.present(MenuBarState(speechModel: readiness)).statusLine != "Ready")
+            #expect(home(load).status.text == load.status)
+        }
     }
 
     @Test("the menu bar names a failed load rather than calling setup unfinished")

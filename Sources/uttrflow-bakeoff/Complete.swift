@@ -161,7 +161,8 @@ struct Complete: AsyncParsableCommand {
             let elapsed = Int((ContinuousClock.now - started) / .milliseconds(1))
             let result = FixtureResult(
                 name: fixture.name, category: fixture.category, typed: fixture.typed,
-                hit: fixture.hits(completions), conforms: fixture.conforms(completions), elapsedMs: elapsed,
+                hit: fixture.hits(completions), judged: fixture.isJudged,
+                conforms: fixture.conforms(completions), elapsedMs: elapsed,
                 first: failure ?? completions.first, raw: words, invented: invented, rescued: rescued,
                 secondOpinionMs: secondMs)
             results.append(result)

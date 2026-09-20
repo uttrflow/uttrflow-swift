@@ -43,9 +43,9 @@ extension MacContextEngine {
         _ = AXUIElementSetMessagingTimeout(app, budgetInSeconds)
 
         // Read separately, so an app that names its window but hides its selection still gives the half.
-        let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute)
+        let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute, timeoutInSeconds: budgetInSeconds)
             .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
-        let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute)
+        let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute, timeoutInSeconds: budgetInSeconds)
         let selected = field.flatMap { SurfaceProbe.string($0, kAXSelectedTextAttribute) }
         let caret = field.flatMap { field in
             let selection = SurfaceProbe.selectedRange(field).flatMap { range in

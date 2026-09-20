@@ -46,6 +46,24 @@ private final class RecordingFakeInserter: TextInserting, Sendable {
 /// An error from outside the product's own vocabulary.
 private struct OddError: Error {}
 
+/// A dictionary that answers each read with the next list, counting the reads.
+private final class WordsInTurn: Sendable {
+    private let state: Mutex<(lists: [[String]], reads: Int)>
+
+    init(_ lists: [String]...) {
+        state = Mutex((lists, 0))
+    }
+
+    func next() -> [String] {
+        state.withLock { state in
+            state.reads += 1
+            return state.lists.isEmpty ? [] : state.lists.removeFirst()
+        }
+    }
+
+    var reads: Int { state.withLock { $0.reads } }
+}
+
 private let said = "hello there"
 
 extension DictationState {
@@ -214,6 +232,47 @@ struct DictationPipelineRecordingTests {
         #expect(await speech.transcribeCalls.last?.audio == audio)
         #expect(await recordings.audioRequests == [recording.id])
         #expect(await recordings.discarded == [recording.id])
+    }
+
+    /// Every attempt reads the dictionary as it is now, so a word added between attempts reaches the recogniser.
+    @Test("each retry asks for the vocabulary afresh")
+    func retriesReadFreshVocabulary() async {
+        let words = WordsInTurn(["OldName"], ["NewName"])
+        // The first retry fails, so the recording is kept for the second, as it is in the app.
+        let speech = FakeSpeechEngine(transcribeOutcome: .failure(.transcriptionFailed(description: "x")))
+        let recordings = FakeRecordingKeeper(waiting: [recording])
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: speech, cleaner: RecordingFakeCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: RecordingFakeInserter(),
+            speechWords: { _ in words.next() },
+            recordings: recordings,
+            clipboard: RecordingFakeInserter(outcome: .success(InsertionAttempt(.clipboard))))
+
+        await pipeline.retry(recording.id)
+        #expect(await recordings.discarded.isEmpty)
+        await speech.setTranscribeOutcome(.success(.fixture(text: said)))
+        await pipeline.retry(recording.id)
+
+        #expect(words.reads == 2)
+        #expect(await speech.transcribeCalls.events.map(\.options.vocabulary) == [["OldName"], ["NewName"]])
+    }
+
+    @Test("a retry after a dictation asks for the vocabulary afresh")
+    func retryAfterDictationReadsFreshVocabulary() async {
+        let words = WordsInTurn(["OldName"], ["NewName"])
+        let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: speech, cleaner: RecordingFakeCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: RecordingFakeInserter(),
+            speechWords: { _ in words.next() },
+            recordings: FakeRecordingKeeper(waiting: [recording]),
+            clipboard: RecordingFakeInserter(outcome: .success(InsertionAttempt(.clipboard))))
+
+        _ = await dictate(pipeline)
+        await pipeline.retry(recording.id)
+
+        #expect(words.reads == 2)
+        #expect(await speech.transcribeCalls.events.last?.options.vocabulary == ["NewName"])
     }
 
     @Test("a retry that fails again keeps the recording for another go")
