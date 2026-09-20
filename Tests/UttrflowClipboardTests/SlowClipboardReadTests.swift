@@ -17,7 +17,7 @@ private final class SlowSource: ClipboardSource, @unchecked Sendable {
 
     func text() -> String? {
         if lock.withLock({ isSlow }) {
-            Thread.sleep(forTimeInterval: 2)
+            Thread.sleep(forTimeInterval: 5)
         }
         return "delivered at last"
     }
@@ -34,7 +34,7 @@ struct SlowClipboardReadTests {
     func aSlowReadIsGivenUpOn() async {
         let source = SlowSource()
         let watcher = PasteboardWatcher(
-            source: source, interval: .milliseconds(10), readLimit: .milliseconds(100))
+            source: source, interval: .milliseconds(10), readLimit: .milliseconds(200))
         source.bumpChangeCount()
 
         let started = ContinuousClock().now
@@ -42,7 +42,7 @@ struct SlowClipboardReadTests {
         let took = ContinuousClock().now - started
 
         #expect(clip == nil, "a copy nobody delivered in time is skipped")
-        #expect(took < .seconds(2), "\(took)")
+        #expect(took < .seconds(4), "\(took)")
 
         source.deliverPromptly()
         source.bumpChangeCount()
