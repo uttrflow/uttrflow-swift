@@ -87,10 +87,14 @@ final class SuggestionCoordinator {
     private var lastKeystroke = Date.distantPast
     /// One turn at a time, with a turn that never returns left behind so the loop cannot die with it.
     private var turns = TurnGate()
+    /// What this turn has already been told about the moment, so one line costs one walk.
+    private let contextCache = SuggestionContextCache()
     /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
     private var isInserting = false
     /// True once the loop is stopped, so a turn still finishing draws nothing into the shared panel.
     private var isStopped = false
+    /// Set while a dictation is under way, when no turn may start.
+    private var isDictating = DictationInProgress.shared.isDictating
     private var again: SuggestionReason?
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
@@ -145,7 +149,7 @@ final class SuggestionCoordinator {
         do {
             try interceptor.start()
         } catch {
-            Self.log.error("tab-to-complete is off: \(String(describing: error), privacy: .public)")
+            Self.log.error("tab-to-complete is off: \(SuggestionLog.failure(error), privacy: .public)")
             return
         }
         interceptor.arm([])
@@ -216,6 +220,14 @@ final class SuggestionCoordinator {
         }
     }
 
+    /// Withdraws the ghost and holds every turn while a dictation is under way, so its models have the GPU.
+    func dictationChanged(isDictating: Bool) {
+        self.isDictating = isDictating
+        guard isDictating else { return }
+        again = nil
+        withdraw()
+    }
+
     /// Takes the ghost and the keys it claims away, and voids every answer in flight, because the caret may have moved under it.
     private func withdraw() {
         session.invalidate()
@@ -284,6 +296,7 @@ final class SuggestionCoordinator {
 
     /// Runs one turn, or notes that another is wanted, so two never run at once and a stuck one never ends the loop.
     private func wake(_ reason: SuggestionReason) {
+        guard !isDictating else { return }
         switch turns.begin(at: Date()) {
         case .busy:
             // A Return or a switch waiting its turn is never overwritten by the tick that follows it.
@@ -314,15 +327,24 @@ final class SuggestionCoordinator {
 
     // MARK: One turn
 
+    /// Whether a turn may read the focused field at all: never in Uttrflow, nor where suggestions are off or paused.
+    nonisolated static func shouldRead(
+        front: String, own: String?, preferences: SuggestionPreferences, at moment: Date
+    ) -> Bool {
+        front != own && preferences.isEnabled(in: front, at: moment)
+    }
+
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
     private func turn(_ number: Int, because reason: SuggestionReason) async {
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
         // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
         let keystrokesSeen = session.keystrokes
-        let read = front == ownBundleIdentifier ? nil : await FocusedFieldReader.read()
+        let shouldRead = Self.shouldRead(
+            front: front, own: ownBundleIdentifier, preferences: preferences, at: Date())
+        let read = shouldRead ? await FocusedFieldReader.read() : nil
         guard turns.isCurrent(number) else { return }
         Self.log.debug(
-            "TURN front=\(front, privacy: .public) read=\(read != nil) lineChars=\(read?.currentLine.count ?? -1) value=\(read?.value != nil) chars=\(read?.value?.count ?? -1) sel=\(read?.selection?.location ?? -1) caret=\(read?.caret != nil) role=\(read?.role ?? "-", privacy: .public) labelChars=\(read?.accessibilityDescription?.count ?? -1) identified=\(read?.identifier != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
+            "TURN front=\(front, privacy: .public) read=\(read != nil) lineChars=\(read?.currentLine.count ?? -1) value=\(read?.value != nil) units=\(read?.value?.utf16.count ?? -1) sel=\(read?.selection?.location ?? -1) caret=\(read?.caret != nil) role=\(read?.role ?? "-", privacy: .public) labelChars=\(read?.accessibilityDescription?.count ?? -1) identified=\(read?.identifier != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
         )
         guard front != ownBundleIdentifier, let snapshot = read else {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
@@ -461,12 +483,14 @@ final class SuggestionCoordinator {
             // The model's last word on this exact line was nothing, and a tick changes nothing about the line.
             return
         } else {
-            let pass = Task { [generator, store] in
+            let pass = Task { [generator, store, contextCache] in
                 // A short quiet first, so a burst of keystrokes costs one pass for its last prefix rather than one per key.
                 try? await Task.sleep(for: .milliseconds(Self.generationDebounceInMilliseconds))
                 guard !Task.isCancelled else { return [String]() }
                 // The context is read only once a pass is certain, so a cancelled burst never pays for it.
-                let situation = await Self.situation(of: snapshot, for: query, store: store).choosing(choices)
+                let situation = await Self.situation(
+                    of: snapshot, for: query, store: store, cache: contextCache, turn: number
+                ).choosing(choices)
                 return try await generator.completions(for: query.typed, in: situation)
             }
             generating = pass
@@ -518,8 +542,9 @@ final class SuggestionCoordinator {
             lastGenerated = (query.surface, query.typed, [leader] + others)
             return await drawFresh(expanded, for: snapshot, turn: number)
         }
-        let more = Task { [generator, store] in
-            let situation = await Self.situation(of: snapshot, for: query, store: store)
+        let more = Task { [generator, store, contextCache] in
+            let situation = await Self.situation(
+                of: snapshot, for: query, store: store, cache: contextCache, turn: number)
             return try await generator.alternatives(for: query.typed, in: situation, excluding: leader)
         }
         generating = more
@@ -558,24 +583,35 @@ final class SuggestionCoordinator {
 
     /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.
     private static func situation(
-        of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore
+        of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore,
+        cache: SuggestionContextCache, turn: Int
     ) async -> GenerationSituation {
-        let around = await FocusedFieldReader.surroundings()
+        // The alternatives pass asks about the same line in the same turn, so it is told what the first pass was.
+        if let built = await cache.situation(forTurn: turn) { return built }
+        let around = await cache.surroundings(for: Self.windowKey(of: snapshot)) {
+            await FocusedFieldReader.surroundings()
+        }
         // The line being written is not a line written before, however long the pause that had it remembered.
         let recent = ((try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? [])
             .filter { !query.typed.hasPrefix($0) }
+        let preceding = snapshot.preceding(maxLength: Self.precedingContextLength)
         // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
         Self.log.debug(
-            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(snapshot.preceding(maxLength: Self.precedingContextLength)?.count ?? 0)"
+            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(preceding?.count ?? 0)"
         )
-        return GenerationSituation(
+        let situation = GenerationSituation(
             application: snapshot.applicationName,
             field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
-            document: snapshot.document,
-            preceding: snapshot.preceding(maxLength: Self.precedingContextLength),
+            document: snapshot.document, preceding: preceding,
             windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
-            isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole
-                || snapshot.value?.contains(where: \.isNewline) == true)
+            isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole || snapshot.holdsNewline)
+        await cache.remember(situation, forTurn: turn)
+        return situation
+    }
+
+    /// Which window a walk belongs to, from what the field read already says about it.
+    static func windowKey(of snapshot: FocusedFieldSnapshot) -> String {
+        "\(snapshot.bundleIdentifier)\u{1F}\(snapshot.document ?? "")"
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
@@ -613,7 +649,7 @@ final class SuggestionCoordinator {
         if case .applicationChanged = reason, let leaving = lastReading, leaving != reading {
             _ = try? await capture.handle(.applicationDeactivated(at: moment), in: leaving)
         }
-        let event = reason.event(holding: snapshot.currentLine, at: moment)
+        let event = reason.event(holding: snapshot.learnableLine, at: moment)
         guard let outcome = try? await capture.handle(event, in: reading) else { return }
         guard case .refused(let refusal) = outcome, refusal.asksTheUser else { return }
         // The Suggestions screen has already said yes to this application, so the capture store is told so.
@@ -652,7 +688,7 @@ final class SuggestionCoordinator {
             window: snapshot.window, field: snapshot.field, fieldPointSize: snapshot.pointSize,
             selection: session.selection,
             acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
-            fontFamily: snapshot.fontFamily)
+            fontFamily: snapshot.fontFamily, textColor: snapshot.textColor)
     }
 
     // MARK: Accepting
@@ -719,7 +755,7 @@ final class SuggestionCoordinator {
                 try interceptor.start()
                 Self.log.error("the tap is back after resting \(Self.tapRestSeconds)s")
             } catch {
-                Self.log.error("the tap could not restart: \(String(describing: error), privacy: .public)")
+                Self.log.error("the tap could not restart: \(SuggestionLog.failure(error), privacy: .public)")
             }
         }
     }
@@ -769,6 +805,6 @@ final class SuggestionCoordinator {
             hasSelection: snapshot.hasSelection, isComposing: snapshot.isComposing,
             isSecure: snapshot.isSecure, isProse: snapshot.isProse,
             millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000),
-            canDraw: snapshot.placement == .inlineGhost)
+            canDraw: snapshot.placement == .inlineGhost, markedText: snapshot.markedText)
     }
 }

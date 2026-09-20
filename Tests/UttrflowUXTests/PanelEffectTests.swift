@@ -85,7 +85,9 @@ struct PanelUseReportingTests {
         case .closeAndInsert(_, let used): used
         case .closeAndInsertFormatted(_, _, let used): used
         case .copyAndSay(_, _, let used): used
-        case .closeAndInsertImage(let clip): clip.id
+        case .closeAndCopy(_, _, let used): used
+        case .closeAndInsertImage(let clip), .copyImageAndSay(let clip, _), .closeAndCopyImage(let clip):
+            clip.id
         case .redraw, .close, .applyAndRedraw, .say: nil
         }
     }

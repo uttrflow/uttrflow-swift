@@ -57,6 +57,7 @@ public actor PredictStore: PredictionStore {
         for surface: Surface, matching typed: String
     ) throws(PredictStoreError) -> [Candidate] {
         guard !typed.isEmpty else { return [] }
+        let typed = Spelling.canonical(typed)
         let ids = try surfaceIdentifiers(of: surface)
         guard !ids.isEmpty else { return [] }
         var exact: [Candidate] = []
@@ -69,29 +70,30 @@ public actor PredictStore: PredictionStore {
 
     /// The lines this person recently entered in this field, each once, the ones from this document first.
     public func recent(in surface: Surface, limit: Int) throws(PredictStoreError) -> [String] {
-        let ids = try surfaceIdentifiers(of: surface)
-        guard !ids.isEmpty, limit > 0 else { return [] }
+        guard limit > 0 else { return [] }
         let here = try identifier(of: surface, creating: false) ?? -1
         return try database.rows(
-            Self.recentQuery(surfaces: ids.count),
+            Self.recentQuery,
             { statement in
-                for (offset, id) in ids.enumerated() { statement.bind(Int32(offset + 1), id) }
-                statement.bind(Int32(ids.count + 1), here)
-                statement.bind(Int32(ids.count + 2), Int64(limit))
+                statement.bind(1, surface.bundleIdentifier)
+                statement.bind(2, surface.role)
+                statement.bind(3, surface.locator ?? "")
+                statement.bind(4, here)
+                statement.bind(5, Int64(limit))
             }
         ) { $0.text(0) }
     }
 
-    /// The recency read `entry_recent` serves; the surface bound last of all is the document in hand.
-    static func recentQuery(surfaces: Int) -> String {
-        // Every placeholder is numbered, since one numbered among anonymous ones shifts the rest.
-        let placeholders = (1...surfaces).map { "?\($0)" }.joined(separator: ", ")
-        return """
-            SELECT text, MAX(last_used) AS used, MAX(surface_id = ?\(surfaces + 1)) AS here FROM entry
-            WHERE surface_id IN (\(placeholders)) AND superseded_by IS NULL AND count > self_sourced
-            GROUP BY text ORDER BY here DESC, used DESC LIMIT ?\(surfaces + 2)
-            """
-    }
+    /// How many compiled statements the open file keeps.
+    var cachedStatements: Int { database.cachedStatements }
+
+    /// The recency read `entry_recent` serves, one SQL text however many documents the field has been in.
+    static let recentQuery = """
+        SELECT text, MAX(last_used) AS used, MAX(surface_id = ?4) AS here FROM entry
+        WHERE surface_id IN (SELECT id FROM surface WHERE bundle_id = ?1 AND role = ?2 AND locator = ?3)
+        AND superseded_by IS NULL AND count > self_sourced
+        GROUP BY text ORDER BY here DESC, used DESC LIMIT ?5
+        """
 
     /// Every surface that is the same field in the same application, whatever document it was in.
     private func surfaceIdentifiers(of surface: Surface) throws(PredictStoreError) -> [Int64] {
@@ -117,7 +119,18 @@ public actor PredictStore: PredictionStore {
             }
             byText[candidate.text] = Self.combine(existing, candidate)
         }
-        return Array(order.compactMap { byText[$0] }.prefix(Self.candidateLimit))
+        return Self.strongest(order.compactMap { byText[$0] })
+    }
+
+    /// The candidates with the most evidence, compared across every folder before any is dropped.
+    static func strongest(_ candidates: [Candidate]) -> [Candidate] {
+        let ordered = candidates.sorted { first, second in
+            let a = first.evidence
+            let b = second.evidence
+            return (second.editDistance, a?.count ?? 0, a?.lastUsed ?? .distantPast, second.text)
+                > (first.editDistance, b?.count ?? 0, b?.lastUsed ?? .distantPast, first.text)
+        }
+        return Array(ordered.prefix(candidateLimit))
     }
 
     /// One text known in two surfaces becomes one candidate: evidence summed, the nearer edit kept.
@@ -142,6 +155,7 @@ public actor PredictStore: PredictionStore {
         for surface: Surface, after previous: String
     ) throws(PredictStoreError) -> [Candidate] {
         guard let id = try identifier(of: surface, creating: false) else { return [] }
+        let previous = Spelling.canonical(previous)
         let texts = try database.rows(
             """
             SELECT next FROM succession WHERE surface_id = ? AND previous = ?
@@ -190,7 +204,7 @@ public actor PredictStore: PredictionStore {
     private func fuzzyCandidates(
         surfaceIdentifier id: Int64, typed: String
     ) throws(PredictStoreError) -> [Candidate] {
-        let needle = Array(typed.utf8)
+        let needle = FuzzyMatch.units(typed)
         let budget = FuzzyMatch.budget(forQueryOfLength: needle.count)
         guard budget > 0 else { return [] }
         let width = FuzzyMatch.maskWidth(forQueryOfLength: needle.count, within: budget)
@@ -227,9 +241,7 @@ public actor PredictStore: PredictionStore {
                 editDistance: distance,
                 isIrreversible: DestructiveCommand.matches(text))
         }
-        let all = rows.compactMap { $0 }
-
-        return Array(all.prefix(Self.candidateLimit))
+        return Self.strongest(rows.compactMap { $0 })
     }
 
     // MARK: - Writing
@@ -241,7 +253,9 @@ public actor PredictStore: PredictionStore {
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         try database.transaction { () throws(PredictStoreError) in
-            try write(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
+            try write(
+                Spelling.canonical(text), in: surface, after: previous.map(Spelling.canonical),
+                selfSourced: selfSourced, at: moment)
         }
     }
 
@@ -300,7 +314,8 @@ public actor PredictStore: PredictionStore {
         _ text: String, with replacement: String, in surface: Surface
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: false) else { return }
-        try markSuperseded(text, by: replacement, surfaceIdentifier: id)
+        try markSuperseded(
+            Spelling.canonical(text), by: Spelling.canonical(replacement), surfaceIdentifier: id)
     }
 
     // MARK: - Forgetting
@@ -315,13 +330,25 @@ public actor PredictStore: PredictionStore {
         guard let id = try identifier(of: surface, creating: false) else { return }
         try database.run("DELETE FROM entry WHERE surface_id = ? AND text = ?") {
             $0.bind(1, id)
-            $0.bind(2, text)
+            $0.bind(2, Spelling.canonical(text))
         }
     }
 
     /// Forgets every surface, and with it every entry and succession they hold.
     public func forgetEverything() throws(PredictStoreError) {
         try database.execute("DELETE FROM surface")
+    }
+
+    /// How many entries each application has taught, keyed by bundle identifier.
+    public func entryCountsByApplication() throws(PredictStoreError) -> [String: Int] {
+        let counted = try database.rows(
+            """
+            SELECT bundle_id, COUNT(*) FROM entry
+            JOIN surface ON surface.id = entry.surface_id
+            GROUP BY bundle_id
+            """, { _ in }
+        ) { ($0.text(0), $0.integer(1)) }
+        return Dictionary(counted, uniquingKeysWith: +)
     }
 
     /// How many entries the corpus holds across every surface.
@@ -406,12 +433,13 @@ public actor PredictStore: PredictionStore {
         let column = tally.rawValue
         try database.run("UPDATE entry SET \(column) = \(column) + 1 WHERE surface_id = ? AND text = ?") {
             $0.bind(1, id)
-            $0.bind(2, text)
+            $0.bind(2, Spelling.canonical(text))
         }
     }
 
     /// Keeps a surface within its cap, dropping superseded entries first and then the weakest.
     private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
+        try evictWeakestSuccessions(surfaceIdentifier: id)
         let held = try database.rows(
             "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
         ) { $0.integer(0) }
@@ -431,6 +459,23 @@ public actor PredictStore: PredictionStore {
 
     /// How many rows the fuzzy tier has looked at, which a test reads to bound the per-keystroke work.
     package static let rowsScanned = Mutex(0)
+    /// Keeps a surface's successions within the same cap as its entries, dropping the least followed and then the oldest.
+    private func evictWeakestSuccessions(surfaceIdentifier id: Int64) throws(PredictStoreError) {
+        let held = try database.rows(
+            "SELECT COUNT(*) FROM succession WHERE surface_id = ?", { $0.bind(1, id) }
+        ) { $0.integer(0) }
+        guard let held = held.first, held > Self.entriesPerSurface else { return }
+        try database.run(
+            """
+            DELETE FROM succession WHERE rowid IN (
+              SELECT rowid FROM succession WHERE surface_id = ? ORDER BY count ASC, rowid ASC LIMIT ?
+            )
+            """,
+            {
+                $0.bind(1, id)
+                $0.bind(2, Int64(held - Self.entriesPerSurface))
+            })
+    }
 
     /// Reads a query returning the entry columns as candidates, each at the given edit distance.
     private func readCandidates(

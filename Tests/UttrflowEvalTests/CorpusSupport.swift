@@ -96,10 +96,16 @@ final class FakeUploader: CorpusUploading, Sendable {
     private let uploadError: CorpusError?
     private let registered = Mutex<[String: CorpusSample]>([:])
     private let sent = Mutex<[(CorpusSample, Data)]>([])
+    /// Runs while a transfer is in flight, so a test can replace the take being sent.
+    private let duringUpload: (@Sendable () -> Void)?
 
-    init(registerResult: Result<CorpusUpload, CorpusError>? = nil, uploadError: CorpusError? = nil) {
+    init(
+        registerResult: Result<CorpusUpload, CorpusError>? = nil, uploadError: CorpusError? = nil,
+        duringUpload: (@Sendable () -> Void)? = nil
+    ) {
         self.registerResult = registerResult
         self.uploadError = uploadError
+        self.duringUpload = duringUpload
     }
 
     var uploads: [(sample: CorpusSample, audio: Data)] { sent.withLock { $0 } }
@@ -116,6 +122,7 @@ final class FakeUploader: CorpusUploading, Sendable {
     }
 
     func upload(_ audio: Data, to upload: CorpusUpload) async throws(CorpusError) {
+        duringUpload?()
         if let uploadError { throw uploadError }
         guard let sample = registered.withLock({ $0[upload.slug] }) else {
             throw .unknownSample(upload.slug)

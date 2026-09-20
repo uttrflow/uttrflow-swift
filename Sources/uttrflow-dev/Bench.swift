@@ -30,9 +30,17 @@ struct Bench: AsyncParsableCommand {
     @Option(name: .long, help: "Seconds between looks at the recording for a piece to work ahead on.")
     var earlyPoll: Double = 1
 
+    @Option(
+        name: .long,
+        help: "Seconds to wait before each job, so the tidier's kept session goes cold as it does in use.")
+    var idleBefore: Double = 0
+
     func validate() throws {
         guard earlyPoll.isFinite, earlyPoll >= 0.01, earlyPoll <= 60 else {
             throw ValidationError("--early-poll must be between 0.01 and 60 seconds.")
+        }
+        guard idleBefore.isFinite, idleBefore >= 0, idleBefore <= 3_600 else {
+            throw ValidationError("--idle-before must be between 0 and 3600 seconds.")
         }
     }
 
@@ -66,6 +74,11 @@ struct Bench: AsyncParsableCommand {
         ])
 
         for job in parsed {
+            if idleBefore > 0 {
+                // Idled deliberately: back-to-back jobs keep the tidier's session warm, which use does not. See #876.
+                emit(["event": "idle", "seconds": idleBefore])
+                try await Task.sleep(for: .seconds(idleBefore))
+            }
             emit(try await dictate(job, speech: speech, cleaner: job.rulesOnly ? rules : shipping, log: log))
         }
     }
@@ -257,9 +270,12 @@ private struct TimedCleaner: TranscriptCleaning {
         let start = log.now()
         do {
             let result = try await inner.clean(request)
+            let record = result.cleaning
             log.add([
                 "kind": "clean", "t0": start, "t1": log.now(), "in": request.transcription.text,
                 "out": result.text, "by": result.producedBy.rawValue,
+                "steps": record?.changes.map { $0.step.rawValue }.joined(separator: ",") ?? "",
+                "refused": record?.refusals.map { "\($0.engine):\($0.reason)" }.joined(separator: ",") ?? "",
             ])
             return result
         } catch {

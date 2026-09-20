@@ -134,6 +134,12 @@ user deletes does not reappear on the next launch, and a later build that adds a
 `ShippedWords.version` to seed the new one without re-seeding what has already been thrown away.
 The record is named after the dictionary file, so two dictionaries in one directory never share it.
 
+The record is written after the words, never before. If the dictionary write fails, nothing is
+recorded and the next launch seeds again; if the record write fails after the words landed, the
+next launch finds them already there and only writes the record. A word the user deletes in that
+one window, before any launch has managed to write the record, comes back once — the price of
+never marking a seed done that did not happen.
+
 **Be conservative about adding to this list.** A shipped dictionary that is too eager rewrites
 words the user meant, which is worse than not knowing them: every entry here is applied by sound to
 every user, and none of them asked for it. The product's own name earns its place because the

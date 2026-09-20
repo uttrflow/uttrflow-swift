@@ -178,6 +178,8 @@ final class DockPanelController {
         panel.hidesOnDeactivate = false
         panel.worksWhenModal = true
         panel.level = .statusBar
+        // `orderOut` would otherwise block the main thread for the length of AppKit's fade.
+        panel.animationBehavior = .none
         panel.collectionBehavior = [
             .canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle,
         ]
