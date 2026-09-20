@@ -94,6 +94,16 @@ struct PanelProductLoopTests {
         #expect(response.state.query == "prod", "and takes nothing back from the app")
     }
 
+    @Test("esc closes a sheet but keeps the panel open")
+    func escapingSheet() {
+        let opened = PanelFixture.panel().applying(.alias(PanelFixture.clips[0].id)).state
+        let response = opened.applying(.escape)
+
+        #expect(opened.sheet != nil)
+        #expect(response.outcome == .open)
+        #expect(response.state.sheet == nil)
+    }
+
     /// A panel that has closed cannot be typed into, so a run of keys stops where it stopped for the user.
     @Test("keys after the panel closes are not applied")
     func afterClosing() {

@@ -101,6 +101,8 @@ struct SecretDetectionTests {
             "export GITHUB_TOKEN=abc123def456ghi789",
             "client_secret: 'Qv7RkT2mXeL9pAz4'",
             "  \"privateKey\": \"MIIEvQIBADANBg\",",
+            "password: contraseñasecreta",
+            "password: ⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡⱡ",
         ])
     func namedSecrets(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .secret)
@@ -118,6 +120,75 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: env) == .secret)
     }
 
+    /// A short invented value with digits, built from pieces so no history scanner reads a whole credential here.
+    private static let shortValue = ["Kq7", "v2m", "X"].joined()
+
+    /// A longer invented value with digits, built the same way.
+    private static let longValue = ["Rt4", "Vw8N", "z1Cq", "7mKd", "L"].joined()
+
+    /// Names written the way variables are, with a prefix or in camelCase, which a whole-word rule never reached.
+    static let prefixedNames = [
+        "DB_PASSWORD", "GITHUB_TOKEN", "JWT_SECRET", "STRIPE_API_KEY", "db_password", "dbPassword",
+        "SMTP_PASS", "POSTGRES_PASSWORD", "AWS_SECRET_ACCESS_KEY", "DATABASE_PASSWORD",
+    ]
+
+    @Test(
+        "masks a prefixed or camelCase secret name with a short value on one line", arguments: prefixedNames)
+    func prefixedNameOneLine(_ name: String) {
+        #expect(ClipKindDetector.kind(of: name + "=" + Self.shortValue) == .secret)
+    }
+
+    @Test("masks a prefixed or camelCase secret name inside an environment block", arguments: prefixedNames)
+    func prefixedNameInBlock(_ name: String) {
+        let env = "APP_ENV=production\n" + name + "=" + Self.longValue + "\nPORT=8080"
+        #expect(ClipKindDetector.kind(of: env) == .secret)
+    }
+
+    @Test("masks a passphrase of letters under a prefixed name in a block")
+    func passphraseInBlock() {
+        let passphrase = ["correct", "horse", "battery", "staple", "one"].joined()
+        let env =
+            "APP_ENV=production\nDATABASE_HOST=db.example.com\nDATABASE_PASSWORD=" + passphrase
+            + "\nPORT=8080"
+        #expect(ClipKindDetector.kind(of: env) == .secret)
+    }
+
+    @Test("masks a short exported token followed by another export")
+    func exportedTokenInBlock() {
+        let block = "export GITHUB_TOKEN=" + Self.shortValue + "\nexport NODE_ENV=production"
+        #expect(ClipKindDetector.kind(of: block) == .secret)
+    }
+
+    @Test("masks a prefixed name in YAML and a camelCase name in JSON")
+    func configFiles() {
+        let yaml = "database:\n  host: db.example.com\n  db_password: " + Self.shortValue + "\n  port: 5432"
+        #expect(ClipKindDetector.kind(of: yaml) == .secret)
+        let json = "{\n  \"dbPassword\": \"" + Self.shortValue + "\",\n  \"port\": 5432\n}"
+        #expect(ClipKindDetector.kind(of: json) == .secret)
+    }
+
+    @Test("masks a connection string that gives a password and no user")
+    func passwordOnlyConnectionString() {
+        #expect(
+            ClipKindDetector.kind(of: "redis://:" + Self.shortValue + "@cache.example.com:6379") == .secret)
+    }
+
+    /// The keyword's own end still needs a boundary, so a longer word that starts with one is not a name.
+    @Test(
+        "does not mask a word that only starts with a secret's name",
+        arguments: [
+            "passwordless login", "token_count: 128000", "tokenizer: 12345", "passwords_enabled: true",
+        ])
+    func longerWords(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) != .secret)
+    }
+
+    /// A digit-bearing value under a name that ends in a keyword is masked, since the rule cannot tell a limit from a PIN.
+    @Test("masks a numeric setting whose name ends in a secret's name")
+    func numericSettingUnderKeyword() {
+        #expect(ClipKindDetector.kind(of: "max_tokens: 4096") == .secret)
+    }
+
     /// Naming a secret is not giving one: a type annotation, a placeholder and a prompt are not secrets.
     @Test(
         "does not mask a mention of a secret with nothing behind it",
@@ -127,6 +198,12 @@ struct SecretDetectionTests {
             "password = nil",
             "Change your password: now",
             "token: true",
+            "password: 忘れた場合は管理者に連絡してください",
+            "secret: 这是一个秘密不要告诉别人",
+            "APIキーの設定方法 token: 設定画面から発行してください",
+            "pwd: 三",
+            "token: 一つ目",
+            "注文番号 ００１２３４５６７８９００１２３４５６７８９００１２３４５６７８９",
         ])
     func mentionsWithoutValues(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .secret)

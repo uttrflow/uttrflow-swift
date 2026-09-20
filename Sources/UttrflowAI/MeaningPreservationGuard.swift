@@ -318,6 +318,11 @@ public struct MeaningPreservationGuard: Sendable {
         if dropped > 0 {
             return .rejected(reason: "the rewrite dropped a negation")
         }
+        if case .rejected(let reason) = negationPlacementVerdict(
+            alignment, echo: echoTokens)
+        {
+            return .rejected(reason: reason)
+        }
         // The echo is the field's text before the caret, so it is an origin a negation may come from, never a total.
         let added =
             negators(in: rewrittenTokens) - negators(in: keptTokens) - negators(in: echoTokens + restored)
@@ -371,6 +376,43 @@ public struct MeaningPreservationGuard: Sendable {
             }
         }
         return .accepted
+    }
+
+    /// Refuses a negator that moved to a different content-word neighbourhood, while allowing contractions and punctuation changes.
+    static func negationPlacementVerdict(
+        _ alignment: RewriteAlignment, echo: [GrammarToken]
+    ) -> GuardVerdict {
+        let kept = alignment.kept
+        let rewritten = alignment.rewritten
+        // Non-Latin negations are commonly romanised by the cleanup model; their existing count check remains authoritative.
+        let keptNegations = kept.indices.filter {
+            kept[$0].isPlain && negatingWords.contains(kept[$0].matching)
+        }
+        guard !keptNegations.isEmpty else { return .accepted }
+        let written = rewritten + echo
+        let writtenNegations = written.indices.filter {
+            written[$0].isPlain && negatingWords.contains(written[$0].matching)
+        }
+        guard keptNegations.count == writtenNegations.count else { return .accepted }
+
+        let keptClauses = negationClauses(in: kept)
+        let rewrittenClauses = negationClauses(in: rewritten)
+        guard keptClauses.count == rewrittenClauses.count else { return .accepted }
+        guard keptClauses == rewrittenClauses else {
+            return .rejected(reason: "the rewrite moved a negation")
+        }
+        return .accepted
+    }
+
+    /// The clause ordinal of each plain negator, using coordinators as the stable clause boundaries.
+    private static func negationClauses(in tokens: [GrammarToken]) -> [Int] {
+        var clause = 0
+        var result: [Int] = []
+        for token in tokens where token.isPlain {
+            if ["but", "and", "or"].contains(token.matching) { clause += 1 }
+            if negatingWords.contains(token.matching) { result.append(clause) }
+        }
+        return result
     }
 
     /// Whether an identifier is spelled wholly from said words, every part of it one of them and in the order they were said.

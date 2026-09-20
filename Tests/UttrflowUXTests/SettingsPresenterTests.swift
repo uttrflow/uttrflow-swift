@@ -635,6 +635,7 @@ struct SettingsUpdateEditingTests {
     @Test("and says so, so a screen can hand it on instead of storing it")
     func checkingIsARequestToAct() {
         #expect(SettingsChange.checkForUpdatesNow.isRequestToAct)
+        #expect(SettingsChange.chooseApplicationToTurnOffSuggestions.isRequestToAct)
         #expect(!SettingsChange.toggle(.opensAtLogin, isOn: true).isRequestToAct)
         #expect(!SettingsChange.retention(days: 7).isRequestToAct)
         #expect(!SettingsChange.pauseSuggestions(isOn: true).isRequestToAct)

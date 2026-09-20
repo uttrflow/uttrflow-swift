@@ -6,6 +6,8 @@ struct FixtureResult: Encodable {
     let category: String
     let typed: String
     let hit: Bool
+    /// Whether the hit was checked against a named answer, rather than any continuation counting.
+    let judged: Bool
     let conforms: Bool
     let elapsedMs: Int
     /// The first completion the model offered, or nothing when it offered none.
@@ -20,14 +22,15 @@ struct FixtureResult: Encodable {
     let secondOpinionMs: Int?
 
     init(
-        name: String, category: String, typed: String, hit: Bool, conforms: Bool, elapsedMs: Int,
-        first: String?,
+        name: String, category: String, typed: String, hit: Bool, judged: Bool, conforms: Bool,
+        elapsedMs: Int, first: String?,
         raw: String?, invented: Bool, rescued: Bool = false, secondOpinionMs: Int? = nil
     ) {
         self.name = name
         self.category = category
         self.typed = typed
         self.hit = hit
+        self.judged = judged
         self.conforms = conforms
         self.elapsedMs = elapsedMs
         self.first = first
@@ -64,9 +67,14 @@ struct FixtureSummary: Encodable {
     let conforming: Int
     /// How many answers the model wrote that named what the machine does not have, which the sieve kept off the screen.
     let invented: Int
-    /// How many turns drew something, and of those how many were right: the trust the feature is judged by.
+    /// Hits checked against a named answer, and hits taken on any continuation, which say nothing about being right.
+    let judgedHits: Int
+    let unjudgedHits: Int
+    /// How many judged turns drew something, and of those how many were right: the trust the feature is judged by.
     let shown: Int
     let right: Int
+    /// How many unjudged turns drew something, which precision leaves out because nothing says whether they were right.
+    let unjudgedShown: Int
     /// How many second passes were spent, how many hit, and what the median one cost.
     let secondOpinions: Int
     let rescued: Int
@@ -80,8 +88,11 @@ struct FixtureSummary: Encodable {
         hits = results.filter(\.hit).count
         conforming = results.filter(\.conforms).count
         invented = results.filter(\.invented).count
-        shown = results.filter(\.shown).count
-        right = results.filter { $0.shown && $0.hit }.count
+        judgedHits = results.filter { $0.hit && $0.judged }.count
+        unjudgedHits = results.filter { $0.hit && !$0.judged }.count
+        shown = results.filter { $0.shown && $0.judged }.count
+        right = results.filter { $0.shown && $0.judged && $0.hit }.count
+        unjudgedShown = results.filter { $0.shown && !$0.judged }.count
         let seconds = results.compactMap(\.secondOpinionMs).sorted()
         secondOpinions = seconds.count
         rescued = results.filter(\.rescued).count
@@ -126,11 +137,14 @@ struct FixtureReport: Encodable {
         print(
             "\nall  hit \(summary.hits)/\(summary.total)  in register \(summary.conforming)/\(summary.total)"
                 + "  invented \(summary.invented)  p50 \(summary.p50Ms)ms  p95 \(summary.p95Ms)ms")
-        // Precision is what a person feels: of the times it spoke, how often it was right. Coverage is how often it spoke at all.
+        print("hits judged \(summary.judgedHits)  unjudged \(summary.unjudgedHits)")
+        // Precision is what a person feels: of the judged times it spoke, how often it was right. Coverage is how often it spoke at all.
         let wrong = summary.shown - summary.right
+        let spoke = summary.shown + summary.unjudgedShown
         print(
-            "precision \(Self.rate(summary.right, of: summary.shown)) (\(summary.right)/\(summary.shown) shown,"
-                + " \(wrong) wrong)  coverage \(Self.rate(summary.shown, of: summary.total))")
+            "precision \(Self.rate(summary.right, of: summary.shown)) (\(summary.right)/\(summary.shown) judged shown,"
+                + " \(wrong) wrong, \(summary.unjudgedShown) unjudged shown)"
+                + "  coverage \(Self.rate(spoke, of: summary.total))")
         guard summary.secondOpinions > 0 else { return }
         print(
             "second opinion  spent \(summary.secondOpinions)  rescued \(summary.rescued)"
