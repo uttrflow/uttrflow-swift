@@ -30,6 +30,8 @@ struct Insert: AsyncParsableCommand {
             print("  the field will not say what it holds, so the paste is unconfirmed")
         case .gaveUp(let waited):
             print("  no sign of the words after \(String(format: "%.2f", waited.inSeconds))s")
+        case .cancelled(let waited):
+            print("  stopped looking for the words after \(String(format: "%.2f", waited.inSeconds))s")
         }
     }
 
