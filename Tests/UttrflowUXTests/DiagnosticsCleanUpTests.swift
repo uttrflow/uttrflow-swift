@@ -157,4 +157,32 @@ struct DiagnosticsCleanUpTests {
             DiagnosticsPresenter.detail(of: CleaningRecord.Change(step: .fillers, removed: ["um", "uh"]))
                 == "removed 2: um, uh")
     }
+
+    /// A long dictation must not look tidier than it was because the record lists only a sample.
+    @Test("the page and the report give the full count when a step touched more words than are listed")
+    func fullCountPastTheListed() {
+        var draft = Draft(text: String(repeating: "um ", count: 20))
+        for index in draft.words.indices { draft.remove(at: index, by: .fillers) }
+        let record = CleaningRecord(draft: draft, ran: [])
+        let page = DiagnosticsFixture.page(cleaning: record)
+        #expect(
+            page.cleanUp.first { $0.title == "Filler words" }?.detail
+                == "removed 20: um, um, um, um and 16 more")
+        let report = DiagnosticsPresenter.report(
+            for: DiagnosticsSnapshot(cleaning: record), locale: DiagnosticsFixture.locale)
+        #expect(report.contains("Filler words: removed 20"))
+    }
+
+    @Test("a dictation done in pieces is counted in full across every piece")
+    func fullCountAcrossPieces() {
+        var piece = Draft(text: String(repeating: "um ", count: 9))
+        for index in piece.words.indices { piece.remove(at: index, by: .fillers) }
+        let one = CleaningRecord(draft: piece, ran: CleaningSteps.offered.map(\.id))
+        let merged = CleaningRecord.merging([one, one])
+        #expect(
+            DiagnosticsPresenter.countedCleanUp(merged) == ["  Filler words: removed 18"])
+        #expect(
+            DiagnosticsPresenter.detail(of: merged.changes[0])
+                == "removed 18: um, um, um, um and 14 more")
+    }
 }

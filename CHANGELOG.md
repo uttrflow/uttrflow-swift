@@ -22,6 +22,57 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **Hiding an AI suggestion that is already hidden no longer redraws the panel.** Each keystroke
+  with nothing drawn used to rebuild the view and look up the screens two or three times on the
+  main thread (#889).
+- **Dictating into a slow field while AI suggestions are on no longer times out after 100 ms.**
+  Each Accessibility caller now sets its timeout on its own elements, so a suggestion read can no
+  longer shorten an insertion write to 0.1 s, and the context read keeps its budget (#887).
+- **Typing at a clipboard confirmation no longer filters the list behind it.** Letters and arrow
+  keys under "Delete this clip?", a collection delete or a formatter diff are held, so the clip
+  being asked about stays listed (#946).
+- **Branch names, slugs and dated file names are no longer hidden as credentials.** Words joined
+  by `-`, `_` or `/` such as `fix/796-paste-confirmation-cancel` stay readable in the clipboard
+  panel (#919).
+- **Search finds text copied with curly quotes, dashes or line breaks.** Typing `don't` now finds
+  `don’t`, `-` finds an em dash, and a space matches a line break or a run of spaces (#900).
+- **Undoing the delete of a picture clip brings the picture back.** The file is kept until the
+  undo window passes, so ⌘Z restores a picture that still pastes (#869).
+- **A clip that arrives while the clipboard panel is open gets its Format action and missing-picture
+  state at once**, rather than after the panel is reopened (#947).
+- **A resumed Name, Move or Rename sheet has the caret again.** Reopening the clipboard panel over
+  a half-typed sheet now types into the sheet, not the search behind it (#920).
+- **A search under a kind chip says which chip hid the match.** With Code chosen, a search that
+  finds nothing now reads "Nothing under Code mentions …" and points at All, instead of claiming
+  the whole clipboard was searched (#899).
+- **A clip whose text is exactly the search, or a picture in a collection named exactly, is always
+  listed.** The six-rows-per-group cap no longer hides a match that typing more could not reach (#898).
+- **Copying one enormous decorated character no longer hangs clipboard history.** Text with tens
+  of KB of combining marks or joined emoji in a single character is classified in milliseconds (#896).
+- **AI suggestions no longer read the focused field in applications where they are off or paused.**
+  The per-application switch and the pause are checked before any Accessibility call (#903).
+- **AI suggestions step aside while you dictate.** No suggestion model pass starts while a dictation
+  records, recognises, tidies or inserts, and a drawn ghost is withdrawn when recording begins (#881).
+- **The speech log now says what a piece cost beyond one decode** — temperature fallbacks, their
+  seconds, encoder runs, and whether the empty-result retry ran — so a slow dictation can name its
+  cause (#871).
+- **AI suggestions in a terminal stop re-scanning PATH and re-listing a program's verbs in every
+  directory.** Those answers are now cached once for the machine, and a listing that keeps timing
+  out is left alone for longer each time, up to ten minutes (#890).
+- **A field read that a turn gave up on no longer delays the next one.** Reads queued behind a stall
+  are dropped when a newer one arrives, and a read past its deadline stops sending messages (#888).
+- **The first dictation after an idle spell is tidied by a session warmed during that dictation.**
+  A prepared session older than a minute is replaced at key-down instead of being used cold (#876).
+- **`uttrflow-dev bench` can idle between jobs** with `--idle-before`, so a cold tidier session is
+  reproducible, and each `clean` line names the steps that changed something and any refused
+  answer (#916).
+- **Typing over an AI suggestion no longer waits half a second per key.** The ghost panel hides
+  without AppKit's fade, which held the main thread until it finished; Tab inserts at once (#954).
+- **The clipboard panel no longer closes under you after "Copied — press ⌘V".** Any key or click
+  after a notice keeps it open, and an open sheet is never closed by the notice (#868).
+- **A copy another app has not delivered yet no longer keeps the clipboard panel shut.** ⇧⌘V opens
+  from what is already stored, a promised or Universal Clipboard read is given up on after 2 s, and
+  the clip appears when it arrives (#895).
 - **An AI suggestion pass no longer walks the other app's window twice for one line.** The
   alternatives pass reuses the context the first pass built, and an unchanged window is walked at
   most once a second (#879).

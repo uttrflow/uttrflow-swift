@@ -1,6 +1,7 @@
 // Tests for the thumbnail cache.
 
 import AppKit
+import ImageIO
 import Testing
 import UttrflowClipboard
 
@@ -164,6 +165,32 @@ struct PanelThumbnailsCapacityTests {
     }
 
     /// The measurement the budget assumes, now that it can be taken.
+    @Test("counts and evicts production CGImage-backed thumbnails")
+    func cgImageBackedThumbnailHasCost() throws {
+        let url = URL(fileURLWithPath: "/tmp/uttrflow-thumbnail-regression.png")
+        let bitmap = PanelThumbnailsTests.bitmap()
+        guard let tiff = bitmap.tiffRepresentation,
+            let bitmapRep = NSBitmapImageRep(data: tiff),
+            let png = bitmapRep.representation(using: .png, properties: [:]),
+            let source = CGImageSourceCreateWithData(png as CFData, nil),
+            let data = CGImageSourceCreateThumbnailAtIndex(
+                source, 0,
+                [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceThumbnailMaxPixelSize: PanelThumbnails.maxPixel,
+                ] as CFDictionary)
+        else {
+            Issue.record("could not create a production-style thumbnail")
+            return
+        }
+        let image = NSImage(cgImage: data, size: NSSize(width: data.width, height: data.height))
+        #expect(PanelThumbnails.bytes(of: image) > 0)
+        let thumbnails = PanelThumbnails(source: PanelThumbnailSource { _, _ in image }, budget: 1)
+        _ = thumbnails.thumbnail(for: url)
+        _ = thumbnails.thumbnail(for: url.appendingPathExtension("second"))
+        #expect(thumbnails.bytesHeld > 0)
+    }
+
     @Test("and a thumbnail weighs about what the budget assumed")
     func aThumbnailIsAboutEighteenKilobytes() {
         #expect(PanelThumbnailsTests.thumbnailBytes > 10_000)
