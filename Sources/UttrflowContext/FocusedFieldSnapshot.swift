@@ -1,6 +1,8 @@
 public import CoreGraphics
+public import UttrflowPredict
 
 public import struct Foundation.NSRange
+private import UttrflowPredict
 
 /// One reading of the focused field: what identifies it, what it holds, and where its caret is.
 public struct FocusedFieldSnapshot: Sendable, Equatable {
@@ -34,14 +36,24 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let pointSize: CGFloat?
     /// The field's own font family, so the ghost is set in the face the line is.
     public let fontFamily: String?
+    /// The field's own text colour, so the ghost reads against the field and not against Uttrflow's appearance.
+    public let textColor: TextColor?
     /// Whether the field hides what is typed into it.
     public let isSecure: Bool
     /// Whether an input method is mid-composition, which owns both the screen and the Tab key.
     public let isComposing: Bool
+    /// What the field itself says about an input method's marked text, before any guess from the input source.
+    public let markedText: MarkedText
     /// How long the whole reading took, in microseconds.
     public let readMicroseconds: Int
     /// The title of the window holding the field, which names the conversation, the note or the thread the field belongs to.
     public let windowTitle: String?
+    /// The line the caret is on, up to the caret, less the shell prompt a terminal reports in front of it; read once, when the snapshot is taken.
+    public let currentLine: String
+    /// Whether the caret's line ran past `lineReadLimit`, so `currentLine` is only its last stretch and too long to complete.
+    public let isLineCut: Bool
+    /// Whether the value holds more than one line.
+    public let holdsNewline: Bool
 
     public init(
         bundleIdentifier: String,
@@ -59,8 +71,10 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         field: CGRect? = nil,
         pointSize: CGFloat? = nil,
         fontFamily: String? = nil,
+        textColor: TextColor? = nil,
         isSecure: Bool = false,
         isComposing: Bool = false,
+        markedText: MarkedText = .unanswered,
         readMicroseconds: Int = 0,
         windowTitle: String? = nil
     ) {
@@ -79,10 +93,16 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.field = field
         self.pointSize = pointSize
         self.fontFamily = fontFamily
+        self.textColor = textColor
         self.isSecure = isSecure
         self.isComposing = isComposing
+        self.markedText = markedText
         self.readMicroseconds = readMicroseconds
         self.windowTitle = windowTitle
+        let line = Self.caretLine(of: value, at: selection, in: bundleIdentifier)
+        self.currentLine = line.text
+        self.isLineCut = line.isCut
+        self.holdsNewline = value.map(Self.holdsNewline) ?? false
     }
 }
 
@@ -103,22 +123,61 @@ extension FocusedFieldSnapshot {
     /// Where a suggestion may be drawn for this field, or nothing where none may be.
     public var placement: SuggestionPlacement? { capability.placement }
 
-    /// The line the caret is on, up to the caret, less the shell prompt a terminal reports in front of it.
-    public var currentLine: String {
-        guard let value else { return "" }
-        let line = Self.line(of: value, endingAt: selection?.location ?? value.utf16.count)
+    /// The line capture may learn, which is nothing when the line was too long to read whole.
+    public var learnableLine: String { isLineCut ? "" : currentLine }
+
+    /// How many characters back from the caret its line is read; a prompt and a line to complete both fit well inside it.
+    public static let lineReadLimit = ShellPrompt.searchLimit + SuggestionSession.maximumTypedLength + 1
+
+    /// Counts the characters the line reading visits while bound, so a test can bound the work without a clock.
+    @TaskLocal package static var tally: CharacterTally?
+
+    /// The caret's line as `currentLine` holds it, and whether the read limit cut it.
+    private static func caretLine(
+        of value: String?, at selection: NSRange?, in bundleIdentifier: String
+    ) -> (text: String, isCut: Bool) {
+        guard let value else { return ("", false) }
+        let caret = index(in: value, atUTF16Offset: selection?.location ?? value.utf16.count)
+        let start = lineStart(in: value, before: caret)
+        let line = String(value[start.index..<caret])
+        // A cut line is kept whole, so its length alone refuses it.
+        guard !start.isCut else { return (line, true) }
         let input = TerminalApplications.contains(bundleIdentifier) ? ShellPrompt.input(in: line) : line
         // Leading indentation is dropped so an indented line matches what capture stored, which is trimmed.
-        return Self.droppingLeadingWhitespace(input)
+        return (droppingLeadingWhitespace(input), false)
     }
 
-    /// The text before the caret's line, at most this long, which is what the line is a continuation of.
+    /// Where the line holding the caret begins, read back no further than `lineReadLimit`, and whether the limit stopped it first.
+    static func lineStart(in value: String, before caret: String.Index) -> (index: String.Index, isCut: Bool)
+    {
+        var index = caret
+        var read = 0
+        defer { tally?.record(read) }
+        while index > value.startIndex {
+            guard read < lineReadLimit else { return (index, true) }
+            let before = value.index(before: index)
+            read += 1
+            if value[before].isNewline { return (index, false) }
+            index = before
+        }
+        return (index, false)
+    }
+
+    /// Every scalar `Character.isNewline` accepts, each of which is one UTF-16 unit.
+    private static let newlineUnits: Set<UInt16> = [0x0A, 0x0B, 0x0C, 0x0D, 0x85, 0x2028, 0x2029]
+
+    /// Whether a value holds a newline, asked of its UTF-16 units so no character is ever assembled.
+    private static func holdsNewline(_ value: String) -> Bool {
+        value.utf16.contains(where: newlineUnits.contains)
+    }
+
+    /// The text before the caret's line, at most this long, which is what the line is a continuation of; nothing when the line is too long to read whole.
     public func preceding(maxLength: Int) -> String? {
         guard let value else { return nil }
         let caret = Self.index(in: value, atUTF16Offset: selection?.location ?? value.utf16.count)
-        let head = value[..<caret]
-        guard let newline = head.lastIndex(where: \.isNewline) else { return nil }
-        var earlier = head[..<newline].suffix(maxLength)
+        let start = Self.lineStart(in: value, before: caret)
+        guard !start.isCut, start.index > value.startIndex else { return nil }
+        var earlier = value[..<value.index(before: start.index)].suffix(maxLength)
         while let last = earlier.last, last.isWhitespace { earlier.removeLast() }
         while let first = earlier.first, first.isWhitespace { earlier.removeFirst() }
         return earlier.isEmpty ? nil : String(earlier)
@@ -143,13 +202,6 @@ extension FocusedFieldSnapshot {
             index = value.index(after: index)
         }
         return true
-    }
-
-    /// The text between the newline before the given caret and the caret itself.
-    static func line(of value: String, endingAt utf16Offset: Int) -> String {
-        let head = value[..<index(in: value, atUTF16Offset: utf16Offset)]
-        guard let newline = head.lastIndex(where: \.isNewline) else { return String(head) }
-        return String(head[head.index(after: newline)...])
     }
 
     /// The offset as a character index, clamped into the string and moved back off any split character.
