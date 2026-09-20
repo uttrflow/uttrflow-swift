@@ -62,6 +62,24 @@ struct CorrectionEvidenceTests {
 
     // MARK: Individual signals
 
+    @Test("an uncertain gap cannot fabricate a consecutive multiword corroboration")
+    func uncertainGapDoesNotJoinCertainRuns() {
+        let sut = CorrectionEvidence(
+            utterance: CorrectionFixtures.spoken("new ?jersey york is different from ?new ?yourk"),
+            seeing: .unknown,
+            certainAt: WordCorrectionEngine.certaintyThreshold)
+        #expect(sut.decisiveReason(preferring: "New York", over: "new yourk") == nil)
+    }
+
+    @Test("a genuinely consecutive certain phrase remains corroboration")
+    func consecutiveCertainPhraseStillCorroborates() {
+        let sut = evidence(
+            heard: "new york is different from ?new ?yourk",
+            seeing: "New York")
+        #expect(
+            sut.decisiveReason(preferring: "New York", over: "new yourk") == .seenOnScreen)
+    }
+
     @Test("a word below the certainty line cannot vouch for itself")
     func anUncertainWordIsNotCorroboration() {
         let sut = CorrectionEvidence(

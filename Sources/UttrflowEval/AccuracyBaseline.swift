@@ -233,6 +233,10 @@ extension AccuracyBaseline {
 
     /// Why these two runs are not about the same thing, if they are not; growth is not a reason.
     private func incomparability(with report: TranscriptionReport, shared: [String]) -> String? {
+        if report.label != label {
+            return "the baseline measured \(label) and this run measured \(report.label), "
+                + "so the rates are not comparable"
+        }
         if shared.isEmpty {
             return "the baseline and this run share no samples"
         }

@@ -102,3 +102,82 @@ struct PanelPlacementTests {
         #expect(once == twice)
     }
 }
+
+/// Each display keeps its own spot, so a panel left on one never opens jammed against another's edge.
+@Suite("Where the quick panel opens with two displays")
+struct PanelSpotsTests {
+    /// A laptop display at the origin, with the menu bar taken off the top.
+    static let displayA = CGRect(x: 0, y: 0, width: 1440, height: 875)
+    /// A larger display to its right.
+    static let displayB = CGRect(x: 1440, y: 0, width: 2560, height: 1415)
+    static let a: UInt32 = 1
+    static let b: UInt32 = 2
+    static let size = PanelPlacementTests.size
+
+    @Test("a spot near A's top-left does not pin the panel to B's left edge")
+    func spotOnAOpeningOnB() {
+        var spots = PanelSpots()
+        spots.remember(CGPoint(x: 12, y: 303), on: Self.a)
+
+        let origin = spots.origin(on: Self.b, size: Self.size, in: Self.displayB)
+
+        #expect(origin == PanelPlacement.defaultOrigin(size: Self.size, in: Self.displayB))
+        #expect(origin != CGPoint(x: 1440, y: 303), "not flush against B's left edge")
+    }
+
+    @Test("a spot near B's top-right does not pin the panel to A's right edge")
+    func spotOnBOpeningOnA() {
+        var spots = PanelSpots()
+        spots.remember(CGPoint(x: 3568, y: 843), on: Self.b)
+
+        let origin = spots.origin(on: Self.a, size: Self.size, in: Self.displayA)
+
+        #expect(origin == PanelPlacement.defaultOrigin(size: Self.size, in: Self.displayA))
+        #expect(origin != CGPoint(x: 1020, y: 315), "not flush against A's right edge")
+    }
+
+    @Test("each display opens where it was left, whichever was dragged last")
+    func eachDisplayKeepsItsOwn() {
+        var spots = PanelSpots()
+        spots.remember(CGPoint(x: 12, y: 303), on: Self.a)
+        spots.remember(CGPoint(x: 3000, y: 700), on: Self.b)
+
+        #expect(spots.origin(on: Self.a, size: Self.size, in: Self.displayA) == CGPoint(x: 12, y: 303))
+        #expect(spots.origin(on: Self.b, size: Self.size, in: Self.displayB) == CGPoint(x: 3000, y: 700))
+    }
+
+    /// A display that shrank, or came back arranged differently, still never loses the panel off screen.
+    @Test("a display's own spot is still clamped into it")
+    func ownSpotIsClamped() {
+        var spots = PanelSpots()
+        spots.remember(CGPoint(x: 3900, y: 1300), on: Self.b)
+        let shrunk = CGRect(x: 1440, y: 0, width: 1920, height: 1055)
+
+        let origin = spots.origin(on: Self.b, size: Self.size, in: shrunk)
+
+        #expect(origin == PanelPlacement.clamped(CGPoint(x: 3900, y: 1300), size: Self.size, in: shrunk))
+        #expect(CGRect(origin: origin, size: Self.size).maxX <= shrunk.maxX)
+    }
+
+    @Test("a screen with no number opens in the default corner")
+    func unknownDisplay() {
+        var spots = PanelSpots()
+        spots.remember(CGPoint(x: 12, y: 303), on: Self.a)
+
+        let origin = spots.origin(on: nil, size: Self.size, in: Self.displayA)
+
+        #expect(origin == PanelPlacement.defaultOrigin(size: Self.size, in: Self.displayA))
+    }
+
+    @Test("the stored form reads back as it was written, and skips what is malformed")
+    func propertyListRoundTrip() {
+        var spots = PanelSpots()
+        spots.remember(CGPoint(x: 12, y: 303), on: Self.a)
+        spots.remember(CGPoint(x: 3000.5, y: 700), on: Self.b)
+
+        #expect(PanelSpots(propertyList: spots.propertyList) == spots)
+        let damaged: [String: Any] = ["1": [12.0, 303.0], "two": [1.0, 2.0], "3": [1.0], "4": "x"]
+        #expect(PanelSpots(propertyList: damaged) == PanelSpots(origins: [1: CGPoint(x: 12, y: 303)]))
+        #expect(PanelSpots(propertyList: nil) == PanelSpots())
+    }
+}

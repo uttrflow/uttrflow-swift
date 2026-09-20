@@ -296,7 +296,7 @@ struct DictationRegressionTests {
 
         try await controller.start(binding: .functionHold)
         controller.submit(.pressed)
-        while await pipeline.currentState.isListening == false { await Task.yield() }
+        try await eventually { await pipeline.currentState.isListening }
 
         // The release the monitor owes has to reach the controller, which cancelling would prevent.
         await controller.stop()

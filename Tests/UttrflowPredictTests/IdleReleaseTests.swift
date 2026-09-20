@@ -21,6 +21,16 @@ private actor RecordingModel: ReleasableModel {
         isLoaded = true
     }
 
+    /// A load from disk alone, which is all a query may start.
+    func reload() async throws {
+        steps.append("reload")
+        if failNext {
+            failNext = false
+            throw CancellationError()
+        }
+        isLoaded = true
+    }
+
     func release() async {
         steps.append("release")
         isLoaded = false
@@ -39,6 +49,23 @@ private actor RecordingModel: ReleasableModel {
     }
 
     func logLikelihood(of candidate: String, following context: String) async -> Double? { -1 }
+}
+
+/// Counts the app being told a reload failed, and lets a test wait for the first telling.
+private actor Told {
+    private var count = 0
+    private var waiting: CheckedContinuation<Void, Never>?
+
+    func note() {
+        count += 1
+        waiting?.resume()
+        waiting = nil
+    }
+
+    func waitForOne() async {
+        guard count == 0 else { return }
+        await withCheckedContinuation { waiting = $0 }
+    }
 }
 
 @Suite("Letting an idle model go")
@@ -86,7 +113,39 @@ struct IdleReleaseTests {
         #expect(await model.isReady == false)
         await model.pendingWork?.value
         #expect(await model.isReady)
-        #expect(await inner.steps == ["load", "release", "load"])
+        #expect(await inner.steps == ["load", "release", "reload"])
+    }
+
+    @Test("a query's reload never fetches: it reads from disk, and a failure is told to the app instead")
+    func queryNeverDownloads() async throws {
+        let inner = RecordingModel()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600))
+        let told = Told()
+        await model.whenReloadFails { Task { await told.note() } }
+        try await model.prepare(onProgress: { _ in })
+        await model.releaseIfIdle(at: .now + .seconds(700))
+        await inner.failNextLoad()
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(await inner.steps == ["load", "release", "reload"])
+        #expect(await model.holdsTheModel == false)
+        await told.waitForOne()
+        try await model.reload()
+        #expect(await inner.steps == ["load", "release", "reload", "reload"])
+    }
+
+    @Test("the discretionary wrapper passes the reload report through to the model inside it")
+    func theWrapperPassesTheReportOn() async throws {
+        let inner = RecordingModel()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600))
+        let told = Told()
+        await DiscretionaryModel(model, mayRun: { true }).whenReloadFails { Task { await told.note() } }
+        try await model.prepare(onProgress: { _ in })
+        await model.releaseIfIdle(at: .now + .seconds(700))
+        await inner.failNextLoad()
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        await told.waitForOne()
     }
 
     @Test("a release the caller asked for is never undone by a query")
@@ -124,7 +183,7 @@ struct IdleReleaseTests {
         #expect(await model.isReady == false)
         await model.pendingWork?.value
         #expect(await model.isReady)
-        #expect(await inner.steps == ["load", "load", "load"])
+        #expect(await inner.steps == ["load", "reload", "reload"])
     }
 
     @Test("the watch lets the model go by itself once the window passes")
