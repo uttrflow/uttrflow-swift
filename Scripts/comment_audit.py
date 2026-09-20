@@ -103,10 +103,11 @@ def main():
 
     if arguments.update:
         recorded = baseline.get("files", {})
+        # With a baseline, a file it does not list was clean, so any count there is a rise.
         risen = {
-            path: (recorded[path], count)
+            path: (recorded.get(path, 0), count)
             for path, count in long_blocks.items()
-            if path in recorded and count > recorded[path]
+            if baseline and count > recorded.get(path, 0)
         }
         if risen and not arguments.after_merge:
             print("Refusing to record a higher count. The baseline only goes down.")
