@@ -1,5 +1,10 @@
-/// Matches what the user typed against a candidate when the typing was not quite right.
+/// Matches what the user typed against a candidate when the typing was not quite right, counting in Unicode scalars.
 public enum FuzzyMatch {
+    /// The text as the matcher reads it: one unit per Unicode scalar, so a letter counts once in any script.
+    public static func units(_ text: String) -> [UInt32] {
+        text.unicodeScalars.map(\.value)
+    }
+
     /// The most edits allowed for a query of this length, so a short query cannot match everything.
     public static func budget(forQueryOfLength length: Int) -> Int {
         switch length {
@@ -10,11 +15,10 @@ public enum FuzzyMatch {
     }
 
     /// The set of characters in a window, as one word, so a candidate can be rejected by popcount.
-    public static func mask(_ bytes: some Sequence<UInt8>) -> UInt64 {
+    public static func mask(_ units: some Sequence<UInt32>) -> UInt64 {
         var set: UInt64 = 0
-        for byte in bytes {
-            let lowered = (byte >= 65 && byte <= 90) ? byte + 32 : byte
-            set |= 1 << UInt64(lowered % 63)
+        for unit in units {
+            set |= 1 << UInt64(folded(unit) % 63)
         }
         return set
     }
@@ -29,13 +33,13 @@ public enum FuzzyMatch {
         (query & ~candidate).nonzeroBitCount <= budget
     }
 
-    /// One ASCII byte lowercased, so matching ignores the capital a field puts on the first letter.
-    static func folded(_ byte: UInt8) -> UInt8 {
-        (byte >= 65 && byte <= 90) ? byte + 32 : byte
+    /// One ASCII letter lowercased, so matching ignores the capital a field puts on the first letter.
+    static func folded(_ unit: UInt32) -> UInt32 {
+        (unit >= 65 && unit <= 90) ? unit + 32 : unit
     }
 
     /// Edits from the query to the nearest opening of a candidate, counting a transposition as one, ignoring case.
-    public static func prefixDistance(_ query: [UInt8], _ candidate: [UInt8], within budget: Int) -> Int {
+    public static func prefixDistance(_ query: [UInt32], _ candidate: [UInt32], within budget: Int) -> Int {
         let rows = query.count
         guard rows > 0 else { return 0 }
         let columns = min(candidate.count, rows + budget)
@@ -71,7 +75,7 @@ public enum FuzzyMatch {
     }
 
     /// Whether a candidate begins with exactly what was typed, which needs no edits at all.
-    public static func isPrefix(_ query: [UInt8], of candidate: [UInt8]) -> Bool {
+    public static func isPrefix(_ query: [UInt32], of candidate: [UInt32]) -> Bool {
         candidate.count >= query.count && candidate.starts(with: query)
     }
 }

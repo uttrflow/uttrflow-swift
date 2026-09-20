@@ -81,6 +81,8 @@ public struct DictationSnapshot: Sendable, Equatable {
     public let retrying: UUID?
     /// The clock the page is drawn against.
     public let now: Date
+    /// The speech model's load, or nothing once it can dictate.
+    public let speechModel: SpeechModelLoad?
 
     /// Builds a snapshot; everything but the shortcut and the clock defaults to empty.
     public init(
@@ -92,7 +94,8 @@ public struct DictationSnapshot: Sendable, Equatable {
         settings: Settings = .default,
         recordings: [KeptRecording] = [],
         retrying: UUID? = nil,
-        now: Date
+        now: Date,
+        speechModel: SpeechModelLoad? = nil
     ) {
         self.permissions = permissions
         self.entries = entries
@@ -103,6 +106,7 @@ public struct DictationSnapshot: Sendable, Equatable {
         self.recordings = recordings
         self.retrying = retrying
         self.now = now
+        self.speechModel = speechModel
     }
 }
 
@@ -192,10 +196,12 @@ public enum DictationPresenter {
             figures: blocked == nil
                 ? figures(
                     today: today, earlier: earlier, calendar: calendar, locale: locale) : [],
+            // A model that cannot dictate yet is said in place of the invitation to talk.
             emptyState: blocked == nil && rows.isEmpty
-                ? emptyState(
-                    for: snapshot, today: today, earlier: earlier, calendar: calendar,
-                    locale: locale)
+                ? snapshot.speechModel.map(MainPresenter.obstruction(for:))
+                    ?? emptyState(
+                        for: snapshot, today: today, earlier: earlier, calendar: calendar,
+                        locale: locale)
                 : nil,
             footnote: rows.isEmpty
                 ? nil

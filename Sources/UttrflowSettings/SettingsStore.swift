@@ -40,6 +40,12 @@ public struct Settings: Sendable, Equatable, Codable {
         }
     }
 
+    /// Whether dictation answers at all: off, the shortcut is released and the floating button hidden.
+    public var dictationEnabled: Bool
+
+    /// Whether copies are recorded and the clipboard shortcut claimed.
+    public var clipboardEnabled: Bool
+
     /// Whether the floating button is on screen at all.
     public var showsFloatingButton: Bool
 
@@ -82,6 +88,8 @@ public struct Settings: Sendable, Equatable, Codable {
         shortcuts: ShortcutSet = .default,
         hotkeyActivation: HotkeyActivation = .holdToTalk,
         shortcutsReturnedToDefault: Set<ShortcutAction> = [],
+        dictationEnabled: Bool = true,
+        clipboardEnabled: Bool = true,
         showsFloatingButton: Bool = true,
         floatingButtonAnchor: DockAnchor = .bottomRight,
         shrinksToGripWhenIdle: Bool = true,
@@ -101,6 +109,8 @@ public struct Settings: Sendable, Equatable, Codable {
         self.shortcuts = shortcuts
         self.hotkeyActivation = hotkeyActivation
         self.shortcutsReturnedToDefault = shortcutsReturnedToDefault
+        self.dictationEnabled = dictationEnabled
+        self.clipboardEnabled = clipboardEnabled
         self.showsFloatingButton = showsFloatingButton
         self.floatingButtonAnchor = floatingButtonAnchor
         self.shrinksToGripWhenIdle = shrinksToGripWhenIdle
@@ -137,6 +147,8 @@ extension Settings {
         case shortcuts
         case hotkeyActivation
         case shortcutsReturnedToDefault
+        case dictationEnabled
+        case clipboardEnabled
         case showsFloatingButton
         case floatingButtonAnchor
         case shrinksToGripWhenIdle
@@ -169,6 +181,10 @@ extension Settings {
             shortcutsReturnedToDefault: container.value(
                 forKey: .shortcutsReturnedToDefault, default: fallback.shortcutsReturnedToDefault
             ).union(Settings.shortcutsReturned(from: decoder)),
+            dictationEnabled: container.value(
+                forKey: .dictationEnabled, default: fallback.dictationEnabled),
+            clipboardEnabled: container.value(
+                forKey: .clipboardEnabled, default: fallback.clipboardEnabled),
             showsFloatingButton: container.value(
                 forKey: .showsFloatingButton, default: fallback.showsFloatingButton
             ),
