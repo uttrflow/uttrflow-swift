@@ -760,8 +760,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             closeQuickPanel()
             return
         }
-        // A copy made since the last poll is taken now, so the panel never opens without it.
-        await clipboardWatcher.catchUp { [weak self] noticed in await self?.keep(noticed) }
+        // Started, not waited for: a read another app answers would otherwise hold the panel shut (#895).
+        let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
+            await self?.clipArrived(noticed)
+        }
+        Task { [clipboardWatcher] in await clipboardWatcher.catchUp(handing: arrived) }
         let clips = await clipboard.clips(keeping: retention)
         let placement = await placement()
         // Built fresh, so a revealed secret cannot outlive the panel that revealed it.

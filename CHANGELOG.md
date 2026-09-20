@@ -22,6 +22,9 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **A copy another app has not delivered yet no longer keeps the clipboard panel shut.** ⇧⌘V opens
+  from what is already stored, a promised or Universal Clipboard read is given up on after 2 s, and
+  the clip appears when it arrives (#895).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
   left the stack a little deeper, so after about 2,500 presses — and again when the
   keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
