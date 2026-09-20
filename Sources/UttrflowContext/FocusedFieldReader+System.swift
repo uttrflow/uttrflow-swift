@@ -25,7 +25,7 @@ public struct FrontmostApp: Sendable {
 /// Reads the focused field once, for everything the suggestion loop needs. See `Docs/predict.md`.
 public enum FocusedFieldReader {
     /// Its own thread, because these calls block until the other application answers.
-    private static let queue = DispatchQueue(label: "com.uttrflow.focused-field", qos: .userInitiated)
+    private static let queue = LatestOnlyQueue(label: "com.uttrflow.focused-field", qos: .userInitiated)
 
     /// The primary screen's top edge, cached because `NSScreen` is main-thread-only and this reads off it.
     private static let cachedPrimaryScreenMaxY = Mutex<CGFloat>(0)
@@ -72,16 +72,14 @@ public enum FocusedFieldReader {
     public static func read() async -> FocusedFieldSnapshot? {
         // Identity is taken on the main actor first, because the blocking read below may not touch `NSWorkspace`.
         guard let app = await frontmostApp() else { return nil }
-        // A field that stops answering costs the turn half a second at most; the read finishes on its queue regardless.
-        return await Deadline.first(within: .milliseconds(500)) {
-            await withCheckedContinuation { continuation in
-                queue.async { continuation.resume(returning: snapshot(app: app)) }
-            }
+        // A field that stops answering costs the turn half a second at most, and no later turn waits behind it.
+        return await queue.run(within: .milliseconds(500)) { isWanted in
+            snapshot(app: app, while: isWanted)
         }
     }
 
     /// Its own thread for the wider walk, so an application slow to describe its window never holds up a field read.
-    private static let surroundingsQueue = DispatchQueue(
+    private static let surroundingsQueue = LatestOnlyQueue(
         label: "com.uttrflow.surroundings", qos: .utility)
 
     /// How long one Accessibility call into another application may wait, since a stalled one would otherwise wait seconds.
@@ -93,12 +91,8 @@ public enum FocusedFieldReader {
     /// What is on screen around the focused field, or `nil` when nothing usable is focused or the wait ran out.
     public static func surroundings() async -> Surroundings? {
         guard let app = await frontmostApp() else { return nil }
-        // A read that does not answer in time is left to finish on its queue; the turn goes on without it.
-        return await Deadline.first(within: surroundingsAllowance) {
-            await withCheckedContinuation { continuation in
-                surroundingsQueue.async { continuation.resume(returning: surroundings(of: app)) }
-            }
-        }
+        // A walk that does not answer in time is left to finish; a newer walk replaces one still queued.
+        return await surroundingsQueue.run(within: surroundingsAllowance) { _ in surroundings(of: app) }
     }
 
     /// The same read synchronously, for an application front or not, which is what a probe shows the operator.
@@ -114,7 +108,9 @@ public enum FocusedFieldReader {
     }
 
     /// The same reading, synchronously, which only the queue above calls with an identity read on main.
-    static func snapshot(app: FrontmostApp) -> FocusedFieldSnapshot? {
+    static func snapshot(
+        app: FrontmostApp, while isWanted: @Sendable () -> Bool = { true }
+    ) -> FocusedFieldSnapshot? {
         let started = DispatchTime.now().uptimeNanoseconds
         guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier)
         else { return nil }
@@ -132,8 +128,11 @@ public enum FocusedFieldReader {
             description: description)
         let value = declaredSecure ? nil : SurfaceProbe.string(field, kAXValueAttribute)
         let secure = declaredSecure || (value.map(SecureField.looksMasked) ?? false)
+        // Checked between messages: a turn that has given up should not pay for the rest of them.
+        guard isWanted() else { return nil }
         let range = SurfaceProbe.selectedRange(field)
         let style = range.flatMap { typeStyle(field, at: $0) }
+        guard isWanted() else { return nil }
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
 
         return FocusedFieldSnapshot(

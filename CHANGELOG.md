@@ -22,6 +22,8 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **A field read that a turn gave up on no longer delays the next one.** Reads queued behind a stall
+  are dropped when a newer one arrives, and a read past its deadline stops sending messages (#888).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
   left the stack a little deeper, so after about 2,500 presses — and again when the
   keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
