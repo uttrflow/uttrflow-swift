@@ -209,3 +209,14 @@ public struct PanelSnapshot: Sendable, Equatable {
         return trimmed
     }
 }
+
+extension PanelSnapshot {
+    /// Takes a new clip list with what the machine said about it, the one path for opening and refreshing.
+    public mutating func install(
+        _ clips: [Clip], missingImages: Set<Clip.ID>, formattableLanguages: Set<CodeLanguage>
+    ) {
+        self.clips = clips
+        self.missingImages = missingImages
+        self.formattableLanguages = formattableLanguages
+    }
+}

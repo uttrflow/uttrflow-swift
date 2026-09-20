@@ -38,6 +38,8 @@ The first release named by its date. Nothing about updating changes: an installe
   `don’t`, `-` finds an em dash, and a space matches a line break or a run of spaces (#900).
 - **Undoing the delete of a picture clip brings the picture back.** The file is kept until the
   undo window passes, so ⌘Z restores a picture that still pastes (#869).
+- **A clip that arrives while the clipboard panel is open gets its Format action and missing-picture
+  state at once**, rather than after the panel is reopened (#947).
 - **A resumed Name, Move or Rename sheet has the caret again.** Reopening the clipboard panel over
   a half-typed sheet now types into the sheet, not the search behind it (#920).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
