@@ -47,7 +47,7 @@ public enum DoubleMetaphone {
     /// Counts the encodings made while bound, child tasks included, so a test can bound the work without a clock.
     @TaskLocal package static var tally: EncodingTally?
 
-    /// The sound of one word; case and anything that is not a letter make no difference.
+    /// The sound of one word; case and marks around it make no difference, while a mark inside it may.
     public static func code(for word: String) -> PhoneticCode {
         tally?.record()
         var encoder = Encoder(word: word)
@@ -64,7 +64,15 @@ extension DoubleMetaphone {
         private var index = 0
 
         init(word: String) {
-            letters = Array(word.uppercased())
+            letters = Array(Self.withoutSurroundingMarks(word).uppercased())
+        }
+
+        /// The word without quotes, brackets or other marks around it, so the opening rules start at its first letter.
+        static func withoutSurroundingMarks(_ word: String) -> Substring {
+            let isSounded: (Character) -> Bool = { $0.isLetter || $0.isNumber }
+            guard let first = word.firstIndex(where: isSounded) else { return "" }
+            let last = word.lastIndex(where: isSounded) ?? first
+            return word[first...last]
         }
 
         mutating func encode() -> PhoneticCode {

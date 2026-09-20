@@ -59,6 +59,8 @@ final class MainWindowController {
     private var window: NSWindow?
     private let defaults: UserDefaults
 
+    /// Whether the window is on screen, which a closed or minimised one is not.
+    var isVisible: Bool { window?.isVisible == true }
     /// The page currently on screen, so the app can re-present the right one.
     var page: MainTab { model.page }
     /// Whether the sidebar is showing its names, so the menu item can say which way choosing it will go.

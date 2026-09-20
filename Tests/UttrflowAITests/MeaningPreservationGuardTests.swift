@@ -341,6 +341,34 @@ struct GrammarGuardTests {
         #expect(verdict(kept, rewritten).isAccepted)
     }
 
+    @Test("rejects moving a negation between clauses")
+    func rejectsRelocatedNegation() {
+        #expect(
+            verdict(
+                "we should not approve the design but we should approve the budget",
+                "We should approve the design but we should not approve the budget."
+            ) == .rejected(reason: "the rewrite moved a negation"))
+        #expect(
+            !verdict(
+                "we should approve the design but we should not approve the budget",
+                "We should not approve the design but we should approve the budget."
+            ).isAccepted)
+    }
+
+    @Test("allows punctuation, case and contraction changes without relocating a negation")
+    func acceptsNegationInPlace() {
+        #expect(
+            verdict(
+                "we should not approve the design, but we should approve the budget",
+                "We should not approve the design; but we should approve the budget."
+            ).isAccepted)
+        #expect(
+            verdict(
+                "she does not want the early slot",
+                "She doesn't want the early slot."
+            ).isAccepted)
+    }
+
     // MARK: What the model added
 
     /// A negation the speaker never said reverses the sentence, so it is refused the way a dropped one is.

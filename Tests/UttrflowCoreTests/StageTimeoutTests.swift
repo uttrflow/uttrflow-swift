@@ -57,7 +57,7 @@ struct StageTimeoutTests {
         _ = try await running.value
 
         // Polled rather than assumed: cancellation reaches the handler on its own task.
-        while !cancelled.withLock({ $0 }) { await Task.yield() }
+        try await eventually { cancelled.withLock { $0 } }
         #expect(cancelled.withLock { $0 })
     }
 

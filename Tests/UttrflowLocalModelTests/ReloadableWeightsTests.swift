@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowTestSupport
 import os
 
 @testable import UttrflowLocalModel
@@ -53,7 +54,7 @@ private final class LoadRecorder: Sendable {
     }
 }
 
-@Suite("Reloading a model's weights")
+@Suite("Reloading a model's weights", .timeLimit(.minutes(1)))
 struct ReloadableWeightsTests {
     private let directory = URL(filePath: "/models/example")
 
@@ -89,9 +90,9 @@ struct ReloadableWeightsTests {
         let weights = ReloadableWeights(loading: recorder.loading)
         let directory = directory
         let loading = Task { try await weights.load(from: directory) }
-        for await _ in recorder.buildStarted { break }
+        try await arrival(of: recorder.buildStarted)
         let unloading = Task { await weights.unload() }
-        while await !weights.hasPendingUnload { await Task.yield() }
+        try await eventually { await weights.hasPendingUnload }
         recorder.openGate()
         #expect(try await loading.value == nil)
         await unloading.value

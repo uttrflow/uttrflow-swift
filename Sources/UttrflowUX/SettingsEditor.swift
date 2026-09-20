@@ -62,7 +62,7 @@ public enum SettingsEditor {
         case .pauseSuggestions(let isOn):
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
-        case .checkForUpdatesNow:
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions:
             // Named rather than left to a `default`, which would swallow the next case added.
             break
         }
@@ -83,6 +83,8 @@ public enum SettingsEditor {
             throw SettingsRejection(reason: reason)
         }
         switch field {
+        case .dictationEnabled: settings.dictationEnabled = isOn
+        case .clipboardEnabled: settings.clipboardEnabled = isOn
         case .showsFloatingButton: settings.showsFloatingButton = isOn
         case .shrinksToGripWhenIdle: settings.shrinksToGripWhenIdle = isOn
         case .minimisesWhileDictating: settings.minimisesWhileDictating = isOn
@@ -110,7 +112,7 @@ public enum SettingsEditor {
         in settings: Settings
     ) -> String? {
         switch field {
-        case .showsFloatingButton, .minimisesWhileDictating:
+        case .dictationEnabled, .clipboardEnabled, .showsFloatingButton, .minimisesWhileDictating:
             nil
         case .shrinksToGripWhenIdle:
             settings.showsFloatingButton

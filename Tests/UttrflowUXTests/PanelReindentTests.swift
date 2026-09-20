@@ -83,3 +83,53 @@ struct PanelReindentTests {
         #expect(PanelFixture.panel([]).applying(.reindent(tidy.id)).outcome == .open)
     }
 }
+
+/// Whether a clip can be re-indented is asked once per text, never again on each keystroke.
+@Suite("D4 · offering re-indent costs nothing per keystroke")
+struct PanelReindentCostTests {
+    /// Code clips that are each worth offering Re-indent for.
+    static let codeClips = (0..<5).map { index in
+        Clip(
+            text: "func f\(index)() {\n\tlet x = 1\n        let y = 2\n}", kind: .code,
+            copiedAt: PanelFixture.now)
+    }
+
+    /// How many re-indents `work` ran.
+    static func reindents(_ work: () -> Void) -> Int {
+        let tally = ReindentTally()
+        CodeReindent.$tally.withValue(tally) { work() }
+        return tally.count
+    }
+
+    @Test("arrowing, typing and redrawing re-indent nothing once the panel is drawn")
+    func keystrokesDoNotReindent() {
+        let opened = PanelFixture.panel(Self.codeClips)
+        #expect(Self.reindents { _ = PanelPresenter.present(opened) } == Self.codeClips.count)
+
+        let arrowed = opened.applying(.down).state
+        let typed = arrowed.applying(.search("f")).state
+        let later = Self.reindents {
+            for snapshot in [opened, arrowed, typed] {
+                let rows = PanelPresenter.present(snapshot).rows
+                #expect(rows.allSatisfy { $0.actions.contains { $0.title == "Re-indent" } })
+            }
+        }
+        #expect(later == 0)
+    }
+
+    @Test("a clip whose text is rewritten is asked again, once")
+    func rewrittenTextIsAskedAgain() {
+        var snapshot = PanelFixture.panel(Self.codeClips)
+        _ = PanelPresenter.present(snapshot)
+        let first = Self.codeClips[0]
+        let tidied = Clip(
+            id: first.id, text: "func f0() {\n    let x = 1\n    let y = 2\n}", kind: .code,
+            copiedAt: first.copiedAt)
+        snapshot.clips[0] = tidied
+
+        var rows: [PanelRow] = []
+        #expect(Self.reindents { rows = PanelPresenter.present(snapshot).rows } == 1)
+        #expect(!rows[0].actions.contains { $0.title == "Re-indent" })
+        #expect(rows[1].actions.contains { $0.title == "Re-indent" })
+    }
+}

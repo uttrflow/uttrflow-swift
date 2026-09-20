@@ -36,10 +36,32 @@ struct QuietingTests {
         #expect(Quieting.reason(everything) == .turnedOffHere)
     }
 
-    @Test("An input method mid-composition does not quiet the suggestion; drawing takes priority.")
-    func composingDoesNotQuiet() {
+    @Test("The input-source guess alone does not quiet the suggestion, so fields that never answer keep it.")
+    func composingGuessDoesNotQuiet() {
         #expect(Quieting.reason(PredictionContext(typed: "x", isComposing: true)) == nil)
         #expect(!Quieting.refuses(PredictionContext(typed: "x", isComposing: true)))
+    }
+
+    @Test(
+        "Marked text the field reports quiets the suggestion; absent or unanswered leaves it drawn.",
+        arguments: [
+            (MarkedText.present, Quieting.Reason?.some(.composing)),
+            (.absent, nil),
+            (.unanswered, nil),
+        ])
+    func markedTextFromTheField(marked: MarkedText, expected: Quieting.Reason?) {
+        let context = PredictionContext(typed: "nihon", isComposing: true, markedText: marked)
+        #expect(Quieting.reason(context) == expected)
+    }
+
+    @Test("A secure field still names itself first, and composing outranks where the caret sits.")
+    func composingOrder() {
+        #expect(
+            Quieting.reason(PredictionContext(typed: "x", isSecure: true, markedText: .present))
+                == .secureField)
+        #expect(
+            Quieting.reason(PredictionContext(typed: "x", caretAtLineEnd: false, markedText: .present))
+                == .composing)
     }
 
     @Test("Fluency only quiets prose; a command field answers at once.")

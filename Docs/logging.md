@@ -51,6 +51,15 @@ name ends in `Log.swift`, and fails when the interpolated value still names user
 `heard`, `clip` and the rest of its list — once `.count`, `.isEmpty` and `!= nil` are taken
 out. It fails whatever the privacy level.
 
+It also fails when a message publishes a description: `String(describing:)`,
+`String(reflecting:)`, `.localizedDescription`, `.description`, or a bare value named like an
+error or a failure, interpolated with `privacy: .public` or anywhere in a `Log.swift` builder.
+An error's description can carry its payload — a database path under the home folder, a raw
+SQLite message, the text a model was given — so an error is logged by `SuggestionLog.failure`,
+which keeps its type and case. A description of a value whose every case is fixed wording goes
+on the audit's second list with its reason, printed on every run. `--self-test`, which `make
+verify` passes, proves the audit still reports each kind of violation it looks for.
+
 A value that matches a name and carries no user text goes on the audit's allow-list with its
 reason, and the list is printed on every run. A call to a builder in a `Log.swift` file is
 trusted at the call site because the builder's own file is scanned whole.
