@@ -1,3 +1,4 @@
+package import Synchronization
 import UttrflowCore
 public import UttrflowPredict
 
@@ -195,27 +196,40 @@ public actor PredictStore: PredictionStore {
         let width = FuzzyMatch.maskWidth(forQueryOfLength: needle.count, within: budget)
         let queryMask = FuzzyMatch.mask(needle)
 
-        let all = try readCandidates(
+        // Filtered in SQL and then by mask, so only a line that matches is ever built into a `Candidate`.
+        let shortest = max(0, needle.count - budget)
+        let rows = try database.rows(
             """
             SELECT \(entryColumns) FROM entry
             WHERE surface_id = ? AND superseded_by IS NULL
-            """, { $0.bind(1, id) }, distance: 0)
-
-        var matched: [Candidate] = []
-        for candidate in all {
-            let bytes = Array(candidate.text.utf8)
+                AND length(CAST(text AS BLOB)) >= ?
+            """,
+            {
+                $0.bind(1, id)
+                $0.bind(2, Int64(shortest))
+            }
+        ) { row -> Candidate? in
+            Self.rowsScanned.withLock { $0 += 1 }
+            let text = row.text(0)
+            let bytes = Array(text.utf8)
             guard
                 FuzzyMatch.couldMatch(
                     query: queryMask, candidate: FuzzyMatch.mask(bytes.prefix(width)), within: budget)
-            else { continue }
+            else { return nil }
             let distance = FuzzyMatch.prefixDistance(needle, bytes, within: budget)
-            guard distance <= budget else { continue }
-            matched.append(
-                Candidate(
-                    text: candidate.text, source: candidate.source, evidence: candidate.evidence,
-                    editDistance: distance, isIrreversible: candidate.isIrreversible))
+            guard distance <= budget else { return nil }
+            return Candidate(
+                text: text, source: .personal,
+                evidence: Entry(
+                    text: text, count: row.integer(1), accepted: row.integer(2),
+                    rejected: row.integer(3), selfSourced: row.integer(4),
+                    lastUsed: Date(timeIntervalSince1970: row.double(5))),
+                editDistance: distance,
+                isIrreversible: DestructiveCommand.matches(text))
         }
-        return Array(matched.prefix(Self.candidateLimit))
+        let all = rows.compactMap { $0 }
+
+        return Array(all.prefix(Self.candidateLimit))
     }
 
     // MARK: - Writing
@@ -414,6 +428,9 @@ public actor PredictStore: PredictionStore {
                 $0.bind(2, Int64(held - Self.entriesPerSurface))
             })
     }
+
+    /// How many rows the fuzzy tier has looked at, which a test reads to bound the per-keystroke work.
+    package static let rowsScanned = Mutex(0)
 
     /// Reads a query returning the entry columns as candidates, each at the given edit distance.
     private func readCandidates(
