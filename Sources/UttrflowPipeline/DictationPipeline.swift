@@ -21,8 +21,9 @@ public actor DictationPipeline {
     private let cleaningRecorder: any CleaningRecording
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     private var destinationOverrides: DestinationOverrides
-    /// The tidier and the overrides this dictation began with, so a change made while speaking lands on the next one.
-    private var inUse: (cleaner: any TranscriptCleaning, overrides: DestinationOverrides)?
+    /// The tidier, overrides and languages this dictation began with, so a change made while speaking lands on the next one.
+    private var inUse:
+        (cleaner: any TranscriptCleaning, overrides: DestinationOverrides, profile: UserProfile)?
     private let recordings: any RecordingKeeper
     /// Where a retried dictation's words go, since the field they were meant for is gone.
     private let clipboard: any TextInserting
@@ -130,6 +131,7 @@ public actor DictationPipeline {
     /// Takes the languages the user speaks as they stand now, for every dictation after this one.
     public func adopt(profile: UserProfile) {
         self.profile = profile
+        if !isBusy { inUse = nil }
     }
 
     /// The tidier this dictation is being run with, which a mid-dictation change does not replace.
@@ -138,9 +140,12 @@ public actor DictationPipeline {
     /// The overrides this dictation is being run with, for the same reason.
     private var runningOverrides: DestinationOverrides { inUse?.overrides ?? destinationOverrides }
 
-    /// Fixes both for the dictation about to begin.
+    /// The languages this dictation is being listened for and tidied in, for the same reason.
+    private var runningProfile: UserProfile { inUse?.profile ?? profile }
+
+    /// Fixes all three for the dictation about to begin.
     private func takeSettings() {
-        inUse = (cleaner, destinationOverrides)
+        inUse = (cleaner, destinationOverrides, profile)
     }
 
     public var currentState: DictationState { state }
@@ -228,7 +233,7 @@ public actor DictationPipeline {
         let audio: AudioSamples
         do {
             // Draining and converting the buffer, which is the part Uttrflow costs the user.
-            let captured = try await metrics.measuring(.capture, clock: clock) {
+            let captured = try await metrics.measuringInTime(.capture, clock: clock) {
                 try await withStageTimeout(StageTimeout.quick, clock: clock) { [capture] in
                     try await capture.stop()
                 }
@@ -292,7 +297,14 @@ public actor DictationPipeline {
         insertedIntoIdentifier = nil
         cleaningRecords = []
         openRecording = recording
+        forgetTheLastAttempt()
         await process(audio, mine, delivery: .copy)
+    }
+
+    /// Clears what one attempt learnt about its words and language, so the next asks afresh.
+    private func forgetTheLastAttempt() {
+        dictationWords = nil
+        dictationLanguage = nil
     }
 
     /// Abandons the dictation at any stage: nothing is transcribed and nothing is inserted.
@@ -326,8 +338,7 @@ public actor DictationPipeline {
         earlySpans = []
         earlyCut = 0
         earlyContext = nil
-        dictationWords = nil
-        dictationLanguage = nil
+        forgetTheLastAttempt()
         earlyWork = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
             let seeing = await self.earlyContextRead(mine)
             guard self.isStillRunning(mine) else { return }
@@ -577,8 +588,8 @@ public actor DictationPipeline {
         let slice =
             AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
         // A profile that speaks Hindi switches language between pieces, so only it detects every piece. See `Docs/speech-engines.md`.
-        let language = ListeningLanguages(profile: profile).hint(afterFirstPiece: dictationLanguage)
-        let heard = try await metrics.measuring(.transcription, clock: clock) {
+        let language = ListeningLanguages(profile: runningProfile).hint(afterFirstPiece: dictationLanguage)
+        let heard = try await metrics.measuringInTime(.transcription, clock: clock) {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in
                 do {
@@ -602,6 +613,8 @@ public actor DictationPipeline {
             throw SpeechEngineError.transcriptionFailed(description: "the recogniser did not answer")
         }
         guard case .words(let transcription) = heard, !transcription.isBlank else { return nil }
+        // Kept beside the timing, since a re-decode is most of what a long transcription time is.
+        await metrics.recordDecoding(transcription.effort)
         if dictationLanguage == nil { dictationLanguage = transcription.detectedLanguage?.code }
         return transcription
     }
@@ -628,17 +641,15 @@ public actor DictationPipeline {
         recording metrics: any MetricsRecording
     ) async -> CorrectedTranscript {
         do {
-            return try await metrics.measuring(.correction, clock: clock) {
-                let proposed =
+            let proposed =
+                try await metrics.measuringInTime(.correction, clock: clock) {
                     try await withStageTimeout(StageTimeout.quick, clock: clock) { [corrector] in
                         try await corrector.corrections(for: transcription, seeing: appContext)
-                    } ?? []
-                // The commonest answer, and not worth rebuilding a string to arrive at itself.
-                guard !proposed.isEmpty else {
-                    return CorrectedTranscript.unchanged(transcription.text)
-                }
-                return DictationCorrection.applying(proposed, to: transcription.text)
-            }
+                    }
+                } ?? []
+            // The commonest answer, and not worth rebuilding a string to arrive at itself.
+            guard !proposed.isEmpty else { return .unchanged(transcription.text) }
+            return DictationCorrection.applying(proposed, to: transcription.text)
         } catch {
             return .unchanged(transcription.text)
         }
@@ -652,14 +663,14 @@ public actor DictationPipeline {
         let text = corrected.text
         // Every piece of a dictation is tidied against the one screen read, so all see one situation.
         let request = TransformationRequest(
-            transcription: transcription.saying(corrected), context: appContext, profile: profile,
+            transcription: transcription.saying(corrected), context: appContext, profile: runningProfile,
             situation: SituationResolver.resolve(from: appContext, overrides: runningOverrides),
             scope: .piece)
         // Not `.rules`: no pass ran over these words, and a record that says otherwise cannot be read.
         let untidied = TransformationResult(text: text, producedBy: .untidied)
 
         do {
-            let tidied = try await metrics.measuring(.transformation, clock: clock) {
+            let tidied = try await metrics.measuringInTime(.transformation, clock: clock) {
                 try await withStageTimeout(StageTimeout.transformation, clock: clock) {
                     [cleaner = runningCleaner] in
                     try await cleaner.clean(request)
@@ -680,7 +691,8 @@ public actor DictationPipeline {
     ) async -> Piece {
         guard joined.cleaned.producedBy != .untidied else { return joined }
         let request = TransformationRequest(
-            transcription: joined.heard.saying(joined.corrected), context: appContext, profile: profile,
+            transcription: joined.heard.saying(joined.corrected), context: appContext,
+            profile: runningProfile,
             situation: situation)
         let finished = await runningCleaner.finishMessage(joined.cleaned.text, for: request)
         return Piece(
@@ -693,16 +705,13 @@ public actor DictationPipeline {
     /// Expands the user's snippets, treating a blank expansion as nothing to do.
     private func expand(_ text: String) async -> ExpandedTranscript {
         do {
-            return try await metrics.measuring(.expansion, clock: clock) {
-                let expanded =
-                    try await withStageTimeout(StageTimeout.quick, clock: clock) { [snippets] in
-                        try await snippets.expand(text)
-                    }
-                guard let expanded, !expanded.text.isBlank else {
-                    return ExpandedTranscript.unchanged(text)
+            let expanded = try await metrics.measuringInTime(.expansion, clock: clock) {
+                try await withStageTimeout(StageTimeout.quick, clock: clock) { [snippets] in
+                    try await snippets.expand(text)
                 }
-                return expanded
             }
+            guard let expanded, !expanded.text.isBlank else { return .unchanged(text) }
+            return expanded
         } catch {
             return .unchanged(text)
         }
@@ -716,7 +725,7 @@ public actor DictationPipeline {
         // Said before the words are handed over, because the app takes its own time to show them.
         transition(to: .inserting)
         do {
-            let inserted = try await metrics.measuring(.insertion, clock: clock) {
+            let inserted = try await metrics.measuringInTime(.insertion, clock: clock) {
                 try await withStageTimeout(StageTimeout.quick, clock: clock) {
                     try await inserter.insert(text)
                 }

@@ -46,18 +46,22 @@ public struct Transcription: Sendable, Equatable {
     public let segments: [TranscriptionSegment]
     /// Length of the audio that produced this transcription.
     public let audioDuration: Duration
+    /// What the recogniser spent beyond one decode, where it reports it.
+    public let effort: DecodeEffort
 
     /// A transcription; everything but the text is optional.
     public init(
         text: String,
         detectedLanguage: DetectedLanguage? = nil,
         segments: [TranscriptionSegment] = [],
-        audioDuration: Duration = .zero
+        audioDuration: Duration = .zero,
+        effort: DecodeEffort = .none
     ) {
         self.text = text
         self.detectedLanguage = detectedLanguage
         self.segments = segments
         self.audioDuration = audioDuration
+        self.effort = effort
     }
 
     /// `true` when the engine recognised nothing usable — silence, or noise only.

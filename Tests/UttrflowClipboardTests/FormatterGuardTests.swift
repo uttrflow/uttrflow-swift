@@ -142,15 +142,34 @@ struct KnownFormatterTests {
     func argumentsAreConstants() {
         let expected: [KnownFormatter: [String]] = [
             .swiftFormat: ["format"],
-            .prettier: ["--stdin-filepath", "clip.ts"],
             .black: ["-q", "-"],
             .rustfmt: ["--emit", "stdout"],
             .gofmt: [],
         ]
 
-        for formatter in KnownFormatter.allCases {
-            #expect(formatter.arguments == expected[formatter], "\(formatter.rawValue)")
+        for formatter in KnownFormatter.allCases where formatter != .prettier {
+            for language in formatter.languages {
+                #expect(formatter.arguments(for: language) == expected[formatter], "\(formatter.rawValue)")
+            }
         }
+    }
+
+    /// Prettier picks its parser from the file name, so a CSS clip named `.ts` is refused as a syntax error.
+    @Test(
+        "prettier is told a file name that matches the clip's language",
+        arguments: [
+            (CodeLanguage.javascript, "clip.js"), (.typescript, "clip.ts"), (.json, "clip.json"),
+            (.css, "clip.css"), (.html, "clip.html"),
+        ])
+    func prettierIsToldTheLanguage(language: CodeLanguage, filename: String) {
+        #expect(KnownFormatter(for: language) == .prettier)
+        #expect(KnownFormatter.prettier.arguments(for: language) == ["--stdin-filepath", filename])
+    }
+
+    @Test("every language prettier is trusted with has a file name of its own")
+    func everyPrettierLanguageIsNamed() {
+        let names = KnownFormatter.prettier.languages.map(KnownFormatter.prettierFilename(for:))
+        #expect(Set(names).count == KnownFormatter.prettier.languages.count)
     }
 
     /// A search of `PATH` would execute whatever a shell plugin prepended to it.

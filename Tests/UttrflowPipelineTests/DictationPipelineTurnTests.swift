@@ -16,6 +16,8 @@ private actor DrainingCaptureEngine: AudioCaptureEngine {
     private var isReleased = false
     private let failsAfterDraining: Bool
     private(set) var stops = 0
+    /// Fires when a stop starts waiting on the drain.
+    let drainBegan = Signal()
 
     init(failsAfterDraining: Bool = false) {
         self.failsAfterDraining = failsAfterDraining
@@ -32,7 +34,12 @@ private actor DrainingCaptureEngine: AudioCaptureEngine {
         stops += 1
         // Closed before the drain, as the real engine is, so a second stop finds nothing to stop.
         current = .idle
-        if !isReleased { await withCheckedContinuation { draining.append($0) } }
+        if !isReleased {
+            await withCheckedContinuation {
+                draining.append($0)
+                drainBegan.fire()
+            }
+        }
         if failsAfterDraining { throw .engineFailed(description: "the buffer was lost") }
         return .silence(seconds: 1)
     }
@@ -40,8 +47,6 @@ private actor DrainingCaptureEngine: AudioCaptureEngine {
     func cancel() async {
         current = .idle
     }
-
-    var isDraining: Bool { !draining.isEmpty }
 
     func release() {
         isReleased = true
@@ -65,6 +70,8 @@ private actor SlowRecordingKeeper: RecordingKeeper {
     private var waiting: [CheckedContinuation<Void, Never>] = []
     private var isReleased = false
     private(set) var discarded: [UUID] = []
+    /// Fires when a lookup or read starts waiting on the test.
+    let holdBegan = Signal()
 
     init(slow: Slow = .read, recording: KeptRecording? = nil, readFails: Bool = false) {
         self.slow = slow
@@ -91,10 +98,11 @@ private actor SlowRecordingKeeper: RecordingKeeper {
 
     private func hold() async {
         guard !isReleased else { return }
-        await withCheckedContinuation { waiting.append($0) }
+        await withCheckedContinuation {
+            waiting.append($0)
+            holdBegan.fire()
+        }
     }
-
-    var isWaiting: Bool { !waiting.isEmpty }
 
     func release() {
         isReleased = true
@@ -140,28 +148,18 @@ private func makePipeline(
         clipboard: clipboard)
 }
 
-/// Waits until `condition` holds, recording a failure rather than hanging when it never does.
-private func eventually(_ condition: () async -> Bool) async {
-    let ceiling = ContinuousClock.now + .seconds(30)
-    while ContinuousClock.now < ceiling {
-        if await condition() { return }
-        try? await Task.sleep(for: .milliseconds(5))
-    }
-    Issue.record("the condition never held")
-}
-
 // MARK: - Tests
 
-@Suite("Dictation pipeline: one dictation holds the turn")
+@Suite("Dictation pipeline: one dictation holds the turn", .timeLimit(.minutes(1)))
 struct DictationPipelineTurnTests {
     @Test("a second stop while the microphone drains is refused, not reported as a failure")
-    func secondStopDuringTheDrainIsRefused() async {
+    func secondStopDuringTheDrainIsRefused() async throws {
         let capture = DrainingCaptureEngine()
         let inserter = TurnInserter()
         let pipeline = makePipeline(capture: capture, inserter: inserter)
         await pipeline.startRecording()
         let first = Task { await pipeline.finishRecording() }
-        await eventually { await capture.isDraining }
+        try await arrival(of: capture.drainBegan.fired)
 
         await pipeline.finishRecording()
 
@@ -173,13 +171,13 @@ struct DictationPipelineTurnTests {
     }
 
     @Test("a dictation cannot open the microphone while a retry reads its recording")
-    func noDictationUnderARetry() async {
+    func noDictationUnderARetry() async throws {
         let capture = FakeAudioCaptureEngine()
         let keeper = SlowRecordingKeeper()
         let clipboard = TurnInserter()
         let pipeline = makePipeline(capture: capture, recordings: keeper, clipboard: clipboard)
         let retry = Task { await pipeline.retry(UUID()) }
-        await eventually { await keeper.isWaiting }
+        try await arrival(of: keeper.holdBegan.fired)
 
         await pipeline.startRecording()
 
@@ -191,7 +189,7 @@ struct DictationPipelineTurnTests {
     }
 
     @Test("a cancel while the microphone drains leaves the pipeline at rest, and keeps no recording")
-    func cancelDuringTheDrainRests() async {
+    func cancelDuringTheDrainRests() async throws {
         let capture = DrainingCaptureEngine()
         let inserter = TurnInserter()
         let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(1))
@@ -199,7 +197,7 @@ struct DictationPipelineTurnTests {
         let pipeline = makePipeline(capture: capture, inserter: inserter, recordings: keeper)
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
-        await eventually { await capture.isDraining }
+        try await arrival(of: capture.drainBegan.fired)
 
         await pipeline.cancel()
         await capture.release()
@@ -211,12 +209,12 @@ struct DictationPipelineTurnTests {
     }
 
     @Test("a stop that fails after a cancel reports nothing over the cancel")
-    func failedDrainAfterCancelRests() async {
+    func failedDrainAfterCancelRests() async throws {
         let capture = DrainingCaptureEngine(failsAfterDraining: true)
         let pipeline = makePipeline(capture: capture)
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
-        await eventually { await capture.isDraining }
+        try await arrival(of: capture.drainBegan.fired)
 
         await pipeline.cancel()
         await capture.release()
@@ -226,13 +224,13 @@ struct DictationPipelineTurnTests {
     }
 
     @Test("a retry cancelled while its recording is read leaves the pipeline at rest")
-    func cancelDuringARetryRests() async {
+    func cancelDuringARetryRests() async throws {
         let keeper = SlowRecordingKeeper()
         let clipboard = TurnInserter()
         let pipeline = makePipeline(
             capture: FakeAudioCaptureEngine(), recordings: keeper, clipboard: clipboard)
         let retry = Task { await pipeline.retry(UUID()) }
-        await eventually { await keeper.isWaiting }
+        try await arrival(of: keeper.holdBegan.fired)
 
         await pipeline.cancel()
         await keeper.release()
@@ -243,12 +241,12 @@ struct DictationPipelineTurnTests {
     }
 
     @Test("a retry whose read fails after a cancel reports nothing over the cancel")
-    func failedReadAfterCancelRests() async {
+    func failedReadAfterCancelRests() async throws {
         let keeper = SlowRecordingKeeper(readFails: true)
         let recording = UUID()
         let pipeline = makePipeline(capture: FakeAudioCaptureEngine(), recordings: keeper)
         let retry = Task { await pipeline.retry(recording) }
-        await eventually { await keeper.isWaiting }
+        try await arrival(of: keeper.holdBegan.fired)
 
         await pipeline.cancel()
         await keeper.release()
@@ -259,7 +257,7 @@ struct DictationPipelineTurnTests {
     }
 
     @Test("a cancel while the recording is being looked up still deletes it")
-    func cancelDuringTheLookupDeletes() async {
+    func cancelDuringTheLookupDeletes() async throws {
         let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(1))
         let keeper = SlowRecordingKeeper(slow: .lookup, recording: recording)
         let inserter = TurnInserter()
@@ -267,7 +265,7 @@ struct DictationPipelineTurnTests {
             capture: FakeAudioCaptureEngine(), inserter: inserter, recordings: keeper)
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
-        await eventually { await keeper.isWaiting }
+        try await arrival(of: keeper.holdBegan.fired)
 
         await pipeline.cancel()
         await keeper.release()

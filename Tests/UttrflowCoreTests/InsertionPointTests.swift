@@ -29,6 +29,15 @@ struct InsertionPointTests {
     }
 
     @Test(
+        "a new line opened by LF, CRLF or CR starts a sentence, with or without a marker on it",
+        arguments: ["\n", "\r\n", "\r"])
+    func everyLineBreakStartsASentence(newline: String) {
+        #expect(InsertionPoint.sentenceState(before: "previous line" + newline) == .startOfSentence)
+        #expect(InsertionPoint.sentenceState(before: "previous line" + newline + "- ") == .startOfText)
+        #expect(InsertionPoint.sentenceState(before: "previous line" + newline + "and then") == .midSentence)
+    }
+
+    @Test(
         "any other last mark leaves the caret mid-sentence",
         arguments: [
             "The build failed because", "The build failed because ", "milk, eggs,", "wait…",

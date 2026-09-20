@@ -2,6 +2,8 @@ import CoreText
 import Foundation
 import Testing
 
+import UttrflowPredict
+
 @testable import UttrflowContext
 
 @Suite("Reading a font size without building an AppKit object off-main")
@@ -70,5 +72,48 @@ struct PointSizeReadingTests {
             FocusedFieldReader.typeStyle(inAttributed: try described(size: nil, family: "Georgia"))?.family
                 == "Georgia")
         #expect(FocusedFieldReader.typeStyle(inAttributed: try described(size: nil, family: nil)) == nil)
+    }
+
+    /// An attributed string whose first run carries a colour under the given key and nothing else.
+    private func coloured(_ color: CGColor, key: CFString) throws -> CFAttributedString {
+        let string = try #require(CFAttributedStringCreateMutable(nil, 0))
+        CFAttributedStringReplaceString(string, CFRange(location: 0, length: 0), "abc" as CFString)
+        CFAttributedStringSetAttribute(string, CFRange(location: 0, length: 3), key, color)
+        return string
+    }
+
+    @Test("White text under AXForegroundColor is read as white, so the ghost is light on a dark field")
+    func readsTheAccessibilityForegroundColour() throws {
+        let white = CGColor(gray: 1, alpha: 1)
+        let style = FocusedFieldReader.typeStyle(
+            inAttributed: try coloured(white, key: "AXForegroundColor" as CFString))
+        let color = try #require(style?.color)
+        #expect(abs(color.red - 1) < 0.01 && abs(color.green - 1) < 0.01 && abs(color.blue - 1) < 0.01)
+        #expect(style?.size == nil)
+    }
+
+    @Test("The Core Text foreground key is read beside the font")
+    func readsTheCoreTextForegroundColour() throws {
+        let string = try #require(CFAttributedStringCreateMutable(nil, 0))
+        CFAttributedStringReplaceString(string, CFRange(location: 0, length: 0), "abc" as CFString)
+        CFAttributedStringSetAttribute(
+            string, CFRange(location: 0, length: 3), kCTFontAttributeName,
+            CTFontCreateWithName("Helvetica" as CFString, 12, nil))
+        CFAttributedStringSetAttribute(
+            string, CFRange(location: 0, length: 3), kCTForegroundColorAttributeName,
+            CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1))
+        let style = FocusedFieldReader.typeStyle(inAttributed: string)
+        #expect(style?.size == 12)
+        #expect(style?.color == TextColor(red: 0, green: 0, blue: 0))
+    }
+
+    @Test("A value under the colour key that is not a colour is ignored")
+    func aNonColourIsIgnored() throws {
+        let string = try #require(CFAttributedStringCreateMutable(nil, 0))
+        CFAttributedStringReplaceString(string, CFRange(location: 0, length: 0), "abc" as CFString)
+        CFAttributedStringSetAttribute(
+            string, CFRange(location: 0, length: 3), "AXForegroundColor" as CFString, "white" as CFString)
+        #expect(FocusedFieldReader.typeStyle(inAttributed: string) == nil)
+        #expect(FocusedFieldReader.textColor(nil) == nil)
     }
 }

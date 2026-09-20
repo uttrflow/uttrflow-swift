@@ -52,6 +52,20 @@ struct SpeechModelLoadTests {
         #expect(load.message.contains("Download it again"))
     }
 
+    @Test("a missing model says it was never downloaded and offers the download")
+    func missingCopy() {
+        let load = SpeechModelLoad.missing
+
+        #expect(!load.isLoading)
+        #expect(!load.showsEstimate)
+        #expect(load.title == "The speech model isn’t downloaded")
+        #expect(load.line == "Speech model not downloaded")
+        #expect(load.detail == "Dictation can’t start without it")
+        #expect(load.status == "Speech model not downloaded")
+        #expect(load.message == "Dictation can’t start without it. Download it to start dictating.")
+        #expect(load.recovery == .downloadSpeechModel)
+    }
+
     @Test("the spoken form carries no ellipsis and no dash a screen reader would skip")
     func spokenForm() {
         let label = SpeechModelLoad.loading(elapsed: .seconds(60)).accessibilityLabel
