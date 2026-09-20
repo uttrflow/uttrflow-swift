@@ -37,6 +37,8 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     public let source: String?
     /// Which tab this clip is under; its own field, since `source` can read "Dictation" by coincidence.
     public let origin: ClipOrigin
+    /// The dictations this clip copies, so deleting one deletes the clip whatever its text says now.
+    public let dictations: [UUID]
 
     /// A short handle the user typed, slash-prefixed by convention — `/pgprod` — so the clip can be found.
     public var alias: String?
@@ -47,6 +49,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     public init(
         id: UUID = UUID(), text: String, kind: ClipKind, copiedAt: Date, source: String? = nil,
         origin: ClipOrigin = .copied,
+        dictations: [UUID] = [],
         lastUsedAt: Date? = nil,
         language: CodeLanguage? = nil,
         richText: String? = nil,
@@ -67,6 +70,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
         self.timesCopied = max(timesCopied, 1)
         self.source = source
         self.origin = origin
+        self.dictations = dictations
         self.alias = alias
         self.category = category
         self.isPinned = isPinned
@@ -87,6 +91,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             copiedAt: values.decode(Date.self, forKey: .copiedAt),
             source: source,
             origin: origin,
+            dictations: values.decodeIfPresent([UUID].self, forKey: .dictations) ?? [],
             lastUsedAt: values.decodeIfPresent(Date.self, forKey: .lastUsedAt),
             language: values.decodeIfPresent(CodeLanguage.self, forKey: .language),
             richText: values.decodeIfPresent(String.self, forKey: .richText),
@@ -101,8 +106,16 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     public func used(at moment: Date) -> Clip {
         Clip(
             id: id, text: text, kind: kind, copiedAt: copiedAt, source: source, origin: origin,
-            lastUsedAt: moment, language: language, richText: richText, image: image,
+            dictations: dictations, lastUsedAt: moment, language: language, richText: richText, image: image,
             alias: alias, category: category, isPinned: isPinned, timesCopied: timesCopied)
+    }
+
+    /// Whether this is the copy of that dictation; a clip older than the link is matched on its words.
+    public func isCopy(ofDictation id: UUID, saying spoken: String?) -> Bool {
+        guard origin == .uttrflow else { return false }
+        // A clip typed into the panel is Uttrflow's too, and only a dictation's copy is labelled as one.
+        if dictations.isEmpty { return source == ClipOrigin.dictationSource && spoken == text }
+        return dictations.contains(id)
     }
 
     /// Whether the user deliberately kept this, which retention never ages out.

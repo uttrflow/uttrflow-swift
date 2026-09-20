@@ -19,7 +19,7 @@ public enum TextInsertionError: UttrflowFailure {
         case .clipboardUnavailable:
             "The text couldn't be inserted or copied. It's kept under Recent in the menu bar."
         case .insertionRejected:
-            "The text couldn't be inserted here. It's been copied so you can paste it."
+            "The text couldn't be inserted here. It's been copied, so press ⌘V to paste it."
         }
     }
 

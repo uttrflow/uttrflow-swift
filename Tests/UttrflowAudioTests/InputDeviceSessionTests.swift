@@ -1,6 +1,7 @@
 import Synchronization
 import Testing
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowAudio
 
@@ -53,7 +54,7 @@ private final class Reports: Sendable {
 }
 
 /// The device outliving one failed reopen is the whole point: see Docs/microphone.md.
-@Suite("An input device session")
+@Suite("An input device session", .timeLimit(.minutes(1)))
 struct InputDeviceSessionTests {
     /// No real waiting, so the schedule is exercised without the test taking its three seconds.
     private func session(_ device: FlakyDevice, delays: Int = 5) -> (InputDeviceSession, Reports) {
@@ -191,11 +192,6 @@ struct InputDeviceSessionTests {
 
     /// Waits for the reopen task, which runs off this one.
     private func untilSettled(_ session: InputDeviceSession) async throws {
-        let ceiling = ContinuousClock.now + .seconds(30)
-        while session.health == .reopening, ContinuousClock.now < ceiling {
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        // Recorded rather than waited out, so a reopen that never lands fails here instead of downstream.
-        if session.health == .reopening { Issue.record("the reopen never settled") }
+        try await eventually { session.health != .reopening }
     }
 }

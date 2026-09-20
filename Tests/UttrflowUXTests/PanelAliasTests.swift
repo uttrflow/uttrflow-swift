@@ -78,6 +78,17 @@ struct PanelAliasConflictTests {
     }
 
     /// The conflict is on the handle, not the spelling, or two clips could answer to the same typing.
+    @Test("whitespace before a slash cannot bypass a taken alias")
+    func whitespaceBeforeSlashConflicts() {
+        let proposal = PanelAlias.propose(
+            " /PG Prod", for: Self.other.id, among: [Self.existing, Self.other],
+            locale: Self.locale)
+
+        #expect(proposal.corrected == "pgprod")
+        #expect(proposal.takenBy == Self.existing.id)
+        #expect(!proposal.isUsable)
+    }
+
     @Test("a differently spelt version of a taken alias still conflicts")
     func conflictIsOnTheHandle() {
         let proposal = PanelAlias.propose(
@@ -85,6 +96,12 @@ struct PanelAliasConflictTests {
             locale: Self.locale)
 
         #expect(proposal.takenBy == Self.existing.id)
+    }
+
+    @Test("a normalized handle is idempotent")
+    func normalizationIsIdempotent() {
+        let once = PanelAlias.handle(" /PG Prod", locale: Self.locale)
+        #expect(PanelAlias.handle(once, locale: Self.locale) == once)
     }
 
     @Test("a clip does not conflict with itself")

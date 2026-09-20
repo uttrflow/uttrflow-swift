@@ -105,7 +105,7 @@ public enum FailurePresenter {
         case .openSystemSettings: "Open System Settings"
         case .retry: "Try Again"
         case .downloadSpeechModel: "Finish Setup"
-        case .pasteManually: "Paste"
+        case .pasteManually: "Dismiss"
         case .showRecentDictations: "Show Recent"
         case .retryFromRecording: "Retry"
         }

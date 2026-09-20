@@ -70,6 +70,25 @@ extension MetricsRecording {
             throw error
         }
     }
+
+    /// Times a stage run under `withStageTimeout`, recording its `nil` for an expiry as a failure.
+    public func measuringInTime<Success, Failure: Error>(
+        _ stage: PipelineStage,
+        clock: some Clock<Duration>,
+        isolation: isolated (any Actor)? = #isolation,
+        operation: () async throws(Failure) -> Success?
+    ) async throws(Failure) -> Success? {
+        let start = clock.now
+        do {
+            let value = try await operation()
+            await record(
+                .init(stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil))
+            return value
+        } catch {
+            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            throw error
+        }
+    }
 }
 
 /// Adds up every measurement of a stage, so a dictation done in pieces reports one figure per stage.

@@ -211,7 +211,11 @@ enum WholeClipDetector {
         if String(text.prefix(while: { !$0.isNewline })).wholeMatch(of: CodeShapes.importHeader) != nil {
             return true
         }
+        if String(text.prefix(while: { !$0.isNewline })).wholeMatch(of: CodeShapes.fromImport) != nil {
+            return true
+        }
         if isShellCommand(text) { return true }
+        if CodeShapes.isOneLineStatement(text) || CodeShapes.isConfiguration(text) { return true }
         let signals = [
             text.contains("{") && text.contains("}"), CodeShapes.hasStatementEnding(text),
             CodeShapes.isIndented(text), text.firstMatch(of: CodeShapes.declaration) != nil,
@@ -228,8 +232,6 @@ enum WholeClipDetector {
     private static func isShellCommand(_ text: String) -> Bool {
         guard !text.contains(where: \.isNewline) else { return false }
         if text.hasPrefix("$ ") || text.hasPrefix("./") { return true }
-        return text.split(whereSeparator: { "|&;".contains($0) })
-            .compactMap { $0.split(whereSeparator: \.isWhitespace).first }
-            .contains { CodeShapes.commands.contains(String($0)) }
+        return CodeShapes.isShellCommandByCharacter(text)
     }
 }
