@@ -22,6 +22,22 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **Hiding an AI suggestion that is already hidden no longer redraws the panel.** Each keystroke
+  with nothing drawn used to rebuild the view and look up the screens two or three times on the
+  main thread (#889).
+- **Dictating into a slow field while AI suggestions are on no longer times out after 100 ms.**
+  Each Accessibility caller now sets its timeout on its own elements, so a suggestion read can no
+  longer shorten an insertion write to 0.1 s, and the context read keeps its budget (#887).
+- **Typing at a clipboard confirmation no longer filters the list behind it.** Letters and arrow
+  keys under "Delete this clip?", a collection delete or a formatter diff are held, so the clip
+  being asked about stays listed (#946).
+- **Branch names, slugs and dated file names are no longer hidden as credentials.** Words joined
+  by `-`, `_` or `/` such as `fix/796-paste-confirmation-cancel` stay readable in the clipboard
+  panel (#919).
+- **Search finds text copied with curly quotes, dashes or line breaks.** Typing `don't` now finds
+  `don’t`, `-` finds an em dash, and a space matches a line break or a run of spaces (#900).
+- **Undoing the delete of a picture clip brings the picture back.** The file is kept until the
+  undo window passes, so ⌘Z restores a picture that still pastes (#869).
 - **A search under a kind chip says which chip hid the match.** With Code chosen, a search that
   finds nothing now reads "Nothing under Code mentions …" and points at All, instead of claiming
   the whole clipboard was searched (#899).

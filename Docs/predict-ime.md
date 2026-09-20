@@ -10,13 +10,16 @@ Re-run any of it with `uttrflow-dev probe ime`.
 only reaches AppKit multi-line text views. Everywhere else the answer is a capability
 guess from the selected input source, which is a stopgap and is stated as one below.
 
-**What the signal does today: it is computed and carried, and it withholds nothing.**
+**What the signal does today: the field's own answer gates, and the guess does not.**
 `Composition.isComposing` combines the field's marked range with the input source's kind,
 `FocusedFieldReader` writes the answer into `FocusedFieldSnapshot.isComposing`, and the
-coordinator copies it into `PredictionContext.isComposing`. `Quieting.reason` does not
-consult it — its comment says so — and there is no reason named for it, since a reason
-that can never be returned would be a lie in every breakdown. The bill below is what a gate on the fallback cost, and it is
-why the gate is off; the residual risk at the end is what being off costs instead.
+coordinator copies it into `PredictionContext.isComposing`, where nothing gates on it. The
+field's own answer travels beside it as `FocusedFieldSnapshot.markedText` and
+`PredictionContext.markedText`, and `Quieting.reason` returns `composing` when that is
+`present`: nothing is drawn and no key is claimed, so Escape and the arrow keys reach the
+input method, which uses them to cancel a conversion and walk its candidates. `absent` and
+`unanswered` gate nothing, so the fallback below still withholds nothing — the bill below
+is what a gate on the fallback cost, and it is why that gate stays off.
 
 ## What works: `AXTextInputMarkedRange`
 
@@ -154,8 +157,8 @@ is, it cost this:
 
 The field's own answer always wins in the computed value where there is one, so an AppKit
 text view under a Japanese input method that is *not* composing reads as not composing.
-That is what would make the state signal worth gating on despite its reach, if the gate
-were ever turned back on: the fallback would then decide only where the field says nothing.
+That is why the state signal is gated on despite its reach: a `present` answer is a
+measured state, not a guess, and fields that never answer keep their suggestions.
 
 ## Text Input Sources must be called on the main queue, so it is not called on the read path
 

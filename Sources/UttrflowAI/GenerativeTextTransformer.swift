@@ -61,7 +61,8 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
         let finishing =
             request.scope == .piece
-            ? CleaningPipeline.afterModelPiece(situation: request.situation)
+            ? CleaningPipeline.afterModelPiece(
+                situation: request.situation, heard: request.transcription.text)
             : CleaningPipeline.afterModel(
                 for: formatter, situation: request.situation, heard: request.transcription.text)
         let polished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped)))

@@ -450,13 +450,13 @@ public enum PanelPresenter {
                 PanelAction(
                     title: "Format", symbolName: "wand.and.stars", intent: .format(clip.id)))
         }
-        if clip.kind == .code, CodeReindent.reindented(clip.text) != nil {
+        if snapshot.reindentOffers.offers(clip) {
             actions.append(
                 PanelAction(
                     title: "Re-indent", symbolName: "text.alignleft", intent: .reindent(clip.id)))
         }
-        // E6 — never on a note already, or promoting replaces what the user wrote.
-        if clip.richText == nil {
+        // E6 — never on a note already, or promoting replaces what the user wrote, and never on a picture, which has no text.
+        if clip.richText == nil, clip.image == nil {
             actions.append(
                 PanelAction(
                     title: "Make a note", symbolName: "square.and.pencil",

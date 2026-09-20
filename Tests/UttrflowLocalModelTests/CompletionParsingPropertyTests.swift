@@ -13,7 +13,7 @@ private let words = [
 ]
 
 /// The marks a model drops or adds when it repeats a line, which never decide whether it repeated it.
-private let marks = Array(MLXCandidateScorer.ignoredMarks).map(String.init).sorted()
+private let marks = Array(CompletionText.ignoredMarks).map(String.init).sorted()
 
 /// One reply the model might give and what parsing it must come to, built from a seed.
 struct ParseCase: Sendable, CustomTestStringConvertible {
@@ -109,7 +109,7 @@ struct ParseCase: Sendable, CustomTestStringConvertible {
         case 1: return random.pick(marks + [" ™", "\u{200E} ", "™®"])
         case 2: return String(repeating: " word", count: Int.random(in: 33...60, using: &random))
         case 3: return String(repeating: " - sr", count: Int.random(in: 3...12, using: &random))
-        case 4: return " " + random.pick(MLXCandidateScorer.promptMarkers) + " please"
+        case 4: return " " + random.pick(CompletionText.promptMarkers) + " please"
         default:
             let count = Int.random(in: 1...5, using: &random)
             return random.pick(["", " ", ", "])
@@ -119,9 +119,9 @@ struct ParseCase: Sendable, CustomTestStringConvertible {
 
     /// Whether the continuation is something to offer: it says something, is not a loop or a paragraph, and quotes no heading.
     private static func isUsable(_ continuation: String, on line: String) -> Bool {
-        continuation.contains { !$0.isWhitespace && !MLXCandidateScorer.ignoredMarks.contains($0) }
-            && !MLXCandidateScorer.isDegenerate(continuation)
-            && !MLXCandidateScorer.promptMarkers.contains(where: line.lowercased().contains)
+        continuation.contains { !$0.isWhitespace && !CompletionText.ignoredMarks.contains($0) }
+            && !CompletionText.isDegenerate(continuation)
+            && !CompletionText.promptMarkers.contains(where: line.lowercased().contains)
     }
 }
 
@@ -129,8 +129,8 @@ private let replies = (0..<500).map(ParseCase.init)
 
 /// Whether the line, compared loosely, opens with the typed text or is one slip from doing so: a swap, an extra or a changed character.
 private func opensWithinOneSlip(_ line: String, of typed: String) -> Bool {
-    let loose = Array(MLXCandidateScorer.comparable(line))
-    let wanted = Array(MLXCandidateScorer.comparable(typed))
+    let loose = Array(CompletionText.comparable(line))
+    let wanted = Array(CompletionText.comparable(typed))
     guard loose.count >= wanted.count else { return false }
     let head = Array(loose.prefix(wanted.count))
     if head == wanted || zip(head, wanted).filter({ $0 != $1 }).count == 1 { return true }
@@ -154,14 +154,14 @@ struct CompletionParsingPropertyTests {
         "Every usable line comes out rebuilt on the typed text, in order, once, and nothing else does.",
         arguments: replies)
     func parsingMatchesTheOracle(reply: ParseCase) {
-        #expect(MLXCandidateScorer.parse(reply.response, typed: reply.typed) == reply.expected)
+        #expect(CompletionText.parse(reply.response, typed: reply.typed) == reply.expected)
     }
 
     @Test(
         "Whatever comes out begins with the typed text, adds something to it, and is neither a heading nor a ramble.",
         arguments: replies)
     func resultsKeepTheirShape(reply: ParseCase) {
-        let results = MLXCandidateScorer.parse(reply.response, typed: reply.typed)
+        let results = CompletionText.parse(reply.response, typed: reply.typed)
         #expect(Set(results).count == results.count)
         for result in results {
             #expect(result.hasPrefix(reply.typed))
@@ -169,8 +169,8 @@ struct CompletionParsingPropertyTests {
             let continuation = String(result.dropFirst(reply.typed.count))
             let saysSomething = continuation.contains { !$0.isWhitespace }
             #expect(saysSomething)
-            #expect(!MLXCandidateScorer.isDegenerate(continuation))
-            let quotesAHeading = MLXCandidateScorer.promptMarkers.contains {
+            #expect(!CompletionText.isDegenerate(continuation))
+            let quotesAHeading = CompletionText.promptMarkers.contains {
                 result.lowercased().contains($0)
             }
             #expect(!quotesAHeading)
@@ -188,8 +188,8 @@ struct CompletionParsingPropertyTests {
         let line = (0..<Int.random(in: 1...8, using: &random)).map { _ in random.pick(words) }.joined(
             separator: " ")
         guard !opensWithinOneSlip(line, of: typed) else { return }
-        #expect(MLXCandidateScorer.parse(line, typed: typed).isEmpty)
-        #expect(MLXCandidateScorer.continuation(of: line, past: typed) == nil)
+        #expect(CompletionText.parse(line, typed: typed).isEmpty)
+        #expect(CompletionText.continuation(of: line, past: typed) == nil)
     }
 
     @Test(
@@ -201,10 +201,10 @@ struct CompletionParsingPropertyTests {
         for _ in 0..<Int.random(in: 0...12, using: &random) {
             text += random.pick(words + marks + [" ", "  ", "\t", "\n"])
         }
-        let comparable = MLXCandidateScorer.comparable(text)
-        #expect(MLXCandidateScorer.comparable(comparable) == comparable)
+        let comparable = CompletionText.comparable(text)
+        #expect(CompletionText.comparable(comparable) == comparable)
         #expect(comparable == comparable.lowercased())
-        let marked = comparable.contains { MLXCandidateScorer.ignoredMarks.contains($0) }
+        let marked = comparable.contains { CompletionText.ignoredMarks.contains($0) }
         let oddSpaced = comparable.contains { $0.isWhitespace && $0 != " " }
         #expect(!marked && !oddSpaced)
         #expect(!comparable.contains("  "))
@@ -218,19 +218,19 @@ struct CompletionParsingPropertyTests {
         var random = Seeded(seed: seed)
         let few = (0..<Int.random(in: 1...5, using: &random)).map { _ in random.pick(words) }.joined(
             separator: " ")
-        #expect(!MLXCandidateScorer.isDegenerate(few))
+        #expect(!CompletionText.isDegenerate(few))
         let distinct = Array(Set(words)).sorted().shuffled(using: &random).prefix(
             Int.random(in: 6...12, using: &random))
         let varied = distinct.joined(separator: " ")
         #expect(
-            MLXCandidateScorer.isDegenerate(varied)
-                == (varied.count > MLXCandidateScorer.maximumContinuationLength))
+            CompletionText.isDegenerate(varied)
+                == (varied.count > CompletionText.maximumContinuationLength))
         let word = random.pick(words)
         let loop = Array(repeating: word, count: Int.random(in: 6...20, using: &random)).joined(
             separator: " ")
-        #expect(MLXCandidateScorer.isDegenerate(loop))
-        let long = String(repeating: "ab ", count: MLXCandidateScorer.maximumContinuationLength)
-        #expect(MLXCandidateScorer.isDegenerate(long))
+        #expect(CompletionText.isDegenerate(loop))
+        let long = String(repeating: "ab ", count: CompletionText.maximumContinuationLength)
+        #expect(CompletionText.isDegenerate(long))
     }
 
     @Test(
@@ -241,9 +241,9 @@ struct CompletionParsingPropertyTests {
         let plain = (0..<Int.random(in: 1...5, using: &random)).map { _ in random.pick(words) }.joined(
             separator: " ")
         guard !plain.hasPrefix("-"), !plain.hasPrefix("*"), plain.first?.isNumber != true else { return }
-        #expect(MLXCandidateScorer.unmarked(plain) == plain)
-        #expect(MLXCandidateScorer.unmarked(random.pick(["- ", "* ", "• "]) + plain) == plain)
-        #expect(MLXCandidateScorer.unmarked("\(Int.random(in: 1...99, using: &random)). " + plain) == plain)
-        #expect(MLXCandidateScorer.unmarked("```" + plain).isEmpty)
+        #expect(CompletionText.unmarked(plain) == plain)
+        #expect(CompletionText.unmarked(random.pick(["- ", "* ", "• "]) + plain) == plain)
+        #expect(CompletionText.unmarked("\(Int.random(in: 1...99, using: &random)). " + plain) == plain)
+        #expect(CompletionText.unmarked("```" + plain).isEmpty)
     }
 }

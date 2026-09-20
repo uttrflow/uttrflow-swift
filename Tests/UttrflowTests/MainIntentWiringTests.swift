@@ -2,6 +2,7 @@
 
 import Foundation
 import UttrflowAI
+import UttrflowClipboard
 import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
@@ -261,6 +262,52 @@ struct MainIntentWiringTests {
 
         await app.intentWork?.value
         #expect(await store.records(keeping: retention).isEmpty)
+    }
+
+    /// Deleting a dictation takes its clipboard copy, found by identifier once the texts have drifted apart.
+    @Test("deleting a dictation deletes its clipboard copy after an undo and after a panel edit")
+    func forgetsTheDictationsClip() async throws {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
+        let history = DictationHistoryStore(
+            file: DictationHistoryStore.defaultFile(in: sandbox.root))
+        let clipboard = ClipboardStore(file: ClipboardStore.defaultFile(in: sandbox.root))
+        let retention = Retention(days: 30, now: .now)
+        let window = ClipRetention(days: 30, now: .now)
+        let correction = try #require(
+            RecordedCorrection(
+                heard: "s q l", wrote: "SQL", wordRange: 1..<4, entryID: UUID(),
+                reason: "heardAsStrayLetters", heardConfidence: 0.4))
+        let undone = DictationRecord(
+            text: "print SQL", when: .now,
+            changes: RecordedChanges(corrections: [correction], snippets: []))
+        let edited = DictationRecord(text: "Right, the drafting is done.", when: .now)
+        try await history.append(undone, keeping: retention)
+        try await history.append(edited, keeping: retention)
+        for record in [undone, edited] {
+            try await clipboard.record(
+                Clip(
+                    text: record.text, kind: .text, copiedAt: .now,
+                    source: ClipOrigin.dictationSource, origin: .uttrflow,
+                    dictations: [record.id]), keeping: window)
+        }
+        let editedClip = try #require(
+            await clipboard.clips(keeping: window).first { $0.dictations == [edited.id] })
+        try await clipboard.setText("Right, drafting done.", of: editedClip.id, keeping: window)
+        app.carryOut(.undoCorrection(correction.id))
+        await app.intentWork?.value
+        let afterUndo = await history.records(keeping: retention).first { $0.id == undone.id }
+        #expect(afterUndo?.text == "print s q l")
+
+        app.carryOut(.forgetDictation(undone.id))
+        await app.intentWork?.value
+        app.carryOut(.forgetDictation(edited.id))
+        await app.intentWork?.value
+
+        #expect(await history.records(keeping: retention).isEmpty)
+        // Read afresh, since each store keeps what it last read in memory.
+        let reread = ClipboardStore(file: ClipboardStore.defaultFile(in: sandbox.root))
+        #expect(await reread.clips(keeping: window).isEmpty)
     }
 
     @Test("flagging a dictation is kept, and flagging it again puts it back")

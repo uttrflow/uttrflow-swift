@@ -19,14 +19,12 @@ arrow, and `FocusedFieldSnapshot` in `UttrflowContext`, to keep a shell's `AXTex
 of the prose rule and to strip its prompt from the line. Until recently those were two
 tables — a prefix list in `UttrflowPredict` and an exact-match set in `UttrflowContext` —
 and they disagreed: the prefix list knew Hyper and Tabby, the set did not, and Warp matched
-under one and not the other. There is one table now, `TerminalApplications` in
-`UttrflowPredict` — the lowest module both callers reach, since `UttrflowPredict` depends on
-nothing — matched by lowercased prefix, and `UttrflowContext` re-exports it under the same
-name.
-
-`AppKind` in `UttrflowAI` recognises overlapping sets for a different purpose — the one
-line of prompt text that describes the screen — and stays separate, because
-`UttrflowPredict` depends on nothing and `UttrflowAI` depends on Core and the dictionary.
+under one and not the other. There is one table now: the terminal, code editor and query editor rows of
+`DestinationRules.standard` in `UttrflowCore`, the same rows that decide how a dictation
+into those applications is laid out. `TerminalApplications` and the editor list in
+`AcceptKeys` are read from those rows, lowercased and matched by prefix, and `UttrflowContext`
+re-exports `TerminalApplications` under the same name. An application added to a row is a
+terminal or an editor to dictation and to AI suggestions at once.
 
 ## Return is the dangerous key
 

@@ -38,7 +38,7 @@
 
 - Recognition runs on your Mac.
 - Clean-up removes fillers, adds punctuation and applies your dictionary, matched by sound.
-- Works offline once you are signed in.
+- Works offline, with or without an account.
 
 **In the code:** `UttrflowAudio` → `UttrflowSpeech` → `UttrflowAI` → `UttrflowPipeline` →
 `UttrflowInput`, with the dock in `Sources/Uttrflow/Dock`. Read
@@ -74,8 +74,9 @@ ghost text finishes the line you're on.
   in an editor **⌥Tab**. Keep typing to ignore it; **esc** hides it.
 - Candidates come from your history in that field, then from what is on the Mac, then from
   a local model.
-- It learns on this Mac, in SQLite, and is never uploaded. It is off until you switch it
-  on, and you choose the apps.
+- It reads the text in and around the field you are typing in, and remembers the lines you
+  send, in SQLite. None of it leaves this Mac. It is off until you switch it on, and you
+  choose the apps.
 
 **In the code:** `UttrflowPredict`, `UttrflowPredictStore`, `UttrflowPredictCapture` and
 `Sources/Uttrflow/Suggestion`. Read [`Docs/predict.md`](Docs/predict.md).
@@ -194,9 +195,9 @@ three completions typed past in one field are each reason enough to draw nothing
 editors ship switched off, because their own completion already reads the whole file.
 [`Docs/predict.md`](Docs/predict.md) is the full account.
 
-**Works offline.** Sign in needs a network exactly once. After that every launch, every
-dictation and every paste works with Wi-Fi off — proven by a sandbox that fails any test
-touching the network.
+**Works offline.** Signing in needs a network exactly once, and "Continue on this Mac"
+needs none at all. After that every launch, every dictation and every paste works with
+Wi-Fi off — proven by a sandbox that fails any test touching the network.
 
 </details>
 
@@ -390,6 +391,10 @@ fixed width that does not reveal how long the token is, and they get no tooltip.
 a rule about the screen — about somebody reading over your shoulder, or a shared screen —
 and not about the disk. The text is stored in the clear like every other clip.
 
+**Tab-to-complete reads the text in and around the field you are typing in**, such as the
+thread above a reply box, and hands it to a model that runs on this Mac. None of it is
+uploaded.
+
 **Tab-to-complete learns from what you type, and that corpus is the most sensitive thing
 the app keeps.** It is `predict.v1.sqlite` in the same Application Support folder, at the
 same ordinary file permissions, unencrypted, and it is never uploaded. Nothing is written
@@ -403,9 +408,11 @@ data if they were ever completed and run, and anything shorter than two characte
 (`CaptureGate` in `Sources/UttrflowPredictCapture`). A field keeps at most 2,000 entries.
 You can forget one line, everything one application taught, or all of it.
 
-**There is an account, and it is required to dictate.** Signing in needs a network exactly
-once; every launch after that works without one, and an entitlement that has aged out
-still lets you dictate rather than locking you out.
+**There is an account, and the first run asks for it — but it is not required to
+dictate.** "Continue on this Mac", on that same page from the start, records the choice to
+do without one and permits dictation, with no network involved. Signing in instead needs a
+network exactly once; every launch after that works without one, and an entitlement that
+has aged out still lets you dictate rather than locking you out.
 
 **Nothing is sent, and the telemetry that will be sent can only carry numbers.** The app
 does not report anything today: the collector exists, is tested, and is wired to nothing,

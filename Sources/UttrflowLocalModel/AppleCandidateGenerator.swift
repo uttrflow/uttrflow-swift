@@ -34,17 +34,17 @@ public actor AppleCandidateGenerator: PassShowing {
         let session = LanguageModelSession(instructions: MLXCandidateScorer.instructions)
         let options = GenerationOptions(temperature: 0, maximumResponseTokens: register.maxTokens * 2)
         let response = try await session.respond(to: message, generating: Continuation.self, options: options)
-        let context = MLXCandidateScorer.contextNeverCopied(in: situation)
+        let context = CompletionText.contextNeverCopied(in: situation)
         let answer = response.content.line
-        var completions = MLXCandidateScorer.parse(answer, typed: typed).compactMap {
-            MLXCandidateScorer.trimmed($0, typed: typed, echoing: context)
+        var completions = CompletionText.parse(answer, typed: typed).compactMap {
+            CompletionText.trimmed($0, typed: typed, echoing: context)
         }
         // An answer that did not repeat the line is read as its continuation where a word boundary says how the two join, the most generous reading a text-only model can be given.
-        if completions.isEmpty, !MLXCandidateScorer.echoes(answer, of: typed),
-            let joined = MLXCandidateScorer.joined(typed, with: answer)
+        if completions.isEmpty, !CompletionText.echoes(answer, of: typed),
+            let joined = CompletionText.joined(typed, with: answer)
         {
-            completions = MLXCandidateScorer.parse(joined, typed: typed).compactMap {
-                MLXCandidateScorer.trimmed($0, typed: typed, echoing: context)
+            completions = CompletionText.parse(joined, typed: typed).compactMap {
+                CompletionText.trimmed($0, typed: typed, echoing: context)
             }
         }
         return GenerationPass(text: response.content.line, stopReason: "structured", completions: completions)

@@ -78,6 +78,42 @@ struct CorpusUploadOutboxTests {
         #expect(byLanguage["hinglish-numbers"]?.contains("hi-IN") == true)
     }
 
+    /// The catalogue reads a sample's language back from its tag and stresses, so each of the three must survive the trip.
+    @Test(
+        "a built-in passage reads back from the catalogue in the language it was recorded in",
+        arguments: ["hinglish-standup", "hinglish-numbers"] + TranscriptionCorpus.english.prefix(1).map(\.id)
+            + TranscriptionCorpus.hindi.prefix(1).map(\.id))
+    func languageSurvivesTheCatalogue(id: String) async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let passage = try #require(TranscriptionCorpus.passage(id))
+        let recordings = TranscriptionCorpusStore(directory: directory)
+        let take = RecordedPassage(
+            passage: passage, recordedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            durationSeconds: 1, sampleRate: 16_000)
+        try recordings.save(take, audio: Data([1]))
+        let uploader = FakeUploader()
+
+        _ = await outbox(recordings, uploader).send(take)
+
+        let sample = try #require(uploader.uploads.first?.sample)
+        #expect(sample.passage.language == passage.language)
+        #expect(Set(passage.stresses).isSubset(of: Set(sample.stresses)))
+    }
+
+    @Test("a passage already marked as code-switching is not marked twice")
+    func markedOnce() {
+        let marked = TranscriptionCase(
+            id: "mixed", language: .hinglish, stressor: .everyday, romanised: "kal ka plan confirm hai",
+            stresses: ["everyday", CorpusStress.codeSwitching])
+        let unmarked = TranscriptionCase(
+            id: "plain", language: .hinglish, stressor: .everyday, romanised: "kal ka plan confirm hai",
+            stresses: ["everyday"])
+
+        #expect(CorpusUploadOutbox.stresses(for: marked) == ["everyday", CorpusStress.codeSwitching])
+        #expect(CorpusUploadOutbox.stresses(for: unmarked) == ["everyday", CorpusStress.codeSwitching])
+    }
+
     // MARK: Surviving failure
 
     /// The property the whole recording session rests on.
@@ -242,5 +278,72 @@ struct CorpusUploadOutboxTests {
         let uploader = FakeUploader()
         let receipt = await outbox(recordings, uploader, cohort: cohort).send(recorded("one"))
         #expect(receipt.slug == "naveen-quiet-one")
+    }
+
+    // MARK: Replacing a take
+
+    /// The same passage re-recorded later, with different audio.
+    private func replacement(_ id: String) -> RecordedPassage {
+        RecordedPassage(
+            passage: passage(id), recordedAt: Date(timeIntervalSince1970: 1_700_000_500),
+            durationSeconds: 5, sampleRate: 16_000)
+    }
+
+    @Test("a take re-recorded after its upload is pending again and is what the next sync sends")
+    func aReplacedTakeIsSentAgain() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recordings = try store(directory, ["one", "two"])
+        let uploader = FakeUploader()
+        _ = try await outbox(recordings, uploader).flush()
+        #expect(try outbox(recordings, uploader).pending().isEmpty)
+
+        try recordings.save(replacement("one"), audio: Data([9, 9]))
+        // A fresh outbox, as a later `record --sync` would build from what is on disk.
+        let later = outbox(recordings, uploader)
+        #expect(try later.pending().map(\.id) == ["one"])
+        let summary = try await later.flush()
+        #expect(summary.uploaded == ["one"])
+        #expect(uploader.uploads.last?.audio == Data([9, 9]))
+        #expect(uploader.uploads.count == 3)
+        #expect(try later.pending().isEmpty)
+    }
+
+    @Test("a take replaced while its upload is in flight stays pending once that upload succeeds")
+    func aTakeReplacedMidUploadStaysPending() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recordings = try store(directory, ["one"])
+        let replacing = FakeUploader(duringUpload: { [recordings] in
+            try? recordings.save(
+                RecordedPassage(
+                    passage: TranscriptionCase(
+                        id: "one", language: .english, stressor: .everyday, romanised: "ship it"),
+                    recordedAt: Date(timeIntervalSince1970: 1_700_000_050), durationSeconds: 1,
+                    sampleRate: 16_000), audio: Data([7]))
+        })
+
+        let receipt = await outbox(recordings, replacing).send(recorded("one"))
+        #expect(receipt.outcome == .uploaded)
+        #expect(receipt.recordedAt == recorded("one").recordedAt)
+        let pending = try outbox(recordings, FakeUploader()).pending()
+        #expect(pending.map(\.recordedAt) == [Date(timeIntervalSince1970: 1_700_000_050)])
+    }
+
+    @Test("a receipt written before takes were told apart settles a take recorded before it, not one after")
+    func anOlderReceiptSettlesOnlyAnOlderTake() throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recordings = try store(directory, ["one"])
+        let older = UploadReceipt(
+            passageID: "one", slug: "one", attempts: 1,
+            lastAttemptAt: Date(timeIntervalSince1970: 1_700_000_100), outcome: .uploaded)
+        try JSONRecordStore<UploadReceipt>(
+            directory: directory.appending(path: CorpusUploadOutbox.receiptsDirectoryName)
+        ).save(older)
+        #expect(try outbox(recordings, FakeUploader()).pending().isEmpty)
+
+        try recordings.save(replacement("one"), audio: Data([9]))
+        #expect(try outbox(recordings, FakeUploader()).pending().map(\.id) == ["one"])
     }
 }
