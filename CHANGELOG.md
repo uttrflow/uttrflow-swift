@@ -22,6 +22,8 @@ The first release named by its date. Nothing about updating changes: an installe
 0.5.0 is offered this release like any other.
 
 ### Fixed
+- **An AI suggestion appears sooner after a pause.** The 120 ms quiet is now counted from the last
+  key rather than from the work that follows it, and the two context reads run side by side (#878).
 - **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
   left the stack a little deeper, so after about 2,500 presses — and again when the
   keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
