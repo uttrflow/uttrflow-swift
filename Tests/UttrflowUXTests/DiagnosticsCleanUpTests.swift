@@ -89,6 +89,40 @@ struct DiagnosticsCleanUpTests {
         #expect(counted == ["  Spoken punctuation: added 1"])
     }
 
+    /// The report is pasted into public issues and promises it carries no dictated words (#645).
+    @Test("a refusal is copied as its kind, never as the words it quoted")
+    func refusalIsCountedNotQuoted() {
+        let record = CleaningRecord(
+            changes: [],
+            refusals: [
+                CleaningRecord.Refusal(
+                    engine: "model", reason: "the rewrite lost or replaced 'Zorvane'",
+                    kind: .lostWord)
+            ])
+
+        let counted = DiagnosticsPresenter.countedCleanUp(record)
+
+        #expect(counted == ["  answer refused (model): a word was lost or replaced"])
+        #expect(!counted.joined().contains("Zorvane"))
+    }
+
+    /// Every kind has to be sayable without quoting, since any of them can reach the clipboard.
+    @Test("no refusal kind names anything the speaker said")
+    func everyKindIsWordFree() {
+        for kind in RefusalKind.allCases {
+            let counted = DiagnosticsPresenter.countedCleanUp(
+                CleaningRecord(
+                    changes: [],
+                    refusals: [
+                        CleaningRecord.Refusal(
+                            engine: "model", reason: "the rewrite lost or replaced 'Zorvane'",
+                            kind: kind)
+                    ]))
+            #expect(!counted.joined().contains("Zorvane"), "\(kind.rawValue) quoted the words")
+            #expect(!kind.summary.contains("'"), "\(kind.rawValue) has a quote in its summary")
+        }
+    }
+
     @Test("what the recorder keeps is the last dictation, and only the last")
     func recorderKeepsTheLast() async {
         let recorder = DiagnosticsRecorder()

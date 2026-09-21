@@ -111,7 +111,7 @@ struct Issue217GuardSweepTests {
         let verdict = MeaningPreservationGuard().verdict(
             draft: Draft.heard("send the contract to the team"),
             rewritten: "Send the contact to the team.")
-        #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'contract'"))
+        #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'contract'", kind: .lostWord))
     }
 
     @Test("a reading has to be written where a word starts, not found inside one")

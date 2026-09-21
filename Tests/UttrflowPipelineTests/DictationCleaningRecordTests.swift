@@ -41,7 +41,7 @@ private struct RefusingCleaner: TranscriptCleaning {
     ) async throws(TransformationError)
         -> TransformationResult
     {
-        throw .outputRejected(reason: "scripted")
+        throw .outputRejected(reason: "scripted", kind: .lostWord)
     }
 }
 

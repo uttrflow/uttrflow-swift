@@ -107,9 +107,9 @@ public struct TransformerRouter: TranscriptCleaning {
         in errors: [any Error], on route: [TransformerKind]
     ) -> [CleaningRecord.Refusal] {
         errors.enumerated().compactMap { index, error in
-            guard case TransformationError.outputRejected(let reason) = error, index < route.count
+            guard case TransformationError.outputRejected(let reason, let kind) = error, index < route.count
             else { return nil }
-            return CleaningRecord.Refusal(engine: route[index].rawValue, reason: reason)
+            return CleaningRecord.Refusal(engine: route[index].rawValue, reason: reason, kind: kind)
         }
     }
 }

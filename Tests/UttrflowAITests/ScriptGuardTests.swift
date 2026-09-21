@@ -21,7 +21,8 @@ struct ScriptGuardTests {
     func refusesATranslation(draft: String, rewritten: String) {
         #expect(
             sut.scriptVerdict(draft: draft, rewritten: rewritten, examples: examples)
-                == .rejected(reason: "the rewrite translated the Hindi instead of romanising it"))
+                == .rejected(
+                    reason: "the rewrite translated the Hindi instead of romanising it", kind: .translated))
     }
 
     @Test(
@@ -43,7 +44,8 @@ struct ScriptGuardTests {
     func refusesAnotherScript(draft: String, rewritten: String) {
         #expect(
             sut.scriptVerdict(draft: draft, rewritten: rewritten)
-                == .rejected(reason: "the rewrite is not written in the Latin alphabet"))
+                == .rejected(
+                    reason: "the rewrite is not written in the Latin alphabet", kind: .notLatinScript))
     }
 
     @Test("refuses the prompt's own worked example given back for a dictation that did not say it")
@@ -52,7 +54,7 @@ struct ScriptGuardTests {
             draft: "मतलब मैं कल आएगा, हाँ, अच्छा तो फिर मिलते हैं.",
             rewritten: "Main aaj ke standup mein deployment ke baare mein baat karunga.", examples: examples)
 
-        guard case .rejected(let reason) = verdict else {
+        guard case .rejected(let reason, _) = verdict else {
             Issue.record("accepted the worked example")
             return
         }
@@ -111,7 +113,8 @@ struct LatinOnlyEngineTests {
 
         await #expect(
             throws: TransformationError.outputRejected(
-                reason: "the rewrite translated the Hindi instead of romanising it")
+                reason: "the rewrite translated the Hindi instead of romanising it",
+                kind: .translated)
         ) {
             try await sut.transform(hindi("मीटिंग चार बजे है, नहीं नहीं, पांच बजे है."))
         }

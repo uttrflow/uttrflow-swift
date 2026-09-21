@@ -105,7 +105,7 @@ private final class ShoutingCleaner: TranscriptCleaning, Sendable {
     func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
         let text = request.transcription.text
         state.withLock { $0.seen.append(text) }
-        if let failOn, text.contains(failOn) { throw .outputRejected(reason: "scripted") }
+        if let failOn, text.contains(failOn) { throw .outputRejected(reason: "scripted", kind: .lostWord) }
         return TransformationResult(text: text.uppercased(), producedBy: .foundationModels)
     }
 

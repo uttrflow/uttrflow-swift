@@ -122,3 +122,18 @@ the prompt asks for (nahi, nahin, nahee, na, mat) — and a negation dropped or 
 Devanagari draft and a Hinglish rewrite is refused. The rest of the gap needs Unicode word
 segmentation, a transliteration relation beside the irregular-verb table, and a Hindi corpus to
 measure against, and it should not be closed by refusing what cannot be read.
+
+## A refusal says two things, and only one of them travels
+
+Every refusal carries a `reason` and a `RefusalKind`. The reason is written for a person looking
+at the screen and quotes what was said — "the rewrite lost or replaced 'Zorvane'" — because the
+Diagnostics page stays on the Mac. The kind is a closed enum with a word-free `summary`, and that
+is what Copy Diagnostics puts on the clipboard: "a word was lost or replaced".
+
+The two were one string until #645, and the copied report appended the reason verbatim while
+promising "Counted, never quoted" two hundred lines further down. Anybody who dictated a name and
+then hit a refusal pasted that name into a public issue without being told.
+
+The kind is set where the refusal is made, never recovered from the reason afterwards. Reading a
+kind back out of the sentence would be deciding what a string means by its shape, which is the
+thing `AGENTS.md` says not to do and which this guard exists to refuse.

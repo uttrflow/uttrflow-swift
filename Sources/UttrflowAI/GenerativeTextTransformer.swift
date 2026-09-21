@@ -69,16 +69,16 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let finished = polished.text
 
         // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
-        if case .rejected(let reason) = meaningGuard.scriptVerdict(
+        if case .rejected(let reason, let kind) = meaningGuard.scriptVerdict(
             draft: spoken, rewritten: finished, examples: prompts.allWorkedExamples)
         {
-            throw .outputRejected(reason: reason)
+            throw .outputRejected(reason: reason, kind: kind)
         }
-        if case .rejected(let reason) = meaningGuard.verdict(
+        if case .rejected(let reason, let kind) = meaningGuard.verdict(
             draft: draft, rewritten: finished, offering: readings, echoed: Self.echo(in: polished),
             layout: formatter.layout, grants: pipeline.grants)
         {
-            throw .outputRejected(reason: reason)
+            throw .outputRejected(reason: reason, kind: kind)
         }
 
         // Only a taught reading has an entry to count; the screen's and the vocabulary's have none.

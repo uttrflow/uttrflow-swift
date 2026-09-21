@@ -15,7 +15,7 @@ private let insertedOutcome = DictationOutcome(
 
 /// A failure that still has the user's words to offer — §19's case.
 private let failureWithWords = DictationFailure(
-    message: TransformationError.outputRejected(reason: "meaning changed").userMessage,
+    message: TransformationError.outputRejected(reason: "meaning changed", kind: .lostWord).userMessage,
     recovery: .pasteManually,
     severity: .degraded,
     transcript: spokenWords)

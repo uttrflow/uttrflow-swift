@@ -101,7 +101,9 @@ struct RemovalAuditTests {
     func refusesLostAcronym() {
         #expect(
             verdict("we rushed him to ER before midnight", "We rushed him to before midnight.")
-                == .rejected(reason: "the fillers step took out 'ER' and the rewrite does not put it back"))
+                == .rejected(
+                    reason: "the fillers step took out 'ER' and the rewrite does not put it back",
+                    kind: .removedWordNotRestored))
     }
 
     @Test("accepts a rewrite that puts back the acronym, which is the speaker's word and not an invention")
@@ -116,7 +118,8 @@ struct RemovalAuditTests {
         #expect(
             verdict("tell the landlord no, the landlord has to wait", "Tell the landlord has to wait.")
                 == .rejected(
-                    reason: "the selfCorrection step took out 'no' and the rewrite does not put it back"))
+                    reason: "the selfCorrection step took out 'no' and the rewrite does not put it back",
+                    kind: .removedWordNotRestored))
     }
 
     @Test("accepts a rewrite that puts the negation back")

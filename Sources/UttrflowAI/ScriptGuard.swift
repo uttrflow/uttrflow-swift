@@ -10,10 +10,12 @@ extension MeaningPreservationGuard {
     /// Refuses a rewrite in another script, a translation of a Devanagari draft, or a worked example the draft did not say. See `Docs/latin-output.md`.
     public func scriptVerdict(draft: String, rewritten: String, examples: [String] = []) -> GuardVerdict {
         guard LatinScript.isLatin(rewritten), !Romaniser.containsDevanagari(rewritten) else {
-            return .rejected(reason: "the rewrite is not written in the Latin alphabet")
+            return .rejected(
+                reason: "the rewrite is not written in the Latin alphabet", kind: .notLatinScript)
         }
         if let example = Self.echoedExample(draft: draft, rewritten: rewritten, examples: examples) {
-            return .rejected(reason: "the rewrite repeats the worked example '\(example)'")
+            return .rejected(
+                reason: "the rewrite repeats the worked example '\(example)'", kind: .echoedExample)
         }
         guard Romaniser.containsDevanagari(draft) else { return .accepted }
         let heard = Set(WordShape.words(Romaniser.romanised(draft)).map(Romaniser.soundKey))
@@ -22,7 +24,8 @@ extension MeaningPreservationGuard {
         guard !written.isEmpty else { return .accepted }
         let strangers = written.filter { !heard.contains(Romaniser.soundKey($0)) }.count
         guard Double(strangers) <= Double(written.count) * Self.mostStrangerWords else {
-            return .rejected(reason: "the rewrite translated the Hindi instead of romanising it")
+            return .rejected(
+                reason: "the rewrite translated the Hindi instead of romanising it", kind: .translated)
         }
         return .accepted
     }

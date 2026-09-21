@@ -5,8 +5,8 @@ public import UttrflowCore
 public enum GuardVerdict: Sendable, Equatable {
     /// The rewrite may be shown.
     case accepted
-    /// The rewrite is refused, with the reason a log can show.
-    case rejected(reason: String)
+    /// The rewrite is refused, with the reason a log can show and the kind a pasted report may carry.
+    case rejected(reason: String, kind: RefusalKind)
 
     public var isAccepted: Bool { self == .accepted }
 }
@@ -35,24 +35,24 @@ public struct MeaningPreservationGuard: Sendable {
         layout: LayoutPolicy = [.paragraphs, .lists],
         grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
     ) -> GuardVerdict {
-        if case .rejected(let reason) = verdict(original: draft.text, rewritten: rewritten) {
-            return .rejected(reason: reason)
+        if case .rejected(let reason, let kind) = verdict(original: draft.text, rewritten: rewritten) {
+            return .rejected(reason: reason, kind: kind)
         }
         let restored = Self.restored(RemovalAudit.unauthorised(in: draft, grants: grants))
-        if case .rejected(let reason) = Self.removalVerdict(
+        if case .rejected(let reason, let kind) = Self.removalVerdict(
             restored, kept: draft.text, rewritten: rewritten, echoed: echoed)
         {
-            return .rejected(reason: reason)
+            return .rejected(reason: reason, kind: kind)
         }
         let alignment = RewriteAlignment(kept: draft.text, rewritten: rewritten)
         let readings = Self.readingVerdict(doubtful, in: alignment)
-        if case .rejected(let reason) = readings.verdict {
-            return .rejected(reason: reason)
+        if case .rejected(let reason, let kind) = readings.verdict {
+            return .rejected(reason: reason, kind: kind)
         }
-        if case .rejected(let reason) = Self.layoutVerdict(
+        if case .rejected(let reason, let kind) = Self.layoutVerdict(
             kept: draft.text, rewritten: rewritten, layout: layout)
         {
-            return .rejected(reason: reason)
+            return .rejected(reason: reason, kind: kind)
         }
         return Self.grammarVerdict(
             alignment, excusing: readings.excused, echoed: echoed, allowing: doubtful,
@@ -83,7 +83,8 @@ public struct MeaningPreservationGuard: Sendable {
                 : written.contains { survives(token.matching, as: $0) }
             guard present else {
                 return .rejected(
-                    reason: "the \(pass) step took out '\(token.text)' and the rewrite does not put it back")
+                    reason: "the \(pass) step took out '\(token.text)' and the rewrite does not put it back",
+                    kind: .removedWordNotRestored)
             }
         }
         return .accepted
@@ -124,7 +125,9 @@ public struct MeaningPreservationGuard: Sendable {
                 let offered = span.candidates.filter { writes($0.spelling) }
                 guard writes(span.heard) || !offered.isEmpty else {
                     return (
-                        .rejected(reason: "the rewrite read '\(span.heard)' as a word it was not offered"),
+                        .rejected(
+                            reason: "the rewrite read '\(span.heard)' as a word it was not offered",
+                            kind: .unofferedReading),
                         excused, taken
                     )
                 }
@@ -207,16 +210,17 @@ public struct MeaningPreservationGuard: Sendable {
         let wanted = breaks(in: kept)
         let got = breaks(in: rewritten)
         guard wanted.paragraphs <= got.paragraphs, wanted.lines <= got.lines else {
-            return .rejected(reason: "the rewrite dropped a line break the speaker asked for")
+            return .rejected(reason: "the rewrite dropped a line break the speaker asked for", kind: .layout)
         }
         // A list may be laid out and never composed, so one may appear only where the destination lays them out.
         guard layout.contains(.lists) || listMarks(in: rewritten) <= listMarks(in: kept) else {
-            return .rejected(reason: "the rewrite composed a list the speaker did not speak")
+            return .rejected(reason: "the rewrite composed a list the speaker did not speak", kind: .layout)
         }
         // Somewhere with no paragraphs to make, a break the speaker did not ask for is the model's own shape.
         guard layout.contains(.paragraphs) || got.paragraphs + got.lines <= wanted.paragraphs + wanted.lines
         else {
-            return .rejected(reason: "the rewrite added a line break the speaker did not ask for")
+            return .rejected(
+                reason: "the rewrite added a line break the speaker did not ask for", kind: .layout)
         }
         return .accepted
     }
@@ -239,28 +243,28 @@ public struct MeaningPreservationGuard: Sendable {
         let rewrittenWords = TextTidy.words(rewritten)
 
         if !originalWords.isEmpty, rewrittenWords.isEmpty {
-            return .rejected(reason: "the rewrite is empty")
+            return .rejected(reason: "the rewrite is empty", kind: .emptyRewrite)
         }
         // A speaker who opens with "I have" gets their words, not a preamble check.
         if let preamble = Self.preambles.first(where: {
             rewritten.lowercased().hasPrefix($0) && !original.lowercased().hasPrefix($0)
         }) {
-            return .rejected(reason: "the rewrite begins with '\(preamble)'")
+            return .rejected(reason: "the rewrite begins with '\(preamble)'", kind: .preamble)
         }
         if Double(rewrittenWords.count) > Double(originalWords.count) * Self.maximumGrowthFactor + 4 {
-            return .rejected(reason: "the rewrite is far longer than what was said")
+            return .rejected(reason: "the rewrite is far longer than what was said", kind: .tooLong)
         }
         if originalWords.count > Self.shortUtteranceWords {
             let retained = Double(rewrittenWords.count) / Double(originalWords.count)
             if retained < Self.minimumRetainedFraction {
-                return .rejected(reason: "the rewrite dropped most of what was said")
+                return .rejected(reason: "the rewrite dropped most of what was said", kind: .tooShort)
             }
         }
         if let invented = Self.inventedNumber(original: original, rewritten: rewritten) {
-            return .rejected(reason: "the rewrite introduced the number \(invented)")
+            return .rejected(reason: "the rewrite introduced the number \(invented)", kind: .inventedNumber)
         }
         if let changed = Self.changedQuantity(original: original, rewritten: rewritten) {
-            return .rejected(reason: "the rewrite wrote \(changed) as another amount")
+            return .rejected(reason: "the rewrite wrote \(changed) as another amount", kind: .changedNumber)
         }
         return .accepted
     }
@@ -308,30 +312,32 @@ public struct MeaningPreservationGuard: Sendable {
             let token = keptTokens[index]
             return token.isPlain && isContent(token) && !composed.contains(index) && !excused.contains(index)
         }
-        if case .rejected(let reason) = survivalVerdict(carried.map { keptTokens[$0] }, in: written) {
-            return .rejected(reason: reason)
+        if case .rejected(let reason, let kind) = survivalVerdict(carried.map { keptTokens[$0] }, in: written)
+        {
+            return .rejected(reason: reason, kind: kind)
         }
-        if case .rejected(let reason) = placeVerdict(Set(carried), in: alignment, echo: echoTokens) {
-            return .rejected(reason: reason)
+        if case .rejected(let reason, let kind) = placeVerdict(Set(carried), in: alignment, echo: echoTokens)
+        {
+            return .rejected(reason: reason, kind: kind)
         }
         let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + echoTokens)
         if dropped > 0 {
-            return .rejected(reason: "the rewrite dropped a negation")
+            return .rejected(reason: "the rewrite dropped a negation", kind: .negationDropped)
         }
-        if case .rejected(let reason) = negationPlacementVerdict(
+        if case .rejected(let reason, let kind) = negationPlacementVerdict(
             alignment, echo: echoTokens)
         {
-            return .rejected(reason: reason)
+            return .rejected(reason: reason, kind: kind)
         }
         // The echo is the field's text before the caret, so it is an origin a negation may come from, never a total.
         let added =
             negators(in: rewrittenTokens) - negators(in: keptTokens) - negators(in: echoTokens + restored)
         if added > 0 {
-            return .rejected(reason: "the rewrite added a negation")
+            return .rejected(reason: "the rewrite added a negation", kind: .negationAdded)
         }
         let churn = functionWordChurn(keptTokens, rewrittenTokens)
         if churn > 3 * sentenceCount(alignment.rewrittenText) {
-            return .rejected(reason: "the rewrite changed \(churn) small words")
+            return .rejected(reason: "the rewrite changed \(churn) small words", kind: .smallWordChurn)
         }
         // A word put back where a pass took it without the grant to is the speaker's, not the model's.
         return inventionVerdict(
@@ -347,7 +353,7 @@ public struct MeaningPreservationGuard: Sendable {
             for index in change.kept where carried.contains(index) {
                 let token = alignment.kept[index]
                 guard !here.contains(where: { survives(token.matching, as: $0) }) else { continue }
-                return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
+                return .rejected(reason: "the rewrite lost or replaced '\(token.text)'", kind: .lostWord)
             }
         }
         return .accepted
@@ -372,7 +378,7 @@ public struct MeaningPreservationGuard: Sendable {
             if !origins.contains(where: { survives(token.matching, as: $0) })
                 && !isSpelled(token.text, from: origins)
             {
-                return .rejected(reason: "the rewrite invented '\(token.text)'")
+                return .rejected(reason: "the rewrite invented '\(token.text)'", kind: .inventedWord)
             }
         }
         return .accepted
@@ -399,7 +405,7 @@ public struct MeaningPreservationGuard: Sendable {
         let rewrittenClauses = negationClauses(in: rewritten)
         guard keptClauses.count == rewrittenClauses.count else { return .accepted }
         guard keptClauses == rewrittenClauses else {
-            return .rejected(reason: "the rewrite moved a negation")
+            return .rejected(reason: "the rewrite moved a negation", kind: .negationMoved)
         }
         return .accepted
     }
@@ -520,11 +526,11 @@ public struct MeaningPreservationGuard: Sendable {
         for token in kept {
             let places = written.indices.filter { survives(token.matching, as: written[$0]) }
             guard !places.isEmpty else {
-                return .rejected(reason: "the rewrite lost or replaced '\(token.text)'")
+                return .rejected(reason: "the rewrite lost or replaced '\(token.text)'", kind: .lostWord)
             }
             // The earliest place still open is taken, which is the most room the words after it can be left.
             guard let place = places.first(where: { $0 >= reached }) else {
-                return .rejected(reason: "the rewrite moved '\(token.text)'")
+                return .rejected(reason: "the rewrite moved '\(token.text)'", kind: .movedWord)
             }
             reached = place
         }

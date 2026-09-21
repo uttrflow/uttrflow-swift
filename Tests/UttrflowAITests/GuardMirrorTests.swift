@@ -45,7 +45,7 @@ struct GuardMirrorTests {
 
     /// The reason the guard gives, or nil where it accepted.
     private func refusal(_ kept: String, _ rewritten: String) -> String? {
-        guard case .rejected(let reason) = sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+        guard case .rejected(let reason, _) = sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
         else { return nil }
         return reason
     }

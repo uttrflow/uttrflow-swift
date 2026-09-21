@@ -145,7 +145,7 @@ struct MeaningPreservationGuardTests {
     @Test("names the number it objected to, so a failure can be understood")
     func namesTheInventedNumber() {
         let verdict = sut.verdict(original: "meet me tomorrow", rewritten: "Meet me at 3 tomorrow.")
-        #expect(verdict == .rejected(reason: "the rewrite introduced the number 3"))
+        #expect(verdict == .rejected(reason: "the rewrite introduced the number 3", kind: .inventedNumber))
     }
 
     /// Eight fillers out of ten words leave two, so a two-word rewrite is right rather than a rewrite that dropped most of what was said.
@@ -166,7 +166,7 @@ struct MeaningPreservationGuardTests {
         #expect(sut.verdict(draft: draft, rewritten: "At 5.").isAccepted)
         #expect(
             sut.verdict(draft: draft, rewritten: "At 4 or 5.")
-                == .rejected(reason: "the rewrite introduced the number 4"))
+                == .rejected(reason: "the rewrite introduced the number 4", kind: .inventedNumber))
     }
 
     @Test("applies every other check to a draft")
@@ -182,7 +182,7 @@ struct MeaningPreservationGuardTests {
     @Test("reports acceptance as acceptance")
     func verdictEquality() {
         #expect(GuardVerdict.accepted.isAccepted)
-        #expect(!GuardVerdict.rejected(reason: "x").isAccepted)
+        #expect(!GuardVerdict.rejected(reason: "x", kind: .lostWord).isAccepted)
     }
 }
 
@@ -287,7 +287,7 @@ struct GrammarGuardTests {
     func rejectsDroppedContentWord() {
         #expect(
             verdict("we need two more developers on this team", "We need two more on this team.")
-                == .rejected(reason: "the rewrite lost or replaced 'developers'"))
+                == .rejected(reason: "the rewrite lost or replaced 'developers'", kind: .lostWord))
     }
 
     @Test("rejects a synonym: the word changed, not its form")
@@ -318,7 +318,9 @@ struct GrammarGuardTests {
         ]
     )
     func rejectsDroppedNegation(kept: String, rewritten: String) {
-        #expect(verdict(kept, rewritten) == .rejected(reason: "the rewrite dropped a negation"))
+        #expect(
+            verdict(kept, rewritten)
+                == .rejected(reason: "the rewrite dropped a negation", kind: .negationDropped))
     }
 
     /// "Never", "no" and "nothing" are content words, so the check above them catches those first.
@@ -347,7 +349,7 @@ struct GrammarGuardTests {
             verdict(
                 "we should not approve the design but we should approve the budget",
                 "We should approve the design but we should not approve the budget."
-            ) == .rejected(reason: "the rewrite moved a negation"))
+            ) == .rejected(reason: "the rewrite moved a negation", kind: .negationMoved))
         #expect(
             !verdict(
                 "we should approve the design but we should not approve the budget",
@@ -424,7 +426,7 @@ struct GrammarGuardTests {
     func rejectsFunctionChurn() {
         #expect(
             verdict("me and him went to the office", "He and I went towards an office.")
-                == .rejected(reason: "the rewrite changed 7 small words"))
+                == .rejected(reason: "the rewrite changed 7 small words", kind: .smallWordChurn))
     }
 
     @Test("gives every sentence of a longer rewrite its own churn allowance")
@@ -504,7 +506,10 @@ struct GrammarGuardTests {
         let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple", "apples"])]
         let verdict = sut.verdict(
             draft: draft("i ate an apple"), rewritten: "I ate an orange.", offering: offered)
-        #expect(verdict == .rejected(reason: "the rewrite read 'apple' as a word it was not offered"))
+        #expect(
+            verdict
+                == .rejected(
+                    reason: "the rewrite read 'apple' as a word it was not offered", kind: .unofferedReading))
     }
 
     @Test("accepts a doubtful word left exactly as it was heard")
@@ -641,7 +646,7 @@ struct GrammarGuardTests {
     func refusesAReplacedDuplicate() {
         let verdict = sut.verdict(
             draft: draft("call mark before mark leaves"), rewritten: "Call Mark before Mike leaves.")
-        #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'mark'"))
+        #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'mark'", kind: .lostWord))
     }
 
     /// "mark" is spelled inside "market", but "market" stands where it always stood and did not replace it.
@@ -694,7 +699,10 @@ struct GrammarGuardTests {
         #expect(
             sut.verdict(
                 draft: draft("we wasted our time"), rewritten: "We wasted sour times.", offering: offered
-            ) == .rejected(reason: "the rewrite read 'our time' as a word it was not offered"))
+            )
+                == .rejected(
+                    reason: "the rewrite read 'our time' as a word it was not offered",
+                    kind: .unofferedReading))
         #expect(!MeaningPreservationGuard.isWritten("our time", in: "sour times"))
         #expect(!MeaningPreservationGuard.isWritten("our time", in: "four times"))
         #expect(MeaningPreservationGuard.isWritten("payment sheet", in: "in PaymentSheet."))
@@ -724,7 +732,7 @@ struct GrammarGuardTests {
         let offered = [DoubtfulSpan(heard: "apple", confidence: 0.31, candidates: ["Apple"])]
         let verdict = sut.verdict(
             draft: draft("i ate an apple"), rewritten: "I ate an Apple pie.", offering: offered)
-        #expect(verdict == .rejected(reason: "the rewrite invented 'pie'"))
+        #expect(verdict == .rejected(reason: "the rewrite invented 'pie'", kind: .inventedWord))
     }
 
     @Test("judges nothing about readings when none were offered")
@@ -863,7 +871,7 @@ struct GuardOrderTests {
             verdict(
                 "we approved the design but rejected the budget",
                 "We rejected the design but approved the budget."
-            ) == .rejected(reason: "the rewrite moved 'design'"))
+            ) == .rejected(reason: "the rewrite moved 'design'", kind: .movedWord))
     }
 
     /// Every other check is a count, and a permutation changes no count.
@@ -921,7 +929,7 @@ struct GuardMatchStrengthTests {
     func refusesNearWord() {
         #expect(
             verdict("can you confirm the booking", "Can you confuse the booking?")
-                == .rejected(reason: "the rewrite lost or replaced 'confirm'"))
+                == .rejected(reason: "the rewrite lost or replaced 'confirm'", kind: .lostWord))
         #expect(!survives("confirm", as: "confuse"))
     }
 
@@ -930,7 +938,7 @@ struct GuardMatchStrengthTests {
     func refusesNearName() {
         #expect(
             verdict("tell Aarav about the change", "Tell Aaron about the change.")
-                == .rejected(reason: "the rewrite lost or replaced 'Aarav'"))
+                == .rejected(reason: "the rewrite lost or replaced 'Aarav'", kind: .lostWord))
         #expect(!survives("aarav", as: "Aaron"))
     }
 
@@ -985,7 +993,7 @@ struct GuardMatchStrengthTests {
             verdict(
                 "call fetch invoices before the sheet appears",
                 "Call fetchInvoicesNow before the sheet appears")
-                == .rejected(reason: "the rewrite invented 'fetchInvoicesNow'"))
+                == .rejected(reason: "the rewrite invented 'fetchInvoicesNow'", kind: .inventedWord))
     }
 
     /// "cannot" is named as "can not" written together; a word merely beginning with another is still a different word.
@@ -996,10 +1004,10 @@ struct GuardMatchStrengthTests {
         #expect(!survives("cannon", as: "cannot"))
         #expect(
             verdict("we can not go today", "We cannon go today.")
-                == .rejected(reason: "the rewrite lost or replaced 'cannot'"))
+                == .rejected(reason: "the rewrite lost or replaced 'cannot'", kind: .lostWord))
         #expect(
             verdict("cancel the order today", "Can the order today.")
-                == .rejected(reason: "the rewrite lost or replaced 'cancel'"))
+                == .rejected(reason: "the rewrite lost or replaced 'cancel'", kind: .lostWord))
         #expect(
             MeaningPreservationGuard.grammarTokens("we can note that").map(\.matching) == [
                 "we", "can", "note", "that",

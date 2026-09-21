@@ -469,7 +469,8 @@ public enum DiagnosticsPresenter {
             return "  \(CleaningSteps.name(of: change.step)): \(counts.joined(separator: ", "))"
         }
             + record.switchedOff.map { "  \(CleaningSteps.name(of: $0)): switched off" }
-            + record.refusals.map { "  answer refused (\($0.engine)): \($0.reason)" }
+            // The kind, never the reason: a reason quotes what was said, and this string is pasted elsewhere.
+            + record.refusals.map { "  answer refused (\($0.engine)): \($0.kind.summary)" }
     }
 
     // MARK: - Permissions

@@ -12,6 +12,10 @@ Each released version is a git tag and a build at
 ## [Unreleased]
 
 ### Fixed
+- **Copy Diagnostics no longer puts dictated words on the clipboard.** When the AI clean-up refused
+  an answer, the copied report quoted the words it refused over — a name, a number, whatever was
+  said — though the report promises it counts and never quotes. It now names the kind of refusal
+  and not the words. The Diagnostics page on your Mac still shows the full reason (#645).
 - **Forgetting what AI suggestions learned now removes it from disk straight away.** The lines
   were deleted from the store but stayed readable in a file beside it until you quit Uttrflow, so
   a backup taken in between still held them. If that file cannot be emptied, forgetting now says

@@ -56,7 +56,7 @@ struct TransformerRouterTests {
     @Test("falls through when an engine accepts the work and then fails")
     func fallsThroughOnFailure() async throws {
         let failing = StubTransformer(
-            kind: .foundationModels, error: .outputRejected(reason: "changed the meaning")
+            kind: .foundationModels, error: .outputRejected(reason: "changed the meaning", kind: .lostWord)
         )
         let router = TransformerRouter(
             engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules]
@@ -72,7 +72,7 @@ struct TransformerRouterTests {
     @Test("records the refused answer on the record of the engine that did answer")
     func recordsARefusal() async throws {
         let failing = StubTransformer(
-            kind: .foundationModels, error: .outputRejected(reason: "changed the meaning")
+            kind: .foundationModels, error: .outputRejected(reason: "changed the meaning", kind: .lostWord)
         )
         let router = TransformerRouter(
             engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules]

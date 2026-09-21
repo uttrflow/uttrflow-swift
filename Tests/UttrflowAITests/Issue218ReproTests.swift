@@ -60,7 +60,11 @@ struct Issue218RegressionTests {
         let verdict = sut.verdict(
             draft: draft("the ice cream is cold"), rewritten: "The ice screams is cold.",
             offering: offered)
-        #expect(verdict == .rejected(reason: "the rewrite read 'ice cream' as a word it was not offered"))
+        #expect(
+            verdict
+                == .rejected(
+                    reason: "the rewrite read 'ice cream' as a word it was not offered",
+                    kind: .unofferedReading))
     }
 
     @Test("the same partly changed run is refused through the two-text form as well")

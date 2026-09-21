@@ -435,7 +435,7 @@ struct DictationPipelineRecoveryTests {
         let clock = ManualClock()
         let pipeline = makePipeline(
             cleaner: RecoveryFakeCleaner(
-                outcome: .failure(.outputRejected(reason: "meaning changed")),
+                outcome: .failure(.outputRejected(reason: "meaning changed", kind: .lostWord)),
                 clock: clock,
                 takes: .milliseconds(75)),
             inserter: RecoveryFakeInserter(clock: clock, takes: .milliseconds(10)),

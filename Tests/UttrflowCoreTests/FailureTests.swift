@@ -154,7 +154,7 @@ struct FailurePresentationTests {
         let failures: [TransformationError] = [
             .noCapableTransformer,
             .transformFailed(kind: .localModel, description: "x"),
-            .outputRejected(reason: "x"),
+            .outputRejected(reason: "x", kind: .lostWord),
         ]
         for failure in failures {
             #expect(failure.recovery == .pasteManually)
@@ -168,7 +168,7 @@ struct FailurePresentationTests {
             TextInsertionError.insertionRejected(description: "x"),
             TransformationError.noCapableTransformer,
             TransformationError.transformFailed(kind: .localModel, description: "x"),
-            TransformationError.outputRejected(reason: "x"),
+            TransformationError.outputRejected(reason: "x", kind: .lostWord),
         ]
         for failure in failures {
             #expect(failure.recovery == .pasteManually)

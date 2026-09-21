@@ -249,7 +249,7 @@ struct GenerativeTextTransformerTests {
             _ = try await sut.transform(request("hello there my friend"))
             Issue.record("expected the rewrite to be refused")
         } catch {
-            guard case .outputRejected(let reason) = error else {
+            guard case .outputRejected(let reason, _) = error else {
                 Issue.record("expected outputRejected, got \(error)")
                 return
             }

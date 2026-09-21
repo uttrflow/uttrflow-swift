@@ -47,11 +47,15 @@ public struct CleaningRecord: Sendable, Equatable {
     /// An engine's answer that was thrown away before this one, and the reason it was refused.
     public struct Refusal: Sendable, Equatable {
         public let engine: String
+        /// What the screen shows, which may quote what was said because it stays on this Mac.
         public let reason: String
+        /// What a pasted report carries, which names the kind and never the words.
+        public let kind: RefusalKind
 
-        public init(engine: String, reason: String) {
+        public init(engine: String, reason: String, kind: RefusalKind) {
             self.engine = engine
             self.reason = reason
+            self.kind = kind
         }
     }
 

@@ -68,7 +68,7 @@ struct Issue217ReadingRestraintTests {
         let verdict = MeaningPreservationGuard().verdict(
             draft: .heard("i ?made a change to the parser", unsure: 0.42),
             rewritten: "I mod a change to the parser.", offering: spans)
-        #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'made'"))
+        #expect(verdict == .rejected(reason: "the rewrite lost or replaced 'made'", kind: .lostWord))
     }
 
     /// The second rule the issue names: what is on screen is evidence only when the word is not one everybody knows.

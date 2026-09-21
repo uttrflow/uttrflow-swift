@@ -5,7 +5,7 @@ public enum TransformationError: UttrflowFailure {
     /// The named transformer ran and failed.
     case transformFailed(kind: TransformerKind, description: String)
     /// The model returned something that failed the meaning-preservation checks.
-    case outputRejected(reason: String)
+    case outputRejected(reason: String, kind: RefusalKind)
 
     /// The one sentence: the raw words are ready to paste.
     public var userMessage: String {
