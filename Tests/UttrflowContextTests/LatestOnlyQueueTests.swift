@@ -50,16 +50,20 @@ struct LatestOnlyQueueTests {
     }
 
     @Test("a read is told it is no longer wanted once a newer one arrives")
-    func workIsToldWhenItIsDropped() async {
+    func workIsToldWhenItIsDropped() async throws {
         let queue = LatestOnlyQueue(label: "test.latest-only-wanted", qos: .userInitiated)
         let wanted = Flag()
 
+        let running = Signal()
+
         async let slow = queue.run(within: .seconds(5)) { isWanted -> Int? in
+            running.fire()
             Thread.sleep(forTimeInterval: 0.2)
             wanted.set(isWanted())
             return 1
         }
-        try? await Task.sleep(for: .milliseconds(50))
+        // The newer read is only newer once this one is running; a sleep leaves it dropped instead.
+        try await arrival(of: running.fired)
         _ = await queue.run(within: .seconds(5)) { _ -> Int? in 2 }
         _ = await slow
 
