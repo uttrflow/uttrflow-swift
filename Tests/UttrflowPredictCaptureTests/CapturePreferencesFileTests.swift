@@ -50,6 +50,19 @@ struct CapturePreferencesFileTests {
         try file.save(preferences)
         #expect(file.load() == preferences)
     }
+
+    @Test("Removing the file forgets every answer, and removing it again is not an error.")
+    func removedPreferencesAreGone() throws {
+        let scratch = Scratch()
+        let file = CapturePreferencesFile(path: scratch.preferencesPath)
+        var preferences = CapturePreferences()
+        preferences.record(.declined, for: "com.example.terminal")
+        try file.save(preferences)
+        try file.remove()
+        #expect(!FileManager.default.fileExists(atPath: scratch.preferencesPath))
+        #expect(file.load() == CapturePreferences())
+        try file.remove()
+    }
 }
 
 @Suite("Where the answers about each application live")
@@ -59,5 +72,18 @@ struct CapturePreferencesLocationTests {
         let file = CapturePreferencesFile.defaultFile(in: URL(filePath: "/tmp/support"))
         #expect(
             file.path(percentEncoded: false) == "/tmp/support/Uttrflow/predict-consent.v1.json")
+    }
+}
+
+@Suite("Removing the answers")
+struct CapturePreferencesFileRemovalTests {
+    @Test("Removing deletes the file, and removing a file that is not there is not an error.")
+    func removeDeletesTheFile() throws {
+        let scratch = Scratch()
+        let file = CapturePreferencesFile(path: scratch.preferencesPath)
+        try file.save(CapturePreferences(consent: ["com.example.terminal": .allowed]))
+        try file.remove()
+        #expect(!FileManager.default.fileExists(atPath: scratch.preferencesPath))
+        try file.remove()
     }
 }

@@ -17,6 +17,12 @@ public enum PanelEffect: Sendable, Equatable {
     case copyAndSay(String, PanelNotice, used: Clip.ID)
     /// Put the picture at the caret; carries the clip because the bytes are a file only the store can open.
     case closeAndInsertImage(Clip)
+    /// Put the picture on the clipboard and say why it could not be placed, as `copyAndSay` does for text.
+    case copyImageAndSay(Clip, PanelNotice)
+    /// Put this text on the clipboard and close, for the row's Copy.
+    case closeAndCopy(String, richText: String?, used: Clip.ID)
+    /// Put the picture on the clipboard and close, for the row's Copy on a picture.
+    case closeAndCopyImage(Clip)
     /// B8 — say the picture has gone, and leave the panel up so the row can be seen.
     case say(PanelNotice)
 }
@@ -34,7 +40,12 @@ extension PanelOutcome {
             } ?? .closeAndInsert(clip.text, used: clip.id)
         case .insertPlain(let clip): .closeAndInsert(clip.text, used: clip.id)
         case .change(let change): .applyAndRedraw(change)
-        case .copyOnly(let clip, let why): .copyAndSay(clip.text, why.notice, used: clip.id)
+        case .copyOnly(let clip, let why):
+            clip.image == nil
+                ? .copyAndSay(clip.text, why.notice, used: clip.id) : .copyImageAndSay(clip, why.notice)
+        case .copy(let clip):
+            clip.image == nil
+                ? .closeAndCopy(clip.text, richText: clip.richText, used: clip.id) : .closeAndCopyImage(clip)
         case .insertImage(let clip): .closeAndInsertImage(clip)
         case .pictureMissing:
             .say(

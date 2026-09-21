@@ -607,3 +607,90 @@ struct SettingsResetClipboardTests {
         #expect(!SettingsReset.learnedWords.targets.contains(.clipboard))
     }
 }
+
+/// What a full reset reaches beyond the stores this module owns.
+@Suite("Resetting leaves nothing behind on disk")
+struct SettingsResetLeftoverTests {
+    /// The closures a test hands in, recording which were called.
+    private actor Calls {
+        var names: Set<String> = []
+        func add(_ name: String) { names.insert(name) }
+    }
+
+    private struct Refused: Error {}
+
+    @Test("a full reset names recordings, snippets and consent answers among what it removes")
+    func everythingNamesTheLeftovers() {
+        let targets = SettingsReset.everything.targets
+        #expect(targets.contains(.recordings))
+        #expect(targets.contains(.snippets))
+        #expect(targets.contains(.suggestionConsent))
+        #expect(!SettingsReset.learnedWords.targets.contains(.recordings))
+    }
+
+    @Test("a full reset removes every set-aside copy and reaches every other owner")
+    func everythingRemovesTheLeftovers() async throws {
+        try await inATemporaryDirectory { directory in
+            let calls = Calls()
+            let clipboard = ClipboardStore(file: directory.appending(path: "clipboard.json"))
+            let store = FilePersonalisationStore(
+                dictionary: PersonalDictionaryStore(file: directory.appending(path: "dictionary.json")),
+                history: DictationHistoryStore(file: directory.appending(path: "history.json")),
+                clipboard: clipboard,
+                elsewhere: KeptElsewhere(
+                    recordings: { await calls.add("recordings") },
+                    snippets: { await calls.add("snippets") },
+                    suggestionConsent: { await calls.add("consent") }))
+            let copies = [
+                "history.json", "clipboard.json", "saved.v1.json", "dictionary.json",
+            ].map { directory.appending(path: "\($0).unreadable-1") }
+            for copy in copies { try Data("[]".utf8).write(to: copy) }
+
+            try await store.carryOut(.everything)
+
+            for copy in copies { #expect(!FileManager.default.fileExists(atPath: copy.path())) }
+            #expect(await calls.names == ["recordings", "snippets", "consent"])
+        }
+    }
+
+    @Test("an owner that refuses is a reset that failed")
+    func aRefusingOwnerIsReported() async throws {
+        try await inATemporaryDirectory { directory in
+            let store = FilePersonalisationStore(
+                dictionary: PersonalDictionaryStore(file: directory.appending(path: "dictionary.json")),
+                history: DictationHistoryStore(file: directory.appending(path: "history.json")),
+                clipboard: ClipboardStore(file: directory.appending(path: "clipboard.json")),
+                elsewhere: KeptElsewhere(recordings: { throw Refused() }))
+            await #expect(throws: SettingsResetFailure.self) {
+                try await store.carryOut(.everything)
+            }
+        }
+    }
+
+    @Test("an owner that refuses does not keep the others from being reached")
+    func refusalDoesNotStopTheRest() async throws {
+        try await inATemporaryDirectory { directory in
+            let calls = Calls()
+            let store = FilePersonalisationStore(
+                dictionary: PersonalDictionaryStore(file: directory.appending(path: "dictionary.json")),
+                history: DictationHistoryStore(file: directory.appending(path: "history.json")),
+                clipboard: ClipboardStore(file: directory.appending(path: "clipboard.json")),
+                elsewhere: KeptElsewhere(
+                    recordings: { throw Refused() },
+                    snippets: { await calls.add("snippets") },
+                    suggestionConsent: { await calls.add("consent") }))
+            await #expect(throws: SettingsResetFailure.self) {
+                try await store.carryOut(.everything)
+            }
+            #expect(await calls.names == ["snippets", "consent"])
+        }
+    }
+
+    @Test("the defaults reach nothing and refuse nothing")
+    func defaultsDoNothing() async throws {
+        let elsewhere = KeptElsewhere()
+        try await elsewhere.recordings()
+        try await elsewhere.snippets()
+        try await elsewhere.suggestionConsent()
+    }
+}

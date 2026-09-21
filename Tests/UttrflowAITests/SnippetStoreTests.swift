@@ -76,7 +76,8 @@ struct SnippetStoreTests {
 
     @Test("a snippet typed into the editor is kept as typed")
     func savingFromTheEditor() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         let kept = try await store.save(
             trigger: "  my address ", expansion: "Flat 402\nLondon", replacing: nil,
             created: snippetEpoch)
@@ -90,7 +91,8 @@ struct SnippetStoreTests {
     /// Losing the identity, the date or the counts would make an old snippet look new.
     @Test("editing keeps the identity, the date it was created and what has been counted")
     func editingKeepsWhatWasNotTyped() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         let original = Snippet(
             trigger: "my adress", expansion: "Flat 402", created: snippetEpoch, timesUsed: 7,
             lastUsed: snippetEpoch.addingTimeInterval(3600))
@@ -111,7 +113,8 @@ struct SnippetStoreTests {
     /// The row was deleted under the open editor; refusing would lose what the user typed.
     @Test("editing a snippet that is no longer there keeps what was typed, as a new one")
     func editingSomethingDeletedUnderneath() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         let later = snippetEpoch.addingTimeInterval(60)
         let kept = try await store.save(
             trigger: "my address", expansion: "Flat 402", replacing: UUID(), created: later)
@@ -123,7 +126,8 @@ struct SnippetStoreTests {
 
     @Test("a trigger with no words in it is refused, and writes nothing")
     func savingNothingFromTheEditor() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         await #expect(throws: SnippetStoreError.triggerHasNoWords) {
             try await store.save(
                 trigger: "  ", expansion: "Flat 402", replacing: nil, created: snippetEpoch)
@@ -446,5 +450,40 @@ struct SnippetStoreErrorTests {
         #expect(SnippetStoreError.triggerHasNoWords.severity == .informational)
         #expect(SnippetStoreError.triggerAlreadyUsed.severity == .informational)
         #expect(SnippetStoreError.expansionIsEmpty.severity == .informational)
+    }
+}
+
+/// A copy set aside from an unreadable file is the user's too, so forgetting everything takes it.
+@Suite("Snippet set-aside copies")
+struct SnippetSetAsideTests {
+    /// Writes a set-aside copy beside the store's file, answering with where it is.
+    private func copy(in sandbox: borrowing Sandbox) throws -> URL {
+        try FileManager.default.createDirectory(at: sandbox.folder, withIntermediateDirectories: true)
+        let url = sandbox.folder.appending(path: "snippets.v1.json.unreadable-1")
+        try Data("old".utf8).write(to: url)
+        return url
+    }
+
+    @Test("forgetting everything removes every copy set aside")
+    func forgettingRemovesCopies() async throws {
+        let sandbox = Sandbox()
+        let old = try copy(in: sandbox)
+        try await SnippetStore(file: sandbox.file).deleteEverything()
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+    }
+
+    @Test("a copy the folder will not give up is reported")
+    func refusedCopyIsReported() async throws {
+        let sandbox = Sandbox()
+        _ = try copy(in: sandbox)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o500], ofItemAtPath: sandbox.folder.path)
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o700], ofItemAtPath: sandbox.folder.path)
+        }
+        await #expect(throws: SnippetStoreError.couldNotWrite) {
+            try await SnippetStore(file: sandbox.file).deleteEverything()
+        }
     }
 }

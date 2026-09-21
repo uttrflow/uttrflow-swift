@@ -215,8 +215,13 @@ public struct Draft: Sendable, Equatable {
     private mutating func carryMarks(from index: Int, by pass: PassID) {
         let shape = WordShape(words[index].text)
         // A comma is the pause the removed word stood in, so it goes with the word; every other mark is the sentence's.
-        let closing = shape.suffix.filter { $0 != "," && !$0.isWhitespace }
-        let opening = shape.prefix.filter { $0 != "," && !$0.isWhitespace }
+        let amount = shape.core.contains(where: \.isNumber)
+        let closing = shape.suffix.filter {
+            $0 != "," && !$0.isWhitespace && !(amount && Self.isOwnSymbol($0))
+        }
+        let opening = shape.prefix.filter {
+            $0 != "," && !$0.isWhitespace && !(amount && Self.isOwnSymbol($0))
+        }
         if !closing.isEmpty, let before = previousPresent(before: index) {
             replace(at: before, with: WordShape.marked(words[before].text, withAll: closing), by: pass)
         }
@@ -224,6 +229,14 @@ public struct Draft: Sendable, Equatable {
             replace(at: after, with: String(opening) + words[after].text, by: pass)
         }
     }
+
+    /// Whether a mark on a number is part of its value, like the `$` of "$40" or the `%` of "40%", and so leaves with it.
+    private static func isOwnSymbol(_ mark: Character) -> Bool {
+        mark.isCurrencySymbol || unitSymbols.contains(mark)
+    }
+
+    /// Signs written against a number that are part of its value rather than the sentence's punctuation.
+    private static let unitSymbols: Set<Character> = ["%", "\u{2030}", "\u{2031}", "\u{00B0}", "#"]
 
     /// The word still in the text before `index`, or nil when a line break stands between: a mark never crosses one.
     private func previousPresent(before index: Int) -> Int? {

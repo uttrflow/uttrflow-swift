@@ -1,11 +1,12 @@
 // Tests the capture engine's lifecycle rules without a microphone.
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowAudio
 @testable import UttrflowCore
 
-@Suite("AVAudioCaptureEngine")
+@Suite("AVAudioCaptureEngine", .timeLimit(.minutes(1)))
 struct AVAudioCaptureEngineTests {
     @Test("starts idle")
     func startsIdle() async {
@@ -79,7 +80,7 @@ struct AVAudioCaptureEngineTests {
         source.emit(Array(repeating: 0.5, count: 64))
 
         source.die()
-        await settle(engine)
+        try await settle(engine)
 
         await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
     }
@@ -95,7 +96,7 @@ struct AVAudioCaptureEngineTests {
         // Away, then back: samples resume into the same buffer with the missing span dropped.
         source.skip()
         source.emit(Array(repeating: 0.5, count: 64))
-        await settle(engine)
+        try await settle(engine)
 
         await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
     }
@@ -106,7 +107,7 @@ struct AVAudioCaptureEngineTests {
         let engine = AVAudioCaptureEngine(source: source)
         try await engine.start()
         source.skip()
-        await settle(engine)
+        try await settle(engine)
         // Asserted, not discarded: a gap that stopped being refused would pass this test silently.
         await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
 
@@ -123,7 +124,7 @@ struct AVAudioCaptureEngineTests {
         let engine = AVAudioCaptureEngine(source: source)
         try await engine.start()
         source.die()
-        await settle(engine)
+        try await settle(engine)
         _ = try? await engine.stop()
 
         try await engine.start()
@@ -188,12 +189,8 @@ struct AVAudioCaptureEngineTests {
     }
 
     /// Waits for the report to cross onto the actor, which it does on a task of its own.
-    private func settle(_ engine: AVAudioCaptureEngine, handling count: Int = 1) async {
-        let ceiling = ContinuousClock.now + .seconds(30)
-        while await engine.interruptionsHandled < count, ContinuousClock.now < ceiling {
-            try? await Task.sleep(for: .milliseconds(1))
-        }
-        #expect(await engine.interruptionsHandled >= count, "the interruption never reached the engine")
+    private func settle(_ engine: AVAudioCaptureEngine, handling count: Int = 1) async throws {
+        try await eventually { await engine.interruptionsHandled >= count }
     }
 
     @Test("refuses to stop what is not running")

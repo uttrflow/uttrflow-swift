@@ -79,6 +79,12 @@ history restored is harder to explain than none. The unreadable file is renamed 
 (`history.v1.json.unreadable-<seconds since 1970>`, by `LocalStore.read(_:from:)`), so the next
 dictation starts a fresh file rather than writing over the only copy of the old one.
 
+A set-aside copy holds transcripts, so it lives no longer than they would have. Every read
+through `records(keeping:)` deletes a copy whose stamp is older than the retention promise, and a
+promise of zero days deletes every copy. "Clear History" and "Reset personalisation" delete every
+copy whatever its age, since nothing in the app can show one and nothing can tell it apart from
+the transcripts the user just asked to be forgotten.
+
 Writes are atomic, so a crash or a full disk cannot leave behind the truncated file `load()`
 would then have to throw away. An empty list removes the file rather than writing `[]`, so an
 emptied history leaves nothing of the user's on disk at all — which is what "Clear History"

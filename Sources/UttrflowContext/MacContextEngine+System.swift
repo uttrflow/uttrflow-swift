@@ -44,9 +44,9 @@ extension MacContextEngine {
         _ = AXUIElementSetMessagingTimeout(app, budgetInSeconds)
 
         // Read separately, so an app that names its window but hides its selection still gives the half.
-        let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute)
+        let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute, timeoutInSeconds: budgetInSeconds)
             .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
-        let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute)
+        let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute, timeoutInSeconds: budgetInSeconds)
         // Asked before any text is, so a field that hides what is typed is never read.
         if let field, isSecure(field) { return FocusedWindow(title: title, isSecure: true) }
         let selected = field.flatMap { SurfaceProbe.string($0, kAXSelectedTextAttribute) }

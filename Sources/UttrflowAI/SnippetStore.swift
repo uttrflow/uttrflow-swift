@@ -84,9 +84,10 @@ public actor SnippetStore {
         return kept
     }
 
-    /// Forgets everything, reaching the disk now rather than at the next write.
+    /// Forgets everything, copies set aside from an unreadable file included, reaching the disk now.
     public func deleteEverything() throws(SnippetStoreError) {
         try persist([])
+        do { try LocalStore.removeSetAside(file) } catch { throw .couldNotWrite }
     }
 
     /// Counts every firing in `ids`, ignoring identifiers that are gone and writing only if any counted.

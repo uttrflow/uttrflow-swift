@@ -27,6 +27,17 @@ public enum DictationPresenter {
         return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
     }
 
+    /// A passing notice about something other than a dictation, drawn like an outcome: words, no waveform, no action.
+    public static func dock(
+        notice symbolName: String, primaryLine: String, secondaryLine: String?,
+        accessibilityLabel: String
+    ) -> DockPresentation {
+        DockPresentation(
+            symbolName: symbolName, primaryLine: primaryLine, secondaryLine: secondaryLine,
+            showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
+            accessibilityLabel: accessibilityLabel)
+    }
+
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing
     ) -> DockPresentation {
@@ -114,7 +125,8 @@ public enum DictationPresenter {
         for state: DictationState, advice: DictationAdvice = .keepGoing, speechModel: SpeechModelLoad?
     ) -> DockPresentation {
         let drawn = dock(for: state, advice: advice)
-        guard let load = speechModel else { return drawn }
+        // A missing model is setup's to fetch, and the button stays out of the way while setup runs.
+        guard let load = speechModel, load != .missing else { return drawn }
         switch state {
         case .idle:
             return DockPresentation(

@@ -27,14 +27,14 @@ CACHE_CAP = 256 * 1_048_576
 
 # Wakeups below the floor that are allowed, keyed by file and interval expression, each with its reason printed on every run.
 WAKEUPS_ALLOWED = {
+    ("Sources/UttrflowPipeline/DictationController.swift", "start.advanced(by:elapsed)"): (
+        "the recording cap's countdown, every ten seconds in a recording's last minute and never at rest"
+    ),
     ("Sources/Uttrflow/Dock/DockPanelController.swift", "Self.meteringInterval"): (
         "the level meter, which runs only while a recording is in progress and stops with it"
     ),
     ("Sources/UttrflowInput/CarbonHotkeyMonitor.swift", ".milliseconds(Self.reconciliationMilliseconds)"): (
         "the release check, which runs only while the shortcut is held; see Docs/stuck-recording.md"
-    ),
-    ("Sources/UttrflowClipboard/CodeFormatting+System.swift", ".milliseconds(20)"): (
-        "waits for a formatter a person chose to exit, bounded by KnownFormatter.timeout"
     ),
     ("Sources/UttrflowInput/PasteConfirmation.swift", "interval"): (
         "watches the caret after a paste the user made, bounded by the confirmation budget"
@@ -50,6 +50,9 @@ WAKEUPS_ALLOWED = {
     ),
     ("Sources/UttrflowAccount/HTTPAuthenticationService.swift", "wait"): (
         "polls for a sign-in the user started, at the interval the server sets, until the code expires"
+    ),
+    ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", ".milliseconds(max(delay, 1))"): (
+        "books one turn after a pause in typing, calling the other `wake` overload once; each keystroke replaces it"
     ),
 }
 
@@ -274,7 +277,8 @@ def repeating_sites(text):
     """Yields (offset, kind, interval expression) for every repeating timer, display link and sleeping loop."""
     for match in re.finditer(r"\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(", text):
         labelled = dict((label, value) for label, value in arguments(text, match.end() - 1) if label)
-        if labelled.get("repeats") == "true":
+        # A `repeats` passed through from a caller may be true, so only a literal `false` is a one-shot.
+        if "repeats" in labelled and labelled["repeats"] != "false":
             interval = labelled.get("withTimeInterval") or labelled.get("timeInterval")
             if interval:
                 yield match.start(), "repeating timer", interval
@@ -310,6 +314,45 @@ def repeating_sites(text):
         if label == "nanoseconds":
             value = f".nanoseconds({value})"
         yield match.start(), "sleeping loop", value
+    for offset, interval in rescheduling_sites(text, loops):
+        yield offset, "self-rescheduling callback", interval
+
+
+def calls_itself(text, name, start, end):
+    """Whether the function `name` is called, or named as a selector, between start and end."""
+    pattern = r"(?:(?<![\w.])|\bself\??\.)" + re.escape(name) + r"\s*\(|#selector\(\s*(?:\w+\.)?" + re.escape(name) + r"\b"
+    return re.search(pattern, text[start:end]) is not None
+
+
+def rescheduling_sites(text, loops):
+    """Yields (offset, interval) for every delay in a function that is followed by a call back into that function."""
+    delays = re.compile(r"\basyncAfter\s*\(|\bperform\s*\(|\b(?:sleep|pause)\s*\(|\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(")
+    for name, _, opening, end, _ in functions(text):
+        for match in delays.finditer(text, opening, end):
+            if any(start < match.start() < stop for start, stop in loops):
+                continue
+            labelled = arguments(text, match.end() - 1)
+            labels = dict((label, value) for label, value in labelled if label)
+            call = match.group(0)
+            if call.startswith("asyncAfter"):
+                deadline = labels.get("deadline") or labels.get("wallDeadline") or ""
+                interval = re.sub(r"^\s*(?:DispatchTime|DispatchWallTime)?\s*\.\s*now\s*\(\s*\)\s*\+\s*", "", deadline)
+            elif call.startswith("perform"):
+                if "afterDelay" not in labels:
+                    continue
+                interval = labels["afterDelay"]
+            elif call.startswith("Timer"):
+                if labels.get("repeats") != "false":
+                    continue
+                interval = labels.get("withTimeInterval") or labels.get("timeInterval") or ""
+            else:
+                if not labelled or labelled == [(None, "")]:
+                    continue
+                label, interval = labelled[0]
+                if label == "nanoseconds":
+                    interval = f".nanoseconds({interval})"
+            if calls_itself(text, name, match.start(), end):
+                yield match.start(), interval
 
 
 def check_wakeups(tree, findings, report):
@@ -617,6 +660,30 @@ INJECTIONS = (
         "wakeups",
     ),
     (
+        "Sources/UttrflowClipboard/PasteboardWatcher.swift",
+        "    // MARK: - The loop",
+        "    func tick() { DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.tick() } }\n    // MARK: - The loop",
+        "wakeups",
+    ),
+    (
+        "Sources/UttrflowClipboard/PasteboardWatcher.swift",
+        "    // MARK: - The loop",
+        "    func tick() async { try? await Task.sleep(for: .milliseconds(100)); await tick() }\n    // MARK: - The loop",
+        "wakeups",
+    ),
+    (
+        "Sources/UttrflowClipboard/PasteboardWatcher.swift",
+        "    // MARK: - The loop",
+        "    @objc func tick() { perform(#selector(tick), with: nil, afterDelay: 0.1) }\n    // MARK: - The loop",
+        "wakeups",
+    ),
+    (
+        "Sources/UttrflowClipboard/PasteboardWatcher.swift",
+        "    // MARK: - The loop",
+        "    func every(_ seconds: TimeInterval, repeats: Bool) { _ = Timer.scheduledTimer(withTimeInterval: seconds, repeats: repeats) { _ in } }\n    // MARK: - The loop",
+        "wakeups",
+    ),
+    (
         "Sources/UttrflowPredict/DiscretionaryGenerator.swift",
         "Task.detached(priority: .utility)", "Task.detached(priority: .userInitiated)", "priority",
     ),
@@ -676,7 +743,12 @@ def self_test(root):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="The wakeup check reads one file at a time and follows no calls: a sleep in a function a loop calls, "
+        "two functions that schedule each other, or an interval set by another file's caller gets past it. "
+        "See Docs/performance.md.",
+    )
     parser.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     parser.add_argument("--self-test", action="store_true", help="also prove each check fails on an injected violation")
     options = parser.parse_args()

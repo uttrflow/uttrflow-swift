@@ -145,9 +145,17 @@ final class DockPanelController {
         model.shrinksToGrip = shrinks
     }
 
+    /// Whether the idle button collapses to a grip, as the view will next draw it.
+    var shrinksToGrip: Bool { model.shrinksToGrip }
+
     /// Says which keys the keycap shows; the shortcut is configurable, so it cannot be fixed at construction.
     func setShortcut(_ shortcut: String) {
         model.shortcut = shortcut
+    }
+
+    /// Says why the shortcut cannot be heard in place of the keycap hint, or nil to show the keycap again.
+    func setShortcutUnheard(_ reason: String?) {
+        model.shortcutUnheard = reason
     }
 
     // MARK: - Geometry
@@ -178,6 +186,8 @@ final class DockPanelController {
         panel.hidesOnDeactivate = false
         panel.worksWhenModal = true
         panel.level = .statusBar
+        // `orderOut` would otherwise block the main thread for the length of AppKit's fade.
+        panel.animationBehavior = .none
         panel.collectionBehavior = [
             .canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle,
         ]

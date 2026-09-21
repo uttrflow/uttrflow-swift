@@ -25,7 +25,7 @@ public struct FrontmostApp: Sendable {
 /// Reads the focused field once, for everything the suggestion loop needs. See `Docs/predict.md`.
 public enum FocusedFieldReader {
     /// Its own thread, because these calls block until the other application answers.
-    private static let queue = DispatchQueue(label: "com.uttrflow.focused-field", qos: .userInitiated)
+    private static let queue = LatestOnlyQueue(label: "com.uttrflow.focused-field", qos: .userInitiated)
 
     /// The primary screen's top edge, cached because `NSScreen` is main-thread-only and this reads off it.
     private static let cachedPrimaryScreenMaxY = Mutex<CGFloat>(0)
@@ -72,16 +72,14 @@ public enum FocusedFieldReader {
     public static func read() async -> FocusedFieldSnapshot? {
         // Identity is taken on the main actor first, because the blocking read below may not touch `NSWorkspace`.
         guard let app = await frontmostApp() else { return nil }
-        // A field that stops answering costs the turn half a second at most; the read finishes on its queue regardless.
-        return await Deadline.first(within: .milliseconds(500)) {
-            await withCheckedContinuation { continuation in
-                queue.async { continuation.resume(returning: snapshot(app: app)) }
-            }
+        // A field that stops answering costs the turn half a second at most, and no later turn waits behind it.
+        return await queue.run(within: .milliseconds(500)) { isWanted in
+            snapshot(app: app, while: isWanted)
         }
     }
 
     /// Its own thread for the wider walk, so an application slow to describe its window never holds up a field read.
-    private static let surroundingsQueue = DispatchQueue(
+    private static let surroundingsQueue = LatestOnlyQueue(
         label: "com.uttrflow.surroundings", qos: .utility)
 
     /// How long one Accessibility call into another application may wait, since a stalled one would otherwise wait seconds.
@@ -93,12 +91,8 @@ public enum FocusedFieldReader {
     /// What is on screen around the focused field, or `nil` when nothing usable is focused or the wait ran out.
     public static func surroundings() async -> Surroundings? {
         guard let app = await frontmostApp() else { return nil }
-        // A read that does not answer in time is left to finish on its queue; the turn goes on without it.
-        return await Deadline.first(within: surroundingsAllowance) {
-            await withCheckedContinuation { continuation in
-                surroundingsQueue.async { continuation.resume(returning: surroundings(of: app)) }
-            }
-        }
+        // A walk that does not answer in time is left to finish; a newer walk replaces one still queued.
+        return await surroundingsQueue.run(within: surroundingsAllowance) { _ in surroundings(of: app) }
     }
 
     /// The same read synchronously, for an application front or not, which is what a probe shows the operator.
@@ -114,7 +108,9 @@ public enum FocusedFieldReader {
     }
 
     /// The same reading, synchronously, which only the queue above calls with an identity read on main.
-    static func snapshot(app: FrontmostApp) -> FocusedFieldSnapshot? {
+    static func snapshot(
+        app: FrontmostApp, while isWanted: @Sendable () -> Bool = { true }
+    ) -> FocusedFieldSnapshot? {
         let started = DispatchTime.now().uptimeNanoseconds
         guard AXIsProcessTrusted(), let field = SurfaceProbe.focusedField(of: app.processIdentifier)
         else { return nil }
@@ -132,9 +128,13 @@ public enum FocusedFieldReader {
             description: description)
         let value = declaredSecure ? nil : SurfaceProbe.string(field, kAXValueAttribute)
         let secure = declaredSecure || (value.map(SecureField.looksMasked) ?? false)
+        // Checked between messages: a turn that has given up should not pay for the rest of them.
+        guard isWanted() else { return nil }
         let range = SurfaceProbe.selectedRange(field)
         let style = range.flatMap { typeStyle(field, at: $0) }
+        guard isWanted() else { return nil }
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
+        let marked = CompositionProbe.markedText(of: field)
 
         return FocusedFieldSnapshot(
             bundleIdentifier: app.bundleIdentifier,
@@ -152,10 +152,11 @@ public enum FocusedFieldReader {
             field: frame(of: field).map { flip($0, below: flipped) },
             pointSize: style?.size,
             fontFamily: style?.family,
+            textColor: style?.color,
             isSecure: secure,
             isComposing: Composition.isComposing(
-                markedText: CompositionProbe.markedText(of: field),
-                inputSource: CompositionProbe.inputSourceKind()),
+                markedText: marked, inputSource: CompositionProbe.inputSourceKind()),
+            markedText: marked,
             readMicroseconds: Int((DispatchTime.now().uptimeNanoseconds - started) / 1000),
             windowTitle: windowTitle(of: field)
         )
@@ -232,6 +233,8 @@ public enum FocusedFieldReader {
         let size: CGFloat?
         /// The font family, so the ghost is set in the face the line is.
         let family: String?
+        /// The text colour, so the ghost reads against the field rather than against Uttrflow's appearance.
+        var color: TextColor?
     }
 
     /// One element of another application, compared the way Accessibility compares them, its answers kept once asked.
@@ -350,29 +353,56 @@ public enum FocusedFieldReader {
     /// The font in an attributed string: a Core Text font where AppKit put one, else the `AXFont` dictionary most applications answer with.
     static func typeStyle(inAttributed attributed: CFAttributedString) -> TypeStyle? {
         guard CFAttributedStringGetLength(attributed) > 0 else { return nil }
+        let color = textColor(inAttributed: attributed)
         if let font = CFAttributedStringGetAttribute(attributed, 0, kCTFontAttributeName, nil),
             CFGetTypeID(font) == CTFontGetTypeID()
         {
             // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
             let font = unsafeDowncast(font, to: CTFont.self)
-            return TypeStyle(size: CTFontGetSize(font), family: CTFontCopyFamilyName(font) as String)
+            return TypeStyle(
+                size: CTFontGetSize(font), family: CTFontCopyFamilyName(font) as String, color: color)
         }
-        guard
-            let described = CFAttributedStringGetAttribute(attributed, 0, Self.axFontKey as CFString, nil),
+        var size: CGFloat?
+        var family: String?
+        if let described = CFAttributedStringGetAttribute(attributed, 0, Self.axFontKey as CFString, nil),
             CFGetTypeID(described) == CFDictionaryGetTypeID()
+        {
+            // Checked by type ID above; a Core Foundation dictionary bridges to Foundation without AppKit.
+            let font = unsafeDowncast(described, to: CFDictionary.self) as NSDictionary
+            size = (font[Self.axFontSizeKey] as? NSNumber).map { CGFloat($0.doubleValue) }
+            family = font[Self.axFontFamilyKey] as? String
+        }
+        guard size != nil || family != nil || color != nil else { return nil }
+        return TypeStyle(size: size, family: family, color: color)
+    }
+
+    /// The text colour at the start of an attributed string, from the Accessibility key or the Core Text one.
+    static func textColor(inAttributed attributed: CFAttributedString) -> TextColor? {
+        let keys = [Self.axForegroundColorKey as CFString, kCTForegroundColorAttributeName]
+        for key in keys {
+            if let color = textColor(CFAttributedStringGetAttribute(attributed, 0, key, nil)) { return color }
+        }
+        return nil
+    }
+
+    /// A Core Graphics colour as sRGB, or nothing for a value that is not one or cannot be converted.
+    static func textColor(_ value: CFTypeRef?) -> TextColor? {
+        guard let value, CFGetTypeID(value) == CGColor.typeID,
+            let sRGB = CGColorSpace(name: CGColorSpace.sRGB)
         else { return nil }
-        // Checked by type ID above; a Core Foundation dictionary bridges to Foundation without AppKit.
-        let font = unsafeDowncast(described, to: CFDictionary.self) as NSDictionary
-        let size = (font[Self.axFontSizeKey] as? NSNumber).map { CGFloat($0.doubleValue) }
-        let family = font[Self.axFontFamilyKey] as? String
-        guard size != nil || family != nil else { return nil }
-        return TypeStyle(size: size, family: family)
+        // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
+        let color = unsafeDowncast(value, to: CGColor.self)
+        guard let converted = color.converted(to: sRGB, intent: .defaultIntent, options: nil),
+            let channels = converted.components, channels.count >= 3
+        else { return nil }
+        return TextColor(red: Double(channels[0]), green: Double(channels[1]), blue: Double(channels[2]))
     }
 
     /// The attribute Accessibility describes a run's font under, which is a dictionary rather than a font object.
     private static let axFontKey = "AXFont"
     private static let axFontSizeKey = "AXFontSize"
     private static let axFontFamilyKey = "AXFontFamily"
+    private static let axForegroundColorKey = "AXForegroundColor"
 
     /// The screen rectangle of the selection's text-marker range, which web content answers where it answers nothing for a character range.
     private static func markerBounds(_ field: AXUIElement) -> CGRect? {
