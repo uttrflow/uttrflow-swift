@@ -260,9 +260,10 @@ When the corpus and the machine both have nothing for the line and the generator
   begins one of its lines — typing on, or backspacing — that answer is drawn again and no
   pass runs. An empty answer is remembered against the exact line it was given for, so a
   tick does not ask the same question again; the next keystroke asks afresh.
-- **120 ms debounce.** A pass sleeps `generationDebounceInMilliseconds` first and the next
-  keystroke cancels it, so a burst costs one pass for its last prefix rather than one per
-  key.
+- **120 ms debounce.** A pass sleeps what is left of `generationDebounceInMilliseconds`
+  since the key was pressed, which is nothing when the pause was already that long; the
+  next keystroke still cancels the pass, so a burst still costs one pass for its last
+  prefix rather than one per key.
 - **Context is read once a pass is certain.** Only after the debounce does the turn read the
   situation — window title and surrounding text under a 200 ms `Deadline`, the person's six
   most recent lines in this field, the 400 characters before the caret's line — so a
