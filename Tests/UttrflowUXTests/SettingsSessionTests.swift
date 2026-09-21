@@ -19,6 +19,34 @@ struct SettingsSessionTests {
         #expect(session.rejection == nil)
     }
 
+    @Test("synchronizes external settings without losing the window state")
+    func synchronizesExternalSettings() {
+        var session = SettingsSession(settings: .default, tab: .privacy)
+        session.apply(.anchor(.bottomLeft))
+        var external = session.settings
+        external.appearance = .dark
+
+        session.synchronize(settings: external)
+
+        #expect(session.settings.appearance == .dark)
+        #expect(session.settings.floatingButtonAnchor == .bottomLeft)
+        #expect(session.tab == .privacy)
+        #expect(session.recorder.binding == external.hotkey)
+    }
+
+    @Test("does not interrupt shortcut recording during external synchronization")
+    func synchronizationLeavesRecorderListening() {
+        var session = SettingsSession(settings: .default)
+        session.beginRecordingShortcut(.dictate)
+        var external = session.settings
+        external.appearance = .dark
+
+        session.synchronize(settings: external)
+
+        #expect(session.recorder.isRecording)
+        #expect(session.settings.appearance == .dark)
+    }
+
     @Test("hands back the settings to save when a change is allowed")
     func acceptedChangeIsHandedBackToBeSaved() {
         var session = SettingsSession(settings: .default)

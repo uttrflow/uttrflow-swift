@@ -150,3 +150,40 @@ drag. A resize from the left or bottom border moves the origin too and sets `pla
 through `onResize`, so a resize is remembered as exactly nothing. While dragging, the origin is
 clamped to the visible frame of the screen the panel is on, not the pointer's, because a
 borderless panel gets none of AppKit's protection and goes clean under the menu bar.
+
+## What VoiceOver is told
+
+Every notice the panel shows is also announced: the three copy-only notices ("Copied — press
+⌘V…"), a refused write, and a picture that is no longer on this Mac. So is the undo offer after a
+delete, spoken as "Deleted. Press Command-Z to put it back." A copy-only choice closes the panel
+2.5 s later, which is sooner than VoiceOver focus reaches the notice bar, so drawing it is not
+enough.
+
+`PanelPresenter` decides the words (`PanelPresentation.announcements`); the view only posts each
+line once, when it first appears, as an `AccessibilityNotification.Announcement` at high priority
+so the panel closing does not cut it off.
+
+A row's VoiceOver hint follows the same decision as Return: "Pastes where you were typing" when a
+paste can be attempted, and a hint saying it copies when the panel knows it can only copy.
+
+## After the panel has closed
+
+Choosing a clip closes the panel before the paste, because insertion declines outright while
+Uttrflow is frontmost. So whatever goes wrong after that has no panel to say it on. The floating
+button says it instead, and VoiceOver hears it as an announcement at high priority, because
+that is where a dictation's outcome already appears and where the user's eye goes when nothing
+arrives.
+
+`PanelPasteReport.after(_:)` in `UttrflowUX` is the one decision, for text and pictures alike:
+
+| What happened | What is said |
+| --- | --- |
+| Text seen to arrive, or a target that cannot say | nothing, as for a dictation |
+| Text sent and never seen to arrive (`.unconfirmed`) | "Inserted — not confirmed", the dictation's own words |
+| Text left on the clipboard, or every strategy refused | "Copied — press ⌘V" |
+| A picture on the clipboard whose ⌘V was refused | "Copied — press ⌘V" |
+| A picture whose file went before Return | "That picture is no longer on this Mac" |
+
+A dictation under way owns the floating button, so the report is spoken but not drawn over it.
+The drawn report stays for as long as a dictation failure does and then gives the button back.
+When the floating button is turned off, the announcement is the only surface.

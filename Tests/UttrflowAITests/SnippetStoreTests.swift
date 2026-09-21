@@ -452,3 +452,38 @@ struct SnippetStoreErrorTests {
         #expect(SnippetStoreError.expansionIsEmpty.severity == .informational)
     }
 }
+
+/// A copy set aside from an unreadable file is the user's too, so forgetting everything takes it.
+@Suite("Snippet set-aside copies")
+struct SnippetSetAsideTests {
+    /// Writes a set-aside copy beside the store's file, answering with where it is.
+    private func copy(in sandbox: borrowing Sandbox) throws -> URL {
+        try FileManager.default.createDirectory(at: sandbox.folder, withIntermediateDirectories: true)
+        let url = sandbox.folder.appending(path: "snippets.v1.json.unreadable-1")
+        try Data("old".utf8).write(to: url)
+        return url
+    }
+
+    @Test("forgetting everything removes every copy set aside")
+    func forgettingRemovesCopies() async throws {
+        let sandbox = Sandbox()
+        let old = try copy(in: sandbox)
+        try await SnippetStore(file: sandbox.file).deleteEverything()
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+    }
+
+    @Test("a copy the folder will not give up is reported")
+    func refusedCopyIsReported() async throws {
+        let sandbox = Sandbox()
+        _ = try copy(in: sandbox)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o500], ofItemAtPath: sandbox.folder.path)
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o700], ofItemAtPath: sandbox.folder.path)
+        }
+        await #expect(throws: SnippetStoreError.couldNotWrite) {
+            try await SnippetStore(file: sandbox.file).deleteEverything()
+        }
+    }
+}

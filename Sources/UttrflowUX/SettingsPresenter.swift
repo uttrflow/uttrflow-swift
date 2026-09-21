@@ -407,43 +407,37 @@ public enum SettingsPresenter {
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsBanner? {
         // Nothing to explain while the feature is off: the model is not fetched until it is asked for.
-        guard settings.suggestions.isEnabled else { return nil }
-        switch capabilities.suggestionModel {
-        case .ready, .notAsked:
+        guard settings.suggestions.isEnabled, let title = capabilities.suggestionModel.headline else {
             return nil
-        case .downloading(let fraction):
+        }
+        switch capabilities.suggestionModel {
+        case .ready, .notAsked, .downloading:
             return SettingsBanner(
                 symbolName: "arrow.down.circle",
-                title: downloadingTitle(fraction),
+                title: title,
                 message:
                     "Uttrflow is fetching the model that finishes your lines, about 3 GB, once. "
                     + "AI suggestions start when it lands.")
         case .loading:
             return SettingsBanner(
                 symbolName: "clock",
-                title: "Getting ready",
+                title: title,
                 message: "The model is being read into memory. This happens once per launch.")
         case .releasedForMemory:
             return SettingsBanner(
                 symbolName: "memorychip",
-                title: "Paused to free memory",
+                title: title,
                 message:
                     "This Mac is short of memory, so the model that finishes your lines has been "
                     + "set aside. AI suggestions come back on their own once memory frees up.")
         case .failed:
             return SettingsBanner(
                 symbolName: "exclamationmark.triangle",
-                title: "The model could not be fetched",
+                title: title,
                 message:
                     "AI suggestions cannot run without it. Check your connection, then turn the "
                     + "switch off and on again to try once more.")
         }
-    }
-
-    /// The percentage where there is one, since a bar with no number says nothing about how long.
-    private static func downloadingTitle(_ fraction: Double?) -> String {
-        guard let fraction else { return "Getting ready" }
-        return "Getting ready — \(Int((fraction * 100).rounded()))%"
     }
 
     /// The half-hour pause, which lifts itself and so is a button rather than a switch.
@@ -684,8 +678,9 @@ public enum SettingsPresenter {
             id: "resetPersonalisation",
             label: "Reset personalisation",
             explanation:
-                "Puts Uttrflow back to a fresh install: your dictionary, your history and "
-                + "every preference on this screen.",
+                "Puts Uttrflow back to a fresh install: your dictionary, history, clipboard, "
+                + "snippets, learned completions and the apps they may learn from, recordings "
+                + "kept for a retry and every preference on this screen are deleted from this Mac.",
             control: .removal(
                 SettingsRemoval(
                     reset: .everything,

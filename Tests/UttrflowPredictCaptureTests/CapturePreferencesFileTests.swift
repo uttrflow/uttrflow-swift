@@ -74,3 +74,16 @@ struct CapturePreferencesLocationTests {
             file.path(percentEncoded: false) == "/tmp/support/Uttrflow/predict-consent.v1.json")
     }
 }
+
+@Suite("Removing the answers")
+struct CapturePreferencesFileRemovalTests {
+    @Test("Removing deletes the file, and removing a file that is not there is not an error.")
+    func removeDeletesTheFile() throws {
+        let scratch = Scratch()
+        let file = CapturePreferencesFile(path: scratch.preferencesPath)
+        try file.save(CapturePreferences(consent: ["com.example.terminal": .allowed]))
+        try file.remove()
+        #expect(!FileManager.default.fileExists(atPath: scratch.preferencesPath))
+        try file.remove()
+    }
+}

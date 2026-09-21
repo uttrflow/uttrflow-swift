@@ -43,6 +43,11 @@ A file that cannot be moved aside either is left where it is, and every write to
 apart from one that is there and cannot be read: permission denied, truncated, empty, or a shape
 from a newer build.
 
+A set-aside copy is deleted by the button that forgets what it holds. Clearing the clipboard
+history deletes the copies of the history file and keeps those of the saved file, as it keeps the
+saved clips themselves; "Reset personalisation" deletes both. There is no timed lifetime here:
+`clips(keeping:)` is the read ⇧⌘V waits on, and it does no I/O.
+
 Answering an unreadable file with an empty list is itself why the two are separate. It is the
 right answer for a history nobody promised to keep and the wrong one for a clip somebody named,
 and one file cannot give two answers. Salvaging clip by clip is not attempted: our own writes are

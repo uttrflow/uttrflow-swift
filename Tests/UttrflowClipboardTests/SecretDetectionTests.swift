@@ -209,6 +209,39 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: text) != .secret)
     }
 
+    /// Code that loads a credential names it and points elsewhere, which is not giving one.
+    @Test(
+        "does not mask a line that only reads a secret from somewhere else",
+        arguments: [
+            "let token = request.token",
+            "const apiKey = process.env.API_KEY;",
+            "secret = settings.SECRET_KEY",
+            "password = getpass.getpass()",
+            "token = os.environ[\"GITHUB_TOKEN\"]",
+            "self.accessToken = accessToken",
+            "let password = passwordField.text ?? \"\"",
+            "if password == confirmPassword {",
+        ])
+    func references(_ text: String) {
+        #expect(SecretShapes.hasNamedSecret(text) == false)
+        #expect(ClipKindDetector.kind(of: text) != .secret)
+    }
+
+    /// Quoted values, values with digits and long bare words still count, built from pieces so no scanner flags the source.
+    @Test(
+        "still masks a named secret whose value is given rather than pointed at",
+        arguments: [
+            "password = \"" + "correct.horse.battery" + "\"",
+            "API_KEY=" + "x7Kd9Pq2.LmRt4Vw8",
+            "API_KEY=" + "correcthorsebatterystaple",
+            "token = " + "settings.deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "secret: " + "vault.read(path)",
+        ])
+    func givenValues(_ text: String) {
+        #expect(SecretShapes.hasNamedSecret(text))
+        #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
     @Test(
         "masks a long generated token nobody standardised",
         arguments: [

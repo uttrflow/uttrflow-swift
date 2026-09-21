@@ -15,10 +15,12 @@ enum UttrflowApp {
         // Before any model or keyboard monitor exists, so a second copy never builds either.
         guard let instance = claimTheOnlyInstance() else { exit(0) }
         let application = NSApplication.shared
+        let (reloads, reported) = AsyncStream<IdleReload>.makeStream()
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
         let model = IdleReleasingModel(
             model: MLXCandidateScorer(model: .gemma3),
-            idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory))
+            idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory),
+            onReload: { reported.yield($0) })
         // Every use is discretionary: utility priority, and no pass in Low Power Mode, under thermal pressure or while dictating.
         let generating = DiscretionaryGenerator(
             model,
@@ -35,6 +37,10 @@ enum UttrflowApp {
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
             releaseModel: { await scoring.release() })
         application.delegate = delegate
+        // A reload after an idle release is shown where the user is looking, not only in Settings.
+        Task { @MainActor in
+            for await event in reloads { delegate.suggestionModelReloaded(event) }
+        }
         // A reload that finds the weights gone asks for them again in Settings rather than fetching them unasked.
         Task { [weak delegate] in
             await scoring.whenReloadFails { Task { @MainActor in delegate?.suggestionModelWentMissing() } }

@@ -133,8 +133,8 @@ EXCLUDED_FILES = {
     "Uttrflow/Dock/DockPanelController.swift": "owns an on-screen floating window",
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "wiring only: an event tap, a global key monitor and another app's focused field, "
-        "none of which a headless test has; every rule it sequences is SuggestionSession, "
-        "which is tested"
+        "none of which a headless test has; every rule it sequences is SuggestionSession "
+        "and every field reading it maps goes through SuggestionMoment, both of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
         "owns an on-screen floating window; where it puts it is SuggestionGeometry and "

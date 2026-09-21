@@ -61,6 +61,11 @@ final class SettingsViewModel {
         }
     }
 
+    /// Applies an authoritative change made outside the Settings window without replacing its UI state.
+    func synchronize(settings: UttrflowSettings.Settings) {
+        session.synchronize(settings: settings)
+    }
+
     /// Saved as each change is made; nothing here is half chosen, so there is nothing for Cancel to undo.
     func apply(_ change: SettingsChange) {
         // A request to act now is handed on whole, since saving it would store nothing and lose it.

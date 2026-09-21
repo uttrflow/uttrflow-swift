@@ -11,7 +11,8 @@ final class MenuBarController: NSObject {
     var onMenuWillOpen: (() -> Void)?
 
     private let statusItem: NSStatusItem
-    private var presentation: MenuBarPresentation
+    /// What the menu bar shows now; readable so a test can check what the app drew.
+    private(set) var presentation: MenuBarPresentation
     /// One menu, refilled in place, so an update made while it opens lands in the menu on screen.
     private let menu = NSMenu()
 

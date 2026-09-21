@@ -228,3 +228,68 @@ struct ContextNeverCopiedTests {
                 == "phone pe nahi")
     }
 }
+
+/// A mail the person is replying to, signed by its sender.
+private let incoming =
+    "From: Sam\nHi, could you share the invoice for August when you get a chance? Thanks, Sam"
+
+@Suite("A sign-off is never signed with a name from the screen")
+struct SignOffTests {
+    @Test("A closing the person typed is not signed with the sender's name")
+    func theSendersNameIsNotSigned() {
+        let own = ["Please find the document attached.", "Kind regards,"]
+        #expect(
+            SignOff.unsigned("Kind regards, Sam", typed: "Kind regards,", screen: [incoming], ownLines: own)
+                == nil)
+        #expect(SignOff.unsigned("Thanks, Sam.", typed: "Thanks, ", screen: [incoming], ownLines: own) == nil)
+        #expect(SignOff.unsigned("best,  Sam", typed: "best,", screen: [incoming], ownLines: []) == nil)
+    }
+
+    @Test("A closing still being typed is finished without the sender's name after it")
+    func theClosingIsKept() {
+        #expect(
+            SignOff.unsigned("Kind regards, Sam", typed: "Kind reg", screen: [incoming], ownLines: [])
+                == "Kind regards,")
+    }
+
+    @Test("A name the person has written in their own lines is theirs to sign with")
+    func theirOwnNameIsKept() {
+        let screen = incoming + "\nOn Monday, Alex wrote:"
+        #expect(
+            SignOff.unsigned(
+                "Kind regards, Alex", typed: "Kind regards,", screen: [screen], ownLines: ["Cheers, Alex"])
+                == "Kind regards, Alex")
+        #expect(
+            SignOff.unsigned("Kind regards, Alex", typed: "Kind regards,", screen: [], ownLines: [])
+                == "Kind regards, Alex")
+    }
+
+    @Test("Words after a comma that are not a closing's signature are left alone")
+    func otherLinesAreLeftAlone() {
+        let screen = "Sam: see you tomorrow at the August review"
+        #expect(
+            SignOff.unsigned("Thanks, see you tomorrow", typed: "Thanks,", screen: [screen], ownLines: [])
+                == "Thanks, see you tomorrow")
+        #expect(
+            SignOff.unsigned("Hi Sam, could you share", typed: "Hi", screen: [incoming], ownLines: [])
+                == "Hi Sam, could you share")
+        #expect(SignOff.unsigned("Hi, Sam", typed: "Hi,", screen: [incoming], ownLines: []) == "Hi, Sam")
+        #expect(
+            SignOff.unsigned("Kind regards,", typed: "Kind", screen: [incoming], ownLines: [])
+                == "Kind regards,")
+        #expect(
+            SignOff.unsigned("Kind regards", typed: "Kind", screen: [incoming], ownLines: [])
+                == "Kind regards")
+        #expect(
+            SignOff.unsigned(
+                "Thanks, Sam Could You Share", typed: "Thanks,", screen: [incoming], ownLines: [])
+                == "Thanks, Sam Could You Share")
+    }
+
+    @Test("A signature is signed only where every word of it came from the screen")
+    func aPartlyOwnSignatureIsKept() {
+        #expect(
+            SignOff.unsigned("Thanks, Sam Rivers", typed: "Thanks,", screen: [incoming], ownLines: [])
+                == "Thanks, Sam Rivers")
+    }
+}

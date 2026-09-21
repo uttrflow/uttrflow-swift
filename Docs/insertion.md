@@ -155,6 +155,22 @@ exactly that hole until it was given bytes to name, since it had no text. An ann
 whose own write has not arrived is kept rather than spent, and lapses after two seconds so
 a paste that threw cannot sit armed.
 
+## Dictating into a field that hides what is typed
+
+A password or PIN field gets the words like any other field, and nothing else does.
+`SecureField` answers whether a field is secure from its role, subrole and names, and
+reads the value only when none of those says so, to catch a field that shows mask
+characters without declaring itself. The question is asked twice: by the context read
+when the dictation's screen is read, which then carries none of the field's text, and by
+`TextInsertionCoordinator` just before the write.
+
+Either answer marks the outcome `intoSecureField`. The words then reach no store: no
+history row (not even a length), no Uttrflow clip, no last transcript, no dictionary
+lesson and no clean-up account, and the floating button neither draws nor reads them
+aloud. A paste or the clipboard floor writes them with `org.nspasteboard.ConcealedType`
+beside the text, so a clipboard history that honours the convention leaves them out. If
+the words are lost before insertion, the audio is not kept for a retry.
+
 ## One writer, one reader, and a gate that says so
 
 Every rule above — announce first, clear `.currentHostOnly`, name the write — lives in

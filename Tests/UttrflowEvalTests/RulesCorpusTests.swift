@@ -17,6 +17,7 @@ struct RulesCorpusTests {
         "number-correction-with-unit",
         "correction-between-amounts", "correction-between-percentages",
         "false-no-stays",
+        "trigger-as-its-own-sentence",
         "coordinated-list-kept", "repeated-frame-kept", "emphatic-double-kept",
         "coordination-kept-not-restatement", "repeated-frame-for-kept",
         "doubled-place-name-kept", "coordinated-apology-kept", "spoken-comma",

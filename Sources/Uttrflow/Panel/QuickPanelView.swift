@@ -55,6 +55,10 @@ struct QuickPanelView: View {
         }
         // Closes a menu left open from the last showing; the panel is built once and shown many times.
         .onChange(of: openCount) { openMenu = nil }
+        // Spoken as well as drawn, since a copy-only choice closes the panel before focus reaches the bar.
+        .onChange(of: presentation.announcements) { old, new in
+            for line in new where !old.contains(line) { Self.announce(line) }
+        }
         .task(id: openCount) {
             query = presentation.query
             hovered = nil
@@ -351,6 +355,13 @@ struct QuickPanelView: View {
             .padding(.bottom, 8)
     }
 
+    /// Posts one line to VoiceOver at high priority, so the panel closing does not cut it off.
+    private static func announce(_ line: String) {
+        var spoken = AttributedString(line)
+        spoken.accessibilitySpeechAnnouncementPriority = .high
+        AccessibilityNotification.Announcement(spoken).post()
+    }
+
     /// What the panel says when it could only copy; not an error, because the words are on the clipboard.
     private func noticeBar(_ notice: PanelNotice) -> some View {
         HStack(spacing: 7) {
@@ -477,7 +488,7 @@ struct QuickPanelView: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: look)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(QuickPanelSpeech.label(for: row))
-        .accessibilityHint("Pastes where you were typing")
+        .accessibilityHint(presentation.rowHint)
         .accessibilityAddTraits(look.isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityActions {
             // The same actions the pointer gets, spoken; the ⋯ button is hidden from VoiceOver.

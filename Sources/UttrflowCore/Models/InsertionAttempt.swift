@@ -30,13 +30,16 @@ public struct InsertionAttempt: Sendable, Equatable {
     public let arrival: InsertionArrival
     /// What was in front when the words were written, or nil where nothing could say. See `Docs/insertion.md`.
     public let destination: InsertionDestination?
+    /// Whether the field the words were written into hides what is typed, asked just before the write.
+    public let intoSecureField: Bool
 
     public init(
         _ method: TextInsertionMethod, arrival: InsertionArrival = .notReported,
-        destination: InsertionDestination? = nil
+        destination: InsertionDestination? = nil, intoSecureField: Bool = false
     ) {
         self.method = method
         self.arrival = arrival
         self.destination = destination
+        self.intoSecureField = intoSecureField
     }
 }

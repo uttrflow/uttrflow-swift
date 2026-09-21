@@ -36,6 +36,30 @@ struct RestatementTests {
         #expect(Restatement.discardedStart(before: 3, after: 5, in: bare.live, of: bare.draft) == nil)
     }
 
+    /// A trigger said with a pause comes back as its own sentence, which is read through rather than as a sentence end.
+    @Test("a trigger that is a sentence of its own reads through the stop before it")
+    func triggerAsItsOwnSentence() {
+        let money = reading("The total is 40. No wait. 50.")
+        #expect(Restatement.standsAlone(4, before: 6, in: money.live, of: money.draft))
+        #expect(Restatement.discardedStart(before: 4, after: 6, in: money.live, of: money.draft) == 3)
+        let meeting = reading("Meet me at four. Scratch that. At five.")
+        #expect(Restatement.discardedStart(before: 4, after: 6, in: meeting.live, of: meeting.draft) == 2)
+    }
+
+    @Test("a stop that closes a question, an exclamation or a bare no is still a sentence end")
+    func triggerAsItsOwnSentenceNeedsAPlainStop() {
+        let question = reading("Is it 3? No wait. 4.")
+        #expect(!Restatement.standsAlone(3, before: 5, in: question.live, of: question.draft))
+        #expect(Restatement.discardedStart(before: 3, after: 5, in: question.live, of: question.draft) == nil)
+        let answer = reading("The code is 45. No. 46.")
+        #expect(!Restatement.standsAlone(4, before: 5, in: answer.live, of: answer.draft))
+        let running = reading("Meet at four. No wait at five.")
+        #expect(!Restatement.standsAlone(3, before: 5, in: running.live, of: running.draft))
+        let shouted = reading("Meet at four. No wait! At five.")
+        #expect(!Restatement.standsAlone(3, before: 5, in: shouted.live, of: shouted.draft))
+        #expect(!Restatement.standsAlone(0, before: 2, in: shouted.live, of: shouted.draft))
+    }
+
     @Test("anchors on an amount written with its sign")
     func anchorsOnASignedAmount() {
         let money = reading("the total is $40, no wait, $50.")

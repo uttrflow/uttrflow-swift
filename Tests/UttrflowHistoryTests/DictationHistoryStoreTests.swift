@@ -547,3 +547,59 @@ private func setAsideBytes(of file: URL) throws -> Data {
     let aside = try #require(names.first { $0.hasPrefix(file.lastPathComponent + ".unreadable-") })
     return try Data(contentsOf: folder.appending(path: aside))
 }
+
+/// A copy set aside from an unreadable file holds transcripts too, so it lives no longer than they do.
+@Suite("Set-aside copies of the history")
+struct HistorySetAsideTests {
+    /// Writes a set-aside copy stamped `daysAgo` before the epoch, answering with where it is.
+    private func copy(in sandbox: borrowing Sandbox, daysAgo: Double) throws -> URL {
+        try FileManager.default.createDirectory(at: sandbox.folder, withIntermediateDirectories: true)
+        let stamp = Int(epoch.addingTimeInterval(-daysAgo * 86_400).timeIntervalSince1970)
+        let url = sandbox.folder.appending(path: "history.v1.json.unreadable-\(stamp)")
+        try Data("old transcripts".utf8).write(to: url)
+        return url
+    }
+
+    @Test("deleting everything deletes every copy set aside too")
+    func deleteEverythingRemovesCopies() async throws {
+        let sandbox = Sandbox()
+        let old = try copy(in: sandbox, daysAgo: 1)
+        let store = DictationHistoryStore(file: sandbox.file)
+        try await store.deleteEverything()
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+    }
+
+    @Test("reading drops a copy older than the promise and keeps a newer one")
+    func readingAgesCopiesOut() async throws {
+        let sandbox = Sandbox()
+        let stale = try copy(in: sandbox, daysAgo: 8)
+        let fresh = try copy(in: sandbox, daysAgo: 6)
+        _ = await DictationHistoryStore(file: sandbox.file).records(keeping: week)
+        #expect(!FileManager.default.fileExists(atPath: stale.path))
+        #expect(FileManager.default.fileExists(atPath: fresh.path))
+    }
+
+    @Test("a promise of zero days keeps no copy at all")
+    func zeroDaysKeepsNoCopy() async throws {
+        let sandbox = Sandbox()
+        let fresh = try copy(in: sandbox, daysAgo: 0)
+        _ = await DictationHistoryStore(file: sandbox.file).records(
+            keeping: Retention(days: 0, now: epoch))
+        #expect(!FileManager.default.fileExists(atPath: fresh.path))
+    }
+
+    @Test("deleting everything reports a copy it could not remove")
+    func refusedCopyIsReported() async throws {
+        let sandbox = Sandbox()
+        _ = try copy(in: sandbox, daysAgo: 1)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o500], ofItemAtPath: sandbox.folder.path)
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o700], ofItemAtPath: sandbox.folder.path)
+        }
+        await #expect(throws: HistoryStoreError.couldNotWrite) {
+            try await DictationHistoryStore(file: sandbox.file).deleteEverything()
+        }
+    }
+}

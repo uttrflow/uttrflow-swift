@@ -182,6 +182,8 @@ public actor ClipboardStore {
         let saved = loaded().filter(\.isKept)
         // Reaches the disk here rather than at the next write: clearing and then quitting must stick.
         try save(saved)
+        // A copy set aside from the history file is history too; the saved file's copies are saved clips.
+        do { try LocalStore.removeSetAside(file) } catch { throw .couldNotWrite }
         return retained(saved, keeping: retention)
     }
 
@@ -201,6 +203,12 @@ public actor ClipboardStore {
     /// Removes every clip, pinned ones included, which is what resetting personalisation promises.
     public func forgetEverything() throws(ClipboardStoreError) {
         try save([])
+        do {
+            try LocalStore.removeSetAside(file)
+            try LocalStore.removeSetAside(savedFile)
+        } catch {
+            throw .couldNotWrite
+        }
     }
 
     /// Pins a clip or unpins it, which is also how it stops ageing out; the panel decides the order.

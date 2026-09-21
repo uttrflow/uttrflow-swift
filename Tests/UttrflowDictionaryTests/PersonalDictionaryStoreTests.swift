@@ -468,3 +468,38 @@ private func setAsideBytes(of file: URL) throws -> Data {
     let aside = try #require(names.first { $0.hasPrefix(file.lastPathComponent + ".unreadable-") })
     return try Data(contentsOf: folder.appending(path: aside))
 }
+
+/// A copy set aside from an unreadable file is the user's too, so forgetting everything takes it.
+@Suite("Dictionary set-aside copies")
+struct DictionarySetAsideTests {
+    /// Writes a set-aside copy beside the store's file, answering with where it is.
+    private func copy(in sandbox: borrowing Sandbox) throws -> URL {
+        try FileManager.default.createDirectory(at: sandbox.folder, withIntermediateDirectories: true)
+        let url = sandbox.folder.appending(path: "dictionary.v1.json.unreadable-1")
+        try Data("old".utf8).write(to: url)
+        return url
+    }
+
+    @Test("forgetting everything removes every copy set aside")
+    func forgettingRemovesCopies() async throws {
+        let sandbox = Sandbox()
+        let old = try copy(in: sandbox)
+        try await PersonalDictionaryStore(file: sandbox.file).removeEverything()
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+    }
+
+    @Test("a copy the folder will not give up is reported")
+    func refusedCopyIsReported() async throws {
+        let sandbox = Sandbox()
+        _ = try copy(in: sandbox)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o500], ofItemAtPath: sandbox.folder.path)
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o700], ofItemAtPath: sandbox.folder.path)
+        }
+        await #expect(throws: DictionaryStoreError.couldNotWrite) {
+            try await PersonalDictionaryStore(file: sandbox.file).removeEverything()
+        }
+    }
+}

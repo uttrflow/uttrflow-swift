@@ -143,6 +143,11 @@ final class SuggestionCoordinator {
         }
     }
 
+    /// Forgets every answer about which applications may be learned from, which a reset asks for.
+    func forgetEveryAnswer() async throws {
+        try await capture.forgetEveryAnswer()
+    }
+
     /// Arms the tap and starts watching, or says why it cannot.
     func start() {
         isStopped = false
@@ -589,7 +594,7 @@ final class SuggestionCoordinator {
         return .milliseconds(max(0, Double(Self.generationDebounceInMilliseconds) - passed))
     }
 
-    /// Everything the model is told about the moment: the field, what is on screen around it, and how this person writes here.
+    /// Reads what is on screen and what this person wrote here, then maps them with ``SuggestionMoment``.
     private static func situation(
         of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore,
         cache: SuggestionContextCache, turn: Int
@@ -597,32 +602,20 @@ final class SuggestionCoordinator {
         // The alternatives pass asks about the same line in the same turn, so it is told what the first pass was.
         if let built = await cache.situation(forTurn: turn) { return built }
         // Neither read needs the other, so the walk and the corpus query run side by side.
-        async let walk = cache.surroundings(for: Self.windowKey(of: snapshot)) {
+        async let walk = cache.surroundings(for: SuggestionMoment.windowKey(of: snapshot)) {
             await FocusedFieldReader.surroundings()
         }
         async let remembered =
-            (try? await store.recent(in: query.surface, limit: Self.recentLinesShown)) ?? []
+            (try? await store.recent(in: query.surface, limit: SuggestionMoment.recentLinesShown)) ?? []
         let around = await walk
-        // The line being written is not a line written before, however long the pause that had it remembered.
-        let recent = await remembered.filter { !query.typed.hasPrefix($0) }
-        let preceding = snapshot.preceding(maxLength: Self.precedingContextLength)
+        let recent = SuggestionMoment.recentLines(await remembered, typing: query.typed)
+        let situation = SuggestionMoment.situation(of: snapshot, surroundings: around, recentLines: recent)
         // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
         Self.log.debug(
-            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(preceding?.count ?? 0)"
+            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(situation.preceding?.count ?? 0)"
         )
-        let situation = GenerationSituation(
-            application: snapshot.applicationName,
-            field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
-            document: snapshot.document, preceding: preceding,
-            windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
-            isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole || snapshot.holdsNewline)
         await cache.remember(situation, forTurn: turn)
         return situation
-    }
-
-    /// Which window a walk belongs to, from what the field read already says about it.
-    static func windowKey(of snapshot: FocusedFieldSnapshot) -> String {
-        "\(snapshot.bundleIdentifier)\u{1F}\(snapshot.document ?? "")"
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
@@ -801,21 +794,12 @@ final class SuggestionCoordinator {
 
     /// What the field publishes about itself, in the shape the corpus keys entries by.
     private func reading(of snapshot: FocusedFieldSnapshot) -> FieldReading {
-        FieldReading(
-            bundleIdentifier: snapshot.bundleIdentifier, role: snapshot.role,
-            subrole: snapshot.subrole, identifier: snapshot.identifier,
-            placeholder: snapshot.placeholder,
-            accessibilityDescription: snapshot.accessibilityDescription, document: snapshot.document,
-            windowTitle: snapshot.windowTitle, applicationName: snapshot.applicationName)
+        SuggestionMoment.reading(of: snapshot)
     }
 
     /// Everything about this moment that can silence a suggestion.
     private func context(of snapshot: FocusedFieldSnapshot, at moment: Date) -> PredictionContext {
-        PredictionContext(
-            typed: snapshot.currentLine, caretAtLineEnd: snapshot.caretAtLineEnd,
-            hasSelection: snapshot.hasSelection, isComposing: snapshot.isComposing,
-            isSecure: snapshot.isSecure, isProse: snapshot.isProse,
-            millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000),
-            canDraw: snapshot.placement == .inlineGhost, markedText: snapshot.markedText)
+        SuggestionMoment.context(
+            of: snapshot, millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000))
     }
 }

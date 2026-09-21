@@ -670,3 +670,72 @@ struct PredictStoreLocationTests {
         #expect(FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
     }
 }
+
+/// The same field in two folders, which reads draw from together.
+private let folderOne = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "~/one")
+private let folderTwo = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea", scope: "~/two")
+
+@Suite("Feedback on a line learned in another folder")
+struct BorrowedFeedbackTests {
+    @Test("Refusing a line borrowed from another folder is counted against it where it is offered.")
+    func refusingABorrowedLineCounts() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git status", in: folderOne, at: moment)
+        #expect(try await store.candidates(for: folderTwo, matching: "git s").count == 1)
+        try await store.recordRejected("git status", in: folderTwo)
+        try await store.recordAccepted("git status", in: folderTwo)
+        let found = try await store.candidates(for: folderTwo, matching: "git s")
+        #expect(found.first?.evidence?.rejected == 1)
+        #expect(found.first?.evidence?.accepted == 1)
+    }
+
+    @Test("A line known in both folders is counted once, against this folder's own entry.")
+    func aLineInBothFoldersCountsOnce() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git status", in: folderOne, at: moment)
+        try await store.record("git status", in: folderTwo, at: moment)
+        try await store.recordRejected("git status", in: folderTwo)
+        #expect(try await store.candidates(for: folderTwo, matching: "git s").first?.evidence?.rejected == 1)
+        let rows = try Database(path: corpus.path).rows(
+            """
+            SELECT surface.scope FROM entry JOIN surface ON surface.id = entry.surface_id
+            WHERE entry.rejected > 0
+            """, { _ in }
+        ) { $0.text(0) }
+        #expect(rows == ["~/two"])
+    }
+
+    @Test("A line the gates refuse in this folder is retired here, and still offered where it was learned.")
+    func refusingABorrowedLineRetiresItHere() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git status", in: folderOne, at: moment)
+        await store.recordRejection(of: "git status", in: folderTwo)
+        #expect(try await store.candidates(for: folderTwo, matching: "git s").isEmpty)
+        #expect(try await store.candidates(for: folderTwo, matching: "gti s").isEmpty)
+        #expect(try await store.recent(in: folderTwo, limit: 5).isEmpty)
+        #expect(try await store.candidates(for: folderOne, matching: "git s").count == 1)
+    }
+
+    @Test("A line known in both folders and retired in one is not brought back by the other.")
+    func retiringALineInBothFolders() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git status", in: folderOne, at: moment)
+        try await store.record("git status", in: folderTwo, at: moment)
+        await store.recordRejection(of: "git status", in: folderTwo)
+        #expect(try await store.candidates(for: folderTwo, matching: "git s").isEmpty)
+        #expect(try await store.candidates(for: folderOne, matching: "git s").count == 1)
+    }
+
+    @Test("Retiring a line never learned in any folder writes nothing.")
+    func retiringAnUnknownLineWritesNothing() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("git status", in: folderOne, at: moment)
+        try await store.supersede("git stash", with: "git status", in: folderTwo)
+        #expect(try await store.entryCount() == 1)
+    }
+}

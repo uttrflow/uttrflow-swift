@@ -42,6 +42,9 @@ final class SuggestionPanelController {
     private var request = SuggestionRequest()
     private var panelSize = CGSize(width: 1, height: 1)
     private var appearanceObserver: (any NSObjectProtocol)?
+    private var announcer = SuggestionAnnouncer()
+    /// Reads an announcement aloud to VoiceOver; a test swaps it to hear what would be said.
+    var announce: @MainActor (String) -> Void = SuggestionPanelController.post
     private var isActuallyShowing = false
 
     init() {
@@ -120,6 +123,7 @@ final class SuggestionPanelController {
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
         renders += 1
         guard presentation.style != .hidden else {
+            announcer.surfaceWithdrawn()
             isActuallyShowing = false
             panel.orderOut(nil)
             return
@@ -129,6 +133,7 @@ final class SuggestionPanelController {
             panelSize = CGSize(width: measured.width.rounded(.up), height: measured.height.rounded(.up))
         }
         guard reposition() else {
+            announcer.surfaceWithdrawn()
             isActuallyShowing = false
             panel.orderOut(nil)
             return
@@ -136,6 +141,18 @@ final class SuggestionPanelController {
         // `orderFrontRegardless`, never `makeKeyAndOrderFront`: no keyboard is taken.
         panel.orderFrontRegardless()
         isActuallyShowing = true
+        // The panel is out of VoiceOver's reach, so the offer and its accept key are spoken once as it appears.
+        if let text = announcer.announcement(for: presentation) { announce(text) }
+    }
+
+    /// Asks VoiceOver to speak at low priority, so the echo of the user's own typing is not cut off.
+    private static func post(_ text: String) {
+        NSAccessibility.post(
+            element: NSApplication.shared, notification: .announcementRequested,
+            userInfo: [
+                .announcement: text,
+                .priority: NSAccessibilityPriorityLevel.low.rawValue,
+            ])
     }
 
     /// What Increase Contrast, Reduce Transparency and Reduce Motion are set to right now.

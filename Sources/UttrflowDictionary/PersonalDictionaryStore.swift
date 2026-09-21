@@ -129,6 +129,7 @@ public actor PersonalDictionaryStore {
     public func removeEverything() throws(DictionaryStoreError) {
         sightings.forgetEverything()
         try persist([])
+        do { try LocalStore.removeSetAside(file) } catch { throw .couldNotWrite }
     }
 
     /// Forgets every inference and keeps the user's own words and this build's. See `Docs/app-dictionary-store.md`.

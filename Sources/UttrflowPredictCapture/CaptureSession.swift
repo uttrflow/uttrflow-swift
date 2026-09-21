@@ -81,6 +81,12 @@ public actor CaptureSession {
         try preferencesFile.save(preferences)
     }
 
+    /// Forgets every answer, in memory and on disk, so a reset is not undone by the next one recorded.
+    public func forgetEveryAnswer() throws {
+        preferences = CapturePreferences()
+        try preferencesFile.remove()
+    }
+
     /// Seeds a terminal from the shell's history, once, and only because the user asked for it.
     public func importShellHistory(
         forHomeDirectory home: String, into surface: Surface, at moment: Date

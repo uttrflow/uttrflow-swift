@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Foundation
+import UttrflowPredict
 
 /// Wires the engine to macOS, off the coverage gate. See `Docs/context-accessibility.md`.
 extension MacContextEngine {
@@ -46,6 +47,8 @@ extension MacContextEngine {
         let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute, timeoutInSeconds: budgetInSeconds)
             .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
         let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute, timeoutInSeconds: budgetInSeconds)
+        // Asked before any text is, so a field that hides what is typed is never read.
+        if let field, isSecure(field) { return FocusedWindow(title: title, isSecure: true) }
         let selected = field.flatMap { SurfaceProbe.string($0, kAXSelectedTextAttribute) }
         let caret = field.flatMap { field in
             let selection = SurfaceProbe.selectedRange(field).flatMap { range in
@@ -56,5 +59,16 @@ extension MacContextEngine {
         return FocusedWindow(
             title: title, selectedText: selected,
             precedingText: caret?.preceding, followingText: caret?.following)
+    }
+
+    /// Whether the field declares itself secure, or reads back as nothing but mask characters.
+    static func isSecure(_ field: AXUIElement) -> Bool {
+        SecureField.isSecure(
+            role: SurfaceProbe.string(field, kAXRoleAttribute),
+            subrole: SurfaceProbe.string(field, kAXSubroleAttribute),
+            identifier: SurfaceProbe.string(field, kAXIdentifierAttribute),
+            placeholder: SurfaceProbe.string(field, kAXPlaceholderValueAttribute),
+            description: SurfaceProbe.string(field, kAXDescriptionAttribute),
+            value: { SurfaceProbe.string(field, kAXValueAttribute) })
     }
 }

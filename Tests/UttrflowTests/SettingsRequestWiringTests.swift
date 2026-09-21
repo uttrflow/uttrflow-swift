@@ -70,6 +70,21 @@ struct SettingsRequestWiringTests {
         #expect(changed == 0)
     }
 
+    @Test("an external settings change is present before the next unrelated edit")
+    func externalChangeIsNotOverwrittenByLaterEdit() {
+        let store = RecordingStore()
+        let model = model(store)
+        var external = Settings.default
+        external.suggestions.isEnabled = true
+        store.save(external)
+        model.synchronize(settings: external)
+
+        model.apply(.appearance(.dark))
+
+        #expect(store.load().suggestions.isEnabled)
+        #expect(store.load().appearance == .dark)
+    }
+
     @Test("cancelling an active recording restores the shortcut exactly once")
     func cancellingRecordingRestoresOnce() {
         var callbacks: [Bool] = []

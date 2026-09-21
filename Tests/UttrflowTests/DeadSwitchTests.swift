@@ -59,6 +59,22 @@ struct DeadSwitchTests {
     }
 }
 
+@MainActor
+@Suite("Shrinking the floating button to a grip")
+struct GripSettingWiringTests {
+    @Test("turning the grip off and on again reaches the running button without a relaunch")
+    func gripFollowsTheSetting() {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
+
+        app.settingsChanged(to: Settings(showsFloatingButton: false, shrinksToGripWhenIdle: false))
+        #expect(!app.dockShrinksToGrip)
+
+        app.settingsChanged(to: Settings(showsFloatingButton: false, shrinksToGripWhenIdle: true))
+        #expect(app.dockShrinksToGrip)
+    }
+}
+
 /// A stand-in for macOS's login-item service, so the test machine acquires no login item.
 private final class RecordedLoginItem: @unchecked Sendable {
     private let lock = NSLock()

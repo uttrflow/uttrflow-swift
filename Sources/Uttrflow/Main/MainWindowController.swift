@@ -54,6 +54,17 @@ final class MainWindowController {
     var onScope: ((String) -> Void)?
     /// An inline editor was typed in; the presenter needs each keystroke to say whether Save is allowed.
     var onDraft: (() -> Void)?
+    /// The window came into view, so pages skipped while it was out of sight can be built now.
+    var onBecameVisible: (() -> Void)?
+
+    /// Whether any of the window is on screen, which is when its pages are worth building.
+    var isOnScreen: Bool {
+        guard let window else { return false }
+        return window.isVisible && window.occlusionState.contains(.visible)
+    }
+
+    /// The observer for the window's occlusion, removed with the window.
+    private var occlusionObserver: (any NSObjectProtocol)?
 
     private let model: MainWindowModel
     private var window: NSWindow?
@@ -141,6 +152,15 @@ final class MainWindowController {
         hosting.sizingOptions = []
         window.contentView = hosting
         window.center()
+        // Closing, minimising, hiding the app and being covered all arrive as a change of occlusion.
+        occlusionObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.isOnScreen else { return }
+                self.onBecameVisible?()
+            }
+        }
         return window
     }
 }

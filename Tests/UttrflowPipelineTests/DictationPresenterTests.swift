@@ -372,3 +372,20 @@ struct DictationElapsedTests {
         #expect(DictationPresenter.elapsed(.seconds(-5)) == "0:00")
     }
 }
+
+/// A notice about something other than a dictation is drawn as an outcome, never as a recording.
+@Suite("A passing notice on the floating button")
+struct DockNoticeTests {
+    @Test("carries its words and draws no waveform, progress or action")
+    func drawnAsAnOutcome() {
+        let dock = DictationPresenter.dock(
+            notice: "doc.on.clipboard", primaryLine: "Copied — press ⌘V", secondaryLine: nil,
+            accessibilityLabel: "Copied to the clipboard, not pasted.")
+        #expect(dock.symbolName == "doc.on.clipboard")
+        #expect(dock.primaryLine == "Copied — press ⌘V")
+        #expect(dock.secondaryLine == nil)
+        #expect(dock.accessibilityLabel == "Copied to the clipboard, not pasted.")
+        #expect(!dock.showsWaveform && !dock.showsProgress && !dock.isRecording)
+        #expect(dock.action == nil)
+    }
+}

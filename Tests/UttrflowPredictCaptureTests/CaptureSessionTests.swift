@@ -362,3 +362,20 @@ struct CaptureSessionTests {
         #expect(await recorder.texts == ["make verify"])
     }
 }
+
+@Suite("Forgetting every answer")
+struct CaptureSessionForgettingTests {
+    @Test("Forgetting every answer empties memory and disk, and the next answer brings none back.")
+    func forgettingIsNotUndoneByTheNextAnswer() async throws {
+        let scratch = Scratch()
+        let session = try await session(scratch, Recorder(), allowing: ["com.example.terminal"])
+        try await session.forgetEveryAnswer()
+        #expect(await session.decisions() == CapturePreferences())
+        #expect(!FileManager.default.fileExists(atPath: scratch.preferencesPath))
+
+        try await session.record(.allowed, for: "com.example.editor")
+        let reloaded = CapturePreferencesFile(path: scratch.preferencesPath).load()
+        #expect(reloaded.state(of: "com.example.terminal") == .unknown)
+        #expect(reloaded.state(of: "com.example.editor") == .allowed)
+    }
+}

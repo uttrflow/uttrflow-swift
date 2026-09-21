@@ -39,6 +39,14 @@ public struct SettingsSession: Sendable, Equatable {
         self.recorder = SettingsShortcutRecorder(binding: settings.hotkey)
     }
 
+    /// Takes a change made in the menu bar or main window, keeping the window's own state and a recording under way.
+    public mutating func synchronize(settings: Settings) {
+        self.settings = settings
+        guard !recorder.isRecording else { return }
+        recorder = SettingsShortcutRecorder(binding: settings.hotkey, action: recorder.action)
+        rejection = nil
+    }
+
     /// The window as it stands now.
     public var presentation: SettingsWindowPresentation {
         presentation(at: Date())
