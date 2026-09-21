@@ -72,4 +72,15 @@ struct CleaningScopeTests {
         #expect(await router.finishMessage("git status", for: terminal) == "Git status")
         #expect(await router.finishMessage("the build failed", for: document) == "The build failed.")
     }
+
+    @Test(
+        "the first word on a new line is capitalised whichever line break opened it",
+        arguments: ["\n", "\r\n", "\r"])
+    func newLineCapitalisesAfterEveryLineBreak(newline: String) async throws {
+        let context = AppContext.fixture(
+            bundleIdentifier: "com.apple.Notes", precedingText: "previous line" + newline)
+        let result = try await RuleBasedTransformer().transform(
+            request("the migration finished overnight", seeing: context, scope: .message))
+        #expect(result.text == "The migration finished overnight.")
+    }
 }

@@ -90,7 +90,7 @@ where all of it happens.
 
 A tap is a hold shorter than `minimumHold` — 200 ms, the same threshold the slip rule uses. Two
 taps whose ends fall within `doubleTapWindow` — 450 ms — are one double tap. The first turns
-hands-free on; the next pair turns it off, which is the only thing that does.
+hands-free on; the next pair turns it off, as does any of the ends listed below.
 
 That makes three ways to be recording rather than two, and they do not overlap:
 
@@ -107,6 +107,19 @@ Two consequences worth stating, because both look like bugs from outside:
 - **Releasing the key does nothing while hands-free.** There is no hold to end — the gesture that
   started this was two taps, and a release the user never thinks of as one should not stop them
   mid-sentence.
+
+### However it ends, the next gesture works
+
+A second double tap is the gesture that ends a hands-free dictation, and it is not the only
+thing that can. Each of these ends it and forgets it, so the next hold and the next double tap
+open the microphone as usual:
+
+- a second double tap;
+- a click on a control: the menu bar's Stop Dictation, the panel's dictate button, Retry;
+- the cap, which finishes the recording and keeps its words (`Docs/stuck-recording.md`);
+- a change of activation mode;
+- the pipeline ending the recording on its own, such as a cancel: the next press notices the
+  microphone is closed and forgets hands-free before acting.
 
 **It exists in hold-to-talk only**, and that is not an omission. `endHold()` is reached from
 `(.holdToTalk, .released)` and nothing else — in press-to-toggle a release does nothing at all,

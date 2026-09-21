@@ -55,8 +55,9 @@ EXCLUDED_FILES = {
     ),
     "UttrflowAccount/DeviceIdentity+System.swift": "reads this Mac's name from the system",
     "UttrflowAccount/LoopbackListener+System.swift": (
-        "binds a TCP port and speaks HTTP to a browser; the two parts that decide anything "
-        "— parsing the request line and the page it answers with — are tested directly"
+        "binds a TCP port and speaks HTTP to a browser; what it decides — parsing the request "
+        "line, whether a callback answers this attempt, and the page it answers with — is "
+        "tested directly, and LoopbackListenerTests drives the real port"
     ),
     "UttrflowInput/CarbonHotkeyMonitor.swift": "registers a system-wide hotkey with Carbon",
     "UttrflowInput/KeyInterceptor.swift": (
@@ -97,6 +98,7 @@ EXCLUDED_FILES = {
     "Uttrflow/Settings/SettingsControlView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Settings/SettingsControlStyles.swift": "SwiftUI; appearance only, and every control it restyles keeps the behaviour the platform gives it",
     "Uttrflow/Settings/SettingsCapabilities+System.swift": "reads what this Mac can do from the system",
+    "Uttrflow/Settings/ApplicationPicker+System.swift": "asks the user to pick an application through a system menu and open panel",
     "Uttrflow/Main/MainWindowController.swift": "owns an on-screen window",
     "Uttrflow/Brand/UttrflowMarkView.swift": (
         "SwiftUI; the geometry it draws is UttrflowMark, which is tested"
@@ -158,9 +160,8 @@ EXCLUDED_FILES = {
         "is QuantizedLayerPlan, tested against safetensors headers"
     ),
     "UttrflowLocalModel/MLXCandidateScorer.swift": (
-        "downloads gigabytes and runs GPU inference; what is done with the score — the floor "
-        "it is read against, and the budget it is raced against — is Verification and Verifier, "
-        "both of which are tested against a scripted model"
+        "loads a model and runs GPU inference; the text its answers are read through is "
+        "CompletionText, and what is done with a score is Verification and Verifier, all tested"
     ),
 }
 

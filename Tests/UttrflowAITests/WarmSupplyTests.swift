@@ -1,5 +1,6 @@
 // Tests for the supply that keeps one prepared thing ready for whoever asks next.
 
+import Foundation
 import Synchronization
 import Testing
 
@@ -99,5 +100,63 @@ struct WarmSupplyTests {
         await supply.keep("made elsewhere", for: "plain")
 
         #expect(await supply.take(for: "plain") == "made elsewhere")
+    }
+}
+
+/// A session kept from a dictation minutes ago is cold, so the supply treats age as it does a wrong key.
+@Suite("Keeping one ready only while it is warm")
+struct WarmSupplyAgeTests {
+    /// A clock a test moves by hand.
+    private final class Hand: Sendable {
+        private let moment = Mutex(Date(timeIntervalSince1970: 1_800_000_000))
+        var now: Date { moment.withLock { $0 } }
+        func pass(_ seconds: Double) { moment.withLock { $0 = $0.addingTimeInterval(seconds) } }
+    }
+
+    private func supply(_ hand: Hand, counting made: Made) -> WarmSupply<String> {
+        WarmSupply(now: { hand.now }) { key in
+            made.add(key)
+            return "session for \(key)"
+        }
+    }
+
+    @Test("a fresh one is kept rather than made again")
+    func freshIsKept() async {
+        let hand = Hand()
+        let made = Made()
+        let supply = supply(hand, counting: made)
+
+        await supply.replenish(for: "tidy")
+        hand.pass(5)
+        await supply.replenish(for: "tidy")
+
+        #expect(made.all == ["tidy"])
+        #expect(await supply.isReady(for: "tidy"))
+    }
+
+    @Test("one made before the staleness limit is replaced, and never handed out")
+    func staleIsReplaced() async {
+        let hand = Hand()
+        let made = Made()
+        let supply = supply(hand, counting: made)
+
+        await supply.replenish(for: "tidy")
+        hand.pass(WarmSupply<String>.staleAfterSeconds + 1)
+
+        #expect(!(await supply.isReady(for: "tidy")), "an old session is not ready")
+        await supply.replenish(for: "tidy")
+        #expect(made.all == ["tidy", "tidy"], "key-down makes a fresh one")
+        #expect(await supply.take(for: "tidy") == "session for tidy")
+    }
+
+    @Test("a stale one is not handed out to a dictation")
+    func staleIsNotHandedOut() async {
+        let hand = Hand()
+        let supply = supply(hand, counting: Made())
+
+        await supply.replenish(for: "tidy")
+        hand.pass(WarmSupply<String>.staleAfterSeconds + 1)
+
+        #expect(await supply.take(for: "tidy") == nil)
     }
 }

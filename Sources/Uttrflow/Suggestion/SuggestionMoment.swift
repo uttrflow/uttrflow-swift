@@ -29,7 +29,12 @@ enum SuggestionMoment {
             hasSelection: snapshot.hasSelection, isComposing: snapshot.isComposing,
             isSecure: snapshot.isSecure, isProse: snapshot.isProse,
             millisecondsSinceKeystroke: millisecondsSinceKeystroke,
-            canDraw: snapshot.placement == .inlineGhost)
+            canDraw: snapshot.placement == .inlineGhost, markedText: snapshot.markedText)
+    }
+
+    /// Which window a walk belongs to, from what the field read already says about it.
+    static func windowKey(of snapshot: FocusedFieldSnapshot) -> String {
+        "\(snapshot.bundleIdentifier)\u{1F}\(snapshot.document ?? "")"
     }
 
     /// The remembered lines worth showing, less any the line being written already begins with.

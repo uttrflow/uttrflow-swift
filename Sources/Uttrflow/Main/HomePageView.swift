@@ -114,6 +114,7 @@ struct HomeRowView: View {
     var onIntent: (MainIntent) -> Void
 
     @State private var isHovered = false
+    @FocusState private var focusedControl: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -134,7 +135,7 @@ struct HomeRowView: View {
             }
             // Hidden rather than removed, so the row keeps its shape and a keyboard can still reach it.
             MainIconButton(action: row.open, onIntent: onIntent)
-                .opacity(isHovered ? 1 : 0)
+                .revealedInRow(row.open.id, isHovered: isHovered, focusedControl: $focusedControl)
                 .padding(.top, -2)
         }
         .padding(.horizontal, MainMetrics.rowPadding)

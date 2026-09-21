@@ -11,10 +11,11 @@ public enum Quieting {
         reason(context) != nil
     }
 
-    /// Why nothing may be drawn; composition is deliberately not consulted, so the IME never gates drawing.
+    /// Why nothing may be drawn; only the field's own marked text gates on composition, never the input-source guess. See `Docs/predict-ime.md`.
     public static func reason(_ context: PredictionContext) -> Reason? {
         if !context.isEnabledHere { return .turnedOffHere }
         if context.isSecure { return .secureField }
+        if context.markedText == .present { return .composing }
         if !context.canDraw { return .nowhereToDraw }
         if context.hasSelection { return .textSelected }
         if !context.caretAtLineEnd { return .caretInsideText }
@@ -31,6 +32,8 @@ public enum Quieting {
         case turnedOffHere
         /// The field hides what is typed into it.
         case secureField
+        /// The field reports marked text, so an input method owns the line, Escape and the arrows.
+        case composing
         /// The field reports no caret, so there is no place on its line to draw.
         case nowhereToDraw
         /// Text is selected, which the next keystroke would replace.

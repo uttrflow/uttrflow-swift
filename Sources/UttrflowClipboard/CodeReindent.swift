@@ -1,11 +1,28 @@
 // Makes a clip's indentation consistent, or refuses.
 
 import Foundation
+private import Synchronization
+
+/// Counts the re-indents run while this is bound to `CodeReindent.tally`.
+package final class ReindentTally: Sendable {
+    private let calls = Mutex(0)
+
+    package init() {}
+
+    /// Answers how many re-indents have run so far.
+    package var count: Int { calls.withLock { $0 } }
+
+    func record() { calls.withLock { $0 += 1 } }
+}
 
 /// Normalises a clip's indentation, or refuses rather than guess. See Docs/clipboard-reindent.md.
 public enum CodeReindent {
+    /// Counts the re-indents run while bound, so a test can bound the work without a clock.
+    @TaskLocal package static var tally: ReindentTally?
+
     /// The clip with one indentation style throughout, or `nil` when consistent, unindented or unreadable.
     public static func reindented(_ text: String) -> String? {
+        tally?.record()
         // Split on "\n" alone, so a "\r\n" clip keeps its carriage returns as trailing content.
         let lines = text.components(separatedBy: "\n")
 
