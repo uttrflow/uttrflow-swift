@@ -26,9 +26,12 @@ public struct AliasProposal: Sendable, Equatable {
 public enum PanelAlias {
     /// An alias reduced to what identifies it: no leading slash, no whitespace, case and accents folded.
     public static func handle(_ text: String, locale: Locale) -> String {
-        String(text.drop { $0 == "/" })
-            .filter { !$0.isWhitespace }
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: locale)
+        String(
+            text
+                .filter { !$0.isWhitespace }
+                .drop { $0 == "/" }
+        )
+        .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: locale)
     }
 
     /// What saving `typed` as `clip`'s alias would do; the clip itself is not a conflict with itself.

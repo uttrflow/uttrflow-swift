@@ -15,6 +15,15 @@ public struct DictationLimit: Sendable, Equatable {
     public static let `default` = DictationLimit(
         warnAfter: .seconds(180), stopAfter: .seconds(240))
 
+    /// When the warning is said: from `warnAfter`, every ten seconds until the cap.
+    public var countdown: [Duration] {
+        guard warnAfter < stopAfter else { return [] }
+        return Array(sequence(first: warnAfter) { $0 + Self.countdownStep }.prefix { $0 < stopAfter })
+    }
+
+    /// How often the countdown is said again; `RemainingTime` never changes its words faster.
+    static let countdownStep: Duration = .seconds(10)
+
     /// What should happen at this point in a dictation.
     public func advice(at elapsed: Duration) -> DictationAdvice {
         if elapsed >= stopAfter { return .finishNow }

@@ -23,6 +23,12 @@ is applied against a responder chain the field is not yet in and is dropped sile
 The panel's `.task(id: presentation.sheet == nil)` does the reverse: when the sheet closes it
 releases the sheet's focus and hands the search field back its caret.
 
+A sheet resumed on reopen is the exception to "`onAppear` claims it": the panel's view is built
+once, so a sheet open when the panel hid never left the tree and its field does not appear
+again. The `.task(id: openCount)` that runs on every show therefore checks the snapshot: with a
+sheet that takes typing it releases the search and claims the sheet field after a yield, and
+only otherwise gives the search its caret (#920).
+
 ## Hover while another application is frontmost
 
 `.onHover` only reports while Uttrflow is the active application, and the quick panel never
@@ -130,16 +136,39 @@ no permission, so this works before Accessibility is granted.
 
 ## Position
 
-The panel opens where the user last dragged it, else the top-right corner of the screen the
-pointer is on (`NSScreen.main` belongs to another application's key window here). Only the
-origin is remembered, as two `UserDefaults` keys, read with `object(forKey:)` because
-`double(forKey:)` answers 0 for a key never written and 0,0 is a real corner. The size is the
-design's on every open; a drag-resize lasts only while the panel is on screen.
+The panel opens on the screen the pointer is on (`NSScreen.main` belongs to another
+application's key window here), where the user last dragged it on that display, else in its
+top-right corner. Each display keeps its own origin, keyed by its `NSScreenNumber`, in one
+`UserDefaults` dictionary (`PanelSpots`), so a spot on one display never places the panel on
+another. The size is the design's on every open; a drag-resize lasts only while the panel is on
+screen.
 
 `windowDidMove` compares the frame origin to `placedOrigin`, the origin `show(_:)` last set,
 rather than using a flag: AppKit delivers the notification on a later pass of the run loop, by
 which time a flag has been cleared and the panel's own placement is indistinguishable from a
 drag. A resize from the left or bottom border moves the origin too and sets `placedOrigin`
 through `onResize`, so a resize is remembered as exactly nothing. While dragging, the origin is
-clamped to the visible frame, because a borderless panel gets none of AppKit's protection and
-goes clean under the menu bar.
+clamped to the visible frame of the screen the panel is on, not the pointer's, because a
+borderless panel gets none of AppKit's protection and goes clean under the menu bar.
+
+## After the panel has closed
+
+Choosing a clip closes the panel before the paste, because insertion declines outright while
+Uttrflow is frontmost. So whatever goes wrong after that has no panel to say it on. The floating
+button says it instead, and VoiceOver hears it as an announcement at high priority, because
+that is where a dictation's outcome already appears and where the user's eye goes when nothing
+arrives.
+
+`PanelPasteReport.after(_:)` in `UttrflowUX` is the one decision, for text and pictures alike:
+
+| What happened | What is said |
+| --- | --- |
+| Text seen to arrive, or a target that cannot say | nothing, as for a dictation |
+| Text sent and never seen to arrive (`.unconfirmed`) | "Inserted — not confirmed", the dictation's own words |
+| Text left on the clipboard, or every strategy refused | "Copied — press ⌘V" |
+| A picture on the clipboard whose ⌘V was refused | "Copied — press ⌘V" |
+| A picture whose file went before Return | "That picture is no longer on this Mac" |
+
+A dictation under way owns the floating button, so the report is spoken but not drawn over it.
+The drawn report stays for as long as a dictation failure does and then gives the button back.
+When the floating button is turned off, the announcement is the only surface.

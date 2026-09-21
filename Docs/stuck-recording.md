@@ -102,7 +102,7 @@ reference to it was its own definition or its own test. It is now wired into
 
 | at | what happens |
 |---|---|
-| 3 minutes | the menu bar and the floating button count down — "Listening… 1 min left" |
+| 3 minutes | the menu bar and the floating button count down — "Listening… 1 min left", then every ten seconds, "50 sec left" to "10 sec left" |
 | 4 minutes | the dictation **finishes itself**, and is transcribed and inserted |
 
 It is a soft cap, and the distinction is the whole point. Reaching it keeps everything
