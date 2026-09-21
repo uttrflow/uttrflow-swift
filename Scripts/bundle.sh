@@ -492,9 +492,11 @@ STRAY_ROOT_ENTRIES="$(find "$APP" -maxdepth 1 -mindepth 1 ! -name Contents)"
 #    The `|| true` is load-bearing under `set -o pipefail`: grep exits 1 when it
 #    matches nothing, and "this binary needs no resource bundles" is a legitimate
 #    answer, not a build failure.
+#    `.bundle` has to end the name: `surface.bundle_id` is a column, not a bundle.
 REQUIRED_BUNDLES="$(
     strings -a "$APP/Contents/MacOS/$EXECUTABLE" \
-        | { grep -oE '[A-Za-z0-9_+.-]+\.bundle' || true; } \
+        | { grep -oE '[A-Za-z0-9_+.-]+\.bundle([^A-Za-z0-9_]|$)' || true; } \
+        | sed -E 's/^(.*\.bundle).*$/\1/' \
         | LC_ALL=C sort -u
 )"
 while IFS= read -r required_bundle; do
