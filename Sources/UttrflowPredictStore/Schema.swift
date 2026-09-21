@@ -7,6 +7,8 @@ enum Schema {
     static let statements = [
         "PRAGMA journal_mode = WAL",
         "PRAGMA synchronous = NORMAL",
+        // Stated rather than relied on: a cell a forgotten row held is zeroed however the library was built.
+        "PRAGMA secure_delete = ON",
         "PRAGMA foreign_keys = ON",
         """
         CREATE TABLE IF NOT EXISTS schema_version (
