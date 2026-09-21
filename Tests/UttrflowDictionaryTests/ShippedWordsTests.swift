@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowDictionary
 
@@ -69,7 +70,8 @@ struct ShippedWordsTests {
     /// "Forget what Uttrflow learned" is about this Mac; a shipped word was inferred from nothing.
     @Test("keeps a shipped word when the learned ones are forgotten")
     func survivesForgettingWhatWasLearned() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.seedShippedWords(at: epoch)
         try await store.add(word("kubectl", from: .observed))
 
@@ -83,7 +85,8 @@ struct ShippedWordsTests {
         "is found by the way the name sounds, not only by its spelling",
         arguments: ["utter flow", "utterflow", "otter flow", "udder flow"])
     func isFoundBySound(heard: String) async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.seedShippedWords(at: epoch)
 
         let found = await store.index()
@@ -102,5 +105,54 @@ struct ShippedWordsTests {
         try await first.seedShippedWords(at: epoch)
 
         #expect(try await second.seedShippedWords(at: epoch).map(\.word) == ["Uttrflow"])
+    }
+
+    /// A dictionary that cannot be written to seeds nothing, and must not be marked as seeded.
+    @Test("seeds on the next launch when the words could not be written the first time")
+    func retriesAfterTheWordsFailToWrite() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([DictionaryEntry]())
+        try setImmutable(sandbox.file, true)
+        let store = PersonalDictionaryStore(file: sandbox.file)
+
+        await #expect(throws: DictionaryStoreError.couldNotWrite) {
+            try await store.seedShippedWords(at: epoch)
+        }
+        try setImmutable(sandbox.file, false)
+
+        let relaunched = PersonalDictionaryStore(file: sandbox.file)
+        #expect(try await relaunched.seedShippedWords(at: epoch).map(\.word) == ["Uttrflow"])
+        #expect(await relaunched.allEntries().map(\.word) == ["Uttrflow"])
+    }
+
+    /// The words landed and only the record failed, so the next launch writes the record and no second copy.
+    @Test("installs the words exactly once when only the record could not be written")
+    func retriesAfterTheRecordFailsToWrite() async throws {
+        let sandbox = Sandbox()
+        let record = sandbox.folder.appending(path: "dictionary.v1.seeded.json")
+        // A folder where the record goes, which no write can replace.
+        try FileManager.default.createDirectory(at: record, withIntermediateDirectories: true)
+        let store = PersonalDictionaryStore(file: sandbox.file)
+
+        await #expect(throws: DictionaryStoreError.couldNotWrite) {
+            try await store.seedShippedWords(at: epoch)
+        }
+        try FileManager.default.removeItem(at: record)
+
+        let relaunched = PersonalDictionaryStore(file: sandbox.file)
+        #expect(try await relaunched.seedShippedWords(at: epoch).isEmpty)
+        #expect(await relaunched.allEntries().map(\.word) == ["Uttrflow"])
+
+        // Recorded now, so a word deleted from here on stays deleted.
+        let seeded = try #require(await relaunched.allEntries().first)
+        try await relaunched.remove(seeded.id)
+        try await PersonalDictionaryStore(file: sandbox.file).seedShippedWords(at: epoch)
+        #expect(await PersonalDictionaryStore(file: sandbox.file).allEntries().isEmpty)
+    }
+
+    /// Locks or unlocks a file against every write, the way a failing disk refuses one.
+    private func setImmutable(_ file: URL, _ locked: Bool) throws {
+        try FileManager.default.setAttributes(
+            [.immutable: locked], ofItemAtPath: file.path(percentEncoded: false))
     }
 }

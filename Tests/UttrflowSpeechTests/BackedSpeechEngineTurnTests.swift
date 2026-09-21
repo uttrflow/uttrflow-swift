@@ -1,6 +1,7 @@
 // Tests that the engine hands the recogniser one call at a time, however many callers arrive.
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 @testable import UttrflowSpeech
@@ -73,11 +74,6 @@ struct BackedSpeechEngineTurnTests {
     private let speech = AudioSamples.canonical(
         Array(repeating: 0.1, count: AudioSamples.canonicalSampleRate))
 
-    /// Yields until `condition` holds, for what must happen; the suite's time limit ends a wait that never does.
-    private func eventually(_ condition: () -> Bool) async {
-        while !condition() { await Task.yield() }
-    }
-
     /// Yields until `condition` holds or the attempts run out, for what must not happen.
     private func briefly(_ condition: () -> Bool) async {
         for _ in 0..<20_000 where !condition() { await Task.yield() }
@@ -87,7 +83,7 @@ struct BackedSpeechEngineTurnTests {
     private func loadedEngine(_ backend: HeldBackend) async throws -> BackedSpeechEngine {
         let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
         let loading = Task { try await engine.prepare() }
-        await eventually { backend.held == 1 }
+        try await eventually { backend.held == 1 }
         backend.releaseOne()
         try await loading.value
         return engine
@@ -99,13 +95,13 @@ struct BackedSpeechEngineTurnTests {
         let engine = try await loadedEngine(backend)
 
         let first = Task { try await engine.transcribe(speech, options: .automatic) }
-        await eventually { backend.held == 1 }
+        try await eventually { backend.held == 1 }
         let second = Task { try await engine.transcribe(speech, options: .automatic) }
         await briefly { backend.transcriptions == 2 }
 
         #expect(backend.transcriptions == 1, "the second call must not reach the recogniser yet")
         backend.releaseOne()
-        await eventually { backend.transcriptions == 2 }
+        try await eventually { backend.transcriptions == 2 }
         backend.open()
         _ = try await first.value
         _ = try await second.value
@@ -120,7 +116,7 @@ struct BackedSpeechEngineTurnTests {
         let engine = try await loadedEngine(backend)
 
         let first = Task { try await engine.transcribe(speech, options: .automatic) }
-        await eventually { backend.held == 1 }
+        try await eventually { backend.held == 1 }
         let abandoned = Task { try await engine.transcribe(speech, options: .automatic) }
         await briefly { backend.transcriptions == 2 }
         abandoned.cancel()
@@ -158,7 +154,7 @@ struct BackedSpeechEngineTurnTests {
         let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
 
         let loading = Task { try await engine.prepare() }
-        await eventually { backend.held == 1 }
+        try await eventually { backend.held == 1 }
         let transcribing = Task { try await engine.transcribe(speech, options: .automatic) }
         await briefly { backend.loads == 2 }
 
@@ -177,7 +173,7 @@ struct BackedSpeechEngineTurnTests {
         let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
 
         let first = Task { try await engine.prepare() }
-        await eventually { backend.held == 1 }
+        try await eventually { backend.held == 1 }
         let second = Task { try await engine.prepare() }
         await briefly { backend.loads == 2 }
         backend.open()

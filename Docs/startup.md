@@ -90,6 +90,17 @@ the one home for the words and for when the minutes are said.
 | Clipboard panel | The microphone is off: *Speech model still loading*. | Off, as for a model that is not ready. |
 | Menu bar | *Getting ready…* | *Speech model didn't load* |
 
+**A model that is not on disk at all** is `SpeechModelLoad.missing`, read from the same
+`.notInstalled` readiness the menu bar reads. Home shows **The speech model isn’t downloaded**
+with **Download**, its ring out and its status *Speech model not downloaded*; the Dictation page
+says the same in place of its invitation to talk; the menu bar reads *Speech model not
+downloaded*. The floating button stays the resting grip, since setup is what fetches a missing
+model. The Dictation page names a load or a failure the same way when it has nothing else to show.
+
+Home's resting status is *Ready* and, while something blocks dictation, *Not ready* or the
+model's own status. It never says *Listening*, which on the menu bar and the floating button
+means the microphone is open.
+
 **The minutes are said only once a load has run for five seconds** (`SpeechModelLoad.estimateAfter`).
 A warm load is over in about two, so it never claims minutes; one still going at five seconds is
 almost certainly the cold case, and from then the card reads *The first load after a restart can
