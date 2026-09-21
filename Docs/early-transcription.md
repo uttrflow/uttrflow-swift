@@ -181,6 +181,10 @@ start of the recording and pre-warmed, a session brought a ten-second utterance'
 tidying from 1.25 s to 0.92 s, so `TranscriptCleaning.warm()` is called as recording
 begins.
 
+A session kept from the last dictation is not warm any more, so the supply records when it made
+one and treats anything older than a minute as it would a session made for other instructions:
+key-down makes a fresh one, and a stale one is never handed out (#876).
+
 It is still a fresh session per utterance — one sentence's context must not bleed into the
 next — but no longer only one per *dictation*. `WarmSupply` hands its session out once and
 then makes another for the same instructions, so the second and third pieces cost what the

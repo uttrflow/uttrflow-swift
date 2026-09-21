@@ -27,6 +27,8 @@ private struct SuggestionRequest {
     var acceptKey: AcceptKey = .tab
     /// The field's own font family, so the ghost is set in the face the line is.
     var fontFamily: String?
+    /// The field's own text colour, so the ghost reads against the field and not against Uttrflow's appearance.
+    var textColor: TextColor?
 }
 
 /// Owns the panel the suggestion is drawn in, one for the whole process so no two ghosts are ever on screen.
@@ -40,6 +42,7 @@ final class SuggestionPanelController {
     private var request = SuggestionRequest()
     private var panelSize = CGSize(width: 1, height: 1)
     private var appearanceObserver: (any NSObjectProtocol)?
+    private var isActuallyShowing = false
 
     init() {
         hostingView = NSHostingView(rootView: SuggestionView(presentation: .init(.silent)))
@@ -69,22 +72,25 @@ final class SuggestionPanelController {
         fieldPointSize: CGFloat? = nil,
         selection: SuggestionSelection = .untouched,
         acceptKey: AcceptKey = .tab,
-        fontFamily: String? = nil
+        fontFamily: String? = nil,
+        textColor: TextColor? = nil
     ) {
         request = SuggestionRequest(
             suggestion: suggestion, typed: typed, placement: placement, caret: caret,
             window: window, field: field, fieldPointSize: fieldPointSize, selection: selection,
-            acceptKey: acceptKey, fontFamily: fontFamily)
+            acceptKey: acceptKey, fontFamily: fontFamily, textColor: textColor)
         render()
     }
 
     func hide() {
+        // Already hidden and already drawn hidden: redrawing would change nothing and costs a screen lookup per key.
+        if request.suggestion == .silent, !panel.isVisible, drawn.style == .hidden { return }
         request.suggestion = .silent
         render()
     }
 
     /// Whether a suggestion is on screen, which keeps the pause clock following the field.
-    var isShowing: Bool { request.suggestion != .silent }
+    var isShowing: Bool { isActuallyShowing }
 
     /// Exposed so a probe or a test can read back what was actually configured.
     var window: NSPanel { panel }
@@ -92,20 +98,29 @@ final class SuggestionPanelController {
     /// What the panel is drawing right now, which a test reads back.
     var drawn: SuggestionPresentation { hostingView.rootView.presentation }
 
+    /// How many times the view has been replaced, so a test can see that a redundant hide changes nothing.
+    private(set) var renders = 0
+
     /// Redraws from the last request, measuring the new content before the panel is placed so old and new are never on screen together.
     private func render() {
-        let screen = visibleFrame
-        let room = request.caret.flatMap {
-            SuggestionGeometry.availableWidth(caret: $0, field: request.field, screen: screen)
-        }
+        // Nothing to place means no screen to look up.
+        let room =
+            request.suggestion == .silent
+            ? nil
+            : request.caret.flatMap {
+                SuggestionGeometry.availableWidth(caret: $0, field: request.field, screen: visibleFrame)
+            }
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
-            acceptKey: request.acceptKey, fontFamily: request.fontFamily, maximumWidth: room)
+            acceptKey: request.acceptKey, fontFamily: request.fontFamily,
+            fieldTextColor: request.textColor, maximumWidth: room)
         hostingView.rootView = SuggestionView(
             presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
+        renders += 1
         guard presentation.style != .hidden else {
+            isActuallyShowing = false
             panel.orderOut(nil)
             return
         }
@@ -114,11 +129,13 @@ final class SuggestionPanelController {
             panelSize = CGSize(width: measured.width.rounded(.up), height: measured.height.rounded(.up))
         }
         guard reposition() else {
+            isActuallyShowing = false
             panel.orderOut(nil)
             return
         }
         // `orderFrontRegardless`, never `makeKeyAndOrderFront`: no keyboard is taken.
         panel.orderFrontRegardless()
+        isActuallyShowing = true
     }
 
     /// What Increase Contrast, Reduce Transparency and Reduce Motion are set to right now.
@@ -145,9 +162,16 @@ final class SuggestionPanelController {
         let wanted = CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
         guard wanted.width > 0, wanted.height > 0, wanted != panelSize else { return }
         panelSize = wanted
-        guard drawn.style != .hidden else { return }
-        guard reposition() else { return panel.orderOut(nil) }
+        guard drawn.style != .hidden else {
+            isActuallyShowing = false
+            return
+        }
+        guard reposition() else {
+            isActuallyShowing = false
+            return panel.orderOut(nil)
+        }
         panel.orderFrontRegardless()
+        isActuallyShowing = true
     }
 
     /// Places the panel at the caret, or reports that there is nowhere on the line to draw it.
@@ -190,6 +214,8 @@ final class SuggestionPanelController {
         panel.isMovableByWindowBackground = false
         panel.isReleasedWhenClosed = false
         panel.hasShadow = false
+        // `orderOut` waits out AppKit's fade on the main thread, which would stall every keystroke over a ghost.
+        panel.animationBehavior = .none
         panel.contentView = hostingView
     }
 }

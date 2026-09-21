@@ -58,7 +58,14 @@ struct QuickPanelView: View {
         .task(id: openCount) {
             query = presentation.query
             hovered = nil
-            isSearchFocused = true
+            // A resumed sheet with a field keeps the caret; its `onAppear` does not run again (#920).
+            guard presentation.sheet?.takesTyping == true else {
+                isSearchFocused = true
+                return
+            }
+            isSearchFocused = false
+            await Task.yield()
+            isSheetFocused = true
         }
     }
 
@@ -130,7 +137,14 @@ struct QuickPanelView: View {
                 .focused($isSearchFocused)
                 .accessibilityLabel(presentation.searchPlaceholder)
                 // Reports the whole contents: the field owns its own selection, deletion and dictation.
-                .onChange(of: query) { _, text in relayKey(.search(text)) }
+                .onChange(of: query) { _, text in
+                    // Under a sheet with no field, typing would filter away the row being asked about (#946).
+                    if let sheet = presentation.sheet, !sheet.takesTyping {
+                        if text != presentation.query { query = presentation.query }
+                        return
+                    }
+                    relayKey(.search(text))
+                }
                 // On the field, not the panel: `NSTextField` swallows arrow keys itself.
                 .onKeyPress(.upArrow) { send(.up) }
                 .onKeyPress(.downArrow) { send(.down) }
