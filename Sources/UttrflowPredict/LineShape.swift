@@ -74,6 +74,11 @@ enum CommandGrammar {
     /// Package managers whose `run` verb takes a script the project declares.
     static let scriptRunners: Set<String> = ["npm", "yarn", "pnpm", "bun"]
 
+    /// Whether a program's verbs are read from the project here, so its answer belongs to this directory alone.
+    static func readsTheProject(_ program: String) -> Bool {
+        targetPrograms.contains(program) || scriptRunners.contains(program) || program.hasSuffix(" run")
+    }
+
     /// git's verbs that take a branch, or a path where the branch would go.
     static let gitBranchVerbs: Set<String> = [
         "checkout", "switch", "merge", "rebase", "branch", "cherry-pick", "log", "diff", "reset",

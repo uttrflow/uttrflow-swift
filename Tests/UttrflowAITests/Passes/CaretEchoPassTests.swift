@@ -5,8 +5,10 @@ import UttrflowCore
 
 @Suite("CaretEchoPass")
 struct CaretEchoPassTests {
-    private func pass(_ preceding: String?) -> CaretEchoPass {
-        CaretEchoPass(state: InsertionPoint.sentenceState(before: preceding), precedingText: preceding)
+    private func pass(_ preceding: String?, spoken: String? = nil) -> CaretEchoPass {
+        CaretEchoPass(
+            state: InsertionPoint.sentenceState(before: preceding),
+            precedingText: preceding, spokenText: spoken)
     }
 
     @Test(
@@ -33,6 +35,22 @@ struct CaretEchoPassTests {
         ])
     func stripsEcho(preceding: String, answer: String, expected: String) {
         #expect(cleaned(answer, by: pass(preceding)) == expected)
+    }
+
+    @Test("preserves a repeated phrase when it is part of the spoken text")
+    func preservesFaithfulRepetition() {
+        let preceding = "They know "
+        let answer = "They know the password"
+        #expect(cleaned(answer, by: pass(preceding, spoken: "they know the password")) == answer)
+    }
+
+    @Test("removes an extra echo before the phrase the speaker dictated")
+    func removesExtraEchoBeforeFaithfulRepetition() {
+        let preceding = "They know "
+        let answer = "They know they know the password"
+        #expect(
+            cleaned(answer, by: pass(preceding, spoken: "they know the password"))
+                == "they know the password")
     }
 
     @Test("takes back the cut tail the prompt quoted, with or without its ellipsis")

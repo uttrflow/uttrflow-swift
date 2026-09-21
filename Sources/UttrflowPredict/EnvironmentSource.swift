@@ -23,6 +23,15 @@ public enum EnvironmentKind: Sendable, Hashable {
     /// A directory in the directory the terminal is sitting in.
     public static let directory = EnvironmentKind.directories(under: ".")
 
+    /// Whether the answer is the same wherever the terminal is sitting, so one read serves every directory.
+    var isMachineWide: Bool {
+        switch self {
+        case .executable, .alias: true
+        case .subcommand(let program): !CommandGrammar.readsTheProject(program)
+        case .branch, .entries, .directories, .gitAlias: false
+        }
+    }
+
     /// How long an answer is believed: a directory changes with every command, a program's verbs with the program.
     var lifetimeInSeconds: Double {
         switch self {
@@ -52,10 +61,15 @@ public actor EnvironmentIndex {
         let directory: String
     }
 
+    /// The longest a listing that keeps failing is left alone, so a program that never answers is asked rarely.
+    public static let longestBackoffInSeconds = 600.0
+
     /// Values and the moment they stop being believed; a failed read is remembered too, so it is not repeated every keystroke.
     private struct Cached {
         let values: [String]?
         let expires: Date
+        /// How many reads in a row came back with nothing, which is what the backoff doubles on.
+        let failures: Int
     }
 
     /// The half that actually asks the machine.
@@ -72,7 +86,8 @@ public actor EnvironmentIndex {
 
     /// What is known right now, asking the machine in the background when that is nothing or stale; absent until it has answered.
     public func values(of kind: EnvironmentKind, in directory: String, now: Date) -> [String]? {
-        let key = Key(kind: kind, directory: directory)
+        // A machine-wide answer is kept under one key, or every directory pays for its own PATH scan.
+        let key = Key(kind: kind, directory: kind.isMachineWide ? "" : directory)
         let entry = cached[key]
         if entry.map({ $0.expires <= now }) ?? true { refresh(key, now: now) }
         return entry?.values
@@ -94,10 +109,23 @@ public actor EnvironmentIndex {
         }
     }
 
-    /// Believes an answer for the kind's lifetime after the keystroke that asked for it.
+    /// Believes an answer for the kind's lifetime, and leaves a read that keeps failing alone for longer each time.
     private func record(_ key: Key, values: [String]?, now: Date) {
-        cached[key] = Cached(values: values, expires: now.addingTimeInterval(key.kind.lifetimeInSeconds))
+        let failures = values == nil ? (cached[key]?.failures ?? 0) + 1 : 0
+        cached[key] = Cached(
+            values: values, expires: now.addingTimeInterval(Self.lifetime(of: key.kind, failures: failures)),
+            failures: failures)
         refreshing[key] = nil
+    }
+
+    /// The kind's own lifetime, doubled per failure in a row up to ``longestBackoffInSeconds``.
+    static func lifetime(of kind: EnvironmentKind, failures: Int) -> Double {
+        let base = kind.lifetimeInSeconds
+        guard failures > 0 else { return base }
+        // Doubling by multiplication, so this file needs no maths import.
+        var lifetime = base
+        for _ in 0..<min(failures, 32) where lifetime < longestBackoffInSeconds { lifetime *= 2 }
+        return min(lifetime, longestBackoffInSeconds)
     }
 }
 

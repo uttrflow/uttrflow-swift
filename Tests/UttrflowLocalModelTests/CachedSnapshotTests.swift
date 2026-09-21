@@ -123,6 +123,25 @@ struct CachedSnapshotTests {
         #expect(hub.count == 1)
     }
 
+    @Test(
+        "With no downloader, an incomplete cache throws rather than reaching the hub, which is how a reload stays offline"
+    )
+    func noDownloaderNeverFetches() async throws {
+        let cache = try FakeCache()
+        try cache.addConfiguration()
+        try cache.add("model.safetensors", FakeCache.weights(bytes: 16))
+        await #expect(throws: WeightsNotOnDisk(identifier: cache.model().identifier)) {
+            _ = try await cache.model().weightsDirectory(
+                cache: cache.root, downloader: nil, onProgress: { _ in })
+        }
+        let whole = try FakeCache()
+        try whole.addConfiguration()
+        try whole.add("model.safetensors", FakeCache.weights(bytes: 256))
+        let directory = try await whole.model().weightsDirectory(
+            cache: whole.root, downloader: nil, onProgress: { _ in })
+        #expect(directory.standardizedFileURL == whole.snapshot.standardizedFileURL)
+    }
+
     @Test("An empty cache goes to the hub")
     func emptyCacheAsksTheHub() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "no-cache-\(UUID().uuidString)")

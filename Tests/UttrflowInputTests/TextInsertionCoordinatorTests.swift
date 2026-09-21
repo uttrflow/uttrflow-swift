@@ -293,6 +293,8 @@ struct FakeFocus: AccessibilityFocus {
     var value: String?
     /// What is in front at the moment of the write, which a real reader answers from the window server.
     var frontmost: InsertionDestination?
+    /// Whether the focused field hides what is typed.
+    var secure = false
 
     init(
         field: (any FocusedTextField)? = nil,
@@ -300,8 +302,10 @@ struct FakeFocus: AccessibilityFocus {
         isSelf: Bool = false,
         preceding: String? = nil,
         value: String? = nil,
-        frontmost: InsertionDestination? = nil
+        frontmost: InsertionDestination? = nil,
+        secure: Bool = false
     ) {
+        self.secure = secure
         self.field = field
         self.somethingFocused = somethingFocused
         self.isSelf = isSelf
@@ -314,6 +318,7 @@ struct FakeFocus: AccessibilityFocus {
     func hasFocusedElement() -> Bool { somethingFocused ?? (field != nil) }
     func isSelfFrontmost() -> Bool { isSelf }
     func frontmostApplication() -> InsertionDestination? { frontmost }
+    func focusedFieldIsSecure() -> Bool { secure }
     func precedingText(_ count: Int) -> String? {
         guard let value else { return preceding }
         return BackwardSelection.text(in: value, endingAt: value.utf16.count, exactly: count)

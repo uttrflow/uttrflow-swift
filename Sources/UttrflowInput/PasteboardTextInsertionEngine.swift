@@ -39,7 +39,12 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         guard !Task.isCancelled else {
             throw .insertionRejected(description: TextInsertion.dictationEnded)
         }
-        pasteboard.setText(text, richText: richText)
+        // Concealed for a field that hides what is typed, so no clipboard history keeps the words.
+        if focus.focusedFieldIsSecure() {
+            pasteboard.setConcealedText(text)
+        } else {
+            pasteboard.setText(text, richText: richText)
+        }
         // Thrown onwards with the words left on the clipboard: the floor below would only put them back.
         try keystrokes.sendPaste()
         // Posting a paste proves nothing, so this waits for the words the way the write above is read back.
@@ -57,7 +62,7 @@ extension InsertionArrival {
         switch outcome {
         case .landed: self = .confirmed
         case .notReported: self = .notReported
-        case .gaveUp: self = .unconfirmed
+        case .gaveUp, .cancelled: self = .unconfirmed
         }
     }
 }

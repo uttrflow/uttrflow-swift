@@ -60,6 +60,14 @@ struct RestatementTests {
         #expect(!Restatement.standsAlone(0, before: 2, in: shouted.live, of: shouted.draft))
     }
 
+    @Test("anchors on an amount written with its sign")
+    func anchorsOnASignedAmount() {
+        let money = reading("the total is $40, no wait, $50.")
+        #expect(Restatement.discardedStart(before: 4, after: 6, in: money.live, of: money.draft) == 3)
+        let share = reading("the fee is 40% actually 50%.")
+        #expect(Restatement.discardedStart(before: 4, after: 5, in: share.live, of: share.draft) == 3)
+    }
+
     /// A number anchor reaches back only as far as the stop, because the number in the sentence before was not the one corrected.
     @Test("refuses a number anchor that sits on the far side of a sentence end")
     func numbersDoNotReachThroughAStop() {
@@ -77,6 +85,36 @@ struct RestatementTests {
     func numberWalkBackStopsAtTheStop() {
         let code = reading("the code is 4. 5 no 6")
         #expect(Restatement.discardedStart(before: 5, after: 6, in: code.live, of: code.draft) == 4)
+    }
+
+    /// The unit repeated after each number belongs to the quantity, so it does not hide the number it follows.
+    @Test(
+        "a number correction takes the quantity back when the restatement repeats its unit",
+        arguments: [
+            ("we need twelve boxes i mean fifteen boxes", 4, 6, 2),
+            ("the total is forty dollars no wait fifty dollars", 5, 7, 3),
+            ("it costs forty dollars sorry fifty dollars", 4, 5, 2),
+            ("invite ten people no wait twelve people", 3, 5, 1),
+            ("we need twenty five boxes i mean thirty boxes", 5, 7, 2),
+        ])
+    func numberWithItsUnit(text: String, trigger: Int, restart: Int, start: Int) {
+        let (draft, live) = reading(text)
+        #expect(Restatement.discardedStart(before: trigger, after: restart, in: live, of: draft) == start)
+    }
+
+    @Test(
+        "a number correction does not step over a unit that differs, ends a sentence, or is not repeated",
+        arguments: [
+            ("ten apples actually twelve pears", 2, 3),
+            ("we ordered ten boxes. no twelve boxes arrived", 4, 5),
+            ("i counted ten. boxes no twelve boxes", 4, 5),
+            ("we need ten boxes no twelve. boxes", 4, 5),
+            ("ten boxes no twelve", 2, 3),
+            ("boxes no twelve boxes", 1, 2),
+        ])
+    func numberWithAnotherUnit(text: String, trigger: Int, restart: Int) {
+        let (draft, live) = reading(text)
+        #expect(Restatement.discardedStart(before: trigger, after: restart, in: live, of: draft) == nil)
     }
 
     /// A trigger heading a repeated frame — "no to the offer, no to the meeting" — coordinates a list rather than correcting one.

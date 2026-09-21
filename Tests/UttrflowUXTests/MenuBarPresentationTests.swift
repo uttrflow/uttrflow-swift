@@ -112,7 +112,7 @@ struct MenuBarStatusTests {
             ).statusLine == "Setting up… 42%")
         #expect(
             MenuBarPresenter.present(MenuBarState(speechModel: .notInstalled)).statusLine
-                == "Setup hasn't finished")
+                == "Speech model not downloaded")
     }
 
     /// A downloader reporting 140% is the downloader's bug, and not the menu bar's to show.
@@ -190,12 +190,54 @@ struct MenuBarContentsTests {
         #expect(fix.isEnabled)
     }
 
+    /// A missing or broken model has its download offered before any dictation has failed.
+    @Test(
+        "offers the model download when the model is missing or did not load",
+        arguments: [
+            SpeechModelReadiness.notInstalled, .loadFailed,
+        ])
+    func setupIsOfferedWithoutAFailure(speechModel: SpeechModelReadiness) {
+        let shown = MenuBarPresenter.present(MenuBarState(speechModel: speechModel))
+        guard case .command(let fix) = shown.items[1] else {
+            Issue.record("the download is not the row under the status line")
+            return
+        }
+        #expect(fix.title == "Finish Setup")
+        #expect(fix.intent == .recover(.downloadSpeechModel))
+        #expect(fix.isEnabled)
+    }
+
+    @Test(
+        "offers no download while the model is ready, loading or downloading",
+        arguments: [
+            SpeechModelReadiness.ready, .loading, .downloading(fractionCompleted: 0.5),
+        ])
+    func noSetupRowOnceUnderWay(speechModel: SpeechModelReadiness) {
+        let shown = MenuBarPresenter.present(MenuBarState(speechModel: speechModel))
+        #expect(shown.command(.recover(.downloadSpeechModel)) == nil)
+    }
+
+    /// A failure's own fix wins the row, so the menu never offers two at once.
+    @Test("puts a failure's fix ahead of the download")
+    func failureFixWinsOverSetup() {
+        let shown = MenuBarPresenter.present(MenuBarState(failure: microphoneOff, speechModel: .notInstalled))
+        #expect(shown.command(.recover(.openSystemSettings(.microphone))) != nil)
+        #expect(shown.command(.recover(.downloadSpeechModel)) == nil)
+    }
+
+    /// A failure with nothing to offer leaves the row to the download, so a missing model is never a dead end.
+    @Test("offers the download under a failure that has no fix of its own")
+    func setupFillsAnEmptyFix() {
+        let shown = MenuBarPresenter.present(MenuBarState(failure: noWayOut, speechModel: .notInstalled))
+        #expect(shown.command(.recover(.downloadSpeechModel))?.title == "Finish Setup")
+    }
+
     /// A row that opens something else gets an ellipsis; the banner button stays plain either way.
     @Test("adds the ellipsis only where a menu should")
     func menuTitleEllipsis() {
         let shown = MenuBarPresenter.present(MenuBarState(failure: clipboardFallback))
-        #expect(shown.command(.recover(.pasteManually))?.title == "Paste")
-        #expect(clipboardFallback.action?.title == "Paste")
+        #expect(shown.command(.recover(.pasteManually))?.title == "Dismiss")
+        #expect(clipboardFallback.action?.title == "Dismiss")
     }
 
     @Test("offers nothing extra for a failure that has no fix")
@@ -490,5 +532,58 @@ struct MenuBarPrintedShortcutTests {
         let control = HotkeyBinding(keyCode: 9, modifiers: [.control, .command])
         #expect(MenuBarShortcut.forBinding(control) == nil)
         #expect(MenuBarShortcut.forBinding(.shiftCommandV)?.key == "v")
+    }
+
+    @Test(
+        "the AI suggestions switch says what its model is waiting on, in the words Settings uses",
+        arguments: [
+            (SuggestionModelReadiness.loading, "AI Suggestions — Getting ready"),
+            (.downloading(fractionCompleted: nil), "AI Suggestions — Getting ready"),
+            (.downloading(fractionCompleted: 0.42), "AI Suggestions — Getting ready — 42%"),
+            (.downloading(fractionCompleted: 1.7), "AI Suggestions — Getting ready — 100%"),
+            (.releasedForMemory, "AI Suggestions — Paused to free memory"),
+            (.failed, "AI Suggestions — The model could not be fetched"),
+            (.ready, "AI Suggestions"),
+            (.notAsked, "AI Suggestions"),
+        ])
+    func suggestionsSwitchShowsTheModel(model: SuggestionModelReadiness, title: String) {
+        let shown = MenuBarPresenter.present(
+            MenuBarState(features: MenuBarFeatures(suggestions: true), suggestionModel: model))
+        let item = shown.commands.first { $0.intent == .setFeature(.suggestions, isOn: false) }
+        #expect(item?.title == title)
+        #expect(item?.isChecked == true)
+    }
+
+    @Test("a switched-off AI suggestions item says nothing about a model it is not using")
+    func offSuggestionsSwitchIsPlain() {
+        let shown = MenuBarPresenter.present(
+            MenuBarState(features: MenuBarFeatures(suggestions: false), suggestionModel: .failed))
+        let item = shown.commands.first { $0.intent == .setFeature(.suggestions, isOn: true) }
+        #expect(item?.title == "AI Suggestions")
+    }
+}
+
+@Suite("A shortcut that cannot be heard")
+struct MenuBarUnheardShortcutTests {
+    private let reason = "Another app has turned on secure keyboard entry, so the shortcut can't be heard."
+
+    @Test("is said under the status line, and Start Dictation still works")
+    func saysWhyAndKeepsTheMenuPath() {
+        let shown = MenuBarPresenter.present(MenuBarState(shortcutUnheard: reason))
+
+        #expect(shown.items.prefix(2).last == .status(text: reason, emphasis: .attention))
+        #expect(shown.command(.startDictation)?.isEnabled == true)
+    }
+
+    @Test("says nothing when the shortcut can be heard")
+    func silentWhenHeard() {
+        let shown = MenuBarPresenter.present(MenuBarState())
+        #expect(shown.items.filter { if case .status = $0 { true } else { false } }.count == 1)
+    }
+
+    @Test("says nothing while dictation is switched off, since there is no shortcut to miss")
+    func silentWhenDictationIsOff() {
+        let state = MenuBarState(features: MenuBarFeatures(dictation: false), shortcutUnheard: reason)
+        #expect(!MenuBarPresenter.present(state).items.contains(.status(text: reason, emphasis: .attention)))
     }
 }

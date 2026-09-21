@@ -245,6 +245,41 @@ struct CaptureSessionTests {
         #expect(await recorder.texts == ["ls -la"])
     }
 
+    @Test(
+        "A line left paused where Return sends it is still learned when Return is pressed.",
+        arguments: ["com.apple.Terminal", "com.apple.MobileSMS"])
+    func pausedLineIsLearnedOnReturn(bundleIdentifier: String) async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(
+            scratch, recorder, allowing: [bundleIdentifier], policy: .whereReturnSends)
+        let field = FieldReading(bundleIdentifier: bundleIdentifier, role: "AXTextArea")
+        _ = try await session.handle(.keystroke("git status", at: start), in: field)
+        #expect(try await session.handle(.tick(at: start.addingTimeInterval(9)), in: field) == .nothing)
+        #expect(try await session.handle(.tick(at: start.addingTimeInterval(12)), in: field) == .nothing)
+        #expect(
+            try await session.handle(.returnPressed(at: start.addingTimeInterval(13)), in: field)
+                == .recorded("git status"))
+        #expect(await recorder.texts == ["git status"])
+    }
+
+    @Test("Where an idle is admitted it learns the line once, and Return does not repeat it.")
+    func admittedIdleIsLearnedOnce() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(
+            scratch, recorder, allowing: ["com.apple.TextEdit"], policy: .whereReturnSends)
+        let field = FieldReading(bundleIdentifier: "com.apple.TextEdit", role: "AXTextArea")
+        _ = try await session.handle(.keystroke("see you soon", at: start), in: field)
+        #expect(
+            try await session.handle(.tick(at: start.addingTimeInterval(9)), in: field)
+                == .recorded("see you soon"))
+        #expect(try await session.handle(.tick(at: start.addingTimeInterval(12)), in: field) == .nothing)
+        #expect(
+            try await session.handle(.returnPressed(at: start.addingTimeInterval(13)), in: field) == .nothing)
+        #expect(await recorder.texts == ["see you soon"])
+    }
+
     @Test("Outside the named shells, leaving a field still finishes what it held.")
     func otherApplicationsFinishOnLeaving() async throws {
         let scratch = Scratch()
@@ -325,5 +360,22 @@ struct CaptureSessionTests {
         _ = try await session.importShellHistory(
             forHomeDirectory: scratch.directory, into: surface, at: start)
         #expect(await recorder.texts == ["make verify"])
+    }
+}
+
+@Suite("Forgetting every answer")
+struct CaptureSessionForgettingTests {
+    @Test("Forgetting every answer empties memory and disk, and the next answer brings none back.")
+    func forgettingIsNotUndoneByTheNextAnswer() async throws {
+        let scratch = Scratch()
+        let session = try await session(scratch, Recorder(), allowing: ["com.example.terminal"])
+        try await session.forgetEveryAnswer()
+        #expect(await session.decisions() == CapturePreferences())
+        #expect(!FileManager.default.fileExists(atPath: scratch.preferencesPath))
+
+        try await session.record(.allowed, for: "com.example.editor")
+        let reloaded = CapturePreferencesFile(path: scratch.preferencesPath).load()
+        #expect(reloaded.state(of: "com.example.terminal") == .unknown)
+        #expect(reloaded.state(of: "com.example.editor") == .allowed)
     }
 }

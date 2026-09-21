@@ -189,3 +189,54 @@ struct RecordingStoreTests {
         #expect(await shipped.waiting(now: now) == [kept])
     }
 }
+
+@Suite("RecordingStore, emptied")
+struct RecordingStoreDiscardEverythingTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    /// A fresh folder per test, removed by the test itself.
+    private func directory() -> URL {
+        URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "uttrflow-store-\(UUID().uuidString)/recordings")
+    }
+
+    @Test("discarding everything deletes every waiting recording and forgets the current one")
+    func discardsEveryRecording() async throws {
+        let folder = directory()
+        defer { try? FileManager.default.removeItem(at: folder.deletingLastPathComponent()) }
+        let store = RecordingStore(directory: folder)
+        let first = try #require(await store.begin(at: now))
+        _ = await store.finish(first)
+        let second = try #require(await store.begin(at: now))
+        _ = await store.finish(second)
+        let stray = folder.appending(path: "not-a-uuid.wav")
+        try Data("x".utf8).write(to: stray)
+
+        try await store.discardEverything()
+
+        #expect(await store.current() == nil)
+        #expect(await store.waiting(now: now).isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: stray.path))
+    }
+
+    @Test("discarding everything leaves the recording still being written")
+    func keepsTheOpenRecording() async throws {
+        let folder = directory()
+        defer { try? FileManager.default.removeItem(at: folder.deletingLastPathComponent()) }
+        let store = RecordingStore(directory: folder)
+        let finished = try #require(await store.begin(at: now))
+        _ = await store.finish(finished)
+        let open = try #require(await store.begin(at: now))
+
+        try await store.discardEverything()
+
+        #expect(!FileManager.default.fileExists(atPath: finished.url.path))
+        #expect(FileManager.default.fileExists(atPath: open.url.path))
+        await store.abandon(open)
+    }
+
+    @Test("discarding everything with no folder yet is nothing to do")
+    func nothingToDiscard() async throws {
+        try await RecordingStore(directory: directory()).discardEverything()
+    }
+}
