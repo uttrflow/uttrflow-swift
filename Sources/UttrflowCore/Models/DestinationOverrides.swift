@@ -6,7 +6,7 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
     public let applicationName: String?
     public let destination: Destination
 
-    public var id: String { bundleIdentifier.lowercased() }
+    public var id: String { ApplicationKey.of(bundleIdentifier) }
 
     public init(bundleIdentifier: String, applicationName: String? = nil, destination: Destination) {
         self.bundleIdentifier = bundleIdentifier
@@ -61,7 +61,7 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
 
     /// The same overrides with this app back on the table's answer.
     public func removing(_ bundleIdentifier: String) -> DestinationOverrides {
-        let unwanted = bundleIdentifier.lowercased()
+        let unwanted = ApplicationKey.of(bundleIdentifier)
         return DestinationOverrides(overrides.filter { $0.id != unwanted })
     }
 

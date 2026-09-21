@@ -1,4 +1,5 @@
 // Forgetting: the levels the Settings screen offers, what each removes, and who removes it.
+import UttrflowCore
 public import UttrflowDictionary
 public import UttrflowHistory
 public import UttrflowClipboard
@@ -96,13 +97,13 @@ public struct SettingsPersonalisation: Sendable, Equatable {
         self.addedWords = addedWords
         self.transcripts = transcripts
         self.lastDictationApp = lastDictationApp
-        self.suggestions = suggestions.reduce(into: [:]) { $0[$1.key.lowercased()] = $1.value }
+        self.suggestions = suggestions.reduce(into: [:]) { $0[ApplicationKey.of($1.key)] = $1.value }
         self.met = Set(met.map { $0.lowercased() })
     }
 
     /// How much one application has taught, which is what the button beside it will take.
     public func suggestions(from bundleIdentifier: String) -> Int {
-        suggestions[bundleIdentifier.lowercased()] ?? 0
+        suggestions[ApplicationKey.of(bundleIdentifier)] ?? 0
     }
 
     /// Every application the Suggestions list should name: one that has taught something, or that the loop has met.

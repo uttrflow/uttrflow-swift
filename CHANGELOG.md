@@ -11,6 +11,12 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+### Fixed
+- **Turning AI suggestions off for an app now also stops it being learned from.** The switch filed
+  its answer under one spelling of the app's identifier and the capture side looked it up under
+  another, so for any app whose identifier has a capital letter the second of the two checks
+  answered "carry on". A file holding both spellings is read as the refusal (#668).
+
 ### Changed
 - **Suggestions is now called AI suggestions.** The Settings tab and its heading, the menu
   bar switch, the notes on that screen and what VoiceOver reads for a suggestion all use the

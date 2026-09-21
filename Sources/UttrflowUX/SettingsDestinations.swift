@@ -60,7 +60,7 @@ public enum SettingsDestinations {
         _ overrides: DestinationOverrides, lastApp: SettingsApp?
     ) -> SettingsGroup {
         // The last app's own row already says what it is treated as, so listing it again names it twice.
-        let named = lastApp?.bundleIdentifier.lowercased()
+        let named = lastApp.map { ApplicationKey.of($0.bundleIdentifier) }
         return SettingsGroup(
             id: "places", title: "Where your words go",
             rows: [lastAppRow(overrides, lastApp)]

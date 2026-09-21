@@ -10,6 +10,15 @@ public enum ConsentState: String, Sendable, Codable, Equatable, CaseIterable {
     case allowed
     /// The user has said no to this application.
     case declined
+
+    /// How careful this answer is, so folding two spellings of one application never loses a refusal.
+    var caution: Int {
+        switch self {
+        case .unknown: 0
+        case .allowed: 1
+        case .declined: 2
+        }
+    }
 }
 
 /// What to do about an application, which is to refuse until the user has said otherwise.
@@ -24,20 +33,29 @@ public enum ConsentDecision: Sendable, Equatable, CaseIterable {
 
 /// What the user has decided about capture, which is everything that outlives a launch.
 public struct CapturePreferences: Sendable, Equatable, Codable {
-    /// What was said about each application, keyed by bundle identifier.
-    public var consent: [String: ConsentState]
+    /// What was said about each application, keyed by `ApplicationKey` so one app has one answer.
+    public private(set) var consent: [String: ConsentState]
     /// Whether the one-time shell history import has already run.
     public var hasImportedShellHistory: Bool
 
-    /// Preferences holding the given answers, defaulting to nothing having been decided.
+    /// Preferences holding the given answers, filed under one spelling each however they arrived.
     public init(consent: [String: ConsentState] = [:], hasImportedShellHistory: Bool = false) {
-        self.consent = consent
+        self.consent = Self.folded(consent)
         self.hasImportedShellHistory = hasImportedShellHistory
     }
 
     /// What was said about one application, which is nothing until it has been asked about.
     public func state(of bundleIdentifier: String) -> ConsentState {
-        consent[bundleIdentifier] ?? .unknown
+        consent[ApplicationKey.of(bundleIdentifier)] ?? .unknown
+    }
+
+    /// One answer per application whatever case the file spells it in, keeping the more careful of two.
+    static func folded(_ consent: [String: ConsentState]) -> [String: ConsentState] {
+        consent.reduce(into: [:]) { folded, said in
+            let key = ApplicationKey.of(said.key)
+            guard let kept = folded[key] else { return folded[key] = said.value }
+            folded[key] = kept.caution >= said.value.caution ? kept : said.value
+        }
     }
 
     /// What to do in one application, which is the only question the capture path asks of consent.
@@ -56,7 +74,17 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
 
     /// Records the user's answer about one application, replacing whatever was there.
     public mutating func record(_ state: ConsentState, for bundleIdentifier: String) {
-        consent[bundleIdentifier] = state
+        consent[ApplicationKey.of(bundleIdentifier)] = state
+    }
+
+    /// Folds what a file holds as it is read, since a file written before this held both spellings.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            consent: try container.decodeIfPresent([String: ConsentState].self, forKey: .consent)
+                ?? [:],
+            hasImportedShellHistory: try container.decodeIfPresent(
+                Bool.self, forKey: .hasImportedShellHistory) ?? false)
     }
 }
 
