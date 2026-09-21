@@ -51,7 +51,9 @@ public actor CaptureSession {
             _ = try await flush(with: .focusLeft(at: event.moment))
             focused = reading
         }
-        guard let surface = reading.surface, let commit = detector.receive(event) else { return .nothing }
+        guard let surface = reading.surface,
+            let commit = detector.receive(event, admitting: { policy.admits($0, in: reading) })
+        else { return .nothing }
         return try await write(commit, from: reading, in: surface, at: event.moment)
     }
 
@@ -79,6 +81,12 @@ public actor CaptureSession {
         try preferencesFile.save(preferences)
     }
 
+    /// Forgets every answer, in memory and on disk, so a reset is not undone by the next one recorded.
+    public func forgetEveryAnswer() throws {
+        preferences = CapturePreferences()
+        try preferencesFile.remove()
+    }
+
     /// Seeds a terminal from the shell's history, once, and only because the user asked for it.
     public func importShellHistory(
         forHomeDirectory home: String, into surface: Surface, at moment: Date
@@ -103,16 +111,16 @@ public actor CaptureSession {
     /// Ends the focused field with this event, so a half-finished value is not lost.
     private func flush(with ending: CaptureEvent) async throws -> CaptureOutcome {
         defer { detector.reset() }
-        guard let leaving = focused, let surface = leaving.surface, let commit = detector.receive(ending)
+        guard let leaving = focused, let surface = leaving.surface,
+            let commit = detector.receive(ending, admitting: { policy.admits($0, in: leaving) })
         else { return .nothing }
         return try await write(commit, from: leaving, in: surface, at: ending.moment)
     }
 
-    /// Puts a finished value through every refusal and then into the corpus.
+    /// Puts a finished value the policy admitted through every refusal and then into the corpus.
     private func write(
         _ commit: Commit, from reading: FieldReading, in surface: Surface, at moment: Date
     ) async throws -> CaptureOutcome {
-        guard policy.admits(commit.reason, in: reading) else { return .nothing }
         if let refusal = CaptureGate.refusal(
             toRecord: commit.text, from: reading, given: preferences)
         {

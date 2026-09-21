@@ -168,6 +168,25 @@ struct GenerativeTextTransformerTests {
     }
 
     /// The echo pass runs before the guard, so a word inside the echo is not a word the model lost.
+    @Test("preserves a faithful repeated prefix in both message and piece finishing")
+    func preservesFaithfulRepeatedPrefix() async throws {
+        let model = FakeCleanupModel { _ in "They know the password." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        let app = AppContext(precedingText: "They know ")
+        let situation = Situation(
+            app: app, insertion: app.insertionPoint, destination: .email)
+        let message = TransformationRequest(
+            transcription: .fixture(text: "they know the password", language: .english),
+            situation: situation, scope: .message)
+        let piece = TransformationRequest(
+            transcription: .fixture(text: "they know the password", language: .english),
+            situation: situation, scope: .piece)
+        let messageResult = try await sut.transform(message)
+        let pieceResult = try await sut.transform(piece)
+        #expect(messageResult.text == "they know the password.")
+        #expect(pieceResult.text == "They know the password.")
+    }
+
     @Test("keeps a tidy answer whose caret echo repeated a word the speaker also said")
     func keepsAnAnswerWhoseEchoRepeatedASpokenWord() async throws {
         let model = FakeCleanupModel { _ in "and then we go" }
@@ -412,6 +431,14 @@ struct RuleBasedTransformerTests {
         #expect(try await sut.transform(request(input)).text == expected)
     }
 
+    @Test("does not overflow while checking an Int.max designator")
+    func handlesMaximumIntegerDesignator() async throws {
+        #expect(
+            try await sut.transform(request("check number 9223372036854775807 again")).text
+                == "Check number 9223372036854775807 again."
+        )
+    }
+
     @Test("runs whatever pipeline it is given")
     func usesGivenPipeline() async throws {
         let sut = RuleBasedTransformer(pipeline: CleaningPipeline(passes: [FillersPass()]))
@@ -476,10 +503,10 @@ struct RuleBasedTransformerTests {
         #expect(try await sut.transform(request(spoken, destination: destination)).text == expected)
     }
 
-    @Test("cannot invent anything, whatever it is given")
+    @Test("cannot invent anything, whatever it is given, and writes Hindi in Latin letters")
     func neverInvents() async throws {
         let result = try await sut.transform(request("नमस्ते मैं आज आऊंगा"))
-        #expect(result.text.contains("नमस्ते"))
+        #expect(result.text == "Namaste main aaj aaunga.")
     }
 
 }

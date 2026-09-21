@@ -99,6 +99,30 @@ struct MacContextEngineTests {
         #expect(context.isEmpty == false)
     }
 
+    @Test("carries none of a secure field's text, only that it is secure")
+    func dropsASecureFieldsText() async {
+        let window = FocusedWindow(
+            title: "Sign in", selectedText: "hunter", precedingText: "hun", followingText: "ter",
+            isSecure: true)
+        let context = await makeEngine(frontmost: slack, window: window).currentContext()
+
+        #expect(context.isSecure)
+        #expect(context.applicationName == "Slack")
+        #expect(context.documentName == "Sign in")
+        #expect(context.selectedText == nil)
+        #expect(context.precedingText == nil)
+        #expect(context.followingText == nil)
+    }
+
+    @Test("reports an ordinary field as not secure")
+    func ordinaryFieldIsNotSecure() async {
+        let window = FocusedWindow(title: "Notes", precedingText: "Dear team")
+        let context = await makeEngine(frontmost: slack, window: window).currentContext()
+
+        #expect(context.isSecure == false)
+        #expect(context.precedingText == "Dear team")
+    }
+
     @Test("carries the caret text verbatim, so an empty field reads as the start of the text")
     func reportsTheCaretText() async {
         let window = FocusedWindow(title: "Notes", precedingText: "", followingText: "  ")

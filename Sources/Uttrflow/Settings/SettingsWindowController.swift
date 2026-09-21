@@ -34,6 +34,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             onShortcutRecording: onShortcutRecording)
     }
 
+    /// Applies settings changed elsewhere while preserving the window's current tab and UI state.
+    func synchronize(settings: UttrflowSettings.Settings) {
+        model.synchronize(settings: settings)
+    }
+
     /// Opens the window and tells it who is signed in; handed over each time, since that can change.
     func show(_ tab: SettingsTab = .general, identity: AccountIdentity? = nil) {
         model.identity = identity
@@ -67,13 +72,18 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         model.session.capabilities.unarmedShortcuts = unarmed
     }
 
+    /// Applies a change the app worked out on the window's behalf, through the window's own session.
+    func apply(_ change: SettingsChange) {
+        model.apply(change)
+    }
+
     func close() {
         window?.performClose(nil)
     }
 
     /// Keeps the window hidden rather than released, so the shortcut recorder's state survives.
     func windowWillClose(_ notification: Notification) {
-        model.session.cancelRecordingShortcut()
+        model.cancelRecordingShortcut()
         // The main window's sidebar lights its Settings row while this is open.
         onClose?()
     }

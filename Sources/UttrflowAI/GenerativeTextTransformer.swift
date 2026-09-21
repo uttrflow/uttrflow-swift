@@ -61,13 +61,19 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
         let finishing =
             request.scope == .piece
-            ? CleaningPipeline.afterModelPiece(situation: request.situation)
+            ? CleaningPipeline.afterModelPiece(
+                situation: request.situation, heard: request.transcription.text)
             : CleaningPipeline.afterModel(
                 for: formatter, situation: request.situation, heard: request.transcription.text)
         let polished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped)))
         let finished = polished.text
 
         // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
+        if case .rejected(let reason) = meaningGuard.scriptVerdict(
+            draft: spoken, rewritten: finished, examples: prompts.allWorkedExamples)
+        {
+            throw .outputRejected(reason: reason)
+        }
         if case .rejected(let reason) = meaningGuard.verdict(
             draft: draft, rewritten: finished, offering: readings, echoed: Self.echo(in: polished),
             layout: formatter.layout, grants: pipeline.grants)

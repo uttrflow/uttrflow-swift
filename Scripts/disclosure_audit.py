@@ -117,6 +117,8 @@ NAMES_B64 = [
     "XGJwYXJha2VldHlcYg==",
     "XGJyZXZcLmNvbVxi",
     "XGJzb25peFwuYWlcYg==",
+    "XGJmcmVlXC0/Zmxvd1xi",
+    "XGJ6YWNoXHMqbGF0dGFcYg==",
     "XGJkZXNjcmlwdFxi",
     "XGJnb29kXHM/dGFwZVxi",
     "XGJoYXBweVxzP3NjcmliZVxi",

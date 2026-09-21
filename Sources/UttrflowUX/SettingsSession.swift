@@ -39,6 +39,18 @@ public struct SettingsSession: Sendable, Equatable {
         self.recorder = SettingsShortcutRecorder(binding: settings.hotkey)
     }
 
+    /// Replaces the authoritative settings while retaining the window's presentation state.
+    ///
+    /// Settings can also change through the menu bar or main window while this session remains
+    /// alive. The recorder is deliberately left alone while it is listening; an accepted or
+    /// cancelled recording will reconcile it through the normal session paths.
+    public mutating func synchronize(settings: Settings) {
+        self.settings = settings
+        guard !recorder.isRecording else { return }
+        recorder = SettingsShortcutRecorder(binding: settings.hotkey, action: recorder.action)
+        rejection = nil
+    }
+
     /// The window as it stands now.
     public var presentation: SettingsWindowPresentation {
         presentation(at: Date())

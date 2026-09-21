@@ -12,7 +12,7 @@ public struct GenerationSituation: Sendable, Equatable {
     public let windowTitle: String?
     /// The visible text around the field, nearest the field last: the thread being answered, the form being filled.
     public let surroundings: String?
-    /// The lines this person most recently entered in this field, newest first, which is how they write here.
+    /// The lines this person most recently entered in this field in the Latin alphabet, newest first, which is how they write here.
     public let recentLines: [String]
     /// Whether the field holds many lines, which is where paragraphs are written rather than commands or searches.
     public let isMultiline: Bool
@@ -31,9 +31,16 @@ public struct GenerationSituation: Sendable, Equatable {
         self.preceding = preceding
         self.windowTitle = windowTitle
         self.surroundings = surroundings
-        self.recentLines = recentLines
+        self.recentLines = recentLines.filter { LatinScript.writes($0) }
         self.isMultiline = isMultiline
         self.choices = choices
+    }
+
+    /// Whether everything the model is shown of the moment is in the Latin alphabet: the title, the field, the screen and the text before the line.
+    public var readsOnlyLatin: Bool {
+        [application, field, document, preceding, windowTitle, surroundings].allSatisfy {
+            $0.map { LatinScript.writes($0) } ?? true
+        }
     }
 
     /// The same moment with the next word held to these choices.

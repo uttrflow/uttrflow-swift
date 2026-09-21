@@ -19,10 +19,10 @@ public struct LoopbackCallback: Sendable, Equatable {
 
 /// A loopback listener waiting for one browser redirect: RFC 8252's answer for a desktop application.
 public protocol LoopbackListening: Sendable {
-    /// Binds a port and returns the redirect URI; ``AccountError/serverUnreachable`` when none binds.
-    func bind() async throws(AccountError) -> URL
+    /// Binds a port that accepts only a callback carrying `state`; ``AccountError/serverUnreachable`` when none binds.
+    func bind(expecting state: String) async throws(AccountError) -> URL
 
-    /// Waits for the first callback and answers the browser with a page; cancelling the task closes the port.
+    /// Waits for the callback carrying the expected state and answers the browser with a page; cancelling the task closes the port.
     func awaitCallback() async throws(AccountError) -> LoopbackCallback
 
     /// Closes the port, whether or not anything arrived.

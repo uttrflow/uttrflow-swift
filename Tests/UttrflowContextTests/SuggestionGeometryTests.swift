@@ -34,14 +34,79 @@ struct SuggestionGeometryTests {
         #expect(anchor?.frame.maxY == caret.maxY)
     }
 
-    @Test("A ghost that would run off the right of the screen is pulled back onto it")
+    @Test(
+        "A ghost that would run off the right of the screen is cut at the edge, never pulled back over the typed text"
+    )
     func ghostNearTheRightEdge() {
-        let late = CGRect(x: mainScreen.maxX - 6, y: 500, width: 2, height: 17)
+        let late = CGRect(x: mainScreen.maxX - 100, y: 500, width: 2, height: 17)
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: late, window: documentWindow, screen: mainScreen, size: strip)
         #expect(anchor?.placement == .inlineGhost)
         #expect(anchor.map { mainScreen.contains($0.frame) } == true)
+        #expect(anchor?.frame.minX == late.maxX)
         #expect(anchor?.frame.maxX == mainScreen.maxX)
+    }
+
+    @Test("A caret with less room than the minimum before the screen's edge draws nothing")
+    func noRoomDrawsNothing() {
+        let last = CGRect(x: mainScreen.maxX - 10, y: 500, width: 2, height: 17)
+        let anchor = SuggestionGeometry.anchor(
+            for: .inlineGhost, caret: last, window: documentWindow, screen: mainScreen, size: strip)
+        #expect(anchor == nil)
+    }
+
+    @Test("A dot narrower than the minimum still fits where only it does")
+    func aSmallSurfaceNeedsOnlyItsOwnWidth() {
+        let last = CGRect(x: mainScreen.maxX - 12, y: 500, width: 2, height: 17)
+        let dot = CGSize(width: 7, height: 7)
+        let anchor = SuggestionGeometry.anchor(
+            for: .inlineGhost, caret: last, window: documentWindow, screen: mainScreen, size: dot)
+        #expect(anchor?.frame.size == dot)
+    }
+
+    @Test("A long ghost stops at the field's right edge when the field's frame is known")
+    func ghostStopsAtTheField() {
+        let field = CGRect(x: 400, y: 490, width: 300, height: 30)
+        let long = CGSize(width: 2_000, height: 24)
+        let anchor = SuggestionGeometry.anchor(
+            for: .inlineGhost, caret: caret, window: documentWindow, field: field, screen: mainScreen,
+            size: long)
+        #expect(anchor?.frame.minX == caret.maxX)
+        #expect(anchor?.frame.maxX == field.maxX)
+    }
+
+    @Test("A field frame that does not hold the caret, or is caret-thin, is not trusted as the edge")
+    func anUntrustworthyFieldIsIgnored() {
+        let long = CGSize(width: 2_000, height: 24)
+        for field in [
+            CGRect(x: 10, y: 490, width: 300, height: 30), CGRect(x: 621, y: 490, width: 2, height: 17),
+            CGRect.null,
+        ] {
+            let anchor = SuggestionGeometry.anchor(
+                for: .inlineGhost, caret: caret, window: documentWindow, field: field, screen: mainScreen,
+                size: long)
+            #expect(anchor?.frame.maxX == mainScreen.maxX)
+        }
+    }
+
+    @Test("The room after the caret is nothing once the caret is past the screen's right edge")
+    func noRoomPastTheEdge() {
+        let past = CGRect(x: mainScreen.maxX + 5, y: 500, width: 0, height: 17)
+        #expect(SuggestionGeometry.availableWidth(caret: past, field: nil, screen: mainScreen) == nil)
+        #expect(
+            SuggestionGeometry.availableWidth(caret: caret, field: nil, screen: mainScreen)
+                == mainScreen.maxX - caret.maxX)
+    }
+
+    @Test("A surface with no size, or a size that is not a number, is never placed")
+    func aDegenerateSizeDrawsNothing() {
+        for size in [
+            CGSize.zero, CGSize(width: CGFloat.nan, height: 20), CGSize(width: 20, height: CGFloat.infinity),
+        ] {
+            let anchor = SuggestionGeometry.anchor(
+                for: .inlineGhost, caret: caret, window: documentWindow, screen: mainScreen, size: size)
+            #expect(anchor == nil)
+        }
     }
 
     @Test("A thin insertion caret with no width is still a caret, not nothing")
@@ -136,20 +201,64 @@ struct SuggestionGeometryTests {
 
     @Test("A caret at the very top of the screen keeps the ghost on the screen")
     func caretAtTheTop() {
-        let high = CGRect(x: 1500, y: mainScreen.maxY - 4, width: 2, height: 17)
+        let high = CGRect(x: 1000, y: mainScreen.maxY - 4, width: 2, height: 17)
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: high, window: nil, screen: mainScreen, size: strip)
         #expect(anchor.map { mainScreen.contains($0.frame) } == true)
     }
 
-    @Test("A surface larger than the screen is pinned rather than pushed off it")
+    @Test("A surface larger than the screen is cut to it rather than hanging off it")
     func surfaceLargerThanTheScreen() {
         let tiny = CGRect(x: 200, y: 100, width: 120, height: 90)
         let huge = CGSize(width: 400, height: 300)
         let anchor = SuggestionGeometry.anchor(
             for: .inlineGhost, caret: CGRect(x: 240, y: 140, width: 2, height: 17),
             window: tiny, screen: tiny, size: huge)
-        #expect(anchor?.frame.origin == CGPoint(x: tiny.minX, y: tiny.minY))
+        #expect(anchor?.frame == CGRect(x: 242, y: tiny.minY, width: tiny.maxX - 242, height: tiny.height))
+    }
+
+    @Test(
+        "Whatever the caret, field, screen and size, a placed frame lies inside the screen and the field's edge"
+    )
+    func neverLeavesTheScreen() {
+        var random = Seeded(seed: 516)
+        let screens = [mainScreen, leftScreen, CGRect(x: 1512, y: -1200, width: 2560, height: 1415)]
+        var placed = 0
+        for _ in 0..<5_000 {
+            let screen = random.pick(screens)
+            let caret = CGRect(
+                x: CGFloat.random(in: screen.minX - 400...screen.maxX + 400, using: &random),
+                y: CGFloat.random(in: screen.minY - 400...screen.maxY + 400, using: &random),
+                width: random.chance(0.7) ? 0 : CGFloat.random(in: 0...300, using: &random),
+                height: CGFloat.random(in: 0...60, using: &random))
+            let field: CGRect? =
+                random.chance(0.3)
+                ? nil
+                : CGRect(
+                    x: caret.minX - CGFloat.random(in: -200...800, using: &random), y: caret.minY - 5,
+                    width: CGFloat.random(in: 0...2_000, using: &random), height: 30)
+            let size = CGSize(
+                width: CGFloat.random(in: 1...6_000, using: &random),
+                height: CGFloat.random(in: 1...2_000, using: &random))
+            guard
+                let frame = SuggestionGeometry.anchor(
+                    for: .inlineGhost, caret: caret, window: nil, field: field, screen: screen, size: size)?
+                    .frame
+            else { continue }
+            placed += 1
+            // A hair of slack for the one addition floating point cannot make exact.
+            let tolerance: CGFloat = 0.001
+            #expect(screen.insetBy(dx: -tolerance, dy: -tolerance).contains(frame))
+            #expect(frame.width <= size.width && frame.height <= size.height)
+            #expect(frame.minX == caret.maxX)
+            if let field, field.width > SuggestionGeometry.minimumWidth, field.minX <= caret.maxX,
+                caret.maxX <= field.maxX
+            {
+                #expect(frame.maxX <= field.maxX + tolerance)
+            }
+        }
+        // Most carets land on the screen, so the property is exercised rather than vacuously true.
+        #expect(placed > 1_000)
     }
 
     // MARK: - The other coordinate convention

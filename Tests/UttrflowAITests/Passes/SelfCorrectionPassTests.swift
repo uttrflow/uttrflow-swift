@@ -30,6 +30,56 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// The comma before the trigger went with the discarded half, so its partner after the restatement separates nothing.
+    @Test(
+        "drops the comma that closed a correction set off by commas",
+        arguments: [
+            (
+                "Send the file to Alex, I mean to Sam, before lunch.",
+                "Send the file to Sam before lunch."
+            ),
+            (
+                "Book a table for six, actually eight, at the usual place.",
+                "Book a table for eight at the usual place."
+            ),
+            ("We need six, no sorry, eight, chairs.", "We need eight chairs."),
+        ]
+    )
+    func dropsTheClosingComma(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a comma the sentence needs after the restatement",
+        arguments: [
+            // The comma closes the clause "if" opened, which the correction sat inside.
+            (
+                "If it's six, actually eight, we need more chairs.",
+                "If it's eight, we need more chairs."
+            ),
+            // Nothing set the correction off, so the comma after it is the speaker's own.
+            (
+                "Send the file to Alex I mean to Sam, then call me.",
+                "Send the file to Sam, then call me."
+            ),
+            // A comma past the restatement belongs to the next clause, not to the correction.
+            (
+                "Send it to Alex, I mean to Sam today, and call me.",
+                "Send it to Sam today, and call me."
+            ),
+            // A sentence that ends on the restatement keeps its full stop.
+            ("Book a table for six, actually eight.", "Book a table for eight."),
+            // A comma already closed the opening clause, so the one after the restatement is stray again.
+            (
+                "If it rains, bring six, actually eight, umbrellas.",
+                "If it rains, bring eight umbrellas."
+            ),
+        ]
+    )
+    func keepsANeededComma(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test(
         "replaces a number with the number said after the trigger",
         arguments: [
@@ -41,6 +91,46 @@ struct SelfCorrectionPassTests {
     )
     func replacesNumber(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "takes back the sign of an amount along with its number",
+        arguments: [
+            ("The total is $40, no wait, $50.", "The total is $50."),
+            ("The total is $40 no wait $50.", "The total is $50."),
+            ("It costs $5 sorry $6.", "It costs $6."),
+            ("It costs \u{00A3}5 sorry \u{00A3}6.", "It costs \u{00A3}6."),
+            ("The fee is 40% actually 50%.", "The fee is 50%."),
+        ]
+    )
+    func takesBackAnAmountsSign(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "applies a correction whose trigger the recogniser wrote as its own sentence",
+        arguments: [
+            ("The total is 40. No wait. 50.", "The total is 50."),
+            ("Meet me at four. Scratch that. At five.", "Meet me at five."),
+            ("Send it on Tuesday. Sorry. On Wednesday.", "Send it on Wednesday."),
+            ("Call the office. I mean. Call the lab.", "Call the lab."),
+        ]
+    )
+    func readsThroughATriggerSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves a real sentence that opens with a trigger word",
+        arguments: [
+            "Did we ship? No. We shipped it.",
+            "We shipped. No. We shipped it.",
+            "Is it 3? No wait. 4.",
+            "The code is 45. No. 46.",
+        ]
+    )
+    func leavesARealSentenceAfterAStop(input: String) {
+        #expect(cleaned(input, by: sut) == input)
     }
 
     /// A number anchor may not reach back through a full stop, because the number in the sentence before was not the one corrected. See `Docs/cleanup.md`.
@@ -92,6 +182,20 @@ struct SelfCorrectionPassTests {
         ]
     )
     func leavesUnmatched(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    /// A Hindi pronoun heads a fresh clause as an English one does, so it cannot anchor a correction.
+    @Test(
+        "leaves a Hinglish apology and the clause before it",
+        arguments: [
+            "main late hoon sorry main abhi aata hoon",
+            "मैं late हूँ sorry मैं अभी आता हूँ",
+            "wo nahi aa raha actually wo kal aayega",
+            "hum ready hain sorry hum thoda late honge",
+        ]
+    )
+    func leavesHinglishClauses(input: String) {
         #expect(cleaned(input, by: sut) == input)
     }
 

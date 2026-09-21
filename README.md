@@ -5,7 +5,7 @@
   </a>
 </p>
 
-<p align="center"><b>Dictation, a smart clipboard and suggestions, in one native macOS app.</b></p>
+<p align="center"><b>Dictation, a smart clipboard and AI suggestions, in one native macOS app.</b></p>
 
 <p align="center">Open source. Your voice never leaves your Mac.</p>
 
@@ -38,7 +38,7 @@
 
 - Recognition runs on your Mac.
 - Clean-up removes fillers, adds punctuation and applies your dictionary, matched by sound.
-- Works offline once you are signed in.
+- Works offline, with or without an account.
 
 **In the code:** `UttrflowAudio` → `UttrflowSpeech` → `UttrflowAI` → `UttrflowPipeline` →
 `UttrflowInput`, with the dock in `Sources/Uttrflow/Dock`. Read
@@ -51,7 +51,7 @@
        alt="The clipboard panel open over a terminal: a search for pg, kind filters, and clips for SQL, a link, a masked secret with an alias, a shell command, a colour and a file path.">
 </p>
 
-**⇧⌘V** opens it · **↑↓** choose · **⏎** paste · **⌘⏎** paste as plain text · **esc** close
+**⇧⌘V** opens it · **↑↓** choose · **⌘1** All · **⌘2–⌘9** choose a collection · **⏎** paste · **⌘⏎** paste as plain text · **⌘Z** undo a delete · **esc** close
 
 - It knows code (with a language chip), links, colours, images and paths.
 - It re-indents or formats code, and shows you the diff first.
@@ -60,7 +60,7 @@
 **In the code:** `UttrflowClipboard` and `Sources/Uttrflow/Panel`. Read
 [`Docs/panel.md`](Docs/panel.md) and [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
-## ⇥ Suggestions: get suggestions at the speed of thought
+## ⇥ AI suggestions: Any tool, get suggestions at the speed of thought
 
 <p align="center">
   <img src="Docs/media/readme-suggestions.png" width="820"
@@ -74,8 +74,9 @@ ghost text finishes the line you're on.
   in an editor **⌥Tab**. Keep typing to ignore it; **esc** hides it.
 - Candidates come from your history in that field, then from what is on the Mac, then from
   a local model.
-- It learns on this Mac, in SQLite, and is never uploaded. It is off until you switch it
-  on, and you choose the apps.
+- It reads the text in and around the field you are typing in, and remembers the lines you
+  send, in SQLite. None of it leaves this Mac. It is off until you switch it on, and you
+  choose the apps.
 
 **In the code:** `UttrflowPredict`, `UttrflowPredictStore`, `UttrflowPredictCapture` and
 `Sources/Uttrflow/Suggestion`. Read [`Docs/predict.md`](Docs/predict.md).
@@ -114,7 +115,7 @@ Homebrew quarantines what it downloads too, so the command is needed after eithe
 | Dictation accuracy or speed | `Sources/UttrflowSpeech`, `Sources/UttrflowAI` | [`Docs/cleanup.md`](Docs/cleanup.md), [`Docs/measuring-accuracy.md`](Docs/measuring-accuracy.md) |
 | The dock button | `Sources/Uttrflow/Dock` | [`Docs/app-dock.md`](Docs/app-dock.md) |
 | The clipboard panel | `Sources/UttrflowClipboard`, `Sources/Uttrflow/Panel` | [`Docs/panel.md`](Docs/panel.md) |
-| Suggestions | `Sources/UttrflowPredict`, `Sources/Uttrflow/Suggestion` | [`Docs/predict.md`](Docs/predict.md), [`Docs/predict-accept.md`](Docs/predict-accept.md) |
+| AI suggestions | `Sources/UttrflowPredict`, `Sources/Uttrflow/Suggestion` | [`Docs/predict.md`](Docs/predict.md), [`Docs/predict-accept.md`](Docs/predict-accept.md) |
 | Typing into other apps | `Sources/UttrflowInput` | [`Docs/insertion.md`](Docs/insertion.md) |
 
 ## 🤝 Build it with us
@@ -147,15 +148,15 @@ Thank you to everyone who has sent a fix, filed an issue or asked a good questio
 <summary><b>Shortcuts and permissions</b></summary>
 
 - **⇧⌘V** opens the clipboard over whatever you are typing in. Type to filter, or type an
-  alias you gave a clip. ↑↓ to choose, ⏎ to paste where the caret already was, **⌘⏎** to
-  paste as plain text however it was copied, Esc to close. The window underneath never loses
+  alias you gave a clip. ↑↓ to choose, **⌘1** for All, **⌘2–⌘9** to choose a collection, ⏎ to paste where the caret already was, **⌘⏎** to
+  paste as plain text however it was copied, **⌘Z** to undo a delete, Esc to close. The window underneath never loses
   focus.
 - **Hold ⌥Space** and talk. Let go, and the words land at the cursor in the app you were
   already in. The floating button at the screen edge shows the microphone level while you
   hold it, and the shortcut can be changed in Settings.
 - **Dictionary.** A name the recogniser keeps getting wrong is fixed once; matching is by
   sound, so spellings you have not seen yet are caught too.
-- **Tab-to-complete**, once you turn it on in Settings → Suggestions. The rest of the line
+- **Tab-to-complete**, once you turn it on in Settings → AI suggestions. The rest of the line
   appears in grey ahead of the caret as you type; **Tab** takes it, typing on ignores it,
   and ↓ opens the alternatives when there is more than one. Tab is already spoken for in a
   terminal and in an editor, so those take a completion with **→** and **⌥Tab** instead,
@@ -194,9 +195,9 @@ three completions typed past in one field are each reason enough to draw nothing
 editors ship switched off, because their own completion already reads the whole file.
 [`Docs/predict.md`](Docs/predict.md) is the full account.
 
-**Works offline.** Sign in needs a network exactly once. After that every launch, every
-dictation and every paste works with Wi-Fi off — proven by a sandbox that fails any test
-touching the network.
+**Works offline.** Signing in needs a network exactly once, and "Continue on this Mac"
+needs none at all. After that every launch, every dictation and every paste works with
+Wi-Fi off — proven by a sandbox that fails any test touching the network.
 
 </details>
 
@@ -390,6 +391,10 @@ fixed width that does not reveal how long the token is, and they get no tooltip.
 a rule about the screen — about somebody reading over your shoulder, or a shared screen —
 and not about the disk. The text is stored in the clear like every other clip.
 
+**Tab-to-complete reads the text in and around the field you are typing in**, such as the
+thread above a reply box, and hands it to a model that runs on this Mac. None of it is
+uploaded.
+
 **Tab-to-complete learns from what you type, and that corpus is the most sensitive thing
 the app keeps.** It is `predict.v1.sqlite` in the same Application Support folder, at the
 same ordinary file permissions, unencrypted, and it is never uploaded. Nothing is written
@@ -403,9 +408,11 @@ data if they were ever completed and run, and anything shorter than two characte
 (`CaptureGate` in `Sources/UttrflowPredictCapture`). A field keeps at most 2,000 entries.
 You can forget one line, everything one application taught, or all of it.
 
-**There is an account, and it is required to dictate.** Signing in needs a network exactly
-once; every launch after that works without one, and an entitlement that has aged out
-still lets you dictate rather than locking you out.
+**There is an account, and the first run asks for it — but it is not required to
+dictate.** "Continue on this Mac", on that same page from the start, records the choice to
+do without one and permits dictation, with no network involved. Signing in instead needs a
+network exactly once; every launch after that works without one, and an entitlement that
+has aged out still lets you dictate rather than locking you out.
 
 **Nothing is sent, and the telemetry that will be sent can only carry numbers.** The app
 does not report anything today: the collector exists, is tested, and is wired to nothing,

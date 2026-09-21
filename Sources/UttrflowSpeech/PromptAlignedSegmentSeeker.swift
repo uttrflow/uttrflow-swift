@@ -56,17 +56,38 @@ struct PromptAlignedSegmentSeeker: SegmentSeeking {
     static func rows(of weights: MLMultiArray, from first: Int) throws -> MLMultiArray {
         guard first > 0, weights.shape.count == 2 else { return weights }
         let rowCount = weights.shape[0].intValue
+        let columnCount = weights.shape[1].intValue
         let shifted = try MLMultiArray(shape: weights.shape, dataType: weights.dataType)
         let kept = max(0, rowCount - first)
+        let element = elementBytes(of: weights.dataType)
+        // Read from the array's own strides, since an IOSurface-backed row is padded past its last column.
+        let from = weights.strides.map(\.intValue)
         weights.withUnsafeBytes { source in
-            shifted.withUnsafeMutableBytes { destination, _ in
-                let rowBytes = source.count / max(rowCount, 1)
+            shifted.withUnsafeMutableBytes { destination, strides in
                 destination.initializeMemory(as: UInt8.self, repeating: 0)
-                if kept > 0, let from = source.baseAddress, let to = destination.baseAddress {
-                    to.copyMemory(from: from.advanced(by: first * rowBytes), byteCount: kept * rowBytes)
+                guard kept > 0, let read = source.baseAddress, let write = destination.baseAddress else {
+                    return
+                }
+                for row in 0..<kept {
+                    let sourceRow = read.advanced(by: (first + row) * from[0] * element)
+                    let destinationRow = write.advanced(by: row * strides[0] * element)
+                    if from[1] == 1, strides[1] == 1 {
+                        destinationRow.copyMemory(from: sourceRow, byteCount: columnCount * element)
+                        continue
+                    }
+                    for column in 0..<columnCount {
+                        let value = sourceRow.advanced(by: column * from[1] * element)
+                        destinationRow.advanced(by: column * strides[1] * element)
+                            .copyMemory(from: value, byteCount: element)
+                    }
                 }
             }
         }
         return shifted
+    }
+
+    /// Bytes in one element, which the data type carries in its low byte as a count of bits.
+    static func elementBytes(of dataType: MLMultiArrayDataType) -> Int {
+        (dataType.rawValue & 0xFF) / 8
     }
 }

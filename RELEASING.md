@@ -10,14 +10,14 @@ staging branch and no release branch, and this is deliberate rather than lax —
 "Why there is no staging branch" below.
 
 ```
-fork / branch ──PR──> main ──tag v0.3.0-rc.1──> prerelease  (soak)
+fork / branch ──PR──> main ──tag v2026.9.14-rc.1──> prerelease  (soak)
                        │
-                       └──tag v0.3.0────────> release       (download button moves)
+                       └──tag v2026.9.14────────> release       (download button moves)
 ```
 
-Versions follow [semantic versioning](https://semver.org). For an app rather than a
-library that means, roughly: **patch** for a fix nobody has to read about, **minor** for a
-feature, **major** when somebody's settings, data or habits stop working the way they did.
+Versions are **calendar dates**: `YEAR.MONTH.DAY`, no leading zeros, for the day the release
+is cut — `2026.9.14`. A second release on the same day adds a fourth number, `2026.9.14.1`.
+Releases up to `0.5.0` used semantic versioning, and every date version sorts above them.
 
 ## Cutting a release
 
@@ -25,13 +25,13 @@ feature, **major** when somebody's settings, data or habits stop working the way
 
 ```
 Resources/Uttrflow-Info.plist
-  CFBundleShortVersionString   0.3.0     what people see
-  CFBundleVersion              6         a counter; only has to increase
+  CFBundleShortVersionString   2026.9.14   what people see
+  CFBundleVersion              9           a counter; only has to increase
 ```
 
-Both are edited by hand, at the moment the release is cut, because that is the only moment
-the number can actually be decided. The release workflow **refuses a tag that disagrees
-with the plist** — a `v0.3.0` tag on a build reporting `0.2.2` publishes an appcast that
+Both are edited by hand, at the moment the release is cut. `CFBundleVersion` is what the
+updater compares, so it must go up by at least one every release, whatever the date says. The release workflow **refuses a tag that disagrees
+with the plist** — a `v2026.9.14` tag on a build reporting `0.5.0` publishes an appcast that
 offers every installed copy a downgrade.
 
 **Two.** Update `CHANGELOG.md`: move everything under `## [Unreleased]` into a new
@@ -43,8 +43,8 @@ version heading with today's date.
 
 ```bash
 git checkout main && git pull
-git tag v0.3.0-rc.1
-git push origin v0.3.0-rc.1
+git tag v2026.9.14-rc.1
+git push origin v2026.9.14-rc.1
 ```
 
 That builds, notarises and publishes a **prerelease**. It does not move
@@ -55,8 +55,8 @@ willing to run it.
 **Five.** When it holds up, ship the same tree:
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v2026.9.14
+git push origin v2026.9.14
 ```
 
 That publishes a full release, which takes over the download URL and the appcast the

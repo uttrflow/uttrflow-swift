@@ -105,10 +105,10 @@ is in a shared branch, blocking everyone, and somebody has to notice and back it
 Testing earlier is strictly better, and a branch was only ever a proxy for "has this been
 tested?"
 
-When enough has accumulated, the maintainer tags a **release candidate** — `v0.3.0-rc.1` —
+When enough has accumulated, the maintainer tags a **release candidate** — `v2026.9.14-rc.1` —
 which publishes as a prerelease. GitHub's `/releases/latest/download/` skips prereleases,
 so a candidate can be soaked by anyone who wants it without becoming what the download
-button serves. When it holds up, `v0.3.0` ships it.
+button serves. When it holds up, `v2026.9.14` ships it.
 
 Full detail in [`RELEASING.md`](RELEASING.md).
 

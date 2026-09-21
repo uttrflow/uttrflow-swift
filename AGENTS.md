@@ -11,8 +11,8 @@ stands, including that this repository is the only home for the project and that
 **One long-lived branch, `main`, always releasable. A release is a tag, not a branch.**
 
 ```
-branch / fork  ──PR──>  main  ──tag v0.3.0-rc.1──>  prerelease  (soak)
-   (CI runs)          (CI runs)  ──tag v0.3.0────>  release
+branch / fork  ──PR──>  main  ──tag v2026.9.14-rc.1──>  prerelease  (soak)
+   (CI runs)          (CI runs)  ──tag v2026.9.14────>  release
 ```
 
 1. **Cut every branch from `origin/main`.** Short-lived. A branch that lives for weeks is a
@@ -41,7 +41,7 @@ branch / fork  ──PR──>  main  ──tag v0.3.0-rc.1──>  prerelease  
 
 **Releases stay batched and infrequent.** That has not changed; only the mechanism has.
 `main` accumulates merged work, and the operator decides when a commit on it becomes
-`v0.3.0`. See `RELEASING.md`.
+`v2026.9.14`. See `RELEASING.md`.
 
 **Why there is no staging branch, since an agent reasoning from first principles will
 propose reinstating one.** The gate belongs on the pull request, not after it. A staging
@@ -258,6 +258,19 @@ what is not yet, what is forbidden — and every change to the prompt or the rul
 measured against the corpus before it lands (`make bakeoff`). An agent proposing "make
 the output more polished" is proposing a rewrite; the answer is no.
 
+## Latin letters only — NON-NEGOTIABLE
+
+**Uttrflow writes English/Latin script only. Hindi and Hinglish speech is romanised the way
+people type it, never written in Devanagari and never translated.**
+
+"हाँ ठीक है" is inserted as "Haan thik hai" — not in Devanagari, and not as "Yes, okay".
+Uttrflow is not a translator. This binds every path that inserts dictated text: a model's
+rewrite, the rules, and the untidied fallback. The Languages setting steers what recognition
+listens for; it never chooses the output script. `Docs/latin-output.md` is how it is enforced
+and measured: the romaniser the rules use, the guard that refuses a translation, and the last
+check before insertion. A change that lets Devanagari or a translation reach the screen is a
+bug, whatever it improves.
+
 ## Rules that are not preferences
 
 **Never put a real email address or a real postal address in a fixture.** Use
@@ -413,8 +426,10 @@ make dmg           # the disk image
 make publish       # to the public downloads repository, using this Mac's gh login
 ```
 
-Versioning is **semver**, hand-edited in `Resources/Uttrflow-Info.plist`. Calendar
-versioning was built and reverted; do not propose it again.
+Versioning is **calendar**, `YEAR.MONTH.DAY` with no leading zeros (`2026.9.14`), hand-edited
+in `Resources/Uttrflow-Info.plist`; a second release that day is `2026.9.14.1`. Releases up to
+0.5.0 were semver. `CFBundleVersion` is what the updater compares, so it goes up by one every
+release. The five-part `YEAR.MONTH.DAY.HOUR.PATCH` scheme stays rejected, as `Docs/releasing.md` says.
 
 Downloads go to the public **uttrflow/releases** repository. Source repositories stay
 private. The published asset is `Uttrflow.dmg` with **no version in the name** — that is
@@ -426,9 +441,9 @@ checked it against the plist — and a hand-run publish uses `v<version>` from t
 Signed or not, the release is a full release, so `/releases/latest/download/` resolves to
 the newest build and the download button never has to change.
 
-**A tag with anything after the version is a prerelease**: `v0.4.0-rc.1` publishes as one,
+**A tag with anything after the version is a prerelease**: `v2026.9.14-rc.1` publishes as one,
 GitHub keeps it out of `/latest/`, and `publish.sh` leaves `latest.json` and `appcast.xml`
-untouched so neither the site nor the updater offers it. That is the soak. `v0.4.0`
+untouched so neither the site nor the updater offers it. That is the soak. `v2026.9.14`
 releases it.
 
 `latest.json` records `gatekeeper`, and the site shows or hides the `xattr` instruction

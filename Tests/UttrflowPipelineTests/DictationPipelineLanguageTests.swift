@@ -67,7 +67,9 @@ private let quick = SpeechWindowing(
 struct DictationPipelineLanguageTests {
     /// A pipeline over a three-piece recording and a recogniser that reports `detected`, call by call.
     private func pipeline(
-        detecting detected: [LanguageCode]
+        detecting detected: [LanguageCode], speaking languages: [LanguageCode] = [.english],
+        earlyPoll: Duration = .milliseconds(2),
+        recordings: any RecordingKeeper = RecordingsNotKept()
     ) async -> (DictationPipeline, DriftingSpeechEngine) {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
@@ -76,7 +78,8 @@ struct DictationPipelineLanguageTests {
             DictationPipeline(
                 capture: capture, speech: speech, cleaner: PassThroughCleaner(),
                 context: FakeContextEngine(context: .fixture()), inserter: QuietInserter(),
-                windowing: quick, earlyPoll: .milliseconds(2)),
+                recordings: recordings, profile: UserProfile(preferredLanguages: languages),
+                windowing: quick, earlyPoll: earlyPoll),
             speech
         )
     }
@@ -111,5 +114,91 @@ struct DictationPipelineLanguageTests {
         #expect(hints.count > first)
         #expect(hints[first] == nil)
         #expect(hints[(first + 1)...].allSatisfy { $0 == .hindi })
+    }
+
+    /// A retry is its own attempt, so it detects its own language rather than the last dictation's.
+    @Test("detects again for a retry rather than keeping the last dictation's language")
+    func forgetsBeforeARetry() async {
+        let kept = KeptRecording(id: UUID(), when: Date(), duration: .seconds(4))
+        let (pipeline, speech) = await pipeline(
+            detecting: [.english, .english, .english, .hindi, .hindi, .hindi],
+            recordings: FakeRecordingKeeper(waiting: [kept], audioOutcome: .success(Take.threePieces)))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let first = await speech.hints.count
+        await pipeline.retry(kept.id)
+        let hints = await speech.hints
+
+        #expect(hints.count > first)
+        #expect(hints[first] == nil)
+    }
+
+    /// Issue 698: a Hinglish speaker's Hindi sentence after an English one was decoded as English and translated.
+    @Test(
+        "detects every piece for a speaker of English and Hindi, rather than holding the first piece's English"
+    )
+    func detectsEachPieceForBothLanguages() async {
+        let (pipeline, speech) = await pipeline(
+            detecting: [.english, .hindi, .hindi], speaking: [.english, .hindi])
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let hints = await speech.hints
+
+        #expect(hints.count > 1)
+        #expect(hints.allSatisfy { $0 == nil })
+    }
+
+    /// Issue 699: a short Hindi reply was detected as English words.
+    @Test("decodes every piece as Hindi for a speaker of Hindi alone")
+    func pinsHindiAlone() async {
+        let (pipeline, speech) = await pipeline(
+            detecting: [.english, .english, .english], speaking: [.hindi])
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let hints = await speech.hints
+
+        #expect(hints.count > 1)
+        #expect(hints.allSatisfy { $0 == .hindi })
+    }
+
+    @Test("listens by the languages adopted since it was built, from the next dictation on")
+    func adoptsTheProfile() async {
+        let (pipeline, speech) = await pipeline(detecting: [.english, .hindi, .hindi, .hindi, .hindi, .hindi])
+
+        await pipeline.adopt(profile: UserProfile(preferredLanguages: [.hindi]))
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let hints = await speech.hints
+
+        #expect(!hints.isEmpty)
+        #expect(hints.allSatisfy { $0 == .hindi })
+    }
+
+    /// Issue 786: a change made while speaking re-hinted the pieces still to come under the new languages.
+    @Test("keeps a recording on the languages it began with, and adopts a change from the next")
+    func profileChangedMidRecordingWaits() async {
+        // No early pieces, so every piece is recognised after the change and none could escape it.
+        let (pipeline, speech) = await pipeline(
+            detecting: [.english, .english, .english, .english, .english, .english],
+            earlyPoll: .seconds(60))
+
+        await pipeline.startRecording()
+        await pipeline.adopt(profile: UserProfile(preferredLanguages: [.hindi]))
+        await pipeline.finishRecording()
+        let first = await speech.hints
+
+        #expect(first.count > 1, "a recording of several pieces")
+        #expect(first.first == .some(nil), "the English profile detects the first piece")
+        #expect(first.dropFirst().allSatisfy { $0 == .english }, "then carries it, not Hindi")
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        let next = await speech.hints.dropFirst(first.count)
+
+        #expect(!next.isEmpty)
+        #expect(next.allSatisfy { $0 == .hindi }, "the next dictation listens by the new languages")
     }
 }

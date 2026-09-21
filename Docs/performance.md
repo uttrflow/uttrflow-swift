@@ -171,8 +171,8 @@ to 12 GB in forty minutes of typing.
 `GPUBufferCache` now caps that cache at 256 MB for the process, and every pass through
 `MLXCandidateScorer` — a generation, an alternatives pass, a score — empties it when the
 pass ends, however it ends. `MLXCleanupModel` does the same around a rewrite. So turning
-suggestions off or leaving the Mac idle leaves the weights and at most the capped cache —
-in practice nothing. Turning suggestions off also releases the weights — see [the memory budget](#the-memory-budget).
+AI suggestions off or leaving the Mac idle leaves the weights and at most the capped cache —
+in practice nothing. Turning AI suggestions off also releases the weights — see [the memory budget](#the-memory-budget).
 
 Measured with `uttrflow-bakeoff gpu-memory` (Release, Gemma 3 4B QAT, 48 GB Apple silicon):
 forty passes over invented message threads of 120–310 words, every fourth pass cancelled
@@ -215,7 +215,7 @@ Measured on Release builds with `/usr/bin/time -l` and MLX's own counters, 48 GB
 | holder | loaded when | released when | cost |
 |---|---|---|---|
 | speech model, Whisper large-v3 turbo on CoreML | launch, `loadSpeechModel()` | quit | +114 MB footprint loaded, 267 MB peak footprint and 340 MB peak resident mid-dictation; the weights are file-mapped, so macOS can drop them itself |
-| suggestion model, Gemma 3 4B QAT on MLX | launch or the moment Suggestions is turned on, only for somebody who turned it on | Suggestions turned off; no query for 3 minutes on a Mac under 16 GB, 10 minutes otherwise; or quit | 2,485 MB of GPU memory, 3,036 MB at a pass's peak, 3,464 MB peak process footprint; anonymous, so nothing but a release frees it |
+| suggestion model, Gemma 3 4B QAT on MLX | launch or the moment AI suggestions is turned on, only for somebody who turned it on | AI suggestions turned off; no query for 3 minutes on a Mac under 16 GB, 10 minutes otherwise; or quit | 2,485 MB of GPU memory, 3,036 MB at a pass's peak, 3,464 MB peak process footprint; anonymous, so nothing but a release frees it |
 | MLX's buffer cache | during a pass | the end of every pass | capped at 256 MB, 0 MB between passes |
 | the recording | the shortcut | the end of the dictation | at most 15 MB: 240 s at 16 kHz in 4-byte samples |
 | clipboard thumbnails | the panel is drawn | least recently used first | at most 32 MB, see `Docs/clipboard-budget.md` |
@@ -264,10 +264,16 @@ load, and remembered completions are unaffected. A release the caller asked for 
 turned off — is never undone by a query. So on a small Mac the 3 GB is held while somebody is
 typing, not through a meeting or a film.
 
+That reload reads the weights from disk and nothing else: `ReleasableModel.reload()` passes no
+downloader, so a cache that is no longer whole — removed, cut short, or a first download left
+unfinished — makes it throw `WeightsNotOnDisk` rather than start a fetch of several gigabytes
+nobody asked for. `IdleReleasingModel` tells the app, which shows the model as needing to be
+fetched again; only turning the switch on, which shows progress, downloads.
+
 ### Under memory pressure
 
 `MemoryPressureSource` watches the kernel's pressure events. At a warning or a critical
-reading `AppDelegate` releases the suggestion model the same way, and the Suggestions screen
+reading `AppDelegate` releases the suggestion model the same way, and the AI suggestions screen
 says it is paused to free memory rather than going quiet. Once pressure is back to normal the
 model waits for the calm to last before it loads again — two minutes the first time — and
 `SuggestionModelPressure` doubles that wait, up to thirty minutes, each time a reload is
@@ -286,7 +292,7 @@ on every run:
 
 | check | fails when |
 |---|---|
-| wakeups | a repeating `Timer`, repeating `DispatchSource` timer, display link or sleeping loop in product code has an interval under 500 ms, or one the audit cannot resolve, and is not listed with the reason it is not an idle cost |
+| wakeups | a repeating `Timer` (including one whose `repeats` is passed in), repeating `DispatchSource` timer, display link, sleeping loop, or function that delays (`asyncAfter`, `perform(_:with:afterDelay:)`, a sleep, a one-shot `Timer`) and then calls itself, in product code has an interval under 500 ms, or one the audit cannot resolve, and is not listed with the reason it is not an idle cost |
 | priority | the suggestion and local-model modules ask for more than utility priority, detach a task without one, or the app uses the suggestion model outside a `Discretionary` wrapper |
 | motion | a `TimelineView`, `repeatForever`, phase or keyframe animator or repeating symbol effect reads neither `MotionBudget` nor `WindowAttention`, or is paused by a literal |
 | cache | a model pass (`perform`, `generate`, `TokenIterator`, `ChatSession`) sits in no function that caps MLX's cache and clears it on exit, a `release()` does not clear it, or the cap is over 256 MB |
@@ -295,6 +301,13 @@ on every run:
 `--self-test` injects one violation per check into the tree as read and fails unless the audit
 catches it, so a rule that has stopped matching the code is found rather than trusted. A breach
 already on `main` is listed under the issue that fixes it, and fails as stale once it is gone.
+
+The wakeup check reads one file at a time and follows no calls, so it does not see a loop whose
+sleep sits in a function the loop calls, two functions that schedule each other, or a timer whose
+interval comes from another file's caller. Only a measurement catches every shape: counting an
+idle app's wakeups over a fixed period with `powermetrics` would, but it needs root and a running
+app, so it is not part of `make verify` or `make perf-budget-models`, and is the thing to reach for
+when a battery report does not match a green audit.
 
 Memory itself can only be read with the models loaded, so `make perf-budget-models` runs
 `uttrflow-bakeoff gpu-memory --release` and `uttrflow-bakeoff profile` and each exits non-zero
@@ -1088,6 +1101,9 @@ limit.
 
 `TextDiff.compare` refuses up front a text over 20,000 lines or 1 MB, and stops looking past
 4,000 changed lines; the sheet then states both line counts instead of a diff.
+A line ends at LF, CRLF or CR, counted the same way by the split and by the byte-limit count,
+and a CR or CRLF ending is part of the line after it for comparison, so a change of endings shows
+as a change.
 
 Release build, best single run, peak footprint from `/usr/bin/time -l`, on a machine at load
 average 80 to 250. "Every line" indents all of them, "one in fifty" indents every fiftieth:
@@ -1107,7 +1123,7 @@ Both columns are what one sheet costs: before, that was two runs of the table.
 `TextDiffScalingTests` counts steps through `TextDiff.tally` rather than timing, and compares
 the diff with the table on 20,000 random small pairs.
 
-## Suggestions under Low Power Mode and thermal pressure
+## AI suggestions under Low Power Mode and thermal pressure
 
 A suggestion pass is the most expensive thing tab-to-complete does. Measured with
 `uttrflow-bakeoff complete --fixtures --model gemma3`, release build, under `/usr/bin/time -l`:
@@ -1202,7 +1218,8 @@ What the rows say, read against the clips rather than the percentages:
 - **Hinglish loses to the alphabet, not to the words.** The recogniser writes Hinglish in
   Devanagari, "deploy" and "issue" included, so a Latin-alphabet reference scores it as nearly all
   wrong while the words are right. The tidier romanises it when Apple's model accepts the passage,
-  which takes 170% to 63%; it declines most Hindi passages outright, which is issue 445.
+  which takes 170% to 63%; it declined most Hindi passages outright (issue 445), which was measured
+  before the rules romanised too (`Docs/latin-output.md`).
 - **Numbers and names are the English errors.** "4,250 dollars and 75 cents" is written "$4,250.75"
   (fair, but counted); "Jaxvale" becomes "Jack's Vale". Code identifiers are written as the
   recogniser chose to join them; "src" is heard as "source".
@@ -1367,6 +1384,15 @@ cat .build/bench/jobs-fast.tsv .build/bench/jobs-rt.tsv > .build/bench/jobs.tsv
 .build/release/uttrflow-dev bench .build/bench/jobs.tsv > .build/bench/run.out
 python3 Scripts/dictation_bench.py score .build/bench/run.out
 ```
+
+```
+.build/release/uttrflow-dev bench .build/bench/jobs.tsv --idle-before 300 > .build/bench/run-cold.out
+```
+
+`--idle-before` waits that many seconds before each job and emits an `idle` event, so the tidier's
+kept session goes cold between dictations as it does in use (#876); without it every tidy in a run
+is warm. Each `clean` line also names the steps that changed something (`steps`) and any answer
+refused before the one kept (`refused`).
 
 The corpus names each clip's audio by its voice and words, so changing either speaks it again. Run one `bench` at a time: two processes compete for the Neural Engine and each other's compile.
 The run above took about half an hour, its first load included.

@@ -61,13 +61,16 @@ sleeps charges none of it, so the wait ran for 1.6 s of sleeping plus however lo
 took — and the dictation sits in ``DictationState/inserting`` for all of it. Only the read
 already in flight when the deadline passes can now overshoot it.
 
-Three answers, and only one of them is a fact:
+Four answers, and only one of them is a fact:
 
 - **Landed** — the words are behind the caret, and how long that took is the only measurement
   of this gap that exists.
 - **Not reported** — the field will not say what it holds. Nothing is proved either way, and
   nothing is waited for, since a field that will not answer now will not answer in a second.
 - **Gave up** — the budget was spent with no sign of them.
+- **Cancelled** — the task waiting was cancelled, which is what a stage timeout does. It stops
+  at once, between reads or in the middle of a wait, without reading the field again, and is
+  reported upwards as unconfirmed, never as landed.
 
 The dictation sits in ``DictationState/inserting`` throughout, which the floating button draws
 as work in progress. That state exists so that the tick is a claim about the words rather than
@@ -129,6 +132,11 @@ default — `isBusy` the whole time, so no further dictation can start either. T
 here is generous next to the context engine's 100 ms, because this read *is* the
 dictation rather than a nicety alongside it.
 
+The 2 s is set on the focused element itself, never on the system-wide element. A timeout set
+on the system-wide element is process-wide and read when each message is sent, so an AI
+suggestion read on another queue setting its own 100 ms would cut the insertion's write short
+mid-dictation (#887). The system-wide focus query itself runs under the system default.
+
 ## Announcing Uttrflow's own writes
 
 Pasting a clip puts it on the clipboard and never takes it back, so the clipboard
@@ -146,6 +154,22 @@ swallowed, which is the one thing a clipboard manager may not do. The picture pa
 exactly that hole until it was given bytes to name, since it had no text. An announcement
 whose own write has not arrived is kept rather than spent, and lapses after two seconds so
 a paste that threw cannot sit armed.
+
+## Dictating into a field that hides what is typed
+
+A password or PIN field gets the words like any other field, and nothing else does.
+`SecureField` answers whether a field is secure from its role, subrole and names, and
+reads the value only when none of those says so, to catch a field that shows mask
+characters without declaring itself. The question is asked twice: by the context read
+when the dictation's screen is read, which then carries none of the field's text, and by
+`TextInsertionCoordinator` just before the write.
+
+Either answer marks the outcome `intoSecureField`. The words then reach no store: no
+history row (not even a length), no Uttrflow clip, no last transcript, no dictionary
+lesson and no clean-up account, and the floating button neither draws nor reads them
+aloud. A paste or the clipboard floor writes them with `org.nspasteboard.ConcealedType`
+beside the text, so a clipboard history that honours the convention leaves them out. If
+the words are lost before insertion, the audio is not kept for a retry.
 
 ## One writer, one reader, and a gate that says so
 

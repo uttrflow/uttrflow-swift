@@ -34,12 +34,17 @@ final class Database {
             throw opened == SQLITE_NOTADB ? .corrupt : .cannotOpen(path)
         }
         self.handle = handle
+        // Waits out another connection's write, since Settings forgets while the loop may be recording.
+        sqlite3_busy_timeout(handle, 2_000)
     }
 
     deinit {
         for statement in cached.values { sqlite3_finalize(statement) }
         sqlite3_close_v2(handle)
     }
+
+    /// How many compiled statements are kept.
+    var cachedStatements: Int { cached.count }
 
     /// Runs a statement that returns nothing, such as a schema change or a pragma.
     func execute(_ sql: String) throws(PredictStoreError) {

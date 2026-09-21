@@ -7,10 +7,10 @@ public enum RichTextPlainForm: Sendable {
         // Input with nothing recognisably HTML in it keeps its tags, so `Array<String>` survives.
         guard tokenizer.looksLikeMarkup() else { return HTMLEntities.decoding(html) }
 
-        var renderer = PlainTextRenderer()
-        while let token = tokenizer.next() {
-            renderer.consume(token)
-        }
+        var tokens: [HTMLToken] = []
+        while let token = tokenizer.next() { tokens.append(token) }
+        var renderer = PlainTextRenderer(itemCounts: PlainTextRenderer.itemCounts(in: tokens))
+        for token in tokens { renderer.consume(token) }
         return renderer.finish()
     }
 }
@@ -413,6 +413,10 @@ private struct Output {
 private struct PlainTextRenderer {
     private var out = Output()
     private var lists: [ListFrame] = []
+    /// How many items each list holds directly, by the order the lists open in; a `reversed` list counts down from it.
+    private let itemCounts: [Int]
+    /// How many lists have opened so far, which indexes `itemCounts`.
+    private var listsOpened = 0
     private var pendingMarker: String?
     /// Depth of `<pre>` and `<code>`, whose whitespace is kept exactly as written.
     private var verbatimDepth = 0
@@ -422,7 +426,47 @@ private struct PlainTextRenderer {
     private struct ListFrame {
         var isOrdered: Bool
         var isChecklist: Bool
-        var count = 0
+        /// The number the next item takes unless it gives its own `value`.
+        var next = 1
+        /// One, or minus one for a `reversed` list.
+        var step = 1
+    }
+
+    init(itemCounts: [Int]) {
+        self.itemCounts = itemCounts
+    }
+
+    /// How many items each list holds directly, in the order the lists open, nesting as `apply` does.
+    static func itemCounts(in tokens: [HTMLToken]) -> [Int] {
+        var counts: [Int] = []
+        var open: [Int] = []
+        for case .tag(let tag) in tokens {
+            switch tag.name {
+            case "ul", "ol", "menu":
+                if tag.isClosing {
+                    if !open.isEmpty { open.removeLast() }
+                } else {
+                    open.append(counts.count)
+                    counts.append(0)
+                }
+            case "li" where !tag.isClosing:
+                if let list = open.last { counts[list] += 1 }
+            default:
+                break
+            }
+        }
+        return counts
+    }
+
+    /// An attribute's integer the way HTML reads one: leading space, a sign, then digits, and the rest ignored.
+    static func integer(_ text: String?) -> Int? {
+        guard let text else { return nil }
+        var rest = Substring(text.drop(while: \.isWhitespace))
+        let isNegative = rest.first == "-"
+        if rest.first == "-" || rest.first == "+" { rest = rest.dropFirst() }
+        let digits = rest.prefix(while: \.isASCII).prefix(while: \.isNumber)
+        guard !digits.isEmpty, let magnitude = Int(digits) else { return nil }
+        return isNegative ? -magnitude : magnitude
     }
 
     private struct LinkCapture {
@@ -515,8 +559,7 @@ private struct PlainTextRenderer {
                 if !lists.isEmpty { lists.removeLast() }
                 pendingMarker = nil
             } else {
-                lists.append(
-                    ListFrame(isOrdered: tag.name == "ol", isChecklist: isChecklist(tag)))
+                lists.append(openList(tag))
             }
             out.requestBreak(1)
         case "li":
@@ -570,6 +613,22 @@ private struct PlainTextRenderer {
 
     // MARK: Lists
 
+    /// A list's frame, numbered from its `start`, or down from its item count when `reversed`.
+    private mutating func openList(_ tag: HTMLTag) -> ListFrame {
+        let items = listsOpened < itemCounts.count ? itemCounts[listsOpened] : 0
+        listsOpened += 1
+        var frame = ListFrame(isOrdered: tag.name == "ol", isChecklist: isChecklist(tag))
+        guard frame.isOrdered else { return frame }
+        let start = Self.integer(tag.attribute("start"))
+        if tag.attribute("reversed") != nil {
+            frame.next = start ?? items
+            frame.step = -1
+        } else {
+            frame.next = start ?? 1
+        }
+        return frame
+    }
+
     private mutating func openItem(_ tag: HTMLTag) {
         let indent = String(repeating: " ", count: max(0, lists.count - 1) * 2)
         if let checked = checkboxState(of: tag) {
@@ -577,9 +636,11 @@ private struct PlainTextRenderer {
         } else if lists.last?.isChecklist == true {
             pendingMarker = indent + Self.box(false)
         } else if lists.last?.isOrdered == true {
-            lists[lists.count - 1].count += 1
+            let last = lists.count - 1
+            if let value = Self.integer(tag.attribute("value")) { lists[last].next = value }
             // Plain digits, so the tenth item is `10.` and the list stays a list.
-            pendingMarker = "\(indent)\(lists[lists.count - 1].count). "
+            pendingMarker = "\(indent)\(lists[last].next). "
+            lists[last].next &+= lists[last].step
         } else {
             pendingMarker = indent + "\u{2022} "
         }

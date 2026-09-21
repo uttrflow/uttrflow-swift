@@ -39,6 +39,14 @@ public struct SuggestionPresentation: Sendable, Equatable {
         case dot
     }
 
+    /// What colour the ghost is drawn in, which must read against the field rather than against Uttrflow's appearance.
+    public enum Ink: Sendable, Equatable {
+        /// The field's own text colour, which contrasts with the field's background because the field chose it to.
+        case field(TextColor)
+        /// The field would not say, so the ghost sits on a backing of its own that its colour is resolved against.
+        case backed
+    }
+
     /// One candidate on offer, and whether it is the one Tab takes.
     public struct Row: Sendable, Equatable {
         /// The whole line this row leaves behind, which is what the list and VoiceOver show.
@@ -64,6 +72,9 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// Ghost text drawn at full strength, for a display setting under which faint grey fails to read.
     public static let opaqueGhostOpacity = 1.0
 
+    /// The backing behind a ghost whose field would not say its text colour is drawn at this share of the window colour.
+    public static let backingOpacity = 0.9
+
     /// An unselected row of the list, and the footer, are drawn at this share of the ghost's own strength.
     public static let dimmedShare = 0.55
 
@@ -88,14 +99,18 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let pointSize: CGFloat
     /// Whether to set the ghost in a monospaced face, chosen when the field would not say what its own is.
     public let prefersMonospaced: Bool
-    /// Whether a change of state is allowed to animate.
-    public let animates: Bool
+    /// The widest the surface may draw, the room from the caret to the field's or screen's edge, past which text ends in an ellipsis.
+    public let maximumWidth: CGFloat?
     /// The share of the line's colour the ghost is drawn at, raised to full under a contrast setting.
     public let opacity: Double
+    /// Whether the ghost is underlined, which is what tells it from typed text once it is drawn at full strength.
+    public let underlinesGhost: Bool
     /// The key that takes the suggestion in this field, which the hint after the ghost must name truthfully.
     public let acceptKey: AcceptKey
     /// The field's own font family, so the ghost is set in the face the line is, or nothing when it will not say.
     public let fontFamily: String?
+    /// The colour the ghost is drawn in, and whether it needs a backing to be read at all.
+    public let ink: Ink
 
     public init(
         _ suggestion: Suggestion,
@@ -104,10 +119,13 @@ public struct SuggestionPresentation: Sendable, Equatable {
         fieldPointSize: CGFloat? = nil,
         appearance: SuggestionAppearance = .standard,
         acceptKey: AcceptKey = .tab,
-        fontFamily: String? = nil
+        fontFamily: String? = nil,
+        fieldTextColor: TextColor? = nil,
+        maximumWidth: CGFloat? = nil
     ) {
         self.acceptKey = acceptKey
         self.fontFamily = fontFamily
+        ink = fieldTextColor.map(Ink.field) ?? .backed
         let offered = Self.rows(of: suggestion, after: typed, selected: selection.index)
         style =
             switch suggestion {
@@ -121,9 +139,10 @@ public struct SuggestionPresentation: Sendable, Equatable {
         pointSize = Self.pointSize(fieldPointSize)
         // A field that reports neither size nor face is most often a terminal, where a monospaced default lines up.
         prefersMonospaced = fieldPointSize == nil && fontFamily == nil
-        animates = !appearance.reducesMotion
+        self.maximumWidth = maximumWidth.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
         // Faint grey is the intent; a contrast setting keeps the text but drops the transparency.
         opacity = appearance.demandsOpaqueGhost ? Self.opaqueGhostOpacity : Self.ghostOpacity
+        underlinesGhost = appearance.demandsOpaqueGhost
     }
 
     /// The row Tab takes, whose continuation is the ghost on the caret's own line.
@@ -143,8 +162,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
         guard let leader = inline else { return "" }
         let alternatives = rows.filter { !$0.isSelected }.map(\.candidate)
         let take = "\(acceptKey.spokenName) to accept\(Self.cost(of: leader))."
-        guard !alternatives.isEmpty else { return "Suggestion: \(leader.candidate). \(take)" }
-        return "Suggestion: \(leader.candidate). \(take) Alternatives: "
+        guard !alternatives.isEmpty else { return "AI suggestion: \(leader.candidate). \(take)" }
+        return "AI suggestion: \(leader.candidate). \(take) Alternatives: "
             + alternatives.joined(separator: ", ") + "."
     }
 

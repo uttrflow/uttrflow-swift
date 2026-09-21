@@ -1,0 +1,62 @@
+# The full randomised oracle sweep for the clipboard readers.
+#
+# `SecretShapesOracleTests` and `ClipKindOracleTests` compare the linear secret readers and the
+# windowed classifier with the patterns they replaced. `make verify` runs a fixed sample of every
+# generator; this runs every seed in full, which takes minutes on this runner and would starve
+# the rest of the test run if it shared a process with it. See `Docs/clipboard-secrets.md`.
+#
+# Nightly, by hand, and on pull requests that touch the readers or the suites themselves. It is
+# not a required check: a disagreement it finds is a real bug in the readers, and it is filed and
+# fixed like one, but it should not hold up a change that never went near the clipboard.
+name: Oracle sweep
+
+on:
+  schedule:
+    # Every night, early.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "Sources/UttrflowClipboard/**"
+      - "Tests/UttrflowClipboardTests/SecretShapesOracleTests.swift"
+      - "Tests/UttrflowClipboardTests/ClipKindOracleTests.swift"
+      - ".github/workflows/oracle-sweep.yml"
+
+concurrency:
+  group: oracle-sweep-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: Clipboard oracle sweep
+    # The same runner `ci.yml` uses, because the package targets macOS 26 APIs.
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Cache SwiftPM
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Build the tests
+        run: swift build --build-tests
+
+      # Only the two oracle suites, so nothing else competes with them for the cores.
+      - name: Sweep every seed
+        env:
+          UTTRFLOW_ORACLE_SWEEP: "1"
+        run: swift test --skip-build --filter 'SecretShapesOracleTests|ClipKindOracleTests'

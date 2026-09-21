@@ -72,10 +72,12 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
   and hands its detector `AllowedLanguageSampler`, which takes the likeliest allowed language.
 - The task token is always `transcribe`; `WhisperKitContractTests` and `LanguageHeldDecoderTests`
   both read it back off the options.
-- The constraint is the product's languages, not the profile's. `UserProfile.preferredLanguages`
-  starts as English alone for everyone, so holding detection to it would force every Hindi
-  speaker who never opened Settings into English. Every language Settings offers is in the
-  transcribed set, so no choice the user can make is narrowed by it.
+- The detector's constraint is the product's languages, not the profile's. Every language
+  Settings offers is in the transcribed set, so the profile narrows detection by the hint
+  instead: a profile that speaks only Hindi decodes every piece as Hindi, and one that speaks
+  both detects every piece (`ListeningLanguages`, `Docs/early-transcription.md`). English alone
+  narrows nothing, because `UserProfile.preferredLanguages` starts as English for everyone and
+  pinning it would force every Hindi speaker who never opened Settings into English.
 - WhisperKit re-runs detection for every fallback temperature and samples it the same way it
   samples text, top-k at that temperature. The allowed sampler ignores the temperature, so one
   window cannot change its language between retries.

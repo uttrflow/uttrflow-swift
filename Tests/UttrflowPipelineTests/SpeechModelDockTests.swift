@@ -35,6 +35,14 @@ struct SpeechModelDockTests {
         #expect(dock.symbolName == "exclamationmark.triangle")
     }
 
+    /// Setup fetches a missing model, and the button stays the resting grip while it does.
+    @Test("resting with no model on disk draws the resting button, not a warning")
+    func missingModelLeavesTheButtonAlone() {
+        #expect(
+            DictationPresenter.dock(for: .idle, speechModel: .missing)
+                == DictationPresenter.dock(for: .idle))
+    }
+
     @Test("a refused attempt is drawn wide, with its words and why")
     func refusalIsDrawnWithWords() {
         let dock = DictationPresenter.dock(

@@ -30,7 +30,9 @@ role, whatever locator the field publishes, and the page host or containing dire
 Retrieval asks the store for candidates matching what has been typed on the current line,
 and the store answers from every document of the same field in the same application: the
 same text learned in two folders is one candidate with its counts summed
-(`PredictStore.candidates`). When the corpus has nothing, the machine is asked
+(`PredictStore.candidates`). Feedback follows the same pooling: taking or refusing a line
+counts once, against this folder's own entry or else the folder that supplied it, and
+retiring a line hides it in this folder while the folder it was learned in keeps it. When the corpus has nothing, the machine is asked
 (`EnvironmentSource`); when the machine has nothing either, the model generates. The engine
 scores remembered candidates against the moment and answers with one `Suggestion` —
 `.silent`, `.certain`, `.choice` or `.minimised`; generated lines are drawn in the model's
@@ -83,9 +85,51 @@ directory — a terminal's working directory — is scoped to itself, which is t
 loop, verification sits between ranking and drawing, one `MLXCandidateScorer` is wired in as
 both scorer and generator, and `AppDelegate` builds it. `PLAN.md` tracks the phases.
 
+## A suggestion is written in English, in the Latin alphabet
+
+**Everything Uttrflow writes is English in the Latin alphabet.** Hindi is written romanised,
+the way people type it ("haan theek hai"), and never in Devanagari. Uttrflow is not a
+translator, and no suggestion ever puts another script into a field. This is a product
+decision, not a limitation waiting to be lifted, and dictation holds to the same rule.
+
+`LatinScript.writes` in `UttrflowPredict` is the one question asked about a piece of text: does
+any letter, combining mark or digit in it belong to a script other than Latin? Accents
+(café, naïve, a decomposed é), fullwidth and styled Latin, emoji with their variation
+selectors, skin tones, flags and keycaps, symbols such as ™, ₹ and ½, and punctuation of any
+script never count. Devanagari, Arabic, Cyrillic, Greek, Han, kana, and the digits of those
+scripts do.
+
+It is enforced in four places. Each one alone would leave a way through.
+
+| Where | What is refused |
+|---|---|
+| `SuggestionSession.turn` | A line containing another script gets no turn at all. It settles as `Quieting.Reason.nonLatinLine`, and neither the store nor the model is asked |
+| `SuggestionSession.resolve` | A remembered or machine candidate containing another script is never ranked or drawn, even though capture keeps it |
+| `SuggestionSession.drawable`, `MLXCandidateScorer.parse` | A generated line containing another script is dropped where the reply is parsed, so the bake-off sees it too, and again before anything is drawn |
+| `PromptBuilder.scriptInstruction`, `GenerationSituation.recentLines` | Where the screen, the window title or the text before the line holds another script, the model is told to write English, or romanised Hinglish where the person writes that, in the Latin alphabet only. The person's earlier lines in other scripts are left out of what it is shown and of what the register is inferred from |
+
+**A non-Latin line is silent, not completed in Latin.** A completion in that script breaks
+the rule, and a Latin one glues a romanised tail onto a Devanagari word ("नहीं jaana"), which
+is text nobody types. A line being typed in another script is one where Uttrflow has nothing
+it may write, so it draws nothing. The
+decision is made per line, because the line is the unit of a completion: the next line in the
+same field, typed in Latin letters, is completed as usual.
+
+**The instruction is given only where another script is in view.** Only context in another
+script draws the model towards one. Given on every pass, the same sentence changes the model's
+first line on 296 of the 1,154 bake-off fixtures and costs three English hits, and no fixture
+answers in another script without it. So an all-Latin prompt carries no instruction, and the
+output filters catch a stray line either way.
+
+**What stays.** Capture still records a line the person typed in Devanagari. It is their
+text, and forgetting or editing it is not the suggestion loop's decision. It is simply never
+offered back. Screen text around the field is still shown to the model as context, because a
+reply in romanised Hinglish to a message written in Devanagari is a legitimate line. What the
+model writes back is held to the rule by the filters above.
+
 ## Turning it on
 
-Settings → Suggestions → **Finish what I am typing**. Off for everybody who has not asked
+Settings → AI suggestions → **Finish what I am typing**. Off for everybody who has not asked
 for it, and on from the moment the switch is thrown — the app builds the loop there and
 then rather than at the next launch. The same switch takes it away again.
 
@@ -104,20 +148,38 @@ has switched off since, and everything the corpus has learned from — so a swit
 off can always be found and turned back on.
 
 Where suggestions may be offered is where typing may be learned from: one decision, made on
-the Suggestions screen. The answer is kept in
+the AI suggestions screen. The answer is kept in
 `~/Library/Application Support/Uttrflow/predict-consent.v1.json`, written the first time the
 loop meets an application the screen already allows, and rewritten when a switch there moves.
 
 **Uttrflow used to ask in a modal instead**, the first time a value was committed in each
 application, bringing itself to the front over whatever the user was writing — and asking a
-question the Suggestions screen had already answered, since the turn cannot reach that point
+question the AI suggestions screen had already answered, since the turn cannot reach that point
 unless the application is switched on. An application the loop has met appears in the
 Applications list whether or not it has taught anything yet, so the switch is there to find;
 the promise the alert carried — kept on this Mac, in Uttrflow's own folder, never uploaded —
-is on the Suggestions pane beside it.
+is on the AI suggestions pane beside it.
 
 `Uttrflow` in that path is the folder this build writes under, and a development build
 writes under its own — see [development-build.md](development-build.md).
+
+### Forgetting from Settings
+
+Settings reaches the corpus through `PredictCorpus`, which opens `predict.v1.sqlite` only
+for the question it is asked and never creates it, so forgetting works whether or not the
+suggestion loop is running.
+
+- **Forget what it learned here**, beside an application in the list, appears once that
+  application has taught at least one line, and deletes that application's surfaces and every
+  entry and succession in them. Other applications keep theirs.
+- **Reset personalisation** deletes every surface in the corpus, and the consent file with
+  them, so the list no longer names the applications the loop has met.
+- **Switching an application off** stops learning there and keeps what was already learned,
+  so switching it back on picks up where it left off. Forgetting is the row beside it, a
+  separate choice. Turning the feature off everywhere keeps the corpus the same way.
+
+Forgetting is a `DELETE`, so while the loop keeps its own connection open the deleted pages
+can stay in `predict.v1.sqlite-wal` until the next checkpoint (#642).
 
 ## The loop, once per keystroke
 
@@ -143,6 +205,26 @@ key monitor, a one-second tick that runs only shortly after activity (`Suggestio
 tap, the panel, and the corpus. It reads the field off the main thread, and a turn that
 takes longer than `SuggestionSession.turnBudgetInMilliseconds` draws nothing at all —
 answering a moment that has passed is worse than answering nothing.
+
+### One ghost, and only while it is true
+
+**There is one panel for the process** (`SuggestionPanelController.shared`), so a loop
+rebuilt when the feature is switched off and on draws in the same window as the loop it
+replaces, and a stopped loop draws nothing. The view is not animated: a new suggestion
+replaces the old one whole, measured before the panel is placed, so the two are never
+drawn in the same spot at once.
+
+**A ghost is withdrawn by anything that may move the caret** — a key, a click, a scroll, the
+application in front changing, a Space change or the display sleeping. Each one hides the
+panel, disarms the keys and calls `SuggestionSession.invalidate`, which voids every answer
+still being worked out: `resolve`, `resolveGenerated` and `expandGenerated` return nothing
+for a turn whose field read began before the latest key or move, and the coordinator draws
+only while `SuggestionSession.isCurrent`. The next turn reads the field again and draws at
+the caret where it now is.
+
+**A model line keeps the typed case.** A generated line that matches the typing only in
+another case continues it spelled as typed, so the ghost only adds to the line and Tab
+never re-cases what the user wrote.
 
 ### What counts as a value the user finished
 
@@ -360,10 +442,12 @@ One row per surface, one row per entry, one row per succession pair, and two ind
 `entry`, each for a single query: `entry_prefix` on `(surface_id, text_lower)` for the
 prefix range scan run on every keystroke, over the lowercased text so matching ignores case
 and keeps the index, and `entry_recent` on `(surface_id, last_used)` for the person's most
-recent lines that the model is shown. `Schema.version` is 3: a v1 file, whose index was on
-`text`, gains the `text_lower` column, has it filled and has the index moved when it is
-opened; a v2 file gains `entry_recent`; a file from a newer build is refused rather than
-written to. A surface holds at most 2,000 entries and evicts by count then age. Forgetting
+recent lines that the model is shown. `Schema.version` is 4: a v1 file, whose index was on
+`text`, gains the `text_lower` column and has the index moved when it is opened; a v2 file
+gains `entry_recent`; every file below 4 has `text_lower` rewritten with Swift's
+`lowercased()`, the function writes and queries use, since SQLite's `lower` folds ASCII only
+and left an accented capital outside the prefix range; a file from a newer build is refused
+rather than written to. Recording a line again rewrites its key too. A surface holds at most 2,000 entries and evicts by count then age. Forgetting
 works at three sizes: one entry, one application, everything.
 
 An entry carries `count`, `accepted`, `rejected`, `self_sourced` and `last_used`. A
@@ -399,9 +483,13 @@ rewrites the query as a `LIKE`.
 
 The fuzzy fallback rejects candidates with a 64-bit character mask before it computes any
 edit distance. The width of the window that mask covers is the whole of its strength: a
-mask over the first *n + k* bytes, where *n* is the query length and *k* its edit budget,
-measured **14.9×** faster than no prefilter at all. A fixed twelve-byte window measured
-**4.0×**.
+mask over the first *n + k* units, where *n* is the query length and *k* its edit budget,
+measured **14.9×** faster than no prefilter at all. A fixed twelve-unit window measured
+**4.0×**. Those were measured on ASCII, where a byte and a Unicode scalar are the same unit.
+
+The unit is the Unicode scalar, for the budget, the mask and the distance alike. Counted in
+UTF-8 bytes, one Devanagari letter is three units, so two typed letters earned the two-edit
+allowance meant for six, and an accented Latin letter earned an edit a plain one did not.
 
 Both are sound — a wider window can only weaken the filter, and never rejects a candidate
 that would have matched — so the fixed width fails silently, giving up most of the gain

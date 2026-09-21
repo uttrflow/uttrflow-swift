@@ -1,11 +1,233 @@
 # Changelog
 
 Notable changes to Uttrflow. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[semantic versioning](https://semver.org).
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions are calendar dates,
+`YEAR.MONTH.DAY` with no leading zeros, for the day a release is cut; a second release on
+the same day adds a fourth number, `2026.9.14.1`. Releases up to 0.5.0 used semantic
+versioning.
 
 Each released version is a git tag and a build at
 [uttrflow/releases](https://github.com/uttrflow/releases).
+
+## [Unreleased]
+
+### Changed
+- **Suggestions is now called AI suggestions.** The Settings tab and its heading, the menu
+  bar switch, the notes on that screen and what VoiceOver reads for a suggestion all use the
+  new name. Nothing you chose there changes: every setting is kept as it was.
+
+## [2026.9.14] — 2026-09-14
+
+The first release named by its date. Nothing about updating changes: an installed copy of
+0.5.0 is offered this release like any other.
+
+### Fixed
+- **Hiding an AI suggestion that is already hidden no longer redraws the panel.** Each keystroke
+  with nothing drawn used to rebuild the view and look up the screens two or three times on the
+  main thread (#889).
+- **Dictating into a slow field while AI suggestions are on no longer times out after 100 ms.**
+  Each Accessibility caller now sets its timeout on its own elements, so a suggestion read can no
+  longer shorten an insertion write to 0.1 s, and the context read keeps its budget (#887).
+- **Typing at a clipboard confirmation no longer filters the list behind it.** Letters and arrow
+  keys under "Delete this clip?", a collection delete or a formatter diff are held, so the clip
+  being asked about stays listed (#946).
+- **Branch names, slugs and dated file names are no longer hidden as credentials.** Words joined
+  by `-`, `_` or `/` such as `fix/796-paste-confirmation-cancel` stay readable in the clipboard
+  panel (#919).
+- **Search finds text copied with curly quotes, dashes or line breaks.** Typing `don't` now finds
+  `don’t`, `-` finds an em dash, and a space matches a line break or a run of spaces (#900).
+- **Undoing the delete of a picture clip brings the picture back.** The file is kept until the
+  undo window passes, so ⌘Z restores a picture that still pastes (#869).
+- **A clip that arrives while the clipboard panel is open gets its Format action and missing-picture
+  state at once**, rather than after the panel is reopened (#947).
+- **A resumed Name, Move or Rename sheet has the caret again.** Reopening the clipboard panel over
+  a half-typed sheet now types into the sheet, not the search behind it (#920).
+- **A search under a kind chip says which chip hid the match.** With Code chosen, a search that
+  finds nothing now reads "Nothing under Code mentions …" and points at All, instead of claiming
+  the whole clipboard was searched (#899).
+- **A clip whose text is exactly the search, or a picture in a collection named exactly, is always
+  listed.** The six-rows-per-group cap no longer hides a match that typing more could not reach (#898).
+- **Copying one enormous decorated character no longer hangs clipboard history.** Text with tens
+  of KB of combining marks or joined emoji in a single character is classified in milliseconds (#896).
+- **AI suggestions no longer read the focused field in applications where they are off or paused.**
+  The per-application switch and the pause are checked before any Accessibility call (#903).
+- **AI suggestions step aside while you dictate.** No suggestion model pass starts while a dictation
+  records, recognises, tidies or inserts, and a drawn ghost is withdrawn when recording begins (#881).
+- **The speech log now says what a piece cost beyond one decode** — temperature fallbacks, their
+  seconds, encoder runs, and whether the empty-result retry ran — so a slow dictation can name its
+  cause (#871).
+- **AI suggestions in a terminal stop re-scanning PATH and re-listing a program's verbs in every
+  directory.** Those answers are now cached once for the machine, and a listing that keeps timing
+  out is left alone for longer each time, up to ten minutes (#890).
+- **A field read that a turn gave up on no longer delays the next one.** Reads queued behind a stall
+  are dropped when a newer one arrives, and a read past its deadline stops sending messages (#888).
+- **The first dictation after an idle spell is tidied by a session warmed during that dictation.**
+  A prepared session older than a minute is replaced at key-down instead of being used cold (#876).
+- **`uttrflow-dev bench` can idle between jobs** with `--idle-before`, so a cold tidier session is
+  reproducible, and each `clean` line names the steps that changed something and any refused
+  answer (#916).
+- **Typing over an AI suggestion no longer waits half a second per key.** The ghost panel hides
+  without AppKit's fade, which held the main thread until it finished; Tab inserts at once (#954).
+- **The clipboard panel no longer closes under you after "Copied — press ⌘V".** Any key or click
+  after a notice keeps it open, and an open sheet is never closed by the notice (#868).
+- **A copy another app has not delivered yet no longer keeps the clipboard panel shut.** ⇧⌘V opens
+  from what is already stored, a promised or Universal Clipboard read is given up on after 2 s, and
+  the clip appears when it arrives (#895).
+- **An AI suggestion pass no longer walks the other app's window twice for one line.** The
+  alternatives pass reuses the context the first pass built, and an unchanged window is walked at
+  most once a second (#879).
+- **Typing a new line in a field with a lot of learned history is no longer slower with every
+  keystroke.** Lines too short to match are ruled out in SQL, and only a line that matches is built
+  up and checked for being destructive (#870).
+- **The recent-lines read for AI suggestions no longer groups every learned line of every folder or
+  conversation.** Each scope is read through its index and the few lines shown are chosen in Swift (#880).
+- **An AI suggestion appears sooner after a pause.** The 120 ms quiet is now counted from the last
+  key rather than from the work that follows it, and the two context reads run side by side (#878).
+- **Uttrflow crashed after a few thousand key presses.** Every keystroke the app passed on
+  left the stack a little deeper, so after about 2,500 presses — and again when the
+  keyboard monitor stopped — it ran out. A keystroke now costs the same at the five
+  hundredth press as at the first, and the microphone's change handler, which had the same
+  shape, is fixed with it.
+- **A selection reported by another app could crash Uttrflow.** Accessibility hands over
+  whatever range an app reports, and one near the "not found" marker overflowed when its
+  end was worked out. Every place that reads such a range now treats an impossible one as
+  unknown: no text either side of the caret, rather than a crash.
+- **One damaged file in the shared model cache crashed Suggestions every time it
+  started.** A weights file whose header claimed a size near the largest number there is
+  overflowed the check that measured it. A header that does not add up now counts as an
+  incomplete download, and the model is fetched again instead.
+- **An unreadable clipboard file deleted the pictures of your pinned and saved clips.** If
+  either of the clipboard's two index files could not be read at launch, the tidy-up that
+  removes orphaned pictures ran against a list missing half its entries, and the next save
+  wrote over the damaged file. A file that cannot be read is now set aside beside the
+  original rather than overwritten, and no picture is removed while one is. Dictation
+  history, the dictionary and snippets set an unreadable file aside the same way.
+- **The microphone could stay open after a dictation.** Stopping the shortcut monitor at
+  the instant a key went down could deliver the release before the press, and the
+  recording then waited for a release that had already gone. The two now always arrive in
+  the order they happened. Switching between hold-to-talk and press-to-toggle in the middle
+  of a dictation had the same result; the dictation now finishes, and keeps its words, when
+  the mode changes.
+- **The arrow keys started dictation.** macOS marks the arrow and navigation keys with the
+  same flag as Fn, and the Fn shortcut read that flag from any key. It is now read only
+  when a modifier key itself changes, so moving the cursor no longer opens the microphone.
+- **A shortcut made only of modifiers dictated during other shortcuts.** With `⌃⌥⌘` as the
+  dictation shortcut, pressing `⌃⌥⇧⌘K` started a dictation on the way. A press of modifiers
+  alone now waits a fifth of a second, and a key typed or another modifier added in that
+  time withdraws it. Settings also draws such a shortcut with all of its keys rather than
+  one, and refuses `⌘`, `⌥`, `⌃` or `⇧` held on its own, which is part of too many other
+  shortcuts to be one; a saved one returns to the default.
+- **The clipboard shortcut could stop working after a shortcut change.** When the old
+  registration was removed off the main thread, the new one could be refused and the old
+  one then removed anyway, leaving the keys to the app in front. That path is closed; other
+  reports of `⇧⌘V` pasting are still being looked into.
+- **Dictation stopped until relaunch when macOS switched off the keyboard tap.** The tap is
+  switched back on when that happens. The menu bar also shows the shortcut you set rather
+  than `⌥Space`.
+- **An interrupted speech model download left a model that never loaded and could not be
+  repaired.** A download that ended early — a quit, a crash, the Mac sleeping — left some
+  weights behind and counted as installed, and Try Again loaded the same broken files. The
+  weights now download to a separate folder and are moved in only when every file is
+  there, and a model that fails to load offers to download it again.
+- **Hindi and Hinglish sometimes came out in Urdu script, or translated into English.** A
+  confident Hindi decode looked repetitive by a measure tuned to English, so it was retried
+  with sampling, and the retry could pick another language. Detection is now held to
+  English and Hindi, and a Hindi decode is judged by its own measure.
+- **A dictation with dictionary words could lose whole sentences.** The words from your
+  dictionary are handed to the recogniser as a prompt, and its word timings were then
+  lined up against the prompt instead of the speech, so sentences at the start, middle or
+  end were dropped. The timings are now read from where the speech begins.
+- **Two recognitions could run on the model at once.** A dictation started while a
+  cancelled or timed-out one was still being recognised shared the model with it, and one
+  could be decoded with the other's dictionary words. The recogniser now takes one job at a time.
+- **The last moment of every recording was thrown away.** Releasing the key discarded the
+  audio the microphone was still holding, up to about 85 milliseconds. It is kept now.
+- **A microphone that disconnected mid-dictation joined the words either side of the gap
+  into one sentence.** The microphone is retried when a device changes; a recording with a
+  hole in it is refused rather than inserted as if nothing were missing, and the level
+  meter falls to silence instead of freezing on its last reading.
+- **The stop sound was recorded.** It played while the microphone was still open, so its
+  start landed at the end of every recording. It now plays once the microphone has closed.
+- **History filed a dictation under the app it started in**, not the one the words landed
+  in when you switched windows while speaking.
+- **Tab could apply a suggestion meant for an earlier line.** A key typed just before Tab
+  left Tab applying the edit worked out before it, so the letter just typed came out twice. An
+  out-of-date suggestion is now refused, and the text being replaced is checked before it
+  is taken back.
+- **A line you typed in a chat and never sent could become a suggestion later.** In a chat
+  app only a sent line is learned from.
+- **Suggestions interrupted you with a dialog** asking whether to learn from an app that
+  the Suggestions screen had already allowed. The switch there is the only question now.
+- **Check Now in Settings did not check for updates.** It does, as the menu bar did.
+- **Turning Suggestions on showed nothing while about 3 GB downloaded.** The download's
+  size and progress are shown, and so is a failure.
+- **Copying a transcript sent it to your other devices.** The panel's Copy and the menu
+  bar's Copy cleared the clipboard in the ordinary way, so Universal Clipboard offered the
+  words to every device on the same account. Every copy Uttrflow makes now stays on this
+  Mac.
+- **Spoken dates and small amounts of money stayed as words.** "the twenty fifth of March"
+  is written "25 March", and "five dollars" is "5 dollars" in any place.
+
+### Changed
+- **A reply of three words or fewer lands in well under a second.** "Ship it.", "Are you
+  free?" — the rules already write these exactly as the model would, but the model was
+  still asked, which cost about half a second on a quiet Mac and several on a busy one. A
+  short reply the recogniser was sure of, in English, now skips it.
+- **Suggestions cost a fifth of the processor they did.** Each pass re-read the whole
+  prompt to add one typed character; the fixed part is now read once and each line once,
+  which took a hundred keystrokes from about 170 processor-seconds to about 30. The page
+  around the field is held to a budget rather than a length, so a busy web page no longer
+  fills the prompt, and a pass over one takes about half as long. And a page is read as a
+  conversation only when people are visibly taking turns on it, so a comment box or an
+  email is no longer suggested to as if it were a chat.
+- **Uttrflow no longer works while you are not using it.** The Home page's clipboard
+  demonstration used a third of a core whenever any part of its window was on screen; it
+  now moves only in the window you are using, with the card in view, and at 30 frames a
+  second. Tab-to-complete's once-a-second check stops shortly after you stop typing, and the
+  clipboard is checked twice a second rather than five times, catching up the moment the
+  panel opens.
+- **Reduce Motion, Low Power Mode and a hot Mac are honoured.** Animations hold still under
+  any of the three, the meter draws at the rate its data arrives in Low Power Mode, and
+  Suggestions pause in Low Power Mode and when the Mac is under thermal pressure. Their
+  work runs at a lower priority than what you are doing at all times.
+- **The suggestion model gives its memory back.** It holds about 2.5 GB while loaded. It is
+  now released when Suggestions is turned off, when macOS reports memory pressure — and
+  loaded again once the pressure has passed — and after an idle spell whose length depends
+  on how much memory the Mac has, loading again on the next keystroke that needs it. While
+  it is loaded, its working memory no longer grows with every pass: it reached 10 GB after
+  forty passes and now stays at the weights. Reloading it no longer leaks a little more each
+  time, and neither does opening sign-in.
+- **Copying something large no longer stalls the clipboard.** Looking for a password in a
+  long run without spaces could take minutes, and comparing a large block of code when
+  formatting it took 10 seconds and 4 GB. Both now grow with the text rather than its
+  square, and working out what a 2 MB copy is takes hundredths of a second instead of
+  seconds. A very long terminal line, which Suggestions took 15 seconds to read at 100 KB,
+  is read in under a millisecond.
+
+### Added
+- **Uttrflow says when the speech model is still loading.** The first load after a restart
+  can take two or three minutes, and until now pressing the shortcut in that time opened
+  the microphone and waited. The floating button, Home and the clipboard panel now say the
+  model is loading and roughly how long, a dictation tried during the load is told why
+  nothing is happening, and a failed load says so with a way to try again.
+- **A broken speech model can be downloaded again** from the message that says it did not
+  load.
+- **Opening Uttrflow a second time brings up the copy already running**, rather than
+  starting another with its own speech model and keyboard monitor.
+- **Card numbers, and passwords copied from a password manager, are hidden in clipboard
+  history.** A card number is recognised by its length, its grouping, the prefix its
+  network issues and its check digit, so a phone number or an order number is left alone. A
+  copy a password manager marks as concealed is hidden whatever it looks like, and one it
+  marks as temporary is not kept at all.
+
+### Security
+- **What you type no longer reaches the system log.** The suggestion loop wrote the line
+  being typed, in any app, into the unified log in plain text. The text
+  is gone from every log line, and `make verify` now refuses a log message that carries
+  text a person typed, read or said.
+- **The suggestion model loads without going online when it is already on this Mac.** Every
+  load asked the model host for a file list before using the copy on disk. A complete copy
+  is now used directly, and the offline audit checks that it stays that way.
 
 ## [0.5.0] — 2026-09-06
 

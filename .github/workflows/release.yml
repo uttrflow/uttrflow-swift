@@ -4,8 +4,8 @@
 # deciding that a particular commit on it is the one people get. Nothing here reads a
 # branch name, so there is no state to keep in sync and no long-lived branch to protect.
 #
-#   git tag v0.3.0 && git push origin v0.3.0        a release
-#   git tag v0.3.0-rc.1 && git push origin v0.3.0-rc.1   a release candidate
+#   git tag v2026.9.14 && git push origin v2026.9.14        a release
+#   git tag v2026.9.14-rc.1 && git push origin v2026.9.14-rc.1   a release candidate
 #
 # **The release candidate is how a batch gets soaked before anybody is asked to install
 # it.** An `-rc` tag publishes as a GitHub prerelease, and GitHub's
@@ -15,8 +15,8 @@
 # from a tag that costs nothing to make and nothing to maintain.
 #
 # The version lives in Resources/Uttrflow-Info.plist and nowhere else. The tag must agree
-# with it; the first job refuses the release if it does not, because a v0.3.0 tag on a
-# build that reports 0.2.2 produces an appcast that offers everybody a downgrade.
+# with it; the first job refuses the release if it does not, because a v2026.9.14 tag on a
+# build that reports 0.5.0 produces an appcast that offers everybody a downgrade.
 #
 # A tag does two things, and only one of them needs a certificate. The release entry on
 # this repository is written from the changelog by a Linux job holding no secrets, so a
@@ -75,8 +75,8 @@ jobs:
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME#v}"
-          # An rc tags the version it is a candidate *for*: v0.3.0-rc.1 is built from a
-          # tree whose plist says 0.3.0, and that is the version it will ship as.
+          # An rc tags the version it is a candidate *for*: v2026.9.14-rc.1 is built from a
+          # tree whose plist says 2026.9.14, and that is the version it will ship as.
           base="${tag%%-*}"
           plist=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - Resources/Uttrflow-Info.plist 2>/dev/null \
                   || grep -A1 CFBundleShortVersionString Resources/Uttrflow-Info.plist | tail -1 | sed -E 's|.*<string>(.*)</string>.*|\1|')
@@ -87,7 +87,7 @@ jobs:
             exit 1
           fi
           echo "version=$base" >> "$GITHUB_OUTPUT"
-          # Anything after the version marks a candidate, which is Semver's rule and GitHub's.
+          # Anything after a hyphen marks a candidate; a fourth dotted number is a same-day release.
           if [ "$tag" != "$base" ]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -128,7 +128,7 @@ jobs:
           {
             ./Scripts/changelog.py "$VERSION"
             printf '\n---\n\n- Download: https://uttrflow.com/download\n'
-            printf '- Every build: https://github.com/uttrflow/releases/releases\n'
+            printf -- '- Every build: https://github.com/uttrflow/releases/releases\n'
           } > notes.md
           args=(--repo "$GITHUB_REPOSITORY" --title "Uttrflow $VERSION" --notes-file notes.md)
           if [ "$PRERELEASE" = "true" ]; then
@@ -240,7 +240,7 @@ jobs:
         run: make publish
 
       # Kept for the same reason a build log is: when somebody asks what shipped as
-      # v0.3.0, the answer should not depend on a runner that has been recycled.
+      # v2026.9.14, the answer should not depend on a runner that has been recycled.
       - name: Keep the built artefacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1

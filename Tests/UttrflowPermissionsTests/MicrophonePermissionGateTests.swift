@@ -12,7 +12,8 @@ struct MicrophonePermissionGateTests {
     private func gate(
         status: PermissionStatus,
         grants: Bool = true,
-        onRequest: (@Sendable () -> Void)? = nil
+        onRequest: (@Sendable () -> Void)? = nil,
+        onOpen: (@Sendable () -> Void)? = nil
     ) -> MicrophonePermissionGate {
         let current = Mutex(status)
         return MicrophonePermissionGate(
@@ -21,7 +22,8 @@ struct MicrophonePermissionGateTests {
                 onRequest?()
                 current.withLock { $0 = grants ? .granted : .denied }
                 return grants
-            }
+            },
+            openSettings: { onOpen?() }
         )
     }
 
@@ -98,5 +100,45 @@ struct MicrophonePermissionGateTests {
         #expect(await gate.status() == .notDetermined)
         _ = await gate.request()
         #expect(await gate.status() == .granted)
+    }
+
+    @Test(
+        "opens System Settings after microphone access was refused",
+        arguments: [PermissionStatus.denied, .restricted]
+    )
+    func opensSettingsAfterRefusal(status: PermissionStatus) async {
+        let opened = Mutex(false)
+        let gate = gate(status: status, onOpen: { opened.withLock { $0 = true } })
+
+        #expect(await gate.requestOrOpenSettings() == status)
+        #expect(opened.withLock { $0 })
+    }
+
+    @Test("recovery does nothing when microphone access is already granted")
+    func recoveryDoesNothingWhenGranted() async {
+        let asked = Mutex(false)
+        let opened = Mutex(false)
+        let gate = gate(
+            status: .granted,
+            onRequest: { asked.withLock { $0 = true } },
+            onOpen: { opened.withLock { $0 = true } })
+
+        #expect(await gate.requestOrOpenSettings() == .granted)
+        #expect(asked.withLock { $0 } == false)
+        #expect(opened.withLock { $0 } == false)
+    }
+
+    @Test("still prompts when microphone access is undecided")
+    func recoveryPromptsWhenUndecided() async {
+        let asked = Mutex(false)
+        let opened = Mutex(false)
+        let gate = gate(
+            status: .notDetermined,
+            onRequest: { asked.withLock { $0 = true } },
+            onOpen: { opened.withLock { $0 = true } })
+
+        #expect(await gate.requestOrOpenSettings() == .granted)
+        #expect(asked.withLock { $0 })
+        #expect(opened.withLock { $0 } == false)
     }
 }

@@ -154,6 +154,7 @@ struct StylePageChromeTests {
         #expect(callout.symbolName == "globe")
         #expect(callout.message.contains("strongest in English"))
         #expect(callout.message.contains("Corrections"))
+        #expect(callout.message.contains("never Devanagari, never translated"))
     }
 
     /// This page draws two of ``SettingsControl``, so a third arriving fails here rather than vanishing.

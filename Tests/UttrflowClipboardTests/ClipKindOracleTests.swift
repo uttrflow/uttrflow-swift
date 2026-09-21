@@ -1,4 +1,4 @@
-// Tests that the windowed, sampled classifier answers as the whole-clip classifier did.
+// Tests that the windowed, sampled classifier answers as the whole-clip classifier did, on a fixed sample unless `UTTRFLOW_ORACLE_SWEEP=1` asks for every seed in full.
 
 import Foundation
 import Testing
@@ -63,26 +63,34 @@ struct ClipKindOracleTests {
         return failures
     }
 
-    @Test("Random text: 20,000 strings over four seeds", arguments: 0..<4)
+    @Test("Random text: 20,000 strings over four seeds in the full sweep", arguments: OracleSweep.seeds(4))
     func randomStrings(seed: Int) async {
         let failures = await offTheTestPool {
-            Self.failures(seed: 460_000 + seed, count: 5_000, making: SecretShapesOracleTests.randomText)
+            Self.failures(
+                seed: 460_000 + seed, count: OracleSweep.strings(5_000),
+                making: SecretShapesOracleTests.randomText)
         }
         #expect(failures.isEmpty, "\(failures)")
     }
 
-    @Test("Planted secrets and near-misses: 10,000 over two seeds", arguments: 0..<2)
+    @Test(
+        "Planted secrets and near-misses: 10,000 over two seeds in the full sweep",
+        arguments: OracleSweep.seeds(2))
     func plantedSecrets(seed: Int) async {
         let failures = await offTheTestPool {
-            Self.failures(seed: 461_000 + seed, count: 5_000, making: SecretShapesOracleTests.plantedText)
+            Self.failures(
+                seed: 461_000 + seed, count: OracleSweep.strings(5_000),
+                making: SecretShapesOracleTests.plantedText)
         }
         #expect(failures.isEmpty, "\(failures)")
     }
 
-    @Test("Realistic clips below the sample threshold: 20,000 over four seeds", arguments: 0..<4)
+    @Test(
+        "Realistic clips below the sample threshold: 20,000 over four seeds in the full sweep",
+        arguments: OracleSweep.seeds(4))
     func realisticClips(seed: Int) async {
         let failures = await offTheTestPool {
-            Self.failures(seed: 462_000 + seed, count: 5_000, making: Self.realisticText)
+            Self.failures(seed: 462_000 + seed, count: OracleSweep.strings(5_000), making: Self.realisticText)
         }
         #expect(failures.isEmpty, "\(failures)")
     }
@@ -105,14 +113,17 @@ struct ClipKindOracleTests {
 
     @Test(
         "A vendor key or card number deep in a two-megabyte clip is found, at a line start or inside a line")
-    func deepInTheLargestClip() {
+    func deepInTheLargestClip() async {
         let filler = String(repeating: Self.lines[18] + "\n", count: 10_500)
         let key = "gh" + "p_" + String(repeating: "A1b2C3d4", count: 3)
         let card = "4111 " + "1111 " + "1111 " + "1111"
-        #expect(ClipKindDetector.kind(of: filler + key + "\n" + filler) == .secret)
-        #expect(ClipKindDetector.kind(of: filler + "token is " + key + " ok\n" + filler) == .secret)
-        #expect(ClipKindDetector.kind(of: filler + "card " + card + " ok\n" + filler) == .secret)
-        #expect(ClipKindDetector.kind(of: filler + filler) == .text)
+        let kinds = await offTheTestPool {
+            [
+                filler + key + "\n" + filler, filler + "token is " + key + " ok\n" + filler,
+                filler + "card " + card + " ok\n" + filler, filler + filler,
+            ].map(ClipKindDetector.kind(of:))
+        }
+        #expect(kinds == [.secret, .secret, .secret, .text])
     }
 
     @Test(
@@ -163,7 +174,7 @@ struct ClipKindOracleTests {
             var random = Seeded(seed: 463_000)
             var failures: [String] = []
             let alphabet = Array("abcXYZ019+/=_-./~:| &;$\t \u{0B}\r\ngitsudols")
-            for _ in 0..<20_000 {
+            for _ in 0..<OracleSweep.strings(20_000) {
                 var text = ""
                 for _ in 0..<Int.random(in: 0...60, using: &random) { text.append(random.pick(alphabet)) }
                 if random.chance(0.3) {
@@ -200,7 +211,11 @@ enum WholeClipDetector {
         if String(text.prefix(while: { !$0.isNewline })).wholeMatch(of: CodeShapes.importHeader) != nil {
             return true
         }
+        if String(text.prefix(while: { !$0.isNewline })).wholeMatch(of: CodeShapes.fromImport) != nil {
+            return true
+        }
         if isShellCommand(text) { return true }
+        if CodeShapes.isOneLineStatement(text) || CodeShapes.isConfiguration(text) { return true }
         let signals = [
             text.contains("{") && text.contains("}"), CodeShapes.hasStatementEnding(text),
             CodeShapes.isIndented(text), text.firstMatch(of: CodeShapes.declaration) != nil,
@@ -217,8 +232,6 @@ enum WholeClipDetector {
     private static func isShellCommand(_ text: String) -> Bool {
         guard !text.contains(where: \.isNewline) else { return false }
         if text.hasPrefix("$ ") || text.hasPrefix("./") { return true }
-        return text.split(whereSeparator: { "|&;".contains($0) })
-            .compactMap { $0.split(whereSeparator: \.isWhitespace).first }
-            .contains { CodeShapes.commands.contains(String($0)) }
+        return CodeShapes.isShellCommandByCharacter(text)
     }
 }

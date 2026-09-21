@@ -8,18 +8,14 @@ struct SuggestionView: View {
     var onDesiredSize: (CGSize) -> Void = { _ in }
 
     var body: some View {
-        form
-            .fixedSize()
+        // No animation: a replaced suggestion is swapped whole, so the old text is never drawn beside the new one.
+        CappedWidth(maximum: presentation.maximumWidth) { form.background(backing) }
             .onGeometryChange(for: CGSize.self) {
                 $0.size
             } action: {
                 onDesiredSize($0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            // Nil under Reduce Motion, which is the whole of honouring it here.
-            .animation(
-                presentation.animates ? .easeOut(duration: 0.12) : nil, value: presentation
-            )
             .accessibilityElement(children: .combine)
             .accessibilityLabel(presentation.accessibilityLabel)
     }
@@ -35,10 +31,28 @@ struct SuggestionView: View {
         }
     }
 
+    /// Draws a surface behind the ghost only where the field's colour is unknown, so the ghost has a background it was resolved for.
+    @ViewBuilder private var backing: some View {
+        if presentation.ink == .backed, presentation.style != .hidden {
+            RoundedRectangle(cornerRadius: presentation.pointSize * 0.2)
+                .fill(.background.opacity(SuggestionPresentation.backingOpacity))
+        }
+    }
+
+    /// Returns the ghost's colour at a share of its strength: the field's text colour where known, else the primary one.
+    private func ink(_ share: Double) -> Color {
+        switch presentation.ink {
+        case .field(let color):
+            Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: share)
+        case .backed:
+            Color.primary.opacity(share)
+        }
+    }
+
     /// All that is left after the user presses escape.
     private var dot: some View {
         Circle()
-            .fill(.primary.opacity(SuggestionPresentation.ghostOpacity))
+            .fill(ink(SuggestionPresentation.ghostOpacity))
             .frame(
                 width: SuggestionPresentation.dotDiameter,
                 height: SuggestionPresentation.dotDiameter)
@@ -52,10 +66,10 @@ struct SuggestionView: View {
         }
     }
 
-    /// What the accept key will add, finishing the user's line, and nothing else: the grey itself is the hint.
+    /// What the accept key will add, finishing the user's line, and nothing else: the grey, or its underline, is the hint.
     private func inlineLine(_ row: SuggestionPresentation.Row) -> some View {
         offer(row)
-            .foregroundStyle(.primary.opacity(presentation.opacity))
+            .foregroundStyle(ink(presentation.opacity))
     }
 
     /// Every candidate as a whole line, the one Tab takes at ghost strength and the rest dimmer, then the keys.
@@ -73,16 +87,20 @@ struct SuggestionView: View {
         HStack(alignment: .firstTextBaseline, spacing: presentation.pointSize * 0.4) {
             Text(verbatim: SuggestionPresentation.listPrefix)
             Text(verbatim: row.candidate)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
         .font(font(at: presentation.pointSize))
-        .foregroundStyle(.primary.opacity(rowOpacity(row)))
+        .foregroundStyle(ink(rowOpacity(row)))
     }
 
     /// The keys that work the open list, in the dimmed style so they never compete with the candidates.
     private var footer: some View {
         Text(verbatim: presentation.footer)
+            .lineLimit(1)
+            .truncationMode(.tail)
             .font(font(at: presentation.pointSize * 0.82))
-            .foregroundStyle(.primary.opacity(presentation.opacity * SuggestionPresentation.dimmedShare))
+            .foregroundStyle(ink(presentation.opacity * SuggestionPresentation.dimmedShare))
             .accessibilityHidden(true)
     }
 
@@ -94,6 +112,8 @@ struct SuggestionView: View {
     /// The ghost continuation, preceded by the typed characters struck through only when Tab would consume any.
     private func offer(_ row: SuggestionPresentation.Row) -> some View {
         var text = AttributedString(row.ghost)
+        // At full strength the grey no longer marks the offer, so a dotted underline does.
+        if presentation.underlinesGhost { text.underlineStyle = Text.LineStyle(pattern: .dot) }
         if row.isReplacement {
             var consumed = AttributedString(row.consumed)
             // The strike is the whole signal, so it takes the colour of the style around it.
@@ -102,6 +122,8 @@ struct SuggestionView: View {
         }
         return Text(text)
             .font(font(at: presentation.pointSize))
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 
     /// The field's own face where it names one, else the system face, monospaced where even the size is unknown.
@@ -114,5 +136,32 @@ struct SuggestionView: View {
     private var fontDesign: Font.Design {
         presentation.prefersMonospaced ? .monospaced : .default
     }
+}
 
+/// Sizes its content at its own ideal width but never wider than the maximum, whatever the window around it offers.
+struct CappedWidth: Layout {
+    let maximum: CGFloat?
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        let width = cappedWidth(of: content)
+        let measured = content.sizeThatFits(ProposedViewSize(width: width, height: nil))
+        return CGSize(width: width, height: measured.height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+    ) {
+        guard let content = subviews.first else { return }
+        content.place(
+            at: bounds.origin, anchor: .topLeading,
+            proposal: ProposedViewSize(width: cappedWidth(of: content), height: nil))
+    }
+
+    /// The content's ideal width, cut to the maximum where there is one.
+    private func cappedWidth(of content: LayoutSubview) -> CGFloat {
+        let ideal = content.sizeThatFits(.unspecified).width
+        guard let maximum else { return ideal }
+        return min(ideal, maximum)
+    }
 }

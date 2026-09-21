@@ -25,6 +25,10 @@ struct SecretShapesScalingTests {
         "separated keywords": "client-secret=",
         "blank lines": "\n",
         "commas": "token=a, ",
+        "references": "token=ab.",
+        "calls": "pwd=f();",
+        "prefixed keywords": "a_pwd=",
+        "camelCase keywords": "xPwd=",
     ]
 
     private static func text(_ unit: String, length: Int) -> String {

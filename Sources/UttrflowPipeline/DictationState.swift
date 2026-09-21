@@ -9,16 +9,22 @@ public struct DictationFailure: Sendable, Equatable {
     public let severity: FailureSeverity
     /// What the user said, when there was anything to salvage.
     public let transcript: String?
+    /// Whether the words were meant for a field that hides what is typed, so they are kept nowhere.
+    public let intoSecureField: Bool
 
     public init(
         message: String, recovery: RecoveryAction?, severity: FailureSeverity,
-        transcript: String? = nil
+        transcript: String? = nil, intoSecureField: Bool = false
     ) {
         self.message = message
         self.recovery = recovery
         self.severity = severity
         self.transcript = transcript
+        self.intoSecureField = intoSecureField
     }
+
+    /// The salvaged words Uttrflow may keep or show, which is none for a secure field.
+    public var wordsToKeep: String? { intoSecureField ? nil : transcript }
 
     /// Builds the notice from any error; the fallback keeps an unforeseen one off the screen as a type name.
     public init(_ error: any Error, transcript: String? = nil) {
@@ -40,7 +46,16 @@ public struct DictationFailure: Sendable, Equatable {
 
     /// The same failure offering a different next step.
     public func offering(_ recovery: RecoveryAction?) -> DictationFailure {
-        DictationFailure(message: message, recovery: recovery, severity: severity, transcript: transcript)
+        DictationFailure(
+            message: message, recovery: recovery, severity: severity, transcript: transcript,
+            intoSecureField: intoSecureField)
+    }
+
+    /// The same failure, marked as meant for a field that hides what is typed.
+    public func markingSecure(_ secure: Bool) -> DictationFailure {
+        DictationFailure(
+            message: message, recovery: recovery, severity: severity, transcript: transcript,
+            intoSecureField: secure)
     }
 }
 
@@ -62,12 +77,14 @@ public struct DictationOutcome: Sendable, Equatable {
     public let isFromRecording: Bool
     /// Whether the words were seen to reach the caret, which is what the tick is allowed to claim.
     public let arrival: InsertionArrival
+    /// Whether the words went into a field that hides what is typed, so no history or clip keeps them.
+    public let intoSecureField: Bool
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
-        arrival: InsertionArrival = .notReported
+        arrival: InsertionArrival = .notReported, intoSecureField: Bool = false
     ) {
         self.text = text
         self.method = method
@@ -78,7 +95,11 @@ public struct DictationOutcome: Sendable, Equatable {
         self.changes = changes
         self.isFromRecording = fromRecording
         self.arrival = arrival
+        self.intoSecureField = intoSecureField
     }
+
+    /// The words Uttrflow may keep or show, which is none for a secure field.
+    public var wordsToKeep: String? { intoSecureField ? nil : text }
 }
 
 /// Where a dictation has got to (§15); `failed` is a way of leaving that carries what recovery needs.

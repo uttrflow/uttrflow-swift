@@ -242,6 +242,17 @@ struct SuggestionRejectionTests {
         #expect(session.suggestion == .silent)
     }
 
+    @Test("Marked text in the field draws nothing and claims no key, so Escape reaches the input method.")
+    func markedTextQuietsTheTurn() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        let composing = PredictionContext(typed: "git c", markedText: .present)
+        let update = try draw(&session, typing: "git c", context: composing)
+        #expect(update == .quiet(because: .composing))
+        #expect(update?.armed.isEmpty == true)
+        #expect(session.suggestion == .silent)
+    }
+
     @Test("Enough refusals in one field silence it.")
     func enoughRefusalsSilenceTheField() throws {
         var session = SuggestionSession()
@@ -317,6 +328,44 @@ struct SuggestionRejectionTests {
         // A different line is a different answer, and takes the list with it.
         let other = try draw(&session, typing: "git c", candidates: lone("git clone"))
         #expect(other?.suggestion == .certain("git clone"))
+    }
+
+    @Test(
+        "A verified answer that dropped an alternative takes it off the list, so Down and Tab cannot reach it."
+    )
+    func aVerificationDropsTheAlternativeItRemoved() throws {
+        var session = SuggestionSession()
+        let both = [remembered("git commit", count: 5), remembered("git checkout", count: 4)]
+        let first = try draw(&session, typing: "git c", candidates: both)
+        #expect(first?.suggestion == .choice(leader: "git commit", others: ["git checkout"]))
+
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        guard
+            case .verify(let request) = session.resolve(both, for: asked, now: moment, elapsedMilliseconds: 0)
+        else {
+            Issue.record("expected a verification request")
+            return
+        }
+        let second = session.resolve(
+            [remembered("git commit", count: 5)], for: request, now: moment, elapsedMilliseconds: 0)
+
+        #expect(second?.suggestion == .certain("git commit"))
+        #expect(second?.armed.contains(.downArrow) == false)
+        _ = session.route(KeyStroke(.downArrow))
+        #expect(session.route(KeyStroke(.tab)) != .accept("git checkout"))
+    }
+
+    @Test("Quiet mode keeps no list across a redraw, even the model's.")
+    func quietModeKeepsNoList() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git commit -m"], for: asked, elapsedMilliseconds: 0)
+        _ = session.expandGenerated(["git checkout main"], for: asked)
+
+        let again = try draw(&session, typing: "git c", isQuiet: true)
+
+        #expect(again?.suggestion == .certain("git commit -m"))
+        #expect(again?.armed.contains(.downArrow) == false)
     }
 
     @Test("Alternatives that add nothing, or arrive after the user has typed on, change nothing.")
@@ -440,14 +489,87 @@ struct SuggestionRoutingTests {
         #expect(session.route(KeyStroke(.tab)) == .accept("git commit -m"))
     }
 
-    @Test("An offer from a read that began before a keystroke is stale even though it was drawn after it.")
+    @Test(
+        "An offer from a read that began before a keystroke is never drawn, since the line it continues has moved."
+    )
     func aReadThatMissedTheKeystrokeIsStale() throws {
         var session = SuggestionSession()
         let seen = session.keystrokes
         session.keystrokeArrived()
-        _ = try draw(&session, typing: "git c", sawKeystrokes: seen)
-        #expect(session.suggestion == .certain("git commit -m"))
+        #expect(try draw(&session, typing: "git c", sawKeystrokes: seen) == nil)
+        #expect(session.suggestion == .silent)
         #expect(session.route(KeyStroke(.tab)) == .nothing)
+    }
+
+    @Test("A key typed while the gates judge the head drops their verdict rather than drawing it.")
+    func aKeyDuringVerificationDropsTheVerdict() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        guard
+            case .verify(let request) = session.resolve(
+                lone(), for: asked, now: moment, elapsedMilliseconds: 0)
+        else {
+            Issue.record("expected the candidates to go to verification")
+            return
+        }
+        session.keystrokeArrived()
+        #expect(session.resolve(request.candidates, for: request, now: moment, elapsedMilliseconds: 0) == nil)
+        #expect(session.suggestion == .silent)
+    }
+
+    @Test("A key typed while the corpus is asked drops its answer.")
+    func aKeyDuringTheQueryDropsTheAnswer() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        session.keystrokeArrived()
+        #expect(session.resolve(lone(), for: asked, now: moment, elapsedMilliseconds: 0) == nil)
+    }
+
+    @Test("A model pass that finishes after a key, a click or a switch is never drawn.")
+    func aLatePassIsNeverDrawn() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "meet at")))
+        session.invalidate()
+        #expect(
+            session.resolveGenerated(["meet at the north gate at noon"], for: asked, elapsedMilliseconds: 0)
+                == nil)
+        #expect(session.suggestion == .silent)
+    }
+
+    @Test("Alternatives that arrive after the caret moved do not bring the offer back.")
+    func lateAlternativesAreDropped() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git c")))
+        _ = session.resolveGenerated(["git commit -m"], for: asked, elapsedMilliseconds: 0)
+        #expect(session.isCurrent)
+        session.invalidate()
+        #expect(!session.isCurrent)
+        #expect(session.expandGenerated(["git checkout main"], for: asked) == nil)
+    }
+
+    @Test("Of two quick turns only the latest one's answer is drawn, whichever finishes last.")
+    func onlyTheLatestTurnDraws() throws {
+        var session = SuggestionSession()
+        let first = try query(session.turn(in: field, at: PredictionContext(typed: "meet")))
+        session.keystrokeArrived()
+        let second = try query(
+            session.turn(
+                in: field, at: PredictionContext(typed: "meet at"), sawKeystrokes: session.keystrokes))
+        let latest = session.resolveGenerated(
+            ["meet at the north gate at noon"], for: second, elapsedMilliseconds: 0)
+        #expect(latest?.suggestion == .certain("meet at the north gate at noon"))
+        #expect(session.resolveGenerated(["meet me later"], for: first, elapsedMilliseconds: 0) == nil)
+        #expect(session.suggestion == .certain("meet at the north gate at noon"))
+        #expect(session.isCurrent)
+    }
+
+    @Test("A model line that differs from the typed text only in case continues the line as typed.")
+    func aGeneratedLineKeepsTheTypedCase() throws {
+        var session = SuggestionSession()
+        let asked = try query(session.turn(in: field, at: PredictionContext(typed: "Meet a")))
+        let update = session.resolveGenerated(
+            ["meet at the north gate at noon"], for: asked, elapsedMilliseconds: 0)
+        #expect(update?.suggestion == .certain("Meet at the north gate at noon"))
     }
 
     /// A new turn starting is not a new offer: the one still on screen was worked out for the line before the key.

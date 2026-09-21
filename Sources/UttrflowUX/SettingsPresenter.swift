@@ -23,7 +23,7 @@ public enum SettingsPresenter {
             case .dictation:
                 SettingsTabItem(tab: tab, title: "Dictation", symbolName: "mic")
             case .suggestions:
-                SettingsTabItem(tab: tab, title: "Suggestions", symbolName: "text.cursor")
+                SettingsTabItem(tab: tab, title: "AI suggestions", symbolName: "text.cursor")
             case .privacy:
                 SettingsTabItem(tab: tab, title: "Privacy", symbolName: "lock")
             }
@@ -126,6 +126,21 @@ public enum SettingsPresenter {
             title: "General",
             banner: nil,
             groups: [
+                SettingsGroup(
+                    id: "features",
+                    title: nil,
+                    rows: [
+                        toggleRow(
+                            .dictationEnabled,
+                            label: "Dictation",
+                            explanation: "Off, the shortcut and the floating button do nothing.",
+                            settings, capabilities),
+                        toggleRow(
+                            .clipboardEnabled,
+                            label: "Clipboard",
+                            explanation: "Off, copies are not kept and the clipboard shortcut is released.",
+                            settings, capabilities),
+                    ]),
                 SettingsGroup(
                     id: "shortcut",
                     title: nil,
@@ -284,8 +299,8 @@ public enum SettingsPresenter {
                 symbolName: "globe",
                 message:
                     "Mixing English and Hindi in one sentence is expected and handled. Tidying up "
-                    + "is strongest in English today — Hindi gets punctuation and spacing, not "
-                    + "rewriting."))
+                    + "is strongest in English today. Hindi is written in Latin letters the way people "
+                    + "type it — never Devanagari, never translated."))
     }
 
     // MARK: - Dictation
@@ -351,7 +366,7 @@ public enum SettingsPresenter {
     ) -> SettingsPane {
         SettingsPane(
             tab: .suggestions,
-            title: "Suggestions",
+            title: "AI suggestions",
             banner: suggestionModelBanner(settings, capabilities),
             groups: [
                 SettingsGroup(
@@ -361,9 +376,7 @@ public enum SettingsPresenter {
                         toggleRow(
                             .suggestionsEnabled,
                             label: "Finish what I am typing",
-                            explanation:
-                                "Uttrflow completes lines you have typed on this Mac before. "
-                                + "Off until you ask for it.",
+                            explanation: suggestionsExplanation,
                             settings, .everything),
                         toggleRow(
                             .quietSuggestions,
@@ -374,55 +387,57 @@ public enum SettingsPresenter {
                     ]),
                 applicationGroup(settings, personalisation),
             ],
-            callout: SettingsCallout(
-                symbolName: "lock",
-                message:
-                    "Completions come from what you have typed on this Mac, kept in Uttrflow's own "
-                    + "folder. Nothing is uploaded, and a password field is never read."))
+            callout: SettingsCallout(symbolName: "lock", message: suggestionsPromise))
     }
+
+    /// What switching suggestions on lets Uttrflow read, write and keep.
+    static let suggestionsExplanation =
+        "Reads the text in and around the field you are typing in, and suggests the rest of the "
+        + "line from lines you have sent before, from this Mac, or written by AI that runs on it. "
+        + "Remembers the lines you send. Off until you ask for it."
+
+    /// Where everything suggestions read and keep stays, and where to turn them off or forget them.
+    static let suggestionsPromise =
+        "What it reads stays on this Mac. The lines it remembers are kept in Uttrflow's own "
+        + "folder. Nothing is uploaded, and a password field is never read. "
+        + "Turn it off for one application, or forget what it learned there, under Applications below."
 
     /// Says what the model is doing, since a switch that is on and silent is indistinguishable from broken.
     static func suggestionModelBanner(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsBanner? {
         // Nothing to explain while the feature is off: the model is not fetched until it is asked for.
-        guard settings.suggestions.isEnabled else { return nil }
-        switch capabilities.suggestionModel {
-        case .ready, .notAsked:
+        guard settings.suggestions.isEnabled, let title = capabilities.suggestionModel.headline else {
             return nil
-        case .downloading(let fraction):
+        }
+        switch capabilities.suggestionModel {
+        case .ready, .notAsked, .downloading:
             return SettingsBanner(
                 symbolName: "arrow.down.circle",
-                title: downloadingTitle(fraction),
+                title: title,
                 message:
                     "Uttrflow is fetching the model that finishes your lines, about 3 GB, once. "
-                    + "Suggestions start when it lands.")
+                    + "AI suggestions start when it lands.")
         case .loading:
             return SettingsBanner(
                 symbolName: "clock",
-                title: "Getting ready",
+                title: title,
                 message: "The model is being read into memory. This happens once per launch.")
         case .releasedForMemory:
             return SettingsBanner(
                 symbolName: "memorychip",
-                title: "Paused to free memory",
+                title: title,
                 message:
                     "This Mac is short of memory, so the model that finishes your lines has been "
-                    + "set aside. Suggestions come back on their own once memory frees up.")
+                    + "set aside. AI suggestions come back on their own once memory frees up.")
         case .failed:
             return SettingsBanner(
                 symbolName: "exclamationmark.triangle",
-                title: "The model could not be fetched",
+                title: title,
                 message:
-                    "Suggestions cannot run without it. Check your connection, then turn the "
+                    "AI suggestions cannot run without it. Check your connection, then turn the "
                     + "switch off and on again to try once more.")
         }
-    }
-
-    /// The percentage where there is one, since a bar with no number says nothing about how long.
-    private static func downloadingTitle(_ fraction: Double?) -> String {
-        guard let fraction else { return "Getting ready" }
-        return "Getting ready — \(Int((fraction * 100).rounded()))%"
     }
 
     /// The half-hour pause, which lifts itself and so is a button rather than a switch.
@@ -456,7 +471,18 @@ public enum SettingsPresenter {
             preferences
             .knownApplications(learnedIn: personalisation.applicationsWithSuggestions)
             .flatMap { applicationRows($0, preferences, settings, personalisation) }
-        return SettingsGroup(id: "suggestionApplications", title: "Applications", rows: rows)
+        return SettingsGroup(
+            id: "suggestionApplications", title: "Applications", rows: rows + [addApplicationRow(settings)])
+    }
+
+    /// Turns suggestions off in an application before anything has been drawn or learned there.
+    static func addApplicationRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "addSuggestionApplication",
+            label: "Turn off in another application",
+            explanation: "Keeps AI suggestions out of an application before anything is learned there.",
+            control: .action(title: "Add Application…", change: .chooseApplicationToTurnOffSuggestions),
+            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff)
     }
 
     /// One application: its switch, the key that accepts there, and what it has taught.
@@ -492,7 +518,7 @@ public enum SettingsPresenter {
     static func applicationSentence(_ state: SuggestionApplicationState) -> String? {
         switch state {
         case .on: nil
-        case .turnedOff: "You turned suggestions off here."
+        case .turnedOff: "You turned AI suggestions off here."
         case .offByDefault:
             "Off to begin with: its own completion already reads the whole file."
         }
@@ -652,8 +678,9 @@ public enum SettingsPresenter {
             id: "resetPersonalisation",
             label: "Reset personalisation",
             explanation:
-                "Puts Uttrflow back to a fresh install: your dictionary, your history and "
-                + "every preference on this screen.",
+                "Puts Uttrflow back to a fresh install: your dictionary, history, clipboard, "
+                + "snippets, learned completions and the apps they may learn from, recordings "
+                + "kept for a retry and every preference on this screen are deleted from this Mac.",
             control: .removal(
                 SettingsRemoval(
                     reset: .everything,
@@ -737,6 +764,8 @@ public enum SettingsPresenter {
     /// Where a switch reads its state from, in the one place that knows.
     static func value(of field: SettingsToggleField, in settings: Settings) -> Bool {
         switch field {
+        case .dictationEnabled: settings.dictationEnabled
+        case .clipboardEnabled: settings.clipboardEnabled
         case .showsFloatingButton: settings.showsFloatingButton
         case .shrinksToGripWhenIdle: settings.shrinksToGripWhenIdle
         case .minimisesWhileDictating: settings.minimisesWhileDictating

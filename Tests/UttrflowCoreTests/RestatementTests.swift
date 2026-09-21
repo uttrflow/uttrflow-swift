@@ -36,6 +36,38 @@ struct RestatementTests {
         #expect(Restatement.discardedStart(before: 3, after: 5, in: bare.live, of: bare.draft) == nil)
     }
 
+    /// A trigger said with a pause comes back as its own sentence, which is read through rather than as a sentence end.
+    @Test("a trigger that is a sentence of its own reads through the stop before it")
+    func triggerAsItsOwnSentence() {
+        let money = reading("The total is 40. No wait. 50.")
+        #expect(Restatement.standsAlone(4, before: 6, in: money.live, of: money.draft))
+        #expect(Restatement.discardedStart(before: 4, after: 6, in: money.live, of: money.draft) == 3)
+        let meeting = reading("Meet me at four. Scratch that. At five.")
+        #expect(Restatement.discardedStart(before: 4, after: 6, in: meeting.live, of: meeting.draft) == 2)
+    }
+
+    @Test("a stop that closes a question, an exclamation or a bare no is still a sentence end")
+    func triggerAsItsOwnSentenceNeedsAPlainStop() {
+        let question = reading("Is it 3? No wait. 4.")
+        #expect(!Restatement.standsAlone(3, before: 5, in: question.live, of: question.draft))
+        #expect(Restatement.discardedStart(before: 3, after: 5, in: question.live, of: question.draft) == nil)
+        let answer = reading("The code is 45. No. 46.")
+        #expect(!Restatement.standsAlone(4, before: 5, in: answer.live, of: answer.draft))
+        let running = reading("Meet at four. No wait at five.")
+        #expect(!Restatement.standsAlone(3, before: 5, in: running.live, of: running.draft))
+        let shouted = reading("Meet at four. No wait! At five.")
+        #expect(!Restatement.standsAlone(3, before: 5, in: shouted.live, of: shouted.draft))
+        #expect(!Restatement.standsAlone(0, before: 2, in: shouted.live, of: shouted.draft))
+    }
+
+    @Test("anchors on an amount written with its sign")
+    func anchorsOnASignedAmount() {
+        let money = reading("the total is $40, no wait, $50.")
+        #expect(Restatement.discardedStart(before: 4, after: 6, in: money.live, of: money.draft) == 3)
+        let share = reading("the fee is 40% actually 50%.")
+        #expect(Restatement.discardedStart(before: 4, after: 5, in: share.live, of: share.draft) == 3)
+    }
+
     /// A number anchor reaches back only as far as the stop, because the number in the sentence before was not the one corrected.
     @Test("refuses a number anchor that sits on the far side of a sentence end")
     func numbersDoNotReachThroughAStop() {
@@ -53,6 +85,36 @@ struct RestatementTests {
     func numberWalkBackStopsAtTheStop() {
         let code = reading("the code is 4. 5 no 6")
         #expect(Restatement.discardedStart(before: 5, after: 6, in: code.live, of: code.draft) == 4)
+    }
+
+    /// The unit repeated after each number belongs to the quantity, so it does not hide the number it follows.
+    @Test(
+        "a number correction takes the quantity back when the restatement repeats its unit",
+        arguments: [
+            ("we need twelve boxes i mean fifteen boxes", 4, 6, 2),
+            ("the total is forty dollars no wait fifty dollars", 5, 7, 3),
+            ("it costs forty dollars sorry fifty dollars", 4, 5, 2),
+            ("invite ten people no wait twelve people", 3, 5, 1),
+            ("we need twenty five boxes i mean thirty boxes", 5, 7, 2),
+        ])
+    func numberWithItsUnit(text: String, trigger: Int, restart: Int, start: Int) {
+        let (draft, live) = reading(text)
+        #expect(Restatement.discardedStart(before: trigger, after: restart, in: live, of: draft) == start)
+    }
+
+    @Test(
+        "a number correction does not step over a unit that differs, ends a sentence, or is not repeated",
+        arguments: [
+            ("ten apples actually twelve pears", 2, 3),
+            ("we ordered ten boxes. no twelve boxes arrived", 4, 5),
+            ("i counted ten. boxes no twelve boxes", 4, 5),
+            ("we need ten boxes no twelve. boxes", 4, 5),
+            ("ten boxes no twelve", 2, 3),
+            ("boxes no twelve boxes", 1, 2),
+        ])
+    func numberWithAnotherUnit(text: String, trigger: Int, restart: Int) {
+        let (draft, live) = reading(text)
+        #expect(Restatement.discardedStart(before: trigger, after: restart, in: live, of: draft) == nil)
     }
 
     /// A trigger heading a repeated frame — "no to the offer, no to the meeting" — coordinates a list rather than correcting one.

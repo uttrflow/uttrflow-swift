@@ -67,7 +67,40 @@ struct SettingsSuggestionsPaneTests {
     func hasItsOwnTab() {
         let tabs = SettingsPresenter.tabs()
         #expect(tabs.map(\.tab) == SettingsTab.allCases)
-        #expect(tabs.first { $0.tab == .suggestions }?.title == "Suggestions")
+        #expect(tabs.first { $0.tab == .suggestions }?.title == "AI suggestions")
+    }
+
+    @Test("names the feature AI suggestions in the sidebar, the pane heading and the menu bar")
+    func namesTheFeatureAISuggestions() {
+        #expect(SettingsPresenter.tabs().first { $0.tab == .suggestions }?.title == "AI suggestions")
+        #expect(pane(switchedOn()).title == "AI suggestions")
+        #expect(MenuBarFeature.suggestions.title == "AI Suggestions")
+        #expect(SettingsEditor.suggestionsAreOff == "Turn AI suggestions on before choosing how they behave.")
+    }
+
+    @Test("says the switch reads the screen around the field, writes with on-device AI and remembers")
+    func theSwitchSaysWhatItReads() throws {
+        let master = try #require(row("suggestionsEnabled", in: pane(.default)))
+        let explanation = try #require(master.explanation)
+        #expect(explanation == SettingsPresenter.suggestionsExplanation)
+        #expect(explanation.contains("in and around the field you are typing in"))
+        #expect(explanation.contains("written by AI that runs on it"))
+        #expect(explanation.contains("Remembers the lines you send"))
+        #expect(explanation.contains("Off until you ask for it"))
+    }
+
+    @Test(
+        "promises everything stays on this Mac, keeps the password sentence and says where to turn it off and forget"
+    )
+    func thePromiseCoversWhatIsRead() {
+        let callout = pane(.default).callout
+        #expect(callout?.message == SettingsPresenter.suggestionsPromise)
+        #expect(callout?.symbolName == "lock")
+        let message = callout?.message ?? ""
+        #expect(message.contains("What it reads stays on this Mac."))
+        #expect(message.contains("The lines it remembers are kept in Uttrflow's own folder."))
+        #expect(message.contains("Nothing is uploaded, and a password field is never read."))
+        #expect(message.contains("Turn it off for one application, or forget what it learned there"))
     }
 
     @Test("offers the master switch off, which is what the feature ships as")
@@ -467,5 +500,70 @@ struct MenuBarFeatureTests {
 
         #expect(shown.callout?.message.contains("kept in Uttrflow's own folder") == true)
         #expect(shown.callout?.message.contains("Nothing is uploaded") == true)
+    }
+}
+
+// MARK: - Adding an application before anything is learned there
+
+@Suite("Turning suggestions off in an application nothing has been learned in")
+struct SettingsAddApplicationTests {
+    private let bank = "com.example.bank"
+
+    @Test("The Applications group ends in an Add Application… row that asks the app to pick one")
+    func theGroupOffersToAddOne() throws {
+        let add = try #require(row("addSuggestionApplication", in: pane(switchedOn())))
+        #expect(
+            add.control == .action(title: "Add Application…", change: .chooseApplicationToTurnOffSuggestions))
+        #expect(add.isEnabled)
+        let group = try #require(pane(switchedOn()).groups.first { $0.id == "suggestionApplications" })
+        #expect(group.rows.last?.id == "addSuggestionApplication")
+    }
+
+    @Test("With the feature off the row says why it cannot be used")
+    func theRowIsUnavailableWhileOff() throws {
+        var settings = switchedOn()
+        settings.suggestions.isEnabled = false
+        let add = try #require(row("addSuggestionApplication", in: pane(settings)))
+        #expect(add.unavailability == SettingsEditor.suggestionsAreOff)
+    }
+
+    @Test("Picking the request changes nothing on its own, since nothing has been chosen yet")
+    func theRequestStoresNothing() throws {
+        let settings = switchedOn()
+        #expect(try SettingsEditor.apply(.chooseApplicationToTurnOffSuggestions, to: settings) == settings)
+    }
+
+    @Test("An application picked before anything was learned in it is listed at once, switched off")
+    func aPickedApplicationIsListedOff() throws {
+        let settings = try SettingsEditor.apply(
+            .suggestionsHere(application: bank, isOn: false), to: switchedOn())
+        #expect(settings.suggestions.state(of: bank) == .turnedOff)
+        #expect(!settings.suggestions.isEnabled(in: bank, at: noon))
+        let listed = try #require(row("suggestionsIn.\(bank)", in: pane(settings)))
+        #expect(
+            listed.control
+                == .applicationSwitch(
+                    isOn: false, change: .suggestionsHere(application: bank, isOn: true)))
+    }
+
+    @Test(
+        "The menu offers each running application once, by name, leaving out Uttrflow and those already off")
+    func theMenuOffersWhatCanBeTurnedOff() {
+        var preferences = SuggestionPreferences.default
+        preferences.set("com.example.chat", isOn: false)
+        let running = [
+            SuggestionApplication(bundleIdentifier: "com.example.Zeta", name: "Zeta"),
+            SuggestionApplication(bundleIdentifier: "com.example.chat", name: "Chat"),
+            SuggestionApplication(bundleIdentifier: "com.example.uttrflow", name: "Uttrflow"),
+            SuggestionApplication(bundleIdentifier: "com.example.alpha", name: "alpha"),
+            SuggestionApplication(bundleIdentifier: "com.example.ALPHA", name: "alpha"),
+            SuggestionApplication(bundleIdentifier: xcode, name: "Xcode"),
+        ]
+        let offered = SuggestionApplicationChoices.offered(
+            running, preferences: preferences, excluding: "com.example.Uttrflow")
+        #expect(offered.map(\.bundleIdentifier) == ["com.example.alpha", "com.example.zeta"])
+        #expect(
+            SuggestionApplicationChoices.offered(running, preferences: preferences, excluding: nil).count == 3
+        )
     }
 }

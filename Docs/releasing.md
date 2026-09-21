@@ -1,24 +1,33 @@
 # Releasing Uttrflow
 
-Everything happens on a Mac somebody is sitting at. There is no build server, and adding
-one is not a pending task — see [CI, and why the gate is still local](#ci-and-why-the-gate-is-still-local).
+A release can be cut by hand on a Mac, as this page describes, or by pushing a tag through
+the workflow documented in [`RELEASING.md`](../RELEASING.md).
 
 ## The version
 
-Semantic versioning, in `Resources/Uttrflow-Info.plist`, edited by hand:
+Calendar versioning, in `Resources/Uttrflow-Info.plist`, edited by hand:
 
 | Key | Example | What it is |
 | --- | --- | --- |
-| `CFBundleShortVersionString` | `0.1.0` | The marketing version. Patch for fixes, minor for features, major for breaking changes. |
-| `CFBundleVersion` | `1` | The build counter. Only has to increase; macOS uses it to tell two builds of one version apart. |
+| `CFBundleShortVersionString` | `2026.9.14` | The version people see: the day the release is cut, `YEAR.MONTH.DAY`, no leading zeros. |
+| `CFBundleVersion` | `9` | The build counter. Goes up by one every release; the updater compares this, not the date. |
 
-By hand, because semantic versioning depends on *what changed*, which no script can read.
-Bump it in the commit that cuts the release.
+Bump both in the commit that cuts the release. The tag is `v` and the version, `v2026.9.14`,
+and a candidate for it is `v2026.9.14-rc.1`. A second release on the same day adds a fourth
+number, `2026.9.14.1`; that is the one case outside Apple's three-integer form, and the
+counter still orders it. No leading zeros, because the release workflow compares the tag to
+the plist as text and `2026.09.14` is a different string.
 
-**Calendar versioning was tried and rejected.** `YEAR.MONTH.DAY.HOUR.PATCH` works
+Releases up to `0.5.0` used semantic versioning. Every date version is larger in its first
+number, so nothing that orders versions can place `2026.9.14` below `0.5.0` — and Sparkle
+does not order by it anyway: the appcast's `sparkle:version` is `CFBundleVersion`, and an
+installed copy updates only when that number is larger than its own. That is why the
+counter must keep rising across the change of scheme: 0.5.0 shipped with `8`.
+
+**Five-part calendar versioning was tried and rejected.** `YEAR.MONTH.DAY.HOUR.PATCH` works
 technically — a five-component version signs, verifies `--deep --strict`, and Spotlight
 reports `kMDItemVersion` correctly — but Apple documents these keys as three integers, so
-it is outside spec and the App Store would refuse it. Do not re-propose it.
+it is outside spec and the App Store would refuse it. The date alone is three integers.
 
 ## A test build
 
@@ -134,8 +143,9 @@ inside is ever looked at. Both, in that order.
 
 ## Publishing
 
-`Scripts/publish.sh` uses the `gh` login already on this Mac. Nothing is stored in a
-secret anywhere, because nothing needs to leave the machine that has it.
+By hand, `Scripts/publish.sh` uses this Mac's `gh` login and the signing key in its
+keychain. In the workflow, the same script receives `RELEASES_TOKEN` and
+`SPARKLE_PRIVATE_KEY` from repository secrets.
 
 It reads the version and the notarisation state **out of the image** rather than taking
 them as arguments, so the tag cannot disagree with the file it names. It refuses when
@@ -160,9 +170,9 @@ does not ask GitHub, for two reasons in `internal/api/updates.go`: the app talks
 host, and a check every six hours from every install is a heartbeat nobody else should
 receive.
 
-**The private key exists in one place: this Mac's login keychain**, as
-"Private key for signing Sparkle updates". It is not in the repository and not in any
-backup this project makes. Losing it does not break installed copies — it means no
+**The private key exists in the release Mac's login keychain and, once added, in the
+repository's secrets**, as "Private key for signing Sparkle updates". Losing it does not
+break installed copies — it means no
 future release can be signed for them, and every one of them has to be replaced by hand,
 because the public half is compiled into each build. Export it with `generate_keys -x`
 before this Mac is ever wiped.
@@ -170,11 +180,49 @@ before this Mac is ever wiped.
 A build with `SUFeedURL` set and no usable `SUPublicEDKey` is refused by `bundle.sh`
 check 4a: a feed with nothing to verify against installs whatever it is handed.
 
+`SUVerifyUpdateBeforeExtraction` is `true` in `Resources/Uttrflow-Info.plist`, so Sparkle
+checks the archive against `SUPublicEDKey` before it unpacks anything. The only substitute
+it accepts for that signature is a Developer ID signature from the running app's own team.
+Check 4a refuses a build with a feed and without this setting, `UpdateController` does not
+start the updater without it, and `UpdateConfigurationTests` fails if it leaves the plist.
+
+## A stable signing identity
+
+Every build without a Developer ID is signed ad hoc, and its designated requirement is
+`identifier "com.uttrflow.Uttrflow"` (`bundle.sh`, the signing step): it names the bundle
+identifier only. Privacy grants and keychain access follow the designated requirement, so a
+shipped build should be identified by a certificate as well.
+
+Recommended, in order of preference:
+
+1. **A Developer ID** (see "A real release"). The requirement then pins the team, the build
+   can be notarised, and Sparkle's Developer ID fallback becomes usable.
+2. **Until then, a self-signed code-signing identity kept only in a dedicated release
+   keychain** on the release Mac:
+   1. Create a keychain for it: `security create-keychain -P ~/Library/Keychains/uttrflow-release.keychain-db`.
+   2. In Keychain Access, Certificate Assistant, "Create a Certificate": a name such as
+      "Uttrflow Release Signing", identity type "Self Signed Root", certificate type
+      "Code Signing", stored in that keychain.
+   3. Note its SHA-1: `security find-identity -p codesigning ~/Library/Keychains/uttrflow-release.keychain-db`.
+   4. Change `bundle.sh` so a release-bound ad-hoc mode signs with `--sign <SHA-1>` and the
+      requirement `designated => identifier "com.uttrflow.Uttrflow" and certificate leaf = H"<SHA-1>"`,
+      and update check 6 to expect it.
+   5. Export the identity (`.p12`) and keep it with the exported EdDSA key; if the release
+      workflow signs, add it to the repository's secrets and import it into a temporary
+      keychain in `release.yml`.
+   6. Rehearse the first such update from the current published build: it installs on the
+      EdDSA signature, and the privacy grants are asked for once more because the
+      requirement changed. Later updates keep them.
+
+Nothing in the app grants trust by bundle identifier on its own: the single-instance
+hand-off and the check that skips reading Uttrflow's own windows compare identifiers, and
+neither unlocks anything.
+
 ## Where downloads live
 
 The public repository **[uttrflow/releases](https://github.com/uttrflow/releases)**. It
-holds disk images and `latest.json` and no source code. The source repositories are
-private and stay that way; a download link has to be public, so the two are separated.
+holds disk images and `latest.json` and no source code. Downloads stay separate because a
+second copy of either is a second answer to which build a version is.
 
 One repository serves every platform. A release is a version of the *product*, not of a
 build, and splitting per platform would let `1.2.3` exist for macOS and not for Windows

@@ -39,11 +39,12 @@ struct SettingsRequestWiringTests {
     private func model(
         _ store: RecordingStore,
         onChange: @escaping (Settings) -> Void = { _ in },
-        onRequest: @escaping (SettingsChange) -> Void = { _ in }
+        onRequest: @escaping (SettingsChange) -> Void = { _ in },
+        onShortcutRecording: @escaping (Bool) -> Void = { _ in }
     ) -> SettingsViewModel {
         SettingsViewModel(
             store: store, personalisation: EmptyPersonalisation(), capabilities: .everything,
-            onChange: onChange, onRequest: onRequest)
+            onChange: onChange, onRequest: onRequest, onShortcutRecording: onShortcutRecording)
     }
 
     @Test("Check Now reaches the app, which is the only thing that can ask the feed")
@@ -67,6 +68,44 @@ struct SettingsRequestWiringTests {
 
         #expect(store.saves == 0)
         #expect(changed == 0)
+    }
+
+    @Test("an external settings change is present before the next unrelated edit")
+    func externalChangeIsNotOverwrittenByLaterEdit() {
+        let store = RecordingStore()
+        let model = model(store)
+        var external = Settings.default
+        external.suggestions.isEnabled = true
+        store.save(external)
+        model.synchronize(settings: external)
+
+        model.apply(.appearance(.dark))
+
+        #expect(store.load().suggestions.isEnabled)
+        #expect(store.load().appearance == .dark)
+    }
+
+    @Test("cancelling an active recording restores the shortcut exactly once")
+    func cancellingRecordingRestoresOnce() {
+        var callbacks: [Bool] = []
+        let model = model(RecordingStore(), onShortcutRecording: { callbacks.append($0) })
+
+        model.beginRecordingShortcut(.dictate)
+        model.cancelRecordingShortcut()
+        model.cancelRecordingShortcut()
+
+        #expect(callbacks == [true, false])
+        #expect(!model.session.recorder.isRecording)
+    }
+
+    @Test("explicit cancel remains safe when no recording is active")
+    func cancellingIdleRecordingDoesNotResumeAgain() {
+        var callbacks: [Bool] = []
+        let model = model(RecordingStore(), onShortcutRecording: { callbacks.append($0) })
+
+        model.cancelRecordingShortcut()
+
+        #expect(callbacks.isEmpty)
     }
 
     @Test("an ordinary change still saves and still reports, and asks for nothing")
@@ -106,11 +145,12 @@ private func name(of change: SettingsChange) -> String {
     case .suggestionAcceptKey: "suggestionAcceptKey"
     case .pauseSuggestions: "pauseSuggestions"
     case .checkForUpdatesNow: "checkForUpdatesNow"
+    case .chooseApplicationToTurnOffSuggestions: "chooseApplicationToTurnOffSuggestions"
     }
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 16
+private let settingsChangeCaseCount = 17
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
@@ -179,6 +219,7 @@ private let samples: [Sample] = [
     Sample(.suggestionAcceptKey(application: knownApp, key: .rightArrow), from: suggesting),
     Sample(.pauseSuggestions(isOn: true), from: suggesting),
     Sample(.checkForUpdatesNow),
+    Sample(.chooseApplicationToTurnOffSuggestions, from: suggesting),
 ]
 
 /// Settings that start from whatever a sample needs, so a change is applied to ground it alters.

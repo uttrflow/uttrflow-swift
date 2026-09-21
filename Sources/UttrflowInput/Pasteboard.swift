@@ -11,6 +11,9 @@ public protocol Pasteboard: Sendable {
     /// The same write, with the formatted flavour alongside where there is one.
     func setText(_ text: String, richText: String?)
 
+    /// Replaces the contents with words marked concealed, so clipboard histories keep them out.
+    func setConcealedText(_ text: String)
+
     /// K4 — replaces the contents with a picture, as PNG bytes, so no caller needs the platform clipboard.
     func setImage(_ data: Data)
 }

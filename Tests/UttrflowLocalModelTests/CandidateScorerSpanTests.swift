@@ -7,25 +7,25 @@ import Testing
 struct CandidateScorerSpanTests {
     @Test("The typed opening is taken from the candidate itself, so the two tokenise the same way.")
     func typedPartComesFromTheCandidate() {
-        #expect(MLXCandidateScorer.typedPart(of: "ls -l", following: "ls") == "ls")
-        #expect(MLXCandidateScorer.typedPart(of: "ls -l", following: "ls ") == "ls ")
-        #expect(MLXCandidateScorer.typedPart(of: "git checkout main", following: "git c") == "git c")
+        #expect(CompletionText.typedPart(of: "ls -l", following: "ls") == "ls")
+        #expect(CompletionText.typedPart(of: "ls -l", following: "ls ") == "ls ")
+        #expect(CompletionText.typedPart(of: "git checkout main", following: "git c") == "git c")
     }
 
     @Test("A candidate matched without regard to case keeps its own spelling of the typed part.")
     func typedPartKeepsTheCandidatesCase() {
-        #expect(MLXCandidateScorer.typedPart(of: "Git status", following: "git s") == "Git s")
+        #expect(CompletionText.typedPart(of: "Git status", following: "git s") == "Git s")
     }
 
     @Test("A candidate that does not carry what was typed is judged whole, with nothing taken as typed.")
     func fuzzyCandidateHasNoTypedPart() {
-        #expect(MLXCandidateScorer.typedPart(of: "git status", following: "gti s").isEmpty)
-        #expect(MLXCandidateScorer.typedPart(of: "ls", following: "ls -l").isEmpty)
+        #expect(CompletionText.typedPart(of: "git status", following: "gti s").isEmpty)
+        #expect(CompletionText.typedPart(of: "ls", following: "ls -l").isEmpty)
     }
 
     @Test("Nothing typed means nothing of the candidate is skipped.")
     func emptyContextHasNoTypedPart() {
-        #expect(MLXCandidateScorer.typedPart(of: "ls -l", following: "").isEmpty)
+        #expect(CompletionText.typedPart(of: "ls -l", following: "").isEmpty)
     }
 
     @Test("Scoring starts after the tokens the typed opening shares with the whole line.")

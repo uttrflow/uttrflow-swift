@@ -22,13 +22,14 @@ public struct RuleBasedTransformer: TextTransformationEngine {
         .available
     }
 
-    /// Collapses whitespace, drops fillers, capitalises, and finishes the sentence.
+    /// Romanises Devanagari, collapses whitespace, drops fillers, capitalises, and finishes the sentence.
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
         let formatter = DestinationFormatter.standard(for: request.situation.destination)
         let pipeline = pipeline ?? Self.pipeline(for: request, under: formatter, steps: steps)
-        let draft = pipeline.run(Draft(transcription: request.transcription))
+        // Romanised before the passes, so they read and write the Latin letters dictation inserts.
+        let draft = pipeline.run(Draft(transcription: request.transcription.romanised))
         return TransformationResult(
             text: draft.text, producedBy: kind,
             cleaning: CleaningRecord(draft: draft, ran: pipeline.ids))

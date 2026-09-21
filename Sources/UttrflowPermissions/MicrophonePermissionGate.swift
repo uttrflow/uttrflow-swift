@@ -7,6 +7,8 @@ public struct MicrophonePermissionGate: PermissionGate {
     private let readStatus: @Sendable () -> PermissionStatus
     /// Shows the system prompt and answers whether the user allowed it.
     private let requestAccess: @Sendable () async -> Bool
+    /// Opens the pane where an existing refusal can be changed.
+    private let openSettings: @Sendable () -> Void
 
     /// Names this gate as the microphone permission.
     public let kind: PermissionKind = .microphone
@@ -14,10 +16,12 @@ public struct MicrophonePermissionGate: PermissionGate {
     /// Substitutes both system calls; the real wiring lives in `MicrophonePermissionGate+System.swift`.
     init(
         readStatus: @escaping @Sendable () -> PermissionStatus,
-        requestAccess: @escaping @Sendable () async -> Bool
+        requestAccess: @escaping @Sendable () async -> Bool,
+        openSettings: @escaping @Sendable () -> Void = {}
     ) {
         self.readStatus = readStatus
         self.requestAccess = requestAccess
+        self.openSettings = openSettings
     }
 
     /// The permission as it stands right now.
@@ -31,6 +35,20 @@ public struct MicrophonePermissionGate: PermissionGate {
         let current = readStatus()
         guard current == .notDetermined else { return current }
         return await requestAccess() ? .granted : .denied
+    }
+
+    /// Prompts for an undecided permission or opens Settings after macOS has recorded a refusal.
+    public func requestOrOpenSettings() async -> PermissionStatus {
+        let current = readStatus()
+        switch current {
+        case .notDetermined:
+            return await request()
+        case .denied, .restricted:
+            openSettings()
+            return current
+        case .granted:
+            return .granted
+        }
     }
 
     /// Maps the system's authorisation states onto the product's.

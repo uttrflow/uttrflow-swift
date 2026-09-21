@@ -25,8 +25,8 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     /// `account` has no default because `OnboardingAccountLayer.development()` mints a fresh key per call.
     init(
         settingsStore: any SettingsStore,
-        modelStore: any SpeechModelStore = FileSystemSpeechModelStore.whisperKit(),
-        speechModel: SpeechModel = .default,
+        installer: any OnboardingModelInstaller = SpeechModelInstall(
+            store: FileSystemSpeechModelStore.whisperKit(), model: .default),
         record: any OnboardingRecordStore = UserDefaultsOnboardingRecordStore(),
         account: OnboardingAccountLayer,
         network: any NetworkReachability = SystemNetworkReachability()
@@ -34,7 +34,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         flow = OnboardingFlow(
             microphone: MicrophonePermissionGate(),
             accessibility: AccessibilityPermissionGate(),
-            installer: SpeechModelInstall(store: modelStore, model: speechModel),
+            installer: installer,
             settingsStore: settingsStore,
             record: record,
             authentication: account.authentication,
@@ -58,6 +58,9 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             self?.onFinish?(readiness)
         }
     }
+
+    /// Whether the window is on screen, which a closed or minimised one is not.
+    var isVisible: Bool { window?.isVisible == true }
 
     /// Whether the user has never been through this.
     var isRequired: Bool { flow.isRequired }
@@ -110,22 +113,12 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
     /// Where each permission is turned on by hand; the domain holds the pane as a symbol, not a URL.
     private static func open(_ pane: SystemSettingsPane) {
-        let address =
-            switch pane {
-            case .microphone:
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-            case .accessibility:
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-            case .appleIntelligence:
-                "x-apple.systempreferences:com.apple.Siri-Settings.extension"
-            }
-        guard let url = URL(string: address) else { return }
-        NSWorkspace.shared.open(url)
+        SystemSettingsOpener().open(pane)
     }
 }
 
 /// The app's model store, narrowed to the one thing onboarding does with it.
-private struct SpeechModelInstall: OnboardingModelInstaller {
+struct SpeechModelInstall: OnboardingModelInstaller {
     let store: any SpeechModelStore
     let model: SpeechModel
 

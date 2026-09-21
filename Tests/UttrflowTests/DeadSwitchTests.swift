@@ -18,6 +18,7 @@ struct DeadSwitchTests {
             "showsFloatingButton", "floatingButtonAnchor", "shrinksToGripWhenIdle",
             "minimisesWhileDictating", "playsSoundWhenRecordingStarts", "opensAtLogin",
             "transcriptRetentionDays", "hotkey", "hotkeyActivation", "clipboardHotkey",
+            "dictationEnabled", "clipboardEnabled",
         ])
     func everyToggleReachesSomething(field: String) throws {
         let root = URL(fileURLWithPath: #filePath)
@@ -55,6 +56,22 @@ struct DeadSwitchTests {
         let built = text.components(separatedBy: "TextTransformers.router(").count - 1
         #expect(built == 1, "a second place to build a tidier is a second place to forget the dictionary")
         #expect(text.contains("spellings: { [dictionary] in await dictionary.index() }"))
+    }
+}
+
+@MainActor
+@Suite("Shrinking the floating button to a grip")
+struct GripSettingWiringTests {
+    @Test("turning the grip off and on again reaches the running button without a relaunch")
+    func gripFollowsTheSetting() {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
+
+        app.settingsChanged(to: Settings(showsFloatingButton: false, shrinksToGripWhenIdle: false))
+        #expect(!app.dockShrinksToGrip)
+
+        app.settingsChanged(to: Settings(showsFloatingButton: false, shrinksToGripWhenIdle: true))
+        #expect(app.dockShrinksToGrip)
     }
 }
 
@@ -96,7 +113,8 @@ struct LaunchAtLoginWiringTests {
     @Test("the app registers a login item at launch when the preference asks for one")
     func registersWhenAsked() {
         let system = RecordedLoginItem(startingEnabled: false)
-        let app = AppDelegate(container: Sandbox().root, loginItem: system.service)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: true))
 
         #expect(system.isEnabled)
@@ -106,7 +124,8 @@ struct LaunchAtLoginWiringTests {
     @Test("turning the preference off removes the login item")
     func removesWhenTurnedOff() {
         let system = RecordedLoginItem(startingEnabled: true)
-        let app = AppDelegate(container: Sandbox().root, loginItem: system.service)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: false))
 
         #expect(!system.isEnabled)
@@ -117,7 +136,8 @@ struct LaunchAtLoginWiringTests {
     @Test("a preference that already matches the system is not re-applied")
     func doesNotRepeatItself() {
         let system = RecordedLoginItem(startingEnabled: true)
-        let app = AppDelegate(container: Sandbox().root, loginItem: system.service)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: true))
         app.settingsChanged(to: Settings(opensAtLogin: true))
 
