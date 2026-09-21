@@ -14,7 +14,8 @@ Each released version is a git tag and a build at
 ### Fixed
 - **Forgetting what AI suggestions learned now removes it from disk straight away.** The lines
   were deleted from the store but stayed readable in a file beside it until you quit Uttrflow, so
-  a backup taken in between still held them (#642).
+  a backup taken in between still held them. If that file cannot be emptied, forgetting now says
+  so rather than reporting success (#642).
 - **Turning AI suggestions off for an app now also stops it being learned from.** The switch filed
   its answer under one spelling of the app's identifier and the capture side looked it up under
   another, so for any app whose identifier has a capital letter the second of the two checks

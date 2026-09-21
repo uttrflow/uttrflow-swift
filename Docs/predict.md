@@ -192,6 +192,11 @@ its connection open for the life of the process and a `DELETE` alone leaves the 
 recorded and then deleted left the marker in 927 KB of bytes beside a database that answered
 `count(*) = 0`.
 
+A checkpoint SQLite refuses is reported in the pragma's result row rather than as an error code,
+so the store reads that row: forgetting fails loudly when the log could not be emptied, instead of
+saying the words are gone while they are still in the file. The rows themselves are deleted either
+way — what the failure says is that the copy beside them outlived the request.
+
 The checkpoint is on the three ways a person asks to forget, and not on eviction, which trims the
 corpus on the typing path and would pay for an fsync per keystroke. Eviction drops the weakest
 line to make room rather than answering a request, so what it leaves behind is what the corpus
