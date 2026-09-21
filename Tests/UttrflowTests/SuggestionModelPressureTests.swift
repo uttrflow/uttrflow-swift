@@ -96,9 +96,10 @@ struct MemoryPressureTests {
         Settings(suggestions: SuggestionPreferences(isEnabled: suggesting))
     }
 
-    private func app(_ steps: Steps) -> AppDelegate {
+    /// An app over the caller's sandbox, which the caller keeps until the test ends.
+    private func app(_ steps: Steps, in sandbox: borrowing Sandbox) -> AppDelegate {
         let app = AppDelegate(
-            container: Sandbox().root, prepareModel: { _ in await steps.record("load") },
+            container: sandbox.root, prepareModel: { _ in await steps.record("load") },
             releaseModel: { await steps.record("release") })
         app.memoryPressure = SuggestionModelPressure(firstWait: .zero, longestWait: .seconds(1_800))
         return app
@@ -107,7 +108,8 @@ struct MemoryPressureTests {
     @Test("pressure releases a loaded model and says why")
     func pressureReleases() async {
         let steps = Steps()
-        let app = app(steps)
+        let sandbox = Sandbox()
+        let app = app(steps, in: sandbox)
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
         app.memoryPressureChanged(to: .warning)
@@ -122,7 +124,8 @@ struct MemoryPressureTests {
     @Test("calm after pressure loads the model again")
     func calmReloads() async {
         let steps = Steps()
-        let app = app(steps)
+        let sandbox = Sandbox()
+        let app = app(steps, in: sandbox)
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
         app.memoryPressureChanged(to: .critical)
@@ -137,7 +140,8 @@ struct MemoryPressureTests {
     @Test("pressure returning before the calm has lasted cancels the reload")
     func pressureCancelsReload() async {
         let steps = Steps()
-        let app = app(steps)
+        let sandbox = Sandbox()
+        let app = app(steps, in: sandbox)
         app.memoryPressure = SuggestionModelPressure(firstWait: .seconds(600), longestWait: .seconds(1_800))
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
@@ -154,7 +158,8 @@ struct MemoryPressureTests {
     @Test("pressure on a Mac that never loaded the model does nothing")
     func nothingToRelease() async {
         let steps = Steps()
-        let app = app(steps)
+        let sandbox = Sandbox()
+        let app = app(steps, in: sandbox)
         app.memoryPressureChanged(to: .critical)
         app.memoryPressureChanged(to: .normal)
         #expect(app.pressureReload == nil)
@@ -169,7 +174,8 @@ struct MemoryPressureTests {
     @Test("turning the feature off while released leaves nothing to reload")
     func offForgetsTheRelease() async {
         let steps = Steps()
-        let app = app(steps)
+        let sandbox = Sandbox()
+        let app = app(steps, in: sandbox)
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
         app.memoryPressureChanged(to: .warning)

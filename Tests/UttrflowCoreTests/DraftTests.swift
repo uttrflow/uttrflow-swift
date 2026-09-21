@@ -126,6 +126,35 @@ struct DraftTests {
         #expect(draft.text == expected)
     }
 
+    /// A currency or percent sign is part of the amount, so it leaves with it rather than landing on a neighbour.
+    @Test(
+        "takes an amount's own sign away with it and still carries the sentence's mark",
+        arguments: [
+            ("the total is $40 50", 3, "the total is 50"),
+            ("costs \u{20AC}5 6", 1, "costs 6"),
+            ("costs \u{20B9}5 6", 1, "costs 6"),
+            ("the fee is 40% 50%", 3, "the fee is 50%"),
+            ("was it 40%?", 2, "was it?"),
+            ("a rate of 5\u{2030} 6\u{2030}", 3, "a rate of 6\u{2030}"),
+            ("a rate of 5\u{2031} 6\u{2031}", 3, "a rate of 6\u{2031}"),
+            ("set it to 40\u{00B0} 50\u{00B0}", 3, "set it to 50\u{00B0}"),
+            ("ticket #5 #6", 1, "ticket #6"),
+        ]
+    )
+    func dropsAnAmountsOwnSign(input: String, index: Int, expected: String) {
+        var draft = Draft(text: input)
+        draft.remove(at: index, by: pass, carryingMarks: true)
+        #expect(draft.text == expected)
+    }
+
+    /// Only a number owns its sign; on a word the same mark is the sentence's and still moves on.
+    @Test("carries a sign forward when the removed word is not a number")
+    func carriesASignOffAWord() {
+        var draft = Draft(text: "see #uh todo")
+        draft.remove(at: 1, by: pass, carryingMarks: true)
+        #expect(draft.text == "see #todo")
+    }
+
     @Test("leaves the marks where they were when the caller does not ask for them")
     func plainRemovalCarriesNothing() {
         var draft = Draft(text: "shipping today, uh?")

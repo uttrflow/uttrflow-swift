@@ -127,6 +127,21 @@ public enum SettingsPresenter {
             banner: nil,
             groups: [
                 SettingsGroup(
+                    id: "features",
+                    title: nil,
+                    rows: [
+                        toggleRow(
+                            .dictationEnabled,
+                            label: "Dictation",
+                            explanation: "Off, the shortcut and the floating button do nothing.",
+                            settings, capabilities),
+                        toggleRow(
+                            .clipboardEnabled,
+                            label: "Clipboard",
+                            explanation: "Off, copies are not kept and the clipboard shortcut is released.",
+                            settings, capabilities),
+                    ]),
+                SettingsGroup(
                     id: "shortcut",
                     title: nil,
                     rows: [] + ShortcutRegistry.all.map { shortcutRow($0, settings, capabilities) } + [
@@ -361,9 +376,7 @@ public enum SettingsPresenter {
                         toggleRow(
                             .suggestionsEnabled,
                             label: "Finish what I am typing",
-                            explanation:
-                                "Uttrflow completes lines you have typed on this Mac before. "
-                                + "Off until you ask for it.",
+                            explanation: suggestionsExplanation,
                             settings, .everything),
                         toggleRow(
                             .quietSuggestions,
@@ -374,12 +387,20 @@ public enum SettingsPresenter {
                     ]),
                 applicationGroup(settings, personalisation),
             ],
-            callout: SettingsCallout(
-                symbolName: "lock",
-                message:
-                    "Completions come from what you have typed on this Mac, kept in Uttrflow's own "
-                    + "folder. Nothing is uploaded, and a password field is never read."))
+            callout: SettingsCallout(symbolName: "lock", message: suggestionsPromise))
     }
+
+    /// What switching suggestions on lets Uttrflow read, write and keep.
+    static let suggestionsExplanation =
+        "Reads the text in and around the field you are typing in, and suggests the rest of the "
+        + "line from lines you have sent before, from this Mac, or written by AI that runs on it. "
+        + "Remembers the lines you send. Off until you ask for it."
+
+    /// Where everything suggestions read and keep stays, and where to turn them off or forget them.
+    static let suggestionsPromise =
+        "What it reads stays on this Mac. The lines it remembers are kept in Uttrflow's own "
+        + "folder. Nothing is uploaded, and a password field is never read. "
+        + "Turn it off for one application, or forget what it learned there, under Applications below."
 
     /// Says what the model is doing, since a switch that is on and silent is indistinguishable from broken.
     static func suggestionModelBanner(
@@ -456,7 +477,18 @@ public enum SettingsPresenter {
             preferences
             .knownApplications(learnedIn: personalisation.applicationsWithSuggestions)
             .flatMap { applicationRows($0, preferences, settings, personalisation) }
-        return SettingsGroup(id: "suggestionApplications", title: "Applications", rows: rows)
+        return SettingsGroup(
+            id: "suggestionApplications", title: "Applications", rows: rows + [addApplicationRow(settings)])
+    }
+
+    /// Turns suggestions off in an application before anything has been drawn or learned there.
+    static func addApplicationRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "addSuggestionApplication",
+            label: "Turn off in another application",
+            explanation: "Keeps AI suggestions out of an application before anything is learned there.",
+            control: .action(title: "Add Application…", change: .chooseApplicationToTurnOffSuggestions),
+            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff)
     }
 
     /// One application: its switch, the key that accepts there, and what it has taught.
@@ -652,8 +684,9 @@ public enum SettingsPresenter {
             id: "resetPersonalisation",
             label: "Reset personalisation",
             explanation:
-                "Puts Uttrflow back to a fresh install: your dictionary, your history and "
-                + "every preference on this screen.",
+                "Puts Uttrflow back to a fresh install: your dictionary, history, clipboard, "
+                + "snippets, learned completions and the apps they may learn from, recordings "
+                + "kept for a retry and every preference on this screen are deleted from this Mac.",
             control: .removal(
                 SettingsRemoval(
                     reset: .everything,
@@ -737,6 +770,8 @@ public enum SettingsPresenter {
     /// Where a switch reads its state from, in the one place that knows.
     static func value(of field: SettingsToggleField, in settings: Settings) -> Bool {
         switch field {
+        case .dictationEnabled: settings.dictationEnabled
+        case .clipboardEnabled: settings.clipboardEnabled
         case .showsFloatingButton: settings.showsFloatingButton
         case .shrinksToGripWhenIdle: settings.shrinksToGripWhenIdle
         case .minimisesWhileDictating: settings.minimisesWhileDictating

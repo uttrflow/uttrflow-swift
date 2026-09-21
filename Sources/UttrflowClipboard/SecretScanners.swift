@@ -22,6 +22,20 @@ extension Character {
         return byte
     }
 
+    /// Whether this is one of the ASCII digits 0 to 9, which a pattern's `\d` over a secret means.
+    var isASCIIDigit: Bool { loneASCII.map { (0x30...0x39).contains($0) } ?? false }
+
+    /// Whether this is written in Latin script or is common punctuation, judged by its first scalar.
+    var isLatinScript: Bool {
+        guard let value = unicodeScalars.first?.value else { return true }
+        return value < 0x0250 || Self.latinBlocks.contains { $0.contains(value) }
+    }
+
+    /// The Latin blocks past Latin Extended-B: Additional, Extended-C, -D, -E and -F.
+    private static let latinBlocks: [ClosedRange<UInt32>] = [
+        0x1E00...0x1EFF, 0x2C60...0x2C7F, 0xA720...0xA7FF, 0xAB30...0xAB6F, 0x10780...0x107BF,
+    ]
+
     /// Whether this is U+212A KELVIN SIGN, which a case-insensitive `k` also matches.
     var isKelvinSign: Bool { utf8.elementsEqual([0xE2, 0x84, 0xAA]) }
 }
@@ -74,7 +88,7 @@ enum JSONWebTokenScan {
     }
 }
 
-/// Reads `scheme://user:password@host` the way the connection-string pattern matches it, in one pass.
+/// Reads `scheme://user:password@host`, or `scheme://:password@host`, the way the connection-string pattern matches it, in one pass.
 enum CredentialledURLScan {
     static func matches(_ text: String, read: inout Int) -> Bool {
         // Whether the run of scheme characters that ends here holds a letter, which a scheme must start with.
@@ -112,9 +126,11 @@ enum CredentialledURLScan {
         return cursor
     }
 
-    /// Whether `user:password@` and one more visible character follow; each run stops at the next `:`, `/` or `@`.
+    /// Whether `user:password@`, the user possibly empty, and one visible character follow; runs stop at `:`, `/`, `@`.
     private static func carriesPassword(_ text: String, from start: String.Index, read: inout Int) -> Bool {
-        guard let colon = run(in: text, from: start, read: &read), isByte(text[colon], ":") else {
+        guard let colon = run(in: text, from: start, allowingEmpty: true, read: &read),
+            isByte(text[colon], ":")
+        else {
             return false
         }
         guard let at = run(in: text, from: text.index(after: colon), read: &read), isByte(text[at], "@")
@@ -125,8 +141,10 @@ enum CredentialledURLScan {
         return !text[host].isWhitespace
     }
 
-    /// Where a non-empty run of userinfo characters from `start` ends, when something follows it.
-    private static func run(in text: String, from start: String.Index, read: inout Int) -> String.Index? {
+    /// Where a run of userinfo characters from `start` ends, when something follows it and it may be that long.
+    private static func run(
+        in text: String, from start: String.Index, allowingEmpty: Bool = false, read: inout Int
+    ) -> String.Index? {
         var index = start
         while index < text.endIndex {
             read += 1
@@ -138,7 +156,7 @@ enum CredentialledURLScan {
             }
             index = text.index(after: index)
         }
-        return index > start && index < text.endIndex ? index : nil
+        return (allowingEmpty || index > start) && index < text.endIndex ? index : nil
     }
 
     private static func isByte(_ character: Character, _ ascii: Unicode.Scalar) -> Bool {
@@ -168,8 +186,8 @@ struct NamedSecretScan {
     private let text: String
     private(set) var read = 0
     private var breaks: WordBreaks
-    /// The last unquoted value read: where it started, where it stops, its length there and its last digit.
-    private var bareRun: (start: TextPosition, stop: TextPosition, lastNumber: Int?)?
+    /// The last unquoted value read: where it started, where it stops, its last ASCII digit and its last non-Latin character.
+    private var bareRun: (start: TextPosition, stop: TextPosition, lastNumber: Int?, lastNonLatin: Int?)?
     /// The last quoted value read: where its opening quote stands, and where the value ends.
     private var quotedRun: (open: String.Index, end: String.Index?)?
     /// The last line ending asked about: where the value ended, and where the pattern's `$` stands after it.
@@ -180,7 +198,7 @@ struct NamedSecretScan {
         breaks = WordBreaks(text)
     }
 
-    /// The spellings `\b(?:api[_-]?keys?|secrets?|…)\b` accepts, lowercase, as bytes.
+    /// The spellings `(?:api[_-]?keys?|secrets?|…|pass)\b` accepts, lowercase, as bytes.
     static let keywords: [[UInt8]] = {
         func joined(_ first: String, _ second: String) -> [String] {
             ["", "_", "-"].map { first + $0 + second }
@@ -189,7 +207,8 @@ struct NamedSecretScan {
             [$0, $0 + "s"]
         }
         let singulars =
-            ["passwd", "pwd"] + joined("private", "key") + joined("access", "key") + joined("auth", "token")
+            ["passwd", "pwd", "pass"] + joined("private", "key") + joined("access", "key")
+            + joined("auth", "token")
             + joined("client", "secret")
         return (plurals + singulars).map { Array($0.utf8) }
     }()
@@ -199,24 +218,37 @@ struct NamedSecretScan {
         var position = TextPosition(index: text.startIndex, offset: 0)
         // Where the pattern's next search starts, since its matches never overlap.
         var resume = text.startIndex
+        // The lone ASCII byte of the character before `position`, which decides whether a name can start there.
+        var previous: UInt8?
         while position.index < text.endIndex {
             read += 1
-            if position.index >= resume, let first = text[position.index].loneASCII.map(Self.lowered),
-                Self.initials.contains(first)
-            {
-                for end in keywordEnds(at: position, first: first)
-                where breaks.isBoundary(position.index, from: position.index)
-                    && breaks.isBoundary(end.index, from: position.index)
+            let current = text[position.index].loneASCII
+            if position.index >= resume, let current, Self.initials.contains(Self.lowered(current)) {
+                let ends = keywordEnds(at: position, first: Self.lowered(current))
+                if !ends.isEmpty,
+                    Self.opensName(after: previous, at: current)
+                        || breaks.isBoundary(position.index, from: position.index)
                 {
-                    guard let assignment = assignment(after: end) else { continue }
-                    if assignment.accepted { return true }
-                    resume = assignment.end
-                    break
+                    for end in ends where breaks.isBoundary(end.index, from: position.index) {
+                        guard let assignment = assignment(after: end) else { continue }
+                        if assignment.accepted { return true }
+                        resume = assignment.end
+                        break
+                    }
                 }
             }
+            previous = current
             advance(&position)
         }
         return false
+    }
+
+    /// Whether a keyword may start after `_` or at a lowercase-to-uppercase step, as in `DB_PASSWORD`.
+    private static func opensName(after previous: UInt8?, at current: UInt8) -> Bool {
+        guard let previous else { return false }
+        return previous == UInt8(ascii: "_")
+            || (UInt8(ascii: "a")...UInt8(ascii: "z")).contains(previous)
+                && (UInt8(ascii: "A")...UInt8(ascii: "Z")).contains(current)
     }
 
     /// The letters a keyword can start with.
@@ -319,7 +351,7 @@ struct NamedSecretScan {
         return close
     }
 
-    /// Where an unquoted value from `start` ends its line, and whether it is long enough, or has a digit, to be a secret.
+    /// Where an unquoted value from `start` ends its line, and whether it has a digit, or is long and Latin, to be a secret.
     private mutating func bareAssignment(from start: TextPosition) -> (end: String.Index, accepted: Bool)? {
         let run = bareValue(from: start)
         guard run.stop.offset > start.offset, let lineEnd = endOfLine(from: run.stop.index) else {
@@ -330,7 +362,9 @@ struct NamedSecretScan {
         let first = String(text[start.index])
         let quoted = length >= 2 && (first.hasPrefix("\"") || first.hasPrefix("'"))
         let hasNumber = run.lastNumber.map { $0 >= start.offset } ?? false
-        let isLong = length >= 12 && !isReference(from: start.index, to: run.stop.index)
+        // A sentence in a script written without spaces is one long run, so length alone counts only in Latin.
+        let isLatin = run.lastNonLatin.map { $0 < start.offset } ?? true
+        let isLong = length >= 12 && isLatin && !isReference(from: start.index, to: run.stop.index)
         return (lineEnd, quoted || hasNumber || isLong)
     }
 
@@ -379,12 +413,15 @@ struct NamedSecretScan {
     }
 
     /// The run of unquoted value characters that `start` stands in, read once however many keywords share it.
-    private mutating func bareValue(from start: TextPosition) -> (stop: TextPosition, lastNumber: Int?) {
+    private mutating func bareValue(
+        from start: TextPosition
+    ) -> (stop: TextPosition, lastNumber: Int?, lastNonLatin: Int?) {
         if let cached = bareRun, cached.start.offset <= start.offset, start.offset < cached.stop.offset {
-            return (cached.stop, cached.lastNumber)
+            return (cached.stop, cached.lastNumber, cached.lastNonLatin)
         }
         var position = start
         var lastNumber: Int?
+        var lastNonLatin: Int?
         while position.index < text.endIndex {
             read += 1
             let character = text[position.index]
@@ -392,11 +429,12 @@ struct NamedSecretScan {
             if let byte = character.loneASCII, byte == UInt8(ascii: "\"") || byte == UInt8(ascii: "'") {
                 break
             }
-            if character.isNumber { lastNumber = position.offset }
+            if character.isASCIIDigit { lastNumber = position.offset }
+            if !character.isLatinScript { lastNonLatin = position.offset }
             advance(&position)
         }
-        bareRun = (start, position, lastNumber)
-        return (position, lastNumber)
+        bareRun = (start, position, lastNumber, lastNonLatin)
+        return (position, lastNumber, lastNonLatin)
     }
 
     /// Where `\s*[,;]?\s*$` from `start` puts `$`, which backtracks to the last line break it can reach.
