@@ -13,6 +13,9 @@ final class LatestOnlyQueue: Sendable {
         queue = DispatchQueue(label: label, qos: qos)
     }
 
+    /// How many requests have taken a number, which is how a test queues one behind another without a sleep.
+    var requested: Int { latest.count }
+
     /// Runs `work` on the queue under `allowance`, unless a newer request arrives before it starts.
     func run<Answer: Sendable>(
         within allowance: Duration,
@@ -47,4 +50,7 @@ private final class Latest: Sendable {
 
     /// Whether this request is still the newest one.
     func isCurrent(_ ticket: Int) -> Bool { number.withLock { $0 } == ticket }
+
+    /// How many numbers have been taken.
+    var count: Int { number.withLock { $0 } }
 }

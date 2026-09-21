@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowContext
 
@@ -11,25 +12,28 @@ struct LatestOnlyQueueTests {
     func aStalledReadDoesNotDelayTheNewest() async throws {
         let queue = LatestOnlyQueue(label: "test.latest-only", qos: .userInitiated)
         let ran = Counter()
+        let holding = Signal()
 
         // The stall: it holds the queue for well past every allowance below.
         async let stalled = queue.run(within: .milliseconds(100)) { _ -> Int? in
+            holding.fire()
             Thread.sleep(forTimeInterval: 1.5)
             return 0
         }
-        try await Task.sleep(for: .milliseconds(50))
+        // Waited for rather than slept past: a loaded machine can leave a sleep with nothing queued.
+        try await arrival(of: holding.fired)
 
         // Three reads queue behind it; only the last is still wanted when the stall ends.
         async let first = queue.run(within: .seconds(5)) { _ -> Int? in
             ran.bump()
             return 1
         }
-        try await Task.sleep(for: .milliseconds(10))
+        try await eventually { queue.requested == 2 }
         async let second = queue.run(within: .seconds(5)) { _ -> Int? in
             ran.bump()
             return 2
         }
-        try await Task.sleep(for: .milliseconds(10))
+        try await eventually { queue.requested == 3 }
         let started = ContinuousClock().now
         let newest = await queue.run(within: .seconds(5)) { _ -> Int? in
             ran.bump()
