@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowClipboard
 
@@ -410,6 +411,34 @@ struct ClipboardStoreTests {
         let file = ClipboardStore.defaultFile(in: URL(filePath: "/tmp"))
         #expect(file.path(percentEncoded: false) == "/tmp/Uttrflow/clipboard.v1.json")
         #expect(ClipboardStore.defaultBudget.copied.items == 500)
+    }
+
+    // MARK: - Who may read what was copied
+
+    /// The list holds concealed copies in plain text, so its file is its owner's alone.
+    @Test("writes the clipboard list readable only by its owner")
+    func listIsOwnerOnly() async throws {
+        let folder = try TemporaryFolder()
+
+        let copied = Clip(
+            text: "something copied", kind: .text, copiedAt: .now, source: "Notes")
+        try await folder.store.record(copied, keeping: folder.retention)
+
+        #expect(posixMode(of: folder.url.appending(path: "clipboard.json")) == 0o600)
+        #expect(posixMode(of: folder.url) == 0o700)
+    }
+
+    /// A copied picture is as private as the words beside it.
+    @Test("writes a copied picture readable only by its owner")
+    func pictureIsOwnerOnly() async throws {
+        let folder = try TemporaryFolder()
+
+        let image = try await folder.store.keep(
+            Data(repeating: 0x89, count: 64), forClip: UUID(), width: 1, height: 1)
+
+        let images = await folder.store.imagesFolder
+        #expect(posixMode(of: images.appending(path: image.file, directoryHint: .notDirectory)) == 0o600)
+        #expect(posixMode(of: images) == 0o700)
     }
 }
 

@@ -41,7 +41,7 @@ public actor RecordingStore: RecordingKeeper {
             previous.abandon()
             await previous.drained()
         }
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? PrivateFile.makeDirectory(at: directory)
         let id = UUID()
         let writer = try? RecordingWriter(url: url(of: id), id: id, when: when)
         // The file remembers when it began, which is all a later launch has to go on.

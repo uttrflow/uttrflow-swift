@@ -1,5 +1,7 @@
 // Named fixtures shared by every test target.
 public import UttrflowCore
+public import struct Foundation.URL
+public import class Foundation.FileManager
 
 // Named fixtures, so no test file re-invents a "typical" transcription or context.
 
@@ -59,4 +61,10 @@ extension TransformationRequest {
         TransformationRequest(
             transcription: transcription, context: context, profile: profile, situation: situation)
     }
+}
+
+/// The POSIX permissions of whatever is at `url`, so a test can say who may read what a store wrote.
+public func posixMode(of url: URL) -> Int? {
+    try? FileManager.default.attributesOfItem(atPath: url.path(percentEncoded: false))[
+        .posixPermissions] as? Int
 }

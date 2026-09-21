@@ -139,9 +139,7 @@ public actor DictationHistoryStore {
                 try removeFile()
                 return
             }
-            try FileManager.default.createDirectory(
-                at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(records).write(to: file, options: .atomic)
+            try PrivateFile.write(JSONEncoder().encode(records), to: file)
         } catch {
             throw .couldNotWrite
         }

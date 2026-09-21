@@ -32,10 +32,10 @@ public actor PredictStore: PredictionStore {
 
     /// Opens and migrates, and on corruption starts again rather than leaving the app broken.
     private static func opened(at path: String) throws(PredictStoreError) -> Database {
-        try? FileManager.default.createDirectory(
-            at: URL(filePath: path).deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? PrivateFile.makeDirectory(at: URL(filePath: path).deletingLastPathComponent())
         do {
             let database = try Database(path: path)
+            try? PrivateFile.tighten(at: URL(filePath: path))
             try Schema.migrate(database)
             return database
         } catch {

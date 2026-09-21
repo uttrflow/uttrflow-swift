@@ -103,10 +103,8 @@ public actor PersonalDictionaryStore {
     /// Notes which shipped list has been applied, which is what stops a deleted word returning.
     private func recordSeeded() throws(DictionaryStoreError) {
         do {
-            try FileManager.default.createDirectory(
-                at: seedRecord.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(["version": ShippedWords.version]).write(
-                to: seedRecord, options: .atomic)
+            try PrivateFile.write(
+                JSONEncoder().encode(["version": ShippedWords.version]), to: seedRecord)
         } catch {
             throw .couldNotWrite
         }
@@ -231,9 +229,7 @@ public actor PersonalDictionaryStore {
                 try removeFile()
                 return
             }
-            try FileManager.default.createDirectory(
-                at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(entries).write(to: file, options: .atomic)
+            try PrivateFile.write(JSONEncoder().encode(entries), to: file)
         } catch {
             throw .couldNotWrite
         }

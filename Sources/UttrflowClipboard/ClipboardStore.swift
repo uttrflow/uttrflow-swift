@@ -285,9 +285,8 @@ public actor ClipboardStore {
     /// Writes a picture's bytes back under the file name its clip already records.
     private func restore(_ data: Data, as name: String) throws(ClipboardStoreError) {
         do {
-            try FileManager.default.createDirectory(
-                at: imagesFolder, withIntermediateDirectories: true)
-            try data.write(to: imagesFolder.appending(path: name, directoryHint: .notDirectory))
+            try PrivateFile.write(
+                data, to: imagesFolder.appending(path: name, directoryHint: .notDirectory))
         } catch {
             throw .couldNotWrite
         }
@@ -299,9 +298,8 @@ public actor ClipboardStore {
     ) throws(ClipboardStoreError) -> ClipImage {
         let name = "\(id.uuidString).png"
         do {
-            try FileManager.default.createDirectory(
-                at: imagesFolder, withIntermediateDirectories: true)
-            try data.write(to: imagesFolder.appending(path: name, directoryHint: .notDirectory))
+            try PrivateFile.write(
+                data, to: imagesFolder.appending(path: name, directoryHint: .notDirectory))
         } catch {
             throw .couldNotWrite
         }
@@ -642,9 +640,7 @@ public actor ClipboardStore {
                 try removeFile(url)
                 return
             }
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(clips).write(to: url, options: .atomic)
+            try PrivateFile.write(JSONEncoder().encode(clips), to: url)
         } catch {
             throw .couldNotWrite
         }

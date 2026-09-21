@@ -85,10 +85,8 @@ public struct CapturePreferencesFile: Sendable {
 
     /// Writes what was decided, creating the directory it belongs in when it is not there yet.
     public func save(_ preferences: CapturePreferences) throws {
-        let directory = (path as NSString).deletingLastPathComponent
-        try FileManager.default.createDirectory(
-            atPath: directory, withIntermediateDirectories: true)
-        try JSONEncoder().encode(preferences).write(to: URL(fileURLWithPath: path), options: .atomic)
+        try PrivateFile.write(
+            JSONEncoder().encode(preferences), to: URL(fileURLWithPath: path))
     }
 
     /// Deletes every answer, so the applications the loop has met are forgotten with what it learned.

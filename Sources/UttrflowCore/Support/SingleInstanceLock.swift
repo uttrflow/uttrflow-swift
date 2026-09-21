@@ -34,7 +34,7 @@ public final class SingleInstanceLock: Sendable {
     public static func acquire(at file: URL) -> Outcome {
         let folder = file.deletingLastPathComponent()
         do {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try PrivateFile.makeDirectory(at: folder)
         } catch {
             return .unavailable(EIO)
         }

@@ -118,9 +118,7 @@ public actor SnippetStore {
                 try removeFile()
                 return
             }
-            try FileManager.default.createDirectory(
-                at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(snippets).write(to: file, options: .atomic)
+            try PrivateFile.write(JSONEncoder().encode(snippets), to: file)
         } catch {
             throw .couldNotWrite
         }

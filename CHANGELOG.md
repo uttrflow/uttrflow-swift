@@ -11,6 +11,13 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+### Fixed
+- **What Uttrflow keeps about you is now readable only by you.** The clipboard list, copied
+  pictures, the dictation history, the personal dictionary, your snippets, what AI suggestions
+  learned and the folder they all sit in were created readable by anything else running on the
+  Mac, and are now the owner's alone. Existing files are tightened the next time they are
+  written (#656).
+
 ### Changed
 - **Suggestions is now called AI suggestions.** The Settings tab and its heading, the menu
   bar switch, the notes on that screen and what VoiceOver reads for a suggestion all use the

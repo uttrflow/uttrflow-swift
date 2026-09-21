@@ -112,6 +112,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [core-history-undo.md](core-history-undo.md) | Undoing a correction: how the words are found and when they are left alone |
 | [core-history-accuracy.md](core-history-accuracy.md) | The accuracy figure: where its denominator comes from |
 | [history-store-file.md](history-store-file.md) | The dictation history file, and the shape of the store around it |
+| [local-store-permissions.md](local-store-permissions.md) | Who may read the local store, and the one place its files are written |
 
 ## Settings and system behaviour
 
