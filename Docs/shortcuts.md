@@ -134,6 +134,28 @@ Whether a registration that succeeded is delivered is a window-server question n
 can answer: a key event posted from a test process did not fire a Carbon hot key even with a
 single registrant, so delivery is checked by pressing the key on a real build.
 
+## Secure keyboard entry hides the shortcut
+
+While any process has secure event input on, macOS stops passing key down and key up events to
+event taps. A password field turns it on while it has focus; a terminal's "secure keyboard entry"
+option turns it on while that terminal is frontmost, or for as long as the option is on; and an
+app that forgets to turn it off leaves it on for every app. The tap is not disabled, so nothing
+re-enables it and nothing is logged by the tap itself.
+
+What it affects is every dictation binding with a key in it, such as the default ⌥Space. A binding
+made only of held modifiers is read from modifier changes rather than key presses, but the notice is
+shown whatever the binding, because the check says only that secure input is on. The Carbon hot keys the clipboard and other
+claimed shortcuts use are delivered anyway, so the clipboard panel can open while dictation cannot.
+Start Dictation in the menu bar and the floating button still work, because neither goes through
+the tap.
+
+`SecureInputWatch` asks `IsSecureEventInputEnabled()` when another app becomes active and when the
+menu bar menu opens — never on a timer, which the energy budget in `Docs/performance.md` rules
+out. When the answer changes, the menu shows the reason under its status line and the floating
+button's hover hint says it in place of the keycap, until a later check finds it off again. An app
+that turns secure input on a moment after it becomes active is caught by the next menu open
+rather than by the switch.
+
 ## What a shortcut is for
 
 `ShortcutSet` holds every binding by `ShortcutAction`, and is what `Settings` stores. A file
