@@ -1,3 +1,4 @@
+import UttrflowCore
 public import struct Foundation.Date
 public import struct Foundation.TimeInterval
 
@@ -11,7 +12,7 @@ public struct SuggestionApplication: Sendable, Equatable, Hashable {
 
     /// One application as the screen lists it, its identifier lowercased for comparing.
     public init(bundleIdentifier: String, name: String) {
-        self.bundleIdentifier = bundleIdentifier.lowercased()
+        self.bundleIdentifier = ApplicationKey.of(bundleIdentifier)
         self.name = name
     }
 }
@@ -28,13 +29,13 @@ public enum SuggestionApplications {
 
     /// Whether this application is one of the four, compared the way identifiers compare.
     public static func isOffByDefault(_ bundleIdentifier: String) -> Bool {
-        let identifier = bundleIdentifier.lowercased()
+        let identifier = ApplicationKey.of(bundleIdentifier)
         return offByDefault.contains { $0.bundleIdentifier == identifier }
     }
 
     /// What to call an application: the shipped name where there is one, else the identifier's tail.
     public static func name(of bundleIdentifier: String) -> String {
-        let identifier = bundleIdentifier.lowercased()
+        let identifier = ApplicationKey.of(bundleIdentifier)
         if let known = offByDefault.first(where: { $0.bundleIdentifier == identifier }) {
             return known.name
         }
@@ -94,7 +95,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         self.turnedOff = Set(turnedOff.map { $0.lowercased() })
         self.turnedOn = Set(turnedOn.map { $0.lowercased() })
         self.chosenAcceptKeys = chosenAcceptKeys.reduce(into: [:]) {
-            $0[$1.key.lowercased()] = $1.value
+            $0[ApplicationKey.of($1.key)] = $1.value
         }
         self.isQuiet = isQuiet
         self.pausedUntil = pausedUntil
@@ -119,7 +120,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
 
     /// Why suggestions do or do not run in one application, the master switch aside.
     public func state(of bundleIdentifier: String) -> SuggestionApplicationState {
-        let identifier = bundleIdentifier.lowercased()
+        let identifier = ApplicationKey.of(bundleIdentifier)
         if turnedOff.contains(identifier) { return .turnedOff }
         if turnedOn.contains(identifier) { return .on }
         return SuggestionApplications.isOffByDefault(identifier) ? .offByDefault : .on
@@ -158,7 +159,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
 
     /// Switches one application on or off, dropping whichever of the two it said before.
     public mutating func set(_ bundleIdentifier: String, isOn: Bool) {
-        let identifier = bundleIdentifier.lowercased()
+        let identifier = ApplicationKey.of(bundleIdentifier)
         turnedOff.remove(identifier)
         turnedOn.remove(identifier)
         if isOn {
@@ -170,7 +171,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
 
     /// Chooses the key that accepts a suggestion in one application.
     public mutating func setAcceptKey(_ key: AcceptKey, in bundleIdentifier: String) {
-        chosenAcceptKeys[bundleIdentifier.lowercased()] = key
+        chosenAcceptKeys[ApplicationKey.of(bundleIdentifier)] = key
     }
 
     /// Starts a pause everywhere, or lifts one that is still running.

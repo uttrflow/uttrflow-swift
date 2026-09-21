@@ -39,6 +39,32 @@ struct CaptureGateTests {
         #expect(refusal?.asksTheUser == false)
     }
 
+    /// The switch lowercases what it writes and the field reading does not, so the two must still meet (#668).
+    @Test("An application said no to under one spelling is refused under the other.")
+    func aDeclineHoldsWhateverTheCase() {
+        var preferences = CapturePreferences()
+        preferences.record(.declined, for: "com.example.terminal")
+
+        let mixedCase = FieldReading(bundleIdentifier: "com.Example.Terminal", role: "AXTextArea")
+        let refusal = CaptureGate.refusal(
+            toRecord: "git status", from: mixedCase, given: preferences)
+
+        #expect(refusal == .consentDeclined)
+        #expect(refusal?.asksTheUser == false)
+    }
+
+    /// A file written before the two stores agreed holds both spellings, and the refusal is the one to keep.
+    @Test("A file holding both spellings is read as the refusal, not the allow.")
+    func aRefusalOutlivesAnAllowInAnOlderFile() {
+        let both = CapturePreferences(
+            consent: ["com.example.terminal": .declined, "com.Example.Terminal": .allowed])
+
+        #expect(both.consent == ["com.example.terminal": .declined])
+        #expect(
+            CaptureGate.refusal(toRecord: "git status", from: field(), given: both)
+                == .consentDeclined)
+    }
+
     @Test("A value one character long is refused, because completing it could never save a keystroke.")
     func oneCharacterIsRefused() {
         #expect(CaptureGate.refusal(toRecord: "y", from: field(), given: allowed) == .tooShort)

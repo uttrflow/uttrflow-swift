@@ -152,6 +152,14 @@ the AI suggestions screen. The answer is kept in
 `~/Library/Application Support/Uttrflow/predict-consent.v1.json`, written the first time the
 loop meets an application the screen already allows, and rewritten when a switch there moves.
 
+Both sides file an application under `ApplicationKey`, which is its bundle identifier lowercased,
+because macOS is not consistent about the case and the two sides do not see it from the same
+place: the switch has the identifier the Applications list holds, and capture has whatever the
+field reading reported. They disagreed once — the switch wrote `com.apple.terminal` and capture
+read `com.apple.Terminal` — and the second of the two checks answered "carry on" for an
+application the user had switched off. A file written before that holds both spellings, and is
+read as the refusal, because consent fails closed.
+
 **Uttrflow used to ask in a modal instead**, the first time a value was committed in each
 application, bringing itself to the front over whatever the user was writing — and asking a
 question the AI suggestions screen had already answered, since the turn cannot reach that point

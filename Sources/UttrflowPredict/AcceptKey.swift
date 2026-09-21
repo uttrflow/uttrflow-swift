@@ -29,12 +29,12 @@ public struct AcceptKeys: Sendable, Equatable {
 
     /// The shipped answer with the user's own choices laid over it.
     public init(overrides: [String: AcceptKey] = [:]) {
-        self.overrides = overrides.reduce(into: [:]) { $0[$1.key.lowercased()] = $1.value }
+        self.overrides = overrides.reduce(into: [:]) { $0[ApplicationKey.of($1.key)] = $1.value }
     }
 
     /// The key that accepts in this application.
     public func key(forBundleIdentifier bundleIdentifier: String) -> AcceptKey {
-        let identifier = bundleIdentifier.lowercased()
+        let identifier = ApplicationKey.of(bundleIdentifier)
         if let chosen = overrides[identifier] { return chosen }
         if TerminalApplications.contains(identifier) { return .rightArrow }
         if Self.editors.contains(where: identifier.hasPrefix) { return .optionTab }
@@ -57,7 +57,7 @@ public enum TerminalApplications {
 
     /// Whether this application is a terminal, matched on a lowercased prefix since macOS is inconsistent about case.
     public static func contains(_ bundleIdentifier: String) -> Bool {
-        let identifier = bundleIdentifier.lowercased()
+        let identifier = ApplicationKey.of(bundleIdentifier)
         return bundleIdentifierPrefixes.contains(where: identifier.hasPrefix)
     }
 }
