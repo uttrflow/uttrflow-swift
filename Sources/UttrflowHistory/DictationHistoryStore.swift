@@ -1,4 +1,5 @@
 public import UttrflowCore
+public import struct Foundation.Date
 public import struct Foundation.URL
 public import struct Foundation.UUID
 
@@ -39,7 +40,15 @@ public actor DictationHistoryStore {
         let stored = load()
         let kept = retained(stored, keeping: retention)
         if kept.count != stored.count { try? persist(kept) }
+        // A set-aside copy lasts as long as the transcripts in it would have. See `Docs/history-store-file.md`.
+        try? LocalStore.removeSetAside(file, stampedBefore: Self.cutoff(of: retention))
         return kept
+    }
+
+    /// The moment before which nothing is kept under this promise; zero days keeps nothing at all.
+    static func cutoff(of retention: Retention) -> Date {
+        guard retention.days > 0 else { return .distantFuture }
+        return retention.now.addingTimeInterval(-Double(retention.days) * 86_400)
     }
 
     /// Every change across the history still within the window, with whether the list is complete.
@@ -102,6 +111,8 @@ public actor DictationHistoryStore {
     /// Forgets everything, reaching the disk now rather than at the next write.
     public func deleteEverything() throws(HistoryStoreError) {
         try persist([])
+        // A copy set aside from an unreadable file is a transcript too.
+        do { try LocalStore.removeSetAside(file) } catch { throw .couldNotWrite }
     }
 
     // MARK: - The rules

@@ -61,6 +61,7 @@ struct SnippetRowView: View {
     var onIntent: (MainIntent) -> Void
 
     @State private var isHovered = false
+    @FocusState private var focusedControl: String?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -71,11 +72,13 @@ struct SnippetRowView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 5) {
-                ForEach(row.actions) { MainIconButton(action: $0, onIntent: onIntent) }
-            }
             // Hidden rather than removed, so VoiceOver can reach Edit and Delete and the row keeps its width.
-            .opacity(isHovered ? 1 : 0)
+            HStack(spacing: 5) {
+                ForEach(row.actions) { action in
+                    MainIconButton(action: action, onIntent: onIntent)
+                        .revealedInRow(action.id, isHovered: isHovered, focusedControl: $focusedControl)
+                }
+            }
             Text(row.timesUsed)
                 .monospacedDigit()
                 .frame(width: columns[2].width, alignment: .trailing)

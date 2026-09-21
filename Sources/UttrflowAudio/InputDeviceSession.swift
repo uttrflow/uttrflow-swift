@@ -85,20 +85,22 @@ public final class InputDeviceSession: Sendable {
         device.close()
     }
 
-    /// Reopens after a configuration change, retrying across the window in which a device re-enumerates.
-    public func deviceChanged() {
+    /// Reopens after a configuration change, returning the retry so a caller can await it, or nil when none began.
+    @discardableResult
+    public func deviceChanged() -> Task<Void, Never>? {
         let begun = state.withLock { state -> (@Sendable (CaptureInterruption) -> Void)? in
             guard state.health == .live else { return nil }
             state.health = .reopening
             return state.report ?? { _ in }
         }
-        guard let begun else { return }
+        guard let begun else { return nil }
         // Said before the retry, because a stop landing mid-reopen would otherwise report nothing at all.
         begun(.began)
         device.close()
         let reopening = Task { [self] in await reopen() }
         // Only if the retry has not already finished, which it can when the schedule waits for nothing.
         state.withLock { if $0.health == .reopening { $0.reopening = reopening } }
+        return reopening
     }
 
     /// Tries the schedule in order, stopping at the first open that succeeds.

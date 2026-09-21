@@ -37,4 +37,11 @@ struct SuggestionModelWiringTests {
         #expect(text.contains("onReload: { reported.yield($0) }"))
         #expect(text.contains("for await event in reloads { delegate.suggestionModelReloaded(event) }"))
     }
+
+    @Test("tells the app when an idle reload finds the weights gone, rather than fetching them")
+    func missingWeightsReachTheApp() throws {
+        let text = try source
+        #expect(text.contains("scoring.whenReloadFails"))
+        #expect(text.contains("suggestionModelWentMissing()"))
+    }
 }

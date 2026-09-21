@@ -6,6 +6,8 @@ import Foundation
 public protocol ReleasableModel: CandidateScoring, CandidateGenerating {
     /// Loads the weights, reporting how far along the fetch is.
     func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws
+    /// Loads the weights again from disk only, throwing rather than fetching anything, since nobody asked for a download.
+    func reload() async throws
     /// Drops the weights.
     func release() async
 }
@@ -49,6 +51,8 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     private var watch: Task<Void, Never>?
     /// Receives each step of a reload that follows an idle release.
     private let onReload: @Sendable (IdleReload) -> Void
+    /// Told when a reload finds the weights gone from disk, so the app can ask for them again.
+    private var onReloadFailed: @Sendable () -> Void = {}
 
     public init(
         model: Model, idleAfter: Duration, onReload: @escaping @Sendable (IdleReload) -> Void = { _ in }
@@ -86,6 +90,16 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         watchForIdle()
     }
 
+    /// Loads the weights again from disk only, as a query's reload does.
+    public func reload() async throws {
+        try await model.reload()
+    }
+
+    /// Sets what to tell when a query's reload fails, which is how the app learns the model must be fetched again.
+    public func whenReloadFails(_ handler: @escaping @Sendable () -> Void) {
+        onReloadFailed = handler
+    }
+
     public func release() async {
         isWanted = false
         isHeld = false
@@ -106,7 +120,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         get async {
             lastAsked = .now
             if await model.isReady { return true }
-            if isWanted, !isHeld { reload() }
+            if isWanted, !isHeld { reloadInBackground() }
             return false
         }
     }
@@ -152,7 +166,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     /// The background load a query starts; internal so a test can wait for it.
     var pendingWork: Task<Void, Never>? { work }
 
-    private func reload() {
+    private func reloadInBackground() {
         isHeld = true
         let asked = advance()
         onReload(.started)
@@ -161,7 +175,8 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         work = Task { [weak self] in
             await previous?.value
             do {
-                try await model.prepare(onProgress: { _ in })
+                // Never a download: a query is typing, and only the person may start a fetch.
+                try await model.reload()
                 await self?.loaded(asked)
             } catch {
                 await self?.reloadFailed(asked)
@@ -171,6 +186,8 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
 
     /// Settles a reload that failed and says so, unless something newer was asked for since.
     private func reloadFailed(_ asked: Int) async {
+        guard isCurrent(asked) else { return }
+        onReloadFailed()
         await settle(asked)
         guard isCurrent(asked) else { return }
         onReload(.failed)

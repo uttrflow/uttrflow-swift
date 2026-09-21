@@ -84,6 +84,11 @@ Every destructive button on the screen states what it will take, counted, before
 - `counted(_:_:_:)` is the one place a number meets its noun, so "1 words" cannot appear.
 - `.everything` is never greyed out: preferences are always there to put back, and a greyed
   reset strands the user who came here precisely to start again.
+- `.everything` reaches every file a fresh install does not have: the dictionary, history,
+  clipboard and completions, the recordings kept for a retry, the snippets, the answers about
+  which applications completions may learn from, and every copy a store set aside because it
+  could not read it. The stores this module does not depend on are reached through
+  `KeptElsewhere`, whose closures the app hands in.
 
 ## The Fn shortcut warning
 

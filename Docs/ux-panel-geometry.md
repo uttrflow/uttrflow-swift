@@ -73,6 +73,11 @@ for that to be the very thing they were reading. The top-right is out of the way
 running text in almost every window, and it is the corner macOS itself uses for things
 that arrive uninvited.
 
+A remembered position belongs to one display. Global coordinates from one display mean
+nothing on another: clamped into it, a spot near one display's far corner lands flush
+against the other's near edge. So `PanelSpots` keeps one origin per display, and a display
+with none opens in its default corner.
+
 A remembered position is clamped rather than trusted. Displays are unplugged and
 resolutions change, and a panel restored onto a screen that no longer extends that far
 would open somewhere the user cannot see or reach, with no way back, because moving it

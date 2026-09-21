@@ -21,11 +21,17 @@ enum UttrflowApp {
             model: MLXCandidateScorer(model: .gemma3),
             idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory),
             onReload: { reported.yield($0) })
-        // Every use is discretionary: utility priority, and no pass in Low Power Mode or under thermal pressure.
+        // Every use is discretionary: utility priority, and no pass in Low Power Mode, under thermal pressure or while dictating.
         let generating = DiscretionaryGenerator(
-            model, mayRun: { EnergyConditions.current().allowsDiscretionaryWork })
+            model,
+            mayRun: {
+                EnergyConditions.current().allowsDiscretionaryWork && !DictationInProgress.shared.isDictating
+            })
         let scoring = DiscretionaryModel(
-            model, mayRun: { EnergyConditions.current().allowsDiscretionaryWork })
+            model,
+            mayRun: {
+                EnergyConditions.current().allowsDiscretionaryWork && !DictationInProgress.shared.isDictating
+            })
         let delegate = AppDelegate(
             scoring: scoring, generating: generating,
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
@@ -34,6 +40,10 @@ enum UttrflowApp {
         // A reload after an idle release is shown where the user is looking, not only in Settings.
         Task { @MainActor in
             for await event in reloads { delegate.suggestionModelReloaded(event) }
+        }
+        // A reload that finds the weights gone asks for them again in Settings rather than fetching them unasked.
+        Task { [weak delegate] in
+            await scoring.whenReloadFails { Task { @MainActor in delegate?.suggestionModelWentMissing() } }
         }
         // Regular, not accessory: Uttrflow has a Dock icon and its window opens at launch.
         application.setActivationPolicy(.regular)

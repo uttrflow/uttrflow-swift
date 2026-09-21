@@ -13,7 +13,8 @@ struct SecretShapesOracleTests {
         "sk" + "-", "sk" + "-ant-", "sk" + "_live_", "gh" + "p_", "AK" + "IA", "eyJ",
         "eyJhbGciOiJIUzI1NiJ9", "://", "http", "https://", "postgres", ":", "/", "@", "=", ";", ",",
         "\"", "'", " ", "\t", "\n", "\r\n", "\r", "\u{2028}", "\u{85}", "\u{A0}", "\u{0B}", ".", "-",
-        "_", "+", "password", "PASSWORD", "Password", "pwd", "passwd", "token", "tokens", "api_key",
+        "_", "+", "()", "request.token", "password", "PASSWORD", "Password", "pwd", "passwd",
+        "token", "tokens", "api_key",
         "API-KEY", "apikey", "api_keys", "secret", "Secrets", "credential", "credentials",
         "private_key", "access-key", "auth_token", "client_secret", "clientsecret", "\u{212A}",
         "api_\u{212A}ey", "\u{301}", "é", "e\u{301}", "\"\u{301}", "'\u{301}", ";\u{301}", "\u{37E}",
@@ -22,6 +23,7 @@ struct SecretShapesOracleTests {
         "func ", "import ", "//", "select ", "  ", "#", "?", "{", "}", "return", "if(",
         "AAAAAAAAAAAAAAAAAAAAAAAA", "user", "pass", ":x@", "a1", "-----BEGIN", "\\", "$", "*", "-- ",
         "# ", "* ", "/*", "from ", "else", "oklab(", "OKLCH(", "o\u{212A}lab(", "Https://",
+        "DB_", "db", "Pass", "PASS", "_pass", "Token", "SMTP_", "max_", "_count", "less", "izer",
     ]
 
     /// Secrets and near-misses of every detected shape, to be planted, cut and spliced.
@@ -42,7 +44,13 @@ struct SecretShapesOracleTests {
         "3530 1113 3330 0000", "4222 222 222 222", "4111 1111 1111 1112", "https://example.com/a b",
         "http://x", "rgb(1, 2, 3)", "hsla( 0 )", "oklch()", "color(display-p3 1 0 0)",
         "func greet() {}", "  // note", "\n\n  select * from t", "if (x) return", "import Foundation",
-        "let x = 1",
+        "let x = 1", "DB_PASSWORD" + "=Kq7v2mX", "dbPassword" + ": 'x'", "SMTP_PASS" + "=a1",
+        "redis://:" + "pw1@h", "max_tokens: 4096", "token_count: 128000", "passwordless=x1",
+        "APP_ENV=prod\nGITHUB_TOKEN" + "=a1b2\nPORT=1", "aPwd=1", "a_b_pwd=1", "tokenizer: 12345",
+        "let token = request.token", "secret = settings.SECRET_KEY;",
+        "password = getpass.getpass()", "token=a.b.c,", "pwd=f();", "token=a..bcdefghijkl",
+        "token=" + "x.deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", "token=abcdef.ghijkl()x",
+        "pwd=getpass.getpass()\u{37E}", "pwd=getpass.getpass.\u{301}x",
     ]
 
     static func randomText(_ random: inout Seeded) -> String {
@@ -186,6 +194,9 @@ struct SecretShapesOracleTests {
             "client-secret" + "=abcdefghijklm", "x.password=abc123", "password.x=abc123", "PWD\t:\t1",
             // The first assignment's value holds the second keyword, which the pattern's next search starts after.
             "credential://token\r\n:x@clientsecret4111", "pwd=a;\n\n token=b1", "secret=x ,\n\npwd: 'y'",
+            // A name may start after an underscore or at a lowercase-to-uppercase step, never after an uppercase letter.
+            "DB_PASSWORD=a1", "dbPassword=a1", "PGPASSWORD=a1", "_\u{301}password=a1", "b\u{301}Password=a1",
+            "aPWD=1", "a_pass=1;\n", "x_secret_token=1", "pwd_pwd=1", "tPassword=1",
         ]
         for text in cases {
             #expect(
@@ -222,12 +233,13 @@ func offTheTestPool<Value: Sendable>(_ work: @escaping @Sendable () -> Value) as
 enum BacktrackingPatterns {
     nonisolated(unsafe) static let jsonWebToken = #/eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*/#
 
-    nonisolated(unsafe) static let credentialledURL = #/[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s:/@]+:[^\s:/@]+@\S/#
+    nonisolated(unsafe) static let credentialledURL = #/[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s:/@]*:[^\s:/@]+@\S/#
 
     nonisolated(unsafe) static let namedSecret =
         #/
         (?i)
-        \b(?: api[_\-]?keys? | secrets? | tokens? | passwords? | passwd | pwd
+        (?: \b | _ | (?-i:[a-z])(?=(?-i:[A-Z])) )
+        (?: api[_\-]?keys? | secrets? | tokens? | passwords? | passwd | pwd | pass
             | credentials? | private[_\-]?key | access[_\-]?key | auth[_\-]?token
             | client[_\-]?secret )
         \b["']? \s* [:=] \s*
@@ -275,7 +287,31 @@ enum BacktrackingPatterns {
             let raw = String(match.value)
             let isQuoted = raw.count >= 2 && (raw.hasPrefix("\"") || raw.hasPrefix("'"))
             let value = isQuoted ? String(raw.dropFirst().dropLast()) : raw
-            return isQuoted || value.contains(where: \.isNumber) || value.count >= 12
+            let hasDigit = value.contains { $0.isASCII && $0.isNumber }
+            let isLatin = value.allSatisfy(\.isLatinScript)
+            return isQuoted || hasDigit
+                || (value.count >= 12 && isLatin && !isReference(value))
+        }
+    }
+
+    /// An identifier path or an empty call, optionally closed by `,` or `;`, read scalar by scalar so `;` means only U+003B.
+    static func isReference(_ value: String) -> Bool {
+        var scalars = Array(value.unicodeScalars.map(\.value))
+        if let last = scalars.last, last == 0x2C || last == 0x3B { scalars.removeLast() }
+        let isCall = scalars.count >= 2 && scalars.suffix(2) == [0x28, 0x29]
+        if isCall { scalars.removeLast(2) }
+        func isName(_ scalar: UInt32) -> Bool {
+            (0x41...0x5A).contains(scalar) || (0x61...0x7A).contains(scalar) || scalar == 0x5F
+                || scalar == 0x24
+        }
+        let parts = scalars.split(separator: 0x2E, omittingEmptySubsequences: false)
+        guard parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(isName) }), parts.count > 1 || isCall
+        else { return false }
+        return !parts.contains { part in
+            part.count >= 32
+                && part.allSatisfy {
+                    (0x30...0x39).contains($0) || (0x41...0x46).contains($0) || (0x61...0x66).contains($0)
+                }
         }
     }
 

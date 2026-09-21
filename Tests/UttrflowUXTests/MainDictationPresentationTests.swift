@@ -179,6 +179,40 @@ struct DictationChangesTests {
         #expect(page.rows[0].changes == nil)
     }
 
+    /// Several dictations and their changes interleaved, as the list arrives, each counted to its own row.
+    @Test("counts each dictation's standing changes to its own row")
+    func countsPerDictation() {
+        let first = HistoryFixture.entry("utter flow is late")
+        let second = HistoryFixture.entry("see you at the demo")
+        let third = HistoryFixture.entry("nothing changed here")
+        let page = HistoryFixture.dictation(
+            entries: [first, second, third],
+            corrections: [
+                HistoryFixture.correction(in: first.id),
+                HistoryFixture.correction(in: second.id),
+                HistoryFixture.correction(in: first.id),
+                HistoryFixture.correction(in: second.id, isUndone: true),
+                HistoryFixture.correction(in: first.id),
+            ])
+
+        let badges = Dictionary(uniqueKeysWithValues: page.rows.map { ($0.id, $0.changes?.title) })
+        #expect(badges[first.id] == "3 changes")
+        #expect(badges[second.id] == "1 change")
+        #expect(badges[third.id] == .some(nil))
+    }
+
+    @Test("counts standing changes per dictation in one pass")
+    func appliedCorrectionCounts() {
+        let one = UUID()
+        let two = UUID()
+        let counts = DictationPresenter.appliedCorrections(in: [
+            HistoryFixture.correction(in: one),
+            HistoryFixture.correction(in: two, isUndone: true),
+            HistoryFixture.correction(in: one),
+        ])
+        #expect(counts == [one: 2])
+    }
+
     /// A dictation that kept no record shows no badge, even where a correction elsewhere claims it.
     @Test("a dictation that kept no record shows no badge")
     func withoutARecord() {
@@ -436,6 +470,21 @@ struct DictationFiguresTests {
             HistoryFixture.entry("salvaged", changes: nil),
         ])
         // Three of the measured dictation's four spoken words survive; the salvaged one is in neither half.
+        #expect(page.figures.first { $0.caption == DictationPresenter.accuracyTitle }?.value == "75.0%")
+    }
+
+    /// A record whose stored count is damaged is left out of the figure rather than trapping or counting as silence.
+    @Test("a damaged word count leaves its dictation out of the accuracy figure")
+    func accuracySkipsADamagedCount() throws {
+        let damaged = try JSONDecoder().decode(
+            RecordedChanges.self,
+            from: Data(#"{"corrections":[],"snippets":[],"spokenWords":-1}"#.utf8))
+        let page = HistoryFixture.dictation(entries: [
+            HistoryFixture.measured(
+                "one two three four", spokenWords: 4,
+                changes: [HistoryFixture.change("one", "One", over: 0..<1)]),
+            HistoryFixture.entry("damaged", changes: damaged),
+        ])
         #expect(page.figures.first { $0.caption == DictationPresenter.accuracyTitle }?.value == "75.0%")
     }
 

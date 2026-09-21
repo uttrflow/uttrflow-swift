@@ -81,6 +81,8 @@ public struct DictationSnapshot: Sendable, Equatable {
     public let retrying: UUID?
     /// The clock the page is drawn against.
     public let now: Date
+    /// The speech model's load, or nothing once it can dictate.
+    public let speechModel: SpeechModelLoad?
 
     /// Builds a snapshot; everything but the shortcut and the clock defaults to empty.
     public init(
@@ -92,7 +94,8 @@ public struct DictationSnapshot: Sendable, Equatable {
         settings: Settings = .default,
         recordings: [KeptRecording] = [],
         retrying: UUID? = nil,
-        now: Date
+        now: Date,
+        speechModel: SpeechModelLoad? = nil
     ) {
         self.permissions = permissions
         self.entries = entries
@@ -103,6 +106,7 @@ public struct DictationSnapshot: Sendable, Equatable {
         self.recordings = recordings
         self.retrying = retrying
         self.now = now
+        self.speechModel = speechModel
     }
 }
 
@@ -172,12 +176,16 @@ public enum DictationPresenter {
             in: kept, now: snapshot.now, calendar: calendar)
         let listed = HistoryPresenter.matches(today, query: snapshot.query, locale: locale)
         let blocked = MainPresenter.obstruction(in: snapshot.permissions)
+        let applied = appliedCorrections(in: snapshot.corrections)
         // Recordings first: each is a dictation still owed its words, and the newest thing here.
         let recordings =
             blocked == nil && snapshot.query.isEmpty
             ? snapshot.recordings.map { row(for: $0, in: snapshot, locale: locale) } : []
         let rows =
-            recordings + (blocked == nil ? listed.map { row(for: $0, in: snapshot, locale: locale) } : [])
+            recordings
+            + (blocked == nil
+                ? listed.map { row(for: $0, applied: applied[$0.id] ?? 0, in: snapshot, locale: locale) }
+                : [])
 
         return DictationPresentation(
             chrome: MainPageChrome(
@@ -192,10 +200,12 @@ public enum DictationPresenter {
             figures: blocked == nil
                 ? figures(
                     today: today, earlier: earlier, calendar: calendar, locale: locale) : [],
+            // A model that cannot dictate yet is said in place of the invitation to talk.
             emptyState: blocked == nil && rows.isEmpty
-                ? emptyState(
-                    for: snapshot, today: today, earlier: earlier, calendar: calendar,
-                    locale: locale)
+                ? snapshot.speechModel.map(MainPresenter.obstruction(for:))
+                    ?? emptyState(
+                        for: snapshot, today: today, earlier: earlier, calendar: calendar,
+                        locale: locale)
                 : nil,
             footnote: rows.isEmpty
                 ? nil
@@ -214,15 +224,21 @@ public enum DictationPresenter {
 
     // MARK: - One dictation
 
-    /// One dictation as a row with copy, insert again and flag.
+    /// How many changes still stand on each dictation, counted in one pass over the list.
+    static func appliedCorrections(in corrections: [Correction]) -> [UUID: Int] {
+        var counts: [UUID: Int] = [:]
+        for correction in corrections where !correction.isUndone {
+            counts[correction.dictation, default: 0] += 1
+        }
+        return counts
+    }
+
+    /// One dictation as a row with copy, insert again and flag, carrying the `applied` changes still standing on it.
     static func row(
-        for entry: HistoryEntry, in snapshot: DictationSnapshot, locale: Locale
+        for entry: HistoryEntry, applied corrections: Int, in snapshot: DictationSnapshot, locale: Locale
     ) -> DictationRow {
         // Read from the record, so a dictation that recorded nothing shows no badge.
-        let applied =
-            entry.changes == nil
-            ? 0
-            : snapshot.corrections.filter { $0.dictation == entry.id && !$0.isUndone }.count
+        let applied = entry.changes == nil ? 0 : corrections
         return DictationRow(
             id: entry.id,
             when: MainFormatting.time(entry.when, locale: locale),

@@ -34,14 +34,19 @@ public enum DestinationRules {
             bundlePrefixes: [
                 "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp",
                 "net.kovidgoyal.kitty", "org.alacritty", "com.mitchellh.ghostty",
+                "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
             ],
-            nameWords: ["terminal", "iterm", "iterm2", "warp", "kitty", "alacritty", "ghostty"],
+            nameWords: [
+                "terminal", "iterm", "iterm2", "warp", "kitty", "alacritty", "ghostty", "wezterm",
+                "tabby",
+            ],
             kind: .terminal
         ),
         DestinationRule(
             bundlePrefixes: [
                 "com.apple.dt.Xcode", "com.todesktop.230313mzl4w4u92", "com.microsoft.VSCode",
                 "dev.zed.Zed", "com.jetbrains.", "com.sublimetext", "com.panic.Nova",
+                "com.visualstudio.code", "org.vim.MacVim",
             ],
             nameWords: [
                 "xcode", "code", "zed", "sublime", "cursor", "nova", "intellij", "pycharm", "goland",
@@ -69,4 +74,10 @@ public enum DestinationRules {
             kind: .email
         ),
     ]
+
+    /// Every bundle prefix the rows of these kinds name, lowercased, for a module that asks only by identifier.
+    public static func bundlePrefixes(of kinds: Set<AppKind>) -> [String] {
+        standard.filter { $0.kind.map(kinds.contains) ?? false }
+            .flatMap(\.bundlePrefixes).map { $0.lowercased() }
+    }
 }
