@@ -1,5 +1,6 @@
 // Tests that a read nobody waits for any more does not delay the next one (#888).
 
+import Dispatch
 import Foundation
 import Testing
 import UttrflowTestSupport
@@ -50,19 +51,27 @@ struct LatestOnlyQueueTests {
     }
 
     @Test("a read is told it is no longer wanted once a newer one arrives")
-    func workIsToldWhenItIsDropped() async {
+    func workIsToldWhenItIsDropped() async throws {
         let queue = LatestOnlyQueue(label: "test.latest-only-wanted", qos: .userInitiated)
         let wanted = Flag()
+        let running = Signal()
+        // Held until the newer read has taken its number, so what the first is told is not a matter of timing.
+        let newerArrived = DispatchSemaphore(value: 0)
 
         async let slow = queue.run(within: .seconds(5)) { isWanted -> Int? in
-            Thread.sleep(forTimeInterval: 0.2)
+            running.fire()
+            newerArrived.wait()
             wanted.set(isWanted())
             return 1
         }
-        try? await Task.sleep(for: .milliseconds(50))
-        _ = await queue.run(within: .seconds(5)) { _ -> Int? in 2 }
-        _ = await slow
+        try await arrival(of: running.fired)
 
+        async let newer = queue.run(within: .seconds(5)) { _ -> Int? in 2 }
+        try await eventually { queue.requested == 2 }
+        newerArrived.signal()
+
+        #expect(await newer == 2)
+        #expect(await slow == 1, "the first read still ran, since it had started")
         #expect(wanted.value == false)
     }
 }
