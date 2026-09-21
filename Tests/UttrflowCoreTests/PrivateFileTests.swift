@@ -97,6 +97,20 @@ struct PrivateFileTests {
         #expect(try mode(of: sandbox.file) == PrivateFile.fileMode)
     }
 
+    /// An atomic write replaces the file, so the owner bits have to be read before it, not after.
+    @Test("keeps a file's own stricter mode across a write that replaces it")
+    func aStricterFileModeSurvivesAWrite() throws {
+        let sandbox = Sandbox()
+        try PrivateFile.write(Data("first".utf8), to: sandbox.file)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o400], ofItemAtPath: sandbox.file.path(percentEncoded: false))
+
+        try PrivateFile.write(Data("second".utf8), to: sandbox.file)
+
+        #expect(try Data(contentsOf: sandbox.file) == Data("second".utf8))
+        #expect(try mode(of: sandbox.file) == 0o400)
+    }
+
     /// SQLite writes its own database file, and makes `-wal` and `-shm` in the mode it finds on it.
     @Test("tightens a file somebody else wrote")
     func aFileWrittenElsewhereIsTightened() throws {

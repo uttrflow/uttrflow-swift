@@ -45,6 +45,7 @@ public actor PredictStore: PredictionStore {
                 try? FileManager.default.removeItem(atPath: path + suffix)
             }
             let replacement = try Database(path: path)
+            try? PrivateFile.tighten(at: URL(filePath: path))
             try Schema.migrate(replacement)
             return replacement
         }

@@ -20,31 +20,42 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCES = os.path.join(ROOT, "Sources")
 
-# A call that creates a folder or writes a file's bytes.
+# A call that creates a folder, or a file, or writes a file's bytes. `open(..., O_CREAT, ...)` is
+# here because it takes its mode as an argument, so a wrong one is as quiet as an absent one.
 PATTERNS = [
     (re.compile(r"\bcreateDirectory\("), "createDirectory"),
     (re.compile(r"\bcreateFile\(atPath:"), "createFile"),
     (re.compile(r"\.write\(to(?:File)?:"), "write(to:)"),
+    (re.compile(r"\bO_CREAT\b"), "open(O_CREAT)"),
 ]
 
-# Each path that may still write for itself, and why it is allowed to.
+# Each path that may still write for itself, what it is allowed to call, and why. `None` for the
+# calls means every one of them; a named set means only those, so a file excused one call is still
+# held to the rest.
 ALLOWED = {
-    "UttrflowCore/Support/PrivateFile.swift": "is the helper every other path goes through",
-    "UttrflowEval/": "the evaluation harness, which never ships and writes no user data",
-    "uttrflow-bakeoff/": "a developer tool, run from a terminal against a corpus",
-    "uttrflow-dev/": "a developer tool, run from a terminal",
-    "uttrflow-eval/": "a developer tool, run from a terminal",
-    "UttrflowSpeech/SpeechModelStore.swift": "stages downloaded model weights, which are public",
-    "UttrflowSpeech/TokenizerDownload.swift": "writes a downloaded tokenizer, which is public",
+    "UttrflowCore/Support/PrivateFile.swift": (
+        None, "is the helper every other path goes through"),
+    "UttrflowEval/": (None, "the evaluation harness, which never ships and writes no user data"),
+    "uttrflow-bakeoff/": (None, "a developer tool, run from a terminal against a corpus"),
+    "uttrflow-dev/": (None, "a developer tool, run from a terminal"),
+    "uttrflow-eval/": (None, "a developer tool, run from a terminal"),
+    "UttrflowSpeech/SpeechModelStore.swift": (
+        None, "stages downloaded model weights, which are public"),
+    "UttrflowSpeech/TokenizerDownload.swift": (
+        None, "writes a downloaded tokenizer, which is public"),
+    "UttrflowCore/Support/SingleInstanceLock.swift": (
+        {"open(O_CREAT)"}, "opens its lock 0600, and needs the descriptor to flock it"),
+    "UttrflowAudio/RecordingWriter.swift": (
+        {"open(O_CREAT)"}, "opens each recording 0600, and writes through the descriptor"),
 }
 
 
-def allowed(relative):
-    """The reason this path may write for itself, or nothing if it may not."""
-    for prefix, reason in ALLOWED.items():
+def allowed(relative, call):
+    """Whether this path may make this call for itself."""
+    for prefix, (calls, _) in ALLOWED.items():
         if relative == prefix or relative.startswith(prefix):
-            return reason
-    return None
+            return calls is None or call in calls
+    return False
 
 
 def swift_files():
@@ -59,22 +70,21 @@ def findings():
     """Every line outside the allowed paths that creates a folder or writes a file itself."""
     found = []
     for path, relative in swift_files():
-        if allowed(relative):
-            continue
         with open(path, encoding="utf-8", errors="ignore") as handle:
             for number, line in enumerate(handle, start=1):
                 if line.lstrip().startswith("//"):
                     continue
                 for pattern, name in PATTERNS:
-                    if pattern.search(line):
+                    if pattern.search(line) and not allowed(relative, name):
                         found.append((relative, number, name, line.strip()))
     return found
 
 
 def main():
     print("\nWhat may write its own files")
-    for prefix, reason in ALLOWED.items():
-        print(f"  ✓ {prefix} — {reason}")
+    for prefix, (calls, reason) in ALLOWED.items():
+        named = "every call" if calls is None else ", ".join(sorted(calls))
+        print(f"  ✓ {prefix} ({named}) — {reason}")
 
     found = findings()
     if found:
