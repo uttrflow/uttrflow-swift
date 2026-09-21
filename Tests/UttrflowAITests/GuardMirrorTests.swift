@@ -39,6 +39,8 @@ struct GuardMirrorTests {
             "a list taken away is a dropped break, which the check above already refuses; composing one is the arm Tier 3 names",
         "the rewrite added a line break the speaker did not ask for":
             "the mirror of this is the dropped-break refusal above, and both are asked of the destination's layout rather than of the text alone",
+        "the rewrite moved a negation":
+            "negation placement is directional only when both sides retain the same plain-text negator count",
     ]
 
     /// The reason the guard gives, or nil where it accepted.

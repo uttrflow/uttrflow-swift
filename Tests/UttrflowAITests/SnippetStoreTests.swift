@@ -76,7 +76,8 @@ struct SnippetStoreTests {
 
     @Test("a snippet typed into the editor is kept as typed")
     func savingFromTheEditor() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         let kept = try await store.save(
             trigger: "  my address ", expansion: "Flat 402\nLondon", replacing: nil,
             created: snippetEpoch)
@@ -90,7 +91,8 @@ struct SnippetStoreTests {
     /// Losing the identity, the date or the counts would make an old snippet look new.
     @Test("editing keeps the identity, the date it was created and what has been counted")
     func editingKeepsWhatWasNotTyped() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         let original = Snippet(
             trigger: "my adress", expansion: "Flat 402", created: snippetEpoch, timesUsed: 7,
             lastUsed: snippetEpoch.addingTimeInterval(3600))
@@ -111,7 +113,8 @@ struct SnippetStoreTests {
     /// The row was deleted under the open editor; refusing would lose what the user typed.
     @Test("editing a snippet that is no longer there keeps what was typed, as a new one")
     func editingSomethingDeletedUnderneath() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         let later = snippetEpoch.addingTimeInterval(60)
         let kept = try await store.save(
             trigger: "my address", expansion: "Flat 402", replacing: UUID(), created: later)
@@ -123,7 +126,8 @@ struct SnippetStoreTests {
 
     @Test("a trigger with no words in it is refused, and writes nothing")
     func savingNothingFromTheEditor() async throws {
-        let store = SnippetStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
         await #expect(throws: SnippetStoreError.triggerHasNoWords) {
             try await store.save(
                 trigger: "  ", expansion: "Flat 402", replacing: nil, created: snippetEpoch)

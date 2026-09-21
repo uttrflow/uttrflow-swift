@@ -50,4 +50,24 @@ struct RecentLinesTests {
         #expect(try await store.recent(in: chat, limit: 6) == ["see you there", "can we move it to 8?"])
         #expect(try await store.recent(in: otherRoom, limit: 6) == ["can we move it to 8?", "see you there"])
     }
+
+    @Test("Learning the field in one more document after another keeps one compiled recency read.")
+    func recencyStatementIsReused() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        var settled: Int?
+        for index in 0..<24 {
+            let document = Surface(
+                bundleIdentifier: "com.example.editor", role: "AXTextArea", locator: "Body",
+                scope: "/project/dir-\(index)")
+            let when = moment.addingTimeInterval(Double(index))
+            try await store.record("line \(index)", in: document, at: when)
+            let recent = try await store.recent(in: document, limit: 3)
+            // This document's own line leads, then the newest from the others.
+            #expect(recent == (0...index).reversed().prefix(3).map { "line \($0)" })
+            let cached = await store.cachedStatements
+            if index == 1 { settled = cached }
+            if let settled { #expect(cached == settled, "after \(index + 1) documents") }
+        }
+    }
 }

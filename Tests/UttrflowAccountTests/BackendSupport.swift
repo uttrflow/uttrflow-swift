@@ -132,6 +132,8 @@ final class StubLoopbackListener: LoopbackListening {
     private struct Progress {
         /// Whether `bind()` ran.
         var bound = false
+        /// The state `bind()` was told to expect.
+        var expectedState: String?
         /// Whether `close()` ran.
         var closed = false
         /// How many times `awaitCallback()` ran.
@@ -149,6 +151,7 @@ final class StubLoopbackListener: LoopbackListening {
     }
 
     var wasBound: Bool { state.withLock { $0.bound } }
+    var expectedState: String? { state.withLock { $0.expectedState } }
     var wasClosed: Bool { state.withLock { $0.closed } }
     var timesAwaited: Int { state.withLock { $0.awaited } }
 
@@ -156,9 +159,12 @@ final class StubLoopbackListener: LoopbackListening {
     static let redirectURI = safeURL("http://127.0.0.1:49152/callback")
 
     /// Throws `bindFailure` if set, else records the bind and returns the fixed address.
-    func bind() async throws(AccountError) -> URL {
+    func bind(expecting state: String) async throws(AccountError) -> URL {
         if let bindFailure { throw bindFailure }
-        state.withLock { $0.bound = true }
+        self.state.withLock {
+            $0.bound = true
+            $0.expectedState = state
+        }
         return Self.redirectURI
     }
 
@@ -205,7 +211,7 @@ final class StubLoopbackListener: LoopbackListening {
 /// A listener that cannot bind, standing in for a Mac whose security software refuses to let an app listen.
 final class UnbindableListener: LoopbackListening {
     /// Always throws.
-    func bind() async throws(AccountError) -> URL { throw .serverUnreachable }
+    func bind(expecting state: String) async throws(AccountError) -> URL { throw .serverUnreachable }
 
     /// Always throws.
     func awaitCallback() async throws(AccountError) -> LoopbackCallback {

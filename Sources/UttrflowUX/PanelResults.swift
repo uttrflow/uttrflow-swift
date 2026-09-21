@@ -80,29 +80,49 @@ extension PanelSnapshot {
             return (position, PanelResult(clip: clip, match: matched, isExactAlias: isExact))
         }
 
-        let ordered = found.sorted { Self.rank($0) < Self.rank($1) }.map { $0.1 }
-        let (kept, omitted) = Self.capping(ordered)
+        // A clip whose whole text is the query can never be narrowed to, so it leads its group.
+        let whole = Set(
+            found.lazy.filter { $0.1.match == .content }.map(\.1.clip)
+                .filter { Self.isWhole(needle, of: $0, locale: self.locale) }.map(\.id))
+        let ordered = found.sorted { Self.rank($0, whole: whole) < Self.rank($1, whole: whole) }
+            .map { $0.1 }
+        let (kept, omitted) = Self.capping(ordered) { row in
+            // A collection named exactly is asked for whole; there is nothing more to type to narrow it.
+            row.match == .category
+                && row.clip.category?.compare(
+                    needle, options: [.caseInsensitive, .diacriticInsensitive], locale: self.locale)
+                    == .orderedSame
+        }
         return PanelResults(
             rows: kept, selectedIndex: Self.index(of: selection, in: kept), omitted: omitted)
     }
 
-    /// Match field, then exact alias, then pinned, then arrival order, so groups are contiguous for ↓.
-    static func rank(_ entry: (Int, PanelResult)) -> (Int, Int, Int, Int) {
+    /// Whether a clip's whole text, trimmed, is the query, ignoring case and accents.
+    static func isWhole(_ needle: String, of clip: Clip, locale: Locale) -> Bool {
+        clip.text.trimmingCharacters(in: .whitespacesAndNewlines).compare(
+            needle, options: [.caseInsensitive, .diacriticInsensitive], locale: locale)
+            == .orderedSame
+    }
+
+    /// Match field, then exact alias or whole text, then pinned, then arrival order, so groups are contiguous for ↓.
+    static func rank(_ entry: (Int, PanelResult), whole: Set<Clip.ID>) -> (Int, Int, Int, Int) {
         (
             entry.1.match?.rawValue ?? 0,
-            entry.1.isExactAlias ? 0 : 1,
+            entry.1.isExactAlias || whole.contains(entry.1.clip.id) ? 0 : 1,
             entry.1.clip.isPinned ? 0 : 1,
             entry.0
         )
     }
 
     /// Keeps at most ``PanelPresenter/rowsPerGroup`` of each kind of match; browsing is never capped.
-    static func capping(_ rows: [PanelResult]) -> ([PanelResult], [PanelMatchField: Int]) {
+    static func capping(
+        _ rows: [PanelResult], uncapped: (PanelResult) -> Bool = { _ in false }
+    ) -> ([PanelResult], [PanelMatchField: Int]) {
         var kept: [PanelResult] = []
         var seen: [PanelMatchField: Int] = [:]
         var omitted: [PanelMatchField: Int] = [:]
         for row in rows {
-            guard let field = row.match else {
+            guard let field = row.match, !uncapped(row) else {
                 kept.append(row)
                 continue
             }
