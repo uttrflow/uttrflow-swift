@@ -188,6 +188,14 @@ public enum EvaluationCorpus {
             mustKeep: ["coffee"],
             mustNotAdd: ["two"]
         ),
+        // The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.
+        .init(
+            id: "trigger-as-its-own-sentence", category: .everyday,
+            spoken: "Meet me at four. Scratch that. At five.",
+            expected: "Meet me at five.",
+            mustKeep: ["Meet me", "five"],
+            mustNotAdd: ["four", "Scratch"]
+        ),
         // The recogniser writes the amounts with their signs, and the sign goes with the amount taken back.
         .init(
             id: "correction-between-amounts", category: .everyday,

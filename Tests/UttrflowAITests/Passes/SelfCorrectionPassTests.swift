@@ -107,6 +107,32 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "applies a correction whose trigger the recogniser wrote as its own sentence",
+        arguments: [
+            ("The total is 40. No wait. 50.", "The total is 50."),
+            ("Meet me at four. Scratch that. At five.", "Meet me at five."),
+            ("Send it on Tuesday. Sorry. On Wednesday.", "Send it on Wednesday."),
+            ("Call the office. I mean. Call the lab.", "Call the lab."),
+        ]
+    )
+    func readsThroughATriggerSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves a real sentence that opens with a trigger word",
+        arguments: [
+            "Did we ship? No. We shipped it.",
+            "We shipped. No. We shipped it.",
+            "Is it 3? No wait. 4.",
+            "The code is 45. No. 46.",
+        ]
+    )
+    func leavesARealSentenceAfterAStop(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// A number anchor may not reach back through a full stop, because the number in the sentence before was not the one corrected. See `Docs/cleanup.md`.
     @Test(
         "leaves a number the speaker said in the sentence before the correction",

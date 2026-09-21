@@ -113,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         didSet {
             guard suggestionModel != oldValue else { return }
             settingsWindow.setSuggestionModel(suggestionModel)
+            refreshMenuBar()
         }
     }
 
@@ -387,6 +388,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// What the menu bar shows now, internal so a test can read what the app drew.
+    var menuBarPresentation: MenuBarPresentation { menuBar.presentation }
+
     /// Redraws the menu bar from whatever the app currently knows.
     private func refreshMenuBar() {
         menuBar.update(with: MenuBarPresenter.present(menuBarState(for: lastDictationState)))
@@ -593,6 +597,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 memoryPressure.reloaded(at: .now)
                 prepareTheModelIfNeeded()
             }
+        }
+    }
+
+    /// Shows the model as getting ready while an idle reload runs, then as ready or failed by how it ends.
+    func suggestionModelReloaded(_ event: IdleReload) {
+        guard isModelPreparing else { return }
+        switch event {
+        case .started where suggestionModel == .ready:
+            suggestionModel = .loading
+        case .finished where suggestionModel == .loading:
+            suggestionModel = .ready
+        case .failed where suggestionModel == .loading:
+            // Cleared so that turning the feature off and on loads the model again.
+            isModelPreparing = false
+            suggestionModel = .failed
+        case .started, .finished, .failed:
+            break
         }
     }
 
@@ -1342,17 +1363,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Recorded before the menu is drawn, and kept even when insertion failed. §19.
         switch state {
         case .inserted(let outcome):
-            lastTranscript = outcome.text
             Self.log.notice(
                 """
                 dictation finished: method=\(outcome.method.rawValue, privacy: .public) \
                 characters=\(outcome.text.count, privacy: .public) \
                 app=\(outcome.insertedInto ?? "unknown", privacy: .public) \
                 corrections=\(outcome.changes.corrections.count, privacy: .public) \
-                snippets=\(outcome.changes.snippets.count, privacy: .public)
+                snippets=\(outcome.changes.snippets.count, privacy: .public) \
+                secure=\(outcome.intoSecureField, privacy: .public)
                 """)
+            // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
+            guard let kept = outcome.wordsToKeep else { break }
+            lastTranscript = kept
             let record = DictationRecord(
-                text: outcome.text, when: Date(), applicationName: outcome.insertedInto,
+                text: kept, when: Date(), applicationName: outcome.insertedInto,
                 applicationIdentifier: outcome.insertedIntoIdentifier,
                 spokenFor: outcome.spokenFor,
                 changes: RecordedChanges(
@@ -1370,7 +1394,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     spokenWords: outcome.changes.spokenWords))
             keep(record)
             // I4 — into the clipboard too, which the watcher never sees because this is not a copy.
-            recordAsClip(outcome.text, of: record.id)
+            recordAsClip(kept, of: record.id)
         case .failed(let notice):
             Self.log.error(
                 """
@@ -1378,7 +1402,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 salvaged=\(notice.transcript != nil, privacy: .public) \
                 kept=\(notice.recovery == .retryFromRecording, privacy: .public)
                 """)
-            if let salvaged = notice.transcript {
+            if let salvaged = notice.wordsToKeep {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(DictationRecord(text: salvaged, when: Date()))
             }
@@ -1492,7 +1516,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             updateProgress: updates.progress,
             features: MenuBarFeatures(settings),
             shortcuts: settings.shortcuts,
-            shortcutUnheard: shortcutUnheard
+            shortcutUnheard: shortcutUnheard,
+            suggestionModel: suggestionModel
         )
     }
 
@@ -1990,6 +2015,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func settingsChanged(to updated: Settings) {
         let previous = settings
         settings = updated
+        settingsWindow.synchronize(settings: updated)
         recordingSounds?.apply(updated)
         applyAppearance()
         applyLaunchAtLogin()
@@ -2039,6 +2065,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
 
         dock.setShortcut(SettingsShortcut.compact(settings.hotkey))
+        dock.setShrinksToGrip(settings.shrinksToGripWhenIdle)
         if settings.floatingButtonIsShown {
             dock.setAnchor(settings.floatingButtonAnchor)
             dock.show()
@@ -2047,6 +2074,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         refreshMainWindow()
     }
+
+    /// Whether the floating button collapses to a grip when idle, as the running button has it now.
+    var dockShrinksToGrip: Bool { dock.shrinksToGrip }
 
     /// Hides the main window while the user speaks, and deliberately does not bring it back.
     private func getOutOfTheWay(for state: DictationState) {

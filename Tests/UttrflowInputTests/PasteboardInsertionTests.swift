@@ -11,6 +11,7 @@ final class FakePasteboard: Pasteboard {
         var text: String?
         var changeCount = 0
         var writes: [String] = []
+        var concealed: [String] = []
         var pictures: [Data] = []
         var acceptsWrites = true
     }
@@ -35,6 +36,12 @@ final class FakePasteboard: Pasteboard {
         }
     }
 
+    /// A concealed write, which lands like any other and is also counted apart so a test can see the marker.
+    func setConcealedText(_ text: String) {
+        setText(text)
+        state.withLock { $0.concealed.append(text) }
+    }
+
     /// K4 — a picture write, kept apart from the text ones so a test can tell them apart.
     func setImage(_ data: Data) {
         state.withLock { state in
@@ -53,6 +60,7 @@ final class FakePasteboard: Pasteboard {
     }
 
     var writes: [String] { state.withLock(\.writes) }
+    var concealed: [String] { state.withLock(\.concealed) }
     var pictures: [Data] { state.withLock(\.pictures) }
 }
 

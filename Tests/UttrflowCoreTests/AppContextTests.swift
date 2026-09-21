@@ -1,5 +1,6 @@
 // Tests for AppContext.
 
+import Foundation
 import Testing
 
 @testable import UttrflowCore
@@ -44,5 +45,29 @@ struct AppContextTests {
         let context = AppContext(applicationName: "Notes", precedingText: "before ", followingText: " after")
         #expect(context.precedingText == "before ")
         #expect(context.followingText == " after")
+    }
+
+    @Test("reads a context written before secure fields were told apart as not secure")
+    func decodesOldContextAsNotSecure() throws {
+        let json = Data(#"{"applicationName":"Notes","precedingText":"before"}"#.utf8)
+        let context = try JSONDecoder().decode(AppContext.self, from: json)
+
+        #expect(context == AppContext(applicationName: "Notes", precedingText: "before"))
+        #expect(context.isSecure == false)
+    }
+
+    @Test("keeps a secure context secure across encoding")
+    func roundTripsSecure() throws {
+        let context = AppContext(applicationName: "Notes", isSecure: true)
+        let decoded = try JSONDecoder().decode(
+            AppContext.self, from: try JSONEncoder().encode(context))
+
+        #expect(decoded == context)
+        #expect(decoded.isSecure)
+    }
+
+    @Test("a secure field alone does not make a context worth a prompt")
+    func secureAloneIsEmpty() {
+        #expect(AppContext(isSecure: true).isEmpty)
     }
 }

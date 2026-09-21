@@ -53,3 +53,41 @@ struct SecureFieldTests {
         #expect(!SecureField.looksMasked(""))
     }
 }
+
+@Suite("The one secure-field rule both dictation boundaries ask")
+struct SecureFieldRuleTests {
+    @Test("a declared secure field is secure without its value being read")
+    func declaredSkipsTheValue() {
+        var read = false
+        let secure = SecureField.isSecure(
+            role: SecureField.secureRole, subrole: nil, identifier: nil, placeholder: nil,
+            description: nil,
+            value: {
+                read = true
+                return "hunter"
+            })
+
+        #expect(secure)
+        #expect(!read)
+    }
+
+    @Test("an undeclared field showing only mask characters is secure")
+    func maskedValueIsSecure() {
+        #expect(
+            SecureField.isSecure(
+                role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil, description: nil,
+                value: { "••••••" }))
+    }
+
+    @Test("an ordinary field, or one that will not say, is not secure")
+    func ordinaryIsNot() {
+        #expect(
+            !SecureField.isSecure(
+                role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil, description: nil,
+                value: { "see you at noon" }))
+        #expect(
+            !SecureField.isSecure(
+                role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil, description: nil,
+                value: { nil }))
+    }
+}

@@ -34,6 +34,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             onShortcutRecording: onShortcutRecording)
     }
 
+    /// Applies settings changed elsewhere while preserving the window's current tab and UI state.
+    func synchronize(settings: UttrflowSettings.Settings) {
+        model.synchronize(settings: settings)
+    }
+
     /// Opens the window and tells it who is signed in; handed over each time, since that can change.
     func show(_ tab: SettingsTab = .general, identity: AccountIdentity? = nil) {
         model.identity = identity

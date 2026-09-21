@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 
 @testable import UttrflowPredict
@@ -49,6 +50,15 @@ private actor RecordingModel: ReleasableModel {
     }
 
     func logLikelihood(of candidate: String, following context: String) async -> Double? { -1 }
+}
+
+/// Every reload event in the order it was told, collected from whichever thread tells it.
+private final class Reloads: Sendable {
+    private let seen = Mutex<[IdleReload]>([])
+
+    func record(_ event: IdleReload) { seen.withLock { $0.append(event) } }
+
+    var all: [IdleReload] { seen.withLock { $0 } }
 }
 
 /// Counts the app being told a reload failed, and lets a test wait for the first telling.
@@ -146,6 +156,33 @@ struct IdleReleaseTests {
         #expect(await model.isReady == false)
         await model.pendingWork?.value
         await told.waitForOne()
+    }
+
+    @Test("a reload after an idle release says when it starts and when it is done")
+    func reloadIsReported() async throws {
+        let inner = RecordingModel()
+        let reloads = Reloads()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600)) { reloads.record($0) }
+        try await model.prepare(onProgress: { _ in })
+        #expect(reloads.all.isEmpty)
+        await model.releaseIfIdle(at: .now + .seconds(700))
+        #expect(await model.isReady == false)
+        #expect(reloads.all == [.started])
+        await model.pendingWork?.value
+        #expect(reloads.all == [.started, .finished])
+    }
+
+    @Test("a reload that fails says so")
+    func failedReloadIsReported() async throws {
+        let inner = RecordingModel()
+        let reloads = Reloads()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600)) { reloads.record($0) }
+        try await model.prepare(onProgress: { _ in })
+        await model.releaseIfIdle(at: .now + .seconds(700))
+        await inner.failNextLoad()
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(reloads.all == [.started, .failed])
     }
 
     @Test("a release the caller asked for is never undone by a query")

@@ -6,9 +6,12 @@ public struct ClipboardTextInsertionEngine: TextInsertionEngine {
     public let method: TextInsertionMethod = .clipboard
 
     private let pasteboard: any Pasteboard
+    /// Asked whether the field the words were meant for is secure, so what is left behind is concealed.
+    private let focus: (any AccessibilityFocus)?
 
-    public init(pasteboard: any Pasteboard) {
+    public init(pasteboard: any Pasteboard, focus: (any AccessibilityFocus)? = nil) {
         self.pasteboard = pasteboard
+        self.focus = focus
     }
 
     /// Always. A clipboard is always available, which is the point of having this.
@@ -20,7 +23,11 @@ public struct ClipboardTextInsertionEngine: TextInsertionEngine {
         guard !Task.isCancelled else {
             throw .insertionRejected(description: TextInsertion.dictationEnded)
         }
-        pasteboard.setText(text)
+        if focus?.focusedFieldIsSecure() == true {
+            pasteboard.setConcealedText(text)
+        } else {
+            pasteboard.setText(text)
+        }
         guard pasteboard.text() == text else { throw .clipboardUnavailable }
         return .notReported
     }

@@ -533,6 +533,34 @@ struct MenuBarPrintedShortcutTests {
         #expect(MenuBarShortcut.forBinding(control) == nil)
         #expect(MenuBarShortcut.forBinding(.shiftCommandV)?.key == "v")
     }
+
+    @Test(
+        "the AI suggestions switch says what its model is waiting on, in the words Settings uses",
+        arguments: [
+            (SuggestionModelReadiness.loading, "AI Suggestions — Getting ready"),
+            (.downloading(fractionCompleted: nil), "AI Suggestions — Getting ready"),
+            (.downloading(fractionCompleted: 0.42), "AI Suggestions — Getting ready — 42%"),
+            (.downloading(fractionCompleted: 1.7), "AI Suggestions — Getting ready — 100%"),
+            (.releasedForMemory, "AI Suggestions — Paused to free memory"),
+            (.failed, "AI Suggestions — The model could not be fetched"),
+            (.ready, "AI Suggestions"),
+            (.notAsked, "AI Suggestions"),
+        ])
+    func suggestionsSwitchShowsTheModel(model: SuggestionModelReadiness, title: String) {
+        let shown = MenuBarPresenter.present(
+            MenuBarState(features: MenuBarFeatures(suggestions: true), suggestionModel: model))
+        let item = shown.commands.first { $0.intent == .setFeature(.suggestions, isOn: false) }
+        #expect(item?.title == title)
+        #expect(item?.isChecked == true)
+    }
+
+    @Test("a switched-off AI suggestions item says nothing about a model it is not using")
+    func offSuggestionsSwitchIsPlain() {
+        let shown = MenuBarPresenter.present(
+            MenuBarState(features: MenuBarFeatures(suggestions: false), suggestionModel: .failed))
+        let item = shown.commands.first { $0.intent == .setFeature(.suggestions, isOn: true) }
+        #expect(item?.title == "AI Suggestions")
+    }
 }
 
 @Suite("A shortcut that cannot be heard")

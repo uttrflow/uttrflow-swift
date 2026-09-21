@@ -25,6 +25,11 @@ calls.
    still needs a word boundary, so `passwordless`, `tokenizer` and `token_count` are not names.
    The cost, paid knowingly: `max_tokens: 4096` is masked, because a digit under a name that
    ends in a keyword is exactly what a short password or PIN looks like.
+   A long bare value that only points at a secret is not one: an identifier path or an
+   empty call (`request.token`, `process.env.API_KEY;`, `getpass.getpass()`), made of letters,
+   `_` and `$` with no digit and no part of 32 or more hex letters, is code that loads a
+   credential rather than the credential. A quoted value or one with a digit still counts,
+   and so does a single long bare word, which is what a letters-only password looks like.
 6. A payment card number (below).
 7. The statistical rule below.
 

@@ -216,14 +216,16 @@ enum WholeClipDetector {
         }
         if isShellCommand(text) { return true }
         if CodeShapes.isOneLineStatement(text) || CodeShapes.isConfiguration(text) { return true }
+        let braces = text.contains("{") && text.contains("}")
         let signals = [
-            text.contains("{") && text.contains("}"), CodeShapes.hasStatementEnding(text),
+            braces, CodeShapes.hasStatementEnding(text, countingClosingBrace: !braces),
             CodeShapes.isIndented(text), text.firstMatch(of: CodeShapes.declaration) != nil,
             text.firstMatch(of: CodeShapes.controlFlow) != nil,
             text.firstMatch(of: CodeShapes.codeOperator) != nil,
             text.firstMatch(of: CodeShapes.invocation) != nil,
             text.firstMatch(of: CodeShapes.commentLine) != nil,
             text.firstMatch(of: CodeShapes.query) != nil,
+            text.firstMatch(of: CodeShapes.quotedMember) != nil,
             text.firstMatch(of: CodeShapes.shellFragment) != nil,
         ]
         return signals.count(where: { $0 }) >= 2

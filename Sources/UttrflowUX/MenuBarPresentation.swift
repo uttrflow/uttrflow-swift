@@ -134,6 +134,8 @@ public struct MenuBarState: Sendable, Equatable {
 
     /// Why the dictation shortcut cannot be heard right now, or nil when it can.
     public var shortcutUnheard: String?
+    /// How far along the AI suggestion model is, so a switch that is on but waiting says so.
+    public var suggestionModel: SuggestionModelReadiness
 
     public init(
         activity: DictationActivity = .idle,
@@ -145,7 +147,8 @@ public struct MenuBarState: Sendable, Equatable {
         updateProgress: UpdateProgress = .idle,
         features: MenuBarFeatures = MenuBarFeatures(),
         shortcuts: ShortcutSet = .default,
-        shortcutUnheard: String? = nil
+        shortcutUnheard: String? = nil,
+        suggestionModel: SuggestionModelReadiness = .notAsked
     ) {
         self.activity = activity
         self.failure = failure
@@ -157,6 +160,7 @@ public struct MenuBarState: Sendable, Equatable {
         self.features = features
         self.shortcuts = shortcuts
         self.shortcutUnheard = shortcutUnheard
+        self.suggestionModel = suggestionModel
     }
 }
 
@@ -470,7 +474,7 @@ public enum MenuBarPresenter {
         items.append(contentsOf: recentItems(for: state))
 
         items.append(.separator)
-        items.append(contentsOf: featureItems(for: state.features))
+        items.append(contentsOf: featureItems(for: state.features, suggestionModel: state.suggestionModel))
 
         items.append(.separator)
         // The menu names the place and the app opens it.
@@ -501,16 +505,28 @@ public enum MenuBarPresenter {
     }
 
     /// The three switches, always all three, so turning one off never hides another.
-    static func featureItems(for features: MenuBarFeatures) -> [MenuBarItem] {
+    static func featureItems(
+        for features: MenuBarFeatures, suggestionModel: SuggestionModelReadiness = .notAsked
+    ) -> [MenuBarItem] {
         [.sectionHeader("Turn on and off")]
             + MenuBarFeature.allCases.map { feature in
                 let isOn = features.isOn(feature)
                 return .command(
                     MenuBarCommand(
-                        title: feature.title,
+                        title: title(of: feature, isOn: isOn, suggestionModel: suggestionModel),
                         intent: .setFeature(feature, isOn: !isOn),
                         isChecked: isOn))
             }
+    }
+
+    /// A switch's name, followed for AI suggestions that are on by what their model is waiting on.
+    static func title(
+        of feature: MenuBarFeature, isOn: Bool, suggestionModel: SuggestionModelReadiness
+    ) -> String {
+        guard feature == .suggestions, isOn, let headline = suggestionModel.headline else {
+            return feature.title
+        }
+        return "\(feature.title) — \(headline)"
     }
 
     /// What a recording says about itself, counting down once it nears its cap.

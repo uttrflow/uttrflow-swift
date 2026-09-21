@@ -42,6 +42,9 @@ public protocol AccessibilityFocus: Sendable {
 
     /// The application in front right now, which is where a write lands. See `Docs/insertion.md`.
     func frontmostApplication() -> InsertionDestination?
+
+    /// Whether the focused field hides what is typed, asked without reading a declared secure field's value.
+    func focusedFieldIsSecure() -> Bool
 }
 
 /// What a field says about the text before its caret, keeping "too short" apart from "will not say".
@@ -61,4 +64,7 @@ extension AccessibilityFocus {
 
     /// A reader with no window server behind it cannot say what is in front, and says so.
     public func frontmostApplication() -> InsertionDestination? { nil }
+
+    /// A reader that cannot see the field cannot tell it is secure, and says it is not.
+    public func focusedFieldIsSecure() -> Bool { false }
 }

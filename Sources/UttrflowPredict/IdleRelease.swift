@@ -25,6 +25,16 @@ public enum IdleRelease {
     }
 }
 
+/// How a reload that follows an idle release is going.
+public enum IdleReload: Sendable, Equatable {
+    /// A query finds the model let go and starts loading it again.
+    case started
+    /// The reload is done and the model can answer.
+    case finished
+    /// The reload ends without a model that can answer.
+    case failed
+}
+
 /// Holds a model only while something keeps asking for it; a release by the caller is never undone by a query.
 public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     private let model: Model
@@ -39,12 +49,17 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     /// The latest load or release, which the next one waits for so they land in the order they were asked.
     private var work: Task<Void, Never>?
     private var watch: Task<Void, Never>?
+    /// Receives each step of a reload that follows an idle release.
+    private let onReload: @Sendable (IdleReload) -> Void
     /// Told when a reload finds the weights gone from disk, so the app can ask for them again.
     private var onReloadFailed: @Sendable () -> Void = {}
 
-    public init(model: Model, idleAfter: Duration) {
+    public init(
+        model: Model, idleAfter: Duration, onReload: @escaping @Sendable (IdleReload) -> Void = { _ in }
+    ) {
         self.model = model
         self.idleAfter = idleAfter
+        self.onReload = onReload
     }
 
     /// Whether the weights are loaded or on their way; internal so a test can read it.
@@ -71,7 +86,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
             await settle(asked)
             throw error
         }
-        guard generation == asked else { return }
+        guard isCurrent(asked) else { return }
         watchForIdle()
     }
 
@@ -154,6 +169,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     private func reloadInBackground() {
         isHeld = true
         let asked = advance()
+        onReload(.started)
         let previous = work
         let model = model
         work = Task { [weak self] in
@@ -168,6 +184,18 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         }
     }
 
+    /// Settles a reload that failed and says so, unless something newer was asked for since.
+    private func reloadFailed(_ asked: Int) async {
+        guard isCurrent(asked) else { return }
+        onReloadFailed()
+        await settle(asked)
+        guard isCurrent(asked) else { return }
+        onReload(.failed)
+    }
+
+    /// Whether no prepare, release or reload has been asked for since this one.
+    private func isCurrent(_ asked: Int) -> Bool { generation == asked }
+
     /// Starts a new generation and returns it, so every step already queued knows it is stale.
     @discardableResult
     private func advance() -> Int {
@@ -177,22 +205,16 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
 
     /// Watches a background load that succeeded, unless something newer was asked for since.
     private func loaded(_ asked: Int) {
-        guard generation == asked else { return }
+        guard isCurrent(asked) else { return }
+        onReload(.finished)
         watchForIdle()
-    }
-
-    /// Settles after a failed reload and says so, if that reload is still the latest.
-    private func reloadFailed(_ asked: Int) async {
-        guard generation == asked else { return }
-        onReloadFailed()
-        await settle(asked)
     }
 
     /// Takes the hold from what the model reports after a failed load, if that load is still the latest.
     private func settle(_ asked: Int) async {
-        guard generation == asked else { return }
+        guard isCurrent(asked) else { return }
         let ready = await model.isReady
-        guard generation == asked else { return }
+        guard isCurrent(asked) else { return }
         isHeld = ready
         if ready { watchForIdle() }
     }

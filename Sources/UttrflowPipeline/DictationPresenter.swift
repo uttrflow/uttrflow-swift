@@ -68,20 +68,20 @@ public enum DictationPresenter {
         case .inserted(let outcome) where outcome.method == .clipboard && outcome.isFromRecording:
             DockPresentation(
                 symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",
-                secondaryLine: preview(of: outcome.text),
+                secondaryLine: outcome.wordsToKeep.map { preview(of: $0) },
                 showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel: "Copied to the clipboard. Press Command V to paste it. \(outcome.text)")
+                accessibilityLabel: "Copied to the clipboard. Press Command V to paste it. \(said(outcome))")
 
         case .inserted(let outcome) where outcome.method == .clipboard:
             // Nothing was typed, and saying "Inserted" here is what tells the user to press ⌘V.
             DockPresentation(
                 symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",
-                secondaryLine: preview(of: outcome.text),
+                secondaryLine: outcome.wordsToKeep.map { preview(of: $0) },
                 showsWaveform: false, showsProgress: false, isRecording: false,
                 action: .openSystemSettings(.accessibility),
                 accessibilityLabel:
                     "Copied to the clipboard, not typed. Press Command V to paste it. "
-                    + "Uttrflow needs Accessibility access to type for you. \(outcome.text)")
+                    + "Uttrflow needs Accessibility access to type for you. \(said(outcome))")
 
         case .inserted(let outcome) where outcome.arrival == .unconfirmed:
             // The instruction is worth more than the glance here, since the words are still recoverable.
@@ -91,14 +91,14 @@ public enum DictationPresenter {
                 showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
                 accessibilityLabel:
                     "Inserted, but not confirmed. The words are still on the clipboard, so press "
-                    + "Command V if they are missing. \(outcome.text)")
+                    + "Command V if they are missing. \(said(outcome))")
 
         case .inserted(let outcome):
             DockPresentation(
                 symbolName: "checkmark", primaryLine: "Inserted",
-                secondaryLine: preview(of: outcome.text),
+                secondaryLine: outcome.wordsToKeep.map { preview(of: $0) },
                 showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel: "Inserted: \(outcome.text)")
+                accessibilityLabel: "Inserted: \(said(outcome))")
 
         // Drawn wide with its words, not as the quiet disc the other informational notice gets.
         case .failed(let failure) where failure == .stillLoading:
@@ -113,7 +113,7 @@ public enum DictationPresenter {
                 symbolName: failure.severity == .informational
                     ? "waveform.slash" : "exclamationmark.triangle",
                 primaryLine: failure.message,
-                secondaryLine: failure.transcript.map { Self.preview(of: $0) },
+                secondaryLine: failure.wordsToKeep.map { Self.preview(of: $0) },
                 showsWaveform: false, showsProgress: false, isRecording: false,
                 action: failure.recovery,
                 accessibilityLabel: failure.message)
@@ -145,6 +145,11 @@ public enum DictationPresenter {
         case .recording, .transcribing, .tidying, .inserting, .inserted, .failed:
             return drawn
         }
+    }
+
+    /// The words read aloud with the notice, withheld when the field they went into is secure.
+    static func said(_ outcome: DictationOutcome) -> String {
+        outcome.wordsToKeep ?? "The words are hidden because the field is secure."
     }
 
     /// A glance at the text, since the floating button sits over the user's work.
