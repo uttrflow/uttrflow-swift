@@ -39,11 +39,7 @@ public struct SettingsSession: Sendable, Equatable {
         self.recorder = SettingsShortcutRecorder(binding: settings.hotkey)
     }
 
-    /// Replaces the authoritative settings while retaining the window's presentation state.
-    ///
-    /// Settings can also change through the menu bar or main window while this session remains
-    /// alive. The recorder is deliberately left alone while it is listening; an accepted or
-    /// cancelled recording will reconcile it through the normal session paths.
+    /// Takes a change made in the menu bar or main window, keeping the window's own state and a recording under way.
     public mutating func synchronize(settings: Settings) {
         self.settings = settings
         guard !recorder.isRecording else { return }
