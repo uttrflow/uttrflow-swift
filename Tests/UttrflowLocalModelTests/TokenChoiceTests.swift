@@ -65,13 +65,13 @@ struct TokenChoiceTests {
     func theTurnOpensBeforeTheChosenWord() throws {
         let open = try #require(Ask.one.opening(of: "cd Sou"))
         #expect(
-            MLXCandidateScorer.choice(of: ["Sources", "Scripts"], at: open)
-                == MLXCandidateScorer.Choice(written: "cd", choices: [" Sources", " Scripts"]))
+            CompletionText.choice(of: ["Sources", "Scripts"], at: open)
+                == CompletionText.Choice(written: "cd", choices: [" Sources", " Scripts"]))
         let finished = try #require(Ask.one.opening(of: "cd "))
         #expect(
-            MLXCandidateScorer.choice(of: ["Sources"], at: finished)
-                == MLXCandidateScorer.Choice(written: "cd", choices: [" Sources"]))
-        #expect(MLXCandidateScorer.choice(of: [], at: open) == nil)
+            CompletionText.choice(of: ["Sources"], at: finished)
+                == CompletionText.Choice(written: "cd", choices: [" Sources"]))
+        #expect(CompletionText.choice(of: [], at: open) == nil)
     }
 
     @Test("The prompt names the values the next word must be one of, and only when there are any.")

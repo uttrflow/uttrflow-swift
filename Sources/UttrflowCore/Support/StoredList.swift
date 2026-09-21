@@ -64,6 +64,39 @@ extension LocalStore {
         return names.contains { $0.hasPrefix(prefix) }
     }
 
+    /// Deletes every copy set aside from this name, or only those stamped before `cutoff` when one is given.
+    public static func removeSetAside(_ url: URL, stampedBefore cutoff: Date? = nil) throws {
+        let prefix = url.lastPathComponent + setAsideMarker
+        let folder = url.deletingLastPathComponent()
+        let doomed = try contents(of: folder).filter { name in
+            guard name.hasPrefix(prefix) else { return false }
+            guard let cutoff else { return true }
+            // A stamp that does not parse is kept, since its age cannot be known.
+            let stamp = name.dropFirst(prefix.count).split(separator: "-").first
+            guard let seconds = stamp.flatMap({ Int($0) }) else { return false }
+            return Date(timeIntervalSince1970: Double(seconds)) < cutoff
+        }
+        try removeEach(doomed.map { folder.appending(path: $0, directoryHint: .notDirectory) })
+    }
+
+    /// The names in a folder; a folder that is not there is empty, and one that cannot be listed throws.
+    public static func contents(of folder: URL) throws -> [String] {
+        do {
+            return try FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false))
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return []
+        }
+    }
+
+    /// Deletes every file it can, then throws the first refusal, so one stuck file cannot keep the rest.
+    public static func removeEach(_ files: [URL]) throws {
+        var refusal: (any Error)?
+        for file in files {
+            do { try FileManager.default.removeItem(at: file) } catch { refusal = refusal ?? error }
+        }
+        if let refusal { throw refusal }
+    }
+
     /// Renames an unreadable file to a timestamped name beside it, answering `nil` when it cannot be moved.
     static func setAside(_ url: URL, now: Date) -> URL? {
         let name = url.lastPathComponent

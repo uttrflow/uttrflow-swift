@@ -18,7 +18,7 @@ public enum RecoveryAction: Sendable, Equatable {
     case retry
     /// Offer the speech-model download.
     case downloadSpeechModel
-    /// The text is safe in the clipboard; the user can paste it themselves.
+    /// The text is safe in the clipboard for the user to paste with ⌘V; the button only dismisses the notice.
     case pasteManually
     /// The text never reached the clipboard but is listed under Recent, so the user is shown where it went.
     case showRecentDictations

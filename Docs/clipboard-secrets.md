@@ -11,16 +11,38 @@ calls.
    is one label away from being wrong about the one that matters.
 2. A JWT anywhere in the text: three base64url segments beginning `eyJ` (what `{"` encodes
    to). The signature may be empty, because an `alg: none` token is still a token.
-3. A connection string with a password: `scheme://user:pass@host`. The colon in the userinfo
-   is what keeps `https://example.com:8443/path` and `https://token@github.com/repo` out.
+3. A connection string with a password: `scheme://user:pass@host`, or `scheme://:pass@host` with
+   no user, the password-only form some caches use. The colon in the userinfo is what keeps
+   `https://example.com:8443/path` and `https://token@github.com/repo` out.
 4. Vendor prefixes with a minimum length each (OpenAI, Anthropic, Stripe, GitHub, GitLab,
    Slack, AWS, Google, npm, DigitalOcean, Shopify, SendGrid), so prose about `sk-` keys is not
    itself one.
 5. A named secret per line (`API_KEY=…`, `password: …`, `client_secret = …`) whose value is
    quoted, or has a digit, or is at least 12 characters, so `var password: String` does not
-   count.
+   count. The name may carry a prefix: a keyword starts at a word boundary, after `_`, or at a
+   lowercase-to-uppercase step, so `DB_PASSWORD`, `GITHUB_TOKEN`, `STRIPE_API_KEY` and
+   `dbPassword` are all names. `pass` is a keyword, for `SMTP_PASS`. The keyword's own end
+   still needs a word boundary, so `passwordless`, `tokenizer` and `token_count` are not names.
+   The cost, paid knowingly: `max_tokens: 4096` is masked, because a digit under a name that
+   ends in a keyword is exactly what a short password or PIN looks like.
+   A long bare value that only points at a secret is not one: an identifier path or an
+   empty call (`request.token`, `process.env.API_KEY;`, `getpass.getpass()`), made of letters,
+   `_` and `$` with no digit and no part of 32 or more hex letters, is code that loads a
+   credential rather than the credential. A quoted value or one with a digit still counts,
+   and so does a single long bare word, which is what a letters-only password looks like.
 6. A payment card number (below).
 7. The statistical rule below.
+
+## What the named-secret rule leaves alone
+
+A credential inside a one-line command is not a named secret: `curl -u user:pass https://…`,
+`mysql -u root -ppass` and `PGPASSWORD=pass psql -h …`. The rule needs the value to end its
+line, which is what keeps prose such as `password: now is the time` out, and in a command the
+value is followed by more of the command. `-u user:pass` has the same shape as `user:group` and
+`host:port`, `-p` is a port, a path or a profile flag in most other tools, and `PGPASSWORD`
+fuses the keyword into one uppercase word with no boundary before it. Catching any of these
+would mask ordinary commands far more often than it found a password, so they stay text or
+code; a long value is still caught by the statistical rule below.
 
 ## Reading in linear time
 
@@ -98,8 +120,15 @@ opens like a path is left to the general rules.
 Measured over three thousand random base64 strings at each length: a floor of 4.0 catches 96%
 of 24-character tokens and everything longer; 3.8 catches 99.8%. The difference is the
 shortest, unluckiest, most repetitive keys, and a key is no less live for a repeated character.
-The cost, paid knowingly: long identifiers with a digit score between 3.7 and 4.1, so
-`invoice_2024_q3_final_v2_signed` and a deep source path are masked.
+Long identifiers with a digit score between 3.7 and 4.1, because English spread over a few words
+does, so a run of words joined by `-`, `_` or `/` is exempt (#919): three or more pieces, each a
+word in one case (`paste`, `Screenshot`, `HDR`), optionally numbered (`v2`, `utf8`), or a number
+with at most a two-letter suffix (`2024`, `2nd`). That lets branch names
+(`fix/796-paste-confirmation-cancel`), slugs, dated file names and test names through. A random
+piece mixes case and digits, so across three thousand random base64 and base64url tokens at 24,
+32 and 40 characters none was exempted and the catch rate did not move. Still masked, paid
+knowingly: a long camelCase identifier with a digit, and a deep source path that does not open
+like one.
 
 ## Card numbers
 
