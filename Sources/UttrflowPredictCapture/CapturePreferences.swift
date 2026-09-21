@@ -91,9 +91,12 @@ public struct CapturePreferencesFile: Sendable {
         try JSONEncoder().encode(preferences).write(to: URL(fileURLWithPath: path), options: .atomic)
     }
 
-    /// Deletes the file, so every application is asked about again; nothing to delete is success.
+    /// Deletes every answer, so the applications the loop has met are forgotten with what it learned.
     public func remove() throws {
-        guard FileManager.default.fileExists(atPath: path) else { return }
-        try FileManager.default.removeItem(atPath: path)
+        do {
+            try FileManager.default.removeItem(atPath: path)
+        } catch CocoaError.fileNoSuchFile {
+            // Already gone, which is what removing it asks for.
+        }
     }
 }

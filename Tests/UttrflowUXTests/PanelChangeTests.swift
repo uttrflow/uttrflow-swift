@@ -223,3 +223,41 @@ struct PanelChangeEffectTests {
         #expect(PanelOutcome.change(.delete(id)).effect != .close)
     }
 }
+
+/// A sheet with nothing to type into keeps the list behind it still (#946).
+@Suite("Keys under a sheet with no field")
+struct PanelSheetWithoutFieldTests {
+    static let clips = PanelDeleteTests.every
+
+    static let sheets: [PanelSheet] = [
+        .confirmingDelete(PanelDeleteTests.pinned.id),
+        .deletingCategory("Work", keepingClips: true),
+        .formatting(PanelDeleteTests.ordinary.id, formatted: "x"),
+    ]
+
+    @Test("letters and arrows change neither the query nor the selection", arguments: sheets)
+    func keysAreHeld(sheet: PanelSheet) {
+        var panel = PanelFixture.panel(Self.clips)
+        panel.sheet = sheet
+        for key: PanelKey in [.search("yes"), .down, .up, .down] {
+            let response = panel.applying(key)
+            #expect(response.state == panel, "\(key)")
+            #expect(response.outcome == .open)
+        }
+    }
+
+    @Test("Return still confirms the delete under its unchanged query")
+    func returnStillConfirms() {
+        var panel = PanelFixture.panel(Self.clips)
+        panel.sheet = .confirmingDelete(PanelDeleteTests.pinned.id)
+        let response = panel.applying(.search("yes")).state.applying(.return)
+        #expect(response.outcome == .change(.delete(PanelDeleteTests.pinned.id)))
+        #expect(response.state.query == "")
+    }
+
+    @Test("only the sheets with a field take typing")
+    func typingSheetsAreUntouched() {
+        #expect(PanelSheet.aliasing(PanelDeleteTests.pinned.id, draft: "").takesTyping)
+        #expect(!PanelSheet.confirmingDelete(PanelDeleteTests.pinned.id).takesTyping)
+    }
+}

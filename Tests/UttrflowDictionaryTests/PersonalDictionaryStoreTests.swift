@@ -34,7 +34,8 @@ struct PersonalDictionaryStoreTests {
 
     @Test("answers with the dictionary as it now stands, so nothing has to be re-read")
     func writesAnswerWithTheList() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         #expect(try await store.add(word("Uttrflow", from: .added)).map(\.word) == ["Uttrflow"])
         #expect(try await store.add(word("kubectl", from: .added)).count == 2)
     }
@@ -71,7 +72,8 @@ struct PersonalDictionaryStoreTests {
     /// The caller asked for it to be gone, and it is.
     @Test("treats forgetting a word it never knew as success")
     func removeUnknown() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word("Uttrflow", from: .added))
         #expect(try await store.remove(UUID()).count == 1)
     }
@@ -117,7 +119,8 @@ struct PersonalDictionaryStoreTests {
 
     @Test("keeps a typed word as one the user added themselves")
     func addingByHand() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word: "Uttrflow", pronunciation: "utter-flow", at: epoch)
 
         let kept = try #require(await store.allEntries().first)
@@ -129,7 +132,8 @@ struct PersonalDictionaryStoreTests {
 
     @Test("trims what was typed, because surrounding space is not part of the word")
     func addingTrims() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word: "  Uttrflow\n", pronunciation: " utter-flow ", at: epoch)
         #expect(await store.allEntries().first?.word == "Uttrflow")
         #expect(await store.allEntries().first?.pronunciation == "utter-flow")
@@ -138,7 +142,8 @@ struct PersonalDictionaryStoreTests {
     /// A blank pronunciation is stored as absent, or the word would be indexed under no sound at all.
     @Test("a blank pronunciation is stored as absent, not as an empty string")
     func addingWithoutAPronunciation() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word: "Uttrflow", pronunciation: "   ", at: epoch)
 
         let kept = try #require(await store.allEntries().first)
@@ -150,7 +155,8 @@ struct PersonalDictionaryStoreTests {
     /// The page's list can go stale while the editor is open, and replacing would reset what is known.
     @Test("refuses a word the dictionary already holds rather than replacing it")
     func addingADuplicate() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let learnt = word("pgvector", from: .observed, used: 6)
         try await store.add(learnt)
 
@@ -164,7 +170,8 @@ struct PersonalDictionaryStoreTests {
 
     @Test("refuses a word with no spelling, and writes nothing")
     func addingNothing() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         await #expect(throws: DictionaryStoreError.wordIsEmpty) {
             try await store.add(word: " \n ", pronunciation: "utter-flow", at: epoch)
         }
@@ -175,7 +182,8 @@ struct PersonalDictionaryStoreTests {
 
     @Test("counts the dictations an entry was applied to, and the ones the user undid")
     func counters() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let entry = word("Claude", from: .added)
         try await store.add(entry)
 
@@ -232,7 +240,8 @@ struct PersonalDictionaryStoreTests {
     /// The caller holds a list that has drifted from the disk, and is told so.
     @Test("says nothing was counted when the word is not there")
     func countingAnUnknownWord() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         #expect(try await store.recordUse(of: UUID()) == nil)
         #expect(try await store.recordRevert(of: UUID()) == nil)
     }
@@ -240,7 +249,8 @@ struct PersonalDictionaryStoreTests {
     /// Retirement is visible to whoever caused it, not inferred from a lookup that went quiet.
     @Test("shows an entry retiring itself at the moment it happens")
     func retirementIsVisible() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let entry = word("Wrong", from: .learned, used: 3, reverted: 1)
         try await store.add(entry)
         #expect(try await store.recordRevert(of: entry.id)?.isTrustworthy == false)
@@ -252,7 +262,8 @@ struct PersonalDictionaryStoreTests {
     /// Restore gives a clean slate, so one further mistake does not retire the word again.
     @Test("gives a retired word a clean slate rather than one undo below the line")
     func restoring() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let entry = word("Wrong", from: .learned, used: 4, reverted: 3)
         try await store.add(entry)
         #expect(await store.allEntries().first?.isTrustworthy == false)
@@ -269,7 +280,8 @@ struct PersonalDictionaryStoreTests {
     /// The use count is a fact the user has not disputed, and carries the three-use grace period.
     @Test("restoring keeps the use count")
     func restoringKeepsUses() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let entry = word("Wrong", from: .learned, used: 4, reverted: 3)
         try await store.add(entry)
         #expect(try await store.restore(entry.id)?.timesUsed == 4)
@@ -277,7 +289,8 @@ struct PersonalDictionaryStoreTests {
 
     @Test("says nothing was restored when the word is not there")
     func restoringAnUnknownWord() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         #expect(try await store.restore(UUID()) == nil)
     }
 
@@ -285,7 +298,8 @@ struct PersonalDictionaryStoreTests {
 
     @Test("hands out an index of everything it holds")
     func index() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word("Claude", from: .added))
         #expect(await store.index().candidates(soundingLike: "clawed").map(\.word) == ["Claude"])
     }
@@ -293,7 +307,8 @@ struct PersonalDictionaryStoreTests {
     /// The index is built once and kept, but a write must throw it away.
     @Test("rebuilds the index after a write and not before one")
     func indexIsCachedUntilSomethingChanges() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word("Claude", from: .added))
         let first = await store.index()
         #expect(await store.index() == first)
@@ -303,11 +318,48 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.index().candidates(soundingLike: "utterflow").count == 1)
     }
 
+    // MARK: Temporary folders
+
+    @Test("a test's sandbox folder is gone once the test that wrote into it returns")
+    func sandboxIsRemovedAfterWriting() async throws {
+        let root = try await writeOneWord()
+        #expect(!FileManager.default.fileExists(atPath: root.path))
+    }
+
+    /// Writes through a store in a sandbox bound to a name, answering where that sandbox was.
+    private func writeOneWord() async throws -> URL {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        try await store.add(word("Uttrflow", from: .added))
+        #expect(FileManager.default.fileExists(atPath: sandbox.file.path))
+        return sandbox.root
+    }
+
+    /// A sandbox made and read in one expression is destroyed before the store writes, leaving its folder behind.
+    @Test("no test hands a store a sandbox it does not keep")
+    func everySandboxIsKept() throws {
+        let tests = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let unkept = "Sandbox" + "()."
+        var found: [String] = []
+        let files = FileManager.default.enumerator(at: tests, includingPropertiesForKeys: nil)
+        while let url = files?.nextObject() as? URL {
+            guard url.pathExtension == "swift",
+                let text = try? String(contentsOf: url, encoding: .utf8),
+                text.contains(unkept)
+            else { continue }
+            found.append(url.lastPathComponent)
+        }
+        #expect(found.isEmpty, "a temporary sandbox is read in place in \(found)")
+    }
+
     // MARK: A file nobody should lose the app to
 
     @Test("opens with an empty dictionary when there is no file at all")
     func missingFile() async {
-        #expect(await PersonalDictionaryStore(file: Sandbox().file).allEntries().isEmpty)
+        let sandbox = Sandbox()
+        #expect(await PersonalDictionaryStore(file: sandbox.file).allEntries().isEmpty)
     }
 
     /// Absent, truncated or hand-edited all mean the same thing to a user: the app should open.
@@ -359,7 +411,8 @@ struct PersonalDictionaryStoreTests {
     /// A reset with nothing to reset is success; there is no file to refuse to delete.
     @Test("treats clearing an empty dictionary as done")
     func clearingNothing() async throws {
-        try await PersonalDictionaryStore(file: Sandbox().file).removeEverything()
+        let sandbox = Sandbox()
+        try await PersonalDictionaryStore(file: sandbox.file).removeEverything()
     }
 }
 

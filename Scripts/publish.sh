@@ -157,10 +157,10 @@ hdiutil detach "$MOUNTED" -quiet; MOUNTED=""
 SIZE="$(stat -f%z "$IMAGE")"
 
 # The archive's own signature and length, which is what an appcast enclosure carries.
-# Signed with the EdDSA key in this Mac's login keychain — see Docs/releasing.md ("Updating"). This
-# signature, and not the code signature, is what an updating app checks: it is why an
-# ad-hoc build can update itself safely, and it is the whole of this feature's security
-# until there is a Developer ID.
+# Signed with the EdDSA key in this Mac's login keychain — see Docs/releasing.md ("Updating"). An
+# installed copy checks the archive against this signature before unpacking it, because the
+# app sets SUVerifyUpdateBeforeExtraction; without that setting an ad-hoc build would also
+# weigh the code signature, which for an ad-hoc build is not a stable identity.
 # The key comes from the login keychain when a person is running this, and from the
 # environment when a workflow is. Both reach the same `sign_update`; only where the key is
 # read from differs.

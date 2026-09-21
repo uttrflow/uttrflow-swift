@@ -19,7 +19,9 @@ struct Fixture {
         self.name = name
         self.situation = situation
         self.typed = typed
-        self.expectation = expectation
+        // An address or a search is never guessed by the model, so silence is the right answer there.
+        let refused = Register.infer(from: situation, typed: typed).answersFromHistoryAlone
+        self.expectation = refused ? expectation.refused : expectation
         self.machine = machine
     }
 
@@ -34,6 +36,9 @@ struct Fixture {
 
     /// Whether any of the completions continues the line the way the fixture expects.
     func hits(_ completions: [String]) -> Bool { expectation.hits(completions, typed: typed) }
+
+    /// Whether a hit here is checked against a named answer rather than taken on any continuation.
+    var isJudged: Bool { expectation.isJudged }
 
     /// Whether the first completion keeps to the register: the expected length, and none of the context echoed.
     func conforms(_ completions: [String]) -> Bool { expectation.conforms(completions, typed: typed) }

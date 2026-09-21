@@ -86,10 +86,9 @@ public actor PersonalDictionaryStore {
         let existing = load()
         let known = Set(existing.map { $0.word.lowercased() })
         let seeded = ShippedWords.entries(at: moment).filter { !known.contains($0.word.lowercased()) }
-        // Recorded before the entries are written, so a failed write cannot seed twice on the next launch.
+        // Recorded only once the words are on disk, so a failed write is retried; a retry skips any word already there.
+        if !seeded.isEmpty { try persist(existing + seeded) }
         try recordSeeded()
-        guard !seeded.isEmpty else { return [] }
-        try persist(existing + seeded)
         return seeded
     }
 

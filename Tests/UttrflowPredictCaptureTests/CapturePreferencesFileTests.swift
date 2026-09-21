@@ -50,6 +50,19 @@ struct CapturePreferencesFileTests {
         try file.save(preferences)
         #expect(file.load() == preferences)
     }
+
+    @Test("Removing the file forgets every answer, and removing it again is not an error.")
+    func removedPreferencesAreGone() throws {
+        let scratch = Scratch()
+        let file = CapturePreferencesFile(path: scratch.preferencesPath)
+        var preferences = CapturePreferences()
+        preferences.record(.declined, for: "com.example.terminal")
+        try file.save(preferences)
+        try file.remove()
+        #expect(!FileManager.default.fileExists(atPath: scratch.preferencesPath))
+        #expect(file.load() == CapturePreferences())
+        try file.remove()
+    }
 }
 
 @Suite("Where the answers about each application live")

@@ -92,15 +92,42 @@ public actor WhisperKitBackend: TranscriptionBackend {
             let biased = Self.rawTranscript(
                 from: try await kit.transcribe(
                     samples, languageHint: languageHint, biasedTowards: vocabulary))
-            guard !vocabulary.isEmpty, biased.text.isEmpty else { return biased }
+            guard !vocabulary.isEmpty, biased.text.isEmpty else {
+                Self.report(biased.effort)
+                return biased
+            }
 
             // The net: a prompt that decodes to nothing costs a second decode, never the words.
-            return Self.rawTranscript(
+            let retried = Self.rawTranscript(
                 from: try await kit.transcribe(
                     samples, languageHint: languageHint, biasedTowards: []))
+            let effort = biased.effort.addingRetry(retried.effort)
+            Self.report(effort)
+            return RawTranscript(
+                text: retried.text, languageIdentifier: retried.languageIdentifier,
+                languageProbability: retried.languageProbability, segments: retried.segments,
+                effort: effort)
         } catch {
             throw .transcriptionFailed(description: error.localizedDescription)
         }
+    }
+
+    /// Says in the log what a piece cost beyond one decode, so a slow dictation can name its cause.
+    private static func report(_ effort: DecodeEffort) {
+        guard !effort.isPlain else { return }
+        // Counted, not named: the log audit reads a name holding "prompt" as text somebody typed.
+        let retried = effort.retriedWithoutPrompt ? 1 : 0
+        log.info(
+            "decoded piece: fallbacks=\(effort.fallbacks, privacy: .public) fallbackSeconds=\(effort.fallbackSeconds, format: .fixed(precision: 2), privacy: .public) encoderRuns=\(effort.encoderRuns, privacy: .public) retried=\(retried, privacy: .public)"
+        )
+    }
+
+    /// What WhisperKit's own timings say this piece cost beyond one decode.
+    private static func effort(of results: [TranscriptionResult]) -> DecodeEffort {
+        DecodeEffort(
+            fallbacks: results.reduce(0) { $0 + Int($1.timings.totalDecodingFallbacks) },
+            fallbackSeconds: results.reduce(0) { $0 + $1.timings.decodingFallback },
+            encoderRuns: results.reduce(0) { $0 + Int($1.timings.totalEncodingRuns) })
     }
 
     /// Flattens WhisperKit's per-window results into one transcript.
@@ -120,7 +147,8 @@ public actor WhisperKitBackend: TranscriptionBackend {
                                 probability: Double($0.probability))
                         }
                     })
-            }
+            },
+            effort: effort(of: results)
         )
     }
 }
