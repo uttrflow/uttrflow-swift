@@ -52,10 +52,13 @@ final class SettingsViewModel {
         onShortcutRecording(true)
     }
 
-    /// Stops listening and brings the live shortcut back; called from Cancel and from a successful recording.
+    /// Stops listening and brings the live shortcut back; called from Cancel and navigation cleanup.
     func cancelRecordingShortcut() {
+        let wasRecording = session.recorder.isRecording
         session.cancelRecordingShortcut()
-        onShortcutRecording(false)
+        if wasRecording {
+            onShortcutRecording(false)
+        }
     }
 
     /// Applies an authoritative change made outside the Settings window without replacing its UI state.

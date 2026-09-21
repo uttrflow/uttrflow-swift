@@ -12,6 +12,8 @@ public struct AppContext: Sendable, Equatable, Codable {
     public let precedingText: String?
     /// Up to ``InsertionPoint/followingLimit`` characters after the selection; `nil` when the field will not say.
     public let followingText: String?
+    /// Whether the focused field hides what is typed, so none of its text is carried and nothing is kept.
+    public let isSecure: Bool
 
     /// A context; anything not supplied is unknown.
     public init(
@@ -20,7 +22,8 @@ public struct AppContext: Sendable, Equatable, Codable {
         documentName: String? = nil,
         selectedText: String? = nil,
         precedingText: String? = nil,
-        followingText: String? = nil
+        followingText: String? = nil,
+        isSecure: Bool = false
     ) {
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
@@ -28,6 +31,25 @@ public struct AppContext: Sendable, Equatable, Codable {
         self.selectedText = selectedText
         self.precedingText = precedingText
         self.followingText = followingText
+        self.isSecure = isSecure
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case applicationName, bundleIdentifier, documentName, selectedText, precedingText
+        case followingText, isSecure
+    }
+
+    /// Reads a context written before ``isSecure`` existed as one that is not secure.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            applicationName: try container.decodeIfPresent(String.self, forKey: .applicationName),
+            bundleIdentifier: try container.decodeIfPresent(String.self, forKey: .bundleIdentifier),
+            documentName: try container.decodeIfPresent(String.self, forKey: .documentName),
+            selectedText: try container.decodeIfPresent(String.self, forKey: .selectedText),
+            precedingText: try container.decodeIfPresent(String.self, forKey: .precedingText),
+            followingText: try container.decodeIfPresent(String.self, forKey: .followingText),
+            isSecure: try container.decodeIfPresent(Bool.self, forKey: .isSecure) ?? false)
     }
 
     /// The context available when macOS tells us nothing.

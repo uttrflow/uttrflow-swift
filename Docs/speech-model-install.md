@@ -61,6 +61,20 @@ ever mistaken for a model.
 
 `remove(_:)` discards staging along with the model.
 
+## Checking the disk before downloading
+
+The default model is about 650 MB, and a disk too full to hold it would otherwise fail partway
+through and be reported as a connection problem the user cannot fix by retrying.
+
+- Before fetching the weights, the store reads `volumeAvailableCapacityForImportantUsageKey` for
+  the volume under its root and refuses with `SpeechEngineError.notEnoughSpace` when that is less
+  than the rest of the download plus a 200 MB margin. Bytes already staged by an earlier attempt
+  count towards the download, so a resume asks only for what is left.
+- A volume that cannot report its capacity is not refused; the download is tried.
+- A download, move or tokenizer fetch that fails with `NSFileWriteOutOfSpaceError` or `ENOSPC`,
+  directly or as an underlying error, raises the same failure. Its message names the space needed
+  rather than asking the user to check their connection; every other failure keeps that wording.
+
 ## Hoisting the download out of its wrapper
 
 Model repositories nest their output — WhisperKit's lands in

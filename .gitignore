@@ -26,8 +26,8 @@ default.profraw
 # Scratch git worktrees used by parallel agents; never part of the project.
 .claude/worktrees/
 
-# Python bytecode from the design generators.
-Design/__pycache__/
+# Python bytecode, written wherever a script runs.
+__pycache__/
 
 # Sign-in provider marks. Third-party trademarks, fetched from each provider's own
 # published pack by Scripts/fetch-provider-marks.sh rather than redistributed here.

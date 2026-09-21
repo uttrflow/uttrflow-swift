@@ -197,6 +197,10 @@ public struct SuggestionSession: Sendable, Equatable {
         guard context.typed.count <= Self.maximumTypedLength else {
             return settled(because: .lineTooLong, rejected: rejected)
         }
+        // A line in another script is one a suggestion may neither continue in that script nor glue Latin onto.
+        guard LatinScript.writes(context.typed) else {
+            return settled(because: .nonLatinLine, rejected: rejected)
+        }
 
         let query = SuggestionQuery(surface: surface, typed: context.typed, generation: generation)
         return SuggestionTurn(step: .query(query), rejected: rejected)
@@ -220,8 +224,8 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return .settled(settle(.silent, silence: .overBudget))
         }
-        // A candidate the user has already finished typing adds nothing, and drawing it doubles the line.
-        let offerable = candidates.filter { $0.text != pending.typed }
+        // A candidate the user has already finished typing adds nothing, and one in another script is never written.
+        let offerable = candidates.filter { $0.text != pending.typed && LatinScript.writes($0.text) }
         let decided = PredictionEngine.decision(from: offerable, in: pending, now: now)
         // A turn with nothing on offer has nothing to be wrong about, so the gates are never troubled.
         guard decided.suggestion.accepting != nil else {
@@ -245,7 +249,8 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }
-        let decided = PredictionEngine.decision(from: verified, in: pending, now: now)
+        let decided = PredictionEngine.decision(
+            from: verified.filter { LatinScript.writes($0.text) }, in: pending, now: now)
         return settle(decided.suggestion, silence: decided.silence)
     }
 
@@ -290,12 +295,13 @@ public struct SuggestionSession: Sendable, Equatable {
         return update
     }
 
-    /// The model's lines that can be drawn over what is typed: each extending it, none repeated in any case, in the model's order.
+    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, in the model's order.
     private static func drawable(_ lines: [String], past typed: String) -> [String] {
         var seen: Set<String> = []
         let lowered = typed.lowercased()
         return lines.filter {
-            $0 != typed && $0.lowercased().hasPrefix(lowered) && seen.insert($0.lowercased()).inserted
+            $0 != typed && $0.lowercased().hasPrefix(lowered) && LatinScript.writes($0)
+                && seen.insert($0.lowercased()).inserted
         }
     }
 
@@ -387,16 +393,16 @@ public struct SuggestionSession: Sendable, Equatable {
             isComposing: moment.isComposing, isSecure: moment.isSecure, isProse: moment.isProse,
             millisecondsSinceKeystroke: moment.millisecondsSinceKeystroke,
             isEnabledHere: isEnabled && !isSilencedHere, isMinimised: isMinimised,
-            rejectionsThisSession: rejectionsHere, canDraw: moment.canDraw)
+            rejectionsThisSession: rejectionsHere, canDraw: moment.canDraw, markedText: moment.markedText)
     }
 
     /// Records what is now on screen and reports it with the keys it claims and, when nothing is offered, why.
     private mutating func settle(_ shown: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
         // What is drawn now carries the count its own turn's read saw, and nothing drawn earlier does.
         drawnAtKeystroke = pendingKeystroke
-        // The same line drawn again keeps the list behind it, so a tick that re-reads the corpus never disarms Down.
+        // The model's list outlives a corpus redraw of its line; a list the gates chose is replaced by their latest answer.
         if case .certain(let leader) = shown, case .choice(let current, let others) = suggestion,
-            current == leader
+            current == leader, shownIsGenerated, !isQuiet
         {
             let still = Array(Self.drawable([leader] + others, past: typed).dropFirst())
             if !still.isEmpty {

@@ -59,6 +59,11 @@ enum PromptBuilder {
     /// What a heading and the blank lines around it add to a part of the context, in tokens.
     static let headingCost = 16
 
+    /// What the model is told when the context holds another script: the line is written in English, or romanised Hinglish, in the Latin alphabet. See `Docs/predict.md`.
+    static let scriptInstruction =
+        "Write only English in the Latin alphabet, or romanised Hinglish where the person writes Hindi in Latin "
+        + "letters. Never write Devanagari or any other script, and never translate."
+
     /// The whole message: where the caret is, the register, what is around it, how this person writes here, the line.
     static func message(
         typed: String, in situation: GenerationSituation, register: Register, asking ask: Ask = .one
@@ -72,6 +77,8 @@ enum PromptBuilder {
             located += ", document \(Self.head(document, within: locatorCap))"
         }
         var opening = "In \(located).\nHints: \(register.hints.joined(separator: "; "))."
+        // Adds the script instruction only when the context shows another script. See `Docs/predict.md`.
+        if !situation.readsOnlyLatin { opening += "\n\(scriptInstruction)" }
         // The machine's own values are the only right next words, so the model is told them and chooses rather than invents.
         if ask == .one, !situation.choices.isEmpty {
             opening +=

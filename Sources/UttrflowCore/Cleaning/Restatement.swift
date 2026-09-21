@@ -16,9 +16,16 @@ public enum Restatement {
     ]
 
     /// Words a restated phrase may not anchor on, because a fresh clause starts with them far more often.
-    public static let weakAnchors: Set<String> = [
+    public static let weakAnchors = Set([
         "i", "i'm", "i'll", "i've", "i'd", "we", "you", "he", "she", "they", "it", "it's", "that",
         "this", "there", "yes", "yeah", "ok", "okay", "oh", "well",
+    ]).union(hindiSubjects)
+
+    /// Hindi pronouns and subject words, romanised and in Devanagari, which start a fresh clause as English ones do.
+    static let hindiSubjects: Set<String> = [
+        "main", "mai", "maine", "mujhe", "hum", "humne", "tum", "aap", "wo", "woh", "ye", "yeh",
+        "mera", "meri", "mere", "मैं", "मैंने", "मुझे", "हम", "तुम", "आप", "वो", "वह", "ये", "यह",
+        "मेरा", "मेरी", "मेरे",
     ]
 
     /// How many words at `position` are trigger phrases run together, such as "no wait".
@@ -42,9 +49,12 @@ public enum Restatement {
     ) -> Int? {
         let earliest = max(0, trigger - reach)
         let firstAfter = draft.shape(at: live[restart]).key
-        if NumberWords.isNumber(firstAfter), NumberWords.isNumber(draft.shape(at: live[trigger - 1]).key) {
-            guard !endsSentence(trigger - 1, in: live, of: draft) else { return nil }
-            var start = trigger - 1
+        let through = standsAlone(trigger, before: restart, in: live, of: draft)
+        if NumberWords.isNumber(firstAfter),
+            let end = numberEnd(before: trigger, after: restart, in: live, of: draft)
+        {
+            guard through || !endsSentence(trigger - 1, in: live, of: draft) else { return nil }
+            var start = end
             while start > earliest, NumberWords.isNumber(draft.shape(at: live[start - 1]).key),
                 !endsSentence(start - 1, in: live, of: draft)
             {
@@ -61,9 +71,50 @@ public enum Restatement {
                 else { return nil }
                 return candidate
             }
-            if endsSentence(candidate, in: live, of: draft) { return nil }
+            if endsSentence(candidate, in: live, of: draft), !(through && candidate == trigger - 1) {
+                return nil
+            }
         }
         return nil
+    }
+
+    /// Whether the trigger is a sentence of its own after a full stop ("Tuesday. Scratch that. Wednesday"), which is a pause rather than two sentences.
+    public static func standsAlone(
+        _ trigger: Int, before restart: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard trigger > 0, restart > trigger, restart <= live.count else { return false }
+        let phrase = (trigger..<restart).map { draft.shape(at: live[$0]) }
+        // A bare "No." is an answer far more often than a correction.
+        guard phrase.map(\.key) != ["no"] else { return false }
+        return closesWithAStop(trigger - 1, in: live, of: draft)
+            && closesWithAStop(restart - 1, in: live, of: draft)
+            && phrase.allSatisfy { !$0.suffix.contains(where: { "?!".contains($0) }) }
+    }
+
+    /// Whether the word ends its sentence with a full stop, rather than a question or an exclamation.
+    private static func closesWithAStop(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
+        let suffix = draft.shape(at: live[position]).suffix
+        return suffix.contains(".") && !suffix.contains(where: { "?!".contains($0) })
+    }
+
+    /// The last word of the number taken back, stepping over a unit the restatement repeats ("twelve boxes i mean fifteen boxes").
+    private static func numberEnd(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
+    ) -> Int? {
+        let unit = trigger - 1
+        let unitKey = draft.shape(at: live[unit]).key
+        if NumberWords.isNumber(unitKey) { return unit }
+        guard unit > 0, NumberWords.isNumber(draft.shape(at: live[unit - 1]).key),
+            !endsSentence(unit - 1, in: live, of: draft)
+        else { return nil }
+        var next = restart
+        while next < live.count, NumberWords.isNumber(draft.shape(at: live[next]).key) {
+            // A unit past a stop belongs to the next sentence, not to this restatement.
+            guard !endsSentence(next, in: live, of: draft) else { return nil }
+            next += 1
+        }
+        guard next < live.count, draft.shape(at: live[next]).key == unitKey else { return nil }
+        return unit - 1
     }
 
     /// Whether the word at `position` closes a sentence, which no anchor may reach past to take words out of the sentence before.

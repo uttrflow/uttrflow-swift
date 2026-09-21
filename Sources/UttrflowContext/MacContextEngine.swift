@@ -29,15 +29,18 @@ public struct FocusedWindow: Sendable, Equatable {
     public let precedingText: String?
     /// Text after the selection, already cut to ``InsertionPoint/followingLimit``; `nil` when the field will not say.
     public let followingText: String?
+    /// Whether the focused field hides what is typed, judged before its value is read.
+    public let isSecure: Bool
 
     public init(
         title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
-        followingText: String? = nil
+        followingText: String? = nil, isSecure: Bool = false
     ) {
         self.title = title
         self.selectedText = selectedText
         self.precedingText = precedingText
         self.followingText = followingText
+        self.isSecure = isSecure
     }
 }
 
@@ -94,6 +97,13 @@ public final class MacContextEngine: ContextEngine, Sendable {
         }
 
         let gathered = reading.value
+        // A secure field's text is dropped here too, so no reader can carry it into a prompt.
+        if gathered.window?.isSecure == true {
+            return AppContext(
+                applicationName: Self.meaningful(gathered.application?.name),
+                bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
+                documentName: Self.meaningful(gathered.window?.title), isSecure: true)
+        }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
             bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),

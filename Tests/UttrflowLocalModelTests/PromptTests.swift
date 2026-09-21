@@ -164,9 +164,9 @@ struct PromptTests {
             Ask.one.opening(of: "stackover")
                 == Ask.Opening(written: "", owed: "stackover", isWordComplete: false))
         #expect(
-            MLXCandidateScorer.wholeWords(of: " members (id, name) VALUES (1, 'Ali")
+            CompletionText.wholeWords(of: " members (id, name) VALUES (1, 'Ali")
                 == " members (id, name) VALUES (1,")
-        #expect(MLXCandidateScorer.wholeWords(of: "figma.com/file/jW66") == "")
+        #expect(CompletionText.wholeWords(of: "figma.com/file/jW66") == "")
         #expect(
             Ask.one.opening(of: "happy birthday 🎂  ")
                 == Ask.Opening(written: "happy birthday", owed: " 🎂", isWordComplete: true))
@@ -183,9 +183,9 @@ struct PromptTests {
         "A pass budgets the echo of the line for every answer on top of the completion, which alone is capped."
     )
     func theBudgetPaysForTheEcho() {
-        #expect(MLXCandidateScorer.tokenBudget(perLine: 24, lines: 1, echo: 10, cap: 128) == 34)
-        #expect(MLXCandidateScorer.tokenBudget(perLine: 60, lines: 3, echo: 5, cap: 128) == 143)
-        #expect(MLXCandidateScorer.tokenBudget(perLine: 96, lines: 1, echo: 0, cap: 128) == 96)
+        #expect(CompletionText.tokenBudget(perLine: 24, lines: 1, echo: 10, cap: 128) == 34)
+        #expect(CompletionText.tokenBudget(perLine: 60, lines: 3, echo: 5, cap: 128) == 143)
+        #expect(CompletionText.tokenBudget(perLine: 96, lines: 1, echo: 0, cap: 128) == 96)
     }
 
     @Test(
@@ -233,5 +233,29 @@ struct PromptTests {
         #expect(!prompt.contains(String(repeating: "t", count: PromptBuilder.locatorCap + 1)))
         #expect(prompt.contains("Lines this person wrote here before:\non my way\nrunning late, sorry"))
         #expect(prompt.contains("On screen around the field:\nSearch or enter website name"))
+    }
+
+    @Test("The person's earlier lines in another script are not shown to the model.")
+    func nonLatinRecentLinesAreNotShown() {
+        let situation = GenerationSituation(application: "Chat", recentLines: ["haan bilkul", "नहीं जाना"])
+        let prompt = message("kal ", situation)
+        #expect(prompt.contains("Lines this person wrote here before:\nhaan bilkul"))
+        #expect(!prompt.contains("नहीं"))
+    }
+
+    @Test(
+        "Another script in the context tells the model to write English or romanised Hinglish in the Latin alphabet."
+    )
+    func nonLatinContextNamesTheScript() {
+        let thread = GenerationSituation(application: "Chat", surroundings: "Rahul: कल मिलते हैं?")
+        #expect(message("haan ", thread).contains("\n" + PromptBuilder.scriptInstruction + "\n"))
+        #expect(PromptBuilder.scriptInstruction.contains("Write only English in the Latin alphabet"))
+        #expect(PromptBuilder.scriptInstruction.contains("romanised Hinglish"))
+        let titled = GenerationSituation(application: "Chat", windowTitle: "राहुल")
+        #expect(message("haan ", titled).contains(PromptBuilder.scriptInstruction))
+        let latin = GenerationSituation(
+            application: "Chat", field: "Message", preceding: "café", windowTitle: "Rahul",
+            surroundings: "Rahul: kal milte hain? 👍🏽", recentLines: ["haan bilkul"])
+        #expect(!message("haan ", latin).contains(PromptBuilder.scriptInstruction))
     }
 }
