@@ -98,7 +98,8 @@ public actor PredictStore: PredictionStore {
         var newest: [String: (used: Double, isHere: Bool)] = [:]
         var order: [String] = []
         for id in ids {
-            for line in try recentLines(surfaceIdentifier: id, limit: limit) where !retired.contains(line.text) {
+            let lines = try recentLines(surfaceIdentifier: id, limit: limit)
+            for line in lines where !retired.contains(line.text) {
                 let isHere = id == here
                 guard let seen = newest[line.text] else {
                     newest[line.text] = (line.used, isHere)
