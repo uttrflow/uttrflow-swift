@@ -8,6 +8,8 @@ public struct PredictionContext: Sendable, Equatable {
     public let hasSelection: Bool
     /// Whether an input method is mid-composition, which owns both the screen and the Tab key.
     public let isComposing: Bool
+    /// What the field itself says about marked text, which alone is definite enough to stay quiet on.
+    public let markedText: MarkedText
     /// Whether the field hides what is typed into it.
     public let isSecure: Bool
     /// Whether the field holds prose rather than a command or an address.
@@ -28,12 +30,14 @@ public struct PredictionContext: Sendable, Equatable {
         typed: String, caretAtLineEnd: Bool = true, hasSelection: Bool = false,
         isComposing: Bool = false, isSecure: Bool = false, isProse: Bool = false,
         millisecondsSinceKeystroke: Int = 1_000, isEnabledHere: Bool = true,
-        isMinimised: Bool = false, rejectionsThisSession: Int = 0, canDraw: Bool = true
+        isMinimised: Bool = false, rejectionsThisSession: Int = 0, canDraw: Bool = true,
+        markedText: MarkedText = .unanswered
     ) {
         self.typed = typed
         self.caretAtLineEnd = caretAtLineEnd
         self.hasSelection = hasSelection
         self.isComposing = isComposing
+        self.markedText = markedText
         self.isSecure = isSecure
         self.isProse = isProse
         self.millisecondsSinceKeystroke = millisecondsSinceKeystroke

@@ -41,17 +41,21 @@ public struct RawTranscript: Sendable, Equatable {
     /// The recogniser's own probability for that language, where it reports one.
     public let languageProbability: Double?
     public let segments: [RawSegment]
+    /// What the recogniser spent beyond one decode, where it reports it.
+    public let effort: DecodeEffort
 
     public init(
         text: String,
         languageIdentifier: String? = nil,
         languageProbability: Double? = nil,
-        segments: [RawSegment] = []
+        segments: [RawSegment] = [],
+        effort: DecodeEffort = .none
     ) {
         self.text = text
         self.languageIdentifier = languageIdentifier
         self.languageProbability = languageProbability
         self.segments = segments
+        self.effort = effort
     }
 }
 

@@ -305,6 +305,26 @@ struct SurroundingsTests {
         #expect(Surroundings.trimmed(" \u{200E}hello ") == "hello")
     }
 
+    @Test(
+        "A line break or tab between two words still parts them in what is read.",
+        arguments: ["\n", "\r\n", "\r", "\t", "\n\n", "\t\u{200E}\n"])
+    func separatorsKeepWordsApart(separator: String) {
+        let focused = Node(id: 1, role: "AXTextArea", text: "Reply")
+        let message = Node(id: 2, role: "AXTextArea", text: "Please review" + separator + "the report")
+        let window = Node(id: 0, role: "AXWindow", children: [message, focused])
+        let read = Surroundings.collect(
+            around: focused, in: FakeTree(root: window), windowTitle: nil, deadline: unhurried)
+        #expect(read.text?.split(whereSeparator: \.isWhitespace) == ["Please", "review", "the", "report"])
+    }
+
+    @Test("A run of line breaks and tabs is one space, and a mark inside a word still joins it.")
+    func separatorsBecomeOneSpace() {
+        #expect(Surroundings.cleaned("one\r\ntwo\tthree") == "one two three")
+        #expect(Surroundings.cleaned("a\n\u{200F}\t\nb") == "a b")
+        #expect(Surroundings.cleaned("Whats\u{0E}App\u{0007}") == "WhatsApp")
+        #expect(Surroundings.trimmed("\n\tHi there\r\n") == "Hi there")
+    }
+
     @Test("An element with no parent at all has no surroundings.")
     func anOrphanHasNoSurroundings() {
         let read = Surroundings.collect(around: compose, in: FakeTree(root: compose), windowTitle: "t")

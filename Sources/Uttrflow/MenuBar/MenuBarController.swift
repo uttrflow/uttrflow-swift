@@ -7,9 +7,13 @@ import UttrflowUX
 final class MenuBarController: NSObject {
     /// Everything a click on this menu can mean, as one channel so a new row needs no new wiring.
     var onCommand: ((MenuBarIntent) -> Void)?
+    /// Called as the menu opens, early enough that an update made here is what the menu shows.
+    var onMenuWillOpen: (() -> Void)?
 
     private let statusItem: NSStatusItem
     private var presentation: MenuBarPresentation
+    /// One menu, refilled in place, so an update made while it opens lands in the menu on screen.
+    private let menu = NSMenu()
 
     init(
         statusBar: NSStatusBar = .system,
@@ -18,6 +22,10 @@ final class MenuBarController: NSObject {
         statusItem = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         presentation = initial
         super.init()
+        // Enablement says what the product can do, so no responder may switch an item back on.
+        menu.autoenablesItems = false
+        menu.delegate = self
+        statusItem.menu = menu
         apply()
     }
 
@@ -46,7 +54,7 @@ final class MenuBarController: NSObject {
             // Only when the symbol is missing from the running OS; a blank slot has nothing to click.
             button.title = button.image == nil ? "Uttrflow" : ""
         }
-        statusItem.menu = buildMenu()
+        fillMenu()
     }
 
     /// The icon: a template except when something needs attention, where the colour is the message.
@@ -84,14 +92,11 @@ final class MenuBarController: NSObject {
     /// The system's orange rather than the design's flat swatch, so a warning survives dark contrast.
     private static let attentionColour = NSColor.systemOrange
 
-    private func buildMenu() -> NSMenu {
-        let menu = NSMenu()
-        // Enablement says what the product can do, so no responder may switch an item back on.
-        menu.autoenablesItems = false
+    private func fillMenu() {
+        menu.removeAllItems()
         for item in presentation.items {
             menu.addItem(menuItem(for: item))
         }
-        return menu
     }
 
     private func menuItem(for item: MenuBarItem) -> NSMenuItem {
@@ -169,5 +174,11 @@ final class MenuBarController: NSObject {
     @objc private func runCommand(_ sender: NSMenuItem) {
         guard let intent = sender.representedObject as? MenuBarIntent else { return }
         onCommand?(intent)
+    }
+}
+
+extension MenuBarController: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        onMenuWillOpen?()
     }
 }

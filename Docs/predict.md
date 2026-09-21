@@ -30,7 +30,9 @@ role, whatever locator the field publishes, and the page host or containing dire
 Retrieval asks the store for candidates matching what has been typed on the current line,
 and the store answers from every document of the same field in the same application: the
 same text learned in two folders is one candidate with its counts summed
-(`PredictStore.candidates`). When the corpus has nothing, the machine is asked
+(`PredictStore.candidates`). Feedback follows the same pooling: taking or refusing a line
+counts once, against this folder's own entry or else the folder that supplied it, and
+retiring a line hides it in this folder while the folder it was learned in keeps it. When the corpus has nothing, the machine is asked
 (`EnvironmentSource`); when the machine has nothing either, the model generates. The engine
 scores remembered candidates against the moment and answers with one `Suggestion` —
 `.silent`, `.certain`, `.choice` or `.minimised`; generated lines are drawn in the model's
@@ -160,6 +162,24 @@ is on the AI suggestions pane beside it.
 
 `Uttrflow` in that path is the folder this build writes under, and a development build
 writes under its own — see [development-build.md](development-build.md).
+
+### Forgetting from Settings
+
+Settings reaches the corpus through `PredictCorpus`, which opens `predict.v1.sqlite` only
+for the question it is asked and never creates it, so forgetting works whether or not the
+suggestion loop is running.
+
+- **Forget what it learned here**, beside an application in the list, appears once that
+  application has taught at least one line, and deletes that application's surfaces and every
+  entry and succession in them. Other applications keep theirs.
+- **Reset personalisation** deletes every surface in the corpus, and the consent file with
+  them, so the list no longer names the applications the loop has met.
+- **Switching an application off** stops learning there and keeps what was already learned,
+  so switching it back on picks up where it left off. Forgetting is the row beside it, a
+  separate choice. Turning the feature off everywhere keeps the corpus the same way.
+
+Forgetting is a `DELETE`, so while the loop keeps its own connection open the deleted pages
+can stay in `predict.v1.sqlite-wal` until the next checkpoint (#642).
 
 ## The loop, once per keystroke
 
@@ -413,10 +433,12 @@ One row per surface, one row per entry, one row per succession pair, and two ind
 `entry`, each for a single query: `entry_prefix` on `(surface_id, text_lower)` for the
 prefix range scan run on every keystroke, over the lowercased text so matching ignores case
 and keeps the index, and `entry_recent` on `(surface_id, last_used)` for the person's most
-recent lines that the model is shown. `Schema.version` is 3: a v1 file, whose index was on
-`text`, gains the `text_lower` column, has it filled and has the index moved when it is
-opened; a v2 file gains `entry_recent`; a file from a newer build is refused rather than
-written to. A surface holds at most 2,000 entries and evicts by count then age. Forgetting
+recent lines that the model is shown. `Schema.version` is 4: a v1 file, whose index was on
+`text`, gains the `text_lower` column and has the index moved when it is opened; a v2 file
+gains `entry_recent`; every file below 4 has `text_lower` rewritten with Swift's
+`lowercased()`, the function writes and queries use, since SQLite's `lower` folds ASCII only
+and left an accented capital outside the prefix range; a file from a newer build is refused
+rather than written to. Recording a line again rewrites its key too. A surface holds at most 2,000 entries and evicts by count then age. Forgetting
 works at three sizes: one entry, one application, everything.
 
 An entry carries `count`, `accepted`, `rejected`, `self_sourced` and `last_used`. A
@@ -452,9 +474,13 @@ rewrites the query as a `LIKE`.
 
 The fuzzy fallback rejects candidates with a 64-bit character mask before it computes any
 edit distance. The width of the window that mask covers is the whole of its strength: a
-mask over the first *n + k* bytes, where *n* is the query length and *k* its edit budget,
-measured **14.9×** faster than no prefilter at all. A fixed twelve-byte window measured
-**4.0×**.
+mask over the first *n + k* units, where *n* is the query length and *k* its edit budget,
+measured **14.9×** faster than no prefilter at all. A fixed twelve-unit window measured
+**4.0×**. Those were measured on ASCII, where a byte and a Unicode scalar are the same unit.
+
+The unit is the Unicode scalar, for the budget, the mask and the distance alike. Counted in
+UTF-8 bytes, one Devanagari letter is three units, so two typed letters earned the two-edit
+allowance meant for six, and an accented Latin letter earned an edit a plain one did not.
 
 Both are sound — a wider window can only weaken the filter, and never rejects a candidate
 that would have matched — so the fixed width fails silently, giving up most of the gain

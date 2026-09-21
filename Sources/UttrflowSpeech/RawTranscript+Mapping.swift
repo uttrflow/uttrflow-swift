@@ -10,7 +10,8 @@ extension RawTranscript {
             text: Self.cleaned(text),
             detectedLanguage: detectedLanguage,
             segments: segments.map { $0.transcriptionSegment(shiftedBy: offset) },
-            audioDuration: audioDuration
+            audioDuration: audioDuration,
+            effort: effort
         )
     }
 

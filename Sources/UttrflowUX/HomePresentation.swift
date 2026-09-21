@@ -295,7 +295,10 @@ public enum HomePresenter {
 
         return HomePresentation(
             greeting: greeting(for: snapshot, calendar: calendar),
-            subtitle: subtitle(today: today, kept: kept, blocked: blocked != nil, locale: locale),
+            // A model that is not ready blocks dictation as surely as a permission, so neither invites talking.
+            subtitle: subtitle(
+                today: today, kept: kept, blocked: blocked != nil || snapshot.speechModel != nil,
+                locale: locale),
             // No figures while a permission is missing; numbers above "cannot listen" argue with themselves.
             figures: blocked == nil
                 ? DictationPresenter.figures(
@@ -374,11 +377,11 @@ public enum HomePresenter {
 
     // MARK: - Whether it can hear you
 
-    /// Listening or not, with the model's load named, since a ring lit during it would promise dictation.
+    /// Ready or not, with the model named when it is the reason; never "Listening", which means the microphone is open.
     static func status(blocked: Bool, speechModel: SpeechModelLoad? = nil) -> HomeStatus {
-        if blocked { return HomeStatus(text: "Not listening", isReady: false) }
+        if blocked { return HomeStatus(text: "Not ready", isReady: false) }
         if let speechModel { return HomeStatus(text: speechModel.status, isReady: false) }
-        return HomeStatus(text: "Listening · ready", isReady: true)
+        return HomeStatus(text: "Ready", isReady: true)
     }
 
     // MARK: - Who is here
@@ -393,25 +396,16 @@ public enum HomePresenter {
             // The Mac's own name, which the person chose; opens the Account page.
             let shown = local.name ?? "This Mac"
             return .onThisMac(
-                initials: monogram(of: shown), name: firstWord(of: shown),
+                initials: AccountPagePresenter.initials(of: shown), name: firstWord(of: shown),
                 open: MainAction(title: "Account", intent: .show(.account)))
         }
 
         // The Account page's own name for them, so the corner never shows somebody the page does not.
-        let shown = AccountPagePresenter.identity(for: account).name
+        let identity = AccountPagePresenter.identity(for: account)
 
         return .signedIn(
-            initials: monogram(of: shown), name: firstWord(of: shown),
+            initials: identity.initials, name: firstWord(of: identity.name),
             open: MainAction(title: "Account", intent: .show(.account)))
-    }
-
-    /// First and last initials — "Naveen Kumar Bhatt" is NB — and "?" for a name with no letters.
-    static func monogram(of name: String) -> String {
-        let names = name.split(separator: " ")
-        guard let first = names.first else { return "?" }
-        let taken = names.count > 1 ? [first, names[names.count - 1]] : [first]
-        let letters = taken.compactMap(\.first).map(String.init).joined().uppercased()
-        return letters.isEmpty ? "?" : letters
     }
 
     /// The first word of the name, because the chip is a greeting and not a directory entry.
