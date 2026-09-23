@@ -928,8 +928,15 @@ struct QuickPanelView: View {
     // MARK: - Keys
 
     private func send(_ key: PanelKey) -> KeyPress.Result {
+        let composing = NSTextInputContext.current?.client.hasMarkedText() ?? false
+        guard Self.panelKeyResult(hasMarkedText: composing) == .handled else { return .ignored }
         relayKey(key)
         return .handled
+    }
+
+    /// `.ignored` lets the key reach the input method that is composing in the field.
+    nonisolated static func panelKeyResult(hasMarkedText: Bool) -> KeyPress.Result {
+        hasMarkedText ? .ignored : .handled
     }
 
     /// Every ⌘-chord in one handler; two `onKeyPress(phases:)` on one view do not compose.
