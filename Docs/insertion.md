@@ -133,6 +133,14 @@ is the weaker of the two: several applications answer `kAXFocusedUIElementAttrib
 the system-wide element and not on their own. Both are asked, system-wide first; the
 fallback costs one extra round trip in a case that was already failing.
 
+Answering is not the same as answering the right field. While a browser's own editor is
+typed into, the system-wide element can name the word under the caret rather than the
+editor — a text-entry role check decides which answer to keep: the system-wide element's
+if its role is one text is entered into, else the application's if that is, else whichever
+answered at all. `FocusedElementPreference.choose` is the one place this is decided, and
+every reader of the focused element — the field reader, the suggestion reader, the context
+engine and dictation insertion — calls through it rather than keeping its own copy.
+
 ## Accessibility calls must be bounded
 
 They are synchronous and run on the pipeline's own thread, so a focused app that has
