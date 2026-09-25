@@ -1,5 +1,6 @@
 // Replaces a field's selection through its Accessibility attributes, checking each step.
 import ApplicationServices
+import Foundation
 import UttrflowCore
 
 /// The four Accessibility attributes a selection is read and written through; the real one wraps an `AXUIElement`.
@@ -18,6 +19,12 @@ protocol SelectionAttributes: Sendable {
 struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
     /// The field this writes into.
     let field: Field
+    /// Extra times the value is re-read before "did not change" is believed, catching a value republished a moment late (#601).
+    var lateWriteRereads = 2
+    /// How long to wait before each re-read.
+    var lateWriteInterval = Duration.milliseconds(20)
+    /// Pauses between re-reads; a test overrides this to skip the wait.
+    var sleep: @Sendable (Duration) -> Void = SelectionWriter.threadSleep
 
     func replaceSelection(with text: String) throws(TextInsertionError) {
         // Read first so the write can be checked; a field that will not answer is trusted.
@@ -36,11 +43,26 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
             return
         }
 
-        // A success that changed nothing is the failure this catches. See `Docs/insertion.md`.
-        if let before, let after = field.value(), before == after, !text.isEmpty {
-            throw .insertionRejected(
-                description: "the field accepted the text and did not change")
+        // A success that changed nothing is the failure this catches, once a moment late still shows nothing. See `Docs/insertion.md`.
+        guard let before, !text.isEmpty, stillUnchanged(from: before) else { return }
+        throw .insertionRejected(description: "the field accepted the text and did not change")
+    }
+
+    /// Re-reads the value a few times, since a write forwarded to another process can republish it late rather than never.
+    private func stillUnchanged(from before: String) -> Bool {
+        var rereadsLeft = lateWriteRereads
+        while true {
+            guard let after = field.value(), after == before else { return false }
+            guard rereadsLeft > 0 else { return true }
+            sleep(lateWriteInterval)
+            rereadsLeft -= 1
         }
+    }
+
+    /// Blocks this thread, safe here because the caller is already the synchronous Accessibility write path.
+    private static func threadSleep(_ duration: Duration) {
+        let parts = duration.components
+        Thread.sleep(forTimeInterval: Double(parts.seconds) + Double(parts.attoseconds) / 1e18)
     }
 
     /// Grows the selection back over what is replaced first, so one write replaces it and undo sees one edit.

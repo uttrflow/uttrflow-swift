@@ -19,6 +19,12 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
         var refusesSelection = false
         var textWrites: [String] = []
         var selectionWrites: [Range<Int>] = []
+        /// How many `value()` calls after a write still report the pre-write text, so a fake can go stale-then-fresh.
+        var staleReadsAfterWrite = 0
+        /// The value `value()` reports while stale reads remain, set the moment a write lands.
+        var staleValue: String?
+        /// False models a field whose reported caret lags the write along with its value.
+        var collapsesSelectionAfterWrite = true
     }
 
     let state: Mutex<State>
@@ -30,7 +36,13 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
     }
 
     func value() -> String? {
-        state.withLock { $0.reportsValue ? $0.text : nil }
+        state.withLock { state in
+            guard state.reportsValue else { return nil }
+            guard state.staleReadsAfterWrite > 0, let stale = state.staleValue else { return state.text }
+            state.staleReadsAfterWrite -= 1
+            if state.staleReadsAfterWrite == 0 { state.staleValue = nil }
+            return stale
+        }
     }
 
     func selectedRange() -> CFRange? {
@@ -42,10 +54,14 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
             state.textWrites.append(text)
             guard !state.refusesText else { return .cannotComplete }
             guard !state.ignoresText else { return .success }
+            let beforeWrite = state.text
             let replaced = NSRange(location: state.location, length: state.length)
             state.text = (state.text as NSString).replacingCharacters(in: replaced, with: text)
-            state.location += text.utf16.count
-            state.length = 0
+            if state.collapsesSelectionAfterWrite {
+                state.location += text.utf16.count
+                state.length = 0
+            }
+            if state.staleReadsAfterWrite > 0 { state.staleValue = beforeWrite }
             return .success
         }
     }
@@ -98,6 +114,43 @@ struct SelectionWriterTests {
         }
         #expect(
             error == .insertionRejected(description: "the field accepted the text and did not change"))
+    }
+
+    @Test("does not report a late-applied write as unchanged, since the value catches up on a later read")
+    func lateAppliedWriteIsNotAFailure() throws {
+        let field = FakeSelectionField("Hello") {
+            $0.reportsSelection = false
+            $0.staleReadsAfterWrite = 2
+        }
+        try SelectionWriter(field: field, sleep: { _ in }).replaceSelection(with: " world")
+        #expect(field.text == "Hello world")
+        #expect(field.textWrites == [" world"], "no fallback should have written a second time")
+    }
+
+    @Test("still refuses a write that never changes the value, once the re-reads are exhausted")
+    func lateReadBudgetStillCatchesAGenuineRefusal() {
+        let field = FakeSelectionField("Hello") {
+            $0.ignoresText = true
+            $0.reportsSelection = false
+        }
+        let error = #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field, sleep: { _ in }).replaceSelection(with: " world")
+        }
+        #expect(
+            error == .insertionRejected(description: "the field accepted the text and did not change"))
+    }
+
+    @Test("does not delete the replaced characters when the write applies a moment late")
+    func completionRouteDoesNotUnwindALateWrite() throws {
+        let field = FakeSelectionField("I want") {
+            $0.staleReadsAfterWrite = 2
+            $0.collapsesSelectionAfterWrite = false
+        }
+        try SelectionWriter(field: field, sleep: { _ in }).replaceSelection(replacing: "want", with: "need")
+        #expect(field.text == "I need")
+        #expect(
+            field.selectionWrites == [2..<6],
+            "a caret restore would add a second selection write after the failure it does not hit")
     }
 
     @Test("passes a field that will not report its value, since the write cannot be checked")
