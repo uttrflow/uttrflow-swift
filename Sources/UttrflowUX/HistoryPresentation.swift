@@ -31,15 +31,27 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let application: HistoryApplication?
     /// How long ago, in words: "2 minutes ago".
     public let when: String
+    /// The clock time it was said: "4:12 PM".
+    public let time: String
     /// What was said.
     public let text: String
+    /// Copy, insert again and flag — the same three ``DictationRow`` offers, and built by the same function.
+    public let actions: [MainAction]
+    /// What the overflow menu offers: delete.
+    public let more: [MainAction]
 
     /// Builds a row from its parts.
-    public init(id: UUID, application: HistoryApplication?, when: String, text: String) {
+    public init(
+        id: UUID, application: HistoryApplication?, when: String, time: String, text: String,
+        actions: [MainAction] = [], more: [MainAction] = []
+    ) {
         self.id = id
         self.application = application
         self.when = when
+        self.time = time
         self.text = text
+        self.actions = actions
+        self.more = more
     }
 }
 
@@ -225,13 +237,35 @@ public enum HistoryPresenter {
             ?? day.formatted(.dateTime.day().month(.wide).locale(locale))
     }
 
-    /// One dictation as a row.
+    /// One dictation as a row, with the same actions ``DictationPresenter`` builds for it.
     static func row(for entry: HistoryEntry, relativeTo now: Date, locale: Locale) -> HistoryRow {
         HistoryRow(
             id: entry.id,
             application: application(for: entry),
             when: when(entry.when, relativeTo: now, locale: locale),
-            text: entry.text)
+            time: MainFormatting.time(entry.when, locale: locale),
+            text: entry.text,
+            actions: actions(for: entry),
+            more: more(for: entry))
+    }
+
+    /// Copy, insert again and flag — always all three, in that order; shared with ``DictationPresenter``.
+    static func actions(for entry: HistoryEntry) -> [MainAction] {
+        [
+            MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)),
+            MainAction(
+                title: "Insert Again", symbolName: "arrow.clockwise", intent: .insert(entry.text)),
+            // The label says what pressing it does, so a recorded flag can be told from one that was not.
+            MainAction(
+                title: entry.isFlagged ? "Unflag" : "Flag",
+                symbolName: entry.isFlagged ? "flag.fill" : "flag",
+                intent: .flagDictation(entry.id)),
+        ]
+    }
+
+    /// The overflow menu's one action: delete, which removes the record and any clipboard copy.
+    static func more(for entry: HistoryEntry) -> [MainAction] {
+        [.delete(.forgetDictation(entry.id))]
     }
 
     /// "2 minutes ago" against the snapshot's clock, not the real one, so the row agrees with retention.

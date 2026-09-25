@@ -252,18 +252,8 @@ public enum DictationPresenter {
                     title: MainFormatting.count(applied, "change", "changes"),
                     intent: .show(.corrections))
                 : nil,
-            actions: [
-                MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)),
-                MainAction(
-                    title: "Insert Again", symbolName: "arrow.clockwise",
-                    intent: .insert(entry.text)),
-                // The label says what pressing it does, so a recorded flag can be told from one that was not.
-                MainAction(
-                    title: entry.isFlagged ? "Unflag" : "Flag",
-                    symbolName: entry.isFlagged ? "flag.fill" : "flag",
-                    intent: .flagDictation(entry.id)),
-            ],
-            more: [.delete(.forgetDictation(entry.id))])
+            actions: HistoryPresenter.actions(for: entry),
+            more: HistoryPresenter.more(for: entry))
     }
 
     /// A kept recording as a row: what stands in for its words, and the one button that gets them.

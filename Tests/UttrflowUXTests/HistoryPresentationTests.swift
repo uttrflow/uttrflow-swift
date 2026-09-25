@@ -142,6 +142,63 @@ struct HistoryPresentationTests {
             for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
         #expect(row.id == entry.id)
     }
+
+    @Test("a row shows the clock time alongside how long ago")
+    func rowsCarryTheClockTime() {
+        let page = HistoryFixture.page(entries: [HistoryFixture.entry(minutesAgo: 2)])
+        let row = page.days.first?.rows.first
+        #expect(row?.time.isEmpty == false)
+        #expect(row?.time != row?.when)
+    }
+}
+
+@Suite("A history row's actions, the same as Dictation's")
+struct HistoryRowActionsTests {
+    @Test("offers copy, insert again and flag, in that order")
+    func offersTheSameThreeActions() {
+        let entry = HistoryFixture.entry("Hello there")
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+
+        #expect(row.actions.map(\.title) == ["Copy", "Insert Again", "Flag"])
+        #expect(row.actions[0].intent == .copy("Hello there"))
+        #expect(row.actions[1].intent == .insert("Hello there"))
+        #expect(row.actions[2].intent == .flagDictation(entry.id))
+    }
+
+    @Test("a flagged dictation offers Unflag instead of Flag")
+    func offersUnflagWhenAlreadyFlagged() {
+        let entry = HistoryFixture.entry(isFlagged: true)
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+
+        #expect(row.actions.last?.title == "Unflag")
+    }
+
+    @Test("the overflow menu offers delete, which forgets this dictation")
+    func offersDelete() {
+        let entry = HistoryFixture.entry()
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+
+        #expect(row.more.map(\.title) == ["Delete"])
+        #expect(row.more.first?.intent == .forgetDictation(entry.id))
+        #expect(row.more.first?.isDestructive == true)
+    }
+
+    @Test("History and Dictation draw a row's actions from the same function, so they cannot drift")
+    func actionsAgreeWithDictation() {
+        let entry = HistoryFixture.entry("Same text", isFlagged: true)
+        let snapshot = DictationSnapshot(entries: [entry], shortcut: "⌥Space", now: HistoryFixture.now)
+        let dictationRow = DictationPresenter.page(
+            for: snapshot, calendar: HistoryFixture.calendar, locale: HistoryFixture.locale
+        ).rows.first
+        let historyRow = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+
+        #expect(dictationRow?.actions == historyRow.actions)
+        #expect(dictationRow?.more == historyRow.more)
+    }
 }
 
 @Suite("History keeps the promise about retention")
