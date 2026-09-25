@@ -119,14 +119,19 @@ moment a piece can be ended it is recognised, put through the dictionary, and ti
 against the screen as it was when the piece was cut. Its timings are not recorded: the
 diagnostics page reports what the user waited for, and nobody waited for these.
 
-**The drain is the exception, and it is measured.** A piece still under way when the key comes
-up is finished rather than thrown away, and the user waits through that — it begins after they
-let go. It is charged to a stage of its own (`.drain`, "Finishing the piece already under way"),
-recorded only when there is something in flight, so a dictation too short to have worked ahead
-gains no row. In flight means from the moment the piece is handed to the recogniser until it is
-tidied: recognition is usually the longer half, and a key released during it was once charged to
-nothing at all. What is still not charged to anyone is the work that finished before the key came
-up, which is the decision this paragraph records.
+**The drain is the exception, and it is measured.** A piece still being recognised when the key
+comes up is finished rather than thrown away, and the user waits through that — it begins after
+they let go. It is charged to a stage of its own (`.drain`, "Finishing the piece already under
+way"), recorded only when a recognition is in flight, so a dictation too short to have worked
+ahead gains no row. What is still not charged to anyone is the work that finished before the key
+came up, which is the decision this paragraph records.
+
+A piece still being *tidied* when the key comes up is not waited on at the hand-off: the audio
+after it is windowed and recognised straight away, the same as any other piece the release pass
+picks up, and the leftover tidy is joined into that pass's own pipeline of one recognition beside
+one tidy — so the tail's recognition and the earlier piece's tidy run beside each other instead of
+in series. Only the two stages that would otherwise sit idle end up overlapped; the tidies
+themselves still run one at a time.
 
 When the key comes up, a piece under way is finished rather than thrown away, and the
 audio after the last cut is windowed the same way and processed in order — the final
