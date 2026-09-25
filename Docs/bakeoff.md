@@ -263,8 +263,8 @@ sixteen point two").
 **One Hindi case may be unfair.** Everything scores badly on `hinglish-request`, which
 suggests the reference is one of several reasonable phrasings.
 
-**The corpus is 183 cases in six categories** — `everyday` 75, `contextual` 64, `grammar` 14,
-`technical` 16, `multilingual` 9, `notARequest` 5 — and everything in it is synthesised or
+**The corpus is 189 cases in six categories** — `everyday` 75, `contextual` 67, `grammar` 14,
+`technical` 16, `multilingual` 9, `notARequest` 8 — and everything in it is synthesised or
 written by hand. Phase 8 grows it, with real recorded speech behind it.
 `Scripts/docs_audit.sh` checks this total and every category count against
 `Sources/UttrflowEval/EvaluationCorpus.swift` and fails when they disagree, so an ordinary
