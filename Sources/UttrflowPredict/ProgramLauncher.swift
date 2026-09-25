@@ -94,7 +94,8 @@ public struct SpawnedProgramLauncher: ProgramLaunching {
         while true {
             if !ended { ended = Self.drain(reading, into: &output, upTo: outputLimit) }
             if !exited { exited = Self.hasExited(pid) }
-            if output.count > outputLimit || (!exited && now() >= deadline) {
+            // Checked even once `exited` is true, so a late exit still answers `nil`, not the output.
+            if output.count > outputLimit || now() >= deadline {
                 Self.killGroup(pid)
                 return nil
             }

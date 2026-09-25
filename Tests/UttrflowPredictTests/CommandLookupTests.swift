@@ -234,6 +234,22 @@ struct SpawnedProgramLauncherTests {
         #expect(hasExited(child))
     }
 
+    @Test("answers nil for a leader that exits after its deadline, not with the output it left behind")
+    func exitsAfterItsDeadline() async throws {
+        let marker = FileManager.default.temporaryDirectory.appending(path: "lookup-\(UUID().uuidString)")
+            .path
+        defer { try? FileManager.default.removeItem(atPath: marker) }
+        // The deadline passes the moment the marker appears, just before the leader exits.
+        let started = Date(timeIntervalSinceReferenceDate: 0)
+        let launcher = SpawnedProgramLauncher(now: {
+            FileManager.default.fileExists(atPath: marker) ? .distantFuture : started
+        })
+
+        let output = await launcher.output(of: shell(#"echo done; touch "$1""#, [marker]))
+
+        #expect(output == nil)
+    }
+
     @Test("has no answer for a program that writes more than the limit, and keeps one that writes less")
     func tooMuchOutput() async throws {
         let eightKilobytes = ProgramLaunch(
