@@ -102,14 +102,14 @@ struct DictationPageTests {
         #expect(page.rows.first?.detail == "2 words")
     }
 
-    @Test("every row offers copy, insert again and flag, in that order")
+    @Test("every row offers copy, copy to paste elsewhere and flag, in that order")
     func rowActions() {
         let entry = HistoryFixture.entry("Say it again")
         let row = HistoryFixture.dictation(entries: [entry]).rows[0]
 
-        #expect(row.actions.map(\.title) == ["Copy", "Insert Again", "Flag"])
+        #expect(row.actions.map(\.title) == ["Copy", "Copy to Paste Elsewhere", "Flag"])
         #expect(row.actions[0].intent == .copy("Say it again"))
-        #expect(row.actions[1].intent == .insert("Say it again"))
+        #expect(row.actions[1].intent == .copy("Say it again"))
         #expect(row.actions[2].intent == .flagDictation(entry.id))
         #expect(row.more.map(\.intent) == [.forgetDictation(entry.id)])
         #expect(row.more[0].isDestructive)
@@ -236,11 +236,11 @@ struct DictationFlagTests {
     @Test("the button says what it will do and shows what it has done")
     func flagReadsItsState() {
         let plain = HistoryFixture.dictation(entries: [HistoryFixture.entry()])
-        #expect(plain.rows[0].actions.map(\.title) == ["Copy", "Insert Again", "Flag"])
+        #expect(plain.rows[0].actions.map(\.title) == ["Copy", "Copy to Paste Elsewhere", "Flag"])
 
         let flagged = HistoryFixture.dictation(
             entries: [HistoryFixture.entry(isFlagged: true)])
-        #expect(flagged.rows[0].actions.map(\.title) == ["Copy", "Insert Again", "Unflag"])
+        #expect(flagged.rows[0].actions.map(\.title) == ["Copy", "Copy to Paste Elsewhere", "Unflag"])
         #expect(flagged.rows[0].actions.last?.symbolName == "flag.fill")
     }
 

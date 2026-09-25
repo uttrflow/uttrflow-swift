@@ -145,6 +145,16 @@ struct AccessibilityTextInsertionEngineTests {
         #expect(canInsert == isFocused)
     }
 
+    /// #678: Uttrflow itself has focused fields — its own search field is one — and none of them is the destination.
+    @Test("refuses to write into Uttrflow's own field even when something is focused")
+    func refusesWhenUttrflowIsInFront() async {
+        let engine = AccessibilityTextInsertionEngine(
+            focus: FakeFocus(field: FakeTextField(), isSelf: true)
+        )
+
+        #expect(await engine.canInsert() == false)
+    }
+
     @Test("reports that there is no text field rather than dropping the words")
     func insertWithoutAFocusedField() async {
         let engine = AccessibilityTextInsertionEngine(focus: FakeFocus(field: nil))

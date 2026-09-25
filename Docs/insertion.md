@@ -192,3 +192,24 @@ gained `setImage`. `Scripts/pasteboard_audit.sh`, in `make verify`, holds it the
 writer (`SystemInput.swift`) and the reader (`ClipboardSource+System.swift`) may name
 `NSPasteboard`, which is the same argument `Docs/offline.md` makes for one module owning the
 network.
+
+## What "Insert Again" does on the Dictation page
+
+The row on the Dictation page used to offer an "Insert Again" button that handed the text to
+`TextInsertion.coordinator()`. From the main window, Uttrflow itself is in front, so the route
+never reached another application: the Accessibility engine aimed at whatever was focused
+(including Uttrflow's own search field), the paste engine refused, and the clipboard floor
+took over silently. Nothing told the user the words were on the clipboard, or that the
+button had not done what its label promised.
+
+The product call was the rename: the row now offers **Copy** and **Copy to Paste Elsewhere**
+in that order, both `.copy(text)` intents, and the page shows the panel's
+`uttrflowInFront` notice — "Copied — click where you want it, then press ⌘V" — through
+`MainNotice` and VoiceOver. Re-launching the original destination application and waiting for
+it to come to front was rejected because the timing belongs to the user, not the page.
+
+The Accessibility engine now also refuses when Uttrflow is in front
+(`AccessibilityTextInsertionEngine.canInsert()` checks `!focus.isSelfFrontmost()`), so a
+focused Uttrflow field is never the destination through any code path — the rename is the
+honest label, the engine change is the structural guarantee that no caller can fall back into
+Uttrflow's own text fields.

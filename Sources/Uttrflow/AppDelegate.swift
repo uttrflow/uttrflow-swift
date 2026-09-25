@@ -1384,6 +1384,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         announcingPasteboard.setText(text, richText: richText)
     }
 
+    /// Tells the user, on screen and through VoiceOver, that the words are on the clipboard, where the panel would have said so.
+    private func sayCopiedForMainWindow() {
+        let notice = MainNotice(
+            message: "Copied — click where you want it, then press ⌘V",
+            symbolName: "doc.on.clipboard", tone: .neutral)
+        actionNotice = notice
+        announce(notice.message, urgently: false)
+        refreshMainWindow()
+    }
+
     private func closeAfterReading() {
         noticeLinger.start { [weak self] in
             // A sheet opened meanwhile is work in progress, never closed under the person.
@@ -1909,7 +1919,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         switch intent {
         case .recover(let action): perform(action)
         case .go(let destination): show(destination)
-        case .copy(let text): putOnClipboard(text, used: nil)
+        case .copy(let text):
+            putOnClipboard(text, used: nil)
+            sayCopiedForMainWindow()
         case .insert(let text): insert(text, used: nil)
         case .show(let page):
             // A notice describes the button that was pressed on the page being left, so it goes with it.
