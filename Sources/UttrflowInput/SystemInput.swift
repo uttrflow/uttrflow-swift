@@ -4,6 +4,9 @@ public import Foundation
 public import UttrflowCore
 import UttrflowPredict
 
+private import Carbon
+private import Synchronization
+
 /// The real clipboard, untestable by construction and so excluded from the coverage gate.
 public struct SystemPasteboard: Pasteboard {
     /// Told what this app is about to write, so the watcher can tell it from a copy. See `Docs/insertion.md`.
@@ -90,19 +93,111 @@ private func postTaggedKeyPair(
     keyUp.post(tap: .cghidEventTap)
 }
 
+/// The key code posted when no keyboard layout can be read, `v`'s position on a US QWERTY board.
+private let fallbackVKeyCode: CGKeyCode = 9
+
+/// Finds which key types a character under a keyboard layout. See `Docs/input-synthetic-keystrokes.md`.
+enum LayoutKeyCode {
+    /// The key code that types `character` under `layoutData`, or nil if no key on the board does.
+    static func code(for character: UniChar, in layoutData: Data) -> CGKeyCode? {
+        layoutData.withUnsafeBytes { raw -> CGKeyCode? in
+            guard let layout = raw.bindMemory(to: UCKeyboardLayout.self).baseAddress else { return nil }
+            var deadKeyState: UInt32 = 0
+            for code in CGKeyCode(0)...CGKeyCode(127) {
+                var chars = [UniChar](repeating: 0, count: 4)
+                var length = 0
+                let status = UCKeyTranslate(
+                    layout, code, UInt16(kUCKeyActionDown), 0, UInt32(LMGetKbdType()),
+                    UInt32(kUCKeyTranslateNoDeadKeysBit), &deadKeyState, chars.count, &length, &chars)
+                if status == noErr, length > 0, chars[0] == character { return code }
+            }
+            return nil
+        }
+    }
+}
+
+/// The key code for ⌘V, resolved from the layout the target interprets shortcuts with. See `Docs/input-synthetic-keystrokes.md`.
+enum PasteKeyLayout {
+    /// `v`, the character ⌘V is a shortcut for regardless of the key that types it.
+    private static let vCharacter = UniChar(UnicodeScalar("v").value)
+
+    /// The last resolved key code, readable from any thread without a Text Input Sources call.
+    private static let cachedKeyCode = Mutex<CGKeyCode>(fallbackVKeyCode)
+
+    /// Whether the change notification is already being watched, so starting twice still observes once.
+    @MainActor private static var observing = false
+
+    /// The cached key code for ⌘V, filled by `startObserving()` and kept current after that.
+    static func vKeyCode() -> CGKeyCode {
+        cachedKeyCode.withLock { $0 }
+    }
+
+    /// Fills the cache and keeps it filled, which every off-main reader depends on having been called.
+    @MainActor
+    static func startObserving() {
+        guard !observing else { return }
+        observing = true
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String),
+            object: nil, queue: nil
+        ) { _ in
+            // Back to the main queue explicitly, because HIToolbox asserts it and the poster is not it.
+            DispatchQueue.main.async { MainActor.assumeIsolated { _ = refresh() } }
+        }
+        refresh()
+    }
+
+    /// Asks Text Input Sources what is selected and caches its ⌘V key code, the one place that calls TIS.
+    @MainActor
+    @discardableResult
+    static func refresh() -> CGKeyCode {
+        let code = readVKeyCode()
+        cachedKeyCode.withLock { $0 = code }
+        return code
+    }
+
+    /// The current layout's key code for `v`, or the ASCII-capable layout's when the current one has none.
+    @MainActor
+    private static func readVKeyCode() -> CGKeyCode {
+        if let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+            let data = unicodeLayoutData(of: source),
+            let code = LayoutKeyCode.code(for: vCharacter, in: data)
+        {
+            return code
+        }
+        if let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+            let data = unicodeLayoutData(of: source),
+            let code = LayoutKeyCode.code(for: vCharacter, in: data)
+        {
+            return code
+        }
+        return fallbackVKeyCode
+    }
+
+    /// The raw layout table Text Input Sources holds for `source`, absent for input methods and the like.
+    private static func unicodeLayoutData(of source: TISInputSource) -> Data? {
+        guard let property = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
+        else { return nil }
+        return Unmanaged<CFData>.fromOpaque(property).takeUnretainedValue() as Data
+    }
+}
+
 /// Presses ⌘V by posting keyboard events, which no test can assert anything about.
 public struct CGEventKeystrokeSender: KeystrokeSender {
-    /// Virtual key code for V, positional and so correct on any keyboard layout.
-    private static let vKeyCode: CGKeyCode = 9
-
     public init() {}
+
+    /// Starts tracking layout changes, so `sendPaste()` posts the key that types V under the current one.
+    @MainActor
+    public static func startObservingLayout() {
+        PasteKeyLayout.startObserving()
+    }
 
     public func sendPaste() throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        try postTaggedKeyPair(from: source, keyCode: Self.vKeyCode) { $0.flags = .maskCommand }
+        try postTaggedKeyPair(from: source, keyCode: PasteKeyLayout.vKeyCode()) { $0.flags = .maskCommand }
     }
 }
 
