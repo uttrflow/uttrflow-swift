@@ -26,10 +26,11 @@ public enum Acceptance {
 
     /// The edit that turns what is typed into the suggestion, or `nil` when it already is it.
     public static func edit(accepting suggestion: String, after typed: String) -> Edit? {
-        let shared = CommonPrefix.of([typed, suggestion]).count
+        // The agreement is found by scalar, so a decomposed accent mid-typing still counts as shared.
+        let shared = CommonPrefix.of([typed, suggestion]).unicodeScalars.count
         let edit = Edit(
-            replaced: String(typed.dropFirst(shared)),
-            inserted: String(suggestion.dropFirst(shared)))
+            replaced: String(String.UnicodeScalarView(typed.unicodeScalars.dropFirst(shared))),
+            inserted: String(String.UnicodeScalarView(suggestion.unicodeScalars.dropFirst(shared))))
         return edit.replaced.isEmpty && edit.inserted.isEmpty ? nil : edit
     }
 }

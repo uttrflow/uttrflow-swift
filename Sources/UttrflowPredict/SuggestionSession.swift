@@ -301,7 +301,7 @@ public struct SuggestionSession: Sendable, Equatable {
         let lowered = typed.lowercased()
         return lines.filter {
             let lower = $0.lowercased()
-            return lower != lowered && lower.hasPrefix(lowered) && LatinScript.writes($0)
+            return lower != lowered && lower.hasScalarPrefix(lowered) && LatinScript.writes($0)
                 && seen.insert(lower).inserted
         }
     }
@@ -371,18 +371,20 @@ public struct SuggestionSession: Sendable, Equatable {
             isMinimised = false
         }
         let lowered = typing.lowercased()
-        // Case alone is not typing past, since the store matched the line regardless of it.
-        guard let offered = suggestion.accepting, !offered.lowercased().hasPrefix(lowered) else { return nil }
+        // Case and a scalar typed ahead of its own combining mark are not typing past, since the store matched regardless.
+        guard let offered = suggestion.accepting, !offered.lowercased().hasScalarPrefix(lowered)
+        else { return nil }
         // Finishing the suggestion by hand and typing on is taking it, not typing past it.
-        guard !lowered.hasPrefix(offered.lowercased()) else { return nil }
+        guard !lowered.hasScalarPrefix(offered.lowercased()) else { return nil }
         // Whitespace alone typed past a suggestion is a pause or a slip of the space bar, not a refusal.
         let earlier = typed.lowercased()
-        guard !(lowered.hasPrefix(earlier) && lowered.dropFirst(earlier.count).allSatisfy(\.isWhitespace))
+        guard
+            !(lowered.hasScalarPrefix(earlier) && lowered.dropFirst(earlier.count).allSatisfy(\.isWhitespace))
         else { return nil }
         // Typing past a guess the model invented says the model was wrong, not that the field wants quiet.
         guard !shownIsGenerated else { return nil }
         // Only an offer that completed the line can be typed past; leaving a fuzzy or corrected one, or shortening the line, says nothing.
-        guard offered.lowercased().hasPrefix(typed.lowercased()) else { return nil }
+        guard offered.lowercased().hasScalarPrefix(typed.lowercased()) else { return nil }
         rejectionsHere += 1
         return offered
     }

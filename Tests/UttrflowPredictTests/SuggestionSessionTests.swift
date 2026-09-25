@@ -287,6 +287,19 @@ struct SuggestionRejectionTests {
         #expect(session.resolveGenerated([], for: asked, elapsedMilliseconds: 0)?.silence == .nothingOffered)
     }
 
+    @Test(
+        "Typing a suggestion's accent scalar by scalar, base letter then combining mark, is never a refusal."
+    )
+    func decomposedAccentTypedScalarByScalarIsNotRejected() throws {
+        var session = SuggestionSession()
+        // The suggestion's é arrived from the store already decomposed: "e" followed by U+0301.
+        let accented = "caf" + "e\u{301}"
+        _ = try draw(&session, typing: "caf", candidates: lone(accented))
+        // The base letter is typed first, one keystroke ahead of its own combining mark.
+        #expect(session.turn(in: field, at: PredictionContext(typed: "cafe")).rejected == nil)
+        #expect(session.rejectionsHere == 0)
+    }
+
     @Test("Typing past a guess the model invented is not a refusal: the model was wrong, not the field.")
     func aGeneratedGuessIsNotRefused() throws {
         var session = SuggestionSession()

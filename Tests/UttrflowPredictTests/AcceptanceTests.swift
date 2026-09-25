@@ -120,6 +120,17 @@ struct AcceptanceTests {
         #expect(deleting.applied(to: "git commit") == "git")
     }
 
+    @Test(
+        "A suggestion stored with a decomposed accent still only adds past the bare base letter typed so far."
+    )
+    func aBareBaseLetterAgreesWithADecomposedAccent() throws {
+        // The suggestion's é arrived as "e" + U+0301; the field has only the base letter, not yet the mark.
+        let edit = try #require(Acceptance.edit(accepting: "caf" + "e\u{301}", after: "cafe"))
+        #expect(edit.replaced.isEmpty)
+        #expect(edit.replacedCount == 0)
+        #expect(edit.inserted == "\u{301}")
+    }
+
     @Test("A suggestion carries its own edit, so what is drawn and what is done are one answer.")
     func theSuggestionAnswersForItself() throws {
         #expect(Suggestion.silent.edit(after: "git com") == nil)
