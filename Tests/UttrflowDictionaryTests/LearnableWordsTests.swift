@@ -324,6 +324,13 @@ struct CorrectedWordTests {
         #expect(DoubleMetaphone.code(for: "hhh").isSilent)
         #expect(LearnableWords.corrected(over: "hhhh", wrote: "hhh") == nil)
     }
+
+    /// A name a Devanagari dictation left on screen, corrected by re-dictating it in romanised Hinglish.
+    @Test("Learns a correction from a Devanagari selection to its romanisation")
+    func learnsAcrossScripts() {
+        let devanagari = "\u{0930}\u{0918}\u{0941}\u{0928}\u{093E}\u{0925}"  // रघुनाथ
+        #expect(LearnableWords.corrected(over: devanagari, wrote: "Raghunath") == "Raghunath")
+    }
 }
 
 @Suite("The tally of what keeps turning up")

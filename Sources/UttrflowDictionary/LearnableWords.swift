@@ -54,11 +54,14 @@ enum LearnableWords {
         else { return nil }
 
         let replacement = after.joined(separator: " ")
-        let sound = DoubleMetaphone.code(for: replacement)
         let selected = before.joined(separator: " ")
+        // A Devanagari side is read by its romanisation, so a correction is learnt across scripts too.
+        let romanisedReplacement = Romaniser.romanised(replacement)
+        let romanisedSelected = Romaniser.romanised(selected)
+        let sound = DoubleMetaphone.code(for: romanisedReplacement)
         guard !sound.isSilent,
-            sound.sounds(like: DoubleMetaphone.code(for: selected)),
-            ReadingRestraint.opensAlike(replacement, heard: selected)
+            sound.sounds(like: DoubleMetaphone.code(for: romanisedSelected)),
+            ReadingRestraint.opensAlike(romanisedReplacement, heard: romanisedSelected)
         else { return nil }
         guard after.allSatisfy(GeneralVocabulary.isWorthLearning) else { return nil }
         return replacement

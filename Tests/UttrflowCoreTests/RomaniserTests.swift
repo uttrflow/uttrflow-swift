@@ -105,6 +105,20 @@ struct RomaniserTests {
         #expect(Romaniser.soundKey(first) != Romaniser.soundKey(second))
     }
 
+    /// पहुँच and पहुंच are the same word, one written with chandrabindu and one with anusvara.
+    @Test("folds chandrabindu to anusvara and drops nukta, so spelling variants share a form")
+    func scriptFoldedMergesVariants() {
+        #expect(
+            Romaniser.scriptFolded("\u{092A}\u{0939}\u{0941}\u{0901}\u{091A}")
+                == Romaniser.scriptFolded("\u{092A}\u{0939}\u{0941}\u{0902}\u{091A}"))
+        #expect(Romaniser.scriptFolded("\u{0915}\u{093C}") == Romaniser.scriptFolded("\u{0915}"))
+    }
+
+    @Test("leaves a non-Devanagari spelling untouched")
+    func scriptFoldedPassesOtherScriptsThrough() {
+        #expect(Romaniser.scriptFolded("Uttrflow") == "Uttrflow")
+    }
+
     @Test("romanises a transcription's text and timed words, keeping its timings and language")
     func romanisesTranscription() {
         let heard = Transcription(

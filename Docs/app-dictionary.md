@@ -24,6 +24,17 @@ shortlist.
 Digits, punctuation, spaces and accented letters make no sound, so `"payment sheet"` and
 `"PaymentSheet"` share a code; that is what lets a spoken phrase find a camel-cased entry.
 
+## Scripts an entry matches in
+
+A Latin entry and a Devanagari spelling of the same word meet: `PronunciationCoder.keys`
+also codes a Devanagari spelling's romanisation, so "Raghunath" is found whichever script
+recognition wrote it in. Devanagari spelling variants — chandrabindu against anusvara, a
+nukta letter against its base consonant — are folded to one key before that romanisation, so
+पहुँच and पहुंच meet the same entry. A correction learnt across scripts is stored under its
+Latin spelling, since dictation output is romanised (`Docs/latin-output.md`). What remains
+open: two spellings that romanise to different Latin text (transliteration, not the writer's
+own spelling choice) still key apart.
+
 ## Learning: the default is to learn nothing
 
 A mis-heard name reinforced three times is worse than one never learnt, so every rule refuses
