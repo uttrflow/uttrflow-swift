@@ -28,12 +28,13 @@ extension HistoryFixture {
         _ corrections: [Correction] = [],
         dictations: [HistoryEntry] = [],
         query: String = "",
-        scope: CorrectionsScope = .all
+        scope: CorrectionsScope = .all,
+        settings: Settings = .default
     ) -> CorrectionsPresentation {
         CorrectionsPresenter.page(
             for: CorrectionsSnapshot(
                 corrections: corrections, dictations: dictations, query: query, scope: scope,
-                settings: .default, now: now),
+                settings: settings, now: now),
             calendar: calendar, locale: locale)
     }
 }
@@ -49,6 +50,13 @@ struct CorrectionsPageTests {
         #expect(page.callout.symbolName == "arrow.left.arrow.right")
         #expect(page.chrome.title == "Corrections")
         #expect(page.chrome.caption?.contains("Dictionary-backed substitutions") == true)
+    }
+
+    /// A wrong page would lie about why it shows up; the copy must not mention "today" once we keep older corrections.
+    @Test("the callout is not scoped to today")
+    func calloutNotToday() {
+        let page = HistoryFixture.corrections()
+        #expect(!page.callout.message.contains("today"))
     }
 
     @Test("every dictionary correction made today is listed")
@@ -106,16 +114,49 @@ struct CorrectionsPageTests {
         let page = HistoryFixture.corrections(
             [HistoryFixture.correction(), HistoryFixture.correction()],
             dictations: [HistoryFixture.entry(), HistoryFixture.entry(), HistoryFixture.entry()])
-        #expect(page.caption == "Today · 2 corrections across 3 dictations")
+        #expect(page.caption == "2 corrections across 3 dictations")
     }
 
-    @Test("yesterday's corrections belong to yesterday")
-    func todayOnly() {
+    /// A correction noticed the next morning is still here, because its dictation is. The page hides nothing.
+    @Test("a correction from yesterday is listed alongside today's")
+    func yesterdayIsListed() {
         let page = HistoryFixture.corrections([
             HistoryFixture.correction(wrote: "Today"),
             HistoryFixture.correction(wrote: "Yesterday", daysAgo: 1),
         ])
-        #expect(page.rows.map(\.wrote) == ["Today"])
+        #expect(page.rows.map(\.wrote) == ["Today", "Yesterday"])
+    }
+
+    /// The retention window is what the privacy setting promises; older corrections fall off with their dictation.
+    @Test("a correction older than retention is dropped to match the dictation")
+    func olderThanRetention() {
+        var settings = Settings.default
+        settings.transcriptRetentionDays = 7
+        let page = HistoryFixture.corrections(
+            [
+                HistoryFixture.correction(wrote: "Kept"),
+                HistoryFixture.correction(wrote: "Beyond the window", daysAgo: 8),
+            ],
+            settings: settings)
+        #expect(page.rows.map(\.wrote) == ["Kept"])
+    }
+
+    /// The undo is the path that retires a word, and it must reach a change noticed the next morning.
+    @Test("a correction from yesterday still offers Undo")
+    func yesterdayUndo() {
+        let correction = HistoryFixture.correction(wrote: "Stale", daysAgo: 1)
+        let row = HistoryFixture.corrections([correction]).rows[0]
+        #expect(row.undo?.intent == .undoCorrection(correction.id))
+        #expect(!row.isUndone)
+    }
+
+    /// The "Today" framing was the bug; the page must keep its own copy honest.
+    @Test("the caption does not say 'today' once corrections are kept across days")
+    func captionIsNotToday() {
+        let page = HistoryFixture.corrections(
+            [HistoryFixture.correction()],
+            dictations: [HistoryFixture.entry()])
+        #expect(!page.caption.contains("Today"))
     }
 
     /// The rule in ``DictionaryEntry`` is a ratio, not a count, and the footnote follows the code.
@@ -190,11 +231,11 @@ struct CorrectionsEmptyTests {
     @Test("no dictionary corrections is reported as the good outcome")
     func noDictionaryCorrections() {
         let empty = HistoryFixture.corrections(dictations: [HistoryFixture.entry()]).emptyState
-        #expect(empty?.title == "No dictionary corrections today")
+        #expect(empty?.title == "No dictionary corrections")
         #expect(empty?.message.contains("word substitutions backed by your Dictionary") == true)
         #expect(empty?.message.contains("filler removal") == true)
         #expect(empty?.message.contains("does not appear here") == true)
-        #expect(empty?.chips.map(\.caption) == ["dictation today", "dictionary corrections"])
+        #expect(empty?.chips.map(\.caption) == ["dictation", "dictionary corrections"])
         #expect(empty?.chips.first?.value == "1")
         #expect(empty?.footnote?.contains("good outcome") == true)
     }
@@ -204,30 +245,34 @@ struct CorrectionsEmptyTests {
         let empty = HistoryFixture.corrections(
             dictations: [HistoryFixture.entry(), HistoryFixture.entry()]
         ).emptyState
-        #expect(empty?.chips.first?.caption == "dictations today")
+        #expect(empty?.chips.first?.caption == "dictations")
     }
 
-    /// The chip counts today only, so it cannot say "99 today" beside a Dictation page saying none.
-    @Test("the chip counts today and not everything ever kept")
-    func countsOnlyToday() {
+    /// The chip counts what survives the retention window, the same set the caption and History show.
+    @Test("the chip counts within the retention window")
+    func countsWithinRetention() {
+        var settings = Settings.default
+        settings.transcriptRetentionDays = 7
         let empty = HistoryFixture.corrections(
             dictations: [
                 HistoryFixture.entry("today"),
+                HistoryFixture.entry("just inside", daysAgo: 6),
                 HistoryFixture.entry("last week", daysAgo: 7),
                 HistoryFixture.entry("last month", daysAgo: 30),
-            ]
+            ],
+            settings: settings
         ).emptyState
-        #expect(empty?.chips.first?.value == "1")
-        #expect(empty?.chips.first?.caption == "dictation today")
+        #expect(empty?.chips.first?.value == "2")
+        #expect(empty?.chips.first?.caption == "dictations")
     }
 
     /// The caption and the chip are two sentences about one number, computed one way.
-    @Test("the caption and the chip agree about how many were said today")
+    @Test("the caption and the chip agree about how many were said")
     func captionAndChipAgree() {
         let page = HistoryFixture.corrections(
             dictations: [HistoryFixture.entry("today"), HistoryFixture.entry("older", daysAgo: 4)])
-        #expect(page.caption.contains("1 dictation"))
-        #expect(page.emptyState?.chips.first?.value == "1")
+        #expect(page.caption.contains("2 dictations"))
+        #expect(page.emptyState?.chips.first?.value == "2")
     }
 
     /// "No corrections" and "your filter hid everything" are reassurance and confusion.
@@ -237,7 +282,7 @@ struct CorrectionsEmptyTests {
             [HistoryFixture.correction()], scope: .undone
         ).emptyState
         #expect(empty?.title == "Nothing in this view")
-        #expect(empty?.message == "1 correction today, and none of them is undone.")
+        #expect(empty?.message == "1 correction, and none of them is undone.")
     }
 
     @Test("a search that matched nothing says what it was looking for")

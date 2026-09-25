@@ -2,6 +2,7 @@
 public import Foundation
 public import UttrflowHistory
 public import UttrflowSettings
+import UttrflowCore
 
 /// One dictionary-backed substitution: the stored change itself, named here so no page imports the store.
 public typealias Correction = UttrflowHistory.Correction
@@ -57,7 +58,7 @@ public struct CorrectionRow: Sendable, Equatable, Identifiable {
 public struct CorrectionsSnapshot: Sendable, Equatable {
     /// Newest first.
     public let corrections: [Correction]
-    /// Today's dictations, so the caption can say how many sentences the corrections are spread across.
+    /// Every dictation kept by the store, so the caption can say how many sentences the corrections are spread across.
     public let dictations: [HistoryEntry]
     /// What has been typed into the search field.
     public let query: String
@@ -92,7 +93,7 @@ public struct CorrectionsPresentation: Sendable, Equatable {
     public let chrome: MainPageChrome
     /// Why this page exists at all, stated on the page rather than in a release note.
     public let callout: MainCallout
-    /// "Today · 7 corrections across 34 dictations".
+    /// "7 corrections across 34 dictations".
     public let caption: String
     /// The corrections that match the scope and query.
     public let rows: [CorrectionRow]
@@ -130,24 +131,24 @@ public enum CorrectionsPresenter {
         calendar: Calendar = .autoupdatingCurrent,
         locale: Locale = .autoupdatingCurrent
     ) -> CorrectionsPresentation {
-        let today = madeToday(snapshot, calendar: calendar)
+        let inWindow = retained(snapshot)
         let listed = matches(
-            snapshot.scope.matching(today), query: snapshot.query, locale: locale)
+            snapshot.scope.matching(inWindow), query: snapshot.query, locale: locale)
         let rows = listed.map { row(for: $0, locale: locale) }
 
         return CorrectionsPresentation(
-            chrome: chrome(for: snapshot, anyToday: !today.isEmpty),
+            chrome: chrome(for: snapshot, anyKept: !inWindow.isEmpty),
             callout: MainCallout(
                 symbolName: "arrow.left.arrow.right",
                 message: """
-                    Dictionary-backed word substitutions Uttrflow made today, and why. Each row \
+                    Dictionary-backed word substitutions Uttrflow made, and why. Each row \
                     names what it heard, what it wrote from your Dictionary, and the undo that \
                     teaches that word when to retire.
                     """),
-            caption: caption(for: snapshot, corrections: today.count, calendar: calendar),
+            caption: caption(for: snapshot, corrections: inWindow.count),
             rows: rows,
             emptyState: rows.isEmpty
-                ? emptyState(for: snapshot, madeToday: today.count, calendar: calendar) : nil,
+                ? emptyState(for: snapshot, kept: inWindow.count) : nil,
             // Dropped when the pane is empty: the empty state carries its own closing line.
             footnote: rows.isEmpty
                 ? nil
@@ -160,11 +161,11 @@ public enum CorrectionsPresenter {
     // MARK: - Chrome
 
     /// The scope pop-up appears only once there is something to narrow.
-    static func chrome(for snapshot: CorrectionsSnapshot, anyToday: Bool) -> MainPageChrome {
+    static func chrome(for snapshot: CorrectionsSnapshot, anyKept: Bool) -> MainPageChrome {
         MainPageChrome(
             title: "Corrections",
             caption: "Dictionary-backed substitutions Uttrflow made after it heard you.",
-            scope: anyToday
+            scope: anyKept
                 ? MainScope(
                     title: snapshot.scope.title,
                     options: CorrectionsScope.allCases.map {
@@ -172,31 +173,33 @@ public enum CorrectionsPresenter {
                             id: $0.rawValue, title: $0.title, isSelected: $0 == snapshot.scope)
                     })
                 : nil,
-            search: anyToday
+            search: anyKept
                 ? MainSearchField(placeholder: searchPlaceholder, query: snapshot.query) : nil)
     }
 
-    /// "Today · 7 corrections across 34 dictations"; both halves counted, since corrections alone are unreadable.
-    static func caption(
-        for snapshot: CorrectionsSnapshot, corrections: Int, calendar: Calendar
-    ) -> String {
-        let said = saidToday(in: snapshot, calendar: calendar)
+    /// "7 corrections across 34 dictations"; both halves counted, since corrections alone are unreadable.
+    static func caption(for snapshot: CorrectionsSnapshot, corrections: Int) -> String {
+        let said = dictationsInWindow(in: snapshot)
         return """
-            Today · \(MainFormatting.count(corrections, "correction", "corrections")) across \
+            \(MainFormatting.count(corrections, "correction", "corrections")) across \
             \(MainFormatting.count(said, "dictation", "dictations"))
             """
     }
 
-    /// How many dictations were made today, in one place so the caption and the chip cannot disagree.
-    static func saidToday(in snapshot: CorrectionsSnapshot, calendar: Calendar) -> Int {
-        snapshot.dictations.filter { calendar.isDate($0.when, inSameDayAs: snapshot.now) }.count
+    /// How many dictations are within the retention window, in one place so the caption and the chip cannot disagree.
+    static func dictationsInWindow(in snapshot: CorrectionsSnapshot) -> Int {
+        let window = RetentionWindow(
+            days: snapshot.settings.transcriptRetentionDays, now: snapshot.now)
+        return snapshot.dictations.filter { window.keeps($0.when) }.count
     }
 
     // MARK: - Choosing rows
 
-    /// Today only; everything older belongs to the dictation it happened in, which is on History.
-    static func madeToday(_ snapshot: CorrectionsSnapshot, calendar: Calendar) -> [Correction] {
-        snapshot.corrections.filter { calendar.isDate($0.when, inSameDayAs: snapshot.now) }
+    /// Corrections within the retention window; the same window that keeps their dictations, so an undo can reach any of them.
+    static func retained(_ snapshot: CorrectionsSnapshot) -> [Correction] {
+        let window = RetentionWindow(
+            days: snapshot.settings.transcriptRetentionDays, now: snapshot.now)
+        return snapshot.corrections.filter { window.keeps($0.when) }
     }
 
     /// Matches what was heard, what was written and the reason, since the pill is where the reason lives.
@@ -232,26 +235,24 @@ public enum CorrectionsPresenter {
     // MARK: - Nothing to show
 
     /// Four different nothings, since "no corrections" and "your filter hid everything" differ.
-    static func emptyState(
-        for snapshot: CorrectionsSnapshot, madeToday: Int, calendar: Calendar
-    ) -> MainEmptyState {
+    static func emptyState(for snapshot: CorrectionsSnapshot, kept: Int) -> MainEmptyState {
         let query = SearchQuery.needle(in: snapshot.query)
         if !query.isEmpty {
-            return .noMatches("No dictionary correction today mentions “\(query)”.")
+            return .noMatches("No dictionary correction mentions “\(query)”.")
         }
-        if madeToday > 0 {
+        if kept > 0 {
             return MainEmptyState(
                 symbolName: "line.3.horizontal.decrease",
                 title: "Nothing in this view",
                 message: """
-                    \(MainFormatting.count(madeToday, "correction", "corrections")) today, and \
+                    \(MainFormatting.count(kept, "correction", "corrections")), and \
                     none of them is \(snapshot.scope.title.lowercased()).
                     """)
         }
-        let said = saidToday(in: snapshot, calendar: calendar)
+        let said = dictationsInWindow(in: snapshot)
         return MainEmptyState(
             symbolName: "arrow.left.arrow.right",
-            title: "No dictionary corrections today",
+            title: "No dictionary corrections",
             message: """
                 This page lists word substitutions backed by your Dictionary: a term visible on \
                 screen, a spelling heard clearly elsewhere, stray letters, or several spoken words \
@@ -259,7 +260,7 @@ public enum CorrectionsPresenter {
                 grammar does not appear here.
                 """,
             chips: [
-                MainStatistic(value: "\(said)", caption: said == 1 ? "dictation today" : "dictations today"),
+                MainStatistic(value: "\(said)", caption: said == 1 ? "dictation" : "dictations"),
                 MainStatistic(value: "0", caption: "dictionary corrections"),
             ],
             footnote: "An empty page here is the good outcome, not a missing feature.")
