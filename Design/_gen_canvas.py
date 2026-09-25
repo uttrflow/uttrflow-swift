@@ -44,7 +44,7 @@ ROWS = [
 
     ("in-use",
      "Every day\nThe floating button is the whole product for most people. It is the recorder too — it expands in place rather than a second panel appearing somewhere else.",
-     [("Dock-States.dc.html", 900, 780, None), ("Dock-Placement.dc.html", 900, 700, None),
+     [("Dock-States.dc.html", 900, 880, None), ("Dock-Placement.dc.html", 900, 700, None),
       ("MenuBar.dc.html", 700, 620, None)]),
 
     ("predict",
