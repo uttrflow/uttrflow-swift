@@ -86,7 +86,7 @@ the pill a few points to its left; the tick's job is to be unmistakable.
   | --- | --- | --- | --- | --- |
   | Failure disc | `dockWarningFill` `#C25E00` | its white glyph | 4.29:1 | 3:1 |
   | Failure disc | `#C25E00` | light / dark glass | 3.70:1 / 3.53:1 | 3:1 |
-  | Copied keycap text | `dockWarningInk` `#9A4E00` light, `#FFB05C` dark | light / dark glass | 5.23:1 / 8.37:1 | 4.5:1 |
+  | Copied keycap text | `dockWarningInk` `#943C00` light, `#FFB05C` dark | keycap `#CDCDCD` / `#444444` (14% over light / dark glass) | 4.55:1 / 5.39:1 | 4.5:1 |
   | Inserted tick | `dockSuccessInk` `#176A2F` light, `#5CD97E` dark | light / dark glass | 5.77:1 / 8.42:1 | 3:1 |
 
   The bright `dockWarning` `#FF8D28` and `dockSuccess` `#34C759` measure 2.31:1 under white
