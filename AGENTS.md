@@ -421,8 +421,6 @@ worktrees once sat holding pre-rename copies of the whole tree, and an abandoned
 indistinguishable from work in progress to the next session that finds it.
 `.claude/worktrees/` is gitignored, so nothing warns you.
 
-`sasta-trader` is a different project and does not follow any of this.
-
 **Never run `swift build` or `swift test` in the main checkout while subagents are
 working.** They share `.build` and corrupt each other. Give parallel agents
 `isolation: "worktree"` — or, when the session's working directory is not itself a git
