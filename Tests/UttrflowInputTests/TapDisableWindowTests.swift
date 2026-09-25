@@ -1,3 +1,4 @@
+import Synchronization
 import Testing
 
 @testable import UttrflowInput
@@ -30,5 +31,22 @@ struct TapDisableWindowTests {
         let next = TapDisableWindow.decide(last: 10 * second, now: later, count: first.count)
         #expect(next.reEnable)
         #expect(next.count == 1)
+    }
+}
+
+@Suite("Delivery telling its give-up handler")
+struct DeliveryGaveUpTests {
+    @Test("the give-up handler is not told on the first disable, only once the tap is left off")
+    func toldOnlyOnceTheTapIsLeftOff() {
+        let delivery = Delivery()
+        let gaveUp = Mutex(false)
+        delivery.setGaveUpHandler { gaveUp.withLock { $0 = true } }
+
+        #expect(delivery.shouldReEnable())
+        #expect(!gaveUp.withLock { $0 })
+
+        // Immediately after, so it reads as the same fault and the window's limit is reached.
+        #expect(!delivery.shouldReEnable())
+        #expect(gaveUp.withLock { $0 })
     }
 }
