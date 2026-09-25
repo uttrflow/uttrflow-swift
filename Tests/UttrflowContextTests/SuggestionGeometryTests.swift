@@ -55,6 +55,28 @@ struct SuggestionGeometryTests {
         #expect(anchor == nil)
     }
 
+    @Test("A caret in the Dock's band is drawn on its own line when the screen passed is the whole frame")
+    func ghostInTheDockBand() {
+        let frame = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let fullScreenWindow = frame
+        let caretInDockBand = CGRect(x: 400, y: 40, width: 0, height: 18)
+        let anchor = SuggestionGeometry.anchor(
+            for: .inlineGhost, caret: caretInDockBand, window: fullScreenWindow, screen: frame,
+            size: strip)
+        #expect(anchor?.frame.maxY == caretInDockBand.maxY)
+    }
+
+    @Test("A caret in the menu bar's band is drawn on its own line when the screen passed is the whole frame")
+    func ghostInTheMenuBarBand() {
+        let frame = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let fullScreenWindow = frame
+        let caretInMenuBarBand = CGRect(x: 400, y: 880, width: 0, height: 18)
+        let anchor = SuggestionGeometry.anchor(
+            for: .inlineGhost, caret: caretInMenuBarBand, window: fullScreenWindow, screen: frame,
+            size: strip)
+        #expect(anchor?.frame.maxY == caretInMenuBarBand.maxY)
+    }
+
     @Test("A dot narrower than the minimum still fits where only it does")
     func aSmallSurfaceNeedsOnlyItsOwnWidth() {
         let last = CGRect(x: mainScreen.maxX - 12, y: 500, width: 2, height: 17)
