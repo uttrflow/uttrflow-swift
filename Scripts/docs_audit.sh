@@ -1064,6 +1064,39 @@ PYTHON
 fi
 
 # ---------------------------------------------------------------------------
+# The identity sheet's teal ramp must match BrandPalette's production roles.
+# ---------------------------------------------------------------------------
+#
+# #1130: `Design/_gen_identity.py`'s RAMP named `#17A398` the listening-state colour years
+# after production moved to `BrandPalette.Teal.primary` (`#29C0B4`), and regenerating the
+# sheet reproduced the stale value byte-for-byte because the generator's own literal was
+# wrong. The audit reads each RAMP entry's hex by role and compares it to the `Teal` case
+# documented as that production role, so a colour that drifts from `BrandPalette.swift`
+# fails here instead of surviving silently in a design reference nobody re-reads.
+printf '\nIdentity sheet teal roles\n'
+
+if [[ ! -x "$PACKAGE_ROOT/Scripts/identity_role_audit.py" ]]; then
+    fail "Scripts/identity_role_audit.py is missing or not executable" \
+        "The audit pins the identity sheet's swatches to BrandPalette.Teal; without it a" \
+        "role can drift from production again the way #1130 did."
+else
+    if "$PACKAGE_ROOT/Scripts/identity_role_audit.py" --self-test; then
+        if "$PACKAGE_ROOT/Scripts/identity_role_audit.py" >&2; then
+            pass "every identity swatch matches its BrandPalette.Teal role"
+        else
+            fail "an identity swatch disagrees with BrandPalette.Teal" \
+                "BrandPalette.swift is the documented colour source of truth. Update" \
+                "RAMP in Design/_gen_identity.py to match it, then re-run every" \
+                "Design/_gen_*.py so the regenerated artboards carry the fix."
+        fi
+    else
+        fail "Scripts/identity_role_audit.py --self-test failed" \
+            "The audit's own self-test (a known match and a known mismatch) is no longer" \
+            "both passing, so the comparison is broken. Fix the audit, not the sheet."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 printf '\n'
 if [[ "$failures" -gt 0 ]]; then
     printf 'docs audit: %s check(s) failed. The documentation contradicts the tree.\n\n' "$failures" >&2
