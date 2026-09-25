@@ -130,6 +130,22 @@ struct VerifierTests {
             "the verdict must return once the deadline wins, not wait out an 8-second noncooperative scorer")
     }
 
+    @Test("A cancelled turn stops `verified` between candidates, not just after the whole loop.")
+    func stopsBetweenCandidatesOnCancellation() async {
+        let box = TaskBox<[Candidate]>()
+        let scoring = CancellingScoring<[Candidate]>(disliked, cancelling: box)
+        let verifier = await warmed([:], on: "candidate0", scoring: scoring)
+        let candidates = (0..<4).map { Candidate(text: "candidate\($0)", source: .personal) }
+        let task = Task {
+            await verifier.verified(candidates, in: terminal, typed: "", now: moment)
+        }
+        box.task = task
+        _ = await task.value
+        #expect(
+            await scoring.asked == 1,
+            "the second candidate must never be scored once the first one's scoring cancelled the turn")
+    }
+
     @Test("A candidate the machine attested is answered before the model is asked at all.")
     func attestationRunsBeforeTheModel() async {
         let clock = ManualClock()
