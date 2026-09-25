@@ -13,20 +13,24 @@ happens on the first dictation after launch; sometimes after hours of working fi
 The pipeline leaves `.recording` when it is told the key came up. Nothing else moves it.
 So any path that loses the release wedges the app, and both monitors have one:
 
-- **`HeldModifierMonitor`** watches `NSEvent` monitors, and macOS stops calling them
-  while **secure input** is enabled — which is any password field, in any application,
-  including the login window and 1Password. It also tears them down if Accessibility is
-  revoked while the app is running. The press gets through, the release does not.
-- **`CarbonHotkeyMonitor`** relies on `kEventHotKeyReleased`, which
-  `RegisterEventHotKey` does not always send: lifting the modifier before the key loses
-  it, and so does a window server that drops the registration.
+- **`ActivationMonitor`**, over `SystemKeyboard`'s listen-only session tap, is what the
+  dictation shortcut uses. The tap being disabled while the key is held (#141's
+  re-enable happens after the event is already lost) or **secure input** turning on
+  mid-hold — any password field, in any application, including the login window and
+  1Password — withholds key-up and flags-changed events from it. The press gets
+  through, the release does not.
+- **`CarbonHotkeyMonitor`**, used by every other shortcut, relies on
+  `kEventHotKeyReleased`, which `RegisterEventHotKey` does not always send: lifting the
+  modifier before the key loses it, and so does a window server that drops the
+  registration.
 
 `HeldModifierEdge.isDown` then stays `true` for ever, and there is no second way to
 close the microphone.
 
 **The fix is to stop trusting the event.** Both monitors now compare against the real
-key state every 250 ms — `NSEvent.modifierFlags` for a held modifier,
-`CGEventSource.keyState` for a registered key — and feed the answer to the same
+key state every 250 ms — `SystemKeyState`, reading `CGEventSource`, for
+`ActivationMonitor`'s `HotkeyRecogniser`, and `CGEventSource.keyState` directly for
+`CarbonHotkeyMonitor`'s registered key — and feed the answer to the same
 `HeldModifierEdge` an event would. A release that is never delivered is noticed within a
 quarter of a second, which is under what anybody perceives as a hang.
 

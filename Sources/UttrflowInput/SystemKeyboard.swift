@@ -36,17 +36,23 @@ public final class SystemKeyboard: KeyboardEventSource {
 
     /// The domain reading of a CoreGraphics event, kept here so nothing else decodes flags.
     static func stroke(keyCode: UInt16, flags: CGEventFlags, phase: KeyPhase) -> KeyStroke {
-        var modifiers: Set<HotkeyModifier> = []
-        if flags.contains(.maskCommand) { modifiers.insert(.command) }
-        if flags.contains(.maskAlternate) { modifiers.insert(.option) }
-        if flags.contains(.maskControl) { modifiers.insert(.control) }
-        if flags.contains(.maskShift) { modifiers.insert(.shift) }
-        let isFunctionDown = flags.contains(.maskSecondaryFn)
+        let (modifiers, isFunctionDown) = Self.modifiers(from: flags)
         return KeyStroke(
             keyCode: keyCode, modifiers: modifiers, isFunctionDown: isFunctionDown, phase: phase,
             isKeyDown: isDown(
                 keyCode: keyCode, phase: phase, modifiers: modifiers,
                 isFunctionDown: isFunctionDown))
+    }
+
+    /// The modifiers and Fn state a raw flags mask carries, the one place that decodes it.
+    static func modifiers(from flags: CGEventFlags) -> (modifiers: Set<HotkeyModifier>, isFunctionDown: Bool)
+    {
+        var modifiers: Set<HotkeyModifier> = []
+        if flags.contains(.maskCommand) { modifiers.insert(.command) }
+        if flags.contains(.maskAlternate) { modifiers.insert(.option) }
+        if flags.contains(.maskControl) { modifiers.insert(.control) }
+        if flags.contains(.maskShift) { modifiers.insert(.shift) }
+        return (modifiers, flags.contains(.maskSecondaryFn))
     }
 
     /// Whether the named key is down, which for a flags change is whether its own modifier survived.
