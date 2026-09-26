@@ -15,6 +15,8 @@ struct QuickPanelView: View {
     var openCount: Int = 0
 
     @State private var query: String = ""
+    /// True while `query` is being set from `presentation.query` rather than typed, so that set is never relayed as a search.
+    @State private var isSyncingQuery = false
     @State private var hovered: UUID?
     /// Which row's ⋯ menu is open, if any; every action in it also has a key of its own.
     @State private var openMenu: UUID?
@@ -53,10 +55,14 @@ struct QuickPanelView: View {
             isSheetFocused = false
             isSearchFocused = true
         }
-        // Closes a menu left open from the last showing; the panel is built once and shown many times.
-        .onChange(of: openCount) { openMenu = nil }
-        .task(id: openCount) {
+        // Closes a leftover menu and resets the field before the panel shows, so no stale text ever flashes.
+        .onChange(of: openCount) {
+            openMenu = nil
+            isSyncingQuery = true
             query = presentation.query
+            isSyncingQuery = false
+        }
+        .task(id: openCount) {
             hovered = nil
             // A resumed sheet with a field keeps the caret; its `onAppear` does not run again (#920).
             guard presentation.sheet?.takesTyping == true else {
@@ -138,6 +144,8 @@ struct QuickPanelView: View {
                 .accessibilityLabel(presentation.searchPlaceholder)
                 // Reports the whole contents: the field owns its own selection, deletion and dictation.
                 .onChange(of: query) { _, text in
+                    // A programmatic reset from `presentation.query`, not a keystroke; nothing to relay (#861).
+                    guard !isSyncingQuery else { return }
                     // Under a sheet with no field, typing would filter away the row being asked about (#946).
                     if let sheet = presentation.sheet, !sheet.takesTyping {
                         if text != presentation.query { query = presentation.query }
