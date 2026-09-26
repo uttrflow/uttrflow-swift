@@ -125,10 +125,14 @@ public actor CaptureSession {
         if let refusal = CaptureGate.refusal(
             toRecord: commit.text, from: reading, given: preferences)
         {
+            // Forgotten, so a refused value is never later handed to the sink as the one replaced.
+            detector.forgetLastIdleCommit()
             return .refused(refusal)
         }
         do {
-            if let superseded = commit.supersedes {
+            if let superseded = commit.supersedes,
+                CaptureGate.refusal(toRecord: superseded, from: reading, given: preferences) == nil
+            {
                 try await sink.supersede(superseded, with: commit.text, in: surface)
             }
             try await sink.record(

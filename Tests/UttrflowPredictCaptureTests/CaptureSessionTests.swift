@@ -264,6 +264,24 @@ struct CaptureSessionTests {
         #expect(await recorder.texts == ["git pu", "git push"])
     }
 
+    @Test("A refused idle value is never handed to the sink as the one a later line replaces.")
+    func refusedValueIsNeverSuperseded() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder)
+        _ = try await session.handle(.keystroke("git pu", at: start), in: terminal)
+        #expect(
+            try await session.handle(.tick(at: start.addingTimeInterval(60)), in: terminal)
+                == .refused(.consentNotGiven))
+        try await session.record(.allowed, for: "com.example.terminal")
+        _ = try await session.handle(.keystroke("git push", at: start.addingTimeInterval(61)), in: terminal)
+        #expect(
+            try await session.handle(.returnPressed(at: start.addingTimeInterval(62)), in: terminal)
+                == .recorded("git push"))
+        #expect(await recorder.superseded.isEmpty)
+        #expect(await recorder.texts == ["git push"])
+    }
+
     @Test("Moving to another field commits what the first one still held.")
     func changingFieldCommitsTheOldOne() async throws {
         let scratch = Scratch()
