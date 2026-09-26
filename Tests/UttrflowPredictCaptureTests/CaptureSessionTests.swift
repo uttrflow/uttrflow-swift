@@ -399,6 +399,20 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.count == 2)
     }
 
+    @Test("A history line with a command substitution is not imported.")
+    func shellHistorySkipsUnresolvedLines() async throws {
+        let scratch = Scratch()
+        try scratch.write(
+            ": 1:0;rm -rf $(find . -name node_modules)\n: 2:0;make verify\n", to: ".zsh_history")
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        let surface = try #require(terminal.surface)
+        let imported = try await session.importShellHistory(
+            forHomeDirectory: scratch.directory, into: surface, at: start)
+        #expect(imported == 1)
+        #expect(await recorder.texts == ["make verify"])
+    }
+
     @Test("A home directory with no history in it imports nothing and is not tried again.")
     func shellHistoryMayBeAbsent() async throws {
         let scratch = Scratch()

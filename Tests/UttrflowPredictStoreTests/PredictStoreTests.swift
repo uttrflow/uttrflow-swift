@@ -48,6 +48,15 @@ struct RecordingTests {
         #expect(found.first?.evidence?.count == 1)
     }
 
+    @Test("A line whose command substitution cannot be read is marked irreversible.")
+    func unreadableSubstitutionIsIrreversible() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("rm -rf $(find . -name node_modules)", in: terminal, at: moment)
+        let found = try await store.candidates(for: terminal, matching: "rm -rf")
+        #expect(found.map(\.isIrreversible) == [true])
+    }
+
     @Test("the corpus database is kept out of backups")
     func databaseIsExcludedFromBackup() async throws {
         let corpus = Corpus()

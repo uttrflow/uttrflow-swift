@@ -110,6 +110,13 @@ struct CaptureGateTests {
                 == .destructive)
     }
 
+    @Test("A line the shell reader cannot resolve is refused rather than taken as safe.")
+    func unresolvedSubstitutionIsRefused() {
+        for line in ["rm -rf $(find . -name node_modules)", "git branch -D `git branch --merged`"] {
+            #expect(CaptureGate.refusal(toRecord: line, from: field(), given: allowed) == .destructive)
+        }
+    }
+
     @Test("A credential is refused by the same rules the clipboard hides one with.")
     func secretsAreRefused() {
         let secrets = [
