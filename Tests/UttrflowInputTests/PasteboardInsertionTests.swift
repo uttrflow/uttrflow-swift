@@ -166,7 +166,8 @@ struct PasteboardTextInsertionEngineTests {
     }
 
     /// The guard's whole point: eligibility answered for another app must not survive a switch to Uttrflow.
-    @Test("rejects the paste and leaves the clipboard alone when Uttrflow becomes frontmost after eligibility")
+    @Test(
+        "rejects the paste and leaves the clipboard alone when Uttrflow becomes frontmost after eligibility")
     func revalidatesFrontmostBeforeWriting() async {
         let focus = SwitchableFocus()
         let pasteboard = FakePasteboard()

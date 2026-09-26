@@ -33,9 +33,10 @@ public struct TextInsertionCoordinator: TextInserting {
             guard await strategy.canInsert() else { throw TextInsertionError.noFocusedTextField }
             // Passed through rather than dropped, so what the strategy found out survives the fallback.
             let arrival = try await strategy.insert(text, richText: richText)
-            // Read after the write and not before it, so a switch during the insertion names the app that has it.
+            // The strategy's own reading at the moment of sending wins, else the app in front once the write returns.
+            let landed = await strategy.destinationAtLanding()
             return InsertionAttempt(
-                strategy.method, arrival: arrival, destination: focus?.frontmostApplication(),
+                strategy.method, arrival: arrival, destination: landed ?? focus?.frontmostApplication(),
                 intoSecureField: secure)
         }
 

@@ -24,6 +24,9 @@ public protocol TextInsertionEngine: Sendable {
 
     /// Inserts, carrying the formatted form where the strategy has a way to; only the pasteboard has one.
     func insert(_ text: String, richText: String?) async throws(TextInsertionError) -> InsertionArrival
+
+    /// The application in front when the last insertion's words were sent, or nil when this strategy did not read it.
+    func destinationAtLanding() async -> InsertionDestination?
 }
 
 extension TextInsertionEngine {
@@ -33,4 +36,7 @@ extension TextInsertionEngine {
     ) async throws(TextInsertionError) -> InsertionArrival {
         try await insert(text)
     }
+
+    /// Nil, so the coordinator reads the frontmost application itself once the write returns.
+    public func destinationAtLanding() async -> InsertionDestination? { nil }
 }
