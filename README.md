@@ -31,7 +31,7 @@
 
 <p align="center">
   <img src="Docs/media/readme-dictation.png" width="820"
-       alt="A chat composer holding a dictated message, beside a card showing what was said, with the fillers struck out, and the cleaned sentence that landed.">
+       alt="A chat composer holding a dictated message, beside a card showing what was said, with um and uh struck out, and the cleaned sentence that landed.">
 </p>
 
 **Hold ⌥ Space** in any app and talk. Let go, and the words land at your cursor.
