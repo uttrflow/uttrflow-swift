@@ -36,11 +36,7 @@ public final class SystemKeyboard: KeyboardEventSource {
 
     /// The domain reading of a CoreGraphics event, kept here so nothing else decodes flags.
     static func stroke(keyCode: UInt16, flags: CGEventFlags, phase: KeyPhase) -> KeyStroke {
-        var modifiers: Set<HotkeyModifier> = []
-        if flags.contains(.maskCommand) { modifiers.insert(.command) }
-        if flags.contains(.maskAlternate) { modifiers.insert(.option) }
-        if flags.contains(.maskControl) { modifiers.insert(.control) }
-        if flags.contains(.maskShift) { modifiers.insert(.shift) }
+        let modifiers = Set(HotkeyModifier.held(in: flags))
         let isFunctionDown = flags.contains(.maskSecondaryFn)
         return KeyStroke(
             keyCode: keyCode, modifiers: modifiers, isFunctionDown: isFunctionDown, phase: phase,
