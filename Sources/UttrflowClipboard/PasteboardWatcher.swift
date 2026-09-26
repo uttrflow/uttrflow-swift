@@ -35,6 +35,9 @@ public actor PasteboardWatcher {
     /// Uttrflow's own write, behind a `Mutex` because a write cannot `await` to announce itself.
     private nonisolated let announced = Mutex<Announcement?>(nil)
 
+    /// A picture as the clipboard hands it over.
+    typealias ClipboardPicture = (data: Data, width: Int, height: Int)
+
     /// The last change count dealt with, read at construction so neither launch case is wrong.
     private var seen: Int
 
@@ -89,7 +92,7 @@ public actor PasteboardWatcher {
 
     /// Whether this change is the announced write, matched on what it put there. See `Docs/insertion.md`.
     private nonisolated func claims(
-        _ count: Int, at date: Date, holding text: String?, picture: () -> Data?
+        _ count: Int, at date: Date, holding text: String?, picture: Data?
     ) -> Bool {
         announced.withLock { held -> Bool in
             guard let pending = held else { return false }
@@ -102,9 +105,8 @@ public actor PasteboardWatcher {
             switch pending.wrote {
             case .text(let wrote):
                 guard text == wrote else { return false }
-            // Read only here, so a tick that has no picture announcement pending never asks for bytes.
             case .picture(let wrote):
-                guard text == nil, picture() == wrote else { return false }
+                guard text == nil, picture == wrote else { return false }
             }
             held = nil
             return true
@@ -125,9 +127,13 @@ public actor PasteboardWatcher {
         defer { isReading = false }
         // Fetched only now, and once, so an idle tick costs one integer read.
         guard let copied = await bounded({ [source] in source.text() }) else { return nil }
-        guard !claims(count, at: date, holding: copied, picture: { source.image()?.data }) else {
-            return nil
+        // Read once, bounded and outside the lock, and only when a picture announcement could claim it.
+        var read: ClipboardPicture?? = .none
+        if copied == nil, awaitsPicture() {
+            guard let picture = await bounded({ [source] in source.image() }) else { return nil }
+            read = .some(picture)
         }
+        guard !claims(count, at: date, holding: copied, picture: read??.data) else { return nil }
 
         // A copy its writer marked as not for history is never recorded, text or picture.
         guard let markers = await bounded({ [source] in source.markers() }) else { return nil }
@@ -136,7 +142,7 @@ public actor PasteboardWatcher {
         guard source.changeCount() == count else { return nil }
 
         // K4 — a picture, asked first because the branch below returns for anything textless.
-        if copied == nil, let picture = await bounded({ [source] in source.image() }) ?? nil {
+        if copied == nil, let picture = await pictureRead(read) {
             guard !markers.contains(.concealed) else { return nil }
             return NoticedClip(
                 clip: Clip(
@@ -166,6 +172,20 @@ public actor PasteboardWatcher {
                 language: classified.language,
                 // E — kept beside the plain form, never instead of it.
                 richText: html))
+    }
+
+    /// Whether a picture announcement is armed, asked without reading the clipboard.
+    private nonisolated func awaitsPicture() -> Bool {
+        announced.withLock { held in
+            guard case .picture = held?.wrote else { return false }
+            return true
+        }
+    }
+
+    /// The picture the claim already read, or a fresh bounded read when the claim had no need of one.
+    private func pictureRead(_ read: ClipboardPicture??) async -> ClipboardPicture? {
+        if let read { return read }
+        return await bounded({ [source] in source.image() }) ?? nil
     }
 
     /// One clipboard read, given up on once ``readLimit`` has passed, since the writing app answers it.
