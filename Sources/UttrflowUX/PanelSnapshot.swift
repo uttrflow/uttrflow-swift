@@ -119,6 +119,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     let formattingSheets = FormattingSheetMemo()
     /// Keeps the last list of rows found, shared by every copy of this snapshot so a keystroke searches the history once and an arrow key not at all.
     let searchMemo = PanelSearchMemo()
+    /// Keeps the rows last drawn, shared by every copy of this snapshot so an arrow key rebuilds none of them.
+    let rowMemo = PanelRowMemo()
 
     /// Whether a delete can still be taken back; set by the app, which alone still holds the clip.
     public var canUndoDelete: Bool = false

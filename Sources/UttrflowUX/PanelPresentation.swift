@@ -130,7 +130,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let isPinned: Bool
     /// Whether bullets are drawn rather than the clip, so nothing mistakes one for the other.
     public let isMasked: Bool
-    public let isSelected: Bool
+    public internal(set) var isSelected: Bool
     /// Why this row is in the list. `nil` when nothing was typed and every clip is here.
     public let matched: PanelMatchField?
     /// K4 — what a picture row says about itself, since it has no text. See `Docs/panel.md`.
@@ -351,8 +351,20 @@ public enum PanelPresenter {
 
     public static func present(_ snapshot: PanelSnapshot) -> PanelPresentation {
         let results = snapshot.results
+        let context = PanelRowMemo.Context(
+            needle: snapshot.needle, locale: snapshot.locale, now: snapshot.now,
+            imagesFolder: snapshot.imagesFolder, formattableLanguages: snapshot.formattableLanguages)
         let rows = results.rows.enumerated().map { position, result in
-            row(for: result, in: snapshot, isSelected: position == results.selectedIndex)
+            let clip = result.clip
+            let key = PanelRowMemo.Key(
+                result: result,
+                isMasked: clip.kind == .secret && !snapshot.revealed.contains(clip.id),
+                isGone: clip.image != nil && snapshot.missingImages.contains(clip.id))
+            return snapshot.rowMemo.row(
+                for: key, in: context, isSelected: position == results.selectedIndex
+            ) {
+                row(for: result, in: snapshot, isSelected: false)
+            }
         }
         // An unread list is an unknown, not a nothing, so neither sentence below is said yet.
         let saysNothing = rows.isEmpty && !snapshot.isAwaitingList
