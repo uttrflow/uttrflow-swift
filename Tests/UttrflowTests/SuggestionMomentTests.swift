@@ -30,6 +30,13 @@ struct SuggestionMomentTests {
         #expect(!SuggestionMoment.reading(of: composer()).isSecure)
     }
 
+    @Test("A field the read found secure only by its masked value stays secure")
+    func aMaskedOnlyFieldReadsSecure() {
+        let snapshot = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.app", applicationName: "App", role: "AXTextField", isSecure: true)
+        #expect(SuggestionMoment.reading(of: snapshot).isSecure)
+    }
+
     @Test("The bundle identifier and everything else the field publishes pass through unchanged")
     func theReadingKeepsWhatTheFieldSaid() {
         let reading = SuggestionMoment.reading(of: composer())

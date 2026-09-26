@@ -17,7 +17,8 @@ enum SuggestionMoment {
             subrole: snapshot.subrole, identifier: snapshot.identifier,
             placeholder: snapshot.placeholder,
             accessibilityDescription: snapshot.accessibilityDescription, document: snapshot.document,
-            windowTitle: snapshot.windowTitle, applicationName: snapshot.applicationName)
+            windowTitle: snapshot.windowTitle, applicationName: snapshot.applicationName,
+            isKnownSecure: snapshot.isSecure)
     }
 
     /// Everything about this moment that can silence a suggestion, given how long since the last keystroke.
