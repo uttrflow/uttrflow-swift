@@ -688,7 +688,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         let speech = SpeechEngineFactory.make(
             kind: settings.engines.speech, model: model,
-            modelFolder: modelStore.location(of: model))
+            modelFolder: modelStore.location(of: model), idleAfter: BackedSpeechEngine.idleRelease)
 
         // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
         let speechWords = DictionaryVocabulary { [dictionary] in

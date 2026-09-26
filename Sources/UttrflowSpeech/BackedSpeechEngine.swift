@@ -6,6 +6,9 @@ public actor BackedSpeechEngine: SpeechEngine {
     /// Audio shorter than this cannot carry a word, and recognisers hallucinate on it.
     public static let minimumDuration = Duration.milliseconds(250)
 
+    /// How long the app lets the recogniser sit unused before letting it go; a reload from a warm disk takes about 2 s.
+    public static let idleRelease = Duration.seconds(600)
+
     public nonisolated let kind: SpeechEngineKind
 
     private let backend: any TranscriptionBackend
