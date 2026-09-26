@@ -302,7 +302,8 @@ public enum FocusedFieldReader {
         /// What the element says: the end of its value, else its title, else its description, which is where a chat keeps its messages.
         var text: String? {
             let candidates: [() -> String?] = [
-                { self.value }, { self[kAXTitleAttribute] as? String }, { self[kAXDescriptionAttribute] as? String },
+                { self.value }, { self[kAXTitleAttribute] as? String },
+                { self[kAXDescriptionAttribute] as? String },
             ]
             for candidate in candidates {
                 if let text = candidate(), text.contains(where: { !$0.isWhitespace }) { return text }
@@ -321,18 +322,21 @@ public enum FocusedFieldReader {
         /// The end of an element's value by range where it is long, else the whole value, which is short or of unknown length.
         private static func tail(of element: AXUIElement) -> String? {
             var length: AnyObject?
-            if AXUIElementCopyAttributeValue(element, kAXNumberOfCharactersAttribute as CFString, &length) == .success,
+            if AXUIElementCopyAttributeValue(element, kAXNumberOfCharactersAttribute as CFString, &length)
+                == .success,
                 let count = (length as? NSNumber)?.intValue, count > valueReadLimit
             {
                 let range = CFRange(location: count - valueReadLimit, length: valueReadLimit)
-                if let tail = SurfaceProbe.parameterized(element, kAXStringForRangeParameterizedAttribute, range)
+                if let tail = SurfaceProbe.parameterized(
+                    element, kAXStringForRangeParameterizedAttribute, range)
                     as? String
                 {
                     return tail
                 }
             }
             var value: AnyObject?
-            guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value) == .success else {
+            guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value) == .success
+            else {
                 return nil
             }
             return value as? String
