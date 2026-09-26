@@ -23,8 +23,6 @@ public enum PanelIntent: Sendable, Equatable {
     case format(Clip.ID)
     /// E6 — make this plain clip a note, so it can be given formatting.
     case makeNote(Clip.ID)
-    /// E5 — tick or untick a box in a note.
-    case tickBox(Clip.ID, index: Int)
     /// F9 — put back the clip the last delete removed, which only the app still holds.
     case undoDelete
     /// H3 — keep the text of a search that found nothing.
@@ -52,7 +50,6 @@ public enum PanelIntent: Sendable, Equatable {
         case .delete(let id): .delete(id)
         case .reindent(let id): .reindent(id)
         case .makeNote(let id): .makeNote(id)
-        case .tickBox(let id, let index): .tickBox(id, index: index)
         case .renameCategory(let name): .renameCategory(name)
         case .deleteCategory(let name): .deleteCategory(name)
         // D5 — no key: running a formatter is another program, which only the app can do.
@@ -139,8 +136,6 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let imageFile: URL?
     /// B8 — the picture has gone from disk, though the row stays. See `Docs/panel.md`.
     public let isImageMissing: Bool
-    /// E5 — how much of a checklist is done, as "2 of 5", or `nil` when it has no boxes.
-    public let checklist: String?
     /// D1 — the language chip, short enough for a 420-point row: "ts", not "TypeScript".
     public let language: String?
     /// Whether the summary is monospaced, decided here so the view has no judgement to get wrong.
@@ -168,7 +163,6 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         measurements: String? = nil,
         imageFile: URL? = nil,
         isImageMissing: Bool = false,
-        checklist: String? = nil,
         language: String? = nil,
         isMonospaced: Bool,
         actions: [PanelAction]
@@ -188,7 +182,6 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.measurements = measurements
         self.imageFile = imageFile
         self.isImageMissing = isImageMissing
-        self.checklist = checklist
         self.language = language
         self.isMonospaced = isMonospaced
         self.actions = actions
@@ -419,12 +412,6 @@ public enum PanelPresenter {
                     snapshot.imagesFolder?.appending(path: image.file, directoryHint: .notDirectory)
                 },
             isImageMissing: isGone,
-            // E5 — a ticked box is content, so its count belongs on the row.
-            checklist: isMasked
-                ? nil
-                : clip.richText.flatMap(NoteChecklist.progress(in:)).map {
-                    "\($0.done) of \($0.total)"
-                },
             // Never on a masked row, which says as little as possible until asked.
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),

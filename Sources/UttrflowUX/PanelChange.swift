@@ -173,13 +173,6 @@ extension PanelSnapshot {
             state: self, outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
     }
 
-    /// E5 — tick or untick one box, and write it.
-    func ticking(_ id: Clip.ID, box index: Int) -> PanelResponse {
-        guard let note = clip(id)?.richText, let ticked = NoteChecklist.toggling(index, in: note)
-        else { return stayingOpen }
-        return PanelResponse(state: self, outcome: .change(.setRichText(id, ticked)))
-    }
-
     /// What the alias field opens showing: the clip's current alias, so renaming is the same gesture.
     func aliasDraft(for id: Clip.ID) -> String {
         clip(id)?.alias ?? ""
