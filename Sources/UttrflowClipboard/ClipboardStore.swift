@@ -38,6 +38,9 @@ public actor ClipboardStore {
     /// What the saved file is known to hold, which the migration off one file makes differ from memory.
     private var savedOnDisk: [Clip]?
 
+    /// What the history file is known to hold, so an edit to a kept clip leaves it unwritten.
+    private var historyOnDisk: [Clip]?
+
     /// The history and the saved clips as one list, or `nil` before the files have been read.
     private var wholeList: [Clip]?
 
@@ -565,9 +568,10 @@ public actor ClipboardStore {
         savedOnDisk = fromSavedFile
         // A move interrupted between the two writes leaves a clip in both files, and the saved copy wins.
         let savedIDs = Set(fromSavedFile.map(\.id))
-        let stored =
-            fromSavedFile
-            + read(file).filter { Self.isPersistable($0) && !savedIDs.contains($0.id) }
+        let fromHistoryFile = read(file).filter(Self.isPersistable)
+        // An unreplaceable file is unknown rather than empty, so every save still meets its refusal.
+        historyOnDisk = unreplaceable.contains(file) ? nil : fromHistoryFile
+        let stored = fromSavedFile + fromHistoryFile.filter { !savedIDs.contains($0.id) }
         let list = Self.interleaving(
             saved: stored.filter(\.isKept), history: stored.filter { !$0.isKept })
         wholeList = list
@@ -645,7 +649,10 @@ public actor ClipboardStore {
             try persist(bridge, to: savedFile)
             savedOnDisk = bridge
         }
-        try persist(nowHistory, to: file)
+        if nowHistory != historyOnDisk {
+            try persist(nowHistory, to: file)
+            historyOnDisk = nowHistory
+        }
         if nowSaved != bridge {
             try persist(nowSaved, to: savedFile)
             savedOnDisk = nowSaved

@@ -71,8 +71,8 @@ struct PictureFileOwnershipTests {
         #expect(await folder.store.imageData(for: stray) == nil)
     }
 
-    /// Both halves at once: the entry is dropped and the index write fails, and the file still goes.
-    @Test("a picture dropped by a budget whose index write is then refused is not left on disk")
+    /// A dropped entry leaves the index unchanged, so nothing is written, and the file still goes.
+    @Test("a picture dropped by a budget in a folder that refuses writes is not left on disk")
     func refusedIndexWriteStillTakesADroppedPicture() async throws {
         let folder = try TemporaryFolder()
         let store = ClipboardStore(
@@ -88,9 +88,9 @@ struct PictureFileOwnershipTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path) }
 
-        await #expect(throws: ClipboardStoreError.couldNotWrite) {
-            try await store.record(Self.picture(1), keeping: folder.retention)
-        }
+        let kept = try await store.record(Self.picture(1), keeping: folder.retention)
+
+        #expect(kept.map(\.text) == ["a copy that survives"])
 
         #expect(try await Self.onDisk(store).names.isEmpty)
     }
