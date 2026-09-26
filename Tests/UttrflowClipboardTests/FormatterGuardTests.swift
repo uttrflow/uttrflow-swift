@@ -109,6 +109,29 @@ struct FormatterGuardTests {
         #expect(!FormatterGuard.isFaithful("", to: "let a = 1"))
     }
 
+    /// An operator carries meaning even though it holds no letter, digit or underscore.
+    @Test(
+        "a changed operator, negation or bracket is caught",
+        arguments: [
+            ("if a != b { return }", "if a == b { return }"),
+            ("a < b", "a > b"),
+            ("a <= b", "a < b"),
+            ("a && b", "a || b"),
+            ("if !done {}", "if done {}"),
+            ("x = a + b", "x = a - b"),
+            ("x = a * b", "x = a / b"),
+            ("f(a)[0]", "f(a[0])"),
+            ("let s = \"a+b\"", "let s = \"a-b\""),
+        ])
+    func changedOperator(_ each: (String, String)) {
+        #expect(!FormatterGuard.isFaithful(each.1, to: each.0))
+    }
+
+    @Test("spacing around operators and brackets is still only layout")
+    func operatorSpacing() {
+        #expect(FormatterGuard.isFaithful("if a != b {\n    x = -1\n}", to: "if a!=b{x=-1}"))
+    }
+
     /// Words inside a string are content; the punctuation around them is not.
     @Test("punctuation inside a string may move; the words may not")
     func stringContents() {
