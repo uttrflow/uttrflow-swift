@@ -48,7 +48,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         failure = nil
         isGapped = false
         let accumulator = self.accumulator
-        // Opened before the tap, so the file holds every block the buffer does.
+        // Started before the tap and without touching the disk, so the file holds every block the buffer does.
         let writer = await recordings?.begin()
         self.writer = writer
         do {

@@ -14,17 +14,29 @@ public final class RecordingWriter: Sendable {
     /// Owns the descriptor, so every write to it happens on one isolated task rather than on a caller's thread.
     private actor Sink {
         private let url: URL
-        private let descriptor: Int32
+        private let when: Date
+        private let directory: URL?
+        private let create: @Sendable (URL) -> Int32
+        private let failed: Failure
+        private var descriptor: Int32 = -1
         private var frames = 0
-        private var isOpen = true
+        private var isOpen = false
 
-        init(descriptor: Int32, url: URL) {
-            self.descriptor = descriptor
+        init(
+            url: URL, when: Date, directory: URL?, create: @escaping @Sendable (URL) -> Int32,
+            failed: Failure
+        ) {
             self.url = url
+            self.when = when
+            self.directory = directory
+            self.create = create
+            self.failed = failed
         }
 
-        /// Writes each piece as it arrives and closes the file when the stream ends, however it ends.
+        /// Creates the file, then writes each piece as it arrives and closes the file when the stream ends.
         func consume(_ pieces: AsyncStream<Piece>) async {
+            isOpen = makeFile()
+            if !isOpen { failed.mark() }
             for await piece in pieces {
                 switch piece {
                 case .audio(let block): append(block)
@@ -32,6 +44,23 @@ public final class RecordingWriter: Sendable {
                 }
             }
             close(keeping: true)
+        }
+
+        /// Creates the file with a header that claims no frames yet, private, stamped and kept out of backups.
+        private func makeFile() -> Bool {
+            if let directory { try? PrivateFile.makeDirectory(at: directory) }
+            descriptor = create(url)
+            guard descriptor >= 0 else { return false }
+            try? PrivateFile.excludeFromBackup(at: url)
+            let header = WAVEncoder.header(frames: 0, sampleRate: AudioSamples.canonicalSampleRate)
+            guard RecordingWriter.write(header, to: descriptor) else {
+                Darwin.close(descriptor)
+                try? FileManager.default.removeItem(at: url)
+                return false
+            }
+            // The file remembers when it began, which is all a later launch has to go on.
+            try? FileManager.default.setAttributes([.creationDate: when], ofItemAtPath: url.path)
+            return true
         }
 
         private func append(_ block: [Float]) {
@@ -53,6 +82,13 @@ public final class RecordingWriter: Sendable {
         }
     }
 
+    /// Whether the sink could not make the file, which only the sink can find out.
+    private final class Failure: Sendable {
+        private let state = Atomic(false)
+        func mark() { state.store(true, ordering: .releasing) }
+        var isMarked: Bool { state.load(ordering: .acquiring) }
+    }
+
     /// What the recording is worth saying about before any of its bytes are durable.
     private struct Bookkeeping: Sendable {
         var frames = 0
@@ -69,26 +105,29 @@ public final class RecordingWriter: Sendable {
     private let pieces: AsyncStream<Piece>.Continuation
     private let sink: Task<Void, Never>
 
-    /// Creates the file with a header that claims no frames yet. See `Docs/recordings.md`.
-    public init(url: URL, id: UUID = UUID(), when: Date = Date()) throws(AudioCaptureError) {
+    private let failure = Failure()
+
+    /// Starts writing to `url` without touching the disk; the sink creates the file before its first block. See `Docs/recordings.md`.
+    public init(
+        url: URL, id: UUID = UUID(), when: Date = Date(), directory: URL? = nil,
+        create: @escaping @Sendable (URL) -> Int32 = RecordingWriter.createFile
+    ) {
         self.id = id
         self.url = url
         self.when = when
-        let descriptor = open(url.path, O_WRONLY | O_CREAT | O_TRUNC, 0o600)
-        guard descriptor >= 0 else {
-            throw .engineFailed(description: "could not create \(url.lastPathComponent)")
-        }
-        try? PrivateFile.excludeFromBackup(at: url)
-        let header = WAVEncoder.header(frames: 0, sampleRate: AudioSamples.canonicalSampleRate)
-        guard Self.write(header, to: descriptor) else {
-            close(descriptor)
-            throw .engineFailed(description: "could not write \(url.lastPathComponent)")
-        }
         let (stream, continuation) = AsyncStream<Piece>.makeStream()
         pieces = continuation
-        let sink = Sink(descriptor: descriptor, url: url)
+        let sink = Sink(url: url, when: when, directory: directory, create: create, failed: failure)
         self.sink = Task { await sink.consume(stream) }
     }
+
+    /// Opens `url` for writing, creating or emptying it, readable only by its owner.
+    public static func createFile(at url: URL) -> Int32 {
+        open(url.path, O_WRONLY | O_CREAT | O_TRUNC, 0o600)
+    }
+
+    /// Whether the file could not be made, so nothing appended is being kept.
+    public var failed: Bool { failure.isMarked }
 
     /// Hands `block` to the sink and returns at once.
     public func append(_ block: [Float]) {

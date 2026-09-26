@@ -82,7 +82,7 @@ struct RecordingWriterDrainTests {
     @Test("ending a recording answers for it without waiting for the bytes")
     func finishDoesNotWaitForTheDisk() async throws {
         let file = try StalledFile()
-        let writer = try RecordingWriter(url: file.url)
+        let writer = RecordingWriter(url: file.url)
         writer.append(block)
         file.readWhenLetGo()
 
@@ -98,7 +98,7 @@ struct RecordingWriterDrainTests {
     @Test("cancelling a recording returns without waiting for the file to close")
     func abandonDoesNotWaitForTheDisk() async throws {
         let file = try StalledFile()
-        let writer = try RecordingWriter(url: file.url)
+        let writer = RecordingWriter(url: file.url)
         writer.append(block)
         file.readWhenLetGo()
 
