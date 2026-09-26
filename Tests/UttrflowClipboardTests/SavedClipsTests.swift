@@ -285,8 +285,12 @@ struct ClipboardWriteCountTests {
         try await store.setPinned(true, of: kept.id, keeping: week())
 
         let alias = try await Self.writes { try await store.setAlias("k", of: kept.id, keeping: week()) }
-        let rich = try await Self.writes { try await store.setRichText("<b>kept</b>", of: kept.id, keeping: week()) }
-        let filed = try await Self.writes { try await store.setCategory("Work", of: kept.id, keeping: week()) }
+        let rich = try await Self.writes {
+            try await store.setRichText("<b>kept</b>", of: kept.id, keeping: week())
+        }
+        let filed = try await Self.writes {
+            try await store.setCategory("Work", of: kept.id, keeping: week())
+        }
 
         #expect(alias == 1)
         #expect(rich == 1)
