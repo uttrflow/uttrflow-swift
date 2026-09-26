@@ -66,6 +66,7 @@ extension PanelSnapshot {
     /// Every clip this view admits, and why it is here; `ruledIn` names the clips a shorter query found, whose text alone still has to be searched, and `nil` searches every clip's.
     func matches(ruledIn: Set<Clip.ID>?) -> [PanelMatch] {
         let needle = self.needle
+        let foldedNeedle = SearchFolding.folded(needle) ?? needle
         // A tab narrows what is browsed, never what is searched, so typing looks everywhere.
         let wanted = needle.isEmpty ? Self.name(category) : nil
         // The bottom bar is a tab too, and `nil` rather than `.history` so a search still finds dictations.
@@ -87,8 +88,8 @@ extension PanelSnapshot {
             let matched: PanelMatchField? =
                 isExact
                 ? .alias
-                : Self.field(
-                    matching: needle, in: clip, locale: locale,
+                : field(
+                    matchingFolded: foldedNeedle, in: clip,
                     searchingText: ruledIn?.contains(clip.id) ?? true)
             guard let matched else { return nil }
             return PanelMatch(
@@ -162,14 +163,17 @@ extension PanelSnapshot {
     }
 
     /// The strongest part of a clip the query appears in: alias, then category, then content, the last searched only where an earlier query has not already ruled the clip out.
-    static func field(
-        matching needle: String, in clip: Clip, locale: Locale, searchingText: Bool = true
+    func field(
+        matchingFolded needle: String, in clip: Clip, searchingText: Bool = true
     ) -> PanelMatchField? {
         let fields: [(PanelMatchField, String?)] = [
-            (.alias, clip.alias), (.category, clip.category),
-            (.content, searchingText ? clip.text : nil),
+            (.alias, clip.alias.map { SearchFolding.folded($0) ?? $0 }),
+            (.category, clip.category.map { SearchFolding.folded($0) ?? $0 }),
+            (.content, searchingText ? foldedTexts.text(of: clip) : nil),
         ]
-        return fields.first { $0.1?.contains(needle, ignoringCaseAndAccentsIn: locale) == true }?.0
+        return fields.first {
+            $0.1.map { SearchFolding.contains(needle, inFolded: $0, locale: locale) } == true
+        }?.0
     }
 
     /// Whether what was typed is this clip's alias, slash or no slash.
