@@ -41,12 +41,12 @@ for px, label in SIZES:
 
 RAMP = [
     ("Mark", "#101316", "#FFFFFF", "The mark's ink. Never used for interface text."),
-    ("Signal", "#17A398", "#0B1F1D", "The listening state, and only that. Never the resting logo."),
+    ("Signal", "#29C0B4", "#0B1F1D", "The live accent: what is selected, what is running, the focused field."),
     ("Accent", "#128077", "#FFFFFF", "Fills that carry white text. 4.80:1 — the lightest that passes."),
-    ("Light", "#39D0C4", "#1D1D1F", "Switches, progress, waveform, charts. No text sits on it."),
+    ("Light", "#39D0C4", "#1D1D1F", "Switches, progress and charts. No text sits on it."),
     ("Tint", "#9EDCD7", "#1D1D1F", "Large decorative fills."),
     ("Wash", "#EFF8F7", "#1D1D1F", "Tinted backgrounds and callouts."),
-    ("Bright", "#5FE0D3", "#1D1D1F", "The accent as a foreground: waveform bars, second chart series."),
+    ("Bright", "#5FE0D3", "#1D1D1F", "The accent as a foreground on dark surfaces: the quick panel's selected row and icons."),
 ]
 swatches = "".join(
     f'<div class="sw-cell" style="background: {bg}; color: {fg}">'

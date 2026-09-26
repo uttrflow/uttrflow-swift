@@ -25,8 +25,8 @@ TOKENS = """
       --sidebar-bg: #EAE9F0;
       --fill: rgba(0,0,0,0.05);
       --fill-2: rgba(0,0,0,0.08);
-      /* Teal ramp, hue 175 — derived from the mark's signal teal (#17A398).
-         The brand teal itself only reaches 3.1:1 on white, so it stays a mark
+      /* Teal ramp, hue 175 — derived from the live accent teal (#29C0B4).
+         The brand teal itself only reaches 2.3:1 on white, so it stays a mark
          and state colour and never carries interface text; this ramp is what
          fills use. White 13px text needs 4.5:1, which caps a text-bearing fill
          at 29% lightness. Everything that carries no text goes lighter, which
@@ -38,8 +38,8 @@ TOKENS = """
       --accent-wash: #EFF8F7;    /* tinted backgrounds */
       --accent-dark: #29C0B4;    /* on dark surfaces — 7.4:1 on #1E1E1E */
       --logo-ink: #101316;       /* the mark's ink; chalk on dark, see _gen_shell */
-      /* The accent as a foreground rather than a fill: waveform bars, the second
-         series in a chart. A lighter weight of the one accent, not a second hue —
+      /* The accent as a foreground rather than a fill: the quick panel's selected
+         row and icons. A lighter weight of the one accent, not a second hue —
          the identity is ink, chalk, signal and slate, and a fifth colour invented
          for contrast is how a palette stops meaning anything. */
       --accent-2: #5FE0D3;
