@@ -2,6 +2,7 @@
 public import Foundation
 public import UttrflowHistory
 public import UttrflowSettings
+private import Synchronization
 
 /// One kept dictation: the persisted record itself, so there is one retention rule and one answer.
 public typealias HistoryEntry = DictationRecord
@@ -236,11 +237,19 @@ public enum HistoryPresenter {
 
     /// "2 minutes ago" against the snapshot's clock, not the real one, so the row agrees with retention.
     static func when(_ date: Date, relativeTo now: Date, locale: Locale) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = locale
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: now)
+        relativeFormatters.withLock { formatters in
+            let formatter = formatters[locale.identifier] ?? RelativeDateTimeFormatter()
+            if formatters[locale.identifier] == nil {
+                formatter.locale = locale
+                formatter.unitsStyle = .full
+                formatters[locale.identifier] = formatter
+            }
+            return formatter.localizedString(for: date, relativeTo: now)
+        }
     }
+
+    /// One formatter per locale, used under the lock because a formatter is not safe across threads.
+    private static let relativeFormatters = Mutex<[String: RelativeDateTimeFormatter]>([:])
 
     /// A blank app name is no name at all, and a tile with a space in it is worse than no tile.
     static func application(
