@@ -145,7 +145,11 @@ public actor PasteboardWatcher {
                 picture: picture)
         }
 
+        // Plain text already over the bound is refused before its rich form is copied out.
+        guard fitsTheBound(copied ?? "", nil) else { return nil }
         guard let html = await bounded({ [source] in source.html() }) else { return nil }
+        // Before the conversion, which costs in proportion to the HTML however the bound would judge it.
+        guard fitsTheBound(copied ?? "", html) else { return nil }
         // E1 — the plain form is derived only here, where the alternative is no clip at all.
         guard let text = copied ?? html.map(RichTextPlainForm.plainText(fromHTML:)),
             ClipContent.isWorthKeeping(text)

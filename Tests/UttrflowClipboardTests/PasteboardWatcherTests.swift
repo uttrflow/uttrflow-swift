@@ -18,6 +18,7 @@ final class FakeClipboard: ClipboardSource, Sendable {
         var landsDuringMarkers: (text: String, markers: PasteboardMarkers)?
         var reads = 0
         var contentReads = 0
+        var htmlReads = 0
     }
 
     private let state = Mutex(State())
@@ -40,6 +41,7 @@ final class FakeClipboard: ClipboardSource, Sendable {
 
     var reads: Int { state.withLock(\.reads) }
     var contentReads: Int { state.withLock(\.contentReads) }
+    var htmlReads: Int { state.withLock(\.htmlReads) }
 
     func changeCount() -> Int {
         state.withLock {
@@ -55,7 +57,12 @@ final class FakeClipboard: ClipboardSource, Sendable {
         }
     }
 
-    func html() -> String? { state.withLock(\.html) }
+    func html() -> String? {
+        state.withLock {
+            $0.htmlReads += 1
+            return $0.html
+        }
+    }
 
     /// Arms a write that lands while the watcher is reading the markers of the copy before it.
     func writeWhileMarkersAreRead(_ text: String, marked markers: PasteboardMarkers = []) {
@@ -228,6 +235,28 @@ struct PasteboardWatcherTests {
         clipboard.write(String(repeating: "a", count: 11), html: String(repeating: "b", count: 11))
 
         #expect(await watcher.newClip(at: noon) == nil)
+    }
+
+    @Test("refuses plain text over the bound without reading its rich form")
+    func oversizeTextSkipsTheHTML() async {
+        let clipboard = FakeClipboard()
+        let watcher = PasteboardWatcher(
+            source: clipboard, budget: .standard.limiting(largestClip: 20), now: { noon })
+        clipboard.write(String(repeating: "a", count: 21), html: "<b>a</b>")
+
+        #expect(await watcher.newClip(at: noon) == nil)
+        #expect(clipboard.htmlReads == 0)
+    }
+
+    @Test("refuses a rich-only copy whose HTML alone is over the bound")
+    func oversizeHTMLIsRefused() async {
+        let clipboard = FakeClipboard()
+        let watcher = PasteboardWatcher(
+            source: clipboard, budget: .standard.limiting(largestClip: 20), now: { noon })
+        clipboard.write(nil, html: "<p>" + String(repeating: "a", count: 20) + "</p>")
+
+        #expect(await watcher.newClip(at: noon) == nil)
+        #expect(clipboard.htmlReads == 1)
     }
 
     @Test("still notices a copy that fits")
