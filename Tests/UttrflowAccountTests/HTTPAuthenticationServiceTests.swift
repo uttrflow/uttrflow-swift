@@ -402,6 +402,33 @@ struct HTTPAuthenticationServiceTests {
         #expect(Set(transport.refreshAttempts.map(\.idempotencyKey)).count == 1)
     }
 
+    @Test("ends the session when a timed-out refresh is refused on its retry")
+    func aRefusedAmbiguousRefreshEndsTheSession() async throws {
+        let tokens = InMemoryTokenStore(refreshToken: "dead-refresh")
+        let refreshes = Mutex(0)
+        let transport = StubTransport { request, _ in
+            guard request.url.path().hasSuffix("/refresh") else { return BackendResponse(status: 401) }
+            let count = refreshes.withLock { count -> Int in
+                count += 1
+                return count
+            }
+            return count == 1 ? nil : BackendResponse(status: 401)
+        }
+        let service = service(transport: transport, tokens: tokens)
+
+        await #expect(throws: AccountError.serverUnreachable) {
+            try await service.currentProfile(ifChangedFrom: nil)
+        }
+        await #expect(throws: AccountError.serverUnreachable) {
+            try await service.currentProfile(ifChangedFrom: nil)
+        }
+        #expect(try await service.currentProfile(ifChangedFrom: nil) == .signedOut)
+        #expect(tokens.refreshToken() == nil)
+        let keys = transport.requests(to: "/refresh").compactMap { $0.jsonBody["idempotencyKey"] as? String }
+        #expect(keys.count == 3)
+        #expect(keys[0] == keys[1])
+    }
+
     @Test("keeps the rotated refresh token, because the old one is already dead")
     func rotationIsKept() async throws {
         let tokens = InMemoryTokenStore(refreshToken: "first")
