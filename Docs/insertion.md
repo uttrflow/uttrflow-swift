@@ -179,7 +179,9 @@ A password or PIN field gets the words like any other field, and nothing else do
 reads the value only when none of those says so, to catch a field that shows mask
 characters without declaring itself. The question is asked twice: by the context read
 when the dictation's screen is read, which then carries none of the field's text, and by
-`TextInsertionCoordinator` just before the write.
+`TextInsertionCoordinator` before the fallback chain starts and again once the winning
+strategy has written, so a switch into a secure field while an earlier strategy fails still
+counts.
 
 Either answer marks the outcome `intoSecureField`. The words then reach no store: no
 history row (not even a length), no Uttrflow clip, no last transcript, no dictionary
