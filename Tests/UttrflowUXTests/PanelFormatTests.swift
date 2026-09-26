@@ -139,6 +139,23 @@ struct PanelFormatTests {
         #expect(again.allSatisfy { $0 == first })
     }
 
+    @Test("D6 · a sheet prepared off the main actor is presented without comparing the texts")
+    func preparedSheetIsNotComparedAgain() {
+        let formatted = "func a() {\n    let x = 1\n}"
+        var prepared: PreparedFormattingSheet?
+        let preparing = Self.diffSteps {
+            prepared = PreparedFormattingSheet(from: Self.swiftCode.text, to: formatted)
+        }
+        var snapshot = Self.panel()
+        if let prepared { snapshot.remember(prepared) }
+        snapshot.sheet = .formatting(Self.swiftCode.id, formatted: formatted)
+        var shown: PanelSheetPresentation?
+
+        #expect(preparing > 0)
+        #expect(Self.diffSteps { shown = PanelPresenter.present(snapshot).sheet } == 0)
+        #expect(shown == Self.sheet(formatted))
+    }
+
     @Test("a different formatted text is compared afresh")
     func newFormattedTextIsCompared() {
         var snapshot = Self.panel()
