@@ -142,8 +142,9 @@ EXCLUDED_FILES = {
     "Uttrflow/Dock/DockPanelController.swift": "owns an on-screen floating window",
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "wiring only: an event tap, a global key monitor and another app's focused field, "
-        "none of which a headless test has; every rule it sequences is SuggestionSession "
-        "and every field reading it maps goes through SuggestionMoment, both of which are tested"
+        "none of which a headless test has; every rule it sequences is SuggestionSession, "
+        "every field reading it maps goes through SuggestionMoment, and whether the model is asked, "
+        "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
         "owns an on-screen floating window; where it puts it is SuggestionGeometry and "
@@ -195,7 +196,9 @@ OVERSIZED_EXCLUSIONS = {
         "the ⌘-chord and Escape handling in it has no test at all; #630 moves it into UttrflowUX"
     ),
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
-        "the two rules it keeps are tested in SuggestionReadGateTests and SuggestionDebounceTests"
+        "the two rules it keeps are tested in SuggestionReadGateTests and SuggestionDebounceTests, "
+        "and its model-pass decisions in ModelPassTests; still untested is the capture-consent "
+        "and tap-insertion sequencing"
     ),
     "Uttrflow/Dock/DockView.swift": "what DockViewModel decides is tested in DockClockTests and DockBarsTests",
     "Uttrflow/Onboarding/OnboardingView.swift": (

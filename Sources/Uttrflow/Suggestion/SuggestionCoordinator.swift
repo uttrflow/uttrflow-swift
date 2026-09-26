@@ -57,12 +57,10 @@ final class SuggestionCoordinator {
     private let verifier: Verifier
     /// The model that invents a suggestion when the corpus has none, absent until the app hands one over.
     private let generator: (any CandidateGenerating)?
-    /// The model's last answer, reused for as long as the line still begins one of its lines, so typing on or back costs no pass.
-    private var lastGenerated: (surface: Surface, typed: String, completions: [String])?
+    /// What the model last answered or had nothing for, which decides whether it is asked again.
+    private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
     private var generating: Task<[String], any Error>?
-    /// The line the model last had nothing for, or failed on, so a tick does not ask the same question again until the line changes.
-    private var lastEmpty: (surface: Surface, typed: String)?
     /// A turn booked for the moment a rule stops refusing, so a prose pause is answered then, not at the next tick.
     private var pendingWake: Task<Void, Never>?
     /// How long a burst of keystrokes must pause before the model is asked about its last prefix.
@@ -370,10 +368,8 @@ final class SuggestionCoordinator {
             interceptor.arm([])
             panel.hide()
         }
-        if reading.surface != session.surface || snapshot.currentLine.isEmpty {
-            lastGenerated = nil
-            lastEmpty = nil
-        }
+        modelPass.freshStart(
+            surfaceChanged: reading.surface != session.surface, lineIsEmpty: snapshot.currentLine.isEmpty)
         // A password field is refused here, before its value has been passed to anything at all.
         if !snapshot.isSecure { await remember(snapshot, as: reading, because: reason, at: started) }
         guard turns.isCurrent(number) else { return }
@@ -402,7 +398,8 @@ final class SuggestionCoordinator {
                 turns.isCurrent(number)
             else { return }
             // When nothing remembered can be drawn — nothing held, the line itself, or a line the gates refused — the model invents the suggestion instead.
-            guard update.suggestion.accepting == nil, update.silence != .overBudget, let generator, ready
+            guard ModelPass.shouldAsk(after: update, hasGenerator: generator != nil, isReady: ready),
+                let generator
             else {
                 return settle(update, in: snapshot, since: started)
             }
@@ -412,7 +409,7 @@ final class SuggestionCoordinator {
             switch options {
             case .none:
                 Self.log.debug("\(SuggestionLog.optionsNone(typed: query.typed), privacy: .public)")
-                lastEmpty = (query.surface, query.typed)
+                modelPass.rememberEmpty(query)
                 guard
                     let quiet = session.resolveGenerated(
                         [], for: query, elapsedMilliseconds: since(started), whenEmpty: .notOnThisMachine)
@@ -462,8 +459,11 @@ final class SuggestionCoordinator {
     ) async {
         let keystrokesSeen = session.keystrokes
         guard let fresh = await FocusedFieldReader.read(), turns.isCurrent(number),
-            session.keystrokes == keystrokesSeen, session.isCurrent,
-            reading(of: fresh) == reading(of: snapshot), fresh.currentLine == snapshot.currentLine
+            ModelPass.isFresh(
+                keystrokesBefore: keystrokesSeen, keystrokesNow: session.keystrokes,
+                isCurrent: session.isCurrent,
+                sameReading: reading(of: fresh) == reading(of: snapshot),
+                sameLine: fresh.currentLine == snapshot.currentLine)
         else { return }
         lastSnapshot = fresh
         draw(update, in: fresh)
@@ -477,17 +477,12 @@ final class SuggestionCoordinator {
         let completions: [String]
         // Whether the model wrote lines and the machine denied every one, which is a silence with its own name.
         var invented = false
-        let lowered = query.typed.lowercased()
-        // What the model already said about this line still holds while the line begins one of its answers.
-        let kept =
-            (lastGenerated?.surface == query.surface ? lastGenerated?.completions : nil)?
-            .filter { $0.lowercased().hasPrefix(lowered) && $0 != query.typed } ?? []
-        if !kept.isEmpty {
+        switch modelPass.plan(for: query) {
+        case .reuse(let kept):
             completions = kept
-        } else if let lastEmpty, lastEmpty.surface == query.surface, lastEmpty.typed == query.typed {
-            // The model's last word on this exact line was nothing, and a tick changes nothing about the line.
+        case .skip:
             return
-        } else {
+        case .ask:
             // Measured from the key, not from here, so a pause already long enough waits no second time.
             let quiet = Self.remainingDebounce(sinceKeystroke: lastKeystroke, now: Date())
             let pass = Task { [generator, store, contextCache] in
@@ -508,7 +503,7 @@ final class SuggestionCoordinator {
             switch answer {
             case .failure(let error):
                 // A failed pass is remembered like an empty one, so a tick never re-runs the failure, but it is never logged as one.
-                lastEmpty = (query.surface, query.typed)
+                modelPass.rememberEmpty(query)
                 Self.log.error(
                     "\(SuggestionLog.generateFailed(typed: query.typed, error: error), privacy: .public)")
                 return
@@ -516,12 +511,7 @@ final class SuggestionCoordinator {
                 let standing = await attested(lines, for: query)
                 guard turns.isCurrent(number) else { return }
                 invented = !lines.isEmpty && standing.isEmpty
-                // An empty answer is remembered against this exact line only, so the next keystroke asks afresh.
-                if standing.isEmpty {
-                    lastEmpty = (query.surface, query.typed)
-                } else {
-                    lastGenerated = (query.surface, query.typed, standing)
-                }
+                modelPass.remember(standing, for: query)
                 completions = standing
             }
         }
@@ -539,14 +529,15 @@ final class SuggestionCoordinator {
         // With the one line on screen, the others are fetched behind it, so Down has a list and the person never waited for it.
         guard completions.count == 1, let leader = completions.first, turns.isCurrent(number) else { return }
         // Where the machine gave the values, the other values are the alternatives, and no pass is spent on them.
-        if !choices.isEmpty {
-            let listed = Verification.completed(query.typed, with: choices).filter { $0 != leader }
+        if case .values(let listed) = ModelPass.alternativesSource(
+            typed: query.typed, choices: choices, leader: leader)
+        {
             // The machine's values still pass the gate, since a listed name can be destructive or stale by now.
             let others = await attested(listed, for: query)
             guard turns.isCurrent(number), !others.isEmpty,
                 let expanded = session.expandGenerated(others, for: query)
             else { return }
-            lastGenerated = (query.surface, query.typed, [leader] + others)
+            modelPass.remember([leader] + others, for: query)
             return await drawFresh(expanded, for: snapshot, turn: number)
         }
         let more = Task { [generator, store, contextCache] in
@@ -570,7 +561,7 @@ final class SuggestionCoordinator {
         guard turns.isCurrent(number), !standing.isEmpty,
             let expanded = session.expandGenerated(standing, for: query)
         else { return }
-        lastGenerated = (query.surface, query.typed, [leader] + standing)
+        modelPass.remember([leader] + standing, for: query)
         Self.log.debug(
             "\(SuggestionLog.alternatives(typed: query.typed, got: others.count, elapsedMilliseconds: self.since(started)), privacy: .public)"
         )
