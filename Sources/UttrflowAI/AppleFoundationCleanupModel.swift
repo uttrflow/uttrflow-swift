@@ -15,7 +15,7 @@ public struct AppleFoundationCleanupModel: CleanupModel {
     /// Zero temperature keeps the model tidying rather than composing.
     private static let options = GenerationOptions(temperature: 0.0)
 
-    /// One session made ahead of its request and remade after each one, shared by every copy of this value.
+    /// One session made ahead of its request when the pipeline warms, shared by every copy of this value.
     private static let warmed = WarmSupply<LanguageModelSession> { instructions in
         let session = LanguageModelSession(instructions: instructions)
         session.prewarm()
@@ -63,11 +63,8 @@ public struct AppleFoundationCleanupModel: CleanupModel {
             let response = try await session.respond(
                 to: text, generating: CleanedDictation.self, options: Self.options
             )
-            // After the answer and never beside it: this model serialises. See Docs/early-transcription.md.
-            await Self.warmed.replenish(for: instructions)
             return response.content.text
         } catch {
-            await Self.warmed.replenish(for: instructions)
             throw .transformFailed(kind: kind, description: error.localizedDescription)
         }
     }

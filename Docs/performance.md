@@ -57,6 +57,7 @@ has to be.
 | a model suggestion pass | at utility priority; none in Low Power Mode or at serious thermal pressure; ≤ 1 processor-second per pass on M1 | run at utility priority and gated on energy conditions (`DiscretionaryGenerator`); 0.17 processor-seconds per pass here since #427, so ≈ 0.3 on M1 |
 | dictation | speech ≤ 0.1 processor-seconds per second of audio on M1; finished within 0.5× the audio's length on M1 | 0.04 here, which scales to ≈ 0.07; 0.20× wall clock here on a loaded machine |
 | a copy | classified at utility priority, off the main thread; ≤ 0.2 processor-seconds for a 2 MB clip on M1 | 0.085 here for the costliest 2 MB clip measured, ≈ 0.17 on M1 (#460) |
+| between dictations, the tidier | no prewarmed model session made that nothing will use | one prewarm at key-down; one after each piece tidied while the key is held; none after the last piece (#1513) |
 | animation | none continuous while nobody can see it; none decorative under Reduce Motion, Low Power Mode or serious thermal pressure | decorative motion follows Reduce Motion, Low Power Mode and thermal pressure (`MotionBudget`); nothing runs continuously while hidden |
 
 How the rows were measured, on 13 September 2026, on a machine at a load average of 50–180 from

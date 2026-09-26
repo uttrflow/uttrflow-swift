@@ -204,17 +204,20 @@ one and treats anything older than a minute as it would a session made for other
 key-down makes a fresh one, and a stale one is never handed out (#876).
 
 It is still a fresh session per utterance — one sentence's context must not bleed into the
-next — but no longer only one per *dictation*. `WarmSupply` hands its session out once and
-then makes another for the same instructions, so the second and third pieces cost what the
-first did. Warming once while the unit of work was the piece meant every piece after the
-first built its own session, and the piece that paid for it was the last one, which is the
-only one the user is waiting on.
+next — but no longer only one per *dictation*. `WarmSupply` hands its session out once, and
+the pipeline warms again after each piece tidied while the key is still held, so the second
+and third pieces cost what the first did.
 
 The replacement is made **after** the response returns, not beside it. This model serialises
 its work — four tidying sessions started at once took exactly as long as four in a row, as
 measured above — so prewarming during a rewrite would move the cost into the wait rather than
 out of it. The instructions come from the destination and are read once per dictation, so
 there is one key to make against and no extra model call: still one call per piece.
+
+Nothing is warmed after the last piece. A session made then would be used only by a dictation
+starting within the minute, and key-down warms for that one anyway; for anyone dictating every
+few minutes it was a second prewarm per dictation, thrown away as stale (#1513). A one-piece
+dictation now makes one session, and a dictation of *n* pieces at most *n*.
 
 ## What a ten-second dictation gains, and what it cannot
 
