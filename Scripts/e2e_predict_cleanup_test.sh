@@ -29,7 +29,7 @@ if [ "$status" -ne 2 ]; then
     exit 1
 fi
 
-work="$(sed -n 's/^+ WORK=//p' "$trace" | head -n1)"
+work="$(LC_ALL=C sed -n 's/^+ WORK=//p' "$trace" | head -n1)"  # the trace carries non-UTF-8 bytes BSD sed rejects under a UTF-8 locale
 if [ -z "$work" ]; then
     echo "error: could not find the harness's WORK directory in its trace" >&2
     exit 1
