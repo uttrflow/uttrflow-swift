@@ -95,7 +95,7 @@ struct SuggestionForgettingTests {
         try await personalisation.carryOut(.everything)
         #expect(!FileManager.default.fileExists(atPath: container.corpusPath))
     }
-    @Test("Forgetting an application through the running loop leaves no succession naming the forgotten line.")
+    @Test("Forgetting through the running loop leaves no succession naming the forgotten line.")
     @MainActor
     func runningLoopDoesNotWriteAForgottenLineBack() async throws {
         let container = Container()
