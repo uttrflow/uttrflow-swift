@@ -689,7 +689,7 @@ final class SuggestionCoordinator {
         }
         panel.show(
             update.suggestion, typed: session.typed, placement: .inlineGhost, caret: caret,
-            window: snapshot.window, field: snapshot.field, fieldPointSize: snapshot.pointSize,
+            window: snapshot.window, field: snapshot.ghostField, fieldPointSize: snapshot.pointSize,
             selection: session.selection,
             acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
             fontFamily: snapshot.fontFamily, textColor: snapshot.textColor)

@@ -181,18 +181,42 @@ extension FocusedFieldSnapshot {
 
     /// Whether the caret sits at the end of the line it is on, which completing presumes.
     public var caretAtLineEnd: Bool {
+        guard let ahead = rowAhead else { return false }
+        return ahead.allSatisfy { $0 == " " || $0 == "\t" } || rightPromptGap != nil
+    }
+
+    /// The fewest padding spaces that set a terminal's right-hand prompt apart from text after the caret.
+    static let rightPromptPadding = 4
+
+    /// How many padding spaces separate the caret from a terminal's right-hand prompt, or nothing when the row has none.
+    public var rightPromptGap: Int? {
+        guard TerminalApplications.contains(bundleIdentifier), let ahead = rowAhead else { return nil }
+        let gap = ahead.prefix { $0 == " " }.count
+        let prompt = ahead.dropFirst(gap)
+        guard gap >= Self.rightPromptPadding, prompt.contains(where: { !$0.isWhitespace }) else { return nil }
+        return gap
+    }
+
+    /// The field's rectangle, ended before a terminal's right-hand prompt so the ghost is not drawn over it.
+    public var ghostField: CGRect? {
+        guard let gap = rightPromptGap, let caret, let pointSize, let field else { return field }
+        let edge = caret.maxX + CGFloat(gap - 1) * pointSize * Self.monospacedAdvance
+        guard edge > field.minX, edge < field.maxX else { return field }
+        return CGRect(x: field.minX, y: field.minY, width: edge - field.minX, height: field.height)
+    }
+
+    /// A monospaced face's advance as a share of its point size, which is how wide a terminal cell is taken to be.
+    static let monospacedAdvance: CGFloat = 0.6
+
+    /// What follows the caret up to the end of its row, or nothing when the caret cannot be read.
+    private var rowAhead: Substring? {
         guard
             let selection, let value,
             let end = AccessibilityRange.end(location: selection.location, length: selection.length)
-        else { return false }
-        var index = Self.index(in: value, atUTF16Offset: end)
-        // Only whitespace ahead still counts as the line's end, since a terminal pads the line with spaces.
-        while index < value.endIndex {
-            if value[index].isNewline { return true }
-            guard value[index] == " " || value[index] == "\t" else { return false }
-            index = value.index(after: index)
-        }
-        return true
+        else { return nil }
+        let start = Self.index(in: value, atUTF16Offset: end)
+        let stop = value[start...].firstIndex(where: \.isNewline) ?? value.endIndex
+        return value[start..<stop]
     }
 
     /// The offset as a character index, clamped into the string and moved back off any split character.

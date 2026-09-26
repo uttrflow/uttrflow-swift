@@ -115,6 +115,44 @@ struct FocusedFieldSnapshotTests {
         #expect(!snapshot(value: "ls  -la", selection: NSRange(location: 2, length: 0)).caretAtLineEnd)
     }
 
+    @Test(
+        "A terminal row's right-hand prompt, set apart by padding, leaves the caret at the end of the input.")
+    func rightHandPromptIsNotTextAfterTheCaret() {
+        let row =
+            "git c" + String(repeating: " ", count: 30) + "main 12:04\n" + String(repeating: " ", count: 45)
+        let reading = snapshot(value: row, selection: NSRange(location: 5, length: 0))
+        #expect(reading.caretAtLineEnd)
+        #expect(reading.rightPromptGap == 30)
+        // A document has no right-hand prompt, so the same row is text after the caret.
+        #expect(!snapshot(bundleIdentifier: "com.apple.TextEdit", value: row).caretAtLineEnd)
+    }
+
+    @Test("Text directly after the caret, with no padding run, is still the caret inside the line.")
+    func textDirectlyAfterTheCaretRefuses() {
+        let reading = snapshot(
+            value: "git commit -m x" + String(repeating: " ", count: 30) + "main",
+            selection: NSRange(location: 3, length: 0))
+        #expect(!reading.caretAtLineEnd)
+        #expect(reading.rightPromptGap == nil)
+    }
+
+    @Test("The ghost's field ends before the right-hand prompt, and is the whole field otherwise.")
+    func ghostFieldStopsBeforeTheRightHandPrompt() throws {
+        let field = CGRect(x: 0, y: 0, width: 800, height: 400)
+        let row = "git c" + String(repeating: " ", count: 11) + "main"
+        let reading = FocusedFieldSnapshot(
+            bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: "AXTextArea",
+            value: row, selection: NSRange(location: 5, length: 0),
+            caret: CGRect(x: 40, y: 20, width: 1, height: 16), field: field, pointSize: 10)
+        let ghost = try #require(reading.ghostField)
+        #expect(abs(ghost.maxX - (41 + 10 * 10 * FocusedFieldSnapshot.monospacedAdvance)) < 0.001)
+        let plain = FocusedFieldSnapshot(
+            bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: "AXTextArea",
+            value: "git c", selection: NSRange(location: 5, length: 0),
+            caret: CGRect(x: 40, y: 20, width: 1, height: 16), field: field, pointSize: 10)
+        #expect(plain.ghostField == field)
+    }
+
     @Test("What a completion continues is the caret's own line, not the whole document.")
     func theLineIsWhatIsTyped() {
         let document = "Deploy the notes\nThe quick brown fox\nThe qui"
