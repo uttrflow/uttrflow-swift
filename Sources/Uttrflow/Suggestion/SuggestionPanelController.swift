@@ -112,7 +112,7 @@ final class SuggestionPanelController {
             ? nil
             : request.caret.flatMap {
                 SuggestionGeometry.availableWidth(
-                    caret: $0, field: request.field, window: request.window, screen: visibleFrame)
+                    caret: $0, field: request.field, window: request.window, screen: screenFrame)
             }
         let presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
@@ -198,7 +198,7 @@ final class SuggestionPanelController {
         guard
             let anchor = SuggestionGeometry.anchor(
                 for: request.placement, caret: request.caret, window: request.window,
-                field: request.field, screen: visibleFrame, size: panelSize)
+                field: request.field, screen: screenFrame, size: panelSize)
         else { return false }
         panel.setFrame(anchor.frame, display: true)
         return true
@@ -210,9 +210,10 @@ final class SuggestionPanelController {
         return NSScreen.screens.first { $0.frame.contains(CGPoint(x: caret.minX, y: caret.midY)) }
     }
 
-    private var visibleFrame: CGRect {
+    /// The screen's whole frame, Dock and menu bar bands included, since a full-screen window's own caret can sit in either.
+    private var screenFrame: CGRect {
         // With no screen to place against, staying put beats moving somewhere arbitrary.
-        (screenHoldingCaret ?? panel.screen ?? NSScreen.main ?? NSScreen.screens.first)?.visibleFrame
+        (screenHoldingCaret ?? panel.screen ?? NSScreen.main ?? NSScreen.screens.first)?.frame
             ?? panel.frame
     }
 
