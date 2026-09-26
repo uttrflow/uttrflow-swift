@@ -395,10 +395,10 @@ public enum HomePresenter {
                 // Straight to signing in, because that is what the chip says.
                 return .signedOut(open: MainAction(title: "Sign in", intent: .signIn))
             }
-            // The Mac's own name, which the person chose; opens the Account page.
-            let shown = local.name ?? "This Mac"
+            // The Account page's own identity for this Mac, so both draw the same monogram.
+            let identity = AccountPagePresenter.identity(for: local)
             return .onThisMac(
-                initials: AccountPagePresenter.initials(of: shown), name: firstWord(of: shown),
+                initials: identity.initials, name: firstWord(of: identity.name),
                 open: MainAction(title: "Account", intent: .show(.account)))
         }
 

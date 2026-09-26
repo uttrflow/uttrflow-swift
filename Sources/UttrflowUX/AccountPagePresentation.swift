@@ -183,15 +183,9 @@ public enum AccountPagePresenter {
     static func page(
         for local: LocalAccount, callout: MainCallout, locale: Locale
     ) -> AccountPagePresentation {
-        let name = local.name ?? "This Mac"
-        return AccountPagePresentation(
+        AccountPagePresentation(
             chrome: chrome,
-            identity: AccountIdentity(
-                initials: initials(of: local.name),
-                name: name,
-                emailAddress: nil,
-                provider: "This Mac",
-                providerID: nil),
+            identity: identity(for: local),
             details: details(for: local, locale: locale),
             notice: nil,
             callout: callout,
@@ -201,6 +195,16 @@ public enum AccountPagePresenter {
                 this. An account adds the two things that need one: carrying your words' \
                 settings to another Mac, and a subscription.
                 """)
+    }
+
+    /// The Mac's owner as the Account page and the window chip both draw them; no name gives "?", not "TM".
+    static func identity(for local: LocalAccount) -> AccountIdentity {
+        AccountIdentity(
+            initials: initials(of: local.name),
+            name: local.name ?? "This Mac",
+            emailAddress: nil,
+            provider: "This Mac",
+            providerID: nil)
     }
 
     /// What working without an account gets you, and the way out of it.

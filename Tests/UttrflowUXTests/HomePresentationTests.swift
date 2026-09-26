@@ -372,7 +372,23 @@ struct HomeAccountTests {
             local: LocalAccount(name: nil, since: HistoryFixture.now)
         ).account
 
-        #expect(corner == .onThisMac(initials: "TM", name: "This", open: .account))
+        #expect(corner == .onThisMac(initials: "?", name: "This", open: .account))
+    }
+
+    /// The chip and the Account page draw one monogram for the same Mac owner, named or not.
+    @Test(
+        "the Mac account's chip agrees with its Account page",
+        arguments: [nil, "Nadia Leigh Stone", "Nadia\tStone", "123 456"])
+    func onThisMacAgreesWithPage(name: String?) {
+        let local = LocalAccount(name: name, since: HistoryFixture.now)
+        let corner = HistoryFixture.home(local: local).account
+        let page = AccountPagePresenter.identity(for: local)
+
+        guard case .onThisMac(let initials, _, _) = corner else {
+            Issue.record("expected a Mac account chip, got \(corner)")
+            return
+        }
+        #expect(initials == page.initials)
     }
 
     /// The signed value wins here too, and for the same reason the Account page's does.
