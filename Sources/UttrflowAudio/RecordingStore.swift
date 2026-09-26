@@ -34,20 +34,15 @@ public actor RecordingStore: RecordingKeeper {
 
     // MARK: - Writing
 
-    /// Opens a file for the recording that is starting, or nothing if the disk refuses.
-    public func begin(at when: Date = Date()) async -> RecordingWriter? {
+    /// Starts a writer for the recording that is starting, leaving every file-system call to the writer's own task.
+    public func begin(at when: Date = Date()) -> RecordingWriter? {
         last = nil
         if let previous = open {
             previous.abandon()
-            await previous.drained()
+            settling[previous.id] = previous
         }
-        try? PrivateFile.makeDirectory(at: directory)
         let id = UUID()
-        let writer = try? RecordingWriter(url: url(of: id), id: id, when: when)
-        // The file remembers when it began, which is all a later launch has to go on.
-        if let writer {
-            try? FileManager.default.setAttributes([.creationDate: when], ofItemAtPath: writer.url.path)
-        }
+        let writer = RecordingWriter(url: url(of: id), id: id, when: when, directory: directory)
         open = writer
         return writer
     }
@@ -66,6 +61,7 @@ public actor RecordingStore: RecordingKeeper {
         guard let writer = settling[id] else { return }
         await writer.drained()
         settling[id] = nil
+        if writer.failed, last?.id == id { last = nil }
     }
 
     /// Deletes the file of a recording that was cancelled.
@@ -78,7 +74,10 @@ public actor RecordingStore: RecordingKeeper {
 
     // MARK: - RecordingKeeper
 
-    public func current() -> KeptRecording? { last }
+    public func current() -> KeptRecording? {
+        guard let last, settling[last.id]?.failed != true else { return nil }
+        return last
+    }
 
     public func discard(_ id: UUID) async {
         await settle(id)

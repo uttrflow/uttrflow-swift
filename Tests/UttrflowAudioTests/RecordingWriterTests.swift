@@ -24,7 +24,7 @@ struct RecordingWriterTests {
         let sandbox = Sandbox()
         let url = sandbox.file("take.wav")
         let samples: [Float] = (0..<5_000).map { sin(Float($0) * 0.03) * 0.4 }
-        let writer = try RecordingWriter(url: url)
+        let writer = RecordingWriter(url: url)
 
         writer.append(Array(samples[0..<2_000]))
         writer.append(Array(samples[2_000..<4_096]))
@@ -42,7 +42,7 @@ struct RecordingWriterTests {
     func readsBack() async throws {
         let sandbox = Sandbox()
         let url = sandbox.file("take.wav")
-        let writer = try RecordingWriter(url: url)
+        let writer = RecordingWriter(url: url)
         writer.append(Array(repeating: 0.25, count: 1_600))
         _ = writer.finish()
         await writer.drained()
@@ -55,7 +55,7 @@ struct RecordingWriterTests {
     @Test("finishing twice does not write twice")
     func finishIsIdempotent() throws {
         let sandbox = Sandbox()
-        let writer = try RecordingWriter(url: sandbox.file("take.wav"))
+        let writer = RecordingWriter(url: sandbox.file("take.wav"))
         writer.append([0.1, 0.2])
         let first = writer.finish()
         writer.append([0.3])
@@ -67,7 +67,7 @@ struct RecordingWriterTests {
     func abandonDeletes() async throws {
         let sandbox = Sandbox()
         let url = sandbox.file("take.wav")
-        let writer = try RecordingWriter(url: url)
+        let writer = RecordingWriter(url: url)
         writer.append([0.1])
         writer.abandon()
         writer.abandon()
@@ -75,12 +75,41 @@ struct RecordingWriterTests {
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
-    @Test("refuses a path that cannot be created")
-    func refusesAnImpossiblePath() {
+    @Test("a path that cannot be created keeps nothing and fails nobody")
+    func impossiblePathKeepsNothing() async {
         let sandbox = Sandbox()
-        #expect(throws: AudioCaptureError.self) {
-            try RecordingWriter(url: sandbox.file("missing/take.wav"))
+        let url = sandbox.file("missing/take.wav")
+        let writer = RecordingWriter(url: url)
+        writer.append([0.1])
+        _ = writer.finish()
+        await writer.drained()
+        #expect(writer.failed)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
+    @Test("blocks handed over before the file exists all reach it")
+    func slowCreationLosesNothing() async throws {
+        let sandbox = Sandbox()
+        let url = sandbox.file("take.wav")
+        let gate = DispatchSemaphore(value: 0)
+        let writer = RecordingWriter(url: url, when: Date(timeIntervalSince1970: 1_000_000)) { url in
+            _ = gate.wait(timeout: .now() + 30)
+            return RecordingWriter.createFile(at: url)
         }
+        let samples: [Float] = (0..<4_800).map { sin(Float($0) * 0.05) * 0.3 }
+        for start in stride(from: 0, to: samples.count, by: 1_600) {
+            writer.append(Array(samples[start..<start + 1_600]))
+        }
+        #expect(!FileManager.default.fileExists(atPath: url.path), "the file exists before its sink made it")
+        gate.signal()
+        _ = writer.finish()
+        await writer.drained()
+
+        #expect(try Data(contentsOf: url) == WAVEncoder.encode(.canonical(samples)))
+        #expect(!writer.failed)
+        let values = try url.resourceValues(forKeys: [.isExcludedFromBackupKey, .creationDateKey])
+        #expect(values.isExcludedFromBackup == true)
+        #expect(values.creationDate == Date(timeIntervalSince1970: 1_000_000))
     }
 
     /// A crash mid-recording leaves the header claiming no frames, which no reader will open.

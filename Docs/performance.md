@@ -1048,6 +1048,21 @@ decides whether anything about the audio graph's lifetime is worth changing — 
 change, keeping an input graph alive between recordings, is a privacy question before it is a
 latency one.
 
+**Creating the recording's file is no longer part of the opening.** `RecordingStore.begin` used
+to make the folder, create the WAV, exclude it from backup, write its header and stamp its
+creation date — and wait for the previous writer to drain — before the microphone started. All of
+that now runs on the writer's own task, which creates the file before writing the first block it
+was handed, so nothing captured in between is lost. Timed on a quiet Apple Silicon Mac, 300
+`begin()` calls in a row against a temporary folder (#1521):
+
+| `RecordingStore.begin()` | median | p90 | p99 | max |
+|---|---|---|---|---|
+| before, file work inline | 225–340 µs | 314–513 µs | 540–652 µs | 2.8–4.9 ms |
+| after, file work on the writer | 13–26 µs | 24–42 µs | 57–125 µs | 62–459 µs |
+
+That is the part of `microphoneOpen` this change owns; the audio graph's own cost is still
+unmeasured, as above, and a disk under load stretches the "before" row, not the "after" one.
+
 Dictionary correction and snippet expansion are not here either, for a different reason:
 this table predates them. Both are now timed in the product and appear on the Diagnostics
 page, and this harness will show them at the next run. Correction's cost is known from

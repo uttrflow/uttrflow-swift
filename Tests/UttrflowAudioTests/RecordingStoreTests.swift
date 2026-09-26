@@ -97,6 +97,7 @@ struct RecordingStoreTests {
         let store = RecordingStore(directory: sandbox.directory)
         let writer = try #require(await store.begin(at: now))
         _ = await store.finish(writer)
+        await store.settle(writer.id)
 
         #expect(try isExcludedFromBackup(sandbox.directory))
         #expect(try isExcludedFromBackup(writer.url))
@@ -153,6 +154,7 @@ struct RecordingStoreTests {
         let store = RecordingStore(directory: sandbox.directory)
         let older = try #require(await store.begin(at: now))
         let olderFinished = await store.finish(older)
+        await store.settle(older.id)
         try? FileManager.default.setAttributes(
             [.creationDate: now.addingTimeInterval(-600)], ofItemAtPath: older.url.path)
         let newer = try #require(await store.begin(at: now))
@@ -183,10 +185,14 @@ struct RecordingStoreTests {
         #expect(try await store.audio(of: id).samples.count == 16_000)
     }
 
-    @Test("answers nothing rather than failing when the folder cannot be made")
-    func unwritableFolder() async {
+    @Test("keeps nothing rather than failing when the folder cannot be made")
+    func unwritableFolder() async throws {
         let store = RecordingStore(directory: URL(fileURLWithPath: "/dev/null/recordings"))
-        #expect(await store.begin(at: now) == nil)
+        let writer = try #require(await store.begin(at: now))
+        writer.append([0.1])
+        let finished = await store.finish(writer)
+        await store.settle(finished.id)
+        #expect(await store.current() == nil)
         #expect(await store.waiting(now: now).isEmpty)
     }
 
@@ -223,6 +229,7 @@ struct RecordingStoreTests {
             retention: .seconds(60))
         let writer = try #require(await shipped.begin(at: now))
         let kept = await shipped.finish(writer)
+        await shipped.settle(kept.id)
 
         #expect(await development.waiting(now: now.addingTimeInterval(120)).isEmpty)
         await development.discard(kept.id)
@@ -251,6 +258,7 @@ struct RecordingStoreDiscardEverythingTests {
         _ = await store.finish(first)
         let second = try #require(await store.begin(at: now))
         _ = await store.finish(second)
+        await store.settle(second.id)
         let stray = folder.appending(path: "not-a-uuid.wav")
         try Data("x".utf8).write(to: stray)
 

@@ -23,6 +23,13 @@ file waits for that, by awaiting `RecordingStore.settle(_:)` — which `audio(of
 `waiting(now:)` and `discard(_:)` all do for their caller. The file is a side effect,
 never a source, for a live dictation.
 
+Starting a recording touches no disk either. `RecordingStore.begin` hands back a writer at
+once, and the writer's own task makes the folder, creates the file, marks it out of backups,
+writes the header and stamps the creation date before it writes the first block it was
+handed — so the microphone never waits on a file, and every block captured meanwhile still
+lands. A file that cannot be made keeps nothing and fails nothing: the dictation goes on from
+the buffer, and `current()` answers with nothing once the writer has settled.
+
 The file is a plain 16-bit mono WAV at the canonical 16 kHz, built from the same header
 and PCM bytes `WAVEncoder` produces, so a finished file is byte-for-byte what the encoder
 would have written. It opens with a header claiming zero frames, and the count is rewritten
