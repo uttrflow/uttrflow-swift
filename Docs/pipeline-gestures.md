@@ -21,6 +21,22 @@ pipeline above knows there is more than one way to be recording.
   waits for its turn and returns once the click has been handled, so a caller that awaits it still
   sees the dictation it started or finished.
 
+## A press made while the last dictation is processed
+
+The queue holds a gesture only until the microphone has closed. Ending a dictation calls the
+pipeline's `stopListening()`, which drains the microphone, moves the state to `.transcribing`,
+and hands back a task for the rest — recognition, tidying, insertion, the paste confirmation,
+counting and learning. The queue moves on while that task runs.
+
+So a press made during those seconds is decided when it arrives, not replayed when they end: the
+pipeline is busy, `startRecording()` refuses it, no cue sounds, and the release that follows finds
+nothing listening and does nothing. The dock is showing the dictation still being processed, which
+is what tells the user why. The press is never held until the words land and then judged by the
+clock at that moment, which turned a long hold into a slip and lost the start of a held one.
+
+`toggleFromControl()`, `setActivation(_:)` and `handle(_:)` still return only once the words have
+been inserted, without holding the queue while they wait.
+
 ## Rebinding the shortcut
 
 - `start(binding:)` is called again whenever the user changes the shortcut, and it now only
