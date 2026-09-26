@@ -1064,6 +1064,39 @@ PYTHON
 fi
 
 # ---------------------------------------------------------------------------
+# 11. The Diagnostics artboards match DiagnosticsPresentation's own contract.
+# ---------------------------------------------------------------------------
+#
+# #1137 found `Design/_gen_main.py`'s Diagnostics section describing a different product:
+# a plain total from three stages, a five-second target, invented reliability and memory
+# figures, and a seven-day measurement window nothing on this Mac ever keeps. Nothing tied
+# the design generator to `DiagnosticsPresentation`'s own eight-stage, in-memory contract, so
+# it could — and did — drift back.
+printf '\nDiagnostics artboard contract\n'
+
+if [[ ! -x "$PACKAGE_ROOT/Scripts/design_diagnostics_contract_audit.py" ]]; then
+    fail "Scripts/design_diagnostics_contract_audit.py is missing or not executable" \
+        "The audit pins the Diagnostics section to DiagnosticsPresentation's stage titles," \
+        "footnote and empty-state copy, and refuses a restored duration target, memory" \
+        "figure or seven-day window; without it either side can drift and nothing notices."
+else
+    if "$PACKAGE_ROOT/Scripts/design_diagnostics_contract_audit.py" --self-test; then
+        if "$PACKAGE_ROOT/Scripts/design_diagnostics_contract_audit.py" >&2; then
+            pass "the Diagnostics section matches DiagnosticsPresentation, with no retired memory, target or window claims"
+        else
+            fail "the Diagnostics section disagrees with DiagnosticsPresentation" \
+                "The audit prints which stage title, footnote, empty state or retired claim" \
+                "broke. Update Design/_gen_main.py's Diagnostics section to match, then" \
+                "regenerate both Main-Diagnostics and Main-Diagnostics-Empty artboards."
+        fi
+    else
+        fail "Scripts/design_diagnostics_contract_audit.py --self-test failed" \
+            "The audit's own self-test could not resolve a known-good fixture or catch a" \
+            "known regression, so the parser is broken. Fix the audit, not the artboard."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 printf '\n'
 if [[ "$failures" -gt 0 ]]; then
     printf 'docs audit: %s check(s) failed. The documentation contradicts the tree.\n\n' "$failures" >&2

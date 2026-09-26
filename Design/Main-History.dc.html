@@ -280,12 +280,29 @@
     .statrow { display: flex; }
     .statrow .stat { flex: 1; padding: 11px 13px; }
     .statrow .stat + .stat { border-left: 0.5px solid var(--separator); }
-    .bar-track { height: 22px; border-radius: 6px; overflow: hidden; display: flex; }
-    .lat { display: flex; align-items: center; gap: 12px; padding: 8px 13px;
-           font-size: var(--t-callout); }
+    .bar-track { height: 18px; border-radius: 5px; overflow: hidden; display: flex; }
+    .lat { display: flex; align-items: center; gap: 10px; padding: 5px 11px;
+           font-size: var(--t-footnote); line-height: 1.25; }
     .lat + .lat { border-top: 0.5px solid var(--separator); }
     .lat .n { font-variant-numeric: tabular-nums; }
-    .swatch { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+    .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+    .diagverdict { display: flex; align-items: center; gap: 10px; padding: 9px 13px; }
+    .diagverdict .dot { width: 7px; height: 7px; border-radius: 50%; flex: none;
+                         background: #34C759; }
+    .frow { display: flex; align-items: center; gap: 10px; padding: 5px 11px;
+            font-size: var(--t-footnote); line-height: 1.25; }
+    .frow + .frow { border-top: 0.5px solid var(--separator); }
+    .frow .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .frow .d { color: var(--label-2); text-align: right; }
+    .diagstats { display: flex; flex-wrap: wrap; }
+    .diagstats .stat { flex: 1 1 33%; min-width: 130px; padding: 7px 11px;
+                        border-top: 0.5px solid var(--separator); }
+    .diagstats .stat:nth-child(-n+3) { border-top: none; }
+    .diagstats .v { font-size: var(--t-body); font-weight: 600;
+                     font-variant-numeric: tabular-nums; }
+    .diagstats .k { font-size: 10px; color: var(--label-2); margin-top: 1px; }
+    .diaglabel { font-size: var(--t-footnote); font-weight: 600; color: var(--label-2);
+                 margin: 8px 0 5px 3px; }
 </style>
 </helmet>
 <div class="stage" style="width: 980px; height: 700px; padding: 40px">

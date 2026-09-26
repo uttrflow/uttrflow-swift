@@ -18,12 +18,29 @@ MAIN_CSS = """
     .statrow { display: flex; }
     .statrow .stat { flex: 1; padding: 11px 13px; }
     .statrow .stat + .stat { border-left: 0.5px solid var(--separator); }
-    .bar-track { height: 22px; border-radius: 6px; overflow: hidden; display: flex; }
-    .lat { display: flex; align-items: center; gap: 12px; padding: 8px 13px;
-           font-size: var(--t-callout); }
+    .bar-track { height: 18px; border-radius: 5px; overflow: hidden; display: flex; }
+    .lat { display: flex; align-items: center; gap: 10px; padding: 5px 11px;
+           font-size: var(--t-footnote); line-height: 1.25; }
     .lat + .lat { border-top: 0.5px solid var(--separator); }
     .lat .n { font-variant-numeric: tabular-nums; }
-    .swatch { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+    .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+    .diagverdict { display: flex; align-items: center; gap: 10px; padding: 9px 13px; }
+    .diagverdict .dot { width: 7px; height: 7px; border-radius: 50%; flex: none;
+                         background: #34C759; }
+    .frow { display: flex; align-items: center; gap: 10px; padding: 5px 11px;
+            font-size: var(--t-footnote); line-height: 1.25; }
+    .frow + .frow { border-top: 0.5px solid var(--separator); }
+    .frow .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .frow .d { color: var(--label-2); text-align: right; }
+    .diagstats { display: flex; flex-wrap: wrap; }
+    .diagstats .stat { flex: 1 1 33%; min-width: 130px; padding: 7px 11px;
+                        border-top: 0.5px solid var(--separator); }
+    .diagstats .stat:nth-child(-n+3) { border-top: none; }
+    .diagstats .v { font-size: var(--t-body); font-weight: 600;
+                     font-variant-numeric: tabular-nums; }
+    .diagstats .k { font-size: 10px; color: var(--label-2); margin-top: 1px; }
+    .diaglabel { font-size: var(--t-footnote); font-weight: 600; color: var(--label-2);
+                 margin: 8px 0 5px 3px; }
 """
 
 # ---- History -------------------------------------------------------------
@@ -69,52 +86,181 @@ history = ("".join(
         <span style="color: var(--accent-text)">Change in Privacy settings</span></div>""")
 
 # ---- Diagnostics ---------------------------------------------------------
-STAGES = [("Transcribing", "#39D0C4", 1.90, "1.90s", "3.40s"),
-          ("Tidying up", "#29C0B4", 0.68, "0.68s", "1.35s"),
-          ("Inserting", "#34C759", 0.04, "0.04s", "0.12s")]
-total = sum(s[2] for s in STAGES)
-segments = "".join(
-    f'<div style="width:{s[2] / total * 100:.1f}%; background:{s[1]}"></div>' for s in STAGES
+# Stage order, titles and colours mirror `PipelineStage.allCases` and
+# `DiagnosticsPresenter.title(for:)`/`DiagnosticsPageView.colour(for:)` in
+# Sources/UttrflowUX/DiagnosticsPresentation.swift and
+# Sources/Uttrflow/Main/DiagnosticsPageView.swift; kept in sync by
+# Scripts/design_diagnostics_contract_audit.py.
+STAGE_TITLES = {
+    "microphoneOpen": "Opening the microphone",
+    "capture": "Recording",
+    "drain": "Finishing the piece already under way",
+    "transcription": "Transcribing",
+    "correction": "Checking the dictionary",
+    "transformation": "Tidying up",
+    "expansion": "Expanding snippets",
+    "insertion": "Inserting",
+}
+STAGE_COLOURS = {
+    "microphoneOpen": "#9EDCD7", "capture": "#9EDCD7", "drain": "#9EDCD7",
+    "transcription": "#39D0C4", "correction": "#128077", "transformation": "#29C0B4",
+    "expansion": "#EFF8F7", "insertion": "#34C759",
+}
+# One row per stage something has timed: (stage, typical seconds, typical, slowest, samples).
+MEASURED_STAGES = [
+    ("microphoneOpen", 0.06, "0.06s", "0.14s", 42),
+    ("capture", 0.02, "0.02s", "0.05s", 42),
+    ("transcription", 1.42, "1.42s", "2.65s", 42),
+    ("correction", 0.03, "0.03s", "0.08s", 17),
+    ("transformation", 0.58, "0.58s", "1.10s", 40),
+    ("insertion", 0.04, "0.04s", "0.12s", 42),
+]
+# Nothing has ever timed these; drawn as "Never run" rather than a false zero.
+NEVER_RUN_STAGES = ["drain", "expansion"]
+# One transcription per dictation, so its own sample count is what the total rests on.
+DICTATIONS_TIMED = next(s[4] for s in MEASURED_STAGES if s[0] == "transcription")
+FOOTNOTE = "Measured on this Mac since Uttrflow started, and never sent anywhere."
+
+_stage_total = sum(s[1] for s in MEASURED_STAGES)
+lat_segments = "".join(
+    f'<div style="width:{seconds / _stage_total * 100:.1f}%; background:{STAGE_COLOURS[stage]}">'
+    "</div>"
+    for stage, seconds, _, _, _ in MEASURED_STAGES
 )
 lat_rows = "".join(
-    f"""<div class="lat"><span class="swatch" style="background:{c}"></span>
-            <span style="flex:1">{n}</span>
-            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">{p50} typical</span>
-            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">{p95} slowest</span>
-          </div>""" for n, c, _, p50, p95 in STAGES
+    f"""<div class="lat"><span class="swatch" style="background:{STAGE_COLOURS[stage]}"></span>
+            <span style="flex:1">{STAGE_TITLES[stage]}</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">{typical} typical</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">{slowest} slowest</span>
+          </div>""" for stage, _, typical, slowest, _ in MEASURED_STAGES
+)
+never_run_rows = "".join(
+    f"""<div class="frow"><span class="dot" style="background:var(--label-4)"></span>
+            <span style="flex:1">{STAGE_TITLES[stage]}</span>
+            <span class="d">Never run</span></div>""" for stage in NEVER_RUN_STAGES
 )
 
-diagnostics = f"""<p class="daylabel">Time from letting go of the key to text on screen</p>
-        <div class="card" style="padding: 14px">
-          <div class="row" style="justify-content: space-between; margin-bottom: 9px">
-            <span style="font-size: var(--t-title2); font-weight: 600;
-              font-variant-numeric: tabular-nums">2.62s</span>
-            <span class="muted" style="font-size: var(--t-callout)">
-              for 30 seconds of speech &middot; target under 5s</span>
-          </div>
-          <div class="bar-track">{segments}</div>
-        </div>
-        <div class="card" style="margin-top: 14px">{lat_rows}</div>
-        <div class="row" style="gap: 14px; margin-top: 14px; align-items: stretch">
-          <div class="card statrow" style="flex: 1">
-            <div class="stat"><div class="v">99.4%</div><div class="k">Heard you</div></div>
-            <div class="stat"><div class="v">96.8%</div><div class="k">Typed directly</div></div>
-          </div>
-          <div class="card statrow" style="flex: 1">
-            <div class="stat"><div class="v">78 MB</div><div class="k">Idle memory</div></div>
-            <div class="stat"><div class="v">1.6 GB</div><div class="k">Peak memory</div></div>
-          </div>
-        </div>
-        <div class="row" style="margin-top: 14px; gap: 9px">
-          <span class="muted" style="font-size: var(--t-footnote); flex: 1">
-            Measured on this Mac over the last 7 days. Never sent anywhere.</span>
+# A sum of only the stages something has timed is a floor, so the word saying so sits on the number.
+LATENCY_HEADLINE = f"at least {_stage_total:.2f}s"
+LATENCY_CAPTION = (
+    f"each stage&rsquo;s typical time, added together, over {DICTATIONS_TIMED} dictations, "
+    f"without {len(NEVER_RUN_STAGES)} stages nothing has ever timed")
+
+# One figure per measured stage, never an aggregate across the whole journey.
+RELIABILITY = [
+    ("100.0%", "Opening the microphone worked"),
+    ("100.0%", "Recording worked"),
+    ("97.6%", "Transcribing worked"),
+    ("100.0%", "Checking the dictionary worked"),
+    ("97.5%", "Tidying up worked"),
+    ("100.0%", "Inserting worked"),
+]
+
+# Never a product name for the running engine; see §16.
+ENGINE_ROWS = [
+    ("Speech", "Downloaded speech model", "#34C759"),
+    ("Built-in language model", "In use", "#34C759"),
+    ("Built-in rules", "Ready if needed", "#34C759"),
+]
+CLEANUP_ROWS = [
+    ("Filler words", "removed 3: um, hmm, aah", "#34C759"),
+    ("Numbers", "Switched off", "var(--label-4)"),
+]
+PERMISSION_ROWS = [
+    ("Microphone", "Granted", "#34C759"),
+    ("Accessibility", "Granted", "#34C759"),
+]
+STORAGE_ROWS = [
+    ("Speech model", "312 MB, on this Mac, every language", "#34C759"),
+]
+
+
+def fact_rows(rows):
+    return "".join(
+        f"""<div class="frow"><span class="dot" style="background:{colour}"></span>
+                <span style="flex:1">{title}</span>
+                <span class="d">{detail}</span></div>"""
+        for title, detail, colour in rows
+    )
+
+
+def diag_section(title, rows):
+    return f"""<p class="diaglabel">{title}</p>
+        <div class="card">{fact_rows(rows)}</div>"""
+
+
+# The verdict above the facts it is drawn from; a plain panel when nothing needs attention.
+diag_verdict = """<div class="card diagverdict">
+          <span class="dot"></span>
+          <span style="flex:1">Everything Uttrflow needs is in place.</span>
+        </div>"""
+
+diag_reliability = "".join(
+    f'<div class="stat"><div class="v">{value}</div><div class="k">{caption}</div></div>'
+    for value, caption in RELIABILITY
+)
+
+# The right rail — engines, the last dictation's clean-up, permissions and storage — stacked once,
+# reused by both the populated and the "no timings yet" pages since neither changes it.
+diag_right_rail = (
+    diag_section("Engines", ENGINE_ROWS)
+    + diag_section("Clean-up steps, last dictation", CLEANUP_ROWS)
+    + diag_section("Permissions", PERMISSION_ROWS)
+    + diag_section("On this Mac", STORAGE_ROWS)
+)
+diag_right_rail_empty = (
+    diag_section("Engines", ENGINE_ROWS)
+    + diag_section(
+        "Clean-up steps, last dictation",
+        [("Clean-up steps", "Nothing dictated yet", "var(--label-4)")])
+    + diag_section("Permissions", PERMISSION_ROWS)
+    + diag_section("On this Mac", STORAGE_ROWS)
+)
+diag_footer = f"""<div class="row" style="margin-top: 10px; gap: 9px">
+          <span class="muted" style="font-size: var(--t-footnote); flex: 1">{FOOTNOTE}</span>
           <button class="btn sm">Copy Diagnostics</button>
         </div>"""
+
+# Two columns, left the timed journey, right what it is running on — the frame is fixed height
+# and 700px is not enough for one long list of everything DiagnosticsPresentation reports.
+diagnostics = f"""{diag_verdict}
+        <div class="row" style="margin-top: 10px; gap: 14px; align-items: flex-start">
+          <div style="flex: 3; min-width: 0">
+            <p class="diaglabel" style="margin-top: 0">Time from letting go of the key to text on screen</p>
+            <div class="card" style="padding: 10px 12px">
+              <div class="row" style="justify-content: space-between; margin-bottom: 6px">
+                <span style="font-size: var(--t-title3); font-weight: 600;
+                  font-variant-numeric: tabular-nums">{LATENCY_HEADLINE}</span>
+                <span class="muted" style="font-size: var(--t-footnote)">{LATENCY_CAPTION}</span>
+              </div>
+              <div class="bar-track">{lat_segments}</div>
+            </div>
+            <div class="card" style="margin-top: 8px">{lat_rows}{never_run_rows}</div>
+            <div class="card diagstats" style="margin-top: 8px">{diag_reliability}</div>
+          </div>
+          <div style="flex: 2; min-width: 0">{diag_right_rail}</div>
+        </div>
+        {diag_footer}"""
+
+# The state before anything has ever been timed: DiagnosticsPresenter.noTimingsYet.
+diagnostics_empty = f"""{diag_verdict}
+        <div class="row" style="margin-top: 10px; gap: 14px; align-items: flex-start">
+          <div class="card" style="flex: 3; min-width: 0; padding: 0">
+            <div class="empty" style="padding: 40px">
+              <div class="ring">{icon(CHART, size=30, width=1.4)}</div>
+              <h3>No timings yet</h3>
+              <p>Dictate something and the times appear here. They stay on this Mac.</p>
+            </div>
+          </div>
+          <div style="flex: 2; min-width: 0">{diag_right_rail_empty}</div>
+        </div>
+        {diag_footer}"""
 
 written = []
 for stem, active, tool_html, content in [
     ("Main-History", "History", tools(searchbox("Search history")), history),
     ("Main-Diagnostics", "Diagnostics", "", diagnostics),
+    ("Main-Diagnostics-Empty", "Diagnostics", "", diagnostics_empty),
 ]:
     written += write_pair(
         stem,

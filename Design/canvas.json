@@ -491,6 +491,20 @@
       "h": 700
     },
     {
+      "file": "Main-Diagnostics-Empty.dc.html",
+      "x": 4080,
+      "y": 8120,
+      "w": 980,
+      "h": 700
+    },
+    {
+      "file": "Main-Diagnostics-Empty-Dark.dc.html",
+      "x": 5100,
+      "y": 8120,
+      "w": 980,
+      "h": 700
+    },
+    {
       "file": "Settings-General.dc.html",
       "x": 0,
       "y": 8930,
@@ -609,7 +623,7 @@
       "x": -360,
       "y": 8120,
       "w": 300,
-      "text": "History and Diagnostics\nUnchanged in substance, redrawn inside the shell. Today lives on Dictation now, so History starts at yesterday. Diagnostics is still where the PRD's latency and failure numbers surface."
+      "text": "History and Diagnostics\nRedrawn inside the shell. Today lives on Dictation now, so History starts at yesterday. Diagnostics draws every stage DiagnosticsPresentation measures &mdash; including the ones nothing has ever timed &mdash; plus engines, last-dictation clean-up, permissions and on-this-Mac storage; the empty pair is what shows before anything has been dictated."
     },
     {
       "id": "settings",
