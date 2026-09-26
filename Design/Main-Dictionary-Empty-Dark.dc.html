@@ -222,6 +222,9 @@
            border: 0.5px solid var(--control-border); box-shadow: 0 0.5px 1px rgba(0,0,0,0.07);
            font-size: var(--t-callout); color: var(--label); }
     .pop .chev { color: var(--label-2); font-size: 9px; line-height: 1; }
+    /* A scope with nothing behind it to pick: no chevron, no control chrome, just the word. */
+    .scopelabel { display: inline-flex; align-items: center; height: 24px;
+                  font-size: var(--t-callout); color: var(--label-2); }
     .appicon { width: 15px; height: 15px; border-radius: 4px; flex: none; display: flex;
                align-items: center; justify-content: center; color: #FFFFFF; font-size: 8px;
                font-weight: 700; }
@@ -321,6 +324,7 @@
               border: 1px solid var(--accent-tint); }
     .prov { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px;
             border-radius: 6px; background: var(--fill); font-size: var(--t-callout); }
+    .chart-bars { position: relative; }
     .bars { display: flex; align-items: flex-end; gap: 10px; height: 86px; }
     .bars .b { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
                justify-content: flex-end; height: 100%; }
@@ -328,9 +332,11 @@
     .bars .b.today i { background: var(--accent); }
     .bars .b.none i { background: var(--label-3); }
     .bars .b span { font-size: 9px; color: var(--label-3); font-variant-numeric: tabular-nums; }
-    .legend { display: flex; gap: 13px; margin-top: 9px; font-size: var(--t-footnote);
-              color: var(--label-2); align-items: center; }
-    .swatch { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+    /* The reference line a bar means something against: a dashed rule at the mean. */
+    .avgline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--label-3); }
+    .avgline span { position: absolute; right: 0; top: -9px; font-size: 9px;
+                    color: var(--label-2); background: var(--card-bg); padding: 0 3px;
+                    font-variant-numeric: tabular-nums; }
     .track { height: 7px; border-radius: 4px; background: var(--fill-2); overflow: hidden; }
     .track > i { display: block; height: 100%; border-radius: 4px; background: var(--accent-light); }
 </style>

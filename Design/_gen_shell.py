@@ -150,6 +150,9 @@ SHELL_CSS = """
            border: 0.5px solid var(--control-border); box-shadow: 0 0.5px 1px rgba(0,0,0,0.07);
            font-size: var(--t-callout); color: var(--label); }
     .pop .chev { color: var(--label-2); font-size: 9px; line-height: 1; }
+    /* A scope with nothing behind it to pick: no chevron, no control chrome, just the word. */
+    .scopelabel { display: inline-flex; align-items: center; height: 24px;
+                  font-size: var(--t-callout); color: var(--label-2); }
     .appicon { width: 15px; height: 15px; border-radius: 4px; flex: none; display: flex;
                align-items: center; justify-content: center; color: #FFFFFF; font-size: 8px;
                font-weight: 700; }
@@ -291,6 +294,11 @@ def searchbox(placeholder="Search"):
 
 def pop(value):
     return f'<div class="pop">{value}<span class="chev">&#9660;</span></div>'
+
+
+def scopelabel(value):
+    """A scope naming what a page shows with no menu behind it — text only, no chevron."""
+    return f'<span class="scopelabel">{value}</span>'
 
 
 def addbtn(label):
