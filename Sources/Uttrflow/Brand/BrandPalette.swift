@@ -107,7 +107,7 @@ enum BrandPalette {
         static let success: UInt32 = 0x34_C759
         static let warning: UInt32 = 0xFF_8D28
         /// Ink on a page reporting a failure.
-        static let cautionInk = BrandTone(dark: 0xFF_B05C, light: 0x9A_4E00)
+        static let cautionInk = BrandTone(dark: 0xFF_B05C, light: 0x94_3C00)
         /// A warning as text, clearing 4.5:1 on a card, the ground and its own 16% wash.
         static let warningInk = BrandTone(dark: cautionInk.dark, light: 0x8F_4800)
         /// Success as text and the dock's tick: 4.5:1 on a card, the ground and its 16% wash, 3:1 on glass.

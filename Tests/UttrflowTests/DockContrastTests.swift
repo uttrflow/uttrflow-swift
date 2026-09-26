@@ -23,6 +23,18 @@ private let lightGlass: UInt32 = 0xEE_EEEE
 private let darkGlass: UInt32 = 0x26_2626
 private let white: UInt32 = 0xFF_FFFF
 
+/// An sRGB hex painted over another at the given opacity, rounded per channel.
+private func composed(_ top: UInt32, _ opacity: Double, over bottom: UInt32) -> UInt32 {
+    [16, 8, 0].reduce(0) { hex, shift in
+        let (a, b) = (Double((top >> shift) & 0xFF), Double((bottom >> shift) & 0xFF))
+        return hex | UInt32((a * opacity + b * (1 - opacity)).rounded()) << shift
+    }
+}
+
+/// The keycap's `.primary.opacity(0.14)` over each glass: black on light, white on dark.
+private let lightKeycap = composed(0x00_0000, 0.14, over: lightGlass)
+private let darkKeycap = composed(white, 0.14, over: darkGlass)
+
 @Suite("The dock's status colours are legible on either desktop")
 struct DockContrastTests {
     @Test("the formula matches the published extremes")
@@ -39,11 +51,11 @@ struct DockContrastTests {
         #expect(ratio(fill, darkGlass) >= 3)
     }
 
-    @Test("the copied keycap's text clears 4.5:1 on a light desktop and a dark one")
+    @Test("the copied keycap's text clears 4.5:1 against its composed surface")
     func keycapText() {
         let ink = BrandPalette.Semantic.cautionInk
-        #expect(ratio(ink.light, lightGlass) >= 4.5)
-        #expect(ratio(ink.dark, darkGlass) >= 4.5)
+        #expect(ratio(ink.light, lightKeycap) >= 4.5)
+        #expect(ratio(ink.dark, darkKeycap) >= 4.5)
     }
 
     @Test("the inserted tick clears 3:1 on a light desktop and a dark one")
