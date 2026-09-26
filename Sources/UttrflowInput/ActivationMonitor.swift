@@ -11,6 +11,8 @@ public final class ActivationMonitor: HotkeyMonitoring {
     private let recogniser = Mutex<HotkeyRecogniser?>(nil)
     /// Runs on the source's thread once a stroke has left the lock, so a test can hold it there.
     private let strokeLeftLock: @Sendable () -> Void
+    /// Set for the duration of `stop()`, so a release it triggers cannot call back into it.
+    private let stopping = Atomic<Bool>(false)
 
     /// Takes the source it listens through, so a test can hand it strokes instead of a keyboard.
     public convenience init(source: any KeyboardEventSource = SystemKeyboard()) {
@@ -52,6 +54,9 @@ public final class ActivationMonitor: HotkeyMonitoring {
     }
 
     public func stop() {
+        guard stopping.compareExchange(expected: false, desired: true, ordering: .relaxed).exchanged
+        else { return }
+        defer { stopping.store(false, ordering: .relaxed) }
         source.stop()
         // A hold interrupted by stopping is a release, or the microphone stays open.
         recogniser.withLock { current in

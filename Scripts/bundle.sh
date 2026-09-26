@@ -446,6 +446,17 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BUILT_BINARY" "$APP/Contents/MacOS/$EXECUTABLE"
 cp "$SOURCE_PLIST" "$APP/Contents/Info.plist"
 
+# Xcode writes this beside the binary for a Release build; kept next to the bundle
+# rather than inside it, since it is what a future crash report gets symbolicated
+# against, not something that ships. Without it, a stripped Swift binary's crash
+# reporter guesses the nearest exported symbol for an inlined frame, and the guess
+# can be wrong — see issue #1468.
+DSYM="$PRODUCTS_DIR/$PRODUCT.dSYM"
+if [[ -d "$DSYM" ]]; then
+    rm -rf "dist/$APP_NAME.app.dSYM"
+    ditto "$DSYM" "dist/$APP_NAME.app.dSYM"
+fi
+
 # The commit this bundle was built from, stamped into the bundle itself.
 #
 # publish.sh used to tag the release with whatever the checkout's HEAD happened to be
