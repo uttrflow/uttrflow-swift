@@ -163,12 +163,13 @@ struct PanelSearchTests {
         #expect(PanelFixture.panel(Self.clips, query: "database").results.rows.map(\.isExactAlias) == [false])
     }
 
-    /// Searched like anything else and still masked when drawn: what is learnt is that a clip matches.
-    @Test("a secret is searchable by its contents")
-    func secretsAreSearchable() {
+    /// A match would confirm the query is inside the hidden value, so only a revealed secret is searched by its text.
+    @Test("a secret is searchable by its contents only once revealed")
+    func secretsAreSearchableOnceRevealed() {
         let secret = PanelFixture.clip("sk-live-1234", kind: .secret)
 
-        #expect(PanelFixture.panel([secret], query: "sk-live").results.rows.count == 1)
+        #expect(PanelFixture.panel([secret], query: "sk-live").results.rows.isEmpty)
+        #expect(PanelFixture.panel([secret], query: "sk-live", revealed: [secret.id]).results.rows.count == 1)
     }
 }
 

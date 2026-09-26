@@ -89,13 +89,16 @@ extension PanelSnapshot {
                 ? .alias
                 : Self.field(
                     matching: needle, in: clip, locale: locale,
-                    searchingText: ruledIn?.contains(clip.id) ?? true)
+                    searchingText: (ruledIn?.contains(clip.id) ?? true) && !isMasked(clip))
             guard let matched else { return nil }
             return PanelMatch(
                 position: position,
                 result: PanelResult(clip: clip, match: matched, isExactAlias: isExact))
         }
     }
+
+    /// Whether a clip is a secret still hidden, whose text is never searched. See `Docs/panel.md`.
+    func isMasked(_ clip: Clip) -> Bool { clip.kind == .secret && !revealed.contains(clip.id) }
 
     /// The matches in the order they are drawn, and how many of each kind the cap left out.
     func ranked(_ matches: [PanelMatch]) -> ([PanelResult], [PanelMatchField: Int]) {
