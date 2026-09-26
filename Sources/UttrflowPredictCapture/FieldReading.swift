@@ -22,12 +22,14 @@ public struct FieldReading: Sendable, Equatable {
     public let windowTitle: String?
     /// The application as the user knows it, which is how a window naming only the application is told from one naming a thread.
     public let applicationName: String?
+    /// Whether whoever read the field found it secure by what it holds, such as a value shown as bullets.
+    public let isKnownSecure: Bool
 
     /// A reading of a field, of which only the application and the role are always published.
     public init(
         bundleIdentifier: String, role: String, subrole: String? = nil, identifier: String? = nil,
         placeholder: String? = nil, accessibilityDescription: String? = nil, document: String? = nil,
-        windowTitle: String? = nil, applicationName: String? = nil
+        windowTitle: String? = nil, applicationName: String? = nil, isKnownSecure: Bool = false
     ) {
         self.bundleIdentifier = bundleIdentifier
         self.role = role
@@ -38,16 +40,18 @@ public struct FieldReading: Sendable, Equatable {
         self.document = document
         self.windowTitle = windowTitle
         self.applicationName = applicationName
+        self.isKnownSecure = isKnownSecure
     }
 }
 
 /// What the corpus asks of a reading: whether it is secret, and which surface it names.
 extension FieldReading {
-    /// Whether the field hides what is typed, from its role, its subrole, or a name that betrays a password.
+    /// Whether the field hides what is typed, as its reader found it or from its role, subrole, or a name that betrays a password.
     public var isSecure: Bool {
-        SecureField.isDeclaredSecure(
-            role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
-            description: accessibilityDescription)
+        isKnownSecure
+            || SecureField.isDeclaredSecure(
+                role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
+                description: accessibilityDescription)
     }
 
     /// The field as the corpus knows it, or nothing when it does not say enough to be told apart.
