@@ -117,9 +117,16 @@ extension PanelSnapshot {
 
     /// Whether a clip's whole text, trimmed, is the query, ignoring case and accents.
     static func isWhole(_ needle: String, of clip: Clip, locale: Locale) -> Bool {
-        clip.text.trimmingCharacters(in: .whitespacesAndNewlines).compare(
-            needle, options: [.caseInsensitive, .diacriticInsensitive], locale: locale)
-            == .orderedSame
+        let text = clip.text
+        let scalars = text.unicodeScalars
+        let blank = CharacterSet.whitespacesAndNewlines
+        guard let first = scalars.firstIndex(where: { !blank.contains($0) }),
+            let last = scalars.lastIndex(where: { !blank.contains($0) })
+        else { return needle.isEmpty }
+        // Compares the trimmed range in place, so a long clip is rejected without copying its text.
+        return text.compare(
+            needle, options: [.caseInsensitive, .diacriticInsensitive],
+            range: first..<scalars.index(after: last), locale: locale) == .orderedSame
     }
 
     /// Match field, then exact alias or whole text, then pinned, then arrival order, so groups are contiguous for ↓.
