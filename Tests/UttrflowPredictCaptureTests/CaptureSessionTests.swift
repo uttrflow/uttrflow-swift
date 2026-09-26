@@ -8,11 +8,13 @@ import UttrflowPredict
 private actor Recorder: CaptureSink {
     private(set) var recorded: [(text: String, surface: Surface, previous: String?)] = []
     private(set) var superseded: [(text: String, replacement: String)] = []
+    private(set) var moments: [Date] = []
 
     func record(
         _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
     ) {
         recorded.append((text, surface, previous))
+        moments.append(moment)
     }
 
     func supersede(_ text: String, with replacement: String, in surface: Surface) {
@@ -369,6 +371,21 @@ struct CaptureSessionTests {
             forHomeDirectory: scratch.directory, into: surface, at: start)
         #expect(again == 0)
         #expect(await recorder.texts.count == 2)
+    }
+
+    @Test("Imported commands are stamped oldest first, ending at the import, so eviction keeps the newest.")
+    func importedCommandsKeepTheirOrderInTime() async throws {
+        let scratch = Scratch()
+        try scratch.write("git status\nmake verify\nswift build\n", to: ".bash_history")
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        let surface = try #require(terminal.surface)
+        _ = try await session.importShellHistory(
+            forHomeDirectory: scratch.directory, into: surface, at: start)
+        #expect(
+            await recorder.moments == [
+                start.addingTimeInterval(-2), start.addingTimeInterval(-1), start,
+            ])
     }
 
     @Test("A home directory with no history in it imports nothing and is not tried again.")
