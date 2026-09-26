@@ -30,6 +30,36 @@ private actor DriftingSpeechEngine: SpeechEngine {
     }
 }
 
+/// A recogniser that holds its first call until released, then answers `.hindi`; later calls answer `.english`.
+private actor HeldSpeechEngine: SpeechEngine {
+    let kind = SpeechEngineKind.whisperKit
+    private(set) var hints: [LanguageCode?] = []
+    private(set) var firstReturned = false
+    private var held: CheckedContinuation<Void, Never>?
+    private var released = false
+
+    func prepare() async throws(SpeechEngineError) {}
+
+    func release() {
+        released = true
+        held?.resume()
+        held = nil
+    }
+
+    func transcribe(
+        _ audio: AudioSamples, options: TranscriptionOptions
+    ) async throws(SpeechEngineError) -> Transcription {
+        hints.append(options.languageHint)
+        let first = hints.count == 1
+        if first, !released { await withCheckedContinuation { held = $0 } }
+        if first { firstReturned = true }
+        return Transcription(
+            text: "piece \(hints.count)",
+            detectedLanguage: DetectedLanguage(code: first ? .hindi : .english, confidence: 1),
+            audioDuration: audio.duration)
+    }
+}
+
 private final class QuietInserter: TextInserting, Sendable {
     func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
         InsertionAttempt(.accessibility)
@@ -200,5 +230,31 @@ struct DictationPipelineLanguageTests {
 
         #expect(!next.isEmpty)
         #expect(next.allSatisfy { $0 == .hindi }, "the next dictation listens by the new languages")
+    }
+
+    /// Issue 1519: a cancelled piece still in the recogniser set the next dictation's language when it returned.
+    @Test("a cancelled dictation's piece in flight does not set the next dictation's language")
+    func cancelledPieceDoesNotHintTheNext() async throws {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = HeldSpeechEngine()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: speech, cleaner: PassThroughCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: QuietInserter(),
+            recordings: RecordingsNotKept(), profile: UserProfile(preferredLanguages: [.english]),
+            windowing: quick, earlyPoll: .milliseconds(2))
+
+        await pipeline.startRecording()
+        try await eventually { await speech.hints.count == 1 }
+        await pipeline.cancel()
+        await pipeline.startRecording()
+        await speech.release()
+        try await eventually { await speech.firstReturned }
+        for _ in 0..<50 { await Task.yield() }
+        await pipeline.finishRecording()
+        let later = await speech.hints.dropFirst(2)
+
+        #expect(!later.isEmpty)
+        #expect(later.allSatisfy { $0 != .hindi }, "the abandoned piece's language is not hinted")
     }
 }
