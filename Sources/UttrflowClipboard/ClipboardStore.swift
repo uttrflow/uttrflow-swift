@@ -405,6 +405,8 @@ public actor ClipboardStore {
         Clip(
             id: clip.id, text: text, kind: clip.kind, copiedAt: clip.copiedAt,
             source: clip.source, origin: clip.origin, dictations: clip.dictations,
+            // An unlinked dictation copy keeps its first words, the only thing deleting its dictation can match.
+            dictatedText: clip.dictatedText ?? (clip.isUnlinkedDictationCopy ? clip.text : nil),
             lastUsedAt: clip.lastUsedAt,
             language: clip.language, richText: richText, image: image,
             alias: clip.alias, category: clip.category, isPinned: clip.isPinned,
@@ -423,6 +425,7 @@ public actor ClipboardStore {
                 + arrival.dictations.filter {
                     !previous.dictations.contains($0)
                 },
+            dictatedText: previous.dictatedText,
             // Copying something again is reaching for it, so the eviction clock moves too.
             lastUsedAt: arrival.copiedAt,
             // The arrival's, detected from the text recorded now and from this pasteboard.

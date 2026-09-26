@@ -76,6 +76,40 @@ struct DictationCopiesTests {
         #expect(kept.map(\.id) == [typed.id])
     }
 
+    @Test("a copy made before the link is still deleted with its dictation after an edit")
+    func editedUnlinkedCopyGoes() async throws {
+        let folder = try TemporaryFolder()
+        let old = Clip(
+            text: "hello world", kind: .text, copiedAt: Date(), source: ClipOrigin.dictationSource,
+            origin: .uttrflow)
+        _ = try await folder.store.record(old, keeping: folder.retention)
+        _ = try await folder.store.setText("hello there", of: old.id, keeping: folder.retention)
+        _ = try await folder.store.setText("hello again", of: old.id, keeping: folder.retention)
+
+        let left = try await folder.store.deleteCopies(
+            ofDictation: UUID(), saying: "hello world", keeping: folder.retention)
+
+        #expect(left.isEmpty)
+    }
+
+    @Test("an edited copy that was never a dictation's gains no dictated words")
+    func editedTypedClipStaysUnlinked() async throws {
+        let folder = try TemporaryFolder()
+        let typed = Clip(text: "hello world", kind: .text, copiedAt: Date(), origin: .uttrflow)
+        _ = try await folder.store.record(typed, keeping: folder.retention)
+
+        let edited = try await folder.store.setText("hello there", of: typed.id, keeping: folder.retention)
+
+        #expect(edited.first?.dictatedText == nil)
+        let decoded = try JSONDecoder().decode(
+            Clip.self,
+            from: JSONEncoder().encode(
+                Clip(
+                    text: "b", kind: .text, copiedAt: Date(), source: ClipOrigin.dictationSource,
+                    origin: .uttrflow, dictatedText: "a")))
+        #expect(decoded.dictatedText == "a")
+    }
+
     @Test("the same words dictated twice are one clip that either dictation deletes")
     func repeatKeepsBothLinks() async throws {
         let folder = try TemporaryFolder()
