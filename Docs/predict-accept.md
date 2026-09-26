@@ -47,6 +47,12 @@ so neither arrow nor Return is ever claimed for one — Tab is the only way to t
 | ⎋⎋ | This field offers nothing more |
 | ⌥⎋ | AI suggestions stop everywhere until turned back on |
 
+The bare ⎋ rungs apply where the accept key is Tab or ⌥⇥. In a terminal, whose accept key is
+→, a bare ⎋ is never armed: the shell reads it as the Meta prefix (⎋ then `.`, `b`, `f`) or
+as vi's normal mode, so a suggestion there is dismissed by typing on. ⌥⎋ still turns
+suggestions off in a terminal. A terminal set to send Option as Meta loses Meta-⎋ while a
+suggestion is drawn; with nothing drawn it passes through untouched.
+
 ⎋ with nothing drawn is not ours: it closes the application's own dialog, and a tap that
 swallows it is a tap the user has to quit the app to escape from.
 

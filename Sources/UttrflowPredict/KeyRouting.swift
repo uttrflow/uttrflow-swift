@@ -52,7 +52,8 @@ public enum KeyRouting {
             return .passThrough
         case .minimised:
             if stroke == Self.turnOffStroke { return .dismiss(.turnOff) }
-            return stroke == KeyStroke(.escape) ? .dismiss(.silenceField) : .passThrough
+            guard stroke == KeyStroke(.escape), claimsEscape(acceptKey) else { return .passThrough }
+            return .dismiss(.silenceField)
         case .certain(let text):
             return decision(for: stroke, over: [text], selection: selection, acceptKey: acceptKey)
         case .choice(let leader, let others):
@@ -77,6 +78,11 @@ public enum KeyRouting {
     /// ⌥⎋, which turns the whole feature off from wherever it is showing.
     private static let turnOffStroke = KeyStroke(.escape, modifiers: .option)
 
+    /// Whether a bare ⎋ is ours; a terminal's shell reads it as Meta or vi's normal mode, so it is not.
+    private static func claimsEscape(_ acceptKey: AcceptKey) -> Bool {
+        acceptKey != .rightArrow
+    }
+
     /// The same decision once the offered texts are in hand, leader first.
     private static func decision(
         for stroke: KeyStroke, over offered: [String], selection: SuggestionSelection,
@@ -90,7 +96,7 @@ public enum KeyRouting {
         let navigable = offered.count > 1
         guard stroke.modifiers.isEmpty else { return .passThrough }
         switch stroke.key {
-        case .escape:
+        case .escape where claimsEscape(acceptKey):
             return .dismiss(.minimise)
         case .downArrow where navigable:
             return .moveSelection(

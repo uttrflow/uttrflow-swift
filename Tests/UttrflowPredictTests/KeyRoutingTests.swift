@@ -224,6 +224,24 @@ struct DismissKeyRoutingTests {
             decide(KeyStroke(.escape, modifiers: .shift), showing: .minimised) == .passThrough)
     }
 
+    @Test("In a terminal a bare Escape is the shell's, on every rung, and never armed.")
+    func terminalEscapeIsTheShells() {
+        let escape = KeyStroke(.escape)
+        #expect(decide(escape, showing: one, acceptKey: .rightArrow) == .passThrough)
+        #expect(decide(escape, showing: several, acceptKey: .rightArrow) == .passThrough)
+        #expect(decide(escape, showing: .minimised, acceptKey: .rightArrow) == .passThrough)
+        for suggestion in [one, several, .minimised] {
+            #expect(!KeyRouting.arming(showing: suggestion, acceptKey: .rightArrow).contains(.escape))
+        }
+    }
+
+    @Test("In a terminal Option-Escape still turns the whole feature off.")
+    func terminalOptionEscapeTurnsItOff() {
+        let stroke = KeyStroke(.escape, modifiers: .option)
+        #expect(decide(stroke, showing: one, acceptKey: .rightArrow) == .dismiss(.turnOff))
+        #expect(decide(stroke, showing: .minimised, acceptKey: .rightArrow) == .dismiss(.turnOff))
+    }
+
     @Test("With only the dot left there is nothing to accept or walk.")
     func minimisedClaimsOnlyEscape() {
         #expect(decide(KeyStroke(.tab), showing: .minimised) == .passThrough)
