@@ -278,6 +278,64 @@ struct MacContextEngineTests {
         #expect(context == .unknown)
     }
 
+    @Test("names the application from the activation feed when the identity read misses the budget")
+    func fallsBackToTheActivationFeedWhenIdentityHangs() async {
+        let clock = GatedClock()
+        let started = Gate()
+        let hung = Gate()
+        let report = Mutex<(@Sendable (FrontmostApplication) -> Void)?>(nil)
+        let engine = makeEngine(
+            frontmost: {
+                await started.open()
+                await hung.wait()
+                return slack
+            },
+            clock: clock,
+            observeActivations: { callback in
+                report.withLock { $0 = callback }
+                return ()
+            }
+        )
+        report.withLock { $0 }?(slack)
+
+        async let reading = engine.currentContext()
+        await started.wait()
+        await clock.gate.open()
+        let context = await reading
+
+        #expect(context.applicationName == "Slack")
+        #expect(context.bundleIdentifier == "com.tinyspeck.slackmacgap")
+    }
+
+    @Test("falls back to the application behind Uttrflow when Uttrflow activated last")
+    func fallbackSkipsItsOwnActivation() async {
+        let clock = GatedClock()
+        let started = Gate()
+        let hung = Gate()
+        let report = Mutex<(@Sendable (FrontmostApplication) -> Void)?>(nil)
+        let engine = makeEngine(
+            frontmost: {
+                await started.open()
+                await hung.wait()
+                return nil
+            },
+            clock: clock,
+            observeActivations: { callback in
+                report.withLock { $0 = callback }
+                return ()
+            }
+        )
+        report.withLock { $0 }?(slack)
+        report.withLock { $0 }?(uttrflow)
+
+        async let reading = engine.currentContext()
+        await started.wait()
+        await clock.gate.open()
+        let context = await reading
+
+        #expect(context.applicationName == "Slack")
+    }
+
     @Test("returns as soon as the reading is done, without waiting out the budget")
     func doesNotWaitOutTheBudgetOnASuccessfulRead() async {
         // The clock's gate is never opened, so only the reading itself can end the wait.

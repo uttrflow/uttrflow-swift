@@ -10,7 +10,7 @@ extension MacContextEngine {
     /// The engine as the app uses it.
     public convenience init() {
         self.init(
-            readFrontmostApplication: { await MainActor.run { MacContextEngine.frontmostApplication() } },
+            readFrontmostApplication: { MacContextEngine.frontmostApplication() },
             readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0) },
             ownBundleIdentifier: Bundle.main.bundleIdentifier,
             ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
@@ -41,8 +41,7 @@ extension MacContextEngine {
         let token: any NSObjectProtocol
     }
 
-    /// Identity, from NSWorkspace, on the main thread the one place it is safe to read.
-    @MainActor
+    /// Identity, from NSWorkspace, read off the main actor as `UttrflowInput` reads it. See `Docs/context-budget.md`.
     static func frontmostApplication() -> FrontmostApplication? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
         return FrontmostApplication(

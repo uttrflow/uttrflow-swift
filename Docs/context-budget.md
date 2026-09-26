@@ -87,3 +87,16 @@ being rewritten. The evaluation corpus's own case is `setUserPrefs`, twelve char
 roughly a long paragraph, ~128 tokens, and past that a selection stops adding meaning and starts
 costing context. What is cut keeps a `…` so a model reading it does not take the fragment for a
 finished sentence.
+
+## Naming the frontmost application
+
+Identity is read from `NSWorkspace.shared.frontmostApplication` directly, off the main actor —
+the same rule `UttrflowInput` follows for `isSelfFrontmost()` and `frontmostApplication()`. The
+read used to hop to the main actor first, so any main-actor work at key-down (redrawing the
+menu bar for `.recording`, a window redraw) could spend the whole 100 ms budget before identity
+was even asked for, and the read returned empty.
+
+If identity still misses the budget, the engine names the application from the
+`didActivateApplicationNotification` feed it already keeps (the app behind Uttrflow when
+Uttrflow itself activated last), and logs `Context identity timed out` under the `context`
+category so it can be seen in the field.
