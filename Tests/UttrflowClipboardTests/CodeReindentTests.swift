@@ -173,6 +173,30 @@ struct CodeReindentTests {
         #expect(CodeReindent.reindented(".PHONY: build\nbuild:\n\tswift build\n  x") == nil)
     }
 
+    /// A comment between the rule header and its recipe must not hide that the tab is grammar, not style.
+    @Test("refuses a makefile recipe separated from its header by a comment")
+    func makefileRecipeAfterComment() {
+        #expect(CodeReindent.reindented("all:\n# Build target\n\t@echo ok\n  X = 1\n") == nil)
+    }
+
+    /// A blank line between the rule header and its recipe is the same case as a comment.
+    @Test("refuses a makefile recipe separated from its header by a blank line")
+    func makefileRecipeAfterBlankLine() {
+        #expect(CodeReindent.reindented("all:\n\n\t@echo ok\n  X = 1\n") == nil)
+    }
+
+    /// Several comments and blank lines in a row still lead back to the same header.
+    @Test("refuses a makefile recipe separated from its header by several comments and blank lines")
+    func makefileRecipeAfterManyIntervening() {
+        #expect(CodeReindent.reindented("all:\n# one\n\n# two\n\t@echo ok\n  X = 1\n") == nil)
+    }
+
+    /// The CRLF fixture from the issue: an intervening comment must not be missed for Windows clips either.
+    @Test("refuses a CRLF makefile recipe separated from its header by a comment")
+    func makefileRecipeAfterCommentCRLF() {
+        #expect(CodeReindent.reindented("all:\r\n# Build target\r\n\t@echo ok\r\n  X = 1\r\n") == nil)
+    }
+
     /// The same shape catches tab-bodied Python, where a wrong level moves a statement.
     @Test("refuses tab-and-space Python")
     func indentationSensitiveLanguages() {
@@ -240,6 +264,10 @@ private let everyFixture: [String] = [
     "def q\n\tsql = <<~SQL\n        select 1\n    SQL\n  end",
     "build:\n\tswift build\n  echo done",
     ".PHONY: build\nbuild:\n\tswift build\n  x",
+    "all:\n# Build target\n\t@echo ok\n  X = 1\n",
+    "all:\n\n\t@echo ok\n  X = 1\n",
+    "all:\n# one\n\n# two\n\t@echo ok\n  X = 1\n",
+    "all:\r\n# Build target\r\n\t@echo ok\r\n  X = 1\r\n",
     "def f():\n\tif x:\n\t\treturn 1\n    return 2",
     "a\n  b\n\t  c",
     "a\n  b\n  \tc",

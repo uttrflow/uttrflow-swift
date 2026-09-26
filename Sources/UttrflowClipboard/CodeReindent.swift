@@ -172,14 +172,22 @@ public enum CodeReindent {
     }
 
     /// Whether this is a makefile, where a leading tab is grammar; tab-bodied Python is refused with it.
+    ///
+    /// Walks back past comment and blank lines, since a rule header still governs its recipe across them.
     private static func looksLikeMakefile(_ lines: [String]) -> Bool {
-        var previous: String?
+        var lastMeaningful: String?
         for line in lines {
-            defer { previous = line }
-            guard line.hasPrefix("\t"), let target = previous else { continue }
+            defer { if !isBlankOrComment(line) { lastMeaningful = line } }
+            guard line.hasPrefix("\t"), let target = lastMeaningful else { continue }
             if target.wholeMatch(of: ruleHeader) != nil { return true }
         }
         return false
+    }
+
+    /// Whether a line contributes nothing to the header search: empty, whitespace-only, or a `#` comment.
+    private static func isBlankOrComment(_ line: String) -> Bool {
+        let stripped = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        return stripped.isEmpty || stripped.hasPrefix("#")
     }
 
     /// A rule at column zero: names, a colon that is not `:=`, then the rest of the line.
