@@ -209,6 +209,34 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.isEmpty)
     }
 
+    @Test("Return after accepting a correction records only the accepted line, not the typo it replaced.")
+    func returnAfterAcceptedCorrectionRecordsNothingNew() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        _ = try await session.handle(.keystroke("git chekout", at: start), in: terminal)
+        _ = try await session.accepted("git checkout main", in: terminal, at: start.addingTimeInterval(1))
+        #expect(
+            try await session.handle(.returnPressed(at: start.addingTimeInterval(2)), in: terminal)
+                == .nothing)
+        #expect(await recorder.texts == ["git checkout main"])
+    }
+
+    @Test("Typing more after accepting commits the whole line as it then stands.")
+    func typingAfterAcceptCommitsTheFullLine() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        _ = try await session.handle(.keystroke("git chekout", at: start), in: terminal)
+        _ = try await session.accepted("git checkout main", in: terminal, at: start.addingTimeInterval(1))
+        _ = try await session.handle(
+            .keystroke("git checkout main -q", at: start.addingTimeInterval(2)), in: terminal)
+        #expect(
+            try await session.handle(.returnPressed(at: start.addingTimeInterval(3)), in: terminal)
+                == .recorded("git checkout main -q"))
+        #expect(await recorder.texts == ["git checkout main", "git checkout main -q"])
+    }
+
     @Test("The value entered before is what the next one is recorded as following.")
     func successionIsRecorded() async throws {
         let scratch = Scratch()

@@ -69,6 +69,7 @@ public actor CaptureSession {
         try await sink.record(text, in: surface, after: lastRecorded[surface], selfSourced: true, at: moment)
         try await sink.recordAccepted(text, in: surface)
         lastRecorded[surface] = text
+        if focused == reading { detector.accepted(text) }
         return .recorded(text)
     }
 

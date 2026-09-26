@@ -66,6 +66,8 @@ public struct CommitDetector: Sendable, Equatable {
     private var committed: String?
     /// What `committed` held before the most recent idle, so a failed write can put the field back where it was.
     private var committedPrior: String?
+    /// The line an accepted completion already recorded, which an ending leaves alone unless it has changed since.
+    private var acceptedLine: String?
 
     /// A detector watching a field nothing has been typed into.
     public init() {}
@@ -100,12 +102,19 @@ public struct CommitDetector: Sendable, Equatable {
         }
     }
 
+    /// Takes the line a completion wrote as the one now standing, so an ending does not record what it replaced.
+    public mutating func accepted(_ text: String) {
+        pending = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        acceptedLine = pending
+    }
+
     /// Forgets the field, which is what a new field focused in the same session amounts to.
     public mutating func reset() {
         pending = ""
         lastKeystroke = nil
         committed = nil
         committedPrior = nil
+        acceptedLine = nil
     }
 
     /// Undoes the most recent idle commit, so a later tick can re-emit the value after a failed write.
@@ -122,7 +131,9 @@ public struct CommitDetector: Sendable, Equatable {
 
     /// Emits what is pending, unless it is nothing, is exactly what was emitted last, or ended in a way not admitted.
     private mutating func commit(_ reason: CommitReason, _ admits: (CommitReason) -> Bool) -> Commit? {
-        guard !pending.isEmpty, pending != committed, admits(reason) else { return nil }
+        guard !pending.isEmpty, pending != committed, pending != acceptedLine, admits(reason) else {
+            return nil
+        }
         // An idle draft is retired by whatever the line became, even after it was backspaced away.
         let superseded = committed
         committedPrior = superseded
