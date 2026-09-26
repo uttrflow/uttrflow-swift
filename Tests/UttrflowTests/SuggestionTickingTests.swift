@@ -126,4 +126,12 @@ struct SuggestionCoordinatorClockTests {
     func setsATolerance() throws {
         #expect(try source.contains("tolerance = SuggestionTicking.tolerance"))
     }
+
+    @Test("watches scrolls only once a ghost is drawn, and stops when none is")
+    func scrollsWatchedOnlyWithAGhost() throws {
+        let text = try source
+        #expect(text.contains("watchScrolls()"))
+        #expect(text.contains("guard panel.isShowing else { return stopWatchingScrolls() }"))
+        #expect(!text.contains("if let scrolls { monitors.append(scrolls) }"))
+    }
 }

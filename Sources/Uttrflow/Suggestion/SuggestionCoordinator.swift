@@ -74,6 +74,8 @@ final class SuggestionCoordinator {
 
     private var session = SuggestionSession()
     private var monitors: [Any] = []
+    /// The scroll monitor, present only while a ghost is drawn, since a scroll matters only then.
+    private var scrollMonitor: Any?
     private var activations: (any NSObjectProtocol)?
     /// The Space and sleep observers, each of which leaves a ghost with no field under it.
     private var spaceObservers: [any NSObjectProtocol] = []
@@ -180,6 +182,7 @@ final class SuggestionCoordinator {
         ticking = SuggestionTicking()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
+        stopWatchingScrolls()
         if let activations { NSWorkspace.shared.notificationCenter.removeObserver(activations) }
         activations = nil
         for observer in spaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
@@ -205,11 +208,6 @@ final class SuggestionCoordinator {
             }
         }
         if let clicks { monitors.append(clicks) }
-        // A scroll carries the caret's line away under a ghost that stays put, so the ghost goes until a tick re-reads it.
-        let scrolls = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] _ in
-            MainActor.assumeIsolated { self?.scrolled() }
-        }
-        if let scrolls { monitors.append(scrolls) }
         activations = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -242,9 +240,24 @@ final class SuggestionCoordinator {
         panel.hide()
     }
 
+    /// Watches scrolls while a ghost is drawn; a scroll carries the caret's line away under a ghost that stays put.
+    private func watchScrolls() {
+        guard scrollMonitor == nil else { return }
+        scrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scrolled() }
+        }
+    }
+
+    /// Stops watching scrolls, so scrolling with no ghost drawn never wakes the app.
+    private func stopWatchingScrolls() {
+        if let scrollMonitor { NSEvent.removeMonitor(scrollMonitor) }
+        scrollMonitor = nil
+    }
+
     /// Withdraws a ghost the scroll has left behind, once, and lets the clock redraw it where the caret now is.
     private func scrolled() {
-        guard panel.isShowing, !isInserting else { return }
+        guard panel.isShowing else { return stopWatchingScrolls() }
+        guard !isInserting else { return }
         noteActivity()
         withdraw()
     }
@@ -693,6 +706,7 @@ final class SuggestionCoordinator {
             selection: session.selection,
             acceptKey: preferences.acceptKeys.key(forBundleIdentifier: snapshot.bundleIdentifier),
             fontFamily: snapshot.fontFamily, textColor: snapshot.textColor)
+        watchScrolls()
     }
 
     // MARK: Accepting
