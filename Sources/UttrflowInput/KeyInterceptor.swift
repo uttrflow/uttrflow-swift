@@ -58,6 +58,8 @@ public final class KeyInterceptor: Sendable {
     /// Which keystrokes to take, which is the one atomic the callback reads.
     public func arm(_ keys: ArmedKeys) {
         state.armed.store(keys.rawValue, ordering: .relaxed)
+        // Off while nothing is claimed, so an ordinary keystroke never waits on this process.
+        if let port = state.port() { CGEvent.tapEnable(tap: port, enable: !keys.isEmpty) }
     }
 
     /// Creates the tap and gives it a thread with a run loop of its own.
@@ -361,6 +363,7 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
         return nil
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
         // Not the keystroke path: by the time this runs the system has already stopped delivering.
+        guard state.armed.load(ordering: .relaxed) != 0 else { return Unmanaged.passUnretained(event) }
         if state.shouldReEnable(), let port = state.port() {
             CGEvent.tapEnable(tap: port, enable: true)
         }
