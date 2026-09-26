@@ -45,7 +45,7 @@ public struct PasteConfirmation: Sendable {
 
     /// Watches the caret until `text` sits behind it; `before` is the pre-paste tail, so an unchanged match does not count.
     public func waitFor(_ text: String, before: FieldTail? = nil) async -> Outcome {
-        let elapsed = Self.stopwatch(from: clock)
+        let elapsed = UttrflowCore.stopwatch(from: clock)
         guard !Task.isCancelled else { return .cancelled(.zero) }
         let wanted = Self.wanted(from: text)
         // A field that will not answer now will not answer in a second either, so nothing is waited for.
@@ -73,12 +73,6 @@ public struct PasteConfirmation: Sendable {
     private static func priorText(matching wanted: String, before: FieldTail?) -> String? {
         guard case .text(let seen) = before, collapsed(seen).hasSuffix(wanted) else { return nil }
         return seen
-    }
-
-    /// Opens the existential clock, which is what lets an instant be held on to.
-    private static func stopwatch(from clock: some Clock<Duration>) -> () -> Duration {
-        let start = clock.now
-        return { start.duration(to: clock.now) }
     }
 
     /// The end of what was pasted, which is what sits against the caret once the application takes it.

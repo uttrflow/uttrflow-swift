@@ -1,6 +1,7 @@
 // A serial queue that runs only the newest request, since a read nobody waits for still costs the next one.
 
 internal import Dispatch
+import UttrflowCore
 private import Synchronization
 
 /// Runs blocking reads one at a time, skipping any that a newer request has replaced. See `Docs/predict.md`.
@@ -24,7 +25,7 @@ final class LatestOnlyQueue: Sendable {
         let latest = self.latest
         let ticket = latest.next()
         let isWanted: @Sendable () -> Bool = { latest.isCurrent(ticket) }
-        return await Deadline.first(within: allowance) { [queue] in
+        return await withDeadline(allowance) { [queue] in
             await withCheckedContinuation { continuation in
                 queue.async { [isWanted] in
                     // A read whose turn has been replaced is dropped here, before it sends a single message.

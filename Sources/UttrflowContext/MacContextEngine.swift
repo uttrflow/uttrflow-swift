@@ -168,7 +168,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
     /// Runs `work`, waits no longer than ``budget`` for it, and abandons what is left. See `Docs/context-budget.md`.
     private func withinBudget(_ work: @escaping @Sendable () async -> Void) async {
-        _ = await Deadline.first(within: Self.budget, on: clock) {
+        _ = await withDeadline(Self.budget, clock: clock) {
             await work()
             return true
         }
