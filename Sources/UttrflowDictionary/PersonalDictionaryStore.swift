@@ -14,14 +14,18 @@ public actor PersonalDictionaryStore {
     /// The file, injected so a test writes into a temporary directory rather than a real dictionary.
     private let file: URL
 
-    /// The dictionary arranged by sound, built on demand and thrown away by every write.
-    private var cachedIndex: PhoneticIndex?
+    /// The file's decoded contents, reread only when the file changed on disk.
+    var cache: CachedStoredList<[DictionaryEntry]>
+
+    /// The dictionary arranged by sound, and the cache generation it was built from.
+    private var cachedIndex: (generation: Int, index: PhoneticIndex)?
 
     /// Terms seen and said but not yet often enough to keep; never written down, so no page clears it.
     private var sightings = SightingLedger()
 
     public init(file: URL = PersonalDictionaryStore.defaultFile()) {
         self.file = file
+        self.cache = CachedStoredList(file: file)
     }
 
     /// Where the dictionary lives by default; versioned in the name so a new shape can sit beside it.
@@ -43,11 +47,12 @@ public actor PersonalDictionaryStore {
         load()
     }
 
-    /// The dictionary arranged by sound. Built once and reused until something changes.
+    /// The dictionary arranged by sound. Rebuilt from memory only when the entries changed.
     public func index() -> PhoneticIndex {
-        if let cachedIndex { return cachedIndex }
-        let built = PhoneticIndex(entries: load())
-        cachedIndex = built
+        let entries = load()
+        if let cachedIndex, cachedIndex.generation == cache.generation { return cachedIndex.index }
+        let built = PhoneticIndex(entries: entries)
+        cachedIndex = (cache.generation, built)
         return built
     }
 
@@ -227,20 +232,21 @@ public actor PersonalDictionaryStore {
 
     /// Reads the file, setting an unreadable one aside so the next write cannot replace the only copy.
     private func load() -> [DictionaryEntry] {
-        LocalStore.read([DictionaryEntry].self, from: file).value ?? []
+        cache.load() ?? []
     }
 
     /// Writes the whole list atomically, or removes the file when nothing is left to keep.
     private func persist(_ entries: [DictionaryEntry]) throws(DictionaryStoreError) {
-        // Dropped before the write, not after: an index rebuilt from the old list is right either way.
-        cachedIndex = nil
         do {
             guard !entries.isEmpty else {
                 try removeFile()
+                cache.remember(nil)
                 return
             }
             try PrivateFile.write(JSONEncoder().encode(entries), to: file)
+            cache.remember(entries)
         } catch {
+            cache.forget()
             throw .couldNotWrite
         }
     }
