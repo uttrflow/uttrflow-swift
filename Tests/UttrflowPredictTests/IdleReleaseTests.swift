@@ -231,4 +231,14 @@ struct IdleReleaseTests {
         await model.watching?.value
         #expect(await inner.steps == ["load", "release"])
     }
+
+    @Test("the watch next wakes when the window would run out, not on a fixed fraction of it")
+    func waitsForTheRestOfTheWindow() async throws {
+        let model = IdleReleasingModel(model: RecordingModel(), idleAfter: .seconds(600))
+        let now = ContinuousClock.now
+        let left = await model.timeUntilIdle(at: now)
+        #expect(left <= .seconds(600))
+        #expect(left > .seconds(590))
+        #expect(await model.timeUntilIdle(at: now + .seconds(3600)) == .seconds(60))
+    }
 }

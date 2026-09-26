@@ -219,15 +219,22 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         if ready { watchForIdle() }
     }
 
-    /// Checks for idleness a few times per window for as long as the model is held.
+    /// Checks for idleness once each time the window could have run out, for as long as the model is held.
     private func watchForIdle() {
         watch?.cancel()
-        let interval = idleAfter / 4
+        let first = idleAfter
         watch = Task { [weak self] in
+            var wait = first
             while !Task.isCancelled {
-                try? await Task.sleep(for: interval)
+                try? await Task.sleep(for: wait)
                 guard !Task.isCancelled, let self, await releaseIfIdle(at: .now) else { return }
+                wait = await timeUntilIdle(at: .now)
             }
         }
+    }
+
+    /// How long until the window runs out if nothing asks again, never less than a tenth of it.
+    func timeUntilIdle(at now: ContinuousClock.Instant) -> Duration {
+        max(idleAfter - lastAsked.duration(to: now), idleAfter / 10)
     }
 }
