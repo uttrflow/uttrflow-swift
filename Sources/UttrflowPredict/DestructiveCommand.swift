@@ -119,8 +119,8 @@ public enum DestructiveCommand {
 
     /// Programs that run the SQL they are given.
     private static let sqlClients: Set<String> = [
-        "psql", "mysql", "mariadb", "sqlite3", "sqlite", "sqlcmd", "duckdb", "clickhouse", "clickhouse-client",
-        "cockroach", "snowsql", "bq", "pgcli", "mycli", "litecli", "usql", "osql", "isql", "sqlplus", "db2",
+        "psql", "mysql", "mariadb", "sqlite3", "sqlite", "sqlcmd", "duckdb", "clickhouse",
+        "clickhouse-client", "cockroach", "snowsql", "bq", "pgcli", "mycli", "litecli", "usql", "osql", "isql", "sqlplus", "db2",
         "trino", "presto", "spark-sql", "hive", "beeline", "cqlsh", "impala-shell", "vsql", "redshift",
     ]
 
