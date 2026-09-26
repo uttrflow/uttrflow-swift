@@ -139,4 +139,72 @@ struct PanelSearchMemoTests {
             !view("inv").narrows(to: view("invo", clips: Array(Self.clips.dropFirst()))),
             "a clip arrived or was deleted")
     }
+
+    /// Lists `queries` through one memo and counts the clips whose own text each one searched.
+    static func textSearched(_ queries: [String]) -> [Int] {
+        let memo = PanelSearchMemo()
+        return queries.map { query in
+            let panel = PanelFixture.panel(clips, query: query)
+            var searched = 0
+            _ = memo.rows(
+                for: PanelSearchMemo.View(panel),
+                scanning: { ruledIn in
+                    searched =
+                        ruledIn.map { ids in panel.clips.filter { ids.contains($0.id) }.count }
+                        ?? panel.clips.count
+                    return panel.matches(ruledIn: ruledIn)
+                },
+                ranking: panel.ranked)
+            return searched
+        }
+    }
+
+    @Test("deleting back to a query searched earlier searches no clip's text again")
+    func backspaceReuses() {
+        let searched = Self.textSearched(["i", "in", "inv", "in", "i"])
+
+        #expect(Array(searched.suffix(2)) == [0, 0])
+    }
+
+    @Test("a query that returns after another one searches no clip's text again")
+    func returningQuery() {
+        #expect(Self.textSearched(["invoice", "receipt", "invoice"]).last == 0)
+    }
+
+    @Test("a query that grows again after a Backspace is searched in the narrowest earlier list")
+    func regrowth() {
+        let searched = Self.textSearched(["i", "invoi", "invo", "invoic"])
+
+        #expect(searched[2] <= searched[0], "invo is searched within what i found")
+        #expect(searched[3] <= searched[1], "invoic is searched within what invoi found")
+    }
+
+    @Test("a new clip list forgets every earlier list")
+    func clipsForgetAll() {
+        let memo = PanelSearchMemo()
+        let before = PanelFixture.panel(Self.clips, query: "inv")
+        let after = PanelFixture.panel(Array(Self.clips.dropFirst()), query: "in")
+        var ruled: [Set<Clip.ID>?] = []
+        for panel in [before, after] {
+            _ = memo.rows(
+                for: PanelSearchMemo.View(panel),
+                scanning: { ruledIn in
+                    ruled.append(ruledIn)
+                    return panel.matches(ruledIn: ruledIn)
+                },
+                ranking: panel.ranked)
+        }
+
+        #expect(ruled.count == 2 && ruled[1] == nil)
+    }
+
+    @Test("walking a query back and forth lists what searching for it cold lists")
+    func backAndForth() {
+        var panel = PanelFixture.panel(Self.clips)
+        for typed in ["inv", "invoice", "inv", "invo", "i", "invoices", "in", "", "invoice"] {
+            panel = panel.applying(.search(typed)).state
+
+            #expect(Self.same(panel.results, Self.fromScratch(typed)), "after \(typed)")
+        }
+    }
 }
