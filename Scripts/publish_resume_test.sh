@@ -25,7 +25,8 @@ cat > "$pkg/.build/artifacts/sparkle/Sparkle/bin/sign_update" <<'EOF'
 # Mimics the two attributes the real tool prints, in the same shape appcast.py parses.
 target="${@: -1}"
 size="$(stat -f%z "$target" 2>/dev/null || echo 0)"
-echo "sparkle:edSignature=\"fake-signature-not-a-real-key==\" length=\"$size\""
+digest="$(shasum -a 256 "$target" | cut -c1-16)"
+echo "sparkle:edSignature=\"fake-$digest==\" length=\"$size\""
 EOF
 chmod +x "$pkg/.build/artifacts/sparkle/Sparkle/bin/sign_update"
 
@@ -143,6 +144,8 @@ case "\$1 \$2" in
         : > "\$state/assets-\$tag"
         for f in "\${files[@]}"; do
             printf '%s %s\n' "\$(basename "\$f")" "\$(stat -f%z "\$f")" >> "\$state/assets-\$tag"
+            mkdir -p "\$state/files-\$tag"
+            cp "\$f" "\$state/files-\$tag/"
         done
         touch "\$state/created-\$tag"
         count_file="\$state/create-calls"
@@ -150,6 +153,22 @@ case "\$1 \$2" in
         [[ -f "\$count_file" ]] && current="\$(cat "\$count_file")"
         echo "\$((current + 1))" > "\$count_file"
         exit 0
+        ;;
+    "release download")
+        shift 2
+        tag="\$1"; shift
+        dir=""; patterns=()
+        while [[ \$# -gt 0 ]]; do
+            case "\$1" in
+                --dir) dir="\$2"; shift 2 ;;
+                --pattern) patterns+=("\$2"); shift 2 ;;
+                --repo) shift 2 ;;
+                *) shift ;;
+            esac
+        done
+        for p in "\${patterns[@]}"; do
+            cp "\$state/files-\$tag/\$p" "\$dir/" 2>/dev/null || true
+        done
         ;;
     "repo clone")
         dest="\$4"
@@ -193,6 +212,27 @@ if [[ "$(cat "$gh_state/create-calls")" != "1" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Run 1b: an image of the same size but different bytes must be refused, not resumed.
+# ---------------------------------------------------------------------------
+cp "$image" "$test_root/image.orig"
+printf 'PLACEHOLDER disk image bytes\n' > "$image"
+run_log_drift="$test_root/run-drift.log"
+if "$pkg/Scripts/publish.sh" "$image" > "$run_log_drift" 2>&1; then
+    echo "error: a same-size, different-content image was resumed" >&2
+    cat "$run_log_drift" >&2
+    exit 1
+fi
+if ! grep -Fq 'with different assets' "$run_log_drift"; then
+    echo "error: the drifted image did not fail on the content check" >&2
+    cat "$run_log_drift" >&2
+    exit 1
+fi
+cp "$test_root/image.orig" "$image"
+
+# The archive is rebuilt with the same size and different bytes, as a re-signed build would be.
+printf 'NOT a real binary, never executed\n' > "$app_src/fixture"
+
+# ---------------------------------------------------------------------------
 # Run 2: the same command, unchanged inputs. It must resume — reuse the already-created
 # release rather than fail on the existing tag, and finish the feed update.
 # ---------------------------------------------------------------------------
@@ -224,6 +264,13 @@ if ! grep -Fq '2026.9.14' "$verify_clone/latest.json"; then
 fi
 if ! grep -Fq '2026.9.14' "$verify_clone/appcast.xml"; then
     echo "error: appcast.xml was not updated to the published version" >&2
+    cat "$verify_clone/appcast.xml" >&2
+    exit 1
+fi
+
+published_signature="fake-$(shasum -a 256 "$gh_state/files-v2026.9.14/Uttrflow.zip" | cut -c1-16)=="
+if ! grep -Fq "$published_signature" "$verify_clone/appcast.xml"; then
+    echo "error: the appcast signature is not the signature of the published archive" >&2
     cat "$verify_clone/appcast.xml" >&2
     exit 1
 fi

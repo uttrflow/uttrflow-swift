@@ -187,12 +187,16 @@ ARCHIVE_SIZE="$(stat -f%z "$ARCHIVE_STAGE/$ARCHIVE")"
 # visible in this process's argv, which on a single-tenant runner is an acceptable trade
 # and on a shared machine would not be — so a person signing locally should leave
 # SPARKLE_PRIVATE_KEY unset and let the keychain answer.
-if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
-    printf '  signing the archive with the key from the environment\n'
-    SIGNATURE="$("$SIGN_UPDATE" -s "$SPARKLE_PRIVATE_KEY" "$ARCHIVE_STAGE/$ARCHIVE" 2>/dev/null)" || SIGNATURE=""
-else
-    SIGNATURE="$("$SIGN_UPDATE" "$ARCHIVE_STAGE/$ARCHIVE" 2>/dev/null)" || SIGNATURE=""
-fi
+# Signs the staged archive into SIGNATURE, from the environment key when set and the keychain otherwise.
+sign_archive() {
+    if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+        printf '  signing the archive with the key from the environment\n'
+        SIGNATURE="$("$SIGN_UPDATE" -s "$SPARKLE_PRIVATE_KEY" "$ARCHIVE_STAGE/$ARCHIVE" 2>/dev/null)" || SIGNATURE=""
+    else
+        SIGNATURE="$("$SIGN_UPDATE" "$ARCHIVE_STAGE/$ARCHIVE" 2>/dev/null)" || SIGNATURE=""
+    fi
+}
+sign_archive
 [[ -n "$SIGNATURE" ]] || fail "$(
     printf 'could not sign %s.\n' "$ARCHIVE"
     if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
@@ -280,23 +284,25 @@ if [[ "$NOTARISED" != "yes" ]]; then
     printf '               macOS will call it damaged; every visitor needs the xattr command\n'
 fi
 
-# A tag can already exist because a previous run created the release and its two assets
-# and then failed before the manifest or appcast were written — the retry this script
-# documents. Resume in that case rather than refusing outright: only when both assets on
-# the existing release are exactly the ones this run would upload, so a genuinely
-# different release is never mistaken for the one being resumed.
+# Resumes only when the uploaded image is byte-identical to this one, and then signs the uploaded archive rather than this run's rebuild.
 RESUME=no
 if gh release view "$TAG" --repo "$DOWNLOADS_REPO" >/dev/null 2>&1; then
-    REMOTE_ASSETS="$(gh release view "$TAG" --repo "$DOWNLOADS_REPO" --json assets \
-        -q '.assets[] | .name + " " + (.size|tostring)')"
-    REMOTE_ASSET_SIZE="$(printf '%s\n' "$REMOTE_ASSETS" | awk -v n="$ASSET" '$1 == n { print $2 }')"
-    REMOTE_ARCHIVE_SIZE="$(printf '%s\n' "$REMOTE_ASSETS" | awk -v n="$ARCHIVE" '$1 == n { print $2 }')"
-    if [[ "$REMOTE_ASSET_SIZE" == "$SIZE" && "$REMOTE_ARCHIVE_SIZE" == "$ARCHIVE_SIZE" ]]; then
+    REMOTE_STAGE="$(mktemp -d -t uttrflow-remote)"
+    gh release download "$TAG" --repo "$DOWNLOADS_REPO" --dir "$REMOTE_STAGE" \
+        --pattern "$ASSET" --pattern "$ARCHIVE" >/dev/null 2>&1 || true
+    if [[ -f "$REMOTE_STAGE/$ARCHIVE" ]] && cmp -s "$REMOTE_STAGE/$ASSET" "$IMAGE"; then
         RESUME=yes
+        cp "$REMOTE_STAGE/$ARCHIVE" "$ARCHIVE_STAGE/$ARCHIVE"
+        ARCHIVE_SIZE="$(stat -f%z "$ARCHIVE_STAGE/$ARCHIVE")"
+        sign_archive
+        [[ -n "$SIGNATURE" ]] || fail "could not sign the $ARCHIVE already published in $TAG"
+        rm -rf "$REMOTE_STAGE"
     else
+        rm -rf "$REMOTE_STAGE"
         fail "$(
             printf '%s already exists in %s with different assets.\n' "$TAG" "$DOWNLOADS_REPO"
-            printf '  Bump CFBundleShortVersionString, or delete the release first:\n'
+            printf '  Resume only with the exact image that was uploaded. Otherwise bump\n'
+            printf '  CFBundleShortVersionString, or delete the release first:\n'
             printf '    gh release delete %s --repo %s --cleanup-tag' "$TAG" "$DOWNLOADS_REPO"
         )"
     fi
