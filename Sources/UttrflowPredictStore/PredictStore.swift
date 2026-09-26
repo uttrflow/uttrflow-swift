@@ -65,7 +65,7 @@ public actor PredictStore: PredictionStore {
 
     // MARK: - Reading
 
-    /// What the user might be finishing, drawn from every folder of this field rather than only this one.
+    /// What the user might be finishing, drawn from this folder and the field's most recently used others.
     public func candidates(
         for surface: Surface, matching typed: String
     ) throws(PredictStoreError) -> [Candidate] {
@@ -165,14 +165,27 @@ public actor PredictStore: PredictionStore {
     /// How many compiled statements the open file keeps.
     var cachedStatements: Int { database.cachedStatements }
 
-    /// Every surface that is the same field in the same application, whatever document it was in.
+    /// How many documents of one field a lookup reads, so its cost does not grow with every folder ever used.
+    static let scopeLimit = 8
+
+    /// The same field in the same application: this document first, then the most recently used others.
+    static let scopeQuery = """
+        SELECT id FROM surface
+        WHERE bundle_id = ? AND role = ? AND locator = ?
+        ORDER BY scope = ? DESC, (SELECT MAX(last_used) FROM entry WHERE surface_id = surface.id) DESC, id DESC
+        LIMIT ?
+        """
+
+    /// The documents of this field a lookup reads, bounded by `scopeLimit`.
     private func surfaceIdentifiers(of surface: Surface) throws(PredictStoreError) -> [Int64] {
         try database.rows(
-            "SELECT id FROM surface WHERE bundle_id = ? AND role = ? AND locator = ?",
+            Self.scopeQuery,
             {
                 $0.bind(1, surface.bundleIdentifier)
                 $0.bind(2, surface.role)
                 $0.bind(3, surface.locator ?? "")
+                $0.bind(4, surface.scope ?? "")
+                $0.bind(5, Int64(Self.scopeLimit))
             }
         ) { Int64($0.integer(0)) }
     }
