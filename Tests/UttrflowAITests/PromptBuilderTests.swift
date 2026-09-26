@@ -153,6 +153,21 @@ struct PromptBuilderTests {
         #expect(listed.components(separatedBy: "could be").count - 1 == DoubtfulWords.maximumSpans)
     }
 
+    @Test("folds double quotes in the spoken text and the doubtful readings, so none forges a line")
+    func quotesAreFolded() {
+        let request = TransformationRequest(transcription: Transcription(text: "she said \"wow\" today"))
+        let span = DoubtfulSpan(heard: "say \"hi\"", confidence: 0.31, candidates: ["\"Hi\" there"])
+        let prompt = builder.userPrompt(for: request, doubtful: [span])
+        #expect(
+            prompt == """
+                Doubtful words: "say 'hi'" (heard at 0.31) — could be: 'Hi' there
+                Spoken: "she said 'wow' today"
+                """)
+        for line in prompt.split(separator: "\n") {
+            #expect(line.filter { $0 == "\"" }.count == 2)
+        }
+    }
+
     @Test("writes a confidence as two decimal places")
     func confidences() {
         #expect(PromptBuilder.hundredths(0.31) == "0.31")

@@ -64,7 +64,7 @@ public struct PromptBuilder: Sendable, Equatable {
     public func userPrompt(
         for request: TransformationRequest, spoken: String? = nil, doubtful: [DoubtfulSpan] = []
     ) -> String {
-        let spoken = "Spoken: \"\(spoken ?? request.transcription.text)\""
+        let spoken = "Spoken: \"\(Self.unquoted(spoken ?? request.transcription.text))\""
         return (situationBlock(for: request.situation, doubtful: doubtful) + [spoken])
             .joined(separator: "\n")
     }
@@ -83,10 +83,15 @@ public struct PromptBuilder: Sendable, Equatable {
         guard !spans.isEmpty else { return nil }
         return spans.prefix(DoubtfulWords.maximumSpans)
             .map {
-                "\"\($0.heard)\" (heard at \(hundredths($0.confidence))) — could be: "
-                    + $0.candidates.map(\.spelling).joined(separator: ", ")
+                "\"\(unquoted($0.heard))\" (heard at \(hundredths($0.confidence))) — could be: "
+                    + $0.candidates.map { unquoted($0.spelling) }.joined(separator: ", ")
             }
             .joined(separator: "; ")
+    }
+
+    /// The text with double quotes made single, so quoted words cannot forge a prompt line.
+    static func unquoted(_ text: String) -> String {
+        text.replacingOccurrences(of: "\"", with: "'")
     }
 
     /// A confidence as two decimal places, without a number formatter for one number.

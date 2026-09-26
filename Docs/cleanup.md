@@ -198,6 +198,11 @@ name: the same word is capitalised off a sentence start elsewhere in the output,
 the window title, the selection or the text around the caret — a text capitalised
 throughout, as a title-cased document name is, says nothing. A name spoken once and
 absent from the screen is still lowered; the personal dictionary is where that closes.
+
+Every quoted line of the user prompt — "Typed into:", the text before the caret, the
+"Doubtful words:" line with each reading it offers, and the "Spoken:" line itself — has
+its double quotes made single first, so a dictionary spelling or screen text holding a
+`"` cannot close its quote early and forge a line of its own.
 Both transformers apply those two policies last, through `FirstWordPass` and
 `TerminalStopPass`, and the corpus cases that name a
 destination (`message-two-sentences-no-stop`, `mid-sentence-continues-lower-case`,
