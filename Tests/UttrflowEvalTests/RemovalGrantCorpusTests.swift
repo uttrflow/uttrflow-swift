@@ -25,6 +25,14 @@ struct RemovalGrantCorpusTests {
                 ?? [])
     }
 
+    @Test("writes each overreaching case as expected on the rules path, the overreached word kept")
+    func rulesKeepOverreachedWords() async throws {
+        for testCase in EvaluationCorpus.all where Self.overreaching[testCase.id] != nil {
+            let text = try await RuleBasedTransformer().transform(testCase.transformationRequest()).text
+            #expect(text == testCase.expected, "\(testCase.id)")
+        }
+    }
+
     @Test("names only cases the corpus holds")
     func namesRealCases() {
         #expect(Set(Self.overreaching.keys).isSubset(of: Set(EvaluationCorpus.all.map(\.id))))

@@ -27,12 +27,31 @@ public struct RuleBasedTransformer: TextTransformationEngine {
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
         let formatter = DestinationFormatter.standard(for: request.situation.destination)
-        let pipeline = pipeline ?? Self.pipeline(for: request, under: formatter, steps: steps)
+        let chosen = pipeline ?? Self.pipeline(for: request, under: formatter, steps: steps)
         // Romanised before the passes, so they read and write the Latin letters dictation inserts.
-        let draft = pipeline.run(Draft(transcription: request.transcription.romanised))
+        let (draft, ran) = Self.audited(chosen, over: Draft(transcription: request.transcription.romanised))
         return TransformationResult(
             text: draft.text, producedBy: kind,
-            cleaning: CleaningRecord(draft: draft, ran: pipeline.ids))
+            cleaning: CleaningRecord(draft: draft, ran: ran.ids))
+    }
+
+    /// Runs the passes, leaving out each one that took a word the meaning guard needs back, until none is missing.
+    static func audited(
+        _ pipeline: CleaningPipeline, over spoken: Draft
+    ) -> (draft: Draft, ran: CleaningPipeline) {
+        var pipeline = pipeline
+        while true {
+            let draft = pipeline.run(spoken)
+            let restored = MeaningPreservationGuard.restored(
+                RemovalAudit.unauthorised(in: draft, grants: pipeline.grants))
+            let verdict = MeaningPreservationGuard.removalVerdict(
+                restored, kept: draft.text, rewritten: draft.text, echoed: "")
+            let fewer = pipeline.without(restored.map(\.pass))
+            guard !verdict.isAccepted, fewer.passes.count < pipeline.passes.count else {
+                return (draft, pipeline)
+            }
+            pipeline = fewer
+        }
     }
 
     /// The standard passes for the request's scope: a piece waits for the message to be finished.
