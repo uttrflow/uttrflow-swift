@@ -1,4 +1,5 @@
 public import CoreGraphics
+import UttrflowCore
 public import UttrflowPredict
 
 public import struct Foundation.NSRange
@@ -230,13 +231,8 @@ extension FocusedFieldSnapshot {
         frame.width <= caretFieldWidth && caretHeights.contains(frame.height)
     }
 
-    /// The roles a person types into, which is what a focused element must be before it is taken for the field.
-    private static let textEntryRoles: Set<String> = [
-        "AXTextArea", "AXTextField", "AXComboBox", "AXSearchField", "AXWebArea",
-    ]
-
     /// Whether a role is one text is entered into; a static text, a group or a cell under the caret is not the field.
     public static func isTextEntry(_ role: String?) -> Bool {
-        role.map(textEntryRoles.contains) ?? false
+        FocusedElementPreference.isTextEntry(role)
     }
 }

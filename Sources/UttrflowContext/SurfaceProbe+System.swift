@@ -1,5 +1,6 @@
 import ApplicationServices
 import Foundation
+import UttrflowCore
 
 /// Reads other applications through Accessibility, from one attribute to a whole field's capabilities. See `Docs/predict-probe.md`.
 public enum SurfaceProbe {
@@ -16,15 +17,14 @@ public enum SurfaceProbe {
         // Never set on the system-wide element: that is process-wide and would cut dictation's own writes short (#887).
         let system = AXUIElementCreateSystemWide()
         let systemWide = element(system, kAXFocusedUIElementAttribute, timeoutInSeconds: messagingTimeout)
-        // While a browser editor is typed into, the system names the word under the caret; the application still names the field.
-        if let field = systemWide, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) {
-            return field
-        }
-        let application = AXUIElementCreateApplication(processIdentifier)
-        _ = AXUIElementSetMessagingTimeout(application, messagingTimeout)
-        let own = element(application, kAXFocusedUIElementAttribute, timeoutInSeconds: messagingTimeout)
-        if let field = own, FocusedFieldSnapshot.isTextEntry(string(field, kAXRoleAttribute)) { return field }
-        return systemWide ?? own
+        return FocusedElementPreference.choose(
+            systemWide: systemWide, systemWideRole: { string($0, kAXRoleAttribute) },
+            application: {
+                let application = AXUIElementCreateApplication(processIdentifier)
+                _ = AXUIElementSetMessagingTimeout(application, messagingTimeout)
+                return element(application, kAXFocusedUIElementAttribute, timeoutInSeconds: messagingTimeout)
+            },
+            applicationRole: { string($0, kAXRoleAttribute) })
     }
 
     /// The caret as a range, which every parameterized read below is asked about.

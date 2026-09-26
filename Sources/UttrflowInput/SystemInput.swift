@@ -179,18 +179,22 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
             value: { stringAttribute(kAXValueAttribute, of: element) })
     }
 
-    /// The focused element, asked system-wide then per-application. See `Docs/insertion.md`.
+    /// The focused element, asked system-wide then per-application, preferring whichever names a text-entry role. See `Docs/insertion.md`.
     private func focusedElement() -> AXUIElement? {
         guard AXIsProcessTrusted() else { return nil }
 
         // The timeout goes on the element itself: set on the system-wide element it is process-wide, and a suggestion read could lower it mid-insertion (#887).
         let system = AXUIElementCreateSystemWide()
-        if let element = focusedElement(of: system) { return element }
-
-        guard let frontmost = NSWorkspace.shared.frontmostApplication else { return nil }
-        let application = AXUIElementCreateApplication(frontmost.processIdentifier)
-        _ = AXUIElementSetMessagingTimeout(application, Self.messagingTimeout)
-        return focusedElement(of: application)
+        let systemWide = focusedElement(of: system)
+        return FocusedElementPreference.choose(
+            systemWide: systemWide, systemWideRole: { stringAttribute(kAXRoleAttribute, of: $0) },
+            application: {
+                guard let frontmost = NSWorkspace.shared.frontmostApplication else { return nil }
+                let application = AXUIElementCreateApplication(frontmost.processIdentifier)
+                _ = AXUIElementSetMessagingTimeout(application, Self.messagingTimeout)
+                return focusedElement(of: application)
+            },
+            applicationRole: { stringAttribute(kAXRoleAttribute, of: $0) })
     }
 
     private func focusedElement(of parent: AXUIElement) -> AXUIElement? {
