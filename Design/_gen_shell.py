@@ -4,6 +4,11 @@ in, and the light/dark pair each artboard is drawn as.
 Dark is not a filter over the light artboard. It re-declares the same tokens
 `_gen_common.TOKENS` declares, on `.theme-dark`, so every screen built here
 inherits both appearances from one place and neither can drift from the other.
+
+The sidebar's eleven rows and their order are `SidebarPresenter.order`'s, pinned by
+`SidebarPresentationTests.order()`; `Scripts/design_sidebar_contract_audit.py` fails this
+generator if the two disagree. There is no recent-transcript card and no shortcut footer —
+`SidebarView` draws neither — only the rows and, at the foot, the build version.
 """
 from _gen_common import *
 
@@ -41,6 +46,8 @@ WIFI_OFF = ('<path d="M2.4 8.8A15.2 15.2 0 0 1 7.6 5.8"/>'
             '<path d="M9.3 16.3a4.7 4.7 0 0 1 5.1-.4"/>'
             '<path d="M12 20v.1"/><path d="M3.2 3.2 20.8 20.8"/>')
 SEARCH_GLYPH = '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>'
+HOUSE = '<path d="M4 12 12 4.5 20 12"/><path d="M6.2 10.3V19a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-8.7"/>' \
+        '<path d="M10 20v-6h4v6"/>'
 
 # ---- the shell -----------------------------------------------------------
 SHELL_CSS = """
@@ -118,15 +125,8 @@ SHELL_CSS = """
     .sitem .tail { margin-left: auto; font-size: var(--t-footnote); color: var(--label-3);
                    font-variant-numeric: tabular-nums; }
     .sitem.on .tail { color: rgba(255,255,255,0.75); }
-    .recent { margin-top: auto; padding: 0 3px; }
-    .recent .cap { font-size: var(--t-footnote); font-weight: 600; letter-spacing: 0.3px;
-                   text-transform: uppercase; color: var(--label-3); margin: 0 0 6px 5px; }
-    .recent .box { border-radius: 8px; background: var(--fill); padding: 8px 9px; }
-    .recent .box .w { font-size: var(--t-footnote); color: var(--label-2);
-                      display: flex; gap: 5px; }
-    .recent .box .t { font-size: var(--t-subhead); line-height: 1.4; margin-top: 4px; }
-    .sidehint { display: flex; align-items: center; gap: 5px; margin: 11px 5px 2px;
-                font-size: var(--t-footnote); color: var(--label-3); }
+    .sidefoot { margin-top: auto; padding: 0 7px 10px; font-size: var(--t-footnote);
+                color: var(--label-3); font-variant-numeric: tabular-nums; }
 
     .pane { flex: 1; min-width: 0; display: flex; flex-direction: column;
             background: var(--window-bg); }
@@ -209,40 +209,19 @@ APPS = {
     "Mail": ("#D93025", "M"),
 }
 
+# The sidebar's rows, in `SidebarPresenter.order`'s order — Home first, Settings ninth
+# though it is not a page. `Scripts/design_sidebar_contract_audit.py` pins this to it.
 NAV = [
-    ("Dictation", MIC), ("History", CLOCK), ("Dictionary", BOOK), ("Corrections", SWAP),
-    ("Insights", CHART), ("Snippets", SNIPPET), ("Style", SPARKLE), ("Diagnostics", GAUGE),
-    ("Settings", GEAR), ("Account", PERSON),
+    ("Home", HOUSE), ("Dictation", MIC), ("History", CLOCK), ("Dictionary", BOOK),
+    ("Corrections", SWAP), ("Insights", CHART), ("Snippets", SNIPPET), ("Style", SPARKLE),
+    ("Diagnostics", GAUGE), ("Settings", GEAR), ("Account", PERSON),
 ]
 
-RECENT = """<div class="recent">
-          <p class="cap">Most recent</p>
-          <div class="box">
-            <div class="w"><span>4:12 PM</span><span>&middot;</span><span>Slack</span></div>
-            <div class="t">&ldquo;Hey John, I&rsquo;ll probably be about 20 minutes late to
-              the meeting&hellip;&rdquo;</div>
-          </div>
-        </div>"""
-
-RECENT_NONE = """<div class="recent">
-          <p class="cap">Most recent</p>
-          <div class="box">
-            <div class="w"><span>Yesterday</span><span>&middot;</span><span>6:58 PM</span></div>
-            <div class="t" style="color: var(--label-2)">&ldquo;Bhai kal subah call kar
-              lenge, aaj bahut late ho gaya.&rdquo;</div>
-          </div>
-        </div>"""
-
-RECENT_NEVER = """<div class="recent">
-          <p class="cap">Most recent</p>
-          <div class="box">
-            <div class="t" style="color: var(--label-3)">Nothing yet. Your last dictation
-              shows up here.</div>
-          </div>
-        </div>"""
+# What `SidebarView`'s foot draws: `AppVersion.full`, from `Resources/Uttrflow-Info.plist`.
+VERSION = "2026.9.14 (9)"
 
 
-def sidebar(active, recent=RECENT, tails=None):
+def sidebar(active, tails=None, version=VERSION):
     tails = tails or {}
     items = ""
     for name, glyph in NAV:
@@ -250,24 +229,22 @@ def sidebar(active, recent=RECENT, tails=None):
         tail = f'<span class="tail">{tails[name]}</span>' if name in tails else ""
         items += (f'<div class="sitem{on}"><span class="ico">'
                   f'{icon(glyph, size=15, width=1.6)}</span>{name}{tail}</div>\n        ')
+    foot = f'<div class="sidefoot">{version}</div>' if version else ""
     return f"""<div class="side">
         <div style="height: 26px; display: flex; align-items: center; padding: 0 4px">{lights()}</div>
         <div class="brand">{logo(20)}<span class="n">Uttrflow</span></div>
         {items}
-        {recent}
-        <div class="sidehint"><span class="key" style="height:17px; min-width:17px; padding:0 4px;
-          font-size:9px">&#8997;</span><span class="key" style="height:17px; min-width:17px;
-          padding:0 5px; font-size:9px">Space</span><span>Hold anywhere</span></div>
+        {foot}
       </div>"""
 
 
-def app_window(active, toolbar_tools, content, dark, recent=RECENT, tails=None, extra_css=""):
+def app_window(active, toolbar_tools, content, dark, tails=None, version=VERSION, extra_css=""):
     """One main-window artboard, in one appearance."""
     html = page(
         f"Uttrflow &mdash; {active}", STAGE_W, STAGE_H,
         f"""  <div class="win" style="width: {W}px; height: {H}px">
     <div class="split">
-      {sidebar(active, recent, tails)}
+      {sidebar(active, tails, version)}
       <div class="pane">
         <div class="toolbar"><h2>{active}</h2>{toolbar_tools}</div>
         <div class="content">{content}</div>

@@ -1,12 +1,8 @@
-"""The two main-window screens that predate the sidebar.
+"""History and Diagnostics, redrawn inside the current shell.
 
-Home is gone: the sidebar's Dictation destination is the home surface now, and
-Home's three pieces went somewhere each — the "hold the key" hero became the
-Dictation empty state, "last result" became the sidebar's most-recent block,
-and the counters became the Dictation rail and Insights. History and
-Diagnostics are unchanged in substance and simply redrawn inside the shell,
-because a screen that still wore the old three-item sidebar would contradict
-every artboard next to it.
+Both are unchanged in substance from the screens that predate the sidebar; only the shell
+around them moved. Home is drawn in `_gen_app.py`, alongside the other pages the sidebar
+now leads to.
 """
 from _gen_shell import *
 

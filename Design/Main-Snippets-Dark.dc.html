@@ -190,15 +190,8 @@
     .sitem .tail { margin-left: auto; font-size: var(--t-footnote); color: var(--label-3);
                    font-variant-numeric: tabular-nums; }
     .sitem.on .tail { color: rgba(255,255,255,0.75); }
-    .recent { margin-top: auto; padding: 0 3px; }
-    .recent .cap { font-size: var(--t-footnote); font-weight: 600; letter-spacing: 0.3px;
-                   text-transform: uppercase; color: var(--label-3); margin: 0 0 6px 5px; }
-    .recent .box { border-radius: 8px; background: var(--fill); padding: 8px 9px; }
-    .recent .box .w { font-size: var(--t-footnote); color: var(--label-2);
-                      display: flex; gap: 5px; }
-    .recent .box .t { font-size: var(--t-subhead); line-height: 1.4; margin-top: 4px; }
-    .sidehint { display: flex; align-items: center; gap: 5px; margin: 11px 5px 2px;
-                font-size: var(--t-footnote); color: var(--label-3); }
+    .sidefoot { margin-top: auto; padding: 0 7px 10px; font-size: var(--t-footnote);
+                color: var(--label-3); font-variant-numeric: tabular-nums; }
 
     .pane { flex: 1; min-width: 0; display: flex; flex-direction: column;
             background: var(--window-bg); }
@@ -333,6 +326,34 @@
     .swatch { width: 8px; height: 8px; border-radius: 3px; flex: none; }
     .track { height: 7px; border-radius: 4px; background: var(--fill-2); overflow: hidden; }
     .track > i { display: block; height: 100%; border-radius: 4px; background: var(--accent-light); }
+
+    /* Home: the stage, the figures row, and today's list beside the clipboard demonstration. */
+    .stage-card { padding: 20px 22px 18px; }
+    .status { display: flex; align-items: center; gap: 6px; font-size: var(--t-footnote);
+              color: var(--label-2); font-weight: 500; }
+    .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .greet { font-size: var(--t-title1); font-weight: 600; letter-spacing: -0.3px;
+             margin: 8px 0 3px; }
+    .subtitle { font-size: var(--t-body); color: var(--label-2); }
+    .hint { margin-top: 12px; display: flex; align-items: center; gap: 6px;
+            font-size: var(--t-callout); color: var(--label-2); }
+    .figrow { display: flex; margin-top: 16px; }
+    .figrow .fig { flex: 1; text-align: center; }
+    .figrow .fig .v { font-size: var(--t-title1); font-weight: 600;
+                      font-variant-numeric: tabular-nums; }
+    .figrow .fig .k { font-size: var(--t-subhead); color: var(--label-2); margin-top: 2px; }
+    .today-split { display: flex; align-items: flex-start; }
+    .today-list { flex: 1; min-width: 0; }
+    .clip-rail { width: 260px; flex: none; padding-left: 20px; margin-left: 20px;
+                 border-left: 0.5px solid var(--separator); }
+    .clip-rail h4 { font-size: var(--t-body); font-weight: 600; margin: 0 0 4px; }
+    .clip-rail p { font-size: var(--t-subhead); color: var(--label-2); line-height: 1.4;
+                    margin: 0 0 10px; }
+    .clip-row { display: flex; align-items: center; gap: 7px; padding: 6px 8px;
+                border-radius: 6px; font-size: var(--t-callout); }
+    .clip-row.chosen { background: var(--accent-wash); }
+    .clip-row .meta { margin-left: auto; font-size: var(--t-footnote); color: var(--label-3);
+                       white-space: nowrap; }
 </style>
 </helmet>
 <div class="stage night theme-dark" style="width: 980px; height: 700px; padding: 40px">
@@ -345,6 +366,7 @@
         <span class="light" style="background:#28C840"></span>
       </div></div>
         <div class="brand"><svg width="17.22" height="20" viewBox="19 14 62 72" fill="none" role="img" aria-label="Uttrflow" style="display: block; opacity: 1.0"><path d="M19 37 L19 55 A31 31 0 0 0 81 55 L81 21 A7 7 0 0 0 67 21 L67 55 A17 17 0 0 1 33 55 L33 37 A7 7 0 0 0 19 37 Z" fill="var(--logo-ink)"/></svg><span class="n">Uttrflow</span></div>
+        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 12 4.5 20 12"/><path d="M6.2 10.3V19a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-8.7"/><path d="M10 20v-6h4v6"/></svg></span>Home</div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></span>Dictation</div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/></svg></span>History</div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5A2 2 0 0 1 7 3h12v14.6H7A2 2 0 0 0 5 19.6z"/><path d="M5 19.6A2 2 0 0 1 7 17.6h12V21H7a2 2 0 0 1-2-1.4z"/><path d="M8.6 7.4h6.6M8.6 10.6h4.4"/></svg></span>Dictionary</div>
@@ -356,17 +378,7 @@
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5"/></svg></span>Settings</div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg></span>Account</div>
         
-        <div class="recent">
-          <p class="cap">Most recent</p>
-          <div class="box">
-            <div class="w"><span>4:12 PM</span><span>&middot;</span><span>Slack</span></div>
-            <div class="t">&ldquo;Hey John, I&rsquo;ll probably be about 20 minutes late to
-              the meeting&hellip;&rdquo;</div>
-          </div>
-        </div>
-        <div class="sidehint"><span class="key" style="height:17px; min-width:17px; padding:0 4px;
-          font-size:9px">&#8997;</span><span class="key" style="height:17px; min-width:17px;
-          padding:0 5px; font-size:9px">Space</span><span>Hold anywhere</span></div>
+        <div class="sidefoot">2026.9.14 (9)</div>
       </div>
       <div class="pane">
         <div class="toolbar"><h2>Snippets</h2><div class="tools"><div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>Search snippets</div><button class="btn sm"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg><span>New Snippet</span></button></div></div>

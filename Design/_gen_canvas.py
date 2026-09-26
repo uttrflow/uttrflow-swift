@@ -59,8 +59,12 @@ ROWS = [
          (f"{stem}.dc.html", *size, None),
          (f"{stem}-Dark.dc.html", *size, None))]),
 
+    ("home",
+     "The app window: Home\nThe sidebar's eleven rows, Home first, are the shell every one of these screens sits in — the same rows in the same order as SidebarPresenter.order, with the build version at the foot and nothing else below the rows. Home itself greets the person, states whether Uttrflow can listen, gives today's figures, lists today's dictations, and shows the clipboard working beside them.",
+     [("Main-Home.dc.html", *MAIN, None), ("Main-Home-Dark.dc.html", *MAIN, None)]),
+
     ("dictation",
-     "The app window: Dictation\nThe sidebar turns a utility into an application. Product mark at the top, a flat list of destinations, the active one in accent, and — where a competitor puts a promo banner — your own most recent dictation. Dictation is the home surface: today's list newest first, hover actions on the row, and a rail of the three things the app can actually measure. Empty is a returning user who has not spoken today, so it shows yesterday rather than nothing.",
+     "Dictation\nToday's list newest first, hover actions on the row, and a rail of the three things the app can actually measure. Empty is a returning user who has not spoken today, so it shows yesterday rather than nothing.",
      [("Main-Dictation.dc.html", *MAIN, None), ("Main-Dictation-Dark.dc.html", *MAIN, None),
       ("Main-Dictation-Empty.dc.html", *MAIN, None),
       ("Main-Dictation-Empty-Dark.dc.html", *MAIN, None)]),
@@ -95,7 +99,7 @@ ROWS = [
       ("Main-Account.dc.html", *MAIN, None), ("Main-Account-Dark.dc.html", *MAIN, None)]),
 
     ("main-window",
-     "History and Diagnostics\nUnchanged in substance, redrawn inside the shell. Today lives on Dictation now, so History starts at yesterday. Diagnostics is still where the PRD's latency and failure numbers surface.",
+     "History and Diagnostics\nUnchanged in substance, redrawn inside the current shell. Diagnostics is still where the PRD's latency and failure numbers surface.",
      [("Main-History.dc.html", *MAIN, None), ("Main-History-Dark.dc.html", *MAIN, None),
       ("Main-Diagnostics.dc.html", *MAIN, None),
       ("Main-Diagnostics-Dark.dc.html", *MAIN, None)]),
