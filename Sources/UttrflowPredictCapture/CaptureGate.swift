@@ -43,7 +43,7 @@ public enum CaptureGate {
         if looksLikeSensitiveValue(text, from: reading) { return .sensitiveValue }
         if looksLikeSecret(text) { return .looksLikeSecret }
         // A destructive command is never stored, so it can never be one keystroke from running.
-        return DestructiveCommand.matches(text) ? .destructive : nil
+        return DestructiveCommand.matches(text, failClosedOnUnresolved: true) ? .destructive : nil
     }
 
     /// Whether a value has the shape of a credential, asked of the rules the clipboard already uses.

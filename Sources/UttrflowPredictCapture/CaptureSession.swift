@@ -98,7 +98,7 @@ public actor CaptureSession {
             let commands = ShellHistory.read(atPath: path)
             guard !commands.isEmpty else { continue }
             var stored = 0
-            for command in commands where !DestructiveCommand.matches(command) {
+            for command in commands where !DestructiveCommand.matches(command, failClosedOnUnresolved: true) {
                 try await sink.record(
                     command, in: surface, after: nil, selfSourced: false, at: moment)
                 stored += 1
