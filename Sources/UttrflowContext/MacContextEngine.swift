@@ -72,19 +72,29 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
     private let memory = Mutex(AppMemory())
 
-    /// Substitutes both readings; `MacContextEngine+System.swift` wires up the real ones.
+    /// What keeps the activation subscription open; boxed so it can be filled once `self` is fully built.
+    private let activationToken = Mutex<(any Sendable)?>(nil)
+
+    /// Substitutes both readings and the activation feed; `MacContextEngine+System.swift` wires up the real ones.
     init(
         readFrontmostApplication: @escaping @Sendable () async -> FrontmostApplication?,
         readFocusedWindow: @escaping @Sendable (FrontmostApplication) async -> FocusedWindow?,
         ownBundleIdentifier: String?,
         ownProcessIdentifier: Int32,
-        clock: any Clock<Duration> = ContinuousClock()
+        clock: any Clock<Duration> = ContinuousClock(),
+        observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
     ) {
         self.readFrontmostApplication = readFrontmostApplication
         self.readFocusedWindow = readFocusedWindow
         self.ownBundleIdentifier = ownBundleIdentifier
         self.ownProcessIdentifier = ownProcessIdentifier
         self.clock = clock
+        // Every stored property now has a value, so `self` is safe to capture from here on.
+        let token = observeActivations { [weak self] application in
+            guard let self, !self.isOurselves(application) else { return }
+            self.memory.withLock { $0.appBehind = application }
+        }
+        activationToken.withLock { $0 = token }
     }
 
     public func currentContext() async -> AppContext {
@@ -142,6 +152,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
     /// Two ways to recognise ourselves, because either can be missing.
     private func isOurselves(_ application: FrontmostApplication) -> Bool {
+        Self.isOurselves(
+            application, ownProcessIdentifier: ownProcessIdentifier, ownBundleIdentifier: ownBundleIdentifier)
+    }
+
+    /// The identity check, free of `self` so the activation subscription can use it before init finishes.
+    private static func isOurselves(
+        _ application: FrontmostApplication, ownProcessIdentifier: Int32, ownBundleIdentifier: String?
+    ) -> Bool {
         if application.processIdentifier == ownProcessIdentifier { return true }
         // Not `==` on the optionals: an app with no bundle identifier must not match an Uttrflow with none.
         guard let ownBundleIdentifier else { return false }

@@ -12,7 +12,7 @@ public enum SpeechEngineKind: String, Sendable, Equatable, CaseIterable, Codable
 public enum TransformerKind: String, Sendable, Equatable, CaseIterable, Codable {
     /// Apple's on-device Foundation Models. Free and fast, but only some languages.
     case foundationModels
-    /// A local open-weight model. Covers languages Foundation Models does not.
+    /// A local open-weight model. Measured in the bake-off only; no build assembles it. See `Docs/core-engine-kinds.md`.
     case localModel
     /// Deterministic punctuation, capitalisation and filler removal. Always works.
     case rules
@@ -21,7 +21,7 @@ public enum TransformerKind: String, Sendable, Equatable, CaseIterable, Codable 
     /// Nothing tidied the words: every engine was starved or refused, so the transcript went in as heard.
     case untidied
 
-    /// The kinds this binary contains; the app defines neither build flag. See `Docs/core-engine-kinds.md`.
+    /// The kinds this binary contains; the app defines no build flag here. See `Docs/core-engine-kinds.md`.
     public static var selectable: [TransformerKind] {
         allCases.filter { kind in
             switch kind {
@@ -31,14 +31,11 @@ public enum TransformerKind: String, Sendable, Equatable, CaseIterable, Codable 
                 #else
                     false
                 #endif
-            case .localModel:
-                #if UTTRFLOW_LOCAL_MODEL
-                    true
-                #else
-                    false
-                #endif
             case .foundationModels, .rules:
                 true
+            // MLX is quarantined behind UttrflowLocalModel; no transformer assembly may link it, so this is never selectable.
+            case .localModel:
+                false
             // Not an engine anybody can choose: it is what the record says when none of them ran.
             case .untidied:
                 false

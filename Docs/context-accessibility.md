@@ -42,7 +42,10 @@ its window but hides its selection still yields the half it was willing to give.
 
 `MacContextEngine` remembers the last application in front of the user that was not Uttrflow,
 rather than looking it up, because there is no way to ask. `runningApplications` comes back in
-launch order, not activation order. Watching the front change is the only honest source.
+launch order, not activation order. Watching the front change is the only honest source, so the
+engine subscribes to `NSWorkspace.didActivateApplicationNotification` for the whole time it exists,
+independently of whether a context read is in flight — an application activated between two
+dictations is remembered just as surely as one activated during a read.
 
 This matters because Uttrflow is never the right answer for a context: its own window comes
 forward for settings, for onboarding, for a permission repair prompt, and "you are dictating into

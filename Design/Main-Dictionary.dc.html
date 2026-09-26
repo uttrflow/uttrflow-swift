@@ -45,6 +45,8 @@
       --accent-2: #5FE0D3;
       --accent-2-deep: #0E645D;
       --red: #FF383C;
+      /* Critical text, not the fill above: matches BrandPalette.Semantic.criticalInk.light — 7.06:1 on white. */
+      --red-ink: #B0161A;
       --green: #34C759;
 
       /* NSFont.preferredFont point sizes, macOS 26.5. */
@@ -99,7 +101,7 @@
       box-shadow: 0 1px 2px rgba(0,0,0,0.14);
     }
     .btn.plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent); }
-    .btn.destructive { color: var(--red); }
+    .btn.destructive { color: var(--red-ink); }
     .btn.sm { height: 22px; padding: 0 10px; font-size: var(--t-callout); }
     .key {
       display: inline-flex; align-items: center; justify-content: center;
@@ -145,6 +147,8 @@
       --fill-2: rgba(255,255,255,0.13);
       --accent-wash: rgba(18,128,119,0.22);
       --accent-tint: rgba(18,128,119,0.46);
+      /* Matches BrandPalette.Semantic.criticalInk.dark — 7.06:1 on --window-bg. */
+      --red-ink: #FF6B6E;
       /* Matches BrandPalette.Surface.card.dark. */
       --card-bg: #0E1016;
       /* Matches BrandPalette.Surface.control.dark (the raised tone, not the card). */
@@ -163,7 +167,7 @@
     .theme-dark .btn.primary { background: var(--accent); color: #FFFFFF; border-color: transparent; }
     .theme-dark .btn.plain { background: transparent; border-color: transparent;
                              box-shadow: none; color: var(--accent-dark); }
-    .theme-dark .btn.destructive { color: var(--red); }
+    .theme-dark .btn.destructive { color: var(--red-ink); }
     .theme-dark .key { background: var(--control-bg); border-color: rgba(255,255,255,0.20);
       box-shadow: 0 1px 0 rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.06);
       color: var(--label); }
@@ -452,7 +456,7 @@
             <span style="opacity:0.45; width:60px; flex:none; color:var(--label-2)">9 Aug</span>
             <span class="num" style="opacity:0.45; width:38px; flex:none">15</span>
             <span class="num" style="opacity:0.45; width:46px; flex:none;
-              color:var(--red)">7</span>
+              color:var(--label-2)">7</span>
             <span style="width:56px; flex:none; display:flex;
               justify-content:flex-end"><button class="btn sm" style="height:20px; padding:0 8px">Restore</button></span>
           </div></div>

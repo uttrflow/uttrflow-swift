@@ -1,3 +1,5 @@
+import Dispatch
+import Foundation
 import Synchronization
 import Testing
 
@@ -55,14 +57,16 @@ private func makeEngine(
     window: @escaping @Sendable (FrontmostApplication) async -> FocusedWindow? = { _ in nil },
     ownBundleIdentifier: String? = uttrflowBundle,
     ownProcessIdentifier: Int32 = uttrflowProcess,
-    clock: any Clock<Duration> = GatedClock()
+    clock: any Clock<Duration> = GatedClock(),
+    observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
 ) -> MacContextEngine {
     MacContextEngine(
         readFrontmostApplication: frontmost,
         readFocusedWindow: window,
         ownBundleIdentifier: ownBundleIdentifier,
         ownProcessIdentifier: ownProcessIdentifier,
-        clock: clock
+        clock: clock,
+        observeActivations: observeActivations
     )
 }
 
@@ -310,6 +314,43 @@ struct MacContextEngineTests {
         #expect(next.applicationName == "Slack")
     }
 
+    @Test("an abandoned slow window read does not consume the next read's budget")
+    func abandonedReadDoesNotStarveTheNextOne() async {
+        // Mirrors MacContextEngine+System's own arrangement: every window read dispatched onto one queue.
+        let queue = DispatchQueue(label: "test.context.read", attributes: .concurrent)
+        let callNumber = Mutex(0)
+        let application = FrontmostApplication(
+            name: "Stalled", bundleIdentifier: "com.example.stalled", processIdentifier: 88_120)
+        let engine = makeEngine(
+            frontmost: { application },
+            window: { _ in
+                let mine = callNumber.withLock { count -> Int in
+                    count += 1
+                    return count
+                }
+                return await withCheckedContinuation { continuation in
+                    queue.async {
+                        if mine == 1 {
+                            Thread.sleep(forTimeInterval: 0.3)
+                            continuation.resume(returning: FocusedWindow(title: "read 1"))
+                        } else {
+                            continuation.resume(returning: FocusedWindow(title: "read 2"))
+                        }
+                    }
+                }
+            },
+            clock: ContinuousClock()
+        )
+
+        async let first = engine.currentContext()
+        try? await Task.sleep(for: .milliseconds(20))
+        let second = await engine.currentContext()
+        let firstContext = await first
+
+        #expect(firstContext.documentName == nil, "the first read may degrade rather than block the second")
+        #expect(second.documentName == "read 2")
+    }
+
     @Test(
         "a late frontmost answer cannot replace the app used by a newer read",
         arguments: [false, true]
@@ -461,6 +502,44 @@ struct MacContextEngineTests {
         let context = await engine.currentContext()
 
         #expect(context.applicationName == "Xcode")
+    }
+
+    @Test("remembers an application activated between context reads")
+    func remembersAnApplicationActivatedBetweenReads() async {
+        let xcode = FrontmostApplication(
+            name: "Xcode", bundleIdentifier: "com.apple.dt.Xcode", processIdentifier: 28_165)
+        let report = Mutex<(@Sendable (FrontmostApplication) -> Void)?>(nil)
+        let engine = makeEngine(
+            frontmost: { uttrflow },
+            observeActivations: { callback in
+                report.withLock { $0 = callback }
+                return ()
+            }
+        )
+
+        _ = await engine.currentContext()
+        report.withLock { $0 }?(xcode)
+        report.withLock { $0 }?(slack)
+        let context = await engine.currentContext()
+
+        #expect(context.applicationName == "Slack", "Slack activated last, without a context read in between")
+    }
+
+    @Test("never files Uttrflow's own activation under the application behind it")
+    func neverRemembersItsOwnActivation() async {
+        let report = Mutex<(@Sendable (FrontmostApplication) -> Void)?>(nil)
+        let engine = makeEngine(
+            frontmost: { uttrflow },
+            observeActivations: { callback in
+                report.withLock { $0 = callback }
+                return ()
+            }
+        )
+
+        report.withLock { $0 }?(uttrflow)
+        let context = await engine.currentContext()
+
+        #expect(context == .unknown, "Uttrflow activating itself must not become the application behind it")
     }
 
     // MARK: - Empty means nothing

@@ -30,7 +30,7 @@ gap into a claim of "measured".
 | 20 | Report idle memory, the speech model loaded, and the language model | `uttrflow-bakeoff profile` and `footprint` | ❓ idle and speech-model memory are measured: 10.9 MB idle, +113 MB for the speech model, 273.6 MB peak mid-dictation, with a clean 30-dictation leak check — `Docs/performance.md`. The local MLX language model is not: none was installed when that page's numbers were taken, and it says so. `uttrflow-bakeoff footprint` can measure it; no dated result for that run is recorded here yet |
 | 22 | The numbers are for reading on the machine, never sent | Diagnostics is in-memory and bounded; nothing serialises or uploads it | ✅ — and see `Docs/offline.md` for the network audit |
 | 29 | No audio saved | **Deviated, deliberately (2026-09-04).** Each dictation's audio is written beside the live buffer and deleted the moment its words land; it is kept for a day only when the words were lost, so the dictation can be retried. Nothing leaves the Mac. `Docs/recordings.md` | ⚠️ recorded deviation; the privacy copy and `SettingsPrivacyCopyTests` say what is now true |
-| 31 | No tiny fallback LLM | **Deviated, deliberately.** A local open-weight model ships, because Apple's Foundation Models have no Hindi | ⚠️ recorded deviation |
+| 31 | No tiny fallback LLM | **Not deviated.** A local open-weight model was measured for Hindi clean-up in the bake-off, but Apple's Foundation Models turned out to cover Hindi too, so no build assembles the local model; `TransformerKind.selectable` never offers it. `Docs/core-engine-kinds.md` | ✅ no local model ships |
 | 32 | The requirements' own worked example | Shipped as corpus case `late-to-meeting` | ✅ verified live, below |
 
 ## §32, checked against the running product
@@ -52,7 +52,6 @@ there, nothing else moved.
 
 Recorded in full under *Deviations from the PRD* in `PLAN.md`. In brief:
 
-- **§31** — a local open-weight model ships, for Hindi.
 - **§16 recording panel** — the floating button *is* the recorder, so one thing moves on
   screen rather than two.
 - **Context does not turn speech into SQL.** The largest deviation, and the one that

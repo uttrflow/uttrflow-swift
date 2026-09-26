@@ -70,14 +70,10 @@ struct EngineKindsTests {
         #endif
     }
 
-    /// The local model links MLX, which the app does not build against, so a build without it cannot offer it.
-    @Test("excludes the local model from a build that does not link it")
-    func localModelIsNotSelectableByDefault() {
-        #if UTTRFLOW_LOCAL_MODEL
-            #expect(TransformerKind.selectable.contains(.localModel))
-        #else
-            #expect(!TransformerKind.selectable.contains(.localModel))
-        #endif
+    /// MLX is quarantined behind `UttrflowLocalModel`; no transformer assembly links it, whatever flags are set.
+    @Test("never offers the local model, since no build assembles it")
+    func localModelIsNeverSelectable() {
+        #expect(!TransformerKind.selectable.contains(.localModel))
     }
 
     /// The floor has to be there whatever a build contains; it is what stops the pipeline dead-ending.

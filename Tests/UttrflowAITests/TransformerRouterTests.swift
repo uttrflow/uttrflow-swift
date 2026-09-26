@@ -274,6 +274,18 @@ struct TextTransformersTests {
         #expect(TextTransformers.router().rulesAlone == .shortReplies)
         #expect(RulesAlone.shortReplies.mostWords == 3)
     }
+
+    @Test("assembles every transformer kind this build says is selectable")
+    func selectableKindsAreAssembled() {
+        let assembled = Set(TextTransformers.all().map(\.kind))
+        #expect(Set(TransformerKind.selectable).isSubset(of: assembled))
+    }
+
+    @Test("routes only through kinds this build actually assembled")
+    func routeMatchesAssembly() {
+        let assembled = Set(TextTransformers.all().map(\.kind))
+        #expect(Set(TextTransformers.router().route).isSubset(of: assembled))
+    }
 }
 
 @Suite("The contract")

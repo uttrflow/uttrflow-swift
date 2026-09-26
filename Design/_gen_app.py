@@ -221,7 +221,7 @@ def dict_rows():
             <span style="{dim}width:{COLS[3][1]}px; flex:none; color:var(--label-2)">{added}</span>
             <span class="num" style="{dim}width:{COLS[4][1]}px; flex:none">{used}</span>
             <span class="num" style="{dim}width:{COLS[5][1]}px; flex:none;
-              color:{'var(--red)' if int(undone) > 2 else 'var(--label-2)'}">{undone}</span>
+              color:{'var(--red-ink)' if int(undone) > 2 and not retired else 'var(--label-2)'}">{undone}</span>
             <span style="width:{COLS[6][1]}px; flex:none; display:flex;
               justify-content:flex-end">{tail}</span>
           </div>"""

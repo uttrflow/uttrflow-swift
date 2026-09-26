@@ -20,17 +20,29 @@ So 100 ms buys every realistic reading a thousand times over, and truncates only
 were going to fail anyway.
 
 It is also below the ~200 ms at which a person notices a delay, which is the ceiling that matters.
-The read for tidying happens after transcription, not before the recording — the pipeline asks for
-it while tidying, so the screen it describes is the one the text is about to go into — so the cost
-lands in the wait the user is already sitting through rather than eating their first word.
 
-One other read happens earlier, and it is the same one twice over rather than a second cost: the
-pipeline reads the screen once when the key goes down, to warm the tidier for where the words are
-heading, and the recogniser's vocabulary is ranked from that same reading. So a dictation cut into
-five pieces pays for one reading, not five, and the words the recogniser is listening for and the
-screen the tidier resolves against describe the same instant. That makes it
-additive to the time between stopping speaking and seeing text, which is the number this budget is
-defending.
+An ordinary dictation reads the screen once, at key-down: `DictationPipeline.beginWorkingAhead`
+starts this same context read the moment recording begins, to warm the tidier for where the words
+are heading and to rank the recogniser's vocabulary from it. That one reading is carried into
+tidying as `earlyContext` rather than taken again, so a dictation cut into five pieces pays for one
+reading, not five, and the words the recogniser listened for and the screen the tidier resolves
+against describe the same instant. Because the read overlaps the recording itself, its 100 ms is
+additive to the time between stopping speaking and seeing text only when a dictation is too short
+to cover it — the number this budget is defending.
+
+## Three different waits
+
+"100 ms" names three different things in this file, and only one of them is `MacContextEngine.budget`:
+
+- **The whole-request deadline** — `MacContextEngine.budget` — bounds one `currentContext()` call:
+  identity, then the focused-window read, together. `Deadline` gives up waiting at 100 ms and hands
+  back whatever was gathered; it never extends the wait for a read still in flight.
+- **The per-message timeout** — `MacContextEngine.budgetInSeconds`, the same 100 ms expressed for
+  `AXUIElementSetMessagingTimeout` — bounds one Accessibility message to one element. A focused
+  window read sends several (title, focused field, selection, caret), so a napped application can
+  cost close to the whole-request deadline one message at a time even though no single message
+  waited longer than its own timeout.
+- **The lifetime of abandoned work** — unbounded in principle. See below.
 
 ## The seconds conversion is not cosmetic
 
@@ -42,18 +54,24 @@ not 0.
 
 ## What is abandoned rather than cancelled
 
-When the budget runs out the reading is left behind, not stopped. By then it is blocked inside a
-synchronous Accessibility call that will not notice a cancellation; the point is only that the
-dictation stops waiting, and the Accessibility layer's own messaging timeout is what eventually
-frees the thread. That timeout is set on each element read — the application, its focused
-window and its focused field — and never on the system-wide element, whose timeout is
-process-wide and would be overwritten by whichever caller set it last (#887). The loser turning up
-late must therefore be harmless: `Deadline` resumes the caller once, and `MacContextEngine` lets
-only the latest uncancelled read update the remembered application behind Uttrflow.
+When the whole-request deadline runs out the reading is left behind, not stopped. By then it may be
+blocked inside a synchronous Accessibility call that will not notice a cancellation; the point is
+only that the dictation stops waiting, and the Accessibility layer's own per-message timeout is what
+eventually frees the thread — up to one messaging timeout past the deadline for whichever message
+was already in flight when it expired, and `read(_:while:)` also stops sending any *further*
+messages the moment its caller's deadline has passed, so an abandoned read degrades to at most one
+more message rather than working through the rest of its sequence. That loser turning up late must
+therefore be harmless: `Deadline` resumes the caller once, and `MacContextEngine` lets only the
+latest uncancelled read update the remembered application behind Uttrflow.
 
 That blocking read runs on a dispatch queue of its own rather than the cooperative pool, because a
 napped application measurably does not answer for a tenth of a second and holding a pool thread
-that long would stall unrelated work in the app.
+that long would stall unrelated work in the app. That queue is concurrent, not serial: an abandoned
+read has no bound on how long it keeps a thread, and a serial queue would make every read behind it
+wait out that same unbounded time before starting its own — spending a second read's whole
+allowance on nothing but queueing. Concurrent reads cost nothing apps do not already pay for
+elsewhere: each targets a different element with its own messaging timeout, so there is no shared
+state for two reads to race over.
 
 ## 512 characters of selection
 

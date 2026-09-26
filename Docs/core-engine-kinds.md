@@ -8,9 +8,10 @@ does another.
 
 - `.cloud` is compiled in only under `UTTRFLOW_CLOUD`. The app does not define it, so the
   shipped binary contains no path that reaches the network from the dictation pipeline.
-- `.localModel` is compiled in only under `UTTRFLOW_LOCAL_MODEL`. The app does not define
-  it either: `UttrflowLocalModel` links MLX, whose Metal shaders need a toolchain the app
-  deliberately does not require in order to build. The bake-off reaches it and measures
-  it; the app does not.
+- `.localModel` is never selectable, whatever build flags are set. `TextTransformers.all()`
+  lives in `UttrflowAI`, and `UttrflowAI` cannot import `UttrflowLocalModel` — that target
+  depends on `UttrflowAI`, and MLX is quarantined there so that nothing else ever needs its
+  Metal toolchain. The bake-off reaches the local model and measures it; no clean-up
+  assembly does.
 - Apple's Foundation Models handle Hindi. This is undocumented but verified, so the
   language the local model was brought in for is covered without it.
