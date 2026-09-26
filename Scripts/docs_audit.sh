@@ -686,7 +686,7 @@ import re
 
 text = open("AGENTS.md", errors="ignore").read()
 start = text.find("**Every feature is built in a worktree")
-end = text.find("`sasta-trader` is a different project", start)
+end = text.find("**Never run `swift build`", start)
 if start == -1 or end == -1:
     print("AGENTS.md  cannot find the worktree recipe section")
     raise SystemExit
