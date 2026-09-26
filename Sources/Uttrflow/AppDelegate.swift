@@ -1510,8 +1510,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             do {
                 _ = try await history.append(record, keeping: Retention(days: days, now: Date()))
             } catch {
-                // Losing the note must not disturb the dictation, which already landed.
-                render(.failed(DictationFailure(error)))
+                // Logged, not rendered: the dictation on screen by now may be a later one.
+                Self.log.error("history note not saved: \(DictationFailure(error).message, privacy: .public)")
             }
         }
     }
