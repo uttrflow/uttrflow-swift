@@ -296,7 +296,7 @@ struct CaptureSessionTests {
         let recorder = Recorder()
         let session = try await session(
             scratch, recorder, allowing: ["com.example.terminal"],
-            policy: .returnOnly(in: ["com.example.terminal"]))
+            policy: returnOnlyInTerminal)
         _ = try await session.handle(.keystroke("lsbom", at: start), in: terminal)
         #expect(try await session.handle(.focusLeft(at: start), in: terminal) == .nothing)
         _ = try await session.handle(.keystroke("lsbom", at: start), in: terminal)
@@ -347,7 +347,7 @@ struct CaptureSessionTests {
         let recorder = Recorder()
         let session = try await session(
             scratch, recorder, allowing: ["com.example.browser"],
-            policy: .returnOnly(in: ["com.example.terminal"]))
+            policy: returnOnlyInTerminal)
         _ = try await session.handle(.keystroke("example.com", at: start), in: browser)
         #expect(try await session.handle(.focusLeft(at: start), in: browser) == .recorded("example.com"))
     }
@@ -504,4 +504,9 @@ struct CaptureSessionTransientFailureTests {
         #expect(await sink.recorded == ["git pu", "git push"])
         #expect(await sink.superseded.map(\.text) == ["git pu"])
     }
+}
+
+/// Return alone finishes a field in the example terminal, and every ending finishes one elsewhere.
+private let returnOnlyInTerminal = CommitPolicy { reason, reading in
+    reason == .returnPressed || reading.bundleIdentifier != "com.example.terminal"
 }

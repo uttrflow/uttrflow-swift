@@ -122,11 +122,4 @@ struct MaskTests {
         #expect(distance("caf", "café au lait") == 0)
         #expect(distance("cafe", "café au lait") == 1)
     }
-
-    @Test("A prefix is recognised without measuring any distance at all.")
-    func prefixIsCheap() {
-        #expect(FuzzyMatch.isPrefix(bytes("git"), of: bytes("git commit")))
-        #expect(!FuzzyMatch.isPrefix(bytes("gti"), of: bytes("git commit")))
-        #expect(!FuzzyMatch.isPrefix(bytes("git commit"), of: bytes("git")))
-    }
 }

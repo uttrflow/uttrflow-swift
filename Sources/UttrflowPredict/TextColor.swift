@@ -18,15 +18,6 @@ public struct TextColor: Sendable, Equatable {
         0.2126 * Self.linear(red) + 0.7152 * Self.linear(green) + 0.0722 * Self.linear(blue)
     }
 
-    /// Returns this colour laid at the given share over a background, which is what the eye sees of the ghost.
-    public func blended(_ share: Double, over background: TextColor) -> TextColor {
-        let share = Self.clamped(share)
-        return TextColor(
-            red: red * share + background.red * (1 - share),
-            green: green * share + background.green * (1 - share),
-            blue: blue * share + background.blue * (1 - share))
-    }
-
     /// Returns the WCAG contrast ratio between two colours, 1 for none and 21 for black on white.
     public static func contrast(_ first: TextColor, _ second: TextColor) -> Double {
         let (light, dark) = (max(first.luminance, second.luminance), min(first.luminance, second.luminance))

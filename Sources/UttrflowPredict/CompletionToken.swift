@@ -5,15 +5,6 @@ struct CompletionToken: Equatable {
     /// The word being completed, never empty.
     let token: String
 
-    /// How many whole words precede it, which tells a command from its arguments.
-    var precedingWords: Int { leading.split(separator: " ").count }
-
-    /// Whether the word is the command rather than one of its arguments.
-    var isFirstWord: Bool { precedingWords == 0 }
-
-    /// The command this word belongs to, absent when it is the command itself.
-    var command: String? { leading.split(separator: " ").first.map(String.init) }
-
     /// A word anywhere in a line, for the words a completion adds behind the one being typed.
     init(leading: String, token: String) {
         self.leading = leading

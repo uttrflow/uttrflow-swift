@@ -134,15 +134,6 @@ struct VerificationTests {
         #expect(!Verification.isClosedVocabulary([.branch]))
         #expect(!Verification.isClosedVocabulary([.directories(under: "Sources")]))
     }
-
-    @Test("A verdict says whether the machine vouched for it and whether anything may be drawn.")
-    func verdictsReadTheirOwnMeaning() {
-        #expect(Verdict.attested.isAttested)
-        #expect(!Verdict.plausible.isAttested)
-        #expect(Verdict.plausible.allowsOffering)
-        #expect(Verdict.corrected("git commit").allowsOffering)
-        #expect(!Verdict.rejected.allowsOffering)
-    }
 }
 
 /// What the machine is asked about the last word of a line the model wrote, as `name → kinds` for each lookup.

@@ -13,13 +13,6 @@ public struct CommitPolicy: Sendable {
     /// Every ending finishes every field, which is right for anything that does not rewrite its own line.
     public static let everyEnding = CommitPolicy { _, _ in true }
 
-    /// Return alone finishes a field in these applications, since a shell rewrites the line on the way out.
-    public static func returnOnly(in bundleIdentifiers: Set<String>) -> CommitPolicy {
-        CommitPolicy { reason, reading in
-            reason == .returnPressed || !bundleIdentifiers.contains(reading.bundleIdentifier)
-        }
-    }
-
     /// Return alone finishes a field where the words are sent rather than kept: a shell, and a chat composer.
     public static let whereReturnSends = CommitPolicy { reason, reading in
         reason == .returnPressed || !sendsOnReturn(reading.bundleIdentifier)
