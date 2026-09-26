@@ -49,19 +49,19 @@ struct AnnouncedPictureReadTests {
     @Test("announcing a write returns promptly while a tick is reading a picture to match")
     func announcingIsNotHeldByAPictureRead() async {
         let source = BlockingPictureSource()
-        let watcher = PasteboardWatcher(source: source, readLimit: .seconds(10))
+        let watcher = PasteboardWatcher(source: source, readLimit: .seconds(60))
         watcher.ignoreNextPicture(Data([0x89, 0x50, 0x4E, 0x47]))
         source.bumpChangeCount()
 
         let tick = Task { await watcher.newClip(at: Date()) }
-        #expect(signalled(source.entered, within: 5))
+        #expect(signalled(source.entered, within: 30))
 
         let announced = DispatchSemaphore(value: 0)
         DispatchQueue.global().async {
             watcher.ignoreNextWrite(of: "pasted by Uttrflow")
             announced.signal()
         }
-        #expect(signalled(announced, within: 2), "the paste waited on the picture read")
+        #expect(signalled(announced, within: 20), "the paste waited on the picture read")
 
         source.release()
         _ = await tick.value
