@@ -4,12 +4,9 @@ import Foundation
 extension StringProtocol {
     /// Whether `needle` occurs here ignoring case, accents, curly quotes, dash kinds and whitespace runs.
     func contains(_ needle: String, ignoringCaseAndAccentsIn locale: Locale) -> Bool {
-        let haystack = SearchFolding.folded(self) ?? String(self)
-        let needle = SearchFolding.folded(needle) ?? needle
-        return haystack.range(
-            of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-            locale: locale
-        ) != nil
+        SearchFolding.contains(
+            SearchFolding.folded(needle) ?? needle,
+            inFolded: SearchFolding.folded(self) ?? String(self), locale: locale)
     }
 }
 
@@ -20,6 +17,14 @@ enum SearchFolding {
     private static let dashes: Set<Unicode.Scalar> = [
         "\u{2010}", "\u{2011}", "\u{2012}", "\u{2013}", "\u{2014}", "\u{2212}",
     ]
+
+    /// Whether an already-folded needle occurs in an already-folded haystack, ignoring case and accents.
+    static func contains(_ needle: String, inFolded haystack: String, locale: Locale) -> Bool {
+        haystack.range(
+            of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
+            locale: locale
+        ) != nil
+    }
 
     /// The lowest scalar this folding rewrites, below which only whitespace can need it.
     private static let lowestRewritten: UInt32 = 0x2010
