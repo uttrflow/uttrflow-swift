@@ -7,7 +7,11 @@ struct Grounding {
     private struct FixtureMachine: EnvironmentReading {
         let answers: [EnvironmentKind: [String]]
 
-        func values(of kind: EnvironmentKind, in directory: String) async -> [String]? { answers[kind] }
+        func values(
+            of kind: EnvironmentKind, in directory: String, matching prefix: String
+        ) async -> [String]? {
+            answers[kind]
+        }
     }
 
     private let verifier: Verifier

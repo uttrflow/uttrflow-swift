@@ -18,8 +18,8 @@ actor StubEnvironment: EnvironmentReading {
         self.delay = delay
     }
 
-    /// What it was told to answer for this kind, after whatever delay it was given.
-    func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
+    /// What it was told to answer for this kind, after whatever delay it was given; a substitute machine knows everything already, so narrowing it is left to the caller.
+    func values(of kind: EnvironmentKind, in directory: String, matching prefix: String) async -> [String]? {
         reads += 1
         if let delay { try? await Task.sleep(for: delay) }
         return answers[kind]
