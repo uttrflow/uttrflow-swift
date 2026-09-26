@@ -102,8 +102,8 @@ let package = Package(
             swiftSettings: sharedSwiftSettings
         ),
 
-        // An open-weight model on the Mac's GPU, for the languages Apple's does not
-        // cover. MLX needs Metal shaders that SwiftPM's command line cannot build, so
+        // The GPU AI suggestion model, plus open-weight clean-up models the bake-off measures.
+        // MLX needs Metal shaders that SwiftPM's command line cannot build, so
         // `swift build`/`swift test` never reach this target — but the `Uttrflow` app
         // target and `uttrflow-bakeoff` both depend on it and are built with
         // `xcodebuild`, which can. See `Docs/packaging.md`.
