@@ -15,6 +15,39 @@ struct SampleAccumulatorTests {
         #expect(accumulator.take() == [0.1, 0.2, 0.3])
     }
 
+    @Test("reads from an offset by copying only the samples at and after it")
+    func readsFromOffset() {
+        let accumulator = SampleAccumulator()
+        let whole = (0..<(SampleAccumulator.blockSize * 5 + 123)).map { Float($0) }
+        for chunk in stride(from: 0, to: whole.count, by: 1000) {
+            accumulator.append(Array(whole[chunk..<min(chunk + 1000, whole.count)]))
+        }
+        for start in [
+            0, 1, SampleAccumulator.blockSize - 1, SampleAccumulator.blockSize,
+            3 * SampleAccumulator.blockSize + 7, whole.count - 1,
+        ] {
+            let read = accumulator.samples(from: start)
+            #expect(read.count == whole.count - start, "copies \(read.count) for a read from \(start)")
+            #expect(read.capacity < whole.count - start + SampleAccumulator.blockSize)
+            #expect(read == Array(whole[start...]))
+        }
+        #expect(accumulator.samples(from: whole.count).isEmpty)
+        #expect(accumulator.samples(from: whole.count + 50).isEmpty)
+        #expect(accumulator.samples(from: -3) == whole)
+    }
+
+    @Test("reading from an offset leaves the whole recording for the take")
+    func offsetReadLosesNothing() {
+        let accumulator = SampleAccumulator()
+        let whole = (0..<(SampleAccumulator.blockSize * 3 + 17)).map { Float($0) }
+        accumulator.append(Array(whole[..<9000]))
+        _ = accumulator.samples(from: 5000)
+        accumulator.append(Array(whole[9000...]))
+        _ = accumulator.samples(from: 9000)
+        #expect(accumulator.copiedOnAppend == 0)
+        #expect(accumulator.take() == whole)
+    }
+
     @Test("ignores an empty block rather than counting it")
     func ignoresEmptyBlock() {
         let accumulator = SampleAccumulator()

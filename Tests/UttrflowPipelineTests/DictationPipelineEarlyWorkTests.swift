@@ -43,6 +43,23 @@ private actor NumberingSpeechEngine: SpeechEngine {
     var calls: Int { sampleCounts.count }
 }
 
+/// A recogniser that keeps every sample it is given, so a test can check none were lost or repeated.
+private actor KeepingSpeechEngine: SpeechEngine {
+    let kind = SpeechEngineKind.whisperKit
+    private(set) var pieces: [[Float]] = []
+
+    func prepare() async throws(SpeechEngineError) {}
+
+    func transcribe(
+        _ audio: AudioSamples, options: TranscriptionOptions
+    ) async throws(SpeechEngineError) -> Transcription {
+        pieces.append(audio.samples)
+        return Transcription(
+            text: "w\(pieces.count) x", detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
+            audioDuration: audio.duration)
+    }
+}
+
 /// A recogniser whose first recognition does not finish until the test lets it, so the key can come up mid-recognition.
 private actor HeldSpeechEngine: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
@@ -341,6 +358,22 @@ struct DictationPipelineEarlyWorkTests {
             counts.reduce(0, +) == Take.threePieces.samples.count,
             "every sample goes to the recogniser once")
         #expect(cleaner.warmed == [.messaging], "warmed once, for the Slack window the fixture shows")
+    }
+
+    @Test("the pieces worked ahead are the recording itself, every sample once and in order")
+    func piecesLoseNoAudio() async throws {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = KeepingSpeechEngine()
+        let pipeline = makePipeline(capture: capture, speech: speech)
+
+        await pipeline.startRecording()
+        try await eventually { await speech.pieces.count >= 2 }
+        await pipeline.finishRecording()
+
+        let pieces = await speech.pieces
+        #expect(pieces.count == 3)
+        #expect(pieces.joined().elementsEqual(Take.threePieces.samples))
     }
 
     /// The screen is read before the tidier is warmed, so the warm-up is for the right place.

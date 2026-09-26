@@ -33,6 +33,7 @@ struct ProtocolDefaultTests {
     @Test("a capture engine that cannot share audio early answers nothing")
     func captureAnswersNothingEarly() async {
         #expect(await BareCapture().capturedSoFar() == .empty)
+        #expect(await BareCapture().capturedSoFar(from: 5) == .empty)
     }
 
     @Test("cleaners and transformers with nothing to prepare can still be warmed")
