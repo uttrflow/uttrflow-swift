@@ -109,17 +109,14 @@ extension PanelSnapshot {
         return Self.capping(ordered) { row in
             // A collection named exactly is asked for whole; there is nothing more to type to narrow it.
             row.match == .category
-                && row.clip.category?.compare(
-                    needle, options: [.caseInsensitive, .diacriticInsensitive], locale: self.locale)
-                    == .orderedSame
+                && row.clip.category?.equals(needle, ignoringCaseAndAccentsIn: self.locale) == true
         }
     }
 
     /// Whether a clip's whole text, trimmed, is the query, ignoring case and accents.
     static func isWhole(_ needle: String, of clip: Clip, locale: Locale) -> Bool {
-        clip.text.trimmingCharacters(in: .whitespacesAndNewlines).compare(
-            needle, options: [.caseInsensitive, .diacriticInsensitive], locale: locale)
-            == .orderedSame
+        clip.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .equals(needle, ignoringCaseAndAccentsIn: locale)
     }
 
     /// Match field, then exact alias or whole text, then pinned, then arrival order, so groups are contiguous for ↓.

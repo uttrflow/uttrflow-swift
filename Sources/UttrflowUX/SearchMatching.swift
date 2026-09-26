@@ -11,6 +11,31 @@ extension StringProtocol {
             locale: locale
         ) != nil
     }
+
+    /// Whether this text, whole, is `needle` under the same folding as `contains(_:ignoringCaseAndAccentsIn:)`.
+    func equals(_ needle: String, ignoringCaseAndAccentsIn locale: Locale) -> Bool {
+        let haystack = SearchFolding.folded(self) ?? String(self)
+        let needle = SearchFolding.folded(needle) ?? needle
+        return haystack.compare(needle, options: [.caseInsensitive, .diacriticInsensitive], locale: locale)
+            == .orderedSame
+    }
+}
+
+extension String {
+    /// Where `needle` first occurs under the search folding, as a range of this unfolded text.
+    func range(of needle: String, ignoringCaseAndAccentsIn locale: Locale) -> Range<String.Index>? {
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        let needle = SearchFolding.folded(needle) ?? needle
+        guard let folded = SearchFolding.foldedWithOrigins(self) else {
+            return range(of: needle, options: options, range: nil, locale: locale)
+        }
+        guard let found = folded.text.range(of: needle, options: options, range: nil, locale: locale)
+        else { return nil }
+        let scalars = folded.text.unicodeScalars
+        let lower = scalars.distance(from: scalars.startIndex, to: found.lowerBound)
+        let upper = scalars.distance(from: scalars.startIndex, to: found.upperBound)
+        return folded.origins[lower]..<folded.origins[upper]
+    }
 }
 
 /// Typographic punctuation and whitespace, reduced to what a keyboard types.
@@ -79,6 +104,42 @@ enum SearchFolding {
             }
         }
         return String(out)
+    }
+
+    /// The folded text with, per folded scalar, where it starts in `text`, plus the end; `nil` if unchanged.
+    static func foldedWithOrigins(_ text: String) -> (text: String, origins: [String.Index])? {
+        guard folded(text) != nil else { return nil }
+        var out = String.UnicodeScalarView()
+        var origins: [String.Index] = []
+        var previousWasSpace = false
+        let scalars = text.unicodeScalars
+        var index = scalars.startIndex
+        while index < scalars.endIndex {
+            let scalar = scalars[index]
+            if isWhitespace(scalar) {
+                if !previousWasSpace {
+                    out.append(" ")
+                    origins.append(index)
+                }
+                previousWasSpace = true
+            } else {
+                previousWasSpace = false
+                out.append(straightened(scalar))
+                origins.append(index)
+            }
+            index = scalars.index(after: index)
+        }
+        origins.append(scalars.endIndex)
+        return (String(out), origins)
+    }
+
+    /// The keyboard form of one non-whitespace scalar.
+    private static func straightened(_ scalar: Unicode.Scalar) -> Unicode.Scalar {
+        guard scalar.value >= lowestRewritten else { return scalar }
+        if apostrophes.contains(scalar) { return "'" }
+        if quotes.contains(scalar) { return "\"" }
+        if dashes.contains(scalar) { return "-" }
+        return scalar
     }
 }
 
