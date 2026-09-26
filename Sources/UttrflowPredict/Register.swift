@@ -44,7 +44,8 @@ public struct Register: Sendable, Equatable {
     /// Reads the register off one moment: the field, what is on screen, what the person wrote here, what is typed.
     public static func infer(from situation: GenerationSituation, typed: String) -> Register {
         let screenLines = lines(of: situation.surroundings)
-        let conversational = isConversation(screenLines, field: situation.field)
+        let conversational = isConversation(
+            screenLines, field: situation.field, additionalClockLines: situation.timedTurnLines)
         let own = situation.recentLines
         let typical = median(own.map(\.count)) ?? (conversational ? median(screenLines.map(\.count)) : nil)
         return Register(
@@ -147,13 +148,15 @@ public struct Register: Sendable, Equatable {
         }
     }
 
-    /// Whether the lines read as turns of a conversation: several short lines shaped as turns, never a page's short menu, link or button lines.
-    static func isConversation(_ lines: [String], field: String? = nil) -> Bool {
+    /// Whether the lines read as turns of a conversation, `additionalClockLines` counting stamps the collector cleaned out of `lines` already.
+    static func isConversation(_ lines: [String], field: String? = nil, additionalClockLines: Int = 0) -> Bool
+    {
         guard lines.count >= conversationLines else { return false }
         let short = lines.filter { $0.count < conversationLineLength }.count
         guard Double(short) / Double(lines.count) >= 0.6 else { return false }
         return hasSpeakerTurns(lines)
-            || (namesMessageComposer(field) && lines.filter(showsClockTime).count >= timedTurns)
+            || (namesMessageComposer(field)
+                && lines.filter(showsClockTime).count + additionalClockLines >= timedTurns)
     }
 
     /// A message composer's screen needs at least this many lines stamped with a time of day before it reads as a conversation.
