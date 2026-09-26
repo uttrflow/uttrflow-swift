@@ -1242,14 +1242,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 Self.log.info("formatter produced nothing for \(language.rawValue, privacy: .public)")
                 return
             }
-            guard FormatterGuard.isFaithful(produced, to: clip.text) else {
+            let original = clip.text
+            // Guarded and compared off the main actor, because both walk the whole clip.
+            let prepared = await Task.detached(priority: .utility) { () -> PreparedFormattingSheet?? in
+                guard FormatterGuard.isFaithful(produced, to: original) else { return .none }
+                guard produced != original else { return .some(nil) }
+                return .some(PreparedFormattingSheet(from: original, to: produced))
+            }.value
+            guard let prepared else {
                 // Logged loudly: a formatter changing what code means, caught by the guard.
                 Self.log.error(
                     "formatter output discarded: not faithful (\(language.rawValue, privacy: .public))"
                 )
                 return
             }
-            guard produced != clip.text else { return }
+            guard let prepared else { return }
+            panel?.remember(prepared)
             panel?.sheet = .formatting(id, formatted: produced)
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         }

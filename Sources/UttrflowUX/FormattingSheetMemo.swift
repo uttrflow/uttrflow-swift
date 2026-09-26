@@ -26,6 +26,28 @@ final class FormattingSheetMemo: Sendable, Equatable {
         return sheet
     }
 
+    /// Keeps a sheet drawn elsewhere, so presenting its pair does no comparison.
+    func remember(_ prepared: PreparedFormattingSheet) {
+        drawn.withLock {
+            $0 = Drawn(original: prepared.original, formatted: prepared.formatted, sheet: prepared.sheet)
+        }
+    }
+
     /// Compares equal to any other memo, because a cache is not part of what the panel shows.
     static func == (lhs: FormattingSheetMemo, rhs: FormattingSheetMemo) -> Bool { true }
+}
+
+/// A formatting sheet drawn ahead of presenting, so the comparison can run off the main actor.
+public struct PreparedFormattingSheet: Sendable {
+    let original: String
+    let formatted: String
+    let sheet: PanelSheetPresentation
+
+    /// Compares the texts and draws the sheet; call it from a background task for a large clip.
+    public init(from original: String, to formatted: String) {
+        self.original = original
+        self.formatted = formatted
+        sheet = PanelPresenter.formattingSheet(
+            TextDiff.compare(from: original, to: formatted), changes: original != formatted)
+    }
 }
