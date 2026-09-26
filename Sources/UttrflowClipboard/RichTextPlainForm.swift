@@ -711,17 +711,23 @@ private struct PlainTextRenderer {
         return !["javascript", "data", "vbscript", "about"].contains(scheme)
     }
 
-    /// Whether printing the url after the text would only repeat it; case, scheme and slash are ignored.
+    /// Whether printing the url after the text would only repeat it; scheme, host case and slash are ignored.
     private func sameDestination(_ text: String, _ href: String) -> Bool {
-        func canonical(_ value: String) -> String {
-            var result = value.lowercased()
-            for prefix in ["https://", "http://", "mailto:", "tel:"] where result.hasPrefix(prefix) {
-                result.removeFirst(prefix.count)
-            }
-            while result.hasSuffix("/") { result.removeLast() }
-            return result
+        Self.canonicalDestination(text) == Self.canonicalDestination(href)
+    }
+
+    /// A url without its scheme and with only its host lowercased, since a path, query or fragment keeps its case.
+    private static func canonicalDestination(_ value: String) -> String {
+        var rest = Substring(value)
+        for prefix in ["https://", "http://", "mailto:", "tel:"] where rest.lowercased().hasPrefix(prefix) {
+            rest = rest.dropFirst(prefix.count)
         }
-        return canonical(text) == canonical(href)
+        let end = rest.firstIndex(where: { "/?#".contains($0) }) ?? rest.endIndex
+        let authority = rest[..<end]
+        let host = authority.lastIndex(of: "@").map(authority.index(after:)) ?? authority.startIndex
+        var result = String(authority[..<host]) + authority[host...].lowercased() + rest[end...]
+        while result.hasSuffix("/") { result.removeLast() }
+        return result
     }
 }
 
