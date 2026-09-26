@@ -75,6 +75,28 @@ struct PanelThumbnailsTests {
         #expect(counter.files.count == 1)
     }
 
+    /// A picture file restored after a failed decode is decoded again once the miss is stale.
+    @Test("decodes a restored picture after remembering it was gone")
+    func decodesARestoredPicture() async {
+        let counter = Counter()
+        let restored = Self.bitmap()
+        let present = Counter()
+        let source = PanelThumbnailSource { file, _ in
+            counter.calls += 1
+            return present.calls > 0 ? restored : nil
+        }
+        let thumbnails = PanelThumbnails(source: source, retryAfter: .zero)
+
+        thumbnails.prepare(file)
+        await thumbnails.waitForIdle(file: file)
+        present.calls = 1
+
+        #expect(thumbnails.thumbnail(for: file) == nil)
+        await thumbnails.waitForIdle(file: file)
+        #expect(thumbnails.thumbnail(for: file) === restored)
+        #expect(counter.calls == 2)
+    }
+
     /// Asked for at the size it is drawn, not the size of the screenshot.
     @Test("asks for the small version")
     func asksForAThumbnail() async {

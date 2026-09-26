@@ -35,10 +35,18 @@ final class PanelThumbnails {
     @ObservationIgnored private var order: [URL] = []
     /// Decodes in flight; one per file, so a row drawn twice does not decode twice.
     @ObservationIgnored private var inflight: [URL: Task<Void, Never>] = [:]
+    /// When each failed decode was recorded, so a file restored later is decoded again.
+    @ObservationIgnored private var missedAt: [URL: ContinuousClock.Instant] = [:]
+    /// How long a failed decode is trusted before the file is read again.
+    private let retryAfter: Duration
 
-    init(source: PanelThumbnailSource = .system, budget: Int = PanelThumbnails.defaultBudget) {
+    init(
+        source: PanelThumbnailSource = .system, budget: Int = PanelThumbnails.defaultBudget,
+        retryAfter: Duration = .seconds(2)
+    ) {
         self.source = source
         self.budget = max(budget, 0)
+        self.retryAfter = retryAfter
     }
 
     /// What a decoded thumbnail costs, measured from the bitmap rather than the point size.
@@ -57,6 +65,7 @@ final class PanelThumbnails {
 
     /// The cached thumbnail for `file`, or `nil` while a miss is being decoded off the main actor.
     func thumbnail(for file: URL) -> NSImage? {
+        forgetStaleMiss(file)
         if let remembered = known[file] {
             touch(file)
             return remembered
@@ -67,6 +76,7 @@ final class PanelThumbnails {
 
     /// Starts an off-main decode for `file`; a no-op if one is already in flight, or the answer is already cached.
     func prepare(_ file: URL) {
+        forgetStaleMiss(file)
         if known[file] != nil { return }
         if inflight[file] != nil { return }
         let source = self.source
@@ -89,10 +99,20 @@ final class PanelThumbnails {
         let result = bytes.image
         let cost = Self.bytes(of: result)
         known[file] = result
+        missedAt[file] = result == nil ? .now : nil
         self.cost[file] = cost
         held += cost
         touch(file)
         forgetTheLeastRecent()
+    }
+
+    /// Drops a remembered failure once it is older than `retryAfter`, so the next ask decodes again.
+    private func forgetStaleMiss(_ file: URL) {
+        guard let missed = missedAt[file], missed.duration(to: .now) >= retryAfter else { return }
+        missedAt[file] = nil
+        known.removeValue(forKey: file)
+        cost.removeValue(forKey: file)
+        order.removeAll { $0 == file }
     }
 
     /// Moves a file to the end of the queue, so it is the last thing forgotten.
@@ -107,6 +127,7 @@ final class PanelThumbnails {
             let oldest = order.removeFirst()
             held -= cost.removeValue(forKey: oldest) ?? 0
             known.removeValue(forKey: oldest)
+            missedAt.removeValue(forKey: oldest)
         }
     }
 
