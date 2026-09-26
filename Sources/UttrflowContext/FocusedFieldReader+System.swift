@@ -126,11 +126,12 @@ public enum FocusedFieldReader {
         let declaredSecure = SecureField.isDeclaredSecure(
             role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
             description: description)
-        let value = declaredSecure ? nil : SurfaceProbe.string(field, kAXValueAttribute)
+        let range = SurfaceProbe.selectedRange(field)
+        let read = declaredSecure ? (value: nil, selection: nil) : boundedValue(of: field, at: range)
+        let value = read.value
         let secure = declaredSecure || (value.map(SecureField.looksMasked) ?? false)
         // Checked between messages: a turn that has given up should not pay for the rest of them.
         guard isWanted() else { return nil }
-        let range = SurfaceProbe.selectedRange(field)
         let style = range.flatMap { typeStyle(field, at: $0) }
         guard isWanted() else { return nil }
         let flipped = cachedPrimaryScreenMaxY.withLock { $0 }
@@ -146,7 +147,7 @@ public enum FocusedFieldReader {
             accessibilityDescription: description,
             document: document(of: field),
             value: secure ? nil : value,
-            selection: range.map { NSRange(location: $0.location, length: $0.length) },
+            selection: read.selection,
             caret: range.flatMap { caret(field, at: $0) }.map { flip($0, below: flipped) },
             window: windowFrame(of: field).map { flip($0, below: flipped) },
             field: fieldFrame(of: field).map { flip($0, below: flipped) },
@@ -160,6 +161,22 @@ public enum FocusedFieldReader {
             readMicroseconds: Int((DispatchTime.now().uptimeNanoseconds - started) / 1000),
             windowTitle: windowTitle(of: field)
         )
+    }
+
+    /// The field's value around the caret, with the selection moved into it, so a long scrollback is never copied whole.
+    private static func boundedValue(
+        of field: AXUIElement, at range: CFRange?
+    ) -> (value: String?, selection: NSRange?) {
+        let selection = range.map { NSRange(location: $0.location, length: $0.length) }
+        let count: Int? = selection == nil ? nil : SurfaceProbe.integer(field, kAXNumberOfCharactersAttribute)
+        return ValueWindow.read(
+            count: count, selection: selection,
+            whole: { SurfaceProbe.string(field, kAXValueAttribute) },
+            part: { window in
+                SurfaceProbe.parameterized(
+                    field, kAXStringForRangeParameterizedAttribute,
+                    CFRange(location: window.location, length: window.length)) as? String
+            })
     }
 
     /// Accessibility measures from the top of the primary screen; AppKit measures from the bottom.
