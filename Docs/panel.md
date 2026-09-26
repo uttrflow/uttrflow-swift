@@ -50,6 +50,10 @@ A masked row also loses its excerpt, its language chip and its tooltip:
 The checklist count is withheld too: how much of a hidden thing is done is still something
 about it, and the masking rule is to say as little as possible until it is revealed.
 
+Search does not read a masked secret's text either. A row that appeared under "Contents"
+for a typed fragment would confirm the fragment is inside the hidden value, so until it is
+revealed a secret is found only by its alias or its collection.
+
 ## Empty states, and being specific and wrong
 
 There are four different nothings, and the sentence is **assembled from the narrowings

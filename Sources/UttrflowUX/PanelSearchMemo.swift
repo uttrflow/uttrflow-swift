@@ -19,6 +19,7 @@ final class PanelSearchMemo: Sendable, Equatable {
         let scope: PanelScope
         let category: String?
         let locale: Locale
+        let revealed: Set<Clip.ID>
     }
 
     /// What one view found, and the rows it was ranked and capped into.
@@ -56,7 +57,8 @@ extension PanelSearchMemo.View {
     /// Whether what this view found still bounds `later`: the same clips under the same tabs, and a query that only grew.
     func narrows(to later: Self) -> Bool {
         guard clips == later.clips, filter == later.filter, scope == later.scope,
-            category == later.category, locale == later.locale, !needle.isEmpty,
+            category == later.category, locale == later.locale, revealed == later.revealed,
+            !needle.isEmpty,
             !later.needle.isEmpty
         else { return false }
         // Asked of the matcher rather than of the characters, so a query it would not find in the longer one searches again.
@@ -67,6 +69,7 @@ extension PanelSearchMemo.View {
     init(_ snapshot: PanelSnapshot) {
         self.init(
             clips: snapshot.clips, needle: snapshot.needle, filter: snapshot.filter,
-            scope: snapshot.scope, category: snapshot.category, locale: snapshot.locale)
+            scope: snapshot.scope, category: snapshot.category, locale: snapshot.locale,
+            revealed: snapshot.revealed)
     }
 }
