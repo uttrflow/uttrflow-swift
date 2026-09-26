@@ -133,6 +133,22 @@ is the weaker of the two: several applications answer `kAXFocusedUIElementAttrib
 the system-wide element and not on their own. Both are asked, system-wide first; the
 fallback costs one extra round trip in a case that was already failing.
 
+## Reading a field by range, not whole
+
+Every question insertion and the screen read ask about the focused field — what is before the
+caret, whether it is masked, whether a write changed anything — is answered from a bounded
+stretch read with `kAXStringForRangeParameterizedAttribute`, never from `kAXValueAttribute`,
+whose reply is the whole document and is built on the target app's main thread. `CaretWindow`
+chooses the range: four UTF-16 units per character wanted plus sixteen, with the first
+character of a window that does not start at the field's start thrown away because the range
+may have cut it in half. The mask check reads the first 64 units. A field that will not read by
+range, or whose window holds too few whole characters, falls back to the whole value.
+
+Measured on a 1,008,000-unit document with the caret at the end, one paste-confirmation poll
+copied 1,008,000 units and spent 1.28 ms walking them locally; by range it copies 400 units and
+spends 0.004 ms. The poll runs up to 41 times per dictation, and the cross-process copy, not
+measured here, scales with the units.
+
 ## Accessibility calls must be bounded
 
 They are synchronous and run on the pipeline's own thread, so a focused app that has
