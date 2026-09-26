@@ -240,6 +240,39 @@ struct RichTextPlainFormTests {
         #expect(RichTextPlainForm.plainText(fromHTML: html) == "example.com/pricing")
     }
 
+    /// Only the scheme and host ignore case, so a path, query or fragment that differs is another place.
+    @Test(
+        "keeps a destination whose path, query or fragment differs only by case",
+        arguments: [
+            (
+                #"<a href="https://example.com/Report">https://example.com/report</a>"#,
+                "https://example.com/report (https://example.com/Report)"
+            ),
+            (
+                #"<a href="https://example.com/s?q=Blue">example.com/s?q=blue</a>"#,
+                "example.com/s?q=blue (https://example.com/s?q=Blue)"
+            ),
+            (
+                ##"<a href="https://example.com/a#Top">https://example.com/a#top</a>"##,
+                "https://example.com/a#top (https://example.com/a#Top)"
+            ),
+            (
+                #"<a href="mailto:Sam@example.com">sam@example.com</a>"#,
+                "sam@example.com (mailto:Sam@example.com)"
+            ),
+        ])
+    func linkTextDiffersByCase(_ html: String, _ expected: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
+    }
+
+    @Test("ignores case in the host of a url behind the text")
+    func linkHostCase() {
+        let html = #"<a href="https://EXAMPLE.com/Report">https://example.com/Report</a>"#
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == "https://example.com/Report")
+        let mail = #"<a href="mailto:sam@EXAMPLE.com">sam@example.com</a>"#
+        #expect(RichTextPlainForm.plainText(fromHTML: mail) == "sam@example.com")
+    }
+
     @Test("falls back to the url when the link has no text")
     func linkWithoutText() {
         let html = #"<p><a href="https://example.com/a"><img src="shot.png"></a></p>"#

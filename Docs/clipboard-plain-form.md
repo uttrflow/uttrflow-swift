@@ -45,4 +45,6 @@ directly after `<pre>` is dropped scalar by scalar, because CR LF is one `Charac
 Checklists are read from Apple Notes (labels the list), several editors (label the items) and
 GitHub (a real `<input>` inside). A link is written as `text (url)`; the text alone when it
 already is the url (`https://x (https://x)` is what makes people stop trusting a paste) or when
-the href goes nowhere without the page (`#section`, a relative path, `javascript:`).
+the href goes nowhere without the page (`#section`, a relative path, `javascript:`). "Already is
+the url" ignores the scheme, a trailing slash and the case of the host only: a path, query or
+fragment that differs by case is another destination, so `/Report` behind `/report` is printed.
