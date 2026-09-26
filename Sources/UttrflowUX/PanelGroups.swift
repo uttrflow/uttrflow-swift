@@ -89,9 +89,7 @@ extension PanelPresenter {
     /// The part of a long clip the search found, for content matches only; `nil` if it is on line one.
     static func excerpt(of text: String, around needle: String, locale: Locale) -> String? {
         guard !needle.isEmpty,
-            let found = text.range(
-                of: needle, options: [.caseInsensitive, .diacriticInsensitive], range: nil,
-                locale: locale)
+            let found = text.range(of: needle, ignoringCaseAndAccentsIn: locale)
         else { return nil }
 
         // Nothing to do when the match is already on the line the row would show anyway.
