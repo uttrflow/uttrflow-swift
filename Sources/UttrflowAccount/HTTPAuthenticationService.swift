@@ -476,7 +476,13 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
         let ambiguous = session.withLock { state in state.ambiguousRefresh == attempt }
         if response.status == 401 {
-            if ambiguous { return .failure(.serverUnreachable) }
+            if ambiguous {
+                // One refused retry spends the ambiguity; the next attempt's 401 is definite.
+                session.withLock { state in
+                    if state.ambiguousRefresh == attempt { state.ambiguousRefresh = nil }
+                }
+                return .failure(.serverUnreachable)
+            }
             let current = session.withLock { state -> Bool in
                 guard state.generation == generation else { return false }
                 endSession(&state)
