@@ -5,18 +5,35 @@ public enum FormatterGuard {
         significant(formatted) == significant(original)
     }
 
-    /// The words, numbers and string contents of some code, in order; punctuation and whitespace are dropped.
+    /// Punctuation a formatter may add, drop or swap without changing what the code means.
+    static let layout: Set<Character> = [",", ";", "\"", "'", "`"]
+
+    /// The words, numbers and operator characters of some code, in order; whitespace, layout and `//` markers are dropped.
     static func significant(_ text: String) -> [String] {
         var tokens: [String] = []
         var current = ""
+        let characters = Array(text)
+        var index = 0
 
-        for character in text {
+        while index < characters.count {
+            let character = characters[index]
             if character.isLetter || character.isNumber || character == "_" {
                 current.append(character)
-            } else if !current.isEmpty {
+                index += 1
+                continue
+            }
+            if !current.isEmpty {
                 tokens.append(current)
                 current = ""
             }
+            if character == "/", index + 1 < characters.count, characters[index + 1] == "/" {
+                index += 2
+                continue
+            }
+            if !character.isWhitespace, !layout.contains(character) {
+                tokens.append(String(character))
+            }
+            index += 1
         }
         if !current.isEmpty { tokens.append(current) }
         return tokens
