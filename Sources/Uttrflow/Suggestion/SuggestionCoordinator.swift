@@ -271,8 +271,6 @@ final class SuggestionCoordinator {
 
     /// One key pressed in another application, which is the only thing that moves the caret for us.
     private func keyPressed(_ key: Key) {
-        // Keys arriving while we insert are our own, so they neither reset the pause clock nor wake a turn.
-        guard !isInserting else { return }
         noteActivity()
         lastKeystroke = Date()
         // Counted in the session, so a Tab pressed before the next read cannot take an offer for the old line.
@@ -737,6 +735,8 @@ final class SuggestionCoordinator {
             case .giveBack(let refused):
                 KeyStrokeReturn.post(refused)
             }
+            // The keys pressed since this one reach the application only now, after anything it inserted.
+            interceptor.releaseHeldKeys()
             // ⌥⎋ turns the feature off everywhere; persist it so the switch agrees and a later enable rebuilds this.
             if !session.isEnabled {
                 if let onTurnedOffEverywhere { onTurnedOffEverywhere() } else { stop() }
