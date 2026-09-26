@@ -156,4 +156,51 @@ struct RemovalAuditTests {
             transcription: .fixture(text: "we rushed him to ER before midnight", language: .english))
         await #expect(throws: TransformationError.self) { try await sut.transform(request) }
     }
+
+    // MARK: The rules floor
+
+    private func rulesText(_ spoken: String) async throws -> TransformationResult {
+        try await RuleBasedTransformer().transform(
+            TransformationRequest(transcription: .fixture(text: spoken, language: .english)))
+    }
+
+    @Test(
+        "keeps a word the rules took beyond their grant, leaving that pass out",
+        arguments: [
+            ("we rushed him to ER before midnight", "ER", PassID.fillers),
+            ("tell the landlord no, the landlord has to wait", "no", PassID.selfCorrection),
+        ])
+    func rulesKeepUngrantedWord(spoken: String, word: String, pass: PassID) async throws {
+        let result = try await rulesText(spoken)
+        #expect(result.producedBy == .rules)
+        #expect(MeaningPreservationGuard.isWritten(word, in: result.text), "\(result.text)")
+        #expect(result.cleaning?.switchedOff.contains(pass) == true)
+    }
+
+    @Test("still makes the removals the rules are granted")
+    func rulesKeepGrantedRemovals() async throws {
+        let result = try await rulesText("um let's meet at four no sorry at five on tuesday")
+        #expect(result.text == "Let's meet at five on tuesday.")
+        #expect(result.cleaning?.switchedOff.isEmpty == true)
+    }
+
+    @Test(
+        "falls back from a refused rewrite to rules that keep the word the rewrite lost",
+        arguments: [
+            ("we rushed him to ER before midnight", "We rushed him to before midnight.", "ER"),
+            ("tell the landlord no, the landlord has to wait", "Tell the landlord has to wait.", "no"),
+        ])
+    func routerFallbackKeepsWord(spoken: String, answer: String, word: String) async throws {
+        let model = FakeCleanupModel { _ in answer }
+        let router = TransformerRouter(
+            engines: [
+                GenerativeTextTransformer(kind: .foundationModels, model: model), RuleBasedTransformer(),
+            ],
+            preference: [.foundationModels, .rules])
+        let result = try await router.transform(
+            TransformationRequest(transcription: .fixture(text: spoken, language: .english)))
+        #expect(result.producedBy == .rules)
+        #expect(MeaningPreservationGuard.isWritten(word, in: result.text), "\(result.text)")
+        #expect(result.cleaning?.refusals.map(\.kind) == [.removedWordNotRestored])
+    }
 }
