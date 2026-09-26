@@ -161,8 +161,8 @@ struct PanelMatchExcerptTests {
     @Test("a masked clip is never re-cut around the match")
     func maskedClipsStayMasked() {
         let secret = PanelFixture.clip(
-            "line one\nline two\nsk-live-abcdef123456", kind: .secret, minutesAgo: 1)
-        let page = PanelPresenter.present(PanelFixture.panel([secret], query: "sk-live"))
+            "line one\nline two\nsk-live-abcdef123456", kind: .secret, minutesAgo: 1, alias: "deploy key")
+        let page = PanelPresenter.present(PanelFixture.panel([secret], query: "deploy"))
 
         #expect(page.rows[0].isMasked)
         #expect(!page.rows[0].summary.contains("sk-live"))
