@@ -202,10 +202,33 @@
 
     .pane { flex: 1; min-width: 0; display: flex; flex-direction: column;
             background: var(--window-bg); }
-    .toolbar { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 18px;
-               border-bottom: 0.5px solid var(--separator); flex: none; }
-    .toolbar h2 { font-size: var(--t-title3); font-weight: 600; margin: 0; }
-    .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    /* MainWindowStrip: the sidebar toggle at one end, the account chip at the other. */
+    .strip { height: 40px; flex: none; display: flex; align-items: center; padding: 0 12px; }
+    .stoggle { width: 26px; height: 22px; border-radius: 6px; display: flex;
+               align-items: center; justify-content: center; color: var(--label-2);
+               background: transparent; border: none; }
+    .achip { margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+             height: 26px; padding: 3px 9px 3px 3px; border-radius: 999px;
+             background: var(--hover-bg); border: 0.5px solid var(--separator);
+             font-size: var(--t-callout); color: var(--label-2); }
+    .achip .aavatar { width: 26px; height: 26px; border-radius: 50%; flex: none;
+                      display: flex; align-items: center; justify-content: center;
+                      font-size: 10.5px; font-weight: 600; color: #FFFFFF;
+                      background: linear-gradient(135deg, var(--accent), var(--accent-dark)); }
+    .achip .achev { color: var(--label-3); display: flex; }
+
+    /* OrbitPageHeader: kicker, title, caption, then scope/search/add in that order. */
+    .header { height: 112px; flex: none; display: flex; align-items: center; gap: 12px;
+              padding: 0 22px; background: var(--card-bg);
+              border-bottom: 0.5px solid var(--separator); }
+    .header .htext { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .header .hkicker { font-size: var(--t-footnote); font-weight: 500; letter-spacing: 1.6px;
+                        color: var(--accent-text); }
+    .header .htitle { font-size: 29px; font-weight: 700; letter-spacing: -0.3px; }
+    .header .hcap { font-size: var(--t-body); color: var(--label-2); }
+    .header .tools { margin-left: auto; display: flex; align-items: center; gap: 8px;
+                      flex: none; }
     .content { flex: 1; min-height: 0; padding: 18px 22px 14px; overflow: hidden;
                display: flex; flex-direction: column; }
 
@@ -368,7 +391,15 @@
           padding:0 5px; font-size:9px">Space</span><span>Hold anywhere</span></div>
       </div>
       <div class="pane">
-        <div class="toolbar"><h2>Snippets</h2><div class="tools"><div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>Search snippets</div><button class="btn sm"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg><span>New Snippet</span></button></div></div>
+        <div class="strip"><div class="stoggle" title="Hide Sidebar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="5" width="17.2" height="14" rx="2.6"/><path d="M9.6 5v14"/></svg></div><div class="achip"><span class="aavatar">NB</span><span>Naveen Bhatt</span><span class="achev"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div></div>
+        <div class="header">
+          <div class="htext">
+            <div class="hkicker">SNIPPETS</div>
+            <div class="htitle">Snippets</div>
+            <div class="hcap">Short triggers that expand into whatever you like.</div>
+          </div>
+          <div class="tools"><button class="btn sm"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg><span>New Snippet</span></button></div>
+        </div>
         <div class="content"><div class="empty">
           <div class="ring"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3.4" width="11" height="9.2" rx="2.2"/><path d="M15 15.6v2.2a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 17.8V9.8a2.2 2.2 0 0 1 2.2-2.2h2.2"/></svg></div>
           <h3>No snippets yet</h3>

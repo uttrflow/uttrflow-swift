@@ -865,6 +865,39 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 7c. The shared shell draws MainWindowStrip and OrbitPageHeader, with each page's caption.
+# ---------------------------------------------------------------------------
+#
+# #1138 found `Design/_gen_shell.py`'s shared main-window shell still drawing the retired
+# 44px `<div class="toolbar"><h2>` band instead of `MainWindowStrip` (the sidebar toggle
+# and account chip) and `OrbitPageHeader` (kicker, title, purpose caption, and ordered
+# scope/search/add controls). All 28 `Main-*.dc.html` artboards inherited that toolbar.
+printf '\nChrome artboard contract\n'
+
+if [[ ! -x "$PACKAGE_ROOT/Scripts/design_chrome_contract_audit.py" ]]; then
+    fail "Scripts/design_chrome_contract_audit.py is missing or not executable" \
+        "The audit pins the shell's MainWindowStrip/OrbitPageHeader structure and every" \
+        "page's caption to MainWindowView.swift and each page's own presenter; without it" \
+        "either side can drift and nothing notices."
+else
+    if "$PACKAGE_ROOT/Scripts/design_chrome_contract_audit.py" --self-test; then
+        if "$PACKAGE_ROOT/Scripts/design_chrome_contract_audit.py" >&2; then
+            pass "the shell's MainWindowStrip and OrbitPageHeader match production, with every page's caption"
+        else
+            fail "the shell's chrome disagrees with production" \
+                "The audit prints which structure or caption broke. Update" \
+                "Design/_gen_shell.py's MainWindowStrip/OrbitPageHeader (or the caption in" \
+                "Design/_gen_main.py / Design/_gen_app.py), then regenerate every" \
+                "Main-*.dc.html artboard."
+        fi
+    else
+        fail "Scripts/design_chrome_contract_audit.py --self-test failed" \
+            "The audit's own self-test could not resolve a known-good fixture or catch a" \
+            "known regression, so the parser is broken. Fix the audit, not the artboard."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # 8. CLAUDE.md, if it exists, delegates to AGENTS.md by import or symlink.
 # ---------------------------------------------------------------------------
 #
