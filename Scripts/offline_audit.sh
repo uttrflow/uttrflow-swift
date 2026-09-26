@@ -222,7 +222,7 @@ URL_READERS=(
     'Sources/UttrflowEval/CorpusUploadOutbox.swift'
     'Sources/UttrflowEval/JSONRecordStore.swift'
     'Sources/uttrflow-bakeoff/Bakeoff.swift'
-    'Sources/uttrflow-bakeoff/SpokenPassages.swift'
+    'Sources/UttrflowEval/SpokenPassages.swift'
 )
 
 reader_filter=(-v)
