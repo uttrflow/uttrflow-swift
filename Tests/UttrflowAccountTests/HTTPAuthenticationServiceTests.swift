@@ -418,6 +418,38 @@ struct HTTPAuthenticationServiceTests {
         #expect(tokens.refreshToken() == "second")
     }
 
+    /// Holds a token and refuses to replace it, as a Keychain that cannot take the write does.
+    private final class UnwritableStore: TokenStore {
+        /// The token held before the refused write.
+        private let held: Mutex<String?>
+        /// Starts holding `refreshToken`.
+        init(refreshToken: String) { held = Mutex(refreshToken) }
+        /// The token held.
+        func refreshToken() -> String? { held.withLock { $0 } }
+        /// Refuses without touching what is held.
+        func store(_ refreshToken: String) throws(AccountError) { throw .sessionCouldNotBeKept }
+        /// Drops the token held.
+        func clear() { held.withLock { $0 = nil } }
+    }
+
+    @Test("a rotation the Keychain refuses leaves the stored token in place")
+    func aRefusedRotationKeepsTheOldToken() async throws {
+        let tokens = UnwritableStore(refreshToken: "first")
+        let transport = StubTransport { [signedIn] request, _ in
+            if request.url.path().hasSuffix("/refresh") {
+                var session = Stub.IssuedSession()
+                session.refreshToken = "second"
+                return Stub.json(session)
+            }
+            return Stub.json(signedIn)
+        }
+
+        await #expect(throws: AccountError.sessionCouldNotBeKept) {
+            try await service(transport: transport, tokens: tokens).currentProfile(ifChangedFrom: nil)
+        }
+        #expect(tokens.refreshToken() == "first")
+    }
+
     // MARK: Signing out
 
     @Test("forgets the credential first and tells the server afterwards")
