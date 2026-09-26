@@ -456,3 +456,65 @@ struct BackwardSelectionTailTests {
         #expect(BackwardSelection.tail(in: "ab", endingAt: 99, upTo: 8) == nil)
     }
 }
+
+/// Focus whose field holds `before` ahead of the caret, as a terminal shows it after the shell echoes.
+private struct EchoedFocus: AccessibilityFocus {
+    let field: any FocusedTextField
+    let before: String
+    func focusedTextField() -> (any FocusedTextField)? { field }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func frontmostApplication() -> InsertionDestination? { nil }
+    func focusedFieldIsSecure() -> Bool { false }
+    func tail(upTo count: Int) -> FieldTail { .text(String(before.suffix(count))) }
+}
+
+@Suite("Accepting against a read that lags the last keystroke")
+struct LaggingReadAcceptTests {
+    private func acceptor(_ field: RecordingField, before: String) -> SuggestionAcceptor {
+        let focus = EchoedFocus(field: field, before: before)
+        return SuggestionAcceptor(
+            completion: TextInsertion.completion(focus: focus, typist: RecordingTypist()), focus: focus)
+    }
+
+    @Test("A read one key behind inserts the remainder the field needs now, not the one drawn.")
+    func rebasesOntoTheEchoedLine() async throws {
+        let field = RecordingField()
+        try await acceptor(field, before: "$ sudo s").accept(.certain("sudo su ubuntu"), after: "sudo ")
+        #expect(field.text == ["u ubuntu"])
+    }
+
+    @Test("A field that matches the read gets the drawn edit unchanged.")
+    func keepsACurrentEdit() async throws {
+        let field = RecordingField()
+        try await acceptor(field, before: "$ sudo ").accept(.certain("sudo su ubuntu"), after: "sudo ")
+        #expect(field.text == ["su ubuntu"])
+    }
+
+    @Test("A field that has moved off the suggestion is refused and left alone.")
+    func refusesADivergedLine() async throws {
+        let field = RecordingField()
+        await #expect(throws: TextInsertionError.self) {
+            try await acceptor(field, before: "$ sudo x").accept(.certain("sudo su ubuntu"), after: "sudo ")
+        }
+        #expect(field.text.isEmpty)
+    }
+
+    @Test("A field already holding the whole suggestion is written nothing.")
+    func writesNothingWhenComplete() async throws {
+        let field = RecordingField()
+        let method = try await acceptor(field, before: "$ sudo su ubuntu")
+            .accept(.certain("sudo su ubuntu"), after: "sudo ")
+        #expect(method == nil)
+        #expect(field.text.isEmpty)
+    }
+
+    @Test("A replacement is refused when the field no longer ends with the line it was drawn for.")
+    func refusesAStaleReplacement() async throws {
+        let field = RecordingField()
+        await #expect(throws: TextInsertionError.self) {
+            try await acceptor(field, before: "gti cx").accept(.certain("git commit -m"), after: "gti c")
+        }
+        #expect(field.text.isEmpty)
+    }
+}
