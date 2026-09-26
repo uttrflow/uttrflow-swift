@@ -234,6 +234,71 @@ struct LoopbackListenerTests {
         await listener.close()
     }
 
+    /// Sends `path` one byte at a time with a short delay, so no single TCP read carries the whole request.
+    private func getSplitByteByByte(_ path: String, port: UInt16) async -> String {
+        await withCheckedContinuation { continuation in
+            let once = Mutex(false)
+            let finish: @Sendable (String) -> Void = { text in
+                guard
+                    once.withLock({ used in
+                        defer { used = true }; return !used
+                    })
+                else { return }
+                continuation.resume(returning: text)
+            }
+            let connection = NWConnection(
+                host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port) ?? .any, using: .tcp)
+            let collected = Mutex(Data())
+            @Sendable func read() {
+                connection.receive(minimumIncompleteLength: 1, maximumLength: 65_536) {
+                    data, _, isComplete, error in
+                    if let data { collected.withLock { $0.append(data) } }
+                    if isComplete || error != nil {
+                        connection.cancel()
+                        finish(String(decoding: collected.withLock { $0 }, as: UTF8.self))
+                    } else {
+                        read()
+                    }
+                }
+            }
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    let request = Array("GET \(path) HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n".utf8)
+                    // The first byte alone must not already look like a complete request to the listener.
+                    connection.send(
+                        content: Data([request[0]]),
+                        completion: .contentProcessed { _ in
+                            DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) {
+                                connection.send(
+                                    content: Data(request.dropFirst()),
+                                    completion: .contentProcessed { _ in read() })
+                            }
+                        })
+                case .failed, .cancelled:
+                    finish(String(decoding: collected.withLock { $0 }, as: UTF8.self))
+                default:
+                    break
+                }
+            }
+            connection.start(queue: .global())
+        }
+    }
+
+    /// A request line split across two TCP reads is still recognised once the rest of it arrives.
+    @Test("accumulates a request line that arrives in more than one TCP read")
+    func aSplitRequestLineIsStillRecognised() async throws {
+        let (listener, port) = try await bound()
+
+        let answer = await getSplitByteByByte("/callback?code=the-code&state=\(Self.state)", port: port)
+        #expect(answer.hasPrefix("HTTP/1.1 200"))
+        #expect(answer.contains("Signed in"))
+
+        let callback = try await listener.awaitCallback()
+        #expect(callback == LoopbackCallback(code: "the-code", state: Self.state))
+        await listener.close()
+    }
+
     /// With no expected state nothing matches, so a listener that was never bound hands nothing on.
     @Test("matches nothing when no state is expected")
     func noExpectedStateMatchesNothing() {

@@ -98,6 +98,9 @@ public actor SystemLoopbackListener: LoopbackListening {
         }
     }
 
+    /// The most bytes a request may accumulate before it is treated as malformed; one `receive`'s own cap.
+    private static let maxRequestBytes = 8192
+
     /// Starts a connection and reads its first request.
     private func accept(_ connection: NWConnection) {
         accepted += 1
@@ -107,9 +110,32 @@ public actor SystemLoopbackListener: LoopbackListening {
         }
         connections.append(connection)
         connection.start(queue: .global(qos: .userInitiated))
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, _, _ in
-            guard let data, let request = String(data: data, encoding: .utf8) else { return }
-            Task { await self?.handle(request, on: connection) }
+        receiveRequest(on: connection, buffered: Data())
+    }
+
+    /// Reads until the header block is complete, the connection ends, or the request outgrows the cap.
+    private func receiveRequest(on connection: NWConnection, buffered: Data) {
+        let remaining = Self.maxRequestBytes - buffered.count
+        guard remaining > 0 else {
+            handle(String(decoding: buffered, as: UTF8.self), on: connection)
+            return
+        }
+
+        connection.receive(minimumIncompleteLength: 1, maximumLength: remaining) {
+            [weak self] data, _, isComplete, error in
+            guard let self else { return }
+            var buffered = buffered
+            if let data { buffered.append(data) }
+
+            let request = String(decoding: buffered, as: UTF8.self)
+            let readyToParse =
+                request.contains("\r\n\r\n") || isComplete || error != nil
+                || buffered.count >= Self.maxRequestBytes
+            if readyToParse {
+                Task { await self.handle(request, on: connection) }
+            } else {
+                Task { await self.receiveRequest(on: connection, buffered: buffered) }
+            }
         }
     }
 
