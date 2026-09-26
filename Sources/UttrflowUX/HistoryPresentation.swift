@@ -162,6 +162,11 @@ public enum HistoryPresenter {
         entries.filter { $0.survives(days: days, now: now) }
     }
 
+    /// What retention promises deleted but the snapshot still carries; the only evidence of a deletion.
+    static func dropped(_ entries: [HistoryEntry], days: Int, now: Date) -> [HistoryEntry] {
+        entries.filter { !$0.survives(days: days, now: now) }
+    }
+
     /// The privacy screen's promise, cut to what fits under a list.
     static func notice(for snapshot: HistorySnapshot) -> HistoryRetentionNotice {
         let text = snapshot.settings.transcriptRetentionDays
