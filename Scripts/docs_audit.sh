@@ -865,6 +865,39 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 7c. The design shell's sidebar matches SidebarPresenter.order.
+# ---------------------------------------------------------------------------
+#
+# `Design/_gen_shell.py` draws the persistent sidebar every `Main-*.dc.html` artboard sits
+# in. Nothing tied its row order to `SidebarPresenter.order`, the shipped sidebar's single
+# source of truth, so #1133 found the shell still drawing ten rows starting with Dictation,
+# no Home row, a "Most recent" transcript card and a "Hold anywhere" shortcut footer —
+# neither of which `SidebarView` draws.
+printf '\nSidebar artboard contract\n'
+
+if [[ ! -x "$PACKAGE_ROOT/Scripts/design_sidebar_contract_audit.py" ]]; then
+    fail "Scripts/design_sidebar_contract_audit.py is missing or not executable" \
+        "The audit pins the design shell's sidebar rows to SidebarPresenter.order, and" \
+        "refuses a restored recent-transcript card or shortcut footer; without it either" \
+        "side can drift and nothing notices."
+else
+    if "$PACKAGE_ROOT/Scripts/design_sidebar_contract_audit.py" --self-test; then
+        if "$PACKAGE_ROOT/Scripts/design_sidebar_contract_audit.py" >&2; then
+            pass "the design shell's sidebar matches SidebarPresenter.order, with no recent-transcript card or shortcut footer"
+        else
+            fail "the design shell's sidebar disagrees with SidebarPresenter.order" \
+                "The audit prints which order mismatch or retired element broke. Update" \
+                "Design/_gen_shell.py's NAV to match, then regenerate every Main-*.dc.html" \
+                "artboard."
+        fi
+    else
+        fail "Scripts/design_sidebar_contract_audit.py --self-test failed" \
+            "The audit's own self-test could not resolve a known-good fixture or catch a" \
+            "known regression, so the parser is broken. Fix the audit, not the artboard."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # 8. CLAUDE.md, if it exists, delegates to AGENTS.md by import or symlink.
 # ---------------------------------------------------------------------------
 #
