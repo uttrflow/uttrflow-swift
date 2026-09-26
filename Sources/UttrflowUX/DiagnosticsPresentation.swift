@@ -113,6 +113,8 @@ public struct DiagnosticsModelPresence: Sendable, Equatable {
 public struct DiagnosticsSnapshot: Sendable, Equatable {
     /// Which engines are configured, in preference order.
     public let engines: EngineConfiguration
+    /// The recogniser the pipeline transcribes with, which trails the setting until a switch has been taken up.
+    public let speechInUse: SpeechEngineKind?
     /// What each clean-up engine answered when last asked whether it can run here; absent means never asked.
     public let transformerAvailability: [TransformerKind: Bool]
     /// Absent until the store has been consulted.
@@ -127,6 +129,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     /// Builds a snapshot; everything defaults to not yet checked.
     public init(
         engines: EngineConfiguration = .default,
+        speechInUse: SpeechEngineKind? = nil,
         transformerAvailability: [TransformerKind: Bool] = [:],
         speechModel: DiagnosticsModelPresence? = nil,
         permissions: [PermissionKind: PermissionStatus] = [:],
@@ -134,6 +137,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         cleaning: CleaningRecord? = nil
     ) {
         self.engines = engines
+        self.speechInUse = speechInUse
         self.transformerAvailability = transformerAvailability
         self.speechModel = speechModel
         self.permissions = permissions
@@ -354,7 +358,8 @@ public enum DiagnosticsPresenter {
         let inUse = ordered.first { snapshot.transformerAvailability[$0] == true }
 
         let speech = DiagnosticsRow(
-            title: "Speech", detail: name(for: snapshot.engines.speech), state: .good)
+            title: "Speech", detail: name(for: snapshot.speechInUse ?? snapshot.engines.speech),
+            state: .good)
 
         return [speech]
             + ordered.map { kind in

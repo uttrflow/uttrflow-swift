@@ -240,6 +240,17 @@ struct DiagnosticsEngineTests {
             "the page must list only engines this build actually contains")
     }
 
+    @Test("the speech row names the recogniser in use, not the one just chosen")
+    func speechRowFollowsTheEngineInUse() {
+        var engines = EngineConfiguration.default
+        engines.speech = .appleSpeech
+        let page = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(engines: engines, speechInUse: .whisperKit),
+            locale: DiagnosticsFixture.locale)
+
+        #expect(page.engines.first?.detail == "Downloaded speech model")
+    }
+
     /// The first one that can run is the one that runs; the rest are standing by.
     @Test("only the first available clean-up engine is in use")
     func firstAvailableIsInUse() {

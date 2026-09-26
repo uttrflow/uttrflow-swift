@@ -5,7 +5,8 @@ public import struct Foundation.UUID
 /// Speak, and the words appear where you were typing. See `Docs/pipeline.md`.
 public actor DictationPipeline {
     private let capture: any AudioCaptureEngine
-    private let speech: any SpeechEngine
+    /// A `var` so a recogniser chosen in Settings is taken up between dictations rather than at the next launch.
+    private var speech: any SpeechEngine
     /// A `var` so a clean-up step switched off takes effect on the next dictation rather than the next launch.
     private var cleaner: any TranscriptCleaning
     private let context: any ContextEngine
@@ -44,7 +45,18 @@ public actor DictationPipeline {
     private var cancelledGeneration: Int?
 
     /// Held across every await before the state shows a dictation's next step, so no second entry slips in.
-    private var hasTurn = false
+    private var hasTurn = false {
+        didSet { if !hasTurn { wakeWhatWaitsForRest() } }
+    }
+
+    /// Recogniser changes waiting for the dictation under way to end, so none is swapped under it.
+    private var waitingForRest: [CheckedContinuation<Void, Never>] = []
+    /// Counts recognisers chosen, so one replaced while it waited is never loaded.
+    private var speechChoices = 0
+    /// Counts recognisers taken up, so a load of one since replaced says nothing about its successor.
+    private var speechSwaps = 0
+    /// How many loads are running, since a switch can begin one before the last has ended.
+    private var loadsUnderWay = 0
 
     /// Reads how long the microphone has been open, closing over the injected clock.
     private var stopwatch: (() -> Duration)?
@@ -145,6 +157,38 @@ public actor DictationPipeline {
     /// The languages this dictation is being listened for and tidied in, for the same reason.
     private var runningProfile: UserProfile { inUse?.profile ?? profile }
 
+    /// Which recogniser the next dictation is transcribed by.
+    public var speechKind: SpeechEngineKind { speech.kind }
+
+    /// Takes the recogniser the user chose once no dictation is under way, then loads it unless `loading` is false.
+    public func adopt(speech next: any SpeechEngine, loading: Bool = true) async {
+        speechChoices += 1
+        let mine = speechChoices
+        while isBusy { await untilAtRest() }
+        guard mine == speechChoices else { return }
+        // Replaced, not kept beside it, so two recognisers are never held at once.
+        speech = next
+        speechSwaps += 1
+        isReady = false
+        if loading { await prepare() }
+    }
+
+    /// How many recogniser changes are waiting for the dictation under way to end.
+    var speechChangesWaiting: Int { waitingForRest.count }
+
+    /// Suspends until no dictation is under way.
+    private func untilAtRest() async {
+        await withCheckedContinuation { waitingForRest.append($0) }
+    }
+
+    /// Lets every waiting recogniser change look again, once the pipeline is free.
+    private func wakeWhatWaitsForRest() {
+        guard !isBusy, !waitingForRest.isEmpty else { return }
+        let waiting = waitingForRest
+        waitingForRest = []
+        for continuation in waiting { continuation.resume() }
+    }
+
     /// Fixes all three for the dictation about to begin.
     private func takeSettings() {
         inUse = (cleaner, destinationOverrides, profile)
@@ -156,7 +200,7 @@ public actor DictationPipeline {
     public private(set) var isReady = false
 
     /// Whether `prepare` is loading the recogniser right now, which is when a new dictation is refused.
-    public private(set) var isLoading = false
+    public var isLoading: Bool { loadsUnderWay > 0 }
 
     /// Every state the pipeline passes through, from now on.
     public func states() -> AsyncStream<DictationState> {
@@ -165,14 +209,18 @@ public actor DictationPipeline {
 
     /// Loads the speech model so the first dictation is not the slow one. See `Docs/startup.md`.
     public func prepare() async {
-        isLoading = true
-        defer { isLoading = false }
+        loadsUnderWay += 1
+        defer { loadsUnderWay -= 1 }
+        let engine = speech
+        let swap = speechSwaps
         do {
-            try await speech.prepare()
+            try await engine.prepare()
+            guard swap == speechSwaps else { return }
             isReady = true
             // A retry that works clears the notice the failed attempt left behind.
             if case .failed = state, !isBusy { transition(to: .idle) }
         } catch {
+            guard swap == speechSwaps else { return }
             isReady = false
             // Never over a dictation in progress: loading can run while the user speaks.
             if !isBusy { transition(to: .failed(DictationFailure(error))) }
@@ -843,6 +891,7 @@ public actor DictationPipeline {
     private func transition(to next: DictationState) {
         state = next
         observers.send(next)
+        wakeWhatWaitsForRest()
     }
 }
 
