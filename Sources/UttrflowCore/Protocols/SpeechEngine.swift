@@ -26,9 +26,17 @@ public protocol SpeechEngine: Sendable {
     /// Loads whatever the engine needs, so the cost is paid at launch rather than on the first recording.
     func prepare() async throws(SpeechEngineError)
 
+    /// Starts a load without waiting for it, so a recogniser let go while idle is back by the time the speech ends.
+    func warm() async
+
     /// Transcribes one recording.
     func transcribe(
         _ audio: AudioSamples,
         options: TranscriptionOptions
     ) async throws(SpeechEngineError) -> Transcription
+}
+
+extension SpeechEngine {
+    /// Loads nothing ahead, for an engine that keeps its recogniser for good.
+    public func warm() async {}
 }

@@ -197,6 +197,8 @@ public actor DictationPipeline {
         guard !isLoading else { return transition(to: .failed(.stillLoading)) }
         hasTurn = true
         defer { hasTurn = false }
+        // At key-down, so a recogniser let go while idle loads while the person speaks.
+        await speech.warm()
 
         generation += 1
         let mine = generation

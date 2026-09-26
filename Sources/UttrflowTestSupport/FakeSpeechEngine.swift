@@ -10,6 +10,7 @@ public actor FakeSpeechEngine: SpeechEngine {
 
     public let kind: SpeechEngineKind
     public let prepareCalls = CallLog<Void>()
+    public let warmCalls = CallLog<Void>()
     public let transcribeCalls = CallLog<TranscribeCall>()
 
     private var prepareOutcome: ScriptedOutcome<Void, SpeechEngineError>
@@ -28,6 +29,10 @@ public actor FakeSpeechEngine: SpeechEngine {
     public func prepare() async throws(SpeechEngineError) {
         await prepareCalls.append(())
         try prepareOutcome.resolve()
+    }
+
+    public func warm() async {
+        await warmCalls.append(())
     }
 
     public func transcribe(

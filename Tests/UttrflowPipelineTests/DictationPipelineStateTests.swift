@@ -453,6 +453,17 @@ struct DictationPipelineStateTests {
         #expect(inserter.received.isEmpty)
     }
 
+    @Test("asks the recogniser to warm as the recording starts")
+    func startRecordingWarmsTheRecogniser() async {
+        let speech = FakeSpeechEngine()
+        let pipeline = makePipeline(speech: speech)
+
+        await pipeline.startRecording()
+
+        #expect(await speech.warmCalls.count == 1)
+        #expect(await pipeline.currentState == .recording)
+    }
+
     @Test("does nothing when cancelled while idle")
     func cancelWhileIdleIsSafe() async {
         let speech = FakeSpeechEngine()
