@@ -15,12 +15,6 @@ set -euo pipefail
 
 message_file="$1"
 
-# The merge and squash messages GitHub writes, and the ones `git rebase` replays, are not
-# somebody typing — they are text that already passed this gate on the way in.
-case "$(basename "$message_file")" in
-    MERGE_MSG | SQUASH_MSG) exit 0 ;;
-esac
-
 # A redirect that fails costs the audit its input without costing the `if` its exit status,
 # so an unreadable file would otherwise be refused with the wording written for a real hit.
 if [[ ! -r "$message_file" ]]; then

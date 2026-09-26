@@ -66,5 +66,67 @@ class CommitMessageHookTests(unittest.TestCase):
         self.assertIn(BLAME, run.stdout)
 
 
+class RealMergeTests(unittest.TestCase):
+    """Exercises the hook through an actual `git merge --no-ff`, not a bare invocation."""
+
+    def setUp(self):
+        self.repo = tempfile.mkdtemp(prefix="uttrflow-merge-hook-")
+        subprocess.run(["git", "init", "-q", "-b", "main", self.repo], check=True)
+        os.makedirs(os.path.join(self.repo, "Scripts"))
+        for name in ("disclosure_audit.py", "disclosure_baseline.json"):
+            source = os.path.join(HERE, name)
+            if os.path.exists(source):
+                with open(source) as handle:
+                    contents = handle.read()
+                with open(os.path.join(self.repo, "Scripts", name), "w") as handle:
+                    handle.write(contents)
+        os.makedirs(os.path.join(self.repo, ".githooks"))
+        with open(HOOK) as handle:
+            hook_text = handle.read()
+        installed_hook = os.path.join(self.repo, ".githooks", "commit-msg")
+        with open(installed_hook, "w") as handle:
+            handle.write(hook_text)
+        os.chmod(installed_hook, 0o755)
+        self.git(["config", "core.hooksPath", ".githooks"])
+        self.git(["config", "user.email", "test@example.invalid"])
+        self.git(["config", "user.name", "Test"])
+        self.write("README.md", "start\n")
+        self.git(["add", "README.md"])
+        self.git(["commit", "-q", "-m", "Start"])
+
+    def git(self, args, check=True):
+        return subprocess.run(
+            ["git", *args], cwd=self.repo, capture_output=True, text=True, check=check
+        )
+
+    def write(self, name, text):
+        with open(os.path.join(self.repo, name), "w") as handle:
+            handle.write(text)
+
+    def test_a_blocked_branch_name_fails_the_merge_before_it_is_created(self):
+        sample = forbidden_sample()
+        if sample is None:
+            self.skipTest("no tier-1 pattern could be turned back into a sample")
+        branch = re.sub(r"[^a-zA-Z0-9]+", "-", sample).strip("-").lower()
+        self.git(["checkout", "-q", "-b", branch])
+        self.write("topic.txt", "harmless\n")
+        self.git(["add", "topic.txt"])
+        self.git(["commit", "-q", "-m", "Add a harmless file"])
+        self.git(["checkout", "-q", "main"])
+        merge = self.git(["merge", "--no-ff", branch], check=False)
+        self.assertNotEqual(merge.returncode, 0, merge.stdout + merge.stderr)
+        log = self.git(["log", "-1", "--format=%s"])
+        self.assertNotIn(branch, log.stdout)
+
+    def test_a_safe_merge_still_commits(self):
+        self.git(["checkout", "-q", "-b", "topic"])
+        self.write("topic.txt", "harmless\n")
+        self.git(["add", "topic.txt"])
+        self.git(["commit", "-q", "-m", "Add a harmless file"])
+        self.git(["checkout", "-q", "main"])
+        merge = self.git(["merge", "--no-ff", "topic"], check=False)
+        self.assertEqual(merge.returncode, 0, merge.stdout + merge.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
