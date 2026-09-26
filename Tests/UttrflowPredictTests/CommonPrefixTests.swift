@@ -39,4 +39,11 @@ struct CommonPrefixTests {
     func unicode() {
         #expect(CommonPrefix.of(["🙂 ship it", "🙂 ship out"]) == "🙂 ship ")
     }
+
+    @Test("A bare base letter still agrees with a candidate whose accent arrived as its own combining mark.")
+    func decomposedAccentAgreesWithItsBareBaseLetter() {
+        // "e" + U+0301 (combining acute) is one grapheme, so a whole-character compare would see no agreement at all.
+        let shared = CommonPrefix.of(["cafe", "cafe\u{301}"])
+        #expect(shared == "cafe")
+    }
 }
