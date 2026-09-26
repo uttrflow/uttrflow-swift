@@ -471,13 +471,23 @@ struct SuggestionRoutingTests {
     }
 
     /// The edit was worked out for the line as read, so taking it after the line has moved would eat what was typed since.
-    @Test("A key typed after the offer was worked out means Tab takes nothing.")
-    func acceptAfterAKeystrokeTakesNothing() throws {
+    @Test("A key typed after the offer was worked out hands Tab back to the application.")
+    func acceptAfterAKeystrokeIsHandedBack() throws {
         var session = SuggestionSession()
         _ = try draw(&session, typing: "git c")
         session.keystrokeArrived()
-        #expect(session.route(KeyStroke(.tab)) == .nothing)
+        #expect(session.route(KeyStroke(.tab)) == .giveBack(KeyStroke(.tab)))
         #expect(session.typed == "git c")
+    }
+
+    @Test("A stale accept by Right Arrow or Option-Tab is handed back with its modifiers.")
+    func staleAcceptKeepsItsModifiers() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        session.keystrokeArrived()
+        let optionTab = KeyStroke(.tab, modifiers: .option)
+        #expect(session.route(optionTab) == .giveBack(optionTab))
+        #expect(session.route(KeyStroke(.rightArrow)) == .giveBack(KeyStroke(.rightArrow)))
     }
 
     @Test("A turn that reads the line after the keystroke may be taken again.")
@@ -498,7 +508,7 @@ struct SuggestionRoutingTests {
         session.keystrokeArrived()
         #expect(try draw(&session, typing: "git c", sawKeystrokes: seen) == nil)
         #expect(session.suggestion == .silent)
-        #expect(session.route(KeyStroke(.tab)) == .nothing)
+        #expect(session.route(KeyStroke(.tab)) == .giveBack(KeyStroke(.tab)))
     }
 
     @Test("A key typed while the gates judge the head drops their verdict rather than drawing it.")
@@ -580,7 +590,7 @@ struct SuggestionRoutingTests {
         session.keystrokeArrived()
         let asked = try query(session.turn(in: field, at: PredictionContext(typed: "git co")))
         #expect(session.suggestion == .certain("git commit -m"), "the old offer is still on screen")
-        #expect(session.route(KeyStroke(.tab)) == .nothing)
+        #expect(session.route(KeyStroke(.tab)) == .giveBack(KeyStroke(.tab)))
         #expect(session.typed == "git co")
         _ = asked
     }
@@ -601,11 +611,11 @@ struct SuggestionRoutingTests {
         #expect(session.route(KeyStroke(.tab)) == .accept("git commit -m"))
     }
 
-    @Test("A key nothing has claimed changes nothing.")
+    @Test("A key nothing has claimed goes back to the application unchanged.")
     func unclaimedKeysDoNothing() throws {
         var session = SuggestionSession()
         _ = try draw(&session, typing: "git c")
-        #expect(session.route(KeyStroke(.return)) == .nothing)
+        #expect(session.route(KeyStroke(.return)) == .giveBack(KeyStroke(.return)))
         #expect(session.suggestion == .certain("git commit -m"))
     }
 

@@ -48,6 +48,19 @@ public enum Key: Sendable, Equatable, CaseIterable {
         default: self = .other
         }
     }
+
+    /// The hardware key code that presses this key again, or nil for a key this feature never takes.
+    public var keyCode: UInt16? {
+        switch self {
+        case .tab: 48
+        case .return: 36
+        case .escape: 53
+        case .rightArrow: 124
+        case .downArrow: 125
+        case .upArrow: 126
+        case .other: nil
+        }
+    }
 }
 
 /// One keypress, reduced to what deciding needs.

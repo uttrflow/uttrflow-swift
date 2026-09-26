@@ -95,8 +95,8 @@ public enum SuggestionAction: Sendable, Equatable {
     case accept(String)
     /// Draw this instead, which a move or a dismissal produces.
     case redraw(SuggestionUpdate)
-    /// The keystroke changed nothing here.
-    case nothing
+    /// The keystroke means nothing here, so it goes back to the application as pressed.
+    case giveBack(KeyStroke)
 }
 
 /// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
@@ -321,7 +321,7 @@ public struct SuggestionSession: Sendable, Equatable {
         {
         case .accept(let text):
             // A key typed since the read this offer was worked out for has moved the line, so Tab takes nothing.
-            guard drawnAtKeystroke == keystrokes else { return .nothing }
+            guard drawnAtKeystroke == keystrokes else { return .giveBack(stroke) }
             // The offer is gone the moment it is taken, and so is any answer still in flight for it.
             generation += 1
             clearDrawing()
@@ -333,7 +333,7 @@ public struct SuggestionSession: Sendable, Equatable {
         case .dismiss(let dismissal):
             return .redraw(dismiss(dismissal))
         case .passThrough:
-            return .nothing
+            return .giveBack(stroke)
         }
     }
 

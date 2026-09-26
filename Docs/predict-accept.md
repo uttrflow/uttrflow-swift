@@ -63,6 +63,11 @@ mask and the rules therefore cannot disagree about what is taken, which matters 
 key swallowed with no rule behind it is a keystroke the user silently loses. There is a
 test that asserts the agreement directly.
 
+The mask is read on the tap thread and the session decides later, so the two can still
+disagree in time: an accept after a keystroke the offer never saw, or a key armed for a
+suggestion since replaced. The session answers those with `.giveBack`, and the coordinator
+posts the same key with the same modifiers, tagged so the tap lets it through.
+
 A swallowed keystroke is written into a fixed ring buffer of 64 entries and a dispatch
 source is signalled; the decision runs on that source's queue. The ring is what keeps two
 quick presses of Down from coalescing into one, which a source's own OR-ed data would do.
