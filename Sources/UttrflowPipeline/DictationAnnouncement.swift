@@ -26,7 +26,7 @@ extension DictationPresenter {
 
         case .inserted(let outcome) where outcome.method == .clipboard && outcome.isFromRecording:
             return DictationAnnouncement(
-                text: "Copied to the clipboard. Press Command V to paste it. \(preview(of: outcome.text))",
+                text: "Copied to the clipboard. Press Command V to paste it. \(preview(of: said(outcome)))",
                 isUrgent: false)
 
         case .inserted(let outcome) where outcome.method == .clipboard:
@@ -41,7 +41,7 @@ extension DictationPresenter {
                 isUrgent: false)
 
         case .inserted(let outcome):
-            return DictationAnnouncement(text: "Inserted: \(preview(of: outcome.text))", isUrgent: false)
+            return DictationAnnouncement(text: "Inserted: \(preview(of: said(outcome)))", isUrgent: false)
 
         case .failed(let failure):
             return DictationAnnouncement(
