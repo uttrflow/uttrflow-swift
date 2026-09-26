@@ -18,7 +18,7 @@ public struct Candidate: Sendable, Equatable {
     public let evidence: Entry?
     /// How many edits separate the typed characters from this candidate's opening.
     public let editDistance: Int
-    /// Whether taking it cannot be undone, which bars it from being offered on thin evidence.
+    /// Whether taking it cannot be undone, which bars it from ever being offered.
     public let isIrreversible: Bool
 
     /// One thing the user might be about to type, with whatever is known about it.
