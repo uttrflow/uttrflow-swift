@@ -245,11 +245,15 @@ jobs:
 
       # Kept for the same reason a build log is: when somebody asks what shipped as
       # v2026.9.14, the answer should not depend on a runner that has been recycled.
+      # The dSYM travels with it, because it is what a later crash report needs to be
+      # symbolicated against the exact binary rather than guessed at — see issue #1468.
       - name: Keep the built artefacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: ${{ github.ref_name }}
-          path: dist/*.dmg
+          path: |
+            dist/*.dmg
+            dist/*.dSYM
           if-no-files-found: warn
           retention-days: 90
