@@ -1219,7 +1219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             closeQuickPanel()
             show(.settings(.general))
         case .insert, .reveal, .alias, .move, .delete, .renameCategory, .deleteCategory,
-            .reindent, .makeNote, .tickBox, .scope:
+            .reindent, .makeNote, .scope:
             // Answered above, by `intent.key`.
             break
         }

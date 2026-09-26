@@ -47,8 +47,14 @@ A masked row also loses its excerpt, its language chip and its tooltip:
   the pointer is entitled to. A panel of bullets appearing under the cursor reads as the
   mask being lifted.
 
-The checklist count is withheld too: how much of a hidden thing is done is still something
-about it, and the masking rule is to say as little as possible until it is revealed.
+## Checklists in notes
+
+The panel neither counts a note's checkboxes nor ticks them. A row is built on every
+keystroke, and parsing each note's HTML for a count nothing drew cost time and bought
+nothing, while a tick action with no key, button or menu item could never run. A checklist
+keeps its boxes in the plain form (see `Docs/clipboard-plain-form.md`); counting or ticking
+from the panel returns only as a whole feature that draws the count, speaks it and offers a
+tick, with consecutive ticks applied to the latest note.
 
 ## Empty states, and being specific and wrong
 

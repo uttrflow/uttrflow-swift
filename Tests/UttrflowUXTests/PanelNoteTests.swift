@@ -1,12 +1,12 @@
-// Tests for notes from the panel: promoting a plain clip, and ticking a checklist box.
+// Tests for notes from the panel: promoting a plain clip.
 import Foundation
 import UttrflowClipboard
 import Testing
 
 @testable import UttrflowUX
 
-/// E5, E6 — a note's second representation, and the two things the panel can do to it.
-@Suite("E5, E6 · notes from the panel")
+/// E6 — a note is a second representation, and the panel can make one from a plain clip.
+@Suite("E6 · notes from the panel")
 struct PanelNoteTests {
     /// A plain clip.
     static let plain = PanelFixture.clip("three things to do", minutesAgo: 1)
@@ -77,47 +77,5 @@ struct PanelNoteTests {
             return
         }
         #expect(note == "<p>one</p><p>two</p><p>three</p>")
-    }
-
-    // MARK: E5
-
-    /// A checklist's state is the interesting part, and a first-item summary says nothing about it.
-    @Test("a row shows how much of a checklist is done")
-    func rowShowsProgress() {
-        #expect(Self.row(Self.note).checklist == "1 of 2")
-        #expect(Self.row(Self.plain).checklist == nil)
-    }
-
-    @Test("ticking a box asks the store for the note with that box flipped")
-    func tickingWrites() {
-        let response = PanelFixture.panel([Self.note]).applying(.tickBox(Self.note.id, index: 0))
-
-        guard case .change(.setRichText(let id, let after)) = response.outcome else {
-            Issue.record("did not tick")
-            return
-        }
-        #expect(id == Self.note.id)
-        #expect(NoteChecklist.items(in: after).map(\.isChecked) == [true, true])
-    }
-
-    @Test("ticking a box that is not there does nothing")
-    func tickingNothing() {
-        #expect(
-            PanelFixture.panel([Self.note]).applying(.tickBox(Self.note.id, index: 9)).outcome
-                == .open)
-        #expect(
-            PanelFixture.panel([Self.plain]).applying(.tickBox(Self.plain.id, index: 0)).outcome
-                == .open)
-    }
-
-    /// The masking rule says as little as possible until reveal, and progress is not an exception.
-    @Test("a masked row does not report its progress")
-    func maskedRowsSayNothing() {
-        let secret = Clip(
-            text: "sk-live-abc", kind: .secret, copiedAt: PanelFixture.now,
-            richText: Self.note.richText)
-
-        #expect(Self.row(secret).isMasked)
-        #expect(Self.row(secret).checklist == nil)
     }
 }
