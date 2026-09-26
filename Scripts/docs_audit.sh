@@ -865,6 +865,38 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 7c. The Insights artboards match InsightsPresentation, not an invented contract.
+# ---------------------------------------------------------------------------
+#
+# #1144: the Insights artboards drew a selectable-looking scope popup, an Accuracy tile
+# with a restored Baseline meter, and an entire "Languages you spoke" card with no
+# measured source, while the average line and each place's word count were missing. A
+# controlled `_gen_app.py` run reproduced every mismatch byte-for-byte, so nothing was
+# tying the generator to `InsightsPresentation.swift` or its tests.
+printf '\nInsights artboard contract\n'
+
+if [[ ! -x "$PACKAGE_ROOT/Scripts/insights_contract_audit.py" ]]; then
+    fail "Scripts/insights_contract_audit.py is missing or not executable" \
+        "The audit pins the Insights artboards to InsightsPresentation.swift; without it the" \
+        "generator can drift back to an invented scope, meter or language card unnoticed."
+else
+    if "$PACKAGE_ROOT/Scripts/insights_contract_audit.py" --self-test; then
+        if "$PACKAGE_ROOT/Scripts/insights_contract_audit.py" >&2; then
+            pass "the Insights artboards match InsightsPresentation and its tests"
+        else
+            fail "the Insights artboard generator disagrees with InsightsPresentation" \
+                "The audit prints every mismatch: scope, Accuracy wording, the language card," \
+                "the average line, or the place rows' word counts. Fix Design/_gen_app.py," \
+                "then regenerate every Insights artboard."
+        fi
+    else
+        fail "Scripts/insights_contract_audit.py --self-test failed" \
+            "The audit's own self-test could not find its section markers in" \
+            "Design/_gen_app.py, so the extraction is broken. Fix the audit, not the artboard."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # 8. CLAUDE.md, if it exists, delegates to AGENTS.md by import or symlink.
 # ---------------------------------------------------------------------------
 #
