@@ -98,9 +98,12 @@ public actor CaptureSession {
             let commands = ShellHistory.read(atPath: path)
             guard !commands.isEmpty else { continue }
             var stored = 0
-            for command in commands where !DestructiveCommand.matches(command) {
+            for (index, command) in commands.enumerated() where !DestructiveCommand.matches(command) {
+                // One second per line, oldest first, so eviction keeps the newest.
+                let age = Double(commands.count - 1 - index)
                 try await sink.record(
-                    command, in: surface, after: nil, selfSourced: false, at: moment)
+                    command, in: surface, after: nil, selfSourced: false,
+                    at: moment.addingTimeInterval(-age))
                 stored += 1
             }
             return stored
