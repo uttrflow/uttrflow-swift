@@ -47,6 +47,13 @@ public enum Romaniser {
         text.unicodeScalars.contains(where: isDevanagari)
     }
 
+    /// A Devanagari spelling with chandrabindu folded to anusvara and nukta marks dropped, so spelling variants like पहुँच and पहुंच share a form; other scripts pass through unchanged.
+    public static func scriptFolded(_ text: String) -> String {
+        guard containsDevanagari(text) else { return text }
+        let scalars = normalised(Array(text.unicodeScalars)).filter { $0 != nukta }
+        return String(String.UnicodeScalarView(scalars))
+    }
+
     /// A romanised word folded so its common spelling variants meet: "theek" and "thik", "woh" and "wo".
     public static func soundKey(_ word: String) -> String {
         var folded = word.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
