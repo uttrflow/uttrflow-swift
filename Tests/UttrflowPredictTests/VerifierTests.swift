@@ -532,4 +532,22 @@ struct GeneratedLineTests {
             [".vim"], after: "vim .env", machine: [.file: [".env"]], in: notes)
         #expect(kept == [".vim"])
     }
+    @Test("A dominant irreversible leader leaves the turn silent, never its rival shown as certain.")
+    func dominantIrreversibleLeaderIsNotReplacedByItsRival() async {
+        let notes = Surface(bundleIdentifier: "com.example.notes", role: "AXTextArea")
+        let context = PredictionContext(typed: "git p")
+        let candidates = [
+            remembered("git push --force", count: 90, irreversible: true),
+            remembered("git push", count: 1),
+        ]
+        let first = PredictionEngine.decision(from: candidates, in: context, now: moment)
+        var shown = first.suggestion
+        if first.suggestion.accepting != nil {
+            let verifier = Verifier(index: EnvironmentIndex(reader: StubEnvironment([:])))
+            let kept = await verifier.verified(candidates, in: notes, typed: context.typed, now: moment)
+            shown = PredictionEngine.decision(from: kept, in: context, now: moment).suggestion
+        }
+        #expect(shown == .silent)
+        #expect(first.silence == .irreversibleNotCertain)
+    }
 }

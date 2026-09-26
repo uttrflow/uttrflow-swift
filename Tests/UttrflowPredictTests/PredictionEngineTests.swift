@@ -77,13 +77,13 @@ struct PredictionEngineTests {
         #expect(contested == .silent)
     }
 
-    @Test("An irreversible command clearly ahead may still be offered.")
-    func irreversibleMayLeadWhenCertain() {
+    @Test("An irreversible command clearly ahead is withheld, and its rival is not promoted to certain.")
+    func irreversibleLeaderIsSilent() {
         let clear = suggestion([
             remembered("git push --force", count: 90, irreversible: true),
             remembered("git push", count: 1),
         ])
-        #expect(clear == .certain("git push --force"))
+        #expect(clear == .silent)
     }
 
     @Test("An irreversible command never appears among the alternatives either.")

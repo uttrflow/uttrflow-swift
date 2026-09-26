@@ -29,13 +29,9 @@ public enum PredictionEngine {
         guard let leader = ranking.candidates.first else { return (.silent, .nothingOffered) }
         guard ranking.support >= supportFloor else { return (.silent, .evidenceTooThin) }
 
-        let separated = ranking.separation >= separationThreshold
-        // An irreversible completion is offered only when it clearly beats a real rival, never alone on thin evidence.
-        let dominatesRivals = separated && ranking.candidates.count > 1
-        guard !leader.candidate.isIrreversible || dominatesRivals else {
-            return (.silent, .irreversibleNotCertain)
-        }
-        guard !separated else { return (.certain(leader.text), nil) }
+        // An irreversible leader is never offered, and never stepped past to promote a rival it outranked.
+        guard !leader.candidate.isIrreversible else { return (.silent, .irreversibleNotCertain) }
+        guard ranking.separation < separationThreshold else { return (.certain(leader.text), nil) }
 
         let others =
             ranking.candidates
