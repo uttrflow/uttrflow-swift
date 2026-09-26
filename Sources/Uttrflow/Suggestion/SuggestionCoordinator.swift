@@ -549,6 +549,8 @@ final class SuggestionCoordinator {
             lastGenerated = (query.surface, query.typed, [leader] + others)
             return await drawFresh(expanded, for: snapshot, turn: number)
         }
+        // Quiet never shows the list, so no model pass is spent building one.
+        guard !preferences.isQuiet else { return }
         let more = Task { [generator, store, contextCache] in
             let situation = await Self.situation(
                 of: snapshot, for: query, store: store, cache: contextCache, turn: number)
