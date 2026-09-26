@@ -268,6 +268,9 @@ private enum Take {
     /// One phrase with no pause in it, so nothing is ever worked ahead.
     static let onePiece = AudioSamples.canonical(tone(1.2))
 
+    /// A first piece with its trailing pause, and nothing captured beyond it: `threePieces`' opening.
+    static let firstPieceOnly = AudioSamples.canonical(tone(1.2) + silence(0.5))
+
     /// Three phrases with a clear pause after the first two.
     static let threePieces = AudioSamples.canonical(
         tone(1.2) + silence(0.5) + tone(1.2) + silence(0.5) + tone(0.4))
@@ -677,6 +680,28 @@ struct DictationPipelineEarlyWorkTests {
             pipeline, holding: { await cleaner.isHolding }, letGo: { await cleaner.release() })
 
         #expect(await metrics.measurements.contains { $0.stage == .drain })
+    }
+
+    /// Issue 853: the hand-off used to wait for the whole tidy before recognising anything after it.
+    @Test("recognises the audio after an early piece while that piece is still being tidied")
+    func tailRecognitionDoesNotWaitForAHeldTidy() async throws {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        // While recording, only the first piece's audio has arrived; the rest comes back from `stop()`.
+        await capture.setCaptured(Take.firstPieceOnly)
+        let cleaner = HeldCleaner()
+        let speech = NumberingSpeechEngine()
+        let pipeline = makePipeline(capture: capture, speech: speech, cleaner: cleaner)
+
+        await pipeline.startRecording()
+        try await eventually { await cleaner.isHolding }
+        let finishing = Task { await pipeline.finishRecording() }
+        try await waitForCalls(2, on: speech)
+        #expect(await cleaner.isHolding, "the first piece's tidy is still held")
+
+        await cleaner.release()
+        await finishing.value
+
+        #expect(await pipeline.currentState.outcome?.text == "w1 x. w2 x. w3 x")
     }
 
     /// Issue 344: recognition is usually the longer half of the in-flight piece, and was the half the drain missed.

@@ -75,6 +75,8 @@ public actor DictationPipeline {
     private var earlySpans: [Span] = []
     private var earlyCut = 0
     private var earlyWork: Task<Void, Never>?
+    /// A tidy the early loop started but has not yet folded into `earlySpans`, picked up by the release pass at key-up.
+    private var earlyTidyTask: Task<Piece, Never>?
     /// Whether a piece is being recognised or tidied right now, which is what makes the drain a wait worth timing.
     private var pieceInFlight = false
     private var earlyContext: AppContext?
@@ -363,6 +365,7 @@ public actor DictationPipeline {
         cancelledGeneration = generation
         earlyWork?.cancel()
         earlyWork = nil
+        earlyTidyTask = nil
         earlySpans = []
         earlyCut = 0
         await capture.cancel()
@@ -388,6 +391,7 @@ public actor DictationPipeline {
     private func beginWorkingAhead(_ mine: Int) {
         earlySpans = []
         earlyCut = 0
+        earlyTidyTask = nil
         earlyContext = nil
         forgetTheLastAttempt()
         earlyWork = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
@@ -398,7 +402,7 @@ public actor DictationPipeline {
         }
     }
 
-    /// Transcribes and tidies each piece the moment a pause ends it, until the key is released.
+    /// Transcribes each piece the moment a pause ends it and tidies it beside the next one, until the key is released.
     private func workAhead(_ mine: Int) async {
         while state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled {
             try? await pollClock.sleep(for: earlyPoll)
@@ -411,10 +415,18 @@ public actor DictationPipeline {
                     in: audio.samples, sampleRate: audio.sampleRate, from: earlyCut)
             else { continue }
 
+            // A leftover tidy is folded in only once there is a next piece to recognise.
+            if let earlyTidyTask {
+                let piece = await earlyTidyTask.value
+                guard state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled
+                else { return }
+                earlySpans.append(.done(piece))
+                self.earlyTidyTask = nil
+            }
+
             let seeing = await earlyContextRead(mine)
-            // From recognition to tidied, so a key released during either is charged to the drain.
+            // Recognition only; a key released mid-tidy is not held to this, since the tidy runs on past it.
             pieceInFlight = true
-            defer { pieceInFlight = false }
             let heard: Transcription?
             do {
                 heard = try await transcribe(
@@ -425,15 +437,18 @@ public actor DictationPipeline {
                 // A failed piece is left for the end, where it is reported; the rest still work ahead.
                 earlySpans.append(.pending(earlyCut..<end))
                 earlyCut = end
+                pieceInFlight = false
                 continue
             }
             guard generation == mine, !wasCancelled(mine) else { return }
-            if let heard {
-                let piece = await finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
-                guard generation == mine, !wasCancelled(mine) else { return }
-                earlySpans.append(.done(piece))
-            }
+            // Cut here, before the tidy, so a key-up mid-tidy still knows what audio is left to recognise.
             earlyCut = end
+            if let heard {
+                earlyTidyTask = Task {
+                    await self.finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
+                }
+            }
+            pieceInFlight = earlyTidyTask != nil
         }
     }
 
@@ -478,6 +493,8 @@ public actor DictationPipeline {
     private enum Span {
         case done(Piece)
         case pending(Range<Int>)
+        /// Still being tidied when the key came up; joined by the release pass instead of waited on at the hand-off.
+        case tidying(Task<Piece, Never>)
     }
 
     /// Where the finished words go.
@@ -509,6 +526,11 @@ public actor DictationPipeline {
         earlySpans = []
         earlyCut = 0
         self.earlyContext = nil
+        // A tidy still running when the key came up is not waited on here; it joins the release pass below.
+        if let earlyTidyTask {
+            spans.append(.tidying(earlyTidyTask))
+            self.earlyTidyTask = nil
+        }
         // Pieces cut from other audio than this cannot be joined to it.
         if delivery == .copy || cut > audio.samples.count {
             spans = []
@@ -534,6 +556,11 @@ public actor DictationPipeline {
                 case .done(let piece):
                     if let earlier = await tidying.next() { pieces.append(earlier) }
                     pieces.append(piece)
+                    continue
+                case .tidying(let task):
+                    // The recognition after it can start before this tidy is done; the group still drains it first.
+                    if let earlier = await tidying.next() { pieces.append(earlier) }
+                    tidying.addTask { await task.value }
                     continue
                 case .pending(let range):
                     window = range
