@@ -46,6 +46,13 @@ public protocol KeyboardEventSource: Sendable {
         consumeKeyDown: Bool
     ) throws(KeyboardSourceError)
     func stop()
+    /// Registers a callback for when the source stops delivering on its own and will not turn itself back on.
+    func onGaveUp(_ handler: @escaping @Sendable () -> Void)
+}
+
+extension KeyboardEventSource {
+    /// A source that never gives up, or a test double that has not been taught to, needs nothing here.
+    public func onGaveUp(_ handler: @escaping @Sendable () -> Void) {}
 }
 
 /// Why keystrokes cannot be delivered.
