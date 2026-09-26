@@ -575,6 +575,35 @@ struct MainIntentWiringTests {
         #expect(page.identity == nil)
         #expect(page.emptyState?.action?.intent == .signIn)
     }
+
+    // MARK: Copy and clipboard-only outcomes
+
+    /// A copy that lands on the clipboard is shown on the page so the user knows the words are waiting.
+    @Test("a copy from the row says where the words went")
+    func copyShowsANotice() async throws {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
+
+        app.carryOut(.copy("Copy this back to me"))
+
+        let notice = try #require(app.actionNotice)
+        #expect(notice.message == "Copied — click where you want it, then press ⌘V")
+        #expect(notice.symbolName == "doc.on.clipboard")
+    }
+
+    /// A page change drops the notice, since the sentence describes the button the user just left behind.
+    @Test("moving to another page drops the copy notice")
+    func copyNoticeDropsOnPageChange() async throws {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
+
+        app.carryOut(.copy("Copy me"))
+        #expect(app.actionNotice != nil)
+
+        app.carryOut(.show(.snippets))
+
+        #expect(app.actionNotice == nil)
+    }
 }
 
 // MARK: - A development account held in memory

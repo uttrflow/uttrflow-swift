@@ -212,8 +212,8 @@ public enum DictationPresenter {
             footnote: rows.isEmpty
                 ? nil
                 : """
-                Copy, insert again, flag and more are on every row: point at it, or Tab \
-                to it. Today stays here; everything older moves to History.
+                Copy, flag and more are on every row: point at it, or Tab to it. Today \
+                stays here; everything older moves to History.
                 """)
     }
 
@@ -235,7 +235,7 @@ public enum DictationPresenter {
         return counts
     }
 
-    /// One dictation as a row with copy, insert again and flag, carrying the `applied` changes still standing on it.
+    /// One dictation as a row with copy, copy to paste elsewhere and flag, carrying the `applied` changes still standing on it.
     static func row(
         for entry: HistoryEntry, applied corrections: Int, in snapshot: DictationSnapshot, locale: Locale
     ) -> DictationRow {
@@ -254,9 +254,10 @@ public enum DictationPresenter {
                 : nil,
             actions: [
                 MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)),
+                // From the main window Uttrflow is in front, so the button says what it actually does. See `Docs/insertion.md`.
                 MainAction(
-                    title: "Insert Again", symbolName: "arrow.clockwise",
-                    intent: .insert(entry.text)),
+                    title: "Copy to Paste Elsewhere", symbolName: "doc.on.clipboard",
+                    intent: .copy(entry.text)),
                 // The label says what pressing it does, so a recorded flag can be told from one that was not.
                 MainAction(
                     title: entry.isFlagged ? "Unflag" : "Flag",

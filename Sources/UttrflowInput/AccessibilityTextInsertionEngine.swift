@@ -11,7 +11,9 @@ public struct AccessibilityTextInsertionEngine: TextInsertionEngine {
     }
 
     public func canInsert() async -> Bool {
-        focus.focusedTextField() != nil
+        // Uttrflow's own field cannot be the destination; the search field, the snippet editor and the rest are never it.
+        guard !focus.isSelfFrontmost() else { return false }
+        return focus.focusedTextField() != nil
     }
 
     /// Answers `.notReported`: the field verifies the write and does not say whether it could.
