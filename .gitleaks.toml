@@ -1,5 +1,13 @@
 # What gitleaks is allowed to find and not fail on.
 #
+# Every entry below is scoped to one exact value, never to a whole file. Gitleaks
+# treats `paths` and `regexes` in one allowlist entry as OR, not AND, so a path
+# exemption would have skipped an entire file regardless of what string was added to
+# it — this file used to do exactly that for four files and is why an accidental
+# secret in one of them would not have failed the scan. There is no path exemption
+# left anywhere in this file. If a fixture ever needs to move, move its regex entry
+# with it rather than widening it.
+#
 # Four files in this tree contain things shaped exactly like credentials, on purpose:
 #
 #   SecretDetectionTests.swift    the fixtures for the clipboard's secret detector. Its
@@ -47,20 +55,23 @@
 # `SpeechModel.swift` still fails, and means bumping a revision has to touch this file,
 # where the change is visible.
 #
-# The files above are allowed by path and by path alone. Nothing else in the tree is exempt, so a
-# real key committed anywhere — including into a different test file — still fails the
-# build. If a fixture ever needs to move, move the entry with it rather than widening it.
+# `SecretDetectionTests.swift` needs one entry per fixture below: an AWS key, a Slack
+# bot token, a Stripe key, a GitHub PAT, a GCP API key, an OpenAI-shaped secret, two
+# short generic-secret values, and one invented OpenSSH private key block. Each is the
+# vendor's own documentation example or an invented string, matched by its exact value
+# (or, for the private key, its exact block) so a real key added anywhere in the file
+# still fails.
+#
+# One of those values, `9f2b7c4e1a8d3f6b`, is short enough that a real secret could
+# plausibly collide with it by value alone, so its two fixture lines are allowed by
+# their exact matched text (`regexTarget = "match"`, key name and all) rather than by
+# the bare value — a real `api_key`-shaped credential with that same value but a
+# different key name or separator still fails.
 [extend]
 useDefault = true
 
-[allowlist]
-  description = "Intentional secret-shaped fixtures, public keys and exact Swift type-name false positives."
-  paths = [
-    '''Tests/UttrflowClipboardTests/SecretDetectionTests\.swift''',
-    '''Sources/UttrflowAccount/InMemoryAuthenticationService\.swift''',
-    '''Tests/UttrflowAccountTests/AccountSupport\.swift''',
-    '''Sources/UttrflowSpeech/SpeechModel\.swift''',
-  ]
+[[allowlists]]
+  description = "Intentional secret-shaped fixtures, public keys and exact Swift type-name false positives, by value."
   regexes = [
     '''^apWgly8fYgdo1U2MUj56SuqUqZ4QHv5GRZIbuLT0PGE=$''',
     '''^Curve25519\.Signing\.PrivateKey$''',
@@ -75,4 +86,25 @@ useDefault = true
     '''^2a4c4281cf9f51ac6ccc406fdc711a087afe6530f671fa7b80953edc498275ce$''',
     # openai/whisper-base.
     '''^e37978b90ca9030d5170a5c07aadb050351a65bb$''',
+    # SecretDetectionTests.swift fixtures, one exact value per vendor shape below.
+    '''^xoxb-2913847561-3847561290-KdMx8Qw2Lp$''',
+    '''^ASIAY34FZKBOKMUTVV7A$''',
+    '''^abc123def456ghi789$''',
+    '''^Qv7RkT2mXeL9pAz4$''',
+    '''^sk-proj-Qv7RkT2mXeL9pAz4Nb$''',
+    '''^sk_live_51HxQmvKz8RtYnPbW3LcE$''',
+    '''^AIzaSyD3mK9pQvXr2NtLw8ZbYc4FeGhJkMnOpQr$''',
+    '''^ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8$''',
+    '''^-----BEGIN OPENSSH PRIVATE KEY-----
+            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz
+            c2gtZWQyNTUxOQAAACDkQ2VydGlmaWNhdGVOb3RSZWFsbHlBS2V5QXRBbGxIZXJl
+            -----END OPENSSH PRIVATE KEY-----$''',
+  ]
+
+[[allowlists]]
+  description = "The 9f2b7c4e1a8d3f6b fixture, allowed only by its exact key-name-and-value match text."
+  regexTarget = "match"
+  regexes = [
+    '''^API_KEY=9f2b7c4e1a8d3f6b"$''',
+    '''^api_key: 9f2b7c4e1a8d3f6b"$''',
   ]
