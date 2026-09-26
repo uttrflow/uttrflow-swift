@@ -62,6 +62,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var speechReadiness: SpeechModelReadiness = .notInstalled
     /// When the load under way began, so the estimate is said only once a load has run long enough to need it.
     private var speechLoadStarted: ContinuousClock.Instant?
+    /// The recogniser the pipeline transcribes with, which Diagnostics names rather than the setting.
+    private var speechInUse: SpeechEngineKind?
 
     /// The load as every dictation surface tells it, read from ``speechReadiness`` and nothing else.
     private var speechModelLoad: SpeechModelLoad? {
@@ -350,7 +352,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Loads the recogniser, saying so until it can dictate. See `Docs/startup.md`.
-    private func loadSpeechModel() {
+    private func loadSpeechModel(
+        by load: @escaping @MainActor (DictationPipeline) async -> Void = { await $0.prepare() }
+    ) {
         guard modelStore.isInstalled(.default) else {
             speechReadiness = .notInstalled
             // Nothing to load, so nothing for an automatic update check to compete with.
@@ -367,8 +371,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             refreshSpeechModelSurfaces()
         }
         Task { [weak self] in
-            await self?.pipeline?.prepare()
-            guard let self, let pipeline else { return }
+            guard let pipeline = self?.pipeline else { return }
+            await load(pipeline)
+            guard let self else { return }
+            speechInUse = await pipeline.speechKind
             let isReady = await pipeline.isReady
             speechReadiness =
                 isReady ? .ready : modelStore.isInstalled(.default) ? .loadFailed : .notInstalled
@@ -683,12 +689,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             spellings: { [dictionary] in await dictionary.index() })
     }
 
-    private func buildPipeline() {
+    /// The recogniser of `kind`, over the downloaded model.
+    private func makeSpeechEngine(_ kind: SpeechEngineKind) -> any SpeechEngine {
         let model = SpeechModel.default
+        return SpeechEngineFactory.make(
+            kind: kind, model: model, modelFolder: modelStore.location(of: model))
+    }
 
-        let speech = SpeechEngineFactory.make(
-            kind: settings.engines.speech, model: model,
-            modelFolder: modelStore.location(of: model))
+    /// Hands the pipeline the recogniser just chosen, which it takes up once no dictation is under way.
+    private func switchSpeechEngine(to kind: SpeechEngineKind) {
+        let speech = makeSpeechEngine(kind)
+        guard modelStore.isInstalled(.default) else {
+            // Nothing to load until the download ends, which loads whichever recogniser is chosen by then.
+            Task { [weak self] in
+                guard let pipeline = self?.pipeline else { return }
+                await pipeline.adopt(speech: speech, loading: false)
+                self?.speechInUse = await pipeline.speechKind
+                self?.refreshMainWindow()
+            }
+            return
+        }
+        loadSpeechModel { await $0.adopt(speech: speech) }
+    }
+
+    private func buildPipeline() {
+        let speech = makeSpeechEngine(settings.engines.speech)
+        speechInUse = speech.kind
 
         // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
         let speechWords = DictionaryVocabulary { [dictionary] in
@@ -1807,7 +1833,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     settings: settings, capabilities: SettingsCapabilities.everything)),
             diagnostics: DiagnosticsPresenter.page(
                 for: DiagnosticsSnapshot(
-                    engines: settings.engines,
+                    engines: settings.engines, speechInUse: speechInUse,
                     transformerAvailability: transformerAvailability,
                     permissions: knownPermissions,
                     measurements: measurements, cleaning: lastCleaning)),
@@ -2159,6 +2185,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Task { [weak self] in
                 await self?.pipeline?.adopt(cleaner: tidier, destinationOverrides: overrides)
             }
+        }
+        // The recogniser is swapped between dictations, never under one, and loaded as at launch.
+        if updated.engines.speech != previous.engines.speech {
+            switchSpeechEngine(to: updated.engines.speech)
         }
         // The languages the user speaks steer recognition from the next dictation on.
         if updated.profile != previous.profile {
