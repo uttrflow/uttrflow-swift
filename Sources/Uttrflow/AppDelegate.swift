@@ -1433,7 +1433,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         RecordedCorrection(
                             heard: $0.heard, wrote: $0.wrote, wordRange: $0.wordRange,
                             entryID: $0.entryID, reason: $0.reason,
-                            heardConfidence: $0.heardConfidence)
+                            heardConfidence: $0.heardConfidence,
+                            writtenWordIndex: $0.writtenWordIndex)
                     },
                     snippets: outcome.changes.snippets.map {
                         RecordedSnippet(

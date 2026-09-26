@@ -23,20 +23,10 @@ extension DictationRecord {
         _ reverted: RecordedCorrection, among corrections: [RecordedCorrection]
     ) -> String {
         let words = text.spokenWordRanges()
-        var start = 0
-        var length = 0
-        var shift = 0
-
-        for correction in corrections.sorted(by: { $0.wordRange.lowerBound < $1.wordRange.lowerBound }) {
-            let standing = correction.isUndone ? correction.heard : correction.wrote
-            let count = standing.spokenWords().count
-            if correction.id == reverted.id {
-                start = correction.wordRange.lowerBound + shift
-                length = count
-                break
-            }
-            shift += count - correction.wordRange.count
-        }
+        let (start, length) =
+            corrections.allSatisfy { $0.writtenWordIndex != nil }
+            ? located(reverted, among: corrections)
+            : counted(reverted, among: corrections)
 
         guard length > 0, start >= 0, start + length <= words.count else { return text }
         let span = words[start].lowerBound..<words[start + length - 1].upperBound
@@ -47,6 +37,35 @@ extension DictationRecord {
         repaired += reverted.heard
         repaired += text[span.upperBound...]
         return repaired
+    }
+
+    /// The words from where the pipeline found them in the stored text, moved by earlier undos only.
+    private func located(
+        _ reverted: RecordedCorrection, among corrections: [RecordedCorrection]
+    ) -> (start: Int, length: Int) {
+        guard let index = reverted.writtenWordIndex else { return (0, 0) }
+        var shift = 0
+        for correction in corrections where correction.isUndone {
+            guard let other = correction.writtenWordIndex, other < index else { continue }
+            shift += correction.heard.spokenWords().count - correction.wrote.spokenWords().count
+        }
+        return (index + shift, reverted.wrote.spokenWords().count)
+    }
+
+    /// The words from the heard-space range, for a record that does not say where they landed.
+    private func counted(
+        _ reverted: RecordedCorrection, among corrections: [RecordedCorrection]
+    ) -> (start: Int, length: Int) {
+        var shift = 0
+        for correction in corrections.sorted(by: { $0.wordRange.lowerBound < $1.wordRange.lowerBound }) {
+            let standing = correction.isUndone ? correction.heard : correction.wrote
+            let count = standing.spokenWords().count
+            if correction.id == reverted.id {
+                return (correction.wordRange.lowerBound + shift, count)
+            }
+            shift += count - correction.wordRange.count
+        }
+        return (0, 0)
     }
 }
 
