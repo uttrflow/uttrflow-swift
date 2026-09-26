@@ -5,10 +5,37 @@
 #   ./Scripts/soak.sh                    # 6 samples, 10 minutes apart, on the running app
 #   ./Scripts/soak.sh --every 60 --times 3
 #   ./Scripts/soak.sh --pid 1234
+#   ./Scripts/soak.sh --compare FIRST.tsv LAST.tsv   # just the growth report, for testing
 #
 # Leave the app running and used — dictations, and suggestions on, since the twelve-hour
 # crash had them enabled. A class whose count only ever rises is the chain to look at.
 set -euo pipefail
+
+# Prints the growth report for a pair of `count<tab>class` snapshot files. Compares the
+# union of class names so a class absent from FIRST (new) or absent from LAST (gone) is
+# treated as a count of zero on that side, rather than being dropped by an inner join.
+report_growth() {
+    local first="$1"
+    local last="$2"
+    awk -F'\t' '
+        NR == FNR { first[$2] = $1; next }
+        { last[$2] = $1 }
+        END {
+            for (label in first) seen[label] = 1
+            for (label in last) seen[label] = 1
+            for (label in seen) {
+                f = (label in first) ? first[label] : 0
+                l = (label in last) ? last[label] : 0
+                d = l - f
+                if (d > 0) printf "%12d  %10d → %-10d  %s\n", d, f, l, label
+            }
+        }' "$first" "$last" | sort -rn | head -20
+}
+
+if [[ "${1:-}" == "--compare" ]]; then
+    report_growth "$2" "$3"
+    exit 0
+fi
 
 EVERY=600
 TIMES=6
@@ -66,9 +93,7 @@ LAST="$(ls "$OUT"/sample-*.tsv | sort -V | tail -1)"
 [[ "$FIRST" != "$LAST" ]] || { printf 'only one sample; nothing to compare.\n'; exit 0; }
 
 printf '\nGrew most between the first sample and the last:\n\n'
-join -j 2 -o 0,1.1,2.1 -t $'\t' "$FIRST" "$LAST" \
-    | awk -F'\t' '{ d = $3 - $2; if (d > 0) printf "%12d  %10d → %-10d  %s\n", d, $2, $3, $1 }' \
-    | sort -rn | head -20
+report_growth "$FIRST" "$LAST"
 
 printf '\nFootprint over the run (time, footprint, live nodes):\n'
 cat "$OUT/footprint.tsv"
