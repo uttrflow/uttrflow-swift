@@ -65,6 +65,8 @@ final class SuggestionCoordinator {
     private var lastEmpty: (surface: Surface, typed: String)?
     /// A turn booked for the moment a rule stops refusing, so a prose pause is answered then, not at the next tick.
     private var pendingWake: Task<Void, Never>?
+    /// The turn in flight, cancelled by the next keystroke so its scoring stops rather than running past the line it was for.
+    private var running: Task<Void, Never>?
     /// How long a burst of keystrokes must pause before the model is asked about its last prefix.
     nonisolated static let generationDebounceInMilliseconds = 120
     /// How much of the text before the caret's line the model is shown, enough for the sentence or command before it.
@@ -175,6 +177,7 @@ final class SuggestionCoordinator {
         swallowed = nil
         generating?.cancel()
         pendingWake?.cancel()
+        running?.cancel()
         ticker?.invalidate()
         ticker = nil
         ticking = SuggestionTicking()
@@ -238,6 +241,7 @@ final class SuggestionCoordinator {
         session.invalidate()
         generating?.cancel()
         pendingWake?.cancel()
+        running?.cancel()
         interceptor.arm([])
         panel.hide()
     }
@@ -309,6 +313,7 @@ final class SuggestionCoordinator {
         case .stalled(let turn):
             Self.log.error("STALL a turn ran past \(TurnGate.stallSeconds)s and is left behind")
             generating?.cancel()
+            running?.cancel()
             start(turn, because: reason)
         case .free(let turn):
             start(turn, because: reason)
@@ -317,7 +322,7 @@ final class SuggestionCoordinator {
 
     /// Runs the turn the gate admitted and reports its end under the same number.
     private func start(_ turn: Int, because reason: SuggestionReason) {
-        Task { [weak self] in
+        running = Task { [weak self] in
             await self?.turn(turn, because: reason)
             self?.finished(turn)
         }

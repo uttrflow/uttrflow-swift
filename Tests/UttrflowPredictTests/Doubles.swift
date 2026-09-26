@@ -59,6 +59,35 @@ actor ScriptedScoring: CandidateScoring {
     }
 }
 
+/// Holds the task under test, filled in only after the task exists, so a double running inside it can cancel it.
+final class TaskBox<Success: Sendable>: @unchecked Sendable {
+    var task: Task<Success, Never>?
+}
+
+/// A model that cancels the turn's task the first time it is asked, so a test can see a loop over candidates stop.
+actor CancellingScoring<Success: Sendable>: CandidateScoring {
+    /// The score to answer with.
+    private let score: Double?
+    /// The task this candidate's scoring cancels, so nothing asked afterward is asked with the turn still current.
+    private let box: TaskBox<Success>
+    /// How many scores it has been asked for.
+    private(set) var asked = 0
+
+    /// A model that answers `score` and cancels the task held in `box` on its first call.
+    init(_ score: Double?, cancelling box: TaskBox<Success>) {
+        self.score = score
+        self.box = box
+    }
+
+    var isReady: Bool { true }
+
+    func logLikelihood(of candidate: String, following context: String) async -> Double? {
+        asked += 1
+        box.task?.cancel()
+        return score
+    }
+}
+
 /// A model that answers this, but blocks the thread rather than honouring cancellation while it does.
 actor NoncooperativeScoring: CandidateScoring {
     /// The score to answer with once the sleep is over.

@@ -41,6 +41,8 @@ public actor Verifier {
         let deadline = deadline()
         var kept: [Candidate] = []
         for candidate in candidates {
+            // A keystroke that cancelled this turn's task makes every candidate after this one moot.
+            guard !Task.isCancelled else { break }
             guard
                 let allowed = await allowed(
                     candidate, in: surface, typed: typed, now: now, before: deadline)
