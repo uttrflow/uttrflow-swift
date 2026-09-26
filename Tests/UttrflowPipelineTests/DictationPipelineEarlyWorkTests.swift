@@ -340,7 +340,42 @@ struct DictationPipelineEarlyWorkTests {
         #expect(
             counts.reduce(0, +) == Take.threePieces.samples.count,
             "every sample goes to the recogniser once")
-        #expect(cleaner.warmed == [.messaging], "warmed once, for the Slack window the fixture shows")
+        #expect(
+            !cleaner.warmed.isEmpty && cleaner.warmed.allSatisfy { $0 == .messaging },
+            "warmed only for the Slack window the fixture shows")
+        #expect(cleaner.warmed.count <= 3, "at key-down, then at most once per piece tidied while recording")
+    }
+
+    @Test("a dictation of one piece warms the tidier once, at key-down, and not again after its answer")
+    func onePieceWarmsOnce() async throws {
+        let take = AudioSamples.canonical(Take.tone(0.8))
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
+        await capture.setCaptured(take)
+        let cleaner = ShoutingCleaner()
+        let inserter = CollectingInserter()
+        let pipeline = makePipeline(capture: capture, cleaner: cleaner, inserter: inserter)
+
+        await pipeline.startRecording()
+        try await eventually { !cleaner.warmed.isEmpty }
+        await pipeline.finishRecording()
+
+        #expect(await pipeline.currentState.outcome != nil)
+        #expect(cleaner.warmed == [.messaging])
+    }
+
+    @Test("each piece tidied while the key is held warms the tidier again for the piece after it")
+    func eachEarlyPieceWarmsForTheNext() async throws {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let cleaner = ShoutingCleaner()
+        let pipeline = makePipeline(capture: capture, cleaner: cleaner)
+
+        await pipeline.startRecording()
+        try await eventually { cleaner.warmed.count >= 3 }
+        await pipeline.finishRecording()
+
+        #expect(cleaner.warmed == [.messaging, .messaging, .messaging])
+        #expect(cleaner.seen.count == 3, "two pieces while held, and the last after release")
     }
 
     /// The screen is read before the tidier is warmed, so the warm-up is for the right place.
@@ -366,7 +401,7 @@ struct DictationPipelineEarlyWorkTests {
             try await waitForCalls(1, on: speech)
             await pipeline.finishRecording()
 
-            #expect(cleaner.warmed == [destination])
+            #expect(!cleaner.warmed.isEmpty && cleaner.warmed.allSatisfy { $0 == destination })
             #expect(await engine.calls.count == 1, "one read serves the warm-up and every piece")
         }
     }

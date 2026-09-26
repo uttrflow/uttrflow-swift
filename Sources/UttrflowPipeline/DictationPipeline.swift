@@ -382,6 +382,11 @@ public actor DictationPipeline {
                 let piece = await finish(heard, seeing: seeing, recording: NoOpMetricsRecorder())
                 guard generation == mine, !wasCancelled(mine) else { return }
                 earlySpans.append(.done(piece))
+                // After the answer and only while another piece can follow. See Docs/early-transcription.md.
+                if state == .recording {
+                    await runningCleaner.warm(
+                        for: SituationResolver.resolve(from: seeing, overrides: runningOverrides))
+                }
             }
             earlyCut = end
         }
