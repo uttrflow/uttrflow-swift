@@ -38,6 +38,42 @@ private final class QuietInserter: TextInserting, Sendable {
     var inserted: [String] { placed.withLock { $0 } }
 }
 
+/// A ``VocabularyLearning`` that holds the first dictation's learning until it is let go.
+private final class GatedLearner: VocabularyLearning {
+    private struct State {
+        var calls = 0
+        var held: CheckedContinuation<Void, Never>?
+        var released = false
+    }
+
+    private let state = Mutex(State())
+
+    func learn(heard: String, wrote: String, seeing context: AppContext) async throws(DictationChangeError) {
+        await withCheckedContinuation { continuation in
+            let resumeNow = state.withLock { state -> Bool in
+                state.calls += 1
+                guard state.calls == 1, !state.released else { return true }
+                state.held = continuation
+                return false
+            }
+            if resumeNow { continuation.resume() }
+        }
+    }
+
+    /// Whether the first dictation is held inside its learning step.
+    var isHolding: Bool { state.withLock { $0.held != nil } }
+
+    /// Lets the held learning step finish.
+    func release() {
+        let held = state.withLock { state -> CheckedContinuation<Void, Never>? in
+            state.released = true
+            defer { state.held = nil }
+            return state.held
+        }
+        held?.resume()
+    }
+}
+
 @Suite("Dictation controller: the soft cap on a long recording", .timeLimit(.minutes(1)))
 struct DictationLimitWiringTests {
     private static let limit = DictationLimit(warnAfter: .seconds(180), stopAfter: .seconds(240))
@@ -192,6 +228,81 @@ struct DictationLimitWiringTests {
         await doubleTap(controller, clock: clock)
 
         #expect(inserter.inserted == ["a long dictation", "a long dictation"], "opened and closed again")
+    }
+
+    /// A press-to-toggle controller whose first dictation is held in its learning step until released.
+    private func makeToggleController(
+        clock: ManualClock, inserter: QuietInserter, learner: any VocabularyLearning, limit: DictationLimit
+    ) -> DictationController<ManualClock> {
+        DictationController(
+            pipeline: DictationPipeline(
+                capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
+                speech: FakeSpeechEngine(
+                    transcribeOutcome: .success(Transcription(text: "a long dictation"))),
+                cleaner: QuietCleaner(),
+                context: FakeContextEngine(context: .fixture()),
+                inserter: inserter,
+                vocabulary: learner,
+                clock: ContinuousClock()),
+            monitor: SilentMonitor(),
+            activation: .pressToToggle,
+            clock: clock,
+            limit: limit)
+    }
+
+    @Test(
+        "a press made while the cap is still finishing waits its turn, and the next dictation keeps its own cap"
+    )
+    func nextDictationKeepsItsCapWhileTheLastFinishes() async throws {
+        let clock = ManualClock()
+        let inserter = QuietInserter()
+        let learner = GatedLearner()
+        let controller = makeToggleController(
+            clock: clock, inserter: inserter, learner: learner, limit: Self.limit)
+
+        controller.submit(.pressed)
+        await controller.drained()
+        await advance(clock, to: Self.limit.warnAfter)
+        await advance(clock, to: Self.limit.stopAfter - Self.limit.warnAfter)
+        try await eventually { learner.isHolding }
+
+        // Pressed while the capped dictation is still learning, which a cap outside the queue let through.
+        controller.submit(.pressed)
+        for _ in 0..<1_000 { await Task.yield() }
+        learner.release()
+        await controller.drained()
+        #expect(inserter.inserted == ["a long dictation"])
+
+        await advance(clock, to: Self.limit.warnAfter)
+        await advance(clock, to: Self.limit.stopAfter - Self.limit.warnAfter)
+        try await eventually { inserter.inserted.count == 2 }
+        #expect(inserter.inserted == ["a long dictation", "a long dictation"])
+    }
+
+    @Test("a cap reached just as its dictation was stopped neither ends nor disarms the next one")
+    func staleCapLeavesTheNextDictationAlone() async throws {
+        let clock = ManualClock()
+        let inserter = QuietInserter()
+        let limit = DictationLimit(warnAfter: .seconds(240), stopAfter: .seconds(240))
+        let controller = makeToggleController(
+            clock: clock, inserter: inserter, learner: NoTextChanges(), limit: limit)
+
+        controller.submit(.pressed)
+        await controller.drained()
+        await clock.waitUntilSomethingIsWaiting()
+
+        // Stop, start again, and reach the first dictation's cap, all before the queue has handled any of it.
+        controller.submit(.pressed)
+        controller.submit(.pressed)
+        clock.advance(by: limit.stopAfter)
+        await controller.drained()
+        for _ in 0..<1_000 { await Task.yield() }
+        await controller.drained()
+
+        #expect(inserter.inserted == ["a long dictation"])
+        await advance(clock, to: limit.stopAfter)
+        try await eventually { inserter.inserted.count == 2 }
+        #expect(inserter.inserted == ["a long dictation", "a long dictation"])
     }
 
     @Test("says nothing about a limit for a dictation that ends normally")

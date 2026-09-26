@@ -20,6 +20,11 @@ pipeline above knows there is more than one way to be recording.
 - A click from the floating button or a menu item is queued the same way. `toggleFromControl()`
   waits for its turn and returns once the click has been handled, so a caller that awaits it still
   sees the dictation it started or finished.
+- The cap (`Docs/stuck-recording.md`) is queued the same way. Its timer only submits "the cap
+  was reached", and the queue finishes the dictation, so a press cannot start the next dictation
+  while the capped one is still being inserted and learnt from. Each cap carries the generation
+  of the dictation it was started for, and a cap that arrives after another dictation has begun
+  neither finishes it nor stops that dictation's own cap.
 
 ## Rebinding the shortcut
 

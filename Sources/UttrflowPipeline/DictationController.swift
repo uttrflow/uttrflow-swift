@@ -23,6 +23,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Told when the gesture that ends a recording changes, so the dock can say so even mid-recording.
     private let onStopGestureChange: @Sendable (StopGesture) -> Void
     private var limitTask: Task<Void, Never>?
+    /// Which dictation's cap `limitTask` is, so an older cap can neither finish nor stop a newer one.
+    private var limitGeneration = 0
 
     private var activation: HotkeyActivation
     private var pressedAt: ClockType.Instant?
@@ -48,6 +50,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         case activation(HotkeyActivation, CheckedContinuation<Void, Never>)
         /// Answered once everything queued ahead of it has been handled.
         case drained(CheckedContinuation<Void, Never>)
+        /// The cap started for this generation of dictation has been reached.
+        case limitReached(Int)
     }
 
     /// Every gesture from every source, handled one at a time. See Docs/pipeline-gestures.md.
@@ -82,7 +86,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
                     switch gesture {
                     case .control(let handled), .drained(let handled), .activation(_, let handled):
                         handled.resume()
-                    case .key, .settled: break
+                    case .key, .settled, .limitReached: break
                     }
                     continue
                 }
@@ -99,6 +103,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
                     handled.resume()
                 case .drained(let handled):
                     handled.resume()
+                case .limitReached(let generation):
+                    await finishAtTheLimit(generation)
                 }
             }
         }
@@ -343,10 +349,12 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
     }
 
-    /// Warns before the cap and finishes at it, keeping the words. See `Docs/stuck-recording.md`.
+    /// Warns before the cap and queues its finish like any gesture, keeping the words. See `Docs/stuck-recording.md`.
     private func watchTheLimit() {
         limitTask?.cancel()
-        limitTask = Task { [weak self, clock, limit, onAdvice] in
+        limitGeneration += 1
+        let generation = limitGeneration
+        limitTask = Task { [clock, limit, onAdvice, gestureSink] in
             let start = clock.now
             do {
                 // Deadlines from the start, so a late wake-up cannot push the cap back.
@@ -359,16 +367,23 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
                 // Cancelled, which is the ordinary end of every dictation.
                 return
             }
-            onAdvice(.finishNow)
-            await self?.finishAtTheLimit()
+            gestureSink.yield(.limitReached(generation))
         }
     }
 
-    /// Ends a dictation that reached the cap, keeping every word of it.
-    private func finishAtTheLimit() async {
-        guard await pipeline.currentState.isListening else { return }
+    /// Ends a dictation that reached its own cap, keeping every word of it; a stale cap does nothing.
+    private func finishAtTheLimit(_ generation: Int) async {
+        guard generation == limitGeneration, limitTask != nil else { return }
+        onAdvice(.finishNow)
+        guard await pipeline.currentState.isListening else { return stopWatchingTheLimit(generation) }
         setHandsFree(false)
         await pipeline.finishRecording()
+        stopWatchingTheLimit(generation)
+    }
+
+    /// Stops the cap of the given generation only, so a late call cannot stop the next dictation's.
+    private func stopWatchingTheLimit(_ generation: Int) {
+        guard generation == limitGeneration else { return }
         stopWatchingTheLimit()
     }
 
