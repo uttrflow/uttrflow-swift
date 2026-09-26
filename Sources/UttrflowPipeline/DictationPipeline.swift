@@ -355,11 +355,14 @@ public actor DictationPipeline {
             guard state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled
             else { return }
 
-            let audio = await capture.capturedSoFar()
+            // One sample before the cut is kept, so a later piece is never taken for the whole recording.
+            let lead = earlyCut > 0 ? 1 : 0
+            let audio = await capture.capturedSoFar(from: earlyCut - lead)
             guard
-                let end = windowing.nextCut(
-                    in: audio.samples, sampleRate: audio.sampleRate, from: earlyCut)
+                let cut = windowing.nextCut(
+                    in: audio.samples, sampleRate: audio.sampleRate, from: lead)
             else { continue }
+            let end = earlyCut - lead + cut
 
             let seeing = await earlyContextRead(mine)
             // From recognition to tidied, so a key released during either is charged to the drain.
@@ -368,7 +371,7 @@ public actor DictationPipeline {
             let heard: Transcription?
             do {
                 heard = try await transcribe(
-                    audio, earlyCut..<end, biasedTowards: await vocabulary(seeing: seeing),
+                    audio, lead..<cut, biasedTowards: await vocabulary(seeing: seeing),
                     recording: NoOpMetricsRecorder())
             } catch {
                 guard generation == mine, !wasCancelled(mine) else { return }

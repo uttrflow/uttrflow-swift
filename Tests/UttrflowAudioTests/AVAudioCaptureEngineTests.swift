@@ -287,6 +287,24 @@ struct AVAudioCaptureEngineSnapshotTests {
         let engine = AVAudioCaptureEngine(source: FakeMicrophoneSource())
         #expect(await engine.capturedSoFar() == .empty)
     }
+
+    @Test("shares only what arrived after an offset, and the stop still returns every sample")
+    func sharesFromOffsetWithoutLoss() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2, 0.3])
+
+        let early = await engine.capturedSoFar(from: 2)
+        source.emit([0.4])
+        let later = await engine.capturedSoFar(from: 3)
+        let all = try await engine.stop()
+
+        #expect(early.samples == [0.3])
+        #expect(later.samples == [0.4])
+        #expect(all.samples == [0.1, 0.2, 0.3, 0.4])
+        #expect(await engine.capturedSoFar(from: 0) == .empty)
+    }
 }
 
 @Suite("AVAudioCaptureEngine: the stop cue")
