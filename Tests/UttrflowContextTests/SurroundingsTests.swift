@@ -53,6 +53,16 @@ struct SurroundingsTests {
                 < lines.firstIndex(of: "Me: in dist/, one sec")!)
     }
 
+    @Test("The focused field is never asked for its text, since its value can be a whole scrollback")
+    func focusedFieldTextIsNeverRead() {
+        let reads = TextReadLog()
+        _ = Surroundings.collect(
+            around: compose, in: FakeTree(root: chatWindow, textReads: reads), windowTitle: nil,
+            deadline: unhurried)
+        #expect(!reads.ids.isEmpty)
+        #expect(!reads.ids.contains(compose.id))
+    }
+
     @Test("Hidden text, controls and menus are not what the user is looking at, so they are not read.")
     func hiddenAndControlsAreSkipped() {
         let window = Node(

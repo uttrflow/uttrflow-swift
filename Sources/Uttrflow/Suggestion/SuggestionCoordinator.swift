@@ -594,6 +594,21 @@ final class SuggestionCoordinator {
         return .milliseconds(max(0, Double(Self.generationDebounceInMilliseconds) - passed))
     }
 
+    /// Whether the window around this field is walked, which a terminal's is not since its value already holds the scrollback.
+    nonisolated static func walksSurroundings(of snapshot: FocusedFieldSnapshot) -> Bool {
+        !TerminalApplications.contains(snapshot.bundleIdentifier)
+    }
+
+    /// The text around the field, or nothing where the window is not walked.
+    private static func surroundings(
+        of snapshot: FocusedFieldSnapshot, cache: SuggestionContextCache
+    ) async -> Surroundings? {
+        guard walksSurroundings(of: snapshot) else { return nil }
+        return await cache.surroundings(for: SuggestionMoment.windowKey(of: snapshot)) {
+            await FocusedFieldReader.surroundings()
+        }
+    }
+
     /// Reads what is on screen and what this person wrote here, then maps them with ``SuggestionMoment``.
     private static func situation(
         of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore,
@@ -602,9 +617,7 @@ final class SuggestionCoordinator {
         // The alternatives pass asks about the same line in the same turn, so it is told what the first pass was.
         if let built = await cache.situation(forTurn: turn) { return built }
         // Neither read needs the other, so the walk and the corpus query run side by side.
-        async let walk = cache.surroundings(for: SuggestionMoment.windowKey(of: snapshot)) {
-            await FocusedFieldReader.surroundings()
-        }
+        async let walk = surroundings(of: snapshot, cache: cache)
         async let remembered =
             (try? await store.recent(in: query.surface, limit: SuggestionMoment.recentLinesShown)) ?? []
         let around = await walk
