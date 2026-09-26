@@ -86,19 +86,19 @@ ACTS = ('<div class="acts">' + iconbtn(COPY) + iconbtn(REPEAT) + iconbtn(FLAG)
 # Dictation — today's list, the surface that replaces the old Home.
 # =====================================================================
 DICTATIONS = [
-    ("4:12 PM", "Slack", "#engineering",
+    ("4:12 PM", "Slack",
      "Hey John, I&rsquo;ll probably be about 20 minutes late to the meeting &mdash; the "
      "deployment is still running.", "11s &middot; 21 words", "2 changes", False),
-    ("3:48 PM", "Notes", "Standup",
+    ("3:48 PM", "Notes",
      "Kal ke standup mein main deployment ke baare mein bataunga, abhi staging pe test "
      "chal raha hai.", "9s &middot; 16 words", "1 change", True),
-    ("2:30 PM", "Code", "order_service.py",
+    ("2:30 PM", "Code",
      "Create a function that takes a user ID and returns their most recent order, or None "
      "if they have never ordered.", "14s &middot; 22 words", None, False),
-    ("11:05 AM", "Mail", "Re: Q3 planning",
+    ("11:05 AM", "Mail",
      "Thanks for putting this together &mdash; I have one concern about the timeline on "
      "the migration piece.", "8s &middot; 17 words", None, False),
-    ("9:41 AM", "Slack", "Rahul Menon",
+    ("9:41 AM", "Slack",
      "Bhai ye PR review kar dena aaj shaam tak, warna release slip ho jayega.",
      "6s &middot; 14 words", "1 change", False),
 ]
@@ -106,7 +106,7 @@ DICTATIONS = [
 
 def dictation_rows():
     out = ""
-    for when, app, doc, said, meta, changes, hovered in DICTATIONS:
+    for when, app, said, meta, changes, hovered in DICTATIONS:
         pill = (f'<span class="pill accent" style="margin-left:2px">{changes}</span>'
                 if changes else "")
         out += f"""<div class="drow{' hover' if hovered else ''}">
@@ -114,8 +114,7 @@ def dictation_rows():
             <div class="body">
               <div class="said">{said}</div>
               <div class="meta">{appchip(app)}<span>&middot;</span>
-                <span style="white-space:nowrap">{doc}</span>
-                <span>&middot;</span><span style="white-space:nowrap">{meta}</span>{pill}
+                <span style="white-space:nowrap">{meta}</span>{pill}
                 {ACTS}</div>
             </div>
           </div>"""
@@ -125,27 +124,26 @@ def dictation_rows():
 RAIL = f"""<div style="width: 186px; flex: none; display: flex; flex-direction: column; gap: 9px">
           <div class="card stat" style="padding: 10px 12px">
             <div class="v">1,240</div><div class="k">Words dictated</div>
-            <div class="c">across 34 dictations</div>
+            <div class="c">90 of them today</div>
+          </div>
+          <div class="card stat" style="padding: 10px 12px">
+            <div class="v">6</div><div class="k">Day streak</div>
+            <div class="c">at least &mdash; anything older has been deleted</div>
           </div>
           <div class="card stat" style="padding: 10px 12px">
             <div class="v">131</div><div class="k">Words per minute</div>
             <div class="c">your usual pace is 126</div>
           </div>
           <div class="card stat" style="padding: 10px 12px">
-            <div class="v">97.2%</div><div class="k">Accuracy</div>
+            <div class="v">97.2%</div><div class="k">Left as dictated</div>
             <div style="margin-top: 9px">
               <div class="row" style="gap: 7px; font-size: var(--t-footnote); color: var(--label-2)">
                 <span style="width: 46px">Today</span>
                 <div class="mini" style="flex:1"><i style="width: 97%"></i></div>
               </div>
-              <div class="row" style="gap: 7px; margin-top: 5px; font-size: var(--t-footnote);
-                   color: var(--label-2)">
-                <span style="width: 46px">Baseline</span>
-                <div class="mini" style="flex:1">
-                  <i style="width: 95%; background: var(--label-3)"></i></div>
-              </div>
             </div>
-            <div class="c">Words you kept as written. Your baseline is 94.8%.</div>
+            <div class="c">The share of your words the clean-up left exactly as you said
+              them. It does not say whether they were heard correctly.</div>
           </div>
         </div>"""
 
