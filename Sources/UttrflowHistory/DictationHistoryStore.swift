@@ -15,6 +15,9 @@ public actor DictationHistoryStore {
     /// The file, injected so a test writes into a temporary directory rather than a real history.
     private let file: URL
 
+    /// The file's decoded contents, reread only when the file changed on disk.
+    var cache: CachedStoredList<[DictationRecord]>
+
     /// The most records kept, oldest discarded first.
     private let capacity: Int
 
@@ -24,6 +27,7 @@ public actor DictationHistoryStore {
         capacity: Int = DictationHistoryStore.defaultCapacity
     ) {
         self.file = file
+        self.cache = CachedStoredList(file: file)
         // Clamped because a negative capacity would trap in `prefix`.
         self.capacity = max(0, capacity)
     }
@@ -137,7 +141,7 @@ public actor DictationHistoryStore {
 
     /// Reads the file, setting an unreadable one aside so the next write cannot replace the only copy.
     private func load() -> [DictationRecord] {
-        LocalStore.read([DictationRecord].self, from: file).value ?? []
+        cache.load() ?? []
     }
 
     /// Writes the whole list atomically, or removes the file when nothing is left to keep.
@@ -145,10 +149,13 @@ public actor DictationHistoryStore {
         do {
             guard !records.isEmpty else {
                 try removeFile()
+                cache.remember(nil)
                 return
             }
             try PrivateFile.write(JSONEncoder().encode(records), to: file)
+            cache.remember(records)
         } catch {
+            cache.forget()
             throw .couldNotWrite
         }
     }

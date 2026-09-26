@@ -12,9 +12,13 @@ public actor SnippetStore {
     /// The file, injected so a test writes into a temporary directory rather than real snippets.
     private let file: URL
 
+    /// The file's decoded contents, reread only when the file changed on disk.
+    var cache: CachedStoredList<[Snippet]>
+
     /// Uses the app's own file unless a test names another.
     public init(file: URL = SnippetStore.defaultFile()) {
         self.file = file
+        self.cache = CachedStoredList(file: file)
     }
 
     /// Where the snippets live, versioned in the name; only a test passes a `directory`.
@@ -108,7 +112,7 @@ public actor SnippetStore {
 
     /// Reads the file, setting an unreadable one aside so the next write cannot replace the only copy.
     private func load() -> [Snippet] {
-        LocalStore.read([Snippet].self, from: file).value ?? []
+        cache.load() ?? []
     }
 
     /// Writes the whole list atomically, or removes the file when nothing is left to keep.
@@ -116,10 +120,13 @@ public actor SnippetStore {
         do {
             guard !snippets.isEmpty else {
                 try removeFile()
+                cache.remember(nil)
                 return
             }
             try PrivateFile.write(JSONEncoder().encode(snippets), to: file)
+            cache.remember(snippets)
         } catch {
+            cache.forget()
             throw .couldNotWrite
         }
     }

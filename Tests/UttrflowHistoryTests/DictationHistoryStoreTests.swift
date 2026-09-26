@@ -650,3 +650,30 @@ struct HistorySetAsideTests {
         }
     }
 }
+
+@Suite("Holding the history in memory between calls")
+struct DictationHistoryCacheTests {
+    @Test("A dictation's worth of calls decodes the file once, and a write keeps it warm")
+    func readsOnce() async throws {
+        let sandbox = Sandbox()
+        try await DictationHistoryStore(file: sandbox.file).append(spoken("Seed."), keeping: week)
+        let store = DictationHistoryStore(file: sandbox.file)
+        _ = await store.records(keeping: week)
+        try await store.append(spoken("Next."), keeping: week)
+        _ = await store.records(keeping: week)
+        _ = await store.records(keeping: week)
+        #expect(await store.cache.diskReads == 1)
+        #expect(await store.records(keeping: week).map(\.text) == ["Next.", "Seed."])
+    }
+
+    @Test("Another writer's save is read, not the held copy")
+    func seesOtherWriter() async throws {
+        let sandbox = Sandbox()
+        let store = DictationHistoryStore(file: sandbox.file)
+        try await store.append(spoken("Mine."), keeping: week)
+        try await DictationHistoryStore(file: sandbox.file).append(spoken("Theirs."), keeping: week)
+        #expect(await store.records(keeping: week).map(\.text) == ["Theirs.", "Mine."])
+        try FileManager.default.removeItem(at: sandbox.file)
+        #expect(await store.records(keeping: week).isEmpty)
+    }
+}

@@ -552,3 +552,33 @@ struct DictionarySetAsideTests {
         }
     }
 }
+
+@Suite("Holding the dictionary in memory between calls")
+struct PersonalDictionaryCacheTests {
+    @Test("A counted use rebuilds the index from memory, without decoding the file again")
+    func countsWithoutRereading() async throws {
+        let sandbox = Sandbox()
+        let entry = word("Uttrflow")
+        try sandbox.seed([entry])
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        _ = await store.allEntries()
+        _ = await store.index()
+        try await store.recordUse(of: entry.id)
+        _ = await store.index()
+        #expect(await store.allEntries().first?.timesUsed == 1)
+        #expect(await store.cache.diskReads == 1)
+    }
+
+    @Test("A file replaced on disk is read again, and the index follows it")
+    func seesReplacedFile() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([word("Uttrflow")])
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        _ = await store.index()
+        let replacement = word("Kubernetes")
+        try sandbox.seed([replacement])
+        #expect(await store.allEntries().map(\.word) == ["Kubernetes"])
+        #expect(await store.index() == PhoneticIndex(entries: [replacement]))
+        #expect(await store.cache.diskReads == 2)
+    }
+}
