@@ -121,7 +121,7 @@ final class SuggestionCoordinator {
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
             // A line that was never sent was not a value: a shell and a chat composer learn on Return alone.
             policy: .whereReturnSends)
-        acceptor = SuggestionAcceptor(completion: TextInsertion.completion())
+        acceptor = SuggestionAcceptor(completion: TextInsertion.completion(), focus: AXAccessibilityFocus())
     }
 
     isolated deinit {
