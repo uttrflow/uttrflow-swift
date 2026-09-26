@@ -53,6 +53,7 @@ enum SuggestionMoment {
             document: snapshot.document,
             preceding: snapshot.preceding(maxLength: precedingContextLength),
             windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
+            timedTurnLines: around?.timedTurnLines ?? 0,
             isMultiline: snapshot.role == FocusedFieldSnapshot.proseRole
                 || snapshot.value?.contains(where: \.isNewline) == true)
     }

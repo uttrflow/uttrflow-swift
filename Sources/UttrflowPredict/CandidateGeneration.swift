@@ -14,6 +14,8 @@ public struct GenerationSituation: Sendable, Equatable {
     public let surroundings: String?
     /// The lines this person most recently entered in this field in the Latin alphabet, newest first, which is how they write here.
     public let recentLines: [String]
+    /// How many on-screen elements were nothing but a clock time, evidence of a chat's turns that never reaches the prompt text. See `Docs/predict-context.md`.
+    public let timedTurnLines: Int
     /// Whether the field holds many lines, which is where paragraphs are written rather than commands or searches.
     public let isMultiline: Bool
     /// The whole words the next word must be one of, as the machine lists them; empty when the word may be anything.
@@ -23,7 +25,7 @@ public struct GenerationSituation: Sendable, Equatable {
     public init(
         application: String, field: String? = nil, document: String? = nil, preceding: String? = nil,
         windowTitle: String? = nil, surroundings: String? = nil, recentLines: [String] = [],
-        isMultiline: Bool = false, choices: [String] = []
+        timedTurnLines: Int = 0, isMultiline: Bool = false, choices: [String] = []
     ) {
         self.application = application
         self.field = field
@@ -32,6 +34,7 @@ public struct GenerationSituation: Sendable, Equatable {
         self.windowTitle = windowTitle
         self.surroundings = surroundings
         self.recentLines = recentLines.filter { LatinScript.writes($0) }
+        self.timedTurnLines = timedTurnLines
         self.isMultiline = isMultiline
         self.choices = choices
     }
@@ -48,7 +51,7 @@ public struct GenerationSituation: Sendable, Equatable {
         GenerationSituation(
             application: application, field: field, document: document, preceding: preceding,
             windowTitle: windowTitle, surroundings: surroundings, recentLines: recentLines,
-            isMultiline: isMultiline, choices: choices)
+            timedTurnLines: timedTurnLines, isMultiline: isMultiline, choices: choices)
     }
 }
 

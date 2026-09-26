@@ -24,10 +24,13 @@ public struct Surroundings: Sendable, Equatable {
     public let windowTitle: String?
     /// The visible text around the field, nearest the field last, so the tail is what matters most.
     public let text: String?
+    /// How many on-screen elements were nothing but a clock time, and so vanished from `text` when it was cleaned for the prompt.
+    public let timedTurnLines: Int
 
-    public init(windowTitle: String?, text: String?) {
+    public init(windowTitle: String?, text: String?, timedTurnLines: Int = 0) {
         self.windowTitle = windowTitle
         self.text = text
+        self.timedTurnLines = timedTurnLines
     }
 
     /// How much surrounding text the model is ever shown, which bounds the prompt and the read alike.
@@ -81,7 +84,9 @@ public struct Surroundings: Sendable, Equatable {
         }
         // Farthest first and nearest last, so the tail of the text is what sits closest to the field.
         let joined = levels.reversed().flatMap { $0 }.joined(separator: "\n")
-        return Surroundings(windowTitle: windowTitle, text: joined.isEmpty ? nil : joined)
+        return Surroundings(
+            windowTitle: windowTitle, text: joined.isEmpty ? nil : joined,
+            timedTurnLines: walk.clockOnlyElements)
     }
 
     /// One read's running state: how much it has visited and gathered, and when it has to stop.
@@ -100,6 +105,8 @@ public struct Surroundings: Sendable, Equatable {
         let deadline: ContinuousClock.Instant
         var visited = 0
         var gathered = 0
+        /// Elements whose whole text was a clock time, so cleaning them for `text` dropped the line entirely.
+        var clockOnlyElements = 0
 
         init(tree: Tree, window: CGRect?, deadline: ContinuousClock.Instant) {
             self.tree = tree
@@ -144,7 +151,10 @@ public struct Surroundings: Sendable, Equatable {
             guard isOnScreen(element) else { return }
             let role = tree.role(of: element) ?? ""
             guard !skippedRoles.contains(role) else { return }
-            let text = Surroundings.trimmed(tree.text(of: element))
+            let raw = tree.text(of: element)
+            let text = Surroundings.trimmed(raw)
+            // A stamp on its own line, "10:31 AM" beside a name rather than glued to a message, is gone once trimmed.
+            if text == nil, Surroundings.isClockOnly(raw) { clockOnlyElements += 1 }
             // A child that only repeats its container's label, as a sticker row does, adds nothing.
             let said = text.flatMap { Surroundings.repeats($0, in: label) ? nil : $0 }
             // A container's label names what it holds, so it reads before its children whichever way they are walked.
@@ -206,6 +216,15 @@ public struct Surroundings: Sendable, Equatable {
         while let last = clean.last, last.isWhitespace { clean.removeLast() }
         guard !clean.isEmpty else { return nil }
         return String(clean.suffix(maximumCharactersPerElement))
+    }
+
+    /// Whether an element's whole text is nothing but a stamp, the shape `trimmed` then empties out entirely.
+    static func isClockOnly(_ text: String?) -> Bool {
+        guard let text else { return false }
+        var clock = Substring(cleaned(text))
+        while let first = clock.first, first.isWhitespace { clock.removeFirst() }
+        while let last = clock.last, last.isWhitespace { clock.removeLast() }
+        return !clock.isEmpty && Timestamps.isTimestamp(clock)
     }
 
     /// The text without control and direction marks, each run of line breaks and tabs kept as one space between words.
