@@ -60,6 +60,11 @@ public final class KeyInterceptor: Sendable {
         state.armed.store(keys.rawValue, ordering: .relaxed)
     }
 
+    /// Replays the keys held back since the last swallowed keystroke, once that keystroke has been carried out.
+    public func releaseHeldKeys() {
+        state.hold.release()
+    }
+
     /// Creates the tap and gives it a thread with a run loop of its own.
     public func start() throws(KeyInterceptorFailure) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
@@ -76,6 +81,7 @@ public final class KeyInterceptor: Sendable {
             tap = nil
         }
         state.armed.store(0, ordering: .relaxed)
+        state.hold.release()
     }
 }
 
@@ -232,6 +238,8 @@ final class TapState: @unchecked Sendable {
 
     /// Which slots are being taken, and the only thing the callback loads.
     let armed = Atomic<UInt32>(0)
+    /// The keys pressed after a taken keystroke, kept back until it has been carried out.
+    let hold = KeyHold()
 
     /// Written by the tap's thread and read by the drain; a slot is written again only once the drain has read it.
     private let ring: UnsafeMutablePointer<UInt32>
@@ -351,6 +359,8 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
     case .keyDown:
         // The feature's own inserted keys reach this tap upstream; passing them through stops the loop.
         guard !SyntheticEvent.isOurs(event) else { return Unmanaged.passUnretained(event) }
+        // A key pressed while a taken keystroke is carried out waits for it, so it cannot overtake an insertion.
+        if state.hold.keep(event) { return nil }
         let stroke = KeyStroke(
             keyCode: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
             modifiers: KeyModifiers(event.flags))
@@ -358,6 +368,7 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
         guard !slot.isEmpty, state.takeIfArmed(slot) else {
             return Unmanaged.passUnretained(event)
         }
+        state.hold.begin()
         return nil
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
         // Not the keystroke path: by the time this runs the system has already stopped delivering.
