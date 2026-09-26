@@ -18,6 +18,13 @@ relies on. `Docs/bakeoff.md` compares the engines; `Docs/offline.md` states the 
   the asset, and a readiness check that consults it, would replace a slow first dictation with
   a dead end. Both of those live outside the module, so the change belongs in one piece.
 - Audio is fed to the analyser in 4096-frame chunks, matching how a live microphone delivers.
+- The asset check and the analyser's audio format are settled once, in `load()`, and again only
+  after a transcription fails. An analyser is finished after one clip, so each piece takes a fresh
+  transcriber and analyser; the next pair is built and given `prepareToAnalyze(in:)` as soon as a
+  piece answers, off the wait for the words. `Docs/performance.md` has the measurement.
+- The analyser has offered 16 kHz mono 16-bit on every Mac measured. When it asks for anything
+  else, `AnalyserInput` converts through `AVAudioConverter`, fed in 2048-frame slices within one
+  conversion so neither the converter's truncation nor its filter delay drops audio.
 - Excluded from the coverage gate: it can only be exercised by real speech.
 
 ## Keeping WhisperKit off the network
