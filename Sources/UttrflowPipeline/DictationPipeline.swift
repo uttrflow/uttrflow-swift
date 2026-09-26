@@ -267,9 +267,10 @@ public actor DictationPipeline {
         await process(audio, mine, delivery: .insert)
     }
 
-    /// Runs a kept recording through the same stages, delivering the words to the clipboard.
-    public func retry(_ recording: UUID) async {
-        guard !isBusy else { return }
+    /// Runs a kept recording through the same stages to the clipboard; false when it never ran or was abandoned.
+    @discardableResult
+    public func retry(_ recording: UUID) async -> Bool {
+        guard !isBusy else { return false }
         // Held while the file is read, so a dictation cannot open the microphone underneath the retry.
         hasTurn = true
         generation += 1
@@ -283,13 +284,13 @@ public actor DictationPipeline {
             await recordings.discard(recording)
             hasTurn = false
             // A cancel during the read leaves the pipeline at rest, so no failure is published over it.
-            guard !wasCancelled(mine) else { return }
+            guard !wasCancelled(mine) else { return false }
             transition(to: .failed(DictationFailure(error)))
-            return
+            return true
         }
         hasTurn = false
         // A cancel during the read abandons the retry before it claims the recording as its own.
-        guard !wasCancelled(mine) else { return }
+        guard !wasCancelled(mine) else { return false }
         stopwatch = nil
         takeSettings()
         spokenFor = audio.duration
@@ -300,6 +301,7 @@ public actor DictationPipeline {
         openRecording = recording
         forgetTheLastAttempt()
         await process(audio, mine, delivery: .copy)
+        return true
     }
 
     /// Clears what one attempt learnt about its words and language, so the next asks afresh.

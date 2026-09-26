@@ -1874,6 +1874,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The recording the pipeline is running again, so its row can say so.
     private var retryingRecording: UUID?
 
+    /// Clears the "Retrying…" badge of a retry the pipeline refused or abandoned.
+    private func dropRetryingBadge(_ id: UUID) {
+        guard retryingRecording == id else { return }
+        retryingRecording = nil
+        redrawMainWindow()
+    }
+
     /// The last answer each gate gave; absent means unchecked, which the pages draw as silence.
     private var knownPermissions: [PermissionKind: PermissionStatus] = [:]
 
@@ -1922,7 +1929,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .retryRecording(let id):
             retryingRecording = id
             redrawMainWindow()
-            Task { [weak self] in await self?.pipeline?.retry(id) }
+            Task { [weak self] in
+                guard let self, await self.pipeline?.retry(id) != true else { return }
+                self.dropRetryingBadge(id)
+            }
         case .forgetRecording(let id):
             act { [weak self] in await self?.recordings.discard(id) }
 
