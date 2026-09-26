@@ -865,6 +865,39 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 7c. The Dictation artboards match DictationPresenter's own figures.
+# ---------------------------------------------------------------------------
+#
+# #153 renamed the populated rail's cleanup-ratio tile from "Accuracy" to
+# `DictationPresenter.accuracyTitle`, said plainly that it does not say whether words were
+# heard correctly, and dropped the baseline meter beside it. Nothing tied the design
+# generator to that decision, so #1139 found `Design/_gen_app.py` had drifted back to a
+# 97.2% "Accuracy" tile with a "Baseline" meter row.
+printf '\nDictation artboard contract\n'
+
+if [[ ! -x "$PACKAGE_ROOT/Scripts/design_dictation_contract_audit.py" ]]; then
+    fail "Scripts/design_dictation_contract_audit.py is missing or not executable" \
+        "The audit pins the Dictation rail to DictationPresenter's accuracyTitle and" \
+        "accuracyCaption, and refuses a restored Accuracy label or baseline meter; without" \
+        "it either side can drift and nothing notices."
+else
+    if "$PACKAGE_ROOT/Scripts/design_dictation_contract_audit.py" --self-test; then
+        if "$PACKAGE_ROOT/Scripts/design_dictation_contract_audit.py" >&2; then
+            pass "the Dictation rail matches DictationPresenter, with no Accuracy label or baseline meter"
+        else
+            fail "the Dictation rail disagrees with DictationPresenter" \
+                "The audit prints which title, caption or retired label broke. Update" \
+                "Design/_gen_app.py's Dictation section to match, then regenerate both" \
+                "Main-Dictation artboards."
+        fi
+    else
+        fail "Scripts/design_dictation_contract_audit.py --self-test failed" \
+            "The audit's own self-test could not resolve a known-good fixture or catch a" \
+            "known regression, so the parser is broken. Fix the audit, not the artboard."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # 8. CLAUDE.md, if it exists, delegates to AGENTS.md by import or symlink.
 # ---------------------------------------------------------------------------
 #
