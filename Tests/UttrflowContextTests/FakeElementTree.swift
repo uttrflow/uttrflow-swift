@@ -21,13 +21,22 @@ final class VisitCounter {
     var count = 0
 }
 
+/// Which nodes a read asked for their text, which is the one question that can copy a whole document.
+final class TextReadLog {
+    var ids: [Int] = []
+}
+
 /// The tree the collector walks, with parents found by search since a fixture has no back-pointers.
 struct FakeTree: ElementTree {
     let root: Node
     var visits: VisitCounter? = nil
+    var textReads: TextReadLog? = nil
 
     func role(of element: Node) -> String? { element.role }
-    func text(of element: Node) -> String? { element.text }
+    func text(of element: Node) -> String? {
+        textReads?.ids.append(element.id)
+        return element.text
+    }
     func children(of element: Node) -> [Node] { element.children }
     /// A hidden node reports no size, which is how a collapsed pane's text looks through Accessibility.
     func frame(of element: Node) -> CGRect? {
