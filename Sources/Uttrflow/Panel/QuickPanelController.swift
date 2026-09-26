@@ -193,9 +193,13 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     private func draw() {
         hostingView.rootView = QuickPanelView(
             presentation: presentation,
-            onKey: { [weak self] key in self?.relay(key) },
-            onIntent: { [weak self] intent in self?.onIntent?(intent, self?.caretOwner) },
-            openCount: openCount)
+            onKey: keyRelay, onIntent: intentRelay, openCount: openCount)
+    }
+
+    /// Made once, so every root the panel draws carries the same callbacks.
+    private lazy var keyRelay: (PanelKey) -> Void = { [weak self] key in self?.relay(key) }
+    private lazy var intentRelay: (PanelIntent) -> Void = { [weak self] intent in
+        self?.onIntent?(intent, self?.caretOwner)
     }
 
     private func postNewAnnouncements(_ lines: [String]) {
