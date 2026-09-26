@@ -64,16 +64,36 @@ public struct KeychainTokenStore: TokenStore {
         return nil
     }
 
-    /// Deletes then adds in the first keychain that takes it, and throws when neither does; never silent.
+    /// Writes to the first keychain that takes it, then removes the other copy; a failed write deletes nothing.
     public func store(_ refreshToken: String) throws(AccountError) {
-        clear()
-        for keychain in Keychain.allCases {
-            guard var insert = query(keychain) else { continue }
-            insert[kSecValueData as String] = Data(refreshToken.utf8)
-            insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            if SecItemAdd(insert as CFDictionary, nil) == errSecSuccess { return }
+        let data = Data(refreshToken.utf8)
+        for keychain in Keychain.allCases where write(data, to: keychain) {
+            for other in Keychain.allCases where other != keychain {
+                guard let query = query(other) else { continue }
+                _ = SecItemDelete(query as CFDictionary)
+            }
+            return
         }
         throw .sessionCouldNotBeKept
+    }
+
+    /// Replaces the item in `keychain`, or adds it when there is none, and says whether either worked.
+    private func write(_ data: Data, to keychain: Keychain) -> Bool {
+        guard let query = query(keychain) else { return false }
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]
+        switch SecItemUpdate(query as CFDictionary, attributes as CFDictionary) {
+        case errSecSuccess:
+            return true
+        case errSecItemNotFound:
+            var insert = query
+            insert.merge(attributes) { _, new in new }
+            return SecItemAdd(insert as CFDictionary, nil) == errSecSuccess
+        default:
+            return false
+        }
     }
 
     /// Removes it from both, so a sign-out leaves no live credential in the keychain this build is not using.

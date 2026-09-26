@@ -34,10 +34,13 @@ isolates builds from each other, deliberately, rather than migrating a session b
 A Developer ID build never reaches the fallback: it has a team identifier, so the
 data-protection keychain takes the token on the first attempt.
 
-## Delete then add, not `SecItemUpdate`
+## Write first, delete the other copy after
 
-Rotation happens hourly. An update that misses leaves the previous token behind, which is
-a live credential nobody is tracking any more.
+Rotation happens hourly, and by the time `store` runs the server has already invalidated the
+token being replaced. So `store` never deletes before a write is confirmed: it updates the
+item in the first keychain that takes it (adding one when there is none), and only then
+removes the copy in the other keychain, so no untracked live credential is left behind.
+A write that fails in both keychains throws and leaves whatever was stored untouched.
 
 ## Why the file-based item is named after this build
 
@@ -53,8 +56,7 @@ builds of one bundle sharing an item:
     add    -25299  errSecDuplicateItem
 
 One shared name is therefore a trap. The first build to sign in owns the item for ever;
-every later build is refused all three operations, and because `store` deletes before
-adding and the delete is refused too, every later sign-in ends in
+every later build is refused all three operations, and because the write is refused, every later sign-in ends in
 `AccountError.sessionCouldNotBeKept` with no way out but deleting the item by hand in
 Keychain Access. Suppressing the dialog is not on offer: `SecKeychainSetUserInteractionAllowed`
 is the switch for it, it is deprecated, and this package compiles warnings as errors.
