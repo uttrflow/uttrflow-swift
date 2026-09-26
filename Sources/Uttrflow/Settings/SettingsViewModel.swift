@@ -61,6 +61,13 @@ final class SettingsViewModel {
         }
     }
 
+    /// Moves to `tab`, first ending any shortcut recording, since the field that owns it goes with the old tab.
+    func select(_ tab: SettingsTab) {
+        guard tab != session.tab else { return }
+        cancelRecordingShortcut()
+        session.tab = tab
+    }
+
     /// A local recorder owns only the Settings window; leaving that surface ends the attempt.
     func shortcutRecordingSurfaceDidLoseFocus() {
         cancelRecordingShortcut()

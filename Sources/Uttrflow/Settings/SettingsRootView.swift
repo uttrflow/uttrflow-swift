@@ -85,9 +85,7 @@ struct SettingsRootView: View {
 
     private func tab(_ item: SettingsTabItem, isSelected: Bool) -> some View {
         Button {
-            guard item.tab != model.session.tab else { return }
-            model.cancelRecordingShortcut()
-            model.session.tab = item.tab
+            model.select(item.tab)
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: item.symbolName)
