@@ -194,7 +194,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Answers a waiting caller once any dictation finished so far has been inserted, without holding the queue.
     private func answer(_ handled: CheckedContinuation<Void, Never>) {
         guard let processing else { return handled.resume() }
-        Task { await processing.value; handled.resume() }
+        Task {
+            await processing.value
+            handled.resume()
+        }
     }
 
     /// Closes the microphone and leaves recognition and insertion to run while the next gesture is handled.
