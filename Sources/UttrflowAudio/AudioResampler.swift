@@ -13,10 +13,29 @@ public final class AudioResampler: Sendable {
         interleaved: false
     )
 
+    /// The reused buffers behind the lock below, a class so the lock can guard them without owning a struct of them.
+    private final class Scratch: @unchecked Sendable {
+        /// Reused input slice, sized for the largest chunk this resampler ever takes. See Docs/audio-capture.md.
+        let slice: AVAudioPCMBuffer
+        /// Reused conversion output, sized once for the largest chunk this resampler ever produces.
+        let output: AVAudioPCMBuffer
+
+        init(slice: AVAudioPCMBuffer, output: AVAudioPCMBuffer) {
+            self.slice = slice
+            self.output = output
+        }
+    }
+
     // AVAudioConverter is stateful and not thread-safe; the lock makes that safe rather than lucky.
     private let converter: Mutex<AVAudioConverter>
+    /// Only ever touched while `converter`'s lock is held, so reuse across calls never races the tap.
+    private let scratch: Scratch
     private let inputFormat: AVAudioFormat
     private let outputFormat: AVAudioFormat
+    private let ratio: Double
+
+    /// The most input frames fed to the converter at once; more is truncated. See Docs/audio-capture.md.
+    private static let maxFramesPerConversion: AVAudioFrameCount = 2048
 
     /// Creates a resampler for one input format, or `nil` when the system cannot convert it.
     public init?(inputFormat: AVAudioFormat) {
@@ -29,47 +48,70 @@ public final class AudioResampler: Sendable {
             converter.channelMap = [0]
         }
 
+        let ratio = outputFormat.sampleRate / inputFormat.sampleRate
+        let outputCapacity =
+            AVAudioFrameCount((Double(Self.maxFramesPerConversion) * ratio).rounded(.up)) + 64
+        guard
+            let slice = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: Self.maxFramesPerConversion),
+            let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: outputCapacity)
+        else { return nil }
+
         self.inputFormat = inputFormat
         self.outputFormat = outputFormat
+        self.ratio = ratio
         self.converter = Mutex(converter)
+        self.scratch = Scratch(slice: slice, output: output)
     }
-
-    /// The most input frames fed to the converter at once; more is truncated. See Docs/audio-capture.md.
-    private static let maxFramesPerConversion: AVAudioFrameCount = 2048
 
     /// Converts one buffer. Returns an empty array for an empty input.
     public func resample(_ buffer: AVAudioPCMBuffer) throws(AudioCaptureError) -> [Float] {
         guard buffer.frameLength > 0 else { return [] }
 
-        let ratio = outputFormat.sampleRate / inputFormat.sampleRate
         var converted: [Float] = []
         converted.reserveCapacity(Int((Double(buffer.frameLength) * ratio).rounded(.up)) + 1)
 
         var offset: AVAudioFrameCount = 0
         while offset < buffer.frameLength {
             let frames = Swift.min(Self.maxFramesPerConversion, buffer.frameLength - offset)
-            guard let slice = Self.slice(buffer, from: offset, frames: frames) else {
-                throw .unsupportedInputFormat
-            }
-            converted.append(contentsOf: try convertWhole(slice, ratio: ratio))
+            converted.append(contentsOf: try convert(buffer, from: offset, frames: frames))
             offset += frames
         }
         return converted
     }
 
-    private func convertWhole(
-        _ buffer: AVAudioPCMBuffer, ratio: Double
+    /// Converts one chunk, reusing this resampler's own buffers when the source is in its own format.
+    private func convert(
+        _ buffer: AVAudioPCMBuffer, from offset: AVAudioFrameCount, frames: AVAudioFrameCount
     ) throws(AudioCaptureError) -> [Float] {
-        let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up)) + 64
+        // The tap always hands back its own format; this is the path the callback thread actually takes.
+        if buffer.format == inputFormat {
+            return try converter.withLock { converter throws(AudioCaptureError) -> [Float] in
+                guard Self.fill(scratch.slice, from: buffer, offset: offset, frames: frames) else {
+                    throw .unsupportedInputFormat
+                }
+                return try Self.convertWhole(scratch.slice, into: scratch.output, using: converter)
+            }
+        }
+        // Only a buffer in a format this resampler was not built for reaches here, which never happens on the tap.
+        guard let slice = Self.slice(buffer, from: offset, frames: frames) else {
+            throw .unsupportedInputFormat
+        }
+        let capacity = AVAudioFrameCount((Double(frames) * ratio).rounded(.up)) + 64
         guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else {
             throw .unsupportedInputFormat
         }
-
-        var conversionError: NSError?
-        let input = ConversionInput(buffer)
-        let status = converter.withLock { converter in
-            converter.convert(to: output, error: &conversionError, withInputFrom: input.next)
+        return try converter.withLock { converter throws(AudioCaptureError) -> [Float] in
+            try Self.convertWhole(slice, into: output, using: converter)
         }
+    }
+
+    private static func convertWhole(
+        _ input: AVAudioPCMBuffer, into output: AVAudioPCMBuffer, using converter: AVAudioConverter
+    ) throws(AudioCaptureError) -> [Float] {
+        output.frameLength = 0
+        var conversionError: NSError?
+        let feed = ConversionInput(input)
+        let status = converter.convert(to: output, error: &conversionError, withInputFrom: feed.next)
 
         switch status {
         case .haveData, .inputRanDry, .endOfStream:
@@ -82,6 +124,27 @@ public final class AudioResampler: Sendable {
 
         guard let channel = output.floatChannelData?.pointee else { return [] }
         return Array(UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+    }
+
+    /// Copies `frames` from `offset` of `source` into `destination` in place, off the raw buffer list so any layout is right.
+    private static func fill(
+        _ destination: AVAudioPCMBuffer, from source: AVAudioPCMBuffer,
+        offset: AVAudioFrameCount, frames: AVAudioFrameCount
+    ) -> Bool {
+        destination.frameLength = frames
+        let from = UnsafeMutableAudioBufferListPointer(source.mutableAudioBufferList)
+        let into = UnsafeMutableAudioBufferListPointer(destination.mutableAudioBufferList)
+        guard from.count == into.count else { return false }
+
+        for index in 0..<from.count {
+            guard let src = from[index].mData, let dst = into[index].mData else { return false }
+            let bytesPerFrame = Int(from[index].mDataByteSize) / Int(source.frameLength)
+            dst.copyMemory(
+                from: src.advanced(by: Int(offset) * bytesPerFrame),
+                byteCount: Int(frames) * bytesPerFrame
+            )
+        }
+        return true
     }
 
     /// Copies `frames` from `offset` into a new buffer, off the raw buffer list so any layout is right.

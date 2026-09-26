@@ -23,6 +23,12 @@ the one-line comments. `Docs/microphone.md` covers the hardware moving under the
   lock makes that safe rather than merely true today. Its input block is declared `@Sendable`
   but is called synchronously before `convert` returns and never escapes, which is why
   `ConversionInput` is `@unchecked Sendable`.
+- The 2048-frame slice and the conversion output are each one buffer, allocated once at
+  `AudioResampler.init` and reused for every callback, on the path a buffer already in the
+  resampler's own format takes — which is the only path the tap ever exercises. What still
+  allocates on that path is the `[Float]` the sink is handed, since that is the callback's
+  public contract; a buffer in a different format (never produced by the tap; only a misuse
+  test constructs one) still allocates its own scratch rather than corrupt the reused pair.
 
 ## Microphone access is read before the engine, not after it
 
