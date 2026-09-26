@@ -118,6 +118,11 @@ offline-test: ## Prove the offline audit still refuses every way of reaching the
 docs-audit: ## Prove the documentation still describes this tree, including that CLAUDE.md delegates to AGENTS.md. Needs no build.
 	./Scripts/docs_audit.sh --self-test
 
+.PHONY: design-audit
+design-audit: ## Prove every Design/_gen_*.py script still reproduces its checked-in artifact. Needs no build.
+	python3 Scripts/design_audit.py --self-test
+	python3 Scripts/design_audit.py
+
 .PHONY: pii-audit
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
 	./Scripts/pii_audit.sh
@@ -198,7 +203,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit disclosure-audit issue-template-audit docs-audit comment-audit match-audit ratchet-test range-test hits-test hook-test pre-push-test update-feed-test entitlement-gate-test issue-template-test uitest-arguments uitest-result-path log-audit store-permissions pasteboard-audit bundle-requirement-test bundle-test release-tag-test provider-mark-test release-order-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget lint build coverage offline-audit ## The whole gate: PII, disclosure, issue template prompts, docs, comments, word matches, log privacy, clipboard, bundle signing, packaging checks, release tags, release stage order, publish resumability, publish cleanup, offline tokenizer gate, coverage exclusions, energy and memory budget, lint, build, tests, coverage floor, offline audit.
+verify: pii-audit disclosure-audit issue-template-audit docs-audit design-audit comment-audit match-audit ratchet-test range-test hits-test hook-test pre-push-test update-feed-test entitlement-gate-test issue-template-test uitest-arguments uitest-result-path log-audit store-permissions pasteboard-audit bundle-requirement-test bundle-test release-tag-test provider-mark-test release-order-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget lint build coverage offline-audit ## The whole gate: PII, disclosure, issue template prompts, docs, design generators, comments, word matches, log privacy, clipboard, bundle signing, packaging checks, release tags, release stage order, publish resumability, publish cleanup, offline tokenizer gate, coverage exclusions, energy and memory budget, lint, build, tests, coverage floor, offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
