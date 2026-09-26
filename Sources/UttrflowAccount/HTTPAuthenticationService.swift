@@ -532,6 +532,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
     /// Clears the tokens and moves the generation on, under the session lock `state` is borrowed from.
     private func endSession(_ state: inout Session) {
         state.generation += 1
+        state.renewal?.cancel()
         state.renewal = nil
         state.ambiguousRefresh = nil
         tokens.clear()

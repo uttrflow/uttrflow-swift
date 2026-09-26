@@ -709,6 +709,8 @@ private final class RotatingServer: BackendTransport {
         var released = false
         /// Refreshes waiting on `release()`.
         var held: [CheckedContinuation<Void, Never>] = []
+        /// How many refreshes were cancelled by the time they were let go.
+        var cancelled = 0
     }
 
     /// The profile `/me` answers with.
@@ -723,6 +725,9 @@ private final class RotatingServer: BackendTransport {
 
     /// How many refreshes have arrived.
     var refreshes: Int { state.withLock { $0.spent.count } }
+
+    /// How many refreshes were cancelled by the time they were let go.
+    var cancelledRefreshes: Int { state.withLock { $0.cancelled } }
 
     /// Lets every held refresh, and every later one, through.
     func release() {
@@ -753,6 +758,7 @@ private final class RotatingServer: BackendTransport {
                 }
                 if !wait { continuation.resume() }
             }
+            if Task.isCancelled { state.withLock { $0.cancelled += 1 } }
             return state.withLock { state -> BackendResponse in
                 guard token == state.live else { return BackendResponse(status: 401) }
                 state.issued += 1
@@ -818,6 +824,21 @@ struct SharedRenewalTests {
         #expect(try await read.value == .noCredential)
         #expect(tokens.refreshToken() == nil)
         #expect(await service.avatar(at: "/v1/me/avatar") == nil)
+    }
+
+    /// Signing out cancels the renewal in flight rather than leaving it to spend a revoked token.
+    @Test("cancels a renewal in flight when the Mac signs out")
+    func signOutCancelsTheRenewal() async throws {
+        let server = RotatingServer(profile: signedIn)
+        let service = service(server, tokens: InMemoryTokenStore(refreshToken: "old-example"))
+
+        let read = Task { try await service.currentProfile(ifChangedFrom: nil) }
+        await server.waitForRefreshes(1)
+        await service.signOut()
+        server.release()
+
+        #expect(try await read.value == .noCredential)
+        #expect(server.cancelledRefreshes == 1)
     }
 
     /// A refusal for a session already ended is not a second sign-out for whatever came after it.
