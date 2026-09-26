@@ -55,10 +55,12 @@ public enum FocusedFieldReader {
     }
 
     /// The frontmost application's identity, read on the main thread the one place `NSWorkspace` allows.
+    /// `nil` when Uttrflow's own window is frontmost, so its own AX tree is never walked off the main actor.
     @MainActor
     public static func frontmostApp() -> FrontmostApp? {
         guard let app = NSWorkspace.shared.frontmostApplication,
-            let bundleIdentifier = app.bundleIdentifier
+            let bundleIdentifier = app.bundleIdentifier,
+            bundleIdentifier != Bundle.main.bundleIdentifier
         else { return nil }
         // Some applications pad their name with control and direction marks, which would reach the model verbatim.
         let name = Surroundings.cleaned(app.localizedName ?? bundleIdentifier)
