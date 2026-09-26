@@ -367,24 +367,32 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 # the pre-push hook runs `make verify` for main; CI runs it once more on the PR
 git push -u origin <name>
 gh pr create --base main --head <name>
-# Keep this worktree and both feature-branch refs while the pull request is open.
 ```
 
-Do not clean up from a successful push, from `gh pr create`, or from `git branch -d`
-returning zero. A local branch can be "merged" to its upstream and still not be in `main`,
-which means deleting the worktree and branch would leave an open pull request with no head
-branch to update when CI or review asks for a repair.
+**Remote branches are never deleted, merged or not.** `origin/<name>` is the pull request's
+source ref for as long as the pull request exists, open or merged, and deleting it is how a
+branch stops being reconstructible. Once `origin/<name>` exists, the local worktree and local
+branch are disposable: `origin/<name>` alone is enough to pick the work back up.
 
-Only after GitHub says the pull request is merged:
+So, once `git push -u origin <name>` and `gh pr create` have both succeeded, the local
+worktree and local branch may be removed right away — there is no need to wait for merge:
 
 ```bash
-pr=<number>
-gh pr view "$pr" --json mergedAt --jq 'select(.mergedAt != null) | .mergedAt'
-# Continue only if the command printed a merge timestamp.
 cd -                                                              # back to the main checkout
 git worktree remove .claude/worktrees/<name>
 git branch -d <name> 2>/dev/null || git branch -D <name>
-git push origin --delete <name>
+# no `git push origin --delete` — the remote branch stays, always
+```
+
+If CI fails or review asks for a change after that cleanup, re-fetch the same ref rather than
+opening a new branch or a new pull request:
+
+```bash
+git fetch origin
+git worktree add .claude/worktrees/<name> origin/<name>
+cd .claude/worktrees/<name>
+… fix, commit, `make verify` …
+git push origin <name>
 ```
 
 The isolation is the point, and it is not bureaucracy: more than one agent works in this
@@ -414,12 +422,16 @@ you write down what you would have wanted a reviewer to know: what was measured,
 was assumed, and what you are least sure of. A merge that ends the conversation is worse
 than no merge at all.
 
-**Clear the worktree the moment the work is merged, never while the pull request is still
-open.** First prove the merge with `gh pr view <pr> --json mergedAt --jq 'select(.mergedAt
-!= null) | .mergedAt'`; only then `git worktree remove` and delete the branch. Four stale
-worktrees once sat holding pre-rename copies of the whole tree, and an abandoned one is
-indistinguishable from work in progress to the next session that finds it.
-`.claude/worktrees/` is gitignored, so nothing warns you.
+**Clear the local worktree and local branch as soon as the pull request is open** — pushed to
+`origin/<name>` and created with `gh pr create` — rather than waiting on merge; the remote
+branch is what keeps the work reachable, not the local copies. Four stale worktrees once sat
+holding pre-rename copies of the whole tree, and an abandoned one is indistinguishable from
+work in progress to the next session that finds it. `.claude/worktrees/` is gitignored, so
+nothing warns you.
+
+**The remote branch itself is never deleted, before or after merge.** It costs nothing to
+leave it, and it is the one ref that survives every local cleanup — if CI or a reviewer asks
+for a repair, re-fetch it into a fresh worktree (see above) instead of opening a new branch.
 
 `sasta-trader` is a different project and does not follow any of this.
 
