@@ -78,8 +78,17 @@ public actor SystemLoopbackListener: LoopbackListening {
         if let received { return received }
 
         do {
-            return try await withCheckedThrowingContinuation { continuation in
-                waiting = continuation
+            return try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    // A task cancelled before this point has already run its handler, so it is refused here.
+                    guard !Task.isCancelled else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
+                    waiting = continuation
+                }
+            } onCancel: {
+                Task { await self.close() }
             }
         } catch {
             throw Self.noAnswer
