@@ -14,6 +14,14 @@ struct KeyStrokeTests {
         #expect(Key(keyCode: keyCode) == key)
     }
 
+    @Test("Every key this feature takes names the code that presses it again.")
+    func keyCodesRoundTrip() {
+        for key in Key.allCases where key != .other {
+            #expect(key.keyCode.map(Key.init(keyCode:)) == key)
+        }
+        #expect(Key.other.keyCode == nil)
+    }
+
     @Test("Every other key is one this feature has no opinion about.")
     func everythingElseIsOther() {
         #expect(Key(keyCode: 0) == .other)

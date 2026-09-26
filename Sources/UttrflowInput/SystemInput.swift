@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 public import Foundation
 public import UttrflowCore
-import UttrflowPredict
+public import UttrflowPredict
 
 /// The real clipboard, untestable by construction and so excluded from the coverage gate.
 public struct SystemPasteboard: Pasteboard {
@@ -294,4 +294,20 @@ private func rangeAttribute(_ name: String, of element: AXUIElement) -> CFRange?
         return nil
     }
     return range
+}
+
+/// Posts a keystroke the tap took and the session refused, tagged so neither the tap nor the monitor takes it again.
+public enum KeyStrokeReturn {
+    /// Presses the stroke's key with its modifiers in the focused application.
+    public static func post(_ stroke: UttrflowPredict.KeyStroke) {
+        guard let keyCode = stroke.key.keyCode,
+            let source = CGEventSource(stateID: .hidSystemState)
+        else { return }
+        var flags = CGEventFlags()
+        if stroke.modifiers.contains(.command) { flags.insert(.maskCommand) }
+        if stroke.modifiers.contains(.option) { flags.insert(.maskAlternate) }
+        if stroke.modifiers.contains(.control) { flags.insert(.maskControl) }
+        if stroke.modifiers.contains(.shift) { flags.insert(.maskShift) }
+        try? postTaggedKeyPair(from: source, keyCode: CGKeyCode(keyCode)) { $0.flags = flags }
+    }
 }

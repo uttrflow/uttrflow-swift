@@ -294,7 +294,8 @@ private struct Script {
                 retire()
                 settled(update, generated: false)
             }
-        case .nothing:
+        case .giveBack(let returned):
+            #expect(returned == stroke)
             #expect(!armed)
             #expect(session.suggestion == before)
         }

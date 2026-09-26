@@ -734,8 +734,8 @@ final class SuggestionCoordinator {
                 wake(.tick, afterMilliseconds: 80)
             case .redraw(let update):
                 draw(update, in: lastSnapshot)
-            case .nothing:
-                break
+            case .giveBack(let refused):
+                KeyStrokeReturn.post(refused)
             }
             // ⌥⎋ turns the feature off everywhere; persist it so the switch agrees and a later enable rebuilds this.
             if !session.isEnabled {
@@ -769,7 +769,7 @@ final class SuggestionCoordinator {
         switch action {
         case .accept: "accept"
         case .redraw: "redraw"
-        case .nothing: "nothing"
+        case .giveBack: "giveBack"
         }
     }
 
