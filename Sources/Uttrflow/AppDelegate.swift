@@ -175,6 +175,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// The panel's state while it is open, held here because a window has no memory.
     private var panel: PanelSnapshot?
+    /// Counts Format presses, so only the latest run's result may open its sheet.
+    private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
     private var panelReads = 0
     private var clipboardWatchTask: Task<Void, Never>?
@@ -1079,9 +1081,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             closeAfterReading()
         case .copyImageAndSay(let clip, let notice):
+            let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
             Task { [weak self] in
                 guard let self else { return }
                 let copied = await putImageOnClipboard(clip)
+                guard owner.isSameOpen(panel, opens: quickPanel.opens) else { return }
                 // A picture that went between the draw and the keypress is said, never claimed as copied.
                 panel?.notice = copied ? notice : Self.pictureMissingNotice(clip)
                 if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
@@ -1108,6 +1112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Carries out a change and redraws from what the store hands back, never from what was asked.
     private func apply(_ change: PanelChange) {
+        let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
         Task {
             do {
                 try await carryOut(change)
@@ -1115,6 +1120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // F10 — stays open holding the failure, which must look different from a success.
                 Self.log.error(
                     "clipboard write refused: \(failure.userMessage, privacy: .public)")
+                guard owner.isSameOpen(panel, opens: quickPanel.opens) else { return }
                 panel?.notice = .writeFailed(failure.userMessage)
             }
             await refreshPanelIfOpen()
@@ -1236,6 +1242,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func runFormatter(on id: Clip.ID) {
         guard let clip = panel?.clips.first(where: { $0.id == id }), let language = clip.language
         else { return }
+        formatterRuns += 1
+        let request = PanelFormatRequest(
+            owner: PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet),
+            clip: id, text: clip.text, run: formatterRuns)
 
         Task { [formatter] in
             guard let produced = await formatter.format(clip.text, as: language) else {
@@ -1250,6 +1260,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 return
             }
             guard produced != clip.text else { return }
+            // A panel closed, reopened, re-sheeted, edited or formatted again since is left alone.
+            guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns)
+            else { return }
             panel?.sheet = .formatting(id, formatted: produced)
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         }
