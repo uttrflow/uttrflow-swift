@@ -82,6 +82,8 @@ final class SuggestionCoordinator {
     private var ticking = SuggestionTicking()
     private var swallowed: Task<Void, Never>?
     private var lastReading: FieldReading?
+    /// The line capture was last handed as a keystroke, and the field it was in, so a Return can catch up what it displaced.
+    private var handed: (line: String, reading: FieldReading)?
     /// The last field read, so the highlight can move without reading anything again.
     private var lastSnapshot: FocusedFieldSnapshot?
     private var lastKeystroke = Date.distantPast
@@ -653,8 +655,19 @@ final class SuggestionCoordinator {
         if case .applicationChanged = reason, let leaving = lastReading, leaving != reading {
             _ = try? await capture.handle(.applicationDeactivated(at: moment), in: leaving)
         }
-        let event = reason.event(holding: snapshot.learnableLine, at: moment)
-        guard let outcome = try? await capture.handle(event, in: reading) else { return }
+        let line = snapshot.learnableLine
+        let events: [CaptureEvent]
+        if case .returnPressed = reason {
+            let prior = handed.flatMap { $0.reading == reading ? $0.line : nil } ?? ""
+            events = ReturnCatchUp.events(read: line, handed: prior, at: moment)
+            handed = nil
+        } else {
+            events = [reason.event(holding: line, at: moment)]
+            if case .keystroke = events[0] { handed = (line, reading) }
+        }
+        var outcome: CaptureOutcome?
+        for event in events { outcome = try? await capture.handle(event, in: reading) }
+        guard let outcome else { return }
         guard case .refused(let refusal) = outcome, refusal.asksTheUser else { return }
         // The Suggestions screen has already said yes to this application, so the capture store is told so.
         Task { [capture] in try? await capture.record(.allowed, for: snapshot.bundleIdentifier) }
