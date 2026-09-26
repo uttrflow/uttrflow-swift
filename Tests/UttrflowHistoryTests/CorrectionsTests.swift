@@ -447,3 +447,72 @@ struct RecordedChangesDecodingTests {
         #expect(decoded.spokenWords == 12)
     }
 }
+
+/// Undo by where the pipeline found the word in the stored, tidied text.
+@Suite("Undoing a correction the tidier moved")
+struct UndoingAMovedCorrectionTests {
+    /// A record of `text` with one correction of "tarvock" written as "Tarvok".
+    private func record(_ text: String, range: Range<Int>, at index: Int?) -> (DictationRecord, UUID) {
+        let change = RecordedCorrection(
+            heard: "tarvock", wrote: "Tarvok", wordRange: range, entryID: UUID(), reason: .seenOnScreen,
+            heardConfidence: 0.3, writtenWordIndex: index)
+        return (said(text, changes: RecordedChanges(corrections: [change])), change.id)
+    }
+
+    @Test("A filler removed before the word no longer stops the undo")
+    func fillerBefore() {
+        let (dictation, id) = record("Send it to Tarvok", range: 4..<5, at: 3)
+        #expect(dictation.undoing(id)?.record.text == "Send it to tarvock")
+    }
+
+    @Test("A self-correction dropped before the word no longer stops the undo")
+    func selfCorrectionBefore() {
+        let (dictation, id) = record("Send it to Tarvok now", range: 6..<7, at: 3)
+        #expect(dictation.undoing(id)?.record.text == "Send it to tarvock now")
+    }
+
+    @Test("A numeral merged before the word no longer stops the undo")
+    func numeralBefore() {
+        let (dictation, id) = record("25 for Tarvok", range: 3..<4, at: 2)
+        #expect(dictation.undoing(id)?.record.text == "25 for tarvock")
+    }
+
+    @Test("A snippet expanded before the word no longer stops the undo")
+    func snippetBefore() {
+        let (dictation, id) = record("Kind regards, Sam Tarvok", range: 2..<3, at: 3)
+        #expect(dictation.undoing(id)?.record.text == "Kind regards, Sam tarvock")
+    }
+
+    @Test("Text that does not hold the written word there is still left alone, and the change marked")
+    func mismatchLeftAlone() {
+        let (dictation, id) = record("Send it to Travok", range: 4..<5, at: 3)
+        let undone = dictation.undoing(id)
+        #expect(undone?.record.text == "Send it to Travok")
+        #expect(undone?.record.changes?.corrections.first?.isUndone == true)
+    }
+
+    @Test("An earlier change already undone shifts a later one by the words it gave back")
+    func earlierUndoShifts() {
+        let first = RecordedCorrection(
+            heard: "pay sheet", wrote: "PaymentSheet", wordRange: 1..<3, entryID: UUID(),
+            reason: .seenOnScreen, heardConfidence: 0.3, isUndone: true, writtenWordIndex: 0)
+        let second = RecordedCorrection(
+            heard: "tarvock", wrote: "Tarvok", wordRange: 5..<6, entryID: UUID(), reason: .seenOnScreen,
+            heardConfidence: 0.3, writtenWordIndex: 3)
+        let dictation = said(
+            "pay sheet for the Tarvok", changes: RecordedChanges(corrections: [first, second]))
+        #expect(dictation.undoing(second.id)?.record.text == "pay sheet for the tarvock")
+    }
+
+    @Test("A record from before the index was kept decodes as not knowing it")
+    func decodesWithoutIndex() throws {
+        let change = RecordedCorrection(
+            heard: "a", wrote: "B", wordRange: 0..<1, entryID: UUID(), reason: .seenOnScreen,
+            heardConfidence: 0.3)
+        var object = try #require(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(change)) as? [String: Any])
+        object["writtenWordIndex"] = nil
+        let data = try JSONSerialization.data(withJSONObject: object)
+        #expect(try JSONDecoder().decode(RecordedCorrection.self, from: data).writtenWordIndex == nil)
+    }
+}

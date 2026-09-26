@@ -226,3 +226,59 @@ struct NoTextChangesTests {
         try await learner.recordUse(ofSnippets: [UUID()])
     }
 }
+
+/// Where each correction's written words land in the text that is inserted, after tidying and snippets.
+@Suite("Locating corrections in the inserted text")
+struct LocatingCorrectionsTests {
+    /// Finds `wrote` at `range` in `corrected` and returns the index it landed at in `finished`.
+    private func landing(
+        _ wrote: String, at range: Range<Int>, from corrected: String, in finished: String
+    ) -> Int? {
+        DictationCorrection.locating(
+            [correction(heard: "tarvock", wrote: wrote, at: range)], from: corrected, in: finished
+        ).first?.writtenWordIndex
+    }
+
+    @Test("A filler removed before the word moves it one word earlier")
+    func fillerBefore() {
+        #expect(landing("Tarvok", at: 4..<5, from: "um send it to Tarvok", in: "Send it to Tarvok") == 3)
+    }
+
+    @Test("The discarded half of a self-correction moves it back by what was dropped")
+    func selfCorrectionBefore() {
+        #expect(
+            landing(
+                "Tarvok", at: 6..<7, from: "send it to Bob no to Tarvok", in: "Send it to Tarvok.")
+                == 3)
+    }
+
+    @Test("A spoken number written as a numeral moves it back by the words merged")
+    func numeralBefore() {
+        #expect(
+            landing("Tarvok", at: 3..<4, from: "twenty five for Tarvok", in: "25 for Tarvok") == 2)
+    }
+
+    @Test("A snippet expanded into several words moves it forward")
+    func snippetBefore() {
+        #expect(
+            landing(
+                "Tarvok", at: 2..<3, from: "my sign Tarvok", in: "Kind regards, Sam Tarvok")
+                == 3)
+    }
+
+    @Test("Several written words are found together, and a later change is shifted past an earlier one")
+    func severalWords() {
+        let located = DictationCorrection.locating(
+            [
+                correction(heard: "pay sheet", wrote: "PaymentSheet", at: 1..<3),
+                correction(heard: "tarvock", wrote: "Tar Vok", at: 5..<6),
+            ],
+            from: "uh PaymentSheet for the Tar Vok", in: "PaymentSheet for the Tar Vok")
+        #expect(located.map(\.writtenWordIndex) == [0, 3])
+    }
+
+    @Test("A word the tidier rewrote is not located")
+    func rewrittenWord() {
+        #expect(landing("Tarvok", at: 3..<4, from: "send it to Tarvok", in: "Send it to Travok") == nil)
+    }
+}

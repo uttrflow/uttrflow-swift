@@ -553,7 +553,9 @@ public actor DictationPipeline {
         guard !wasCancelled(mine) else { return }
 
         let changes = AppliedChanges(
-            corrections: whole.corrected.corrections, snippets: expanded.snippets,
+            corrections: DictationCorrection.locating(
+                whole.corrected.corrections, from: whole.corrected.text, in: expanded.text),
+            snippets: expanded.snippets,
             entriesTaken: whole.cleaned.entriesTaken,
             // The unrewritten sentence, which is the space the corrections' word ranges index.
             spokenWords: whole.heard.text.spokenWords.count)

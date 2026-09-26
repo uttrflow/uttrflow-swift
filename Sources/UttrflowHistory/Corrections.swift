@@ -41,11 +41,14 @@ public struct RecordedCorrection: Sendable, Equatable, Identifiable, Codable {
     public let heardConfidence: Double
     /// Whether the user has put it back; a flag, not a deletion, so the page can show it and count it.
     public var isUndone: Bool
+    /// Where the written words begin among the stored text's words, or `nil` when that was not known.
+    public let writtenWordIndex: Int?
 
     /// Builds a change whose reason is already named.
     public init(
         id: UUID = UUID(), heard: String, wrote: String, wordRange: Range<Int>, entryID: UUID,
-        reason: CorrectionReason, heardConfidence: Double, isUndone: Bool = false
+        reason: CorrectionReason, heardConfidence: Double, isUndone: Bool = false,
+        writtenWordIndex: Int? = nil
     ) {
         self.id = id
         self.heard = heard
@@ -55,20 +58,22 @@ public struct RecordedCorrection: Sendable, Equatable, Identifiable, Codable {
         self.reason = reason
         self.heardConfidence = heardConfidence
         self.isUndone = isUndone
+        self.writtenWordIndex = writtenWordIndex
     }
 
     /// Builds a change from the raw reason the pipeline carries, or `nil` when this build cannot name it.
     public init?(
         id: UUID = UUID(), heard: String, wrote: String, wordRange: Range<Int>, entryID: UUID,
-        reason: String, heardConfidence: Double, isUndone: Bool = false
+        reason: String, heardConfidence: Double, isUndone: Bool = false, writtenWordIndex: Int? = nil
     ) {
         guard let named = CorrectionReason(rawValue: reason) else { return nil }
         self.init(
             id: id, heard: heard, wrote: wrote, wordRange: wordRange, entryID: entryID,
-            reason: named, heardConfidence: heardConfidence, isUndone: isUndone)
+            reason: named, heardConfidence: heardConfidence, isUndone: isUndone,
+            writtenWordIndex: writtenWordIndex)
     }
 
-    /// Reads `isUndone` as `false` when absent; the rest is required. See Docs/core-history-decoding.md.
+    /// Reads `isUndone` as `false` and `writtenWordIndex` as unknown when absent; the rest is required. See Docs/core-history-decoding.md.
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(UUID.self, forKey: .id)
@@ -80,6 +85,7 @@ public struct RecordedCorrection: Sendable, Equatable, Identifiable, Codable {
         heardConfidence = try values.decode(Double.self, forKey: .heardConfidence)
         // A file without the flag and a change nobody undid are the same fact.
         isUndone = try values.decodeIfPresent(Bool.self, forKey: .isUndone) ?? false
+        writtenWordIndex = try values.decodeIfPresent(Int.self, forKey: .writtenWordIndex)
     }
 }
 
