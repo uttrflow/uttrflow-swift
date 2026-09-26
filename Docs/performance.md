@@ -1466,6 +1466,19 @@ after a restart, add `--no-prewarm` after the next one, and watch `ANECompilerSe
 - **A shorter vocabulary prompt.** The cost above is real and so is the accuracy it buys; trading
   one for the other wants measuring on vocabularies of the size people keep.
 
+## The system recogniser, per piece
+
+Measured on an Apple M5 Pro, macOS 26.5.1, debug build, calling `AppleSpeechBackend` directly on
+one 5.3-second spoken clip, fifteen pieces with a 300 ms gap between them, two runs each (#1510).
+
+| build | median per piece |
+|---|---|
+| before: asset check, format query, new transcriber and analyser inside every call | 121, 124 ms |
+| after: settled in `load()`, the next pair prepared once a piece answers | 101, 93 ms |
+
+Roughly 25 ms, a fifth of each piece, leaves the wait after key release. A standalone probe of
+the framework put the asset query at 5-130 ms per call, the largest when the system had been idle.
+
 ## What these numbers are not
 
 Stated rather than estimated around, because an invented figure in a performance

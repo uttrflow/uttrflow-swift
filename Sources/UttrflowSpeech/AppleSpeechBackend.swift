@@ -24,12 +24,24 @@ public actor AppleSpeechBackend: TranscriptionBackend {
             .contains { LanguageCode($0.identifier(.bcp47)) == language }
     }
 
-    /// Prepares the recogniser, downloading its locale asset if absent. See Docs/speech-engines.md.
+    /// The audio format the analyser reads, found once the locale's assets are installed.
+    private var format: AVAudioFormat?
+    /// A transcriber and analyser already prepared for the next piece, so it pays no setup.
+    private var ready: Pair?
+
+    /// One analyser run: an analyser is finished after one clip, so each piece takes a fresh pair.
+    private struct Pair {
+        let transcriber: SpeechTranscriber
+        let analyzer: SpeechAnalyzer
+    }
+
+    /// Installs the locale's assets and prepares the first pair, once per lifetime. See Docs/speech-engines.md.
     public func load() async throws(SpeechEngineError) {
+        guard format == nil else { return }
         let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
         switch await AssetInventory.status(forModules: [transcriber]) {
         case .installed:
-            return
+            break
         case .unsupported:
             throw .modelLoadFailed(description: "\(locale.identifier) is not supported on this Mac")
         case .supported, .downloading:
@@ -42,47 +54,88 @@ public actor AppleSpeechBackend: TranscriptionBackend {
         @unknown default:
             throw .modelLoadFailed(description: "unrecognised asset state")
         }
+        guard let offered = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
+        else { throw .modelLoadFailed(description: "the recogniser offered no audio format") }
+        format = offered
+        ready = try? await Self.preparedPair(locale: locale, format: offered)
     }
 
     public func transcribe(
         _ samples: [Float], languageHint: LanguageCode?
     ) async throws(SpeechEngineError) -> RawTranscript {
         try await load()
-
-        let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
-        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
-        else { throw .modelLoadFailed(description: "the recogniser offered no audio format") }
-
-        let analyzer = SpeechAnalyzer(modules: [transcriber])
-        let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
+        guard let format else {
+            throw .modelLoadFailed(description: "the recogniser offered no audio format")
+        }
 
         do {
-            // Start collecting before feeding: results arrive while audio is analysed.
-            async let text = Self.collect(transcriber.results)
-
-            try await analyzer.start(inputSequence: stream)
-            for chunk in samples.chunked(into: Self.chunkFrames) {
-                guard let buffer = Self.buffer(chunk, format: format) else {
-                    continuation.finish()
-                    throw SpeechEngineError.transcriptionFailed(
-                        description: "could not build an input buffer")
-                }
-                continuation.yield(AnalyzerInput(buffer: buffer))
+            let pair: Pair
+            if let prepared = ready {
+                ready = nil
+                pair = prepared
+            } else {
+                pair = try await Self.preparedPair(locale: locale, format: format)
             }
-            continuation.finish()
-            try await analyzer.finalizeAndFinishThroughEndOfInput()
-
-            return RawTranscript(
-                text: try await text,
-                languageIdentifier: locale.language.languageCode?.identifier,
-                // The system reports a verdict per locale, never a probability.
-                languageProbability: nil
-            )
+            defer { prepareNext(format: format) }
+            return try await run(samples, on: pair, format: format)
         } catch let error as SpeechEngineError {
+            forget()
             throw error
         } catch {
+            forget()
             throw .transcriptionFailed(description: error.localizedDescription)
         }
+    }
+
+    /// Feeds one clip through a prepared pair and gathers its final text.
+    private func run(_ samples: [Float], on pair: Pair, format: AVAudioFormat) async throws -> RawTranscript {
+        let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
+        // Start collecting before feeding: results arrive while audio is analysed.
+        async let text = Self.collect(pair.transcriber.results)
+
+        try await pair.analyzer.start(inputSequence: stream)
+        for chunk in samples.chunked(into: Self.chunkFrames) {
+            guard let buffer = AnalyserInput.buffer(chunk, format: format) else {
+                continuation.finish()
+                throw SpeechEngineError.transcriptionFailed(description: "could not build an input buffer")
+            }
+            continuation.yield(AnalyzerInput(buffer: buffer))
+        }
+        continuation.finish()
+        try await pair.analyzer.finalizeAndFinishThroughEndOfInput()
+
+        return RawTranscript(
+            text: try await text,
+            languageIdentifier: locale.language.languageCode?.identifier,
+            // The system reports a verdict per locale, never a probability.
+            languageProbability: nil
+        )
+    }
+
+    /// Prepares the next piece's pair after this one answers, off the wait for the words.
+    private func prepareNext(format: AVAudioFormat) {
+        let locale = locale
+        Task {
+            guard let pair = try? await Self.preparedPair(locale: locale, format: format) else { return }
+            self.keep(pair)
+        }
+    }
+
+    private func keep(_ pair: Pair) {
+        if ready == nil, format != nil { ready = pair }
+    }
+
+    /// Drops everything learned, so the next call checks the assets and the format again.
+    private func forget() {
+        format = nil
+        ready = nil
+    }
+
+    private static func preparedPair(locale: Locale, format: AVAudioFormat) async throws -> Pair {
+        let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
+        let analyzer = SpeechAnalyzer(modules: [transcriber])
+        try await analyzer.prepareToAnalyze(in: format)
+        return Pair(transcriber: transcriber, analyzer: analyzer)
     }
 
     private static func collect(
@@ -93,28 +146,6 @@ public actor AppleSpeechBackend: TranscriptionBackend {
             pieces.append(String(result.text.characters))
         }
         return pieces.joined(separator: " ")
-    }
-
-    /// Wraps canonical float samples in the interleaved 16-bit buffer the analyser asks for.
-    private static func buffer(_ samples: [Float], format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        guard
-            let buffer = AVAudioPCMBuffer(
-                pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)
-            )
-        else { return nil }
-        buffer.frameLength = AVAudioFrameCount(samples.count)
-
-        if let int16 = buffer.int16ChannelData {
-            for (index, sample) in samples.enumerated() {
-                int16[0][index] = Int16(clampingAudioSample: sample)
-            }
-            return buffer
-        }
-        if let float = buffer.floatChannelData {
-            for (index, sample) in samples.enumerated() { float[0][index] = sample }
-            return buffer
-        }
-        return nil
     }
 }
 
