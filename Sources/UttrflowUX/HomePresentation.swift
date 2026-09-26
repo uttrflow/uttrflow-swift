@@ -303,8 +303,10 @@ public enum HomePresenter {
             figures: blocked == nil
                 ? DictationPresenter.figures(
                     today: today, earlier: earlier,
-                    retentionDays: snapshot.settings.transcriptRetentionDays, calendar: calendar,
-                    locale: locale)
+                    dropped: HistoryPresenter.dropped(
+                        snapshot.entries, days: snapshot.settings.transcriptRetentionDays,
+                        now: snapshot.now),
+                    calendar: calendar, locale: locale)
                 : [],
             recent: blocked == nil ? listed.map { row(for: $0, locale: locale) } : [],
             recentTitle: title(for: listed, calendar: calendar, now: snapshot.now),

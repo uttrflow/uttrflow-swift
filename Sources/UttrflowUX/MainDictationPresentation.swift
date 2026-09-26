@@ -200,8 +200,10 @@ public enum DictationPresenter {
             figures: blocked == nil
                 ? figures(
                     today: today, earlier: earlier,
-                    retentionDays: snapshot.settings.transcriptRetentionDays, calendar: calendar,
-                    locale: locale) : [],
+                    dropped: HistoryPresenter.dropped(
+                        snapshot.entries, days: snapshot.settings.transcriptRetentionDays,
+                        now: snapshot.now),
+                    calendar: calendar, locale: locale) : [],
             // A model that cannot dictate yet is said in place of the invitation to talk.
             emptyState: blocked == nil && rows.isEmpty
                 ? snapshot.speechModel.map(MainPresenter.obstruction(for:))
@@ -299,7 +301,7 @@ public enum DictationPresenter {
 
     /// Only figures with something real behind them; no "time saved" tile, since nothing measures typing.
     static func figures(
-        today: [HistoryEntry], earlier: [HistoryEntry], retentionDays: Int, calendar: Calendar,
+        today: [HistoryEntry], earlier: [HistoryEntry], dropped: [HistoryEntry], calendar: Calendar,
         locale: Locale
     ) -> [MainStatistic] {
         var figures: [MainStatistic] = []
@@ -318,12 +320,12 @@ public enum DictationPresenter {
                         : "none yet today"))
         }
 
-        if let run = streak(in: kept, retentionDays: retentionDays, calendar: calendar) {
+        if let run = streak(in: kept, dropped: dropped, calendar: calendar) {
             figures.append(
                 MainStatistic(
                     value: "\(run.days)",
                     caption: run.days == 1 ? "Day dictating" : "Day streak",
-                    // Reaching retention's own edge is evidence of a deletion; running out of history is not.
+                    // Only a dropped entry touching the run is evidence of a deletion; a full window is not.
                     comment: run.reachesTheEdge
                         ? "at least — anything older has been deleted"
                         : "days in a row"))
@@ -378,7 +380,7 @@ public enum DictationPresenter {
 
     /// Days in a row back from the most recent day, not today; `nil` when nothing is kept.
     static func streak(
-        in entries: [HistoryEntry], retentionDays: Int, calendar: Calendar
+        in entries: [HistoryEntry], dropped: [HistoryEntry], calendar: Calendar
     ) -> (days: Int, reachesTheEdge: Bool)? {
         let days = Set(entries.map { calendar.startOfDay(for: $0.when) }).sorted(by: >)
         guard let newest = days.first else { return nil }
@@ -392,8 +394,14 @@ public enum DictationPresenter {
             run += 1
             expected = day
         }
-        // Entries older than retention are already gone from `entries`, so a run this long proves a deletion.
-        return (run, run == days.count && days.count > 1 && days.count >= retentionDays)
+        guard run == days.count, run > 1, let oldest = days.last,
+            let before = calendar.date(byAdding: .day, value: -1, to: oldest)
+        else { return (run, false) }
+        // A deleted entry on the run's oldest day or the day before it proves the run went further back.
+        let cut = dropped.contains {
+            calendar.isDate($0.when, inSameDayAs: oldest) || calendar.isDate($0.when, inSameDayAs: before)
+        }
+        return (run, cut)
     }
 
     // MARK: - Nothing to show

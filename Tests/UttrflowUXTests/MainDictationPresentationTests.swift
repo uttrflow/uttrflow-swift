@@ -327,18 +327,44 @@ struct DictationFiguresTests {
         #expect(figure?.comment == "days in a row")
     }
 
-    /// A run reaching retention's own edge proves older days were deleted, not merely never dictated.
-    @Test("a streak that fills the whole retention window says so")
+    /// A run reaching past retention's edge proves older days were deleted, not merely never dictated.
+    @Test("a streak that runs past the retention window says so")
     func streakAtTheEdgeOfRetention() {
         var settings = Settings.default
         settings.transcriptRetentionDays = 2
         let page = HistoryFixture.dictation(
             entries: [
                 HistoryFixture.entry("today"), HistoryFixture.entry("yesterday", daysAgo: 1),
+                HistoryFixture.entry("past the window", minutesAgo: 60, daysAgo: 2),
             ], settings: settings)
         let figure = page.figures.first { $0.caption == "Day streak" }
         #expect(figure?.value == "2")
         #expect(figure?.comment == "at least — anything older has been deleted")
+    }
+
+    /// A new install's whole life that happens to fill the window has had nothing deleted.
+    @Test("a streak that exactly fills the window with nothing older says nothing about deletion")
+    func streakFillingTheWindowIsNotADeletion() {
+        let page = HistoryFixture.dictation(
+            entries: (0..<Settings.default.transcriptRetentionDays).map {
+                HistoryFixture.entry("day \($0)", daysAgo: $0)
+            })
+        let figure = page.figures.first { $0.caption == "Day streak" }
+        #expect(figure?.value == "\(Settings.default.transcriptRetentionDays)")
+        #expect(figure?.comment == "days in a row")
+    }
+
+    /// A deleted entry separated from the run by a silent day does not extend it.
+    @Test("a deletion beyond a gap does not make the streak 'at least'")
+    func deletionBeyondAGapIsNotTheRun() {
+        var settings = Settings.default
+        settings.transcriptRetentionDays = 2
+        let page = HistoryFixture.dictation(
+            entries: [
+                HistoryFixture.entry("today"), HistoryFixture.entry("yesterday", daysAgo: 1),
+                HistoryFixture.entry("long gone", daysAgo: 4),
+            ], settings: settings)
+        #expect(page.figures.first { $0.caption == "Day streak" }?.comment == "days in a row")
     }
 
     /// One day is not a streak, and calling it one makes every other number less believable.
