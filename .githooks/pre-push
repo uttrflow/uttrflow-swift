@@ -164,25 +164,41 @@ fi
 # `mkdir` is the atomic primitive here. `flock` is not on macOS, and `[[ -d ]]` followed
 # by `mkdir` is a race in the same shape as the one being fixed.
 lock="$git_dir/verify-worktree.lock"
-waited=0
+lock_started=$SECONDS
+announced=0
+empty_pid_polls=0
+poll_interval="${UTTRFLOW_LOCK_POLL_SECONDS:-5}"
 until mkdir "$lock" 2>/dev/null; do
     holder="$(cat "$lock/pid" 2>/dev/null || true)"
-    # A lock whose holder is gone is debris from a kill or a crash, not a live push.
-    if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null; then
-        printf '  clearing a lock left behind by pid %s\n' "$holder"
-        rm -rf "$lock"
-        continue
+    if [[ -n "$holder" ]]; then
+        empty_pid_polls=0
+        # A lock whose holder is gone is debris from a kill or a crash, not a live push.
+        if ! kill -0 "$holder" 2>/dev/null; then
+            printf '  clearing a lock left behind by pid %s\n' "$holder"
+            rm -rf "$lock"
+            continue
+        fi
+    else
+        # No pid published yet: the holder may still be mid-startup. Give it a couple of
+        # polls before treating the lock as debris from a crash between mkdir and the write.
+        empty_pid_polls=$((empty_pid_polls + 1))
+        if (( empty_pid_polls > 2 )); then
+            printf '  clearing a lock left without owner metadata\n'
+            rm -rf "$lock"
+            empty_pid_polls=0
+            continue
+        fi
     fi
-    if (( waited == 0 )); then
+    if (( announced == 0 )); then
         printf '  another push is verifying (pid %s) — waiting for it\n' "${holder:-unknown}"
+        announced=1
     fi
-    if (( waited >= 1800 )); then
+    if (( SECONDS - lock_started >= 1800 )); then
         printf '\033[31mgave up waiting after 30 minutes\033[0m\n'
         printf '  If nothing is really running:  rm -rf %s\n' "$lock"
         exit 1
     fi
-    sleep 5
-    waited=$((waited + 5))
+    sleep "$poll_interval"
 done
 printf '%s' "$$" > "$lock/pid"
 # Released however this exits — including the failure paths below, each of which used to
