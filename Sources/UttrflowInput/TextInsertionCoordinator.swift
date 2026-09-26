@@ -41,7 +41,11 @@ public struct TextInsertionCoordinator: TextInserting {
 
         switch outcome {
         case .succeeded(let attempt, _):
-            return attempt
+            // Asked again once the words are written, so a switch into a secure field during the fallback counts.
+            guard !attempt.intoSecureField, focus?.focusedFieldIsSecure() == true else { return attempt }
+            return InsertionAttempt(
+                attempt.method, arrival: attempt.arrival, destination: attempt.destination,
+                intoSecureField: true)
         case .exhausted(let errors):
             // The last strategy's reason is the most specific; the earlier refusals are expected.
             throw errors.compactMap { $0 as? TextInsertionError }.last ?? .clipboardUnavailable

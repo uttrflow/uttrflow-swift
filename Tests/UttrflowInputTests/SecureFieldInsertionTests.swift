@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import UttrflowCore
@@ -11,6 +12,17 @@ struct SecureFieldInsertionTests {
         let focus = FakeFocus(field: FakeTextField(), secure: true)
         let coordinator = TextInsertionCoordinator(
             strategies: [AccessibilityTextInsertionEngine(focus: focus)], focus: focus)
+
+        let attempt = try await coordinator.insert("open sesame")
+
+        #expect(attempt.intoSecureField)
+    }
+
+    @Test("a field that turns secure while the fallback runs is reported secure")
+    func coordinatorRereadsAfterTheWrite() async throws {
+        let focus = TurningSecureFocus()
+        let coordinator = TextInsertionCoordinator(
+            strategies: [ClipboardTextInsertionEngine(pasteboard: FakePasteboard())], focus: focus)
 
         let attempt = try await coordinator.insert("open sesame")
 
@@ -105,5 +117,23 @@ struct SecureFieldInsertionTests {
     @Test("a reader that cannot see the field says it is not secure")
     func defaultReaderSaysNotSecure() {
         #expect(CountingFocus(answer: "").focusedFieldIsSecure() == false)
+    }
+}
+
+/// Answers not secure on the first question and secure on every later one.
+private final class TurningSecureFocus: AccessibilityFocus, @unchecked Sendable {
+    private let lock = NSLock()
+    private var asked = 0
+
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func precedingText(_ count: Int) -> String? { nil }
+    func frontmostApplication() -> InsertionDestination? { nil }
+    func focusedFieldIsSecure() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        asked += 1
+        return asked > 1
     }
 }
