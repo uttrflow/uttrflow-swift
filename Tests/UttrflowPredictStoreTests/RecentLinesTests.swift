@@ -70,4 +70,20 @@ struct RecentLinesTests {
             if let settled { #expect(cached == settled, "after \(index + 1) documents") }
         }
     }
+
+    @Test("Candidate sets of every size keep one compiled retired-lines read.")
+    func retiredStatementIsReused() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        try await store.record("go home", in: chat, at: moment)
+        var settled: Int?
+        for index in 0..<8 {
+            try await store.record("go \(index)", in: chat, at: moment.addingTimeInterval(Double(index + 1)))
+            let found = try await store.candidates(for: chat, matching: "go")
+            #expect(found.count == index + 2)
+            let cached = await store.cachedStatements
+            if index == 1 { settled = cached }
+            if let settled { #expect(cached == settled, "after \(index + 2) candidates") }
+        }
+    }
 }
