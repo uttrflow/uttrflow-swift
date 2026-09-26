@@ -9,7 +9,7 @@ import MLXLMCommon
 import Tokenizers
 
 // A local open-weight model behind the same clean-up boundary as Apple's, built with `make bakeoff`.
-/// Runs an open-weight model on the Mac's GPU, which is where Hindi clean-up comes from.
+/// An open-weight clean-up model run only by the uttrflow-bakeoff target.
 public actor MLXCleanupModel: CleanupModel {
     /// Which weights run.
     private let model: LocalModel

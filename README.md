@@ -273,7 +273,7 @@ Sources/
   UttrflowUX           What every window and menu should say, decided without drawing it.
   UttrflowPermissions  Reading and requesting what macOS gates the pipeline behind.
   UttrflowEval         Scoring how well it hears and how well it tidies. No model near it.
-  UttrflowLocalModel   An open-weight model on the GPU, for languages Apple's misses.
+  UttrflowLocalModel   The GPU AI suggestion model, plus clean-up models measured by the bake-off.
   UttrflowTestSupport  Fakes and fixtures shared by every test target. Never shipped.
   Uttrflow             The app. Windows and wiring only.
   uttrflow-dev         Developer harness. One command per stage of the pipeline.
