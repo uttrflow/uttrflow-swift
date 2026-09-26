@@ -30,6 +30,24 @@ struct DictationAnnouncementTests {
         #expect(said == DictationAnnouncement(text: "Inserted: \(Self.words)", isUrgent: false))
     }
 
+    @Test("never reads aloud the words typed into a secure field")
+    func insertedIntoSecureField() throws {
+        let outcome = DictationOutcome(
+            text: Self.words, method: .accessibility, cleanedBy: .rules, intoSecureField: true)
+        let said = try #require(DictationPresenter.announcement(for: .inserted(outcome)))
+        #expect(!said.text.contains("drafting"))
+        #expect(said.text == "Inserted: The words are hidden because the field is secure.")
+    }
+
+    @Test("never reads aloud a secure field's words when they were copied instead")
+    func copiedFromSecureField() throws {
+        let outcome = DictationOutcome(
+            text: Self.words, method: .clipboard, cleanedBy: .rules, fromRecording: true,
+            intoSecureField: true)
+        let said = try #require(DictationPresenter.announcement(for: .inserted(outcome)))
+        #expect(!said.text.contains("drafting"))
+    }
+
     @Test("never reads a long dictation back in full")
     func longDictationIsShortened() throws {
         let long = Array(repeating: Self.words, count: 40).joined(separator: " ")
