@@ -104,12 +104,25 @@ public enum DestructiveCommand {
             break
         }
 
-        let words = Set(tokens.map { $0.text.lowercased() })
-        // SQL that drops or empties a table, wherever the verb sits in the clause.
+        guard sqlVerbs.contains(command) || sqlClients.contains(command) else { return false }
+        // SQL that drops or empties a table, wherever the verb sits in the statement.
+        let words = Set(
+            ([command] + lowered).flatMap {
+                $0.split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "_" }).map(String.init)
+            })
         if words.contains("drop"), words.contains(where: droppableObject) { return true }
-        if words.contains("truncate") { return true }
-        return false
+        return words.contains("truncate")
     }
+
+    /// SQL verbs that begin a statement typed straight into a database prompt.
+    private static let sqlVerbs: Set<String> = ["drop", "truncate", "alter"]
+
+    /// Programs that run the SQL they are given.
+    private static let sqlClients: Set<String> = [
+        "psql", "mysql", "mariadb", "sqlite3", "sqlite", "sqlcmd", "duckdb", "clickhouse", "clickhouse-client",
+        "cockroach", "snowsql", "bq", "pgcli", "mycli", "litecli", "usql", "osql", "isql", "sqlplus", "db2",
+        "trino", "presto", "spark-sql", "hive", "beeline", "cqlsh", "impala-shell", "vsql", "redshift",
+    ]
 
     /// Whether a git clause throws work away for good: a forced or deleting push, a hard reset, a forced clean, a forced branch deletion, a dropped stash or discarded changes.
     private static func matchesDestructiveGit(_ arguments: [String]) -> Bool {

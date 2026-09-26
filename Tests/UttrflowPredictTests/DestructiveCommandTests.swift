@@ -130,4 +130,17 @@ struct DestructiveCommandTests {
     func keepsClausesApart(_ line: String) {
         #expect(!DestructiveCommand.matches(line), "\(line) destroys nothing")
     }
+
+    @Test func sqlWordsInAnUnrelatedCommandAreNotDestructive() {
+        #expect(!DestructiveCommand.matches("echo Please drop the users table before you truncate the log"))
+        #expect(!DestructiveCommand.matches("git commit -m Drop the staging database index"))
+        #expect(!DestructiveCommand.matches("grep truncate notes.txt"))
+    }
+
+    @Test func sqlGivenToADatabaseClientIsDestructive() {
+        #expect(DestructiveCommand.matches("psql -c \"DROP TABLE users;\""))
+        #expect(DestructiveCommand.matches("mysql -e \"TRUNCATE logs\""))
+        #expect(DestructiveCommand.matches("sudo sqlite3 app.db 'drop index idx_users'"))
+        #expect(DestructiveCommand.matches("ALTER TABLE users DROP COLUMN email"))
+    }
 }
