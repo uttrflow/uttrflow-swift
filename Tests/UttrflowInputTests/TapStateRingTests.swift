@@ -106,6 +106,24 @@ struct TapStateRingTests {
         #expect(state.take().isEmpty)
     }
 
+    @Test("a key the application sees disarms the tap, so an accept right behind it passes through untaken")
+    func passedKeyDisarmsBeforeAccept() {
+        let state = Self.makeState()
+        state.armed.store(ArmedKeys.rightArrow.rawValue | ArmedKeys.tab.rawValue, ordering: .relaxed)
+        #expect(!state.route(ArmedKeys.slot(of: KeyStroke(keyCode: 1))))
+        #expect(!state.route(.rightArrow))
+        #expect(state.armed.load(ordering: .relaxed) == 0)
+        #expect(state.take().isEmpty)
+    }
+
+    @Test("an armed key is still taken by the route")
+    func routeTakesArmedKey() {
+        let state = Self.makeState()
+        state.armed.store(ArmedKeys.rightArrow.rawValue, ordering: .relaxed)
+        #expect(state.route(.rightArrow))
+        #expect(state.take() == [Self.event(.rightArrow)].compactMap { $0 })
+    }
+
     @Test("one thread writing while another drains delivers every keystroke once, in order")
     func concurrentProducerAndConsumer() {
         let state = Self.makeState()

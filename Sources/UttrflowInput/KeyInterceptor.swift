@@ -321,6 +321,13 @@ final class TapState: @unchecked Sendable {
         return true
     }
 
+    /// Takes an armed key, or disarms every slot for a key the application will see, so a later accept cannot take a stale offer.
+    func route(_ slot: ArmedKeys) -> Bool {
+        if !slot.isEmpty, takeIfArmed(slot) { return true }
+        armed.store(0, ordering: .relaxed)
+        return false
+    }
+
     /// Everything written since the last drain, oldest first, then the tap giving up if it has.
     func take() -> [InterceptedEvent] {
         // Read before `written`, so every keystroke taken before the tap gave up is drained with it.
@@ -355,7 +362,7 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
             keyCode: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
             modifiers: KeyModifiers(event.flags))
         let slot = ArmedKeys.slot(of: stroke)
-        guard !slot.isEmpty, state.takeIfArmed(slot) else {
+        guard state.route(slot) else {
             return Unmanaged.passUnretained(event)
         }
         return nil
