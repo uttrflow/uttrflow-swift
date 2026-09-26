@@ -95,4 +95,27 @@ struct SuggestionForgettingTests {
         try await personalisation.carryOut(.everything)
         #expect(!FileManager.default.fileExists(atPath: container.corpusPath))
     }
+    @Test("Forgetting through the running loop leaves no succession naming the forgotten line.")
+    @MainActor
+    func runningLoopDoesNotWriteAForgottenLineBack() async throws {
+        let container = Container()
+        try FileManager.default.createDirectory(at: container.url, withIntermediateDirectories: true)
+        let coordinator = try SuggestionCoordinator(
+            container: container.url, preferences: SuggestionPreferences(isEnabled: true))
+        let reading = FieldReading(bundleIdentifier: terminal.bundleIdentifier, role: "AXTextArea")
+        let surface = try #require(reading.surface)
+        try await coordinator.capture.record(.allowed, for: terminal.bundleIdentifier)
+        _ = try await coordinator.capture.handle(.keystroke("forgotten line", at: moment), in: reading)
+        _ = try await coordinator.capture.handle(.returnPressed(at: moment), in: reading)
+
+        let corpus = PredictCorpus(container: container.url, running: { coordinator })
+        try await corpus.forgetSuggestions(from: terminal.bundleIdentifier)
+        _ = try await coordinator.capture.handle(.keystroke("next line", at: moment), in: reading)
+        _ = try await coordinator.capture.handle(.returnPressed(at: moment), in: reading)
+
+        let store = try PredictStore(path: container.corpusPath)
+        #expect(try await store.successors(for: surface, after: "forgotten line").isEmpty)
+        try await corpus.forgetEverySuggestion()
+        #expect(await coordinator.capture.decisions() == CapturePreferences())
+    }
 }

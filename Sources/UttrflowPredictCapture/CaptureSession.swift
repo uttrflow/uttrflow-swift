@@ -87,6 +87,20 @@ public actor CaptureSession {
         try preferencesFile.remove()
     }
 
+    /// Forgets what this session holds about one application, so its next line does not follow a forgotten one.
+    public func forgetLearned(from bundleIdentifier: String) {
+        let application = Surface(bundleIdentifier: bundleIdentifier, role: "").bundleIdentifier
+        lastRecorded = lastRecorded.filter { $0.key.bundleIdentifier != application }
+        if focused?.surface?.bundleIdentifier == application { detector.reset() }
+    }
+
+    /// Forgets every line and answer this session holds, in memory and on disk.
+    public func forgetEverythingLearned() throws {
+        lastRecorded = [:]
+        detector.reset()
+        try forgetEveryAnswer()
+    }
+
     /// Seeds a terminal from the shell's history, once, and only because the user asked for it.
     public func importShellHistory(
         forHomeDirectory home: String, into surface: Surface, at moment: Date

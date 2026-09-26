@@ -205,7 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         store: settingsStore,
         personalisation: Self.personalisation(
             in: container, dictionary: dictionary, history: history, clipboard: clipboard,
-            elsewhere: keptElsewhere()),
+            elsewhere: keptElsewhere(), running: { [weak self] in self?.completions }),
         onChange: { [weak self] settings in self?.settingsChanged(to: settings) },
         // Through the same switch the main window uses, so one choice is never applied two ways.
         onRequest: { [weak self] change in self?.apply(change) },
@@ -280,11 +280,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Everything Settings can count and forget, over the stores this app opens in this container.
     nonisolated static func personalisation(
         in container: URL, dictionary: PersonalDictionaryStore, history: DictationHistoryStore,
-        clipboard: ClipboardStore, elsewhere: KeptElsewhere = KeptElsewhere()
+        clipboard: ClipboardStore, elsewhere: KeptElsewhere = KeptElsewhere(),
+        running: @escaping @Sendable @MainActor () -> SuggestionCoordinator? = { nil }
     ) -> FilePersonalisationStore {
         FilePersonalisationStore(
             dictionary: dictionary, history: history, clipboard: clipboard,
-            suggestions: PredictCorpus(container: container),
+            suggestions: PredictCorpus(container: container, running: running),
             met: { AppDelegate.applicationsTheLoopHasMet(in: container) },
             elsewhere: elsewhere)
     }
