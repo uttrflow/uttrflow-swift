@@ -95,10 +95,12 @@ ROWS = [
       ("Main-Account.dc.html", *MAIN, None), ("Main-Account-Dark.dc.html", *MAIN, None)]),
 
     ("main-window",
-     "History and Diagnostics\nUnchanged in substance, redrawn inside the shell. Today lives on Dictation now, so History starts at yesterday. Diagnostics is still where the PRD's latency and failure numbers surface.",
+     "History and Diagnostics\nRedrawn inside the shell. Today lives on Dictation now, so History starts at yesterday. Diagnostics draws every stage DiagnosticsPresentation measures &mdash; including the ones nothing has ever timed &mdash; plus engines, last-dictation clean-up, permissions and on-this-Mac storage; the empty pair is what shows before anything has been dictated.",
      [("Main-History.dc.html", *MAIN, None), ("Main-History-Dark.dc.html", *MAIN, None),
       ("Main-Diagnostics.dc.html", *MAIN, None),
-      ("Main-Diagnostics-Dark.dc.html", *MAIN, None)]),
+      ("Main-Diagnostics-Dark.dc.html", *MAIN, None),
+      ("Main-Diagnostics-Empty.dc.html", *MAIN, None),
+      ("Main-Diagnostics-Empty-Dark.dc.html", *MAIN, None)]),
 
     ("settings",
      "Settings\nIts own window, reached from the sidebar. Every choice is worded as an outcome — nothing here asks the user to understand how Uttrflow works.",

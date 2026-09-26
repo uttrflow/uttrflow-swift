@@ -280,12 +280,29 @@
     .statrow { display: flex; }
     .statrow .stat { flex: 1; padding: 11px 13px; }
     .statrow .stat + .stat { border-left: 0.5px solid var(--separator); }
-    .bar-track { height: 22px; border-radius: 6px; overflow: hidden; display: flex; }
-    .lat { display: flex; align-items: center; gap: 12px; padding: 8px 13px;
-           font-size: var(--t-callout); }
+    .bar-track { height: 18px; border-radius: 5px; overflow: hidden; display: flex; }
+    .lat { display: flex; align-items: center; gap: 10px; padding: 5px 11px;
+           font-size: var(--t-footnote); line-height: 1.25; }
     .lat + .lat { border-top: 0.5px solid var(--separator); }
     .lat .n { font-variant-numeric: tabular-nums; }
-    .swatch { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+    .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+    .diagverdict { display: flex; align-items: center; gap: 10px; padding: 9px 13px; }
+    .diagverdict .dot { width: 7px; height: 7px; border-radius: 50%; flex: none;
+                         background: #34C759; }
+    .frow { display: flex; align-items: center; gap: 10px; padding: 5px 11px;
+            font-size: var(--t-footnote); line-height: 1.25; }
+    .frow + .frow { border-top: 0.5px solid var(--separator); }
+    .frow .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .frow .d { color: var(--label-2); text-align: right; }
+    .diagstats { display: flex; flex-wrap: wrap; }
+    .diagstats .stat { flex: 1 1 33%; min-width: 130px; padding: 7px 11px;
+                        border-top: 0.5px solid var(--separator); }
+    .diagstats .stat:nth-child(-n+3) { border-top: none; }
+    .diagstats .v { font-size: var(--t-body); font-weight: 600;
+                     font-variant-numeric: tabular-nums; }
+    .diagstats .k { font-size: 10px; color: var(--label-2); margin-top: 1px; }
+    .diaglabel { font-size: var(--t-footnote); font-weight: 600; color: var(--label-2);
+                 margin: 8px 0 5px 3px; }
 </style>
 </helmet>
 <div class="stage" style="width: 980px; height: 700px; padding: 40px">
@@ -323,42 +340,76 @@
       </div>
       <div class="pane">
         <div class="toolbar"><h2>Diagnostics</h2></div>
-        <div class="content"><p class="daylabel">Time from letting go of the key to text on screen</p>
-        <div class="card" style="padding: 14px">
-          <div class="row" style="justify-content: space-between; margin-bottom: 9px">
-            <span style="font-size: var(--t-title2); font-weight: 600;
-              font-variant-numeric: tabular-nums">2.62s</span>
-            <span class="muted" style="font-size: var(--t-callout)">
-              for 30 seconds of speech &middot; target under 5s</span>
-          </div>
-          <div class="bar-track"><div style="width:72.5%; background:#39D0C4"></div><div style="width:26.0%; background:#29C0B4"></div><div style="width:1.5%; background:#34C759"></div></div>
+        <div class="content"><div class="card diagverdict">
+          <span class="dot"></span>
+          <span style="flex:1">Everything Uttrflow needs is in place.</span>
         </div>
-        <div class="card" style="margin-top: 14px"><div class="lat"><span class="swatch" style="background:#39D0C4"></span>
+        <div class="row" style="margin-top: 10px; gap: 14px; align-items: flex-start">
+          <div style="flex: 3; min-width: 0">
+            <p class="diaglabel" style="margin-top: 0">Time from letting go of the key to text on screen</p>
+            <div class="card" style="padding: 10px 12px">
+              <div class="row" style="justify-content: space-between; margin-bottom: 6px">
+                <span style="font-size: var(--t-title3); font-weight: 600;
+                  font-variant-numeric: tabular-nums">at least 2.15s</span>
+                <span class="muted" style="font-size: var(--t-footnote)">each stage&rsquo;s typical time, added together, over 42 dictations, without 2 stages nothing has ever timed</span>
+              </div>
+              <div class="bar-track"><div style="width:2.8%; background:#9EDCD7"></div><div style="width:0.9%; background:#9EDCD7"></div><div style="width:66.0%; background:#39D0C4"></div><div style="width:1.4%; background:#128077"></div><div style="width:27.0%; background:#29C0B4"></div><div style="width:1.9%; background:#34C759"></div></div>
+            </div>
+            <div class="card" style="margin-top: 8px"><div class="lat"><span class="swatch" style="background:#9EDCD7"></span>
+            <span style="flex:1">Opening the microphone</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.06s typical</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.14s slowest</span>
+          </div><div class="lat"><span class="swatch" style="background:#9EDCD7"></span>
+            <span style="flex:1">Recording</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.02s typical</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.05s slowest</span>
+          </div><div class="lat"><span class="swatch" style="background:#39D0C4"></span>
             <span style="flex:1">Transcribing</span>
-            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">1.90s typical</span>
-            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">3.40s slowest</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">1.42s typical</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">2.65s slowest</span>
+          </div><div class="lat"><span class="swatch" style="background:#128077"></span>
+            <span style="flex:1">Checking the dictionary</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.03s typical</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.08s slowest</span>
           </div><div class="lat"><span class="swatch" style="background:#29C0B4"></span>
             <span style="flex:1">Tidying up</span>
-            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.68s typical</span>
-            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">1.35s slowest</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.58s typical</span>
+            <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">1.10s slowest</span>
           </div><div class="lat"><span class="swatch" style="background:#34C759"></span>
             <span style="flex:1">Inserting</span>
             <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.04s typical</span>
             <span class="n muted" style="width:86px; text-align:right; white-space:nowrap">0.12s slowest</span>
-          </div></div>
-        <div class="row" style="gap: 14px; margin-top: 14px; align-items: stretch">
-          <div class="card statrow" style="flex: 1">
-            <div class="stat"><div class="v">99.4%</div><div class="k">Heard you</div></div>
-            <div class="stat"><div class="v">96.8%</div><div class="k">Typed directly</div></div>
+          </div><div class="frow"><span class="dot" style="background:var(--label-4)"></span>
+            <span style="flex:1">Finishing the piece already under way</span>
+            <span class="d">Never run</span></div><div class="frow"><span class="dot" style="background:var(--label-4)"></span>
+            <span style="flex:1">Expanding snippets</span>
+            <span class="d">Never run</span></div></div>
+            <div class="card diagstats" style="margin-top: 8px"><div class="stat"><div class="v">100.0%</div><div class="k">Opening the microphone worked</div></div><div class="stat"><div class="v">100.0%</div><div class="k">Recording worked</div></div><div class="stat"><div class="v">97.6%</div><div class="k">Transcribing worked</div></div><div class="stat"><div class="v">100.0%</div><div class="k">Checking the dictionary worked</div></div><div class="stat"><div class="v">97.5%</div><div class="k">Tidying up worked</div></div><div class="stat"><div class="v">100.0%</div><div class="k">Inserting worked</div></div></div>
           </div>
-          <div class="card statrow" style="flex: 1">
-            <div class="stat"><div class="v">78 MB</div><div class="k">Idle memory</div></div>
-            <div class="stat"><div class="v">1.6 GB</div><div class="k">Peak memory</div></div>
-          </div>
+          <div style="flex: 2; min-width: 0"><p class="diaglabel">Engines</p>
+        <div class="card"><div class="frow"><span class="dot" style="background:#34C759"></span>
+                <span style="flex:1">Speech</span>
+                <span class="d">Downloaded speech model</span></div><div class="frow"><span class="dot" style="background:#34C759"></span>
+                <span style="flex:1">Built-in language model</span>
+                <span class="d">In use</span></div><div class="frow"><span class="dot" style="background:#34C759"></span>
+                <span style="flex:1">Built-in rules</span>
+                <span class="d">Ready if needed</span></div></div><p class="diaglabel">Clean-up steps, last dictation</p>
+        <div class="card"><div class="frow"><span class="dot" style="background:#34C759"></span>
+                <span style="flex:1">Filler words</span>
+                <span class="d">removed 3: um, hmm, aah</span></div><div class="frow"><span class="dot" style="background:var(--label-4)"></span>
+                <span style="flex:1">Numbers</span>
+                <span class="d">Switched off</span></div></div><p class="diaglabel">Permissions</p>
+        <div class="card"><div class="frow"><span class="dot" style="background:#34C759"></span>
+                <span style="flex:1">Microphone</span>
+                <span class="d">Granted</span></div><div class="frow"><span class="dot" style="background:#34C759"></span>
+                <span style="flex:1">Accessibility</span>
+                <span class="d">Granted</span></div></div><p class="diaglabel">On this Mac</p>
+        <div class="card"><div class="frow"><span class="dot" style="background:#34C759"></span>
+                <span style="flex:1">Speech model</span>
+                <span class="d">312 MB, on this Mac, every language</span></div></div></div>
         </div>
-        <div class="row" style="margin-top: 14px; gap: 9px">
-          <span class="muted" style="font-size: var(--t-footnote); flex: 1">
-            Measured on this Mac over the last 7 days. Never sent anywhere.</span>
+        <div class="row" style="margin-top: 10px; gap: 9px">
+          <span class="muted" style="font-size: var(--t-footnote); flex: 1">Measured on this Mac since Uttrflow started, and never sent anywhere.</span>
           <button class="btn sm">Copy Diagnostics</button>
         </div></div>
       </div>
