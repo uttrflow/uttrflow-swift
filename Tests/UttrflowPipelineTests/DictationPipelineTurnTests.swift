@@ -183,7 +183,7 @@ struct DictationPipelineTurnTests {
 
         #expect(await capture.calls.events.isEmpty, "the microphone stayed shut under the retry")
         await keeper.release()
-        await retry.value
+        _ = await retry.value
         #expect(clipboard.received == [heard])
         #expect(await pipeline.currentState.isListening == false)
     }
@@ -234,10 +234,23 @@ struct DictationPipelineTurnTests {
 
         await pipeline.cancel()
         await keeper.release()
-        await retry.value
+        _ = await retry.value
 
         #expect(await pipeline.currentState == .idle)
         #expect(clipboard.received.isEmpty)
+    }
+
+    @Test("a retry refused while the pipeline is busy says so, and the one it abandons says so too")
+    func refusedRetryReportsItself() async throws {
+        let keeper = SlowRecordingKeeper()
+        let pipeline = makePipeline(capture: FakeAudioCaptureEngine(), recordings: keeper)
+        let first = Task { await pipeline.retry(UUID()) }
+        try await arrival(of: keeper.holdBegan.fired)
+
+        #expect(await pipeline.retry(UUID()) == false, "a busy pipeline refuses the retry")
+        await pipeline.cancel()
+        await keeper.release()
+        #expect(await first.value == false, "a cancelled retry never ran")
     }
 
     @Test("a retry whose read fails after a cancel reports nothing over the cancel")
@@ -250,7 +263,7 @@ struct DictationPipelineTurnTests {
 
         await pipeline.cancel()
         await keeper.release()
-        await retry.value
+        _ = await retry.value
 
         #expect(await pipeline.currentState == .idle, "the cancel stands; the failure is not shown over it")
         #expect(await keeper.discarded == [recording], "an unreadable file is still not offered again")

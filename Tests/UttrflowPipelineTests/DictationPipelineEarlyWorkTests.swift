@@ -637,7 +637,7 @@ struct DictationPipelineEarlyWorkTests {
         // The time limit cancels a serial pipeline's wait, which then ends every stage's wait with it.
         let retrying = Task { await pipeline.retry(recording.id) }
         await withTaskCancellationHandler {
-            await retrying.value
+            _ = await retrying.value
         } onCancel: {
             rendezvous.giveUp()
         }
