@@ -19,7 +19,8 @@ struct ScopeBoundTests {
         let store = try PredictStore(path: corpus.path)
         let folders = PredictStore.scopeLimit * 4
         for index in 0..<folders {
-            try await store.record("make target\(index)", in: shell("/f\(index)"), at: moment.addingTimeInterval(Double(index)))
+            try await store.record(
+                "make target\(index)", in: shell("/f\(index)"), at: moment.addingTimeInterval(Double(index)))
         }
         let here = shell("/f0")
         let texts = Set(try await store.candidates(for: here, matching: "make").map(\.text))
