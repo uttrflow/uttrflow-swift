@@ -413,6 +413,43 @@ struct CaptureSessionForgettingTests {
     }
 }
 
+@Suite("Forgetting what was learned")
+struct CaptureSessionForgetLearnedTests {
+    @Test("A line recorded after its application is forgotten does not follow the forgotten one.")
+    func forgettingAnApplicationDropsItsLastLine() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(
+            scratch, recorder, allowing: ["com.example.terminal", "com.example.browser"])
+        _ = try await session.handle(.keystroke("secret line", at: start), in: terminal)
+        _ = try await session.handle(.returnPressed(at: start), in: terminal)
+        _ = try await session.handle(.keystroke("example.com", at: start), in: browser)
+        _ = try await session.handle(.returnPressed(at: start), in: browser)
+        await session.forgetLearned(from: "com.example.terminal")
+        _ = try await session.handle(.keystroke("next line", at: start), in: terminal)
+        _ = try await session.handle(.returnPressed(at: start), in: terminal)
+        _ = try await session.handle(.keystroke("example.org", at: start), in: browser)
+        _ = try await session.handle(.returnPressed(at: start), in: browser)
+        #expect(await recorder.recorded.map(\.previous) == [nil, nil, nil, "example.com"])
+    }
+
+    @Test("Forgetting everything drops every last line and every answer, in memory and on disk.")
+    func forgettingEverythingDropsLinesAndAnswers() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        _ = try await session.handle(.keystroke("secret line", at: start), in: terminal)
+        _ = try await session.handle(.returnPressed(at: start), in: terminal)
+        try await session.forgetEverythingLearned()
+        #expect(await session.decisions() == CapturePreferences())
+        #expect(!FileManager.default.fileExists(atPath: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.terminal")
+        _ = try await session.handle(.keystroke("next line", at: start), in: terminal)
+        _ = try await session.handle(.returnPressed(at: start), in: terminal)
+        #expect(await recorder.recorded.map(\.previous) == [nil, nil])
+    }
+}
+
 @Suite("Surviving a transient capture write failure")
 struct CaptureSessionTransientFailureTests {
     @Test("A failed idle write does not lock the detector; the next eligible tick retries it.")

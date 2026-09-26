@@ -45,7 +45,7 @@ final class SuggestionCoordinator {
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
     private let store: PredictStore
-    private let capture: CaptureSession
+    let capture: CaptureSession
     private let panel = SuggestionPanelController.shared
     private let interceptor = KeyInterceptor()
     private let acceptor: SuggestionAcceptor
@@ -146,6 +146,27 @@ final class SuggestionCoordinator {
     /// Forgets every answer about which applications may be learned from, which a reset asks for.
     func forgetEveryAnswer() async throws {
         try await capture.forgetEveryAnswer()
+    }
+
+    /// Forgets what one application taught, on disk and in every copy this loop holds.
+    func forgetSuggestions(from bundleIdentifier: String) async throws {
+        await capture.forgetLearned(from: bundleIdentifier)
+        await forgetWhatThisLoopRemembers()
+        try await store.forget(bundleIdentifier: bundleIdentifier)
+    }
+
+    /// Forgets every line and answer, on disk and in every copy this loop holds.
+    func forgetEverySuggestion() async throws {
+        try await capture.forgetEverythingLearned()
+        await forgetWhatThisLoopRemembers()
+        try await store.forgetEverything()
+    }
+
+    /// Drops the verdicts and model answers this loop keeps, which may name a forgotten line.
+    private func forgetWhatThisLoopRemembers() async {
+        await verifier.forgetEverything()
+        lastGenerated = nil
+        lastEmpty = nil
     }
 
     /// Arms the tap and starts watching, or says why it cannot.

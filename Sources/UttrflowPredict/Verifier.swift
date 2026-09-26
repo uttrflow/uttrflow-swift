@@ -115,7 +115,7 @@ public actor Verifier {
         }
     }
 
-    /// Forgets every verdict, which is what leaving a field and the reset in Settings both ask for.
+    /// Forgets every verdict, which forgetting learned suggestions in Settings asks for.
     public func forgetEverything() {
         cache.forgetEverything()
     }
