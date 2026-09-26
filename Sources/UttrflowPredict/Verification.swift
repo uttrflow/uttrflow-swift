@@ -8,12 +8,6 @@ public enum Verdict: Sendable, Equatable {
     case corrected(String)
     /// It is wrong and nothing near it is right, so it is not offered at all.
     case rejected
-
-    /// Whether the machine vouched for it, which is all a verification over budget may still show.
-    public var isAttested: Bool { self == .attested }
-
-    /// Whether anything at all may be drawn from it.
-    public var allowsOffering: Bool { self != .rejected }
 }
 
 /// Scores how likely a candidate is where it stands, which is the one thing frequency cannot say.

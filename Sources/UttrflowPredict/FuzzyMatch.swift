@@ -73,9 +73,4 @@ public enum FuzzyMatch {
         }
         return last.min() ?? budget + 1
     }
-
-    /// Whether a candidate begins with exactly what was typed, which needs no edits at all.
-    public static func isPrefix(_ query: [UInt32], of candidate: [UInt32]) -> Bool {
-        candidate.count >= query.count && candidate.starts(with: query)
-    }
 }

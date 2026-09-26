@@ -429,7 +429,12 @@ struct SuggestionPresentationTests {
             Issue.record("the ghost did not take the field's colour")
             return 1
         }
-        return TextColor.contrast(text.blended(presentation.opacity, over: background), background)
+        let share = presentation.opacity
+        let seen = TextColor(
+            red: text.red * share + background.red * (1 - share),
+            green: text.green * share + background.green * (1 - share),
+            blue: text.blue * share + background.blue * (1 - share))
+        return TextColor.contrast(seen, background)
     }
 
     @Test(
