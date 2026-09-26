@@ -14,6 +14,9 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
         var length: Int
         var reportsValue = true
         var reportsSelection = true
+        var readsByRange = true
+        var wholeReads = 0
+        var unitsRead = 0
         var refusesText = false
         var ignoresText = false
         var refusesSelection = false
@@ -30,7 +33,26 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
     }
 
     func value() -> String? {
-        state.withLock { $0.reportsValue ? $0.text : nil }
+        state.withLock { state in
+            guard state.reportsValue else { return nil }
+            state.wholeReads += 1
+            state.unitsRead += state.text.utf16.count
+            return state.text
+        }
+    }
+
+    func length() -> Int? {
+        state.withLock { $0.reportsValue && $0.readsByRange ? $0.text.utf16.count : nil }
+    }
+
+    func text(in range: Range<Int>) -> String? {
+        state.withLock { state in
+            guard state.reportsValue, state.readsByRange, range.upperBound <= state.text.utf16.count
+            else { return nil }
+            state.unitsRead += range.count
+            return (state.text as NSString).substring(
+                with: NSRange(location: range.lowerBound, length: range.count))
+        }
     }
 
     func selectedRange() -> CFRange? {
@@ -63,6 +85,8 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
     var text: String { state.withLock { $0.text } }
     var selection: Range<Int> { state.withLock { $0.location..<($0.location + $0.length) } }
     var textWrites: [String] { state.withLock { $0.textWrites } }
+    var wholeReads: Int { state.withLock { $0.wholeReads } }
+    var unitsRead: Int { state.withLock { $0.unitsRead } }
     var selectionWrites: [Range<Int>] { state.withLock { $0.selectionWrites } }
 }
 
@@ -206,5 +230,33 @@ struct SelectionWriterTests {
         try SelectionWriter(field: field).replaceSelection(replacing: "", with: " want")
         #expect(field.text == "I want")
         #expect(field.selectionWrites.isEmpty)
+    }
+
+    @Test("reads only around the caret in a long field, never its whole value")
+    func longFieldIsReadByRange() throws {
+        let long = String(repeating: "word ", count: 200_000) + "I want"
+        let field = FakeSelectionField(long)
+        try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
+        #expect(field.text.hasSuffix("I need"))
+        #expect(field.wholeReads == 0)
+        #expect(field.unitsRead < 1_000)
+    }
+
+    @Test("still catches an unchanged write when the check reads by range")
+    func unchangedWriteIsCaughtByRange() {
+        let field = FakeSelectionField(String(repeating: "word ", count: 1_000)) { $0.ignoresText = true }
+        #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field).replaceSelection(with: " world")
+        }
+        #expect(field.wholeReads == 0)
+    }
+
+    @Test("falls back to the whole value for a field that will not read by range")
+    func noRangedReadFallsBackToTheValue() throws {
+        let field = FakeSelectionField("I want it", caret: 6, length: 3) { $0.readsByRange = false }
+        try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
+        #expect(field.text == "I need")
+        #expect(field.selectionWrites == [2..<9])
+        #expect(field.wholeReads > 0)
     }
 }
