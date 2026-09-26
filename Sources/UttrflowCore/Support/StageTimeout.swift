@@ -47,6 +47,16 @@ public func withStageTimeout<Success: Sendable>(
     return try race.result()
 }
 
+/// The work's answer if it arrives within `allowance` (at least 1 ms), else `nil`, the work cancelled and not awaited.
+public func withDeadline<Answer: Sendable>(
+    _ allowance: Duration,
+    clock: any Clock<Duration> = ContinuousClock(),
+    _ work: @escaping @Sendable () async -> Answer?
+) async -> Answer? {
+    let answer = try? await withStageTimeout(max(allowance, .milliseconds(1)), clock: clock) { await work() }
+    return answer ?? nil
+}
+
 /// Whichever of a stage and its limit answered first, and what it answered.
 private final class StageRace<Success: Sendable>: Sendable {
     /// What the winner answered.

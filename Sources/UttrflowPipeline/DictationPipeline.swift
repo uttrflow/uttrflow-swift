@@ -179,12 +179,6 @@ public actor DictationPipeline {
         }
     }
 
-    /// Opens the existential clock, which is what lets an instant be held on to.
-    private static func stopwatch(from clock: some Clock<Duration>) -> () -> Duration {
-        let start = clock.now
-        return { start.duration(to: clock.now) }
-    }
-
     // MARK: The sequence
 
     /// Whether a new dictation can begin, counting one that holds the turn before its state has moved.
@@ -210,7 +204,7 @@ public actor DictationPipeline {
                 await capture.cancel()
                 return
             }
-            stopwatch = Self.stopwatch(from: clock)
+            stopwatch = UttrflowCore.stopwatch(from: clock)
             takeSettings()
             spokenFor = nil
             insertedInto = nil
@@ -415,7 +409,7 @@ public actor DictationPipeline {
         generation == mine && !wasCancelled(mine)
     }
 
-    /// Asks what is on screen, within a budget, answering nothing rather than waiting.
+    /// Asks what is on screen within the quick limit, since an injected engine need not keep a budget of its own.
     private func readContext() async -> AppContext {
         ((try? await withStageTimeout(StageTimeout.quick, clock: clock) { [context] in
             await context.currentContext()

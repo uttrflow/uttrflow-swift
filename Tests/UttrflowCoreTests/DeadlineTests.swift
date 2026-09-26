@@ -1,7 +1,7 @@
 import Synchronization
 import Testing
 
-@testable import UttrflowContext
+import UttrflowCore
 
 /// How long the losing work sleeps: far past any allowance, so the race returning before it finishes is the whole point.
 private let lateBySeconds = 30
@@ -11,7 +11,7 @@ struct DeadlineTests {
     @Test("An answer that arrives in time is the answer.")
     func promptAnswersAreKept() async {
         let clock = PatientClock()
-        let answer = await Deadline.first(within: .milliseconds(500), on: clock) { "here" }
+        let answer = await withDeadline(.milliseconds(500), clock: clock) { "here" }
         #expect(answer == "here")
         #expect(clock.ranOut == false, "the answer was waited out rather than taken")
     }
@@ -19,7 +19,7 @@ struct DeadlineTests {
     @Test("An answer that does not arrive in time is nothing, and the race did not wait for it.")
     func lateAnswersAreNothing() async {
         let witness = Witness()
-        let answer: String? = await Deadline.first(within: .milliseconds(50)) {
+        let answer: String? = await withDeadline(.milliseconds(50)) {
             // Cancelled at the allowance, the sleep ends at once, and work that minds its cancellation stops here.
             try? await Task.sleep(for: .seconds(lateBySeconds))
             guard !Task.isCancelled else { return nil }
@@ -33,7 +33,7 @@ struct DeadlineTests {
     @Test("Work that answers nothing is nothing, promptly.")
     func nothingIsNothing() async {
         let clock = PatientClock()
-        let answer: String? = await Deadline.first(within: .milliseconds(500), on: clock) { nil }
+        let answer: String? = await withDeadline(.milliseconds(500), clock: clock) { nil }
         #expect(answer == nil)
         #expect(clock.ranOut == false, "nothing was waited out rather than taken")
     }
@@ -41,7 +41,7 @@ struct DeadlineTests {
     @Test("An answer that takes a while but arrives inside the allowance is still the answer.")
     func slowButTimelyAnswersAreKept() async {
         let clock = PatientClock()
-        let answer = await Deadline.first(within: .milliseconds(800), on: clock) {
+        let answer = await withDeadline(.milliseconds(800), clock: clock) {
             try? await Task.sleep(for: .milliseconds(20))
             return "here"
         }
@@ -54,7 +54,7 @@ struct DeadlineTests {
         arguments: [1, 10, 40, 80])
     func theRaceEndsOnTime(allowance: Int) async {
         let witness = Witness()
-        let answer: String? = await Deadline.first(within: .milliseconds(allowance)) {
+        let answer: String? = await withDeadline(.milliseconds(allowance)) {
             try? await Task.sleep(for: .seconds(lateBySeconds))
             guard !Task.isCancelled else { return nil }
             await witness.finished()
@@ -68,7 +68,7 @@ struct DeadlineTests {
     @Test("Work that cannot be stopped is left to finish on its own rather than waited for.")
     func unstoppableWorkIsLeftBehind() async {
         let witness = Witness()
-        let answer: String? = await Deadline.first(within: .milliseconds(40)) {
+        let answer: String? = await withDeadline(.milliseconds(40)) {
             // A read on another queue answers when it answers; cancelling the waiting task does not hurry it.
             await withCheckedContinuation { continuation in
                 Task.detached {
@@ -87,7 +87,7 @@ struct DeadlineTests {
     )
     func theLoserIsCancelled() async {
         let witness = Witness()
-        let answer: String? = await Deadline.first(within: .milliseconds(30)) {
+        let answer: String? = await withDeadline(.milliseconds(30)) {
             try? await Task.sleep(for: .seconds(lateBySeconds))
             await witness.woke(cancelled: Task.isCancelled)
             guard !Task.isCancelled else { return nil }
