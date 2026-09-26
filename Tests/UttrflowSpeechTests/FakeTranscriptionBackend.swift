@@ -18,6 +18,7 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
 
     private struct State {
         var loadCount = 0
+        var unloadCount = 0
         var calls: [Call] = []
         var loadError: SpeechEngineError?
         var transcribeError: SpeechEngineError?
@@ -37,6 +38,10 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
             return state.loadError
         }
         if let error { throw error }
+    }
+
+    func unload() async {
+        state.withLock { $0.unloadCount += 1 }
     }
 
     func transcribe(
@@ -68,6 +73,7 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
     func failTranscribe(with error: SpeechEngineError) { state.withLock { $0.transcribeError = error } }
 
     var loadCount: Int { state.withLock(\.loadCount) }
+    var unloadCount: Int { state.withLock(\.unloadCount) }
     var calls: [Call] { state.withLock(\.calls) }
 }
 

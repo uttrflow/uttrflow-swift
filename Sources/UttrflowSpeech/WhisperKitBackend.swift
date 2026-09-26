@@ -61,6 +61,13 @@ public actor WhisperKitBackend: TranscriptionBackend {
         report(started.duration(to: ContinuousClock.now))
     }
 
+    /// Drops the recogniser and its weights; the next `load` reads them from disk again.
+    public func unload() async {
+        guard kit != nil else { return }
+        kit = nil
+        Self.log.info("speech model let go after sitting idle")
+    }
+
     /// Says where the load's seconds went, since WhisperKit measures the parts and nothing reads them.
     private func report(_ elapsed: Duration) {
         guard let timings = kit?.timings else {

@@ -54,6 +54,9 @@ WAKEUPS_ALLOWED = {
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", ".milliseconds(max(delay, 1))"): (
         "books one turn after a pause in typing, calling the other `wake` overload once; each keystroke replaces it"
     ),
+    ("Sources/UttrflowSpeech/BackedSpeechEngine.swift", "wait"): (
+        "sleeps until the speech model's ten-minute idle window can run out, and ends once the model is let go"
+    ),
 }
 
 # Loops whose interval is a stored value, checked against the constant that supplies it.

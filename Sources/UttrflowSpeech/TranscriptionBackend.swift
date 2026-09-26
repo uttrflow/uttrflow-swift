@@ -71,6 +71,9 @@ public protocol TranscriptionBackend: Sendable {
     /// Loads whatever the recogniser needs; throws `modelNotInstalled` or `modelLoadFailed`.
     func load() async throws(SpeechEngineError)
 
+    /// Lets the loaded recogniser go, so the next `load` builds it again.
+    func unload() async
+
     /// Recognises canonical mono samples; a `nil` hint asks the recogniser to detect the language.
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?
@@ -85,6 +88,9 @@ public protocol TranscriptionBackend: Sendable {
 extension TranscriptionBackend {
     /// No floor of its own, so a recogniser that states none is handed exactly the speech.
     public var minimumDuration: Duration { .zero }
+
+    /// Holds nothing worth letting go, so there is nothing to do.
+    public func unload() async {}
 
     /// Ignores the vocabulary and transcribes normally; a dropped word costs a correction, not the dictation.
     public func transcribe(
