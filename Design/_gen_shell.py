@@ -41,6 +41,10 @@ WIFI_OFF = ('<path d="M2.4 8.8A15.2 15.2 0 0 1 7.6 5.8"/>'
             '<path d="M9.3 16.3a4.7 4.7 0 0 1 5.1-.4"/>'
             '<path d="M12 20v.1"/><path d="M3.2 3.2 20.8 20.8"/>')
 SEARCH_GLYPH = '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>'
+# The sidebar-toggle glyph: a divided pane, the same shape as the system's own sidebar
+# symbols (`sidebar.leading` / `sidebar.left`), which `MainWindowStrip` draws.
+SIDEBAR_TOGGLE = '<rect x="3.4" y="5" width="17.2" height="14" rx="2.6"/><path d="M9.6 5v14"/>'
+CHEVRON_DOWN = '<path d="M6 9l6 6 6-6"/>'
 
 # ---- the shell -----------------------------------------------------------
 SHELL_CSS = """
@@ -130,10 +134,33 @@ SHELL_CSS = """
 
     .pane { flex: 1; min-width: 0; display: flex; flex-direction: column;
             background: var(--window-bg); }
-    .toolbar { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 18px;
-               border-bottom: 0.5px solid var(--separator); flex: none; }
-    .toolbar h2 { font-size: var(--t-title3); font-weight: 600; margin: 0; }
-    .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    /* MainWindowStrip: the sidebar toggle at one end, the account chip at the other. */
+    .strip { height: 40px; flex: none; display: flex; align-items: center; padding: 0 12px; }
+    .stoggle { width: 26px; height: 22px; border-radius: 6px; display: flex;
+               align-items: center; justify-content: center; color: var(--label-2);
+               background: transparent; border: none; }
+    .achip { margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+             height: 26px; padding: 3px 9px 3px 3px; border-radius: 999px;
+             background: var(--hover-bg); border: 0.5px solid var(--separator);
+             font-size: var(--t-callout); color: var(--label-2); }
+    .achip .aavatar { width: 26px; height: 26px; border-radius: 50%; flex: none;
+                      display: flex; align-items: center; justify-content: center;
+                      font-size: 10.5px; font-weight: 600; color: #FFFFFF;
+                      background: linear-gradient(135deg, var(--accent), var(--accent-dark)); }
+    .achip .achev { color: var(--label-3); display: flex; }
+
+    /* OrbitPageHeader: kicker, title, caption, then scope/search/add in that order. */
+    .header { height: 112px; flex: none; display: flex; align-items: center; gap: 12px;
+              padding: 0 22px; background: var(--card-bg);
+              border-bottom: 0.5px solid var(--separator); }
+    .header .htext { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .header .hkicker { font-size: var(--t-footnote); font-weight: 500; letter-spacing: 1.6px;
+                        color: var(--accent-text); }
+    .header .htitle { font-size: 29px; font-weight: 700; letter-spacing: -0.3px; }
+    .header .hcap { font-size: var(--t-body); color: var(--label-2); }
+    .header .tools { margin-left: auto; display: flex; align-items: center; gap: 8px;
+                      flex: none; }
     .content { flex: 1; min-height: 0; padding: 18px 22px 14px; overflow: hidden;
                display: flex; flex-direction: column; }
 
@@ -261,15 +288,46 @@ def sidebar(active, recent=RECENT, tails=None):
       </div>"""
 
 
-def app_window(active, toolbar_tools, content, dark, recent=RECENT, tails=None, extra_css=""):
-    """One main-window artboard, in one appearance."""
+def account_chip(initials="NB", name="Naveen Bhatt"):
+    """`AccountChip`: a filled monogram, the signed-in name, and a disclosure chevron."""
+    return (f'<div class="achip"><span class="aavatar">{initials}</span>'
+            f'<span>{name}</span>'
+            f'<span class="achev">{icon(CHEVRON_DOWN, size=8, width=2.6)}</span></div>')
+
+
+def strip(sidebar_expanded=True):
+    """`MainWindowStrip`: the sidebar toggle at one end, the account chip at the other."""
+    glyph_title = "Hide Sidebar" if sidebar_expanded else "Show Sidebar"
+    return (f'<div class="strip"><div class="stoggle" title="{glyph_title}">'
+            f'{icon(SIDEBAR_TOGGLE, size=14, width=1.6)}</div>{account_chip()}</div>')
+
+
+def orbit_header(title, caption=None, scope="", search="", add=""):
+    """`OrbitPageHeader`: kicker, title, caption, then scope/search/add in production order."""
+    cap = f'<div class="hcap">{caption}</div>' if caption else ""
+    return f"""<div class="header">
+          <div class="htext">
+            <div class="hkicker">{title.upper()}</div>
+            <div class="htitle">{title}</div>
+            {cap}
+          </div>
+          <div class="tools">{scope}{search}{add}</div>
+        </div>"""
+
+
+def app_window(
+    active, content, dark, caption=None, scope="", search="", add="",
+    recent=RECENT, tails=None, extra_css="", sidebar_expanded=True,
+):
+    """One main-window artboard, in one appearance: the strip, the header, then the page."""
     html = page(
         f"Uttrflow &mdash; {active}", STAGE_W, STAGE_H,
         f"""  <div class="win" style="width: {W}px; height: {H}px">
     <div class="split">
       {sidebar(active, recent, tails)}
       <div class="pane">
-        <div class="toolbar"><h2>{active}</h2>{toolbar_tools}</div>
+        {strip(sidebar_expanded)}
+        {orbit_header(active, caption, scope, search, add)}
         <div class="content">{content}</div>
       </div>
     </div>
@@ -279,10 +337,6 @@ def app_window(active, toolbar_tools, content, dark, recent=RECENT, tails=None, 
     if dark:
         html = html.replace('class="stage"', 'class="stage night theme-dark"')
     return html
-
-
-def tools(*bits):
-    return '<div class="tools">' + "".join(bits) + "</div>" if bits else ""
 
 
 def searchbox(placeholder="Search"):

@@ -617,36 +617,56 @@ account = f"""<div class="card" style="padding: 14px 15px">
 
 
 # =====================================================================
+# Captions and per-state scope/search/add controls match each page's own presenter
+# verbatim (Sources/UttrflowUX/*Presentation.swift) — search and scope are absent exactly
+# where the presenter's chrome leaves them nil for that state, never guessed at here.
+DICTATION_CAPTION = "Everything you said today, and what Uttrflow did with it."
+DICTIONARY_CAPTION = "Names and terms Uttrflow would otherwise get wrong."
+CORRECTIONS_CAPTION = "Dictionary-backed substitutions Uttrflow made after it heard you."
+INSIGHTS_CAPTION = "Where the words went, and how fast they arrived."
+SNIPPETS_CAPTION = "Short triggers that expand into whatever you like."
+STYLE_CAPTION = "How much tidying Uttrflow does to what you actually said."
+ACCOUNT_CAPTION = "Who you are signed in as, and what you are paying for."
+
 SCREENS = [
-    ("Main-Dictation", "Dictation",
-     tools(searchbox("Search today")), dictation, RECENT, TAILS),
-    ("Main-Dictation-Empty", "Dictation",
-     tools(searchbox("Search today")), dictation_empty, RECENT_NONE, None),
-    ("Main-Dictionary", "Dictionary",
-     tools(searchbox("Search words"), addbtn("Add Word")), dictionary, RECENT, TAILS),
-    ("Main-Dictionary-Empty", "Dictionary",
-     tools(searchbox("Search words"), addbtn("Add Word")), dictionary_empty, RECENT, None),
-    ("Main-Corrections", "Corrections",
-     tools(pop("All corrections"), searchbox("Search")), corrections, RECENT, TAILS),
-    ("Main-Corrections-Empty", "Corrections",
-     tools(pop("All corrections"), searchbox("Search")), corrections_empty, RECENT, None),
-    ("Main-Insights", "Insights", tools(pop("Last 14 days")), insights, RECENT, TAILS),
-    ("Main-Insights-Empty", "Insights", tools(pop("Since 21 August")), insights_empty,
-     RECENT_NONE, None),
-    ("Main-Snippets", "Snippets",
-     tools(searchbox("Search snippets"), addbtn("New Snippet")), snippets, RECENT, TAILS),
-    ("Main-Snippets-Empty", "Snippets",
-     tools(searchbox("Search snippets"), addbtn("New Snippet")), snippets_empty,
-     RECENT_NEVER, None),
-    ("Main-Style", "Style", "", style, RECENT, TAILS),
-    ("Main-Account", "Account", "", account, RECENT, TAILS),
+    # Dictation: search only when today has rows (DictationPresenter's chrome).
+    ("Main-Dictation", "Dictation", DICTATION_CAPTION,
+     "", searchbox("Search today"), "", dictation, RECENT, TAILS),
+    ("Main-Dictation-Empty", "Dictation", DICTATION_CAPTION,
+     "", "", "", dictation_empty, RECENT_NONE, None),
+    # Dictionary: search only when there are entries; Add Word always.
+    ("Main-Dictionary", "Dictionary", DICTIONARY_CAPTION,
+     "", searchbox("Search words"), addbtn("Add Word"), dictionary, RECENT, TAILS),
+    ("Main-Dictionary-Empty", "Dictionary", DICTIONARY_CAPTION,
+     "", "", addbtn("Add Word"), dictionary_empty, RECENT, None),
+    # Corrections: scope and search both only when there is anything today.
+    ("Main-Corrections", "Corrections", CORRECTIONS_CAPTION,
+     pop("All corrections"), searchbox("Search"), "", corrections, RECENT, TAILS),
+    ("Main-Corrections-Empty", "Corrections", CORRECTIONS_CAPTION,
+     "", "", "", corrections_empty, RECENT, None),
+    # Insights: a scope label always, never a choice; no search, no add.
+    ("Main-Insights", "Insights", INSIGHTS_CAPTION,
+     pop("Last 14 days"), "", "", insights, RECENT, TAILS),
+    ("Main-Insights-Empty", "Insights", INSIGHTS_CAPTION,
+     pop("Since 21 August"), "", "", insights_empty, RECENT_NONE, None),
+    # Snippets: search only when there are snippets; New Snippet always.
+    ("Main-Snippets", "Snippets", SNIPPETS_CAPTION,
+     "", searchbox("Search snippets"), addbtn("New Snippet"), snippets, RECENT, TAILS),
+    ("Main-Snippets-Empty", "Snippets", SNIPPETS_CAPTION,
+     "", "", addbtn("New Snippet"), snippets_empty, RECENT_NEVER, None),
+    # Style and Account: title and caption only, no scope/search/add.
+    ("Main-Style", "Style", STYLE_CAPTION, "", "", "", style, RECENT, TAILS),
+    ("Main-Account", "Account", ACCOUNT_CAPTION, "", "", "", account, RECENT, TAILS),
 ]
 
 written = []
-for stem, active, tool_html, content, recent, tails in SCREENS:
+for stem, active, caption, scope_html, search_html, add_html, content, recent, tails in SCREENS:
     written += write_pair(
         stem,
-        lambda dark, a=active, t=tool_html, c=content, r=recent, x=tails:
-            app_window(a, t, c, dark, recent=r, tails=x, extra_css=APP_CSS),
+        lambda dark, a=active, cap=caption, sc=scope_html, se=search_html, ad=add_html,
+        c=content, r=recent, x=tails:
+            app_window(
+                a, c, dark, caption=cap, scope=sc, search=se, add=ad, recent=r, tails=x,
+                extra_css=APP_CSS),
     )
 print(f"wrote {len(written)} app-window artboards")

@@ -111,14 +111,20 @@ diagnostics = f"""<p class="daylabel">Time from letting go of the key to text on
           <button class="btn sm">Copy Diagnostics</button>
         </div>"""
 
+# Captions match HistoryPresenter.caption and DiagnosticsPresenter.caption verbatim
+# (Sources/UttrflowUX/HistoryPresentation.swift, Sources/UttrflowUX/DiagnosticsPresentation.swift).
 written = []
-for stem, active, tool_html, content in [
-    ("Main-History", "History", tools(searchbox("Search history")), history),
-    ("Main-Diagnostics", "Diagnostics", "", diagnostics),
+for stem, active, caption, search_html, content in [
+    ("Main-History", "History", "Every dictation, kept on this Mac.",
+     searchbox("Search history"), history),
+    ("Main-Diagnostics", "Diagnostics", "What is installed, what is allowed, and how fast it runs.",
+     "", diagnostics),
 ]:
     written += write_pair(
         stem,
-        lambda dark, a=active, t=tool_html, c=content:
-            app_window(a, t, c, dark, tails={"Corrections": "7"}, extra_css=MAIN_CSS),
+        lambda dark, a=active, cap=caption, s=search_html, c=content:
+            app_window(
+                a, c, dark, caption=cap, search=s, tails={"Corrections": "7"},
+                extra_css=MAIN_CSS),
     )
 print(f"wrote {len(written)} main window artboards")
