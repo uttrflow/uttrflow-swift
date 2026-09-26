@@ -122,6 +122,50 @@ struct SettingsRequestWiringTests {
         #expect(!model.session.recorder.isRecording)
     }
 
+    @Test("selecting another tab mid-recording restores the live shortcut once")
+    func selectingAnotherTabRestoresOnce() {
+        var callbacks: [Bool] = []
+        let model = model(RecordingStore(), onShortcutRecording: { callbacks.append($0) })
+
+        model.beginRecordingShortcut(.dictate)
+        model.select(.privacy)
+        model.select(.dictation)
+
+        #expect(callbacks == [true, false])
+        #expect(!model.session.recorder.isRecording)
+        #expect(model.session.tab == .dictation)
+    }
+
+    @Test("selecting the tab already shown leaves a recording running")
+    func selectingSameTabKeepsRecording() {
+        var callbacks: [Bool] = []
+        let model = model(RecordingStore(), onShortcutRecording: { callbacks.append($0) })
+
+        model.beginRecordingShortcut(.dictate)
+        model.select(model.session.tab)
+
+        #expect(callbacks == [true])
+        #expect(model.session.recorder.isRecording)
+    }
+
+    @Test("the app routing Settings to another tab mid-recording restores the live shortcut")
+    func externalTabRouteRestoresOnce() throws {
+        var callbacks: [Bool] = []
+        let controller = SettingsWindowController(
+            store: RecordingStore(), personalisation: EmptyPersonalisation(), capabilities: .everything,
+            onShortcutRecording: { callbacks.append($0) })
+        let model = try #require(
+            Mirror(reflecting: controller).descendant("model") as? SettingsViewModel)
+
+        controller.route(to: .general, identity: nil)
+        model.beginRecordingShortcut(.dictate)
+        controller.route(to: .privacy, identity: nil)
+
+        #expect(callbacks == [true, false])
+        #expect(!model.session.recorder.isRecording)
+        #expect(model.session.tab == .privacy)
+    }
+
     @Test("a command candidate is recorded and consumed before the menu sees it")
     func commandCandidateIsConsumed() throws {
         let event = try #require(

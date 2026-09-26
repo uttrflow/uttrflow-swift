@@ -41,8 +41,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     /// Opens the window and tells it who is signed in; handed over each time, since that can change.
     func show(_ tab: SettingsTab = .general, identity: AccountIdentity? = nil) {
-        model.identity = identity
-        model.session.tab = tab
+        route(to: tab, identity: identity)
         let window = window ?? makeWindow()
         self.window = window
         NSApplication.shared.activate()
@@ -58,6 +57,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             refreshed.unarmedShortcuts = unarmedShortcuts
             model.session.capabilities = refreshed
         }
+    }
+
+    /// Points the window at `tab` for whoever is signed in, through the one tab change that ends a recording.
+    func route(to tab: SettingsTab, identity: AccountIdentity?) {
+        model.identity = identity
+        model.select(tab)
     }
 
     /// Told by the app as the weights are fetched and read, so a window already open redraws.
