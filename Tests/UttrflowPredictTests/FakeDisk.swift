@@ -94,7 +94,7 @@ final class FakeDisk: FileSystemProbing {
 actor KindRecorder: EnvironmentReading {
     private(set) var asked: [EnvironmentKind] = []
 
-    func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
+    func values(of kind: EnvironmentKind, in directory: String, matching prefix: String) async -> [String]? {
         asked.append(kind)
         return nil
     }

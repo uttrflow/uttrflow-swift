@@ -42,24 +42,37 @@ public struct SystemEnvironmentReader: EnvironmentReading {
     /// The directories a verb lookup may run a program from.
     private let programDirectories: [String]
 
+    /// What a directory listing is read through, so a test can count what it stats without touching a disk.
+    private let files: any FileSystemProbing
+
     /// A reader over this Mac, which needs nothing to be told.
     public init() {
-        self.init(launcher: SpawnedProgramLauncher(), programDirectories: CommandLookup.programDirectories)
+        self.init(
+            launcher: SpawnedProgramLauncher(), programDirectories: CommandLookup.programDirectories,
+            files: SystemFileSystem())
     }
 
-    /// A reader that launches through `launcher` and finds programs only in `programDirectories`.
-    init(launcher: any ProgramLaunching, programDirectories: [String]) {
+    /// A reader that launches through `launcher`, finds programs only in `programDirectories`, and lists and stats through `files`.
+    init(
+        launcher: any ProgramLaunching, programDirectories: [String],
+        files: any FileSystemProbing = SystemFileSystem()
+    ) {
         self.launcher = launcher
         self.programDirectories = programDirectories
+        self.files = files
     }
 
-    /// Every value of one kind here, each kind read the way that kind is read.
-    public func values(of kind: EnvironmentKind, in directory: String) async -> [String]? {
+    /// Every value of one kind here, each kind read the way that kind is read; `prefix` narrows a name listing to what has been typed so far.
+    public func values(
+        of kind: EnvironmentKind, in directory: String, matching prefix: String
+    ) async -> [String]? {
         let path = (directory as NSString).expandingTildeInPath
         switch kind {
         case .branch: return branches(in: path)
-        case .entries(let under): return entries(under: under, from: path, directoriesOnly: false)
-        case .directories(let under): return entries(under: under, from: path, directoriesOnly: true)
+        case .entries(let under):
+            return entries(under: under, from: path, directoriesOnly: false, matching: prefix)
+        case .directories(let under):
+            return entries(under: under, from: path, directoriesOnly: true, matching: prefix)
         case .executable: return executables()
         case .alias: return aliases()
         case .subcommand(let program): return await verbs(of: program, in: path)
@@ -72,16 +85,19 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         GitRepository.holding(directory, files: SystemFileSystem())?.refNames(limit: Self.verbLimit)
     }
 
-    /// What one directory holds, hidden entries included since a dotfile is named on purpose; nothing where the directory does not exist, and no answer where it cannot be read.
-    private func entries(under: String, from directory: String, directoriesOnly: Bool) -> [String]? {
+    /// What one directory holds, narrowed to `prefix` before anything is stat'ed, so a name that could never complete the typed word never costs a stat; hidden entries included since a dotfile is named on purpose, nothing where the directory does not exist, and no answer where it cannot be read.
+    private func entries(
+        under: String, from directory: String, directoriesOnly: Bool, matching prefix: String
+    )
+        -> [String]?
+    {
         let path = Self.resolve(under, from: directory)
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue
-        else {
-            return []
-        }
-        guard let names = try? FileManager.default.contentsOfDirectory(atPath: path) else { return nil }
-        let kept = directoriesOnly ? names.filter { Self.isDirectory("\(path)/\($0)") } : names
+        guard files.kind(atPath: path) == .directory else { return [] }
+        guard let names = files.names(inDirectory: path, limit: .max) else { return nil }
+        let candidates = EnvironmentSource.matching(names, prefix: prefix)
+        let kept =
+            directoriesOnly
+            ? candidates.filter { files.kind(atPath: "\(path)/\($0)") == .directory } : candidates
         return Array(kept.sorted().prefix(Self.valueLimit))
     }
 
@@ -90,13 +106,6 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         let expanded = (under as NSString).expandingTildeInPath
         let joined = expanded.hasPrefix("/") ? expanded : "\(directory)/\(expanded)"
         return (joined as NSString).standardizingPath
-    }
-
-    /// Whether a path names a directory rather than a file or nothing at all.
-    private static func isDirectory(_ path: String) -> Bool {
-        var isDirectory: ObjCBool = false
-        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
-            && isDirectory.boolValue
     }
 
     /// Every program on the search path, up to `executableLimit` across every directory combined.
