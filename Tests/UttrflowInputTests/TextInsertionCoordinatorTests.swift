@@ -434,4 +434,44 @@ struct TextInsertionAssemblyTests {
     func saysNothingWhenTheReaderWillNot() async throws {
         #expect(try await coordinator().insert("hello").destination == nil)
     }
+
+    /// #1550: the words land when the paste is posted, so a switch during the confirmation wait is not credited.
+    @Test("names the application in front when the paste was posted, not after the confirmation wait")
+    func namesWhereThePasteWasPosted() async throws {
+        let focus = SwitchingDuringWaitFocus()
+        let engine = PasteboardTextInsertionEngine(
+            focus: focus, pasteboard: FakePasteboard(), keystrokes: FakeKeystrokeSender())
+        let coordinator = TextInsertionCoordinator(strategies: [engine], focus: focus)
+
+        let attempt = try await coordinator.insert("hello there")
+
+        #expect(attempt.arrival == .confirmed)
+        #expect(attempt.destination == SwitchingDuringWaitFocus.target)
+    }
+}
+
+/// Focus whose frontmost application changes on the first read-back after the paste, as a user switching mid-wait.
+final class SwitchingDuringWaitFocus: AccessibilityFocus, @unchecked Sendable {
+    static let target = InsertionDestination(
+        applicationName: "Editor", bundleIdentifier: "com.example.editor")
+    static let other = InsertionDestination(
+        applicationName: "Browser", bundleIdentifier: "com.example.browser")
+    private let reads = Mutex(0)
+
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func focusedFieldIsSecure() -> Bool { false }
+
+    func tail(upTo count: Int) -> FieldTail {
+        let read = reads.withLock { reads -> Int in
+            reads += 1
+            return reads
+        }
+        return .text(read > 1 ? "hello there" : "")
+    }
+
+    func frontmostApplication() -> InsertionDestination? {
+        reads.withLock { $0 } > 1 ? Self.other : Self.target
+    }
 }
