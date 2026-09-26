@@ -74,6 +74,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var recordingStopGesture: StopGesture = .letGo
 
     private var pipeline: DictationPipeline?
+    /// The pipeline's recogniser, held so memory pressure can let it go between dictations.
+    private var speechEngine: BackedSpeechEngine?
     private var controller: DictationController<ContinuousClock>?
     private var stateTask: Task<Void, Never>?
     private var dismissalTask: Task<Void, Never>?
@@ -605,12 +607,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Lets the recogniser go under memory pressure unless a dictation is under way; the next key-down loads it again.
+    private func releaseSpeechModelIfIdle() {
+        guard case .idle = lastDictationState, let speechEngine else { return }
+        Task { await speechEngine.release() }
+    }
+
     /// Releases the suggestion model when memory is pressed, and loads it again once calm has lasted. See `Docs/performance.md`.
     func memoryPressureChanged(to level: MemoryPressureLevel) {
         pressureReload?.cancel()
         pressureReload = nil
         switch level {
         case .warning, .critical:
+            releaseSpeechModelIfIdle()
             guard settings.suggestions.isEnabled, isModelPreparing else { return }
             memoryPressure.released(at: .now)
             releaseTheModel()
@@ -689,6 +698,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let speech = SpeechEngineFactory.make(
             kind: settings.engines.speech, model: model,
             modelFolder: modelStore.location(of: model), idleAfter: BackedSpeechEngine.idleRelease)
+        speechEngine = speech
 
         // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
         let speechWords = DictionaryVocabulary { [dictionary] in
