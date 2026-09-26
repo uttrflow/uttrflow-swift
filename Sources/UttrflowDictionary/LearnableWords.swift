@@ -76,6 +76,8 @@ enum LearnableWords {
 struct SightingLedger: Sendable {
     /// The most terms kept waiting at once, well above a day's vocabulary.
     static let maximumPending = 128
+    /// The most refusals kept at once; past it the oldest refusal lapses and that word may be counted again.
+    static let maximumRefused = 512
 
     private struct Sighting: Sendable {
         /// The spelling first seen, kept so a term counted three times comes out spelt one way.
@@ -86,12 +88,21 @@ struct SightingLedger: Sendable {
     private var sightings: [String: Sighting] = [:]
     /// Words the user has deleted since Uttrflow started, refused for the rest of the run.
     private var refused: Set<String> = []
+    /// The refused words oldest first, so the bound lapses the refusal made longest ago.
+    private var refusalOrder: [String] = []
+
+    /// How many refusals the ledger holds now.
+    var refusalCount: Int { refused.count }
 
     /// Stops counting a word and stops it being counted again; what a deletion reaches.
     mutating func refuse(_ word: String) {
         let key = word.lowercased()
         sightings[key] = nil
-        refused.insert(key)
+        guard refused.insert(key).inserted else { return }
+        refusalOrder.append(key)
+        if refusalOrder.count > Self.maximumRefused {
+            refused.remove(refusalOrder.removeFirst())
+        }
     }
 
     /// Counts one dictation's sightings and returns the terms now seen and said often enough to keep.
@@ -117,6 +128,7 @@ struct SightingLedger: Sendable {
     mutating func forgetEverything() {
         sightings.removeAll()
         refused.removeAll()
+        refusalOrder.removeAll()
     }
 
     /// Drops the weakest evidence when the tally outgrows its bound, deterministically.
