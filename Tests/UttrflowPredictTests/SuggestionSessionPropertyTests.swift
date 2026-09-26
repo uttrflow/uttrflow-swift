@@ -338,7 +338,8 @@ private struct Script {
             #expect(armed == (escapes ? [.escape, .optionEscape] : [.optionEscape]))
             #expect(update.silence == .minimised)
         case .certain(let text):
-            #expect(armed.contains(accept) && armed.contains(.escape) == escapes && armed.contains(.optionEscape))
+            #expect(armed.contains(accept) && armed.contains(.optionEscape))
+            #expect(armed.contains(.escape) == escapes)
             #expect(!armed.contains(.downArrow) && !armed.contains(.return) && !armed.contains(.upArrow))
             #expect(extends(text))
         case .choice(let leader, let others):
@@ -346,7 +347,8 @@ private struct Script {
             #expect(!others.isEmpty && others.count < SuggestionSession.verifiedDepth)
             let lowered = others.map { $0.lowercased() }
             #expect(!lowered.contains(leader.lowercased()) && Set(lowered).count == others.count)
-            #expect(armed.contains(accept) && armed.contains(.downArrow) && armed.contains(.escape) == escapes)
+            #expect(armed.contains(accept) && armed.contains(.downArrow))
+            #expect(armed.contains(.escape) == escapes)
             #expect(armed.contains(.return) == session.selection.hasMoved)
             #expect(armed.contains(.upArrow) == session.selection.hasMoved)
             #expect(extends(leader) && others.allSatisfy(extends))
