@@ -274,4 +274,25 @@ struct ClipboardWriteCountTests {
         #expect(written >= 1)
         #expect(await ClipboardStore(file: file.url).clips(keeping: eightDaysOn).map(\.text) == ["fresh"])
     }
+    @Test("editing a kept clip writes only the saved file")
+    func keptEditLeavesHistoryAlone() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        let kept = Clip(text: "kept", kind: .text, copiedAt: noon)
+        try await store.record(kept, keeping: week())
+        try await store.record(
+            Clip(text: "loose", kind: .text, copiedAt: noon.addingTimeInterval(-60)), keeping: week())
+        try await store.setPinned(true, of: kept.id, keeping: week())
+
+        let alias = try await Self.writes { try await store.setAlias("k", of: kept.id, keeping: week()) }
+        let rich = try await Self.writes { try await store.setRichText("<b>kept</b>", of: kept.id, keeping: week()) }
+        let filed = try await Self.writes { try await store.setCategory("Work", of: kept.id, keeping: week()) }
+
+        #expect(alias == 1)
+        #expect(rich == 1)
+        #expect(filed == 1)
+        let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
+        #expect(reopened.first { $0.id == kept.id }?.category == "Work")
+        #expect(reopened.contains { $0.text == "loose" })
+    }
 }
