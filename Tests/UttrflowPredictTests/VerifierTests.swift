@@ -326,7 +326,7 @@ struct ScoreCompletionsDeadlineTests {
         let scores = await verifier.scoreCompletions(
             ["alpha", "beta", "gamma"], following: "git z",
             before: Budget.starting(.milliseconds(200), on: clock))
-        #expect(scores.isEmpty)
+        #expect(scores == [:])
     }
 
     @Test("Score races run concurrently, so the slowest scorer bounds the latency, not the sum.")
@@ -338,7 +338,7 @@ struct ScoreCompletionsDeadlineTests {
         let scores = await verifier.scoreCompletions(
             ["alpha", "beta", "gamma"], following: "git z",
             before: Budget.starting(.milliseconds(200), on: clock))
-        #expect(scores.isEmpty)
+        #expect(scores == [:])
     }
 }
 

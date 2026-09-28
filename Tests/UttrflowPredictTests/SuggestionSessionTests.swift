@@ -950,6 +950,27 @@ struct SuggestionScoringTests {
             scores: ["git checkout": aboveCertain])
         #expect(update?.suggestion == .choice(leader: "git checkout", others: ["git commit"]))
     }
+
+    @Test("A lone leader whose score did not arrive is not drawn as `.certain`.")
+    func leaderWithoutScoreIsNotCertain() throws {
+        var session = SuggestionSession()
+        let asked = try asked(&session, typing: "git c")
+        // Scoring attempted: an unrelated entry has a score, the leader does not.
+        let update = session.resolveGenerated(
+            ["git checkout"], for: asked, elapsedMilliseconds: 0,
+            scores: ["some other line": Verification.certainFloor + 1])
+        #expect(update == .quiet(because: .nothingOffered))
+    }
+
+    @Test("Scoring attempted but every race lost to the deadline leaves the turn quiet, not `.certain`.")
+    func allScoresLostIsNotCertain() throws {
+        var session = SuggestionSession()
+        let asked = try asked(&session, typing: "git c")
+        // An empty dict with a non-nil wrapper means scoring ran but no race came back in time.
+        let update = session.resolveGenerated(
+            ["git checkout"], for: asked, elapsedMilliseconds: 0, scores: [:])
+        #expect(update == .quiet(because: .nothingOffered))
+    }
 }
 
 @Suite("Typing through a drawn ghost")

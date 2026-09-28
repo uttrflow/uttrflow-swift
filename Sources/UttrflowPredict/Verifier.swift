@@ -201,12 +201,12 @@ public actor Verifier {
         return standing
     }
 
-    /// Every model's mean log-likelihood per token past the typed text, scored in parallel within `deadline`, absent where the model has no opinion, none is loaded, or none arrived in time.
+    /// Every model's mean log-likelihood per token past the typed text, scored in parallel within `deadline`; `nil` when no scoring was attempted (no model, model still loading, or the deadline already past), an empty dict when every race lost to the deadline, and a populated dict for whatever returned in time.
     public func scoreCompletions(
         _ completions: [String], following typed: String, before deadline: Budget
-    ) async -> [String: Double] {
-        guard let scoring, await scoring.isReady else { return [:] }
-        guard !deadline.hasRunOut() else { return [:] }
+    ) async -> [String: Double]? {
+        guard let scoring, await scoring.isReady else { return nil }
+        guard !deadline.hasRunOut() else { return nil }
         return await withTaskGroup(of: (String, Double?).self) { group in
             for completion in completions {
                 group.addTask {

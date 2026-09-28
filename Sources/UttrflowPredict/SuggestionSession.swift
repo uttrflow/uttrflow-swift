@@ -293,7 +293,7 @@ public struct SuggestionSession: Sendable, Equatable {
     public mutating func resolveGenerated(
         _ completions: [String], for query: SuggestionQuery, elapsedMilliseconds: Int,
         whenEmpty silence: Quieting.Reason = .nothingOffered,
-        scores: [String: Double] = [:]
+        scores: [String: Double]? = nil
     ) -> SuggestionUpdate? {
         guard query.generation == generation, query.surface == surface, answersTheLatestRead,
             let pending
@@ -308,50 +308,54 @@ public struct SuggestionSession: Sendable, Equatable {
         }
         guard let leader = usable.first else { return settle(.silent, silence: silence) }
         let others = Array(usable.dropFirst().prefix(Self.verifiedDepth - 1))
-        // A turn with no scores is a turn the gate has not reached yet, so the legacy draw stands.
-        guard !scores.isEmpty else {
-            let update = settle(
-                others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others), silence: nil)
-            shownIsGenerated = true
-            return update
-        }
-        let leaderScore = scores[drawable[0]]
-        if others.isEmpty {
-            // A lone leader has to clear the strictest bar; below it the turn goes quiet.
-            guard Self.passesFloor(leaderScore, floor: Verification.certainFloor) else {
+        if let scores {
+            // Scoring attempted. An empty dict means every race lost to the deadline, which is not an opinion that the leader clears any floor.
+            guard !scores.isEmpty else {
                 return settle(.silent, silence: silence)
             }
-            let update = settle(.certain(leader), silence: nil)
-            shownIsGenerated = true
-            return update
-        }
-        // A list's leader only has to clear the choice bar, and so does every alternative that survives.
-        guard Self.passesFloor(leaderScore, floor: Verification.choiceFloor) else {
-            return settle(.silent, silence: silence)
-        }
-        var kept: [String] = []
-        for (drawableIndex, drawn) in zip(1..<drawable.count, others) {
-            if Self.passesFloor(scores[drawable[drawableIndex]], floor: Verification.choiceFloor) {
-                kept.append(drawn)
+            let leaderScore = scores[drawable[0]]
+            if others.isEmpty {
+                // A lone leader has to clear the strictest bar AND have actually been scored; a missing score is the deadline winning, not an opinion that the line is good.
+                guard let leaderScore, leaderScore >= Verification.certainFloor else {
+                    return settle(.silent, silence: silence)
+                }
+                let update = settle(.certain(leader), silence: nil)
+                shownIsGenerated = true
+                return update
             }
-        }
-        if kept.isEmpty {
-            // No alternative clears the choice bar: fall back to a lone .certain only when the leader clears the stricter bar.
-            guard Self.passesFloor(leaderScore, floor: Verification.certainFloor) else {
+            // A list's leader only has to clear the choice bar; a missing score is treated as no opinion for the leader, like every other alternative.
+            guard Self.passesFloor(leaderScore, floor: Verification.choiceFloor) else {
                 return settle(.silent, silence: silence)
             }
-            let update = settle(.certain(leader), silence: nil)
+            var kept: [String] = []
+            for (drawableIndex, drawn) in zip(1..<drawable.count, others) {
+                if Self.passesFloor(scores[drawable[drawableIndex]], floor: Verification.choiceFloor) {
+                    kept.append(drawn)
+                }
+            }
+            if kept.isEmpty {
+                // No alternative clears the choice bar: fall back to a lone .certain only when the leader clears the stricter bar AND has a score.
+                guard let leaderScore, leaderScore >= Verification.certainFloor else {
+                    return settle(.silent, silence: silence)
+                }
+                let update = settle(.certain(leader), silence: nil)
+                shownIsGenerated = true
+                return update
+            }
+            let update = settle(.choice(leader: leader, others: kept), silence: nil)
             shownIsGenerated = true
             return update
         }
-        let update = settle(.choice(leader: leader, others: kept), silence: nil)
+        // A turn the scoring gate has not reached yet draws the legacy way.
+        let update = settle(
+            others.isEmpty ? .certain(leader) : .choice(leader: leader, others: others), silence: nil)
         shownIsGenerated = true
         return update
     }
 
     /// Adds the alternatives that arrived after the one line was drawn, so Down has a list to open without redrawing the line.
     public mutating func expandGenerated(
-        _ others: [String], for query: SuggestionQuery, scores: [String: Double] = [:]
+        _ others: [String], for query: SuggestionQuery, scores: [String: Double]? = nil
     ) -> SuggestionUpdate? {
         // Quiet mode never draws a list, so the alternatives have nothing to add and the line stays as it is.
         guard query.generation == generation, query.surface == surface, isCurrent, let pending,
@@ -366,14 +370,14 @@ public struct SuggestionSession: Sendable, Equatable {
         }
         guard !usable.isEmpty else { return nil }
         let kept: [String]
-        if scores.isEmpty {
-            kept = Array(usable.prefix(Self.verifiedDepth - 1))
-        } else {
+        if let scores, !scores.isEmpty {
             // Each alternative must clear the choice bar; the leader already cleared the strict bar to be drawn.
             kept = zip(drawable.dropFirst(), usable).compactMap { scored, drawn in
                 Self.passesFloor(scores[scored], floor: Verification.choiceFloor) ? drawn : nil
             }
             guard !kept.isEmpty else { return nil }
+        } else {
+            kept = Array(usable.prefix(Self.verifiedDepth - 1))
         }
         let update = settle(
             .choice(leader: leader, others: Array(kept.prefix(Self.verifiedDepth - 1))), silence: nil)
