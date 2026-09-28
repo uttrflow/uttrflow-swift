@@ -316,6 +316,32 @@ struct VerifiedCandidateTests {
     }
 }
 
+@Suite("Scoring generated lines is bounded by the deadline")
+struct ScoreCompletionsDeadlineTests {
+    @Test("A scorer that overruns the budget scores nothing, even when asked for many completions.")
+    func aScorerPastTheBudgetScoresNothing() async {
+        let clock = ManualClock()
+        let slow = ScriptedScoring(liked, overrunning: clock)
+        let verifier = await warmed([:], on: "alpha", scoring: slow, clock: clock)
+        let scores = await verifier.scoreCompletions(
+            ["alpha", "beta", "gamma"], following: "git z",
+            before: Budget.starting(.milliseconds(200), on: clock))
+        #expect(scores.isEmpty)
+    }
+
+    @Test("Score races run concurrently, so the slowest scorer bounds the latency, not the sum.")
+    func scoresRaceConcurrentlyRatherThanSerially() async {
+        // Each call advances the manual clock past the budget and waits on the real clock, so concurrent scoring must exhaust the budget once, not N times.
+        let clock = ManualClock()
+        let scoring = ScriptedScoring(liked, overrunning: clock)
+        let verifier = await warmed([:], on: "alpha", scoring: scoring, clock: clock)
+        let scores = await verifier.scoreCompletions(
+            ["alpha", "beta", "gamma"], following: "git z",
+            before: Budget.starting(.milliseconds(200), on: clock))
+        #expect(scores.isEmpty)
+    }
+}
+
 @Suite("A difference only of case is not a typo")
 struct VerifierCaseTests {
     @Test("A filename that differs from disk only in case is attested, not corrected.")

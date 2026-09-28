@@ -682,7 +682,8 @@ final class SuggestionCoordinator {
         )
         // Every generated line is scored in context before any is drawn, so a low-scored line leaves the turn quiet.
         entering(.score, turn: number)
-        let scores = await verifier.scoreCompletions(completions, following: query.typed)
+        let scores = await verifier.scoreCompletions(
+            completions, following: query.typed, before: verifier.deadline())
         guard turns.isCurrent(number) else { return }
         guard
             let update = session.resolveGenerated(
@@ -704,7 +705,8 @@ final class SuggestionCoordinator {
             entering(.attest, turn: number)
             let others = await attested(listed, for: query)
             entering(.score, turn: number)
-            let otherScores = await verifier.scoreCompletions(others, following: query.typed)
+            let otherScores = await verifier.scoreCompletions(
+                others, following: query.typed, before: verifier.deadline())
             guard turns.isCurrent(number), !others.isEmpty,
                 let expanded = session.expandGenerated(others, for: query, scores: otherScores)
             else { return }
@@ -734,7 +736,8 @@ final class SuggestionCoordinator {
         entering(.attest, turn: number)
         let standing = await attested(others, for: query)
         entering(.score, turn: number)
-        let standingScores = await verifier.scoreCompletions(standing, following: query.typed)
+        let standingScores = await verifier.scoreCompletions(
+            standing, following: query.typed, before: verifier.deadline())
         guard turns.isCurrent(number), !standing.isEmpty,
             let expanded = session.expandGenerated(standing, for: query, scores: standingScores)
         else { return }

@@ -201,18 +201,53 @@ public actor Verifier {
         return standing
     }
 
-    /// Every model's mean log-likelihood per token past the typed text, absent where the model has no opinion or none is loaded.
+    /// Every model's mean log-likelihood per token past the typed text, scored in parallel within `deadline`, absent where the model has no opinion, none is loaded, or none arrived in time.
     public func scoreCompletions(
-        _ completions: [String], following typed: String
+        _ completions: [String], following typed: String, before deadline: Budget
     ) async -> [String: Double] {
-        guard let scoring else { return [:] }
-        var scores: [String: Double] = [:]
-        for completion in completions {
-            if let value = await scoring.logLikelihood(of: completion, following: typed) {
-                scores[completion] = value
+        guard let scoring, await scoring.isReady else { return [:] }
+        guard !deadline.hasRunOut() else { return [:] }
+        return await withTaskGroup(of: (String, Double?).self) { group in
+            for completion in completions {
+                group.addTask {
+                    let value = await Self.racedScore(
+                        completion, following: typed, by: scoring, before: deadline)
+                    return (completion, value)
+                }
+            }
+            var scores: [String: Double] = [:]
+            for await (completion, value) in group {
+                if Task.isCancelled { break }
+                if let value { scores[completion] = value }
+            }
+            return scores
+        }
+    }
+
+    /// The model's score against the clock: a noncooperative scorer cannot hold up the verdict.
+    private static func racedScore(
+        _ candidate: String, following context: String, by scoring: any CandidateScoring,
+        before deadline: Budget
+    ) async -> Double? {
+        let race = ScoreRace()
+        var scorer: Task<Void, Never>?
+        await withCheckedContinuation { continuation in
+            // Armed before either racer exists, so neither can arrive at an empty race.
+            race.arm(continuation)
+            scorer = Task {
+                guard let value = await scoring.logLikelihood(of: candidate, following: context) else {
+                    return race.finish(nil)
+                }
+                race.finish(value)
+            }
+            Task {
+                await deadline.runsOut()
+                race.finish(nil)
             }
         }
-        return scores
+        // Not awaited: whatever GPU work is already in flight keeps the model alive on its own past this return.
+        scorer?.cancel()
+        return race.result()
     }
 
     /// Whether every word the model added is one the machine names, or one no listing could deny; a listing not yet answered vouches for nothing.
@@ -312,7 +347,7 @@ public actor Verifier {
     }
 
     /// When this keystroke's whole set of candidates has to have been judged by.
-    private func deadline() -> Budget {
+    public func deadline() -> Budget {
         Budget.starting(.milliseconds(budgetInMilliseconds), on: clock)
     }
 
@@ -325,7 +360,7 @@ public actor Verifier {
 }
 
 /// One keystroke's budget on the verifier's clock: whether it has run out, and a wait until it does.
-struct Budget: Sendable {
+public struct Budget: Sendable {
     let hasRunOut: @Sendable () -> Bool
     let runsOut: @Sendable () async -> Void
 
@@ -367,5 +402,37 @@ private final class PlausibilityRace: Sendable {
     /// The winner's answer, silent if somehow reached before either racer finished.
     func result() -> Plausibility {
         state.withLock { $0.outcome } ?? .silent
+    }
+}
+
+/// Whichever of the model and the deadline answers a single completion's score first.
+private final class ScoreRace: Sendable {
+    /// The waiting caller and the first answer, kept together under one lock.
+    private struct State {
+        var waiting: CheckedContinuation<Void, Never>?
+        var value: Double?
+    }
+
+    private let state = Mutex(State())
+
+    /// Parks the caller until the first answer.
+    func arm(_ continuation: CheckedContinuation<Void, Never>) {
+        state.withLock { $0.waiting = continuation }
+    }
+
+    /// Records an answer, and wakes the caller for the first one only.
+    func finish(_ value: Double?) {
+        let waiting = state.withLock { state -> CheckedContinuation<Void, Never>? in
+            guard state.value == nil else { return nil }
+            state.value = value
+            defer { state.waiting = nil }
+            return state.waiting
+        }
+        waiting?.resume()
+    }
+
+    /// The winner's answer, nil if neither racer finished before the caller returned.
+    func result() -> Double? {
+        state.withLock { $0.value }
     }
 }
