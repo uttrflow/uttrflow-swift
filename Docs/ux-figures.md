@@ -49,8 +49,10 @@ paragraph. `nil` when nothing was timed.
 
 ## Streak
 
-Counted back from the most recent day, not from today, so a streak is not reported broken
-at breakfast. A streak that merely reaches the oldest entry the app happens to have is not
+A streak is current only when the most recent dictation was today or yesterday; a run ending
+earlier shows no streak (the Home tile reads "0 days", and the Dictation/Insights figure is
+omitted). Yesterday still counts because the day is not over yet. A streak that merely reaches
+the oldest entry the app happens to have is not
 evidence of anything: a new user's whole history is "the oldest thing kept". The "at
 least — anything older has been deleted" comment only appears when the snapshot still
 carries an entry retention drops, on the run's oldest day or the day before it — that entry
