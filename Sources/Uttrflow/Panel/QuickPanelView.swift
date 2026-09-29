@@ -917,32 +917,26 @@ struct QuickPanelView: View {
     /// One handler for the chords and the long moves; two `onKeyPress(phases:)` on one view do not compose.
     private func keyPress(_ press: KeyPress) -> KeyPress.Result {
         let jumped = jumpKey(press)
-        return jumped == .handled ? jumped : commandKey(press)
-    }
-
-    /// Every ⌘-chord, in the order the panel claims them.
-    private func commandKey(_ press: KeyPress) -> KeyPress.Result {
-        guard press.modifiers.contains(.command) else { return .ignored }
-        if press.characters == "z" {
-            onIntent(.undoDelete)
-            return .handled
-        }
-        // ⌘⏎ pastes the words without the formatting: a modifier, not a mode.
-        if press.key == .return {
-            return send(.returnPlain)
-        }
-        if let intent = rowIntent(for: press) {
+        guard jumped != .handled else { return jumped }
+        let decision = PanelKeyHandling.decision(
+            characters: press.characters,
+            commandHeld: press.modifiers.contains(.command),
+            shiftHeld: press.modifiers.contains(.shift),
+            isReturn: press.key == .return,
+            isEscape: press.key == .escape,
+            rowMenuOpen: openMenu != nil,
+            presentation: presentation)
+        switch decision {
+        case .key(let key), .keyAfterClosingMenu(let key):
+            return send(key)
+        case .intent(let intent):
             perform(intent)
             return .handled
+        case .closeMenu:
+            return send(.escape)
+        case .ignore:
+            return .ignored
         }
-        return commandDigit(press)
-    }
-
-    /// What a ⌘ chord does to the highlighted row, which the presenter answers from that row's own actions.
-    private func rowIntent(for press: KeyPress) -> PanelIntent? {
-        guard let character = press.characters.lowercased().first else { return nil }
-        let chord = PanelChord(character, shifted: press.modifiers.contains(.shift))
-        return presentation.intent(for: chord)
     }
 
     /// The long moves through the list, which ↑↓ would take a thousand presses to make.
@@ -957,22 +951,17 @@ struct QuickPanelView: View {
         }
     }
 
-    /// ⌘1–⌘9 pick a collection; anything else still reaches the field.
-    private func commandDigit(_ press: KeyPress) -> KeyPress.Result {
-        guard press.modifiers.contains(.command),
-            let digit = Int(press.characters), (1...9).contains(digit)
-        else { return .ignored }
-        return send(.category(number: digit))
-    }
-
     /// Sends a key to the controller, letting esc close an open menu before it closes the panel.
     private func relayKey(_ key: PanelKey) {
-        if key == .escape, openMenu != nil {
+        switch PanelKeyHandling.relayDecision(for: key, rowMenuOpen: openMenu != nil) {
+        case .closeMenu:
             openMenu = nil
-            return
+        case .key(let key), .keyAfterClosingMenu(let key):
+            openMenu = nil
+            onKey(key)
+        case .intent, .ignore:
+            break
         }
-        if openMenu != nil { openMenu = nil }
-        onKey(key)
     }
 
     private func perform(_ intent: PanelIntent) {
