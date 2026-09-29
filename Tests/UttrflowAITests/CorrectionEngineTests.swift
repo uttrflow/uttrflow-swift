@@ -276,12 +276,22 @@ struct MultiWordCorrectionTests {
                 DictionaryEntry(word: entry, origin: .added, firstSeen: .now), asHeard: heard))
     }
 
-    /// One word for one word is the ordinary case, and the evidence decides it as it always did.
-    @Test("says nothing about a run of one word")
-    func saysNothingAboutOneWord() {
+    /// A shared sound key cannot make two unrelated spellings plausible readings.
+    @Test("refuses a single-word phonetic collision that does not open alike")
+    func refusesAnUnrelatedSingleWordReading() {
+        let colin = DictionaryEntry(word: "Colin", origin: .added, firstSeen: .now)
+        #expect(PhoneticIndex(entries: [colin]).candidates(soundingLike: "Kaelin").contains(colin))
+        #expect(!ReadingRestraint.opensAlike(colin.word, heard: "Kaelin"))
+        #expect(WordCorrectionEngine.spells(colin, asHeard: "Kaelin") == false)
+    }
+
+    @Test(
+        "keeps a single-word spelling that is exact or opens alike",
+        arguments: [("Colin", "Colin"), ("Cache", "cash")])
+    func keepsAResemblingSingleWordReading(entry: String, heard: String) {
         #expect(
             WordCorrectionEngine.spells(
-                DictionaryEntry(word: "Cache", origin: .added, firstSeen: .now), asHeard: "cash"))
+                DictionaryEntry(word: entry, origin: .added, firstSeen: .now), asHeard: heard))
     }
 
     /// The pronunciation field exists for exactly this: a spelling that does not open as the sound does.

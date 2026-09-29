@@ -63,12 +63,10 @@ public struct WordCorrectionEngine: Sendable {
         return nil
     }
 
-    /// Whether an entry may take a run of several words: it must spell them, or at least open as they do.
+    /// Whether an entry spells a run, or at least opens as it does.
     static func spells(_ entry: DictionaryEntry, asHeard heard: String) -> Bool {
-        // One word for one word is the ordinary case, and the evidence alone decides it.
-        guard heard.split(whereSeparator: \.isWhitespace).count > 1 else { return true }
         // Either the spelling or the pronunciation the user wrote for it, which is what that field is for.
-        return [entry.word, entry.soundsLike].contains {
+        [entry.word, entry.soundsLike].contains {
             ReadingRestraint.closedUp($0) == ReadingRestraint.closedUp(heard)
                 || ReadingRestraint.opensAlike($0, heard: heard)
         }
