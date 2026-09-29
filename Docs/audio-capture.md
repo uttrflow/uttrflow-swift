@@ -13,9 +13,10 @@ the one-line comments. `Docs/microphone.md` covers the hardware moving under the
   than asking again, so a single large buffer is silently truncated: measured at 51% of the
   expected output when upsampling 8 kHz. Feeding it in 2048-frame slices recovers 99.8%.
   Calling `convert` repeatedly does not help; only re-supplying does.
-- Above stereo the converter has no spatial mapping to mix down with and silently produces
-  silence, a dead microphone on a multi-input audio interface. The first channel is taken
-  instead, which is predictable and audible; mono and stereo keep the default, which averages.
+- For multichannel input, `AudioResampler` chooses the channel with the greatest energy in each
+  2048-frame block. A microphone on any input reaches the recogniser without summing away an
+  opposite-phase signal; when several inputs are active, the loudest channel wins and quieter
+  simultaneous channels are not mixed.
 - Slicing works off the raw buffer list rather than `floatChannelData`, so it is correct for
   interleaved and deinterleaved layouts alike: a buffer's byte size divided by its frame count
   is the bytes per frame in both.

@@ -19,10 +19,14 @@ public final class AudioResampler: Sendable {
         let slice: AVAudioPCMBuffer
         /// Reused conversion output, sized once for the largest chunk this resampler ever produces.
         let output: AVAudioPCMBuffer
+        /// Reused per-channel energy totals for choosing the active microphone input.
+        var channelEnergy: [Double]
+        var selectedChannel = 0
 
-        init(slice: AVAudioPCMBuffer, output: AVAudioPCMBuffer) {
+        init(slice: AVAudioPCMBuffer, output: AVAudioPCMBuffer, channelCount: AVAudioChannelCount) {
             self.slice = slice
             self.output = output
+            self.channelEnergy = Array(repeating: 0, count: Int(channelCount))
         }
     }
 
@@ -42,11 +46,7 @@ public final class AudioResampler: Sendable {
         guard let outputFormat = Self.canonicalFormat,
             let converter = AVAudioConverter(from: inputFormat, to: outputFormat)
         else { return nil }
-
-        // Above stereo the converter mixes down to silence, so the first channel is taken instead.
-        if inputFormat.channelCount > 2 {
-            converter.channelMap = [0]
-        }
+        if inputFormat.channelCount > 1 { converter.channelMap = [0] }
 
         let ratio = outputFormat.sampleRate / inputFormat.sampleRate
         let outputCapacity =
@@ -60,7 +60,8 @@ public final class AudioResampler: Sendable {
         self.outputFormat = outputFormat
         self.ratio = ratio
         self.converter = Mutex(converter)
-        self.scratch = Scratch(slice: slice, output: output)
+        self.scratch = Scratch(
+            slice: slice, output: output, channelCount: inputFormat.channelCount)
     }
 
     /// Converts one buffer. Returns an empty array for an empty input.
@@ -88,6 +89,14 @@ public final class AudioResampler: Sendable {
             return try converter.withLock { converter throws(AudioCaptureError) -> [Float] in
                 guard Self.fill(scratch.slice, from: buffer, offset: offset, frames: frames) else {
                     throw .unsupportedInputFormat
+                }
+                if inputFormat.channelCount > 1 {
+                    let channel = Self.strongestChannel(
+                        in: scratch.slice, energy: &scratch.channelEnergy)
+                    if channel != scratch.selectedChannel {
+                        converter.channelMap = [NSNumber(value: channel)]
+                        scratch.selectedChannel = channel
+                    }
                 }
                 return try Self.convertWhole(scratch.slice, into: scratch.output, using: converter)
             }
@@ -124,6 +133,61 @@ public final class AudioResampler: Sendable {
 
         guard let channel = output.floatChannelData?.pointee else { return [] }
         return Array(UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+    }
+
+    /// Selects the channel with the most input energy so inactive channels and phase cancellation do not erase speech.
+    private static func strongestChannel(in input: AVAudioPCMBuffer, energy: inout [Double]) -> Int {
+        let channelCount = Int(input.format.channelCount)
+        let frames = Int(input.frameLength)
+        guard channelCount > 1, frames > 0, energy.count == channelCount else { return 0 }
+        for channel in energy.indices { energy[channel] = 0 }
+
+        switch input.format.commonFormat {
+        case .pcmFormatFloat32:
+            accumulateEnergy(in: input, into: &energy) { (sample: Float) in Double(sample) }
+        case .pcmFormatFloat64:
+            accumulateEnergy(in: input, into: &energy) { (sample: Double) in sample }
+        case .pcmFormatInt16:
+            accumulateEnergy(in: input, into: &energy) { (sample: Int16) in Double(sample) }
+        case .pcmFormatInt32:
+            accumulateEnergy(in: input, into: &energy) { (sample: Int32) in Double(sample) }
+        default:
+            return 0
+        }
+
+        var strongest = 0
+        for channel in 1..<channelCount where energy[channel] > energy[strongest] {
+            strongest = channel
+        }
+        return strongest
+    }
+
+    private static func accumulateEnergy<Sample>(
+        in input: AVAudioPCMBuffer, into energy: inout [Double], convert: (Sample) -> Double
+    ) {
+        let channelCount = Int(input.format.channelCount)
+        let frames = Int(input.frameLength)
+        let buffers = UnsafeMutableAudioBufferListPointer(input.mutableAudioBufferList)
+        if input.format.isInterleaved {
+            guard buffers.count == 1, let memory = buffers[0].mData else { return }
+            let samples = memory.assumingMemoryBound(to: Sample.self)
+            for frame in 0..<frames {
+                for channel in 0..<channelCount {
+                    let sample = convert(samples[frame * channelCount + channel])
+                    energy[channel] += sample * sample
+                }
+            }
+        } else {
+            guard buffers.count == channelCount else { return }
+            for channel in 0..<channelCount {
+                guard let memory = buffers[channel].mData else { return }
+                let samples = memory.assumingMemoryBound(to: Sample.self)
+                for frame in 0..<frames {
+                    let sample = convert(samples[frame])
+                    energy[channel] += sample * sample
+                }
+            }
+        }
     }
 
     /// Copies `frames` from `offset` of `source` into `destination` in place, off the raw buffer list so any layout is right.

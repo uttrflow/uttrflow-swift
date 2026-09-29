@@ -44,12 +44,12 @@ struct AudioResamplerTests {
         #expect(samples.count > 15_000)
     }
 
-    /// Above stereo the converter yields silence unless told which channel to take.
+    /// Every supported channel layout produces an audible mono signal.
     @Test(
-        "mixes any microphone down to audible mono",
+        "selects an audible channel for mono output",
         arguments: [1, 2, 4, 6] as [AVAudioChannelCount]
     )
-    func mixesToMono(channels: AVAudioChannelCount) throws {
+    func selectsStrongestChannelToMono(channels: AVAudioChannelCount) throws {
         let format = try #require(SyntheticAudio.format(sampleRate: 48_000, channels: channels))
         let resampler = try #require(AudioResampler(inputFormat: format))
         let buffer = try #require(SyntheticAudio.constant(0.5, frames: 4_800, format: format))
@@ -57,10 +57,68 @@ struct AudioResamplerTests {
         let samples = try resampler.resample(buffer)
 
         #expect(!samples.isEmpty)
-        // Every channel holds the same value, so a mixdown that summed instead of averaging would clip.
+        // Identical active channels must not sum above their original amplitude.
         let loudest = samples.map(abs).max() ?? 0
         #expect(loudest <= 1.0)
         #expect(loudest > 0.3)
+    }
+
+    @Test("preserves a signal on every non-first input channel")
+    func preservesNonFirstChannels() throws {
+        for channelCount in [2, 4] as [AVAudioChannelCount] {
+            let format = try #require(SyntheticAudio.format(sampleRate: 48_000, channels: channelCount))
+            let resampler = try #require(AudioResampler(inputFormat: format))
+            for selectedChannel in 1..<Int(channelCount) {
+                var amplitudes = Array(repeating: Float(0), count: Int(channelCount))
+                amplitudes[selectedChannel] = 0.5
+                let buffer = try #require(
+                    SyntheticAudio.tone(
+                        frequency: 440, frames: 48_000, format: format,
+                        channelAmplitudes: amplitudes))
+
+                let samples = try resampler.resample(buffer)
+                let rms = sqrt(samples.reduce(0.0) { $0 + Double($1 * $1) } / Double(samples.count))
+
+                #expect(rms > 0.2, "lost channel \(selectedChannel) of \(channelCount)")
+            }
+        }
+    }
+
+    @Test("selects a non-first active channel from interleaved input")
+    func preservesNonFirstInterleavedChannel() throws {
+        let format = try #require(
+            SyntheticAudio.format(sampleRate: 48_000, channels: 2, interleaved: true))
+        let resampler = try #require(AudioResampler(inputFormat: format))
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 48_000))
+        buffer.frameLength = 48_000
+        let audioBuffers = UnsafeMutableAudioBufferListPointer(buffer.mutableAudioBufferList)
+        #expect(audioBuffers.count == 1)
+        let interleaved = try #require(audioBuffers.first?.mData).assumingMemoryBound(to: Float.self)
+        let step = 2 * Double.pi * 440 / format.sampleRate
+        for frame in 0..<Int(buffer.frameLength) {
+            interleaved[frame * 2] = 0
+            interleaved[frame * 2 + 1] = 0.5 * Float(Foundation.sin(step * Double(frame)))
+        }
+
+        let samples = try resampler.resample(buffer)
+        let rms = sqrt(samples.reduce(0.0) { $0 + Double($1 * $1) } / Double(samples.count))
+
+        #expect(rms > 0.2)
+    }
+
+    @Test("an anti-phase stereo pair still supplies an audible channel")
+    func antiPhaseStereoRemainsAudible() throws {
+        let format = try #require(SyntheticAudio.format(sampleRate: 48_000, channels: 2))
+        let resampler = try #require(AudioResampler(inputFormat: format))
+        let buffer = try #require(
+            SyntheticAudio.tone(
+                frequency: 440, frames: 48_000, format: format,
+                channelAmplitudes: [0.5, -0.5]))
+
+        let samples = try resampler.resample(buffer)
+        let rms = sqrt(samples.reduce(0.0) { $0 + Double($1 * $1) } / Double(samples.count))
+
+        #expect(rms > 0.2)
     }
 
     @Test("preserves a signal rather than merely producing the right sample count")

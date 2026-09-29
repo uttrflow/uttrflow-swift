@@ -128,14 +128,28 @@ enum SyntheticAudio {
     static func tone(
         frequency: Double, frames: AVAudioFrameCount, format: AVAudioFormat, amplitude: Float = 0.5
     ) -> AVAudioPCMBuffer? {
+        tone(
+            frequency: frequency, frames: frames, format: format,
+            channelAmplitudes: Array(repeating: amplitude, count: Int(format.channelCount)))
+    }
+
+    /// A sine wave with explicit per-channel amplitudes for channel mapping tests.
+    static func tone(
+        frequency: Double, frames: AVAudioFrameCount, format: AVAudioFormat,
+        channelAmplitudes: [Float]
+    ) -> AVAudioPCMBuffer? {
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
-            let channels = buffer.floatChannelData
+            let channels = buffer.floatChannelData,
+            channelAmplitudes.count == Int(format.channelCount)
         else { return nil }
         buffer.frameLength = frames
         let step = 2 * Double.pi * frequency / format.sampleRate
-        for frame in 0..<Int(frames) {
-            let value = amplitude * Float(Foundation.sin(step * Double(frame)))
-            for channel in 0..<Int(format.channelCount) { channels[channel][frame] = value }
+        for channel in channelAmplitudes.indices {
+            for frame in 0..<Int(frames) {
+                channels[channel][frame] =
+                    channelAmplitudes[channel]
+                    * Float(Foundation.sin(step * Double(frame)))
+            }
         }
         return buffer
     }
