@@ -12,12 +12,20 @@ public struct StammersPass: CleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
+        let live = draft.presentIndices
         var previous: String?
-        for index in draft.presentIndices {
+        for (i, index) in live.enumerated() {
             let word = draft.words[index].text.lowercased()
-            // A doubled content word is emphasis, a name, or a digit of one number, so only a function word stammers.
             if word == previous, !FunctionWords.isContent(word),
                 !Self.legitimateDoubles.contains(word)
+            {
+                // A doubled function word is a stammer.
+                draft.remove(at: index, by: Self.id, carryingMarks: true)
+                continue
+            }
+            // A doubled number is a digit of one value when another number sits beside the pair, otherwise a stammer.
+            if word == previous, NumberWords.isNumber(word),
+                !Self.surroundedByNumber(at: i, in: live, draft: draft)
             {
                 draft.remove(at: index, by: Self.id, carryingMarks: true)
                 continue
@@ -25,5 +33,16 @@ public struct StammersPass: CleaningPass {
             previous = word
         }
         return draft
+    }
+
+    /// Whether a number word sits immediately before or after the doubled pair at `i`.
+    private static func surroundedByNumber(at i: Int, in live: [Int], draft: Draft) -> Bool {
+        if i >= 2, NumberWords.isNumber(draft.words[live[i - 2]].text.lowercased()) { return true }
+        if i + 1 < live.count,
+            NumberWords.isNumber(draft.words[live[i + 1]].text.lowercased())
+        {
+            return true
+        }
+        return false
     }
 }

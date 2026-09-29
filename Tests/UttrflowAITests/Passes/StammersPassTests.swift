@@ -100,4 +100,17 @@ struct StammersPassTests {
         let draft = sut.apply(Draft(text: "the the plan"))
         #expect(draft.words.map(\.state) == [.kept, .removed(by: StammersPass.id), .kept])
     }
+
+    /// A doubled number is an accidental stammer when the next word is not another number, since "extension four four two" and "port eight zero zero zero" are digit-by-digit readings the rule has to keep.
+    @Test(
+        "removes a doubled number when the next word is not a number",
+        arguments: [
+            ("it costs five five dollars", "it costs five dollars"),
+            ("there were three three people in the room", "there were three people in the room"),
+            ("I waited five five minutes", "I waited five minutes"),
+        ]
+    )
+    func removesDoubledNumberNotFollowedByNumber(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
 }
