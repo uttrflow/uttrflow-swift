@@ -55,28 +55,59 @@ struct UttrflowBuildIdentityTests {
         )
     }
 
-    @Test("Different data stores stay separate while the shared guard admits one running build")
+    @Test("The shared guard arbitrates before independent data-store locks")
     func coordinatesIndependentStoreLocks() throws {
         let directory = FileManager.default.temporaryDirectory.appending(
             path: "uttrflow-build-locks-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let productionStore = SingleInstanceLock.acquire(
-            at: LocalStore.file("instance.lock", in: directory, for: LocalStore.productionIdentifier))
-        let developmentStore = SingleInstanceLock.acquire(
-            at: LocalStore.file("instance.lock", in: directory, for: "com.uttrflow.Uttrflow.dev"))
-        guard case .acquired(let productionLock) = productionStore,
-            case .acquired(let developmentLock) = developmentStore
-        else {
-            Issue.record("separate build stores did not get independent locks")
-            return
-        }
         let coordinationFile = SingleInstanceLock.coordinationFile(in: directory)
         guard case .acquired(let coordinationLock) = SingleInstanceLock.acquire(at: coordinationFile) else {
             Issue.record("the first build did not take the shared coordination lock")
             return
         }
+        let productionStore = SingleInstanceLock.acquire(
+            at: LocalStore.file("instance.lock", in: directory, for: LocalStore.productionIdentifier))
+        guard case .acquired(let productionLock) = productionStore
+        else {
+            Issue.record("the coordination winner did not take its store lock")
+            return
+        }
 
         #expect(isHeldElsewhere(SingleInstanceLock.acquire(at: coordinationFile)))
+        // A current-protocol loser is stopped by coordination before claiming its own store lock.
+        guard
+            case .acquired(let developmentLock) = SingleInstanceLock.acquire(
+                at: LocalStore.file("instance.lock", in: directory, for: "com.uttrflow.Uttrflow.dev"))
+        else {
+            Issue.record("the startup loser should not yet hold its independent store lock")
+            return
+        }
         withExtendedLifetime((productionLock, developmentLock, coordinationLock)) {}
+    }
+
+    @Test("A pre-coordination build remains visible through its per-store lock")
+    func findsOlderBuildHoldingItsStoreLock() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(
+            path: "uttrflow-legacy-lock-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        guard
+            case .acquired(let legacyStoreLock) = SingleInstanceLock.acquire(
+                at: SingleInstanceLock.defaultFile(in: directory, for: "com.uttrflow.Uttrflow.dev"))
+        else {
+            Issue.record("the older build did not take its store lock")
+            return
+        }
+        guard
+            case .acquired(let coordinationLock) = SingleInstanceLock.acquire(
+                at: SingleInstanceLock.coordinationFile(in: directory))
+        else {
+            Issue.record("the new build did not take the shared coordination lock")
+            return
+        }
+        #expect(
+            isHeldElsewhere(
+                SingleInstanceLock.acquire(
+                    at: SingleInstanceLock.defaultFile(in: directory, for: "com.uttrflow.Uttrflow.dev"))))
+        withExtendedLifetime((legacyStoreLock, coordinationLock)) {}
     }
 }

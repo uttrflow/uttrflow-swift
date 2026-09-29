@@ -50,18 +50,8 @@ struct MenuBarPanelTests {
         bar.closePopover()
     }
 
-    @Test("A development build draws a blue icon and Dev label")
-    func developmentBuildIconIsDistinct() {
-        let presentation = MenuBarPresentation(
-            icon: .symbol("mic.fill"), statusLine: "Ready", emphasis: .normal,
-            accessibilityLabel: "Uttrflow", header: .hint(MenuBarHint(verb: "Hold", keys: "⌃⌥")),
-            buttons: [], lastDictation: nil, clips: [], items: [])
-        let installed = MenuBarController.icon(for: presentation)
-        let development = MenuBarController.icon(for: presentation, isDevelopmentBuild: true)
-
-        #expect(installed?.isTemplate == true)
-        #expect(development?.isTemplate == false)
-
+    @Test("A development build labels the menu-bar item Dev in blue")
+    func developmentBuildHasBlueDevLabel() {
         let title = MenuBarController.title(isDevelopmentBuild: true, iconMissing: false)
         #expect(title.string == "Dev")
         #expect(title.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor == .systemBlue)

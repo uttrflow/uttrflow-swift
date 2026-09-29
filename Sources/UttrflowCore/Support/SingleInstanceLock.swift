@@ -26,8 +26,11 @@ public final class SingleInstanceLock: Sendable {
     deinit { close(descriptor) }
 
     /// The per-data-folder lock that preserves single-instance handoff for copies with the same identifier.
-    public static func defaultFile(in directory: URL = .applicationSupportDirectory) -> URL {
-        LocalStore.file("instance.lock", in: directory)
+    public static func defaultFile(
+        in directory: URL = .applicationSupportDirectory,
+        for identifier: String? = Bundle.main.bundleIdentifier
+    ) -> URL {
+        LocalStore.file("instance.lock", in: directory, for: identifier)
     }
 
     /// The shared lock that serializes startup across builds without merging their data folders.

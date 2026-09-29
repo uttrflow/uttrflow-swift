@@ -50,7 +50,7 @@ enum UttrflowApp {
         application.setActivationPolicy(.regular)
         // A regular app with no main menu loses ⌘C, ⌘V, ⌘A and ⌘Z in every text field.
         application.mainMenu = MainMenu.build()
-        // Keep both lock descriptors alive for the full event loop.
+        // Keep all lock descriptors alive for the full event loop.
         withExtendedLifetime(instance) { application.run() }
     }
 
@@ -60,26 +60,72 @@ enum UttrflowApp {
     private struct InstanceLocks {
         let store: SingleInstanceLock
         let coordination: SingleInstanceLock
+        let legacyStoreGuards: [SingleInstanceLock]
     }
 
     @MainActor
     private static func claimTheOnlyInstance() -> InstanceLocks? {
         let identifier = Bundle.main.bundleIdentifier
-        guard let store = acquireOrExplain(at: SingleInstanceLock.defaultFile(), identifier: identifier)
-        else {
-            return nil
-        }
+        // Arbitrate before taking a build-specific store lock. A loser then cannot make the winner
+        // mistake an in-progress current-protocol launch for an already-running conflicting build.
         guard
             let coordination = acquireOrExplain(
                 at: SingleInstanceLock.coordinationFile(), identifier: identifier)
         else {
             return nil
         }
-        if let running = otherUttrflowInstance(differentFrom: identifier) {
-            explainConflict(with: running)
+        guard
+            let store = acquireOrExplain(at: SingleInstanceLock.defaultFile(), identifier: identifier)
+        else {
             return nil
         }
-        return InstanceLocks(store: store, coordination: coordination)
+        guard
+            let legacyStoreGuards = guardAgainstOlderBuilds(
+                differentFrom: identifier, currentStoreFile: SingleInstanceLock.defaultFile())
+        else {
+            return nil
+        }
+        return InstanceLocks(
+            store: store, coordination: coordination, legacyStoreGuards: legacyStoreGuards)
+    }
+
+    /// Prevents pre-coordination builds that are already running from bypassing the shared lock.
+    /// Current-protocol startup losers have not taken their store lock, so guarding that file keeps
+    /// them out while they observe the coordination lock and report the conflict.
+    @MainActor
+    private static func guardAgainstOlderBuilds(
+        differentFrom identifier: String?, currentStoreFile: URL
+    ) -> [SingleInstanceLock]? {
+        let me = ProcessInfo.processInfo.processIdentifier
+        let otherIdentifiers = Set(
+            NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier).filter {
+                $0 != identifier && UttrflowBuildIdentity.isUttrflow($0)
+            })
+        var guards: [SingleInstanceLock] = []
+        for otherIdentifier in otherIdentifiers {
+            let otherStoreFile = SingleInstanceLock.defaultFile(for: otherIdentifier)
+            // Unknown IDs can share the production folder; our own store lock already covers it.
+            guard otherStoreFile.standardizedFileURL != currentStoreFile.standardizedFileURL else {
+                continue
+            }
+            switch SingleInstanceLock.acquire(at: otherStoreFile) {
+            case .acquired(let lock):
+                guards.append(lock)
+            case .heldElsewhere:
+                if let running = NSWorkspace.shared.runningApplications.first(where: {
+                    $0.processIdentifier != me && $0.bundleIdentifier == otherIdentifier && !$0.isTerminated
+                }) {
+                    explainConflict(with: running)
+                } else {
+                    explainLockFailure()
+                }
+                return nil
+            case .unavailable:
+                explainLockFailure()
+                return nil
+            }
+        }
+        return guards
     }
 
     @MainActor
