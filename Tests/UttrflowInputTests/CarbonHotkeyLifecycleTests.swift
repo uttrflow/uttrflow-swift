@@ -25,6 +25,23 @@ struct CarbonHotkeyLifecycleTests {
         try expectHeld(bound)
     }
 
+    @Test("releasing a key deallocates its reconciliation timer")
+    func releaseDeallocatesReconciliationTimer() async throws {
+        let monitor = CarbonHotkeyMonitor()
+        monitor.deliver(.pressed, keyCode: UInt32(bound.keyCode))
+
+        weak var weakTimer: AnyObject?
+        weakTimer = monitor.reconciliationTimerForTesting
+        #expect(weakTimer != nil)
+
+        monitor.deliver(.released, keyCode: UInt32(bound.keyCode))
+        for _ in 0..<100 where weakTimer != nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(weakTimer == nil)
+    }
+
     @Test("a monitor stopped off the main thread does not refuse the next registration")
     func stopOffMainThenRebind() async throws {
         let previous = CarbonHotkeyMonitor()

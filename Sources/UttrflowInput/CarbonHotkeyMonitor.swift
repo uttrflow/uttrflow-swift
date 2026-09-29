@@ -24,6 +24,10 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     /// The timer comparing the real key state against what Carbon has reported.
     private let reconciliation = Mutex<(any DispatchSourceTimer)?>(nil)
 
+    var reconciliationTimerForTesting: AnyObject? {
+        reconciliation.withLock { $0 as AnyObject? }
+    }
+
     /// How often that comparison runs, in milliseconds.
     private static let reconciliationMilliseconds = 250
 
@@ -33,7 +37,11 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
 
     deinit {
         // Not `stop()`, which hops to a main thread this may never come back from.
-        reconciliation.withLock { $0?.cancel() }
+        reconciliation.withLock { timer in
+            timer?.setEventHandler(handler: nil)
+            timer?.cancel()
+            timer = nil
+        }
         if let live = registration.withLock({ $0 }) {
             hotkeySinks.withLock { $0[live.identifier] = nil }
             _ = UnregisterEventHotKey(live.hotKey)
@@ -124,7 +132,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
     }
 
     /// Reports one event, and only when it changes whether the key is down.
-    private func deliver(_ event: HotkeyEvent, keyCode: UInt32) {
+    func deliver(_ event: HotkeyEvent, keyCode: UInt32) {
         let happened = held.withLock { $0.flagsChanged(isDownNow: event == .pressed) }
         guard let happened else { return }
         // Only while a key is down, so an idle app never wakes and no timer outlives one.
@@ -143,7 +151,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
             repeating: .milliseconds(Self.reconciliationMilliseconds))
         timer.setEventHandler { [weak self] in
             // A monitor released mid-hold cancels its own timer rather than firing for ever.
-            guard let self else { timer.cancel(); return }
+            guard let self else { return }
             guard held.withLock({ $0.isDown }) else { return }
             guard !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(keyCode))
             else { return }
@@ -151,6 +159,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
         }
         timer.resume()
         reconciliation.withLock { existing in
+            existing?.setEventHandler(handler: nil)
             existing?.cancel()
             existing = timer
         }
@@ -158,6 +167,7 @@ public final class CarbonHotkeyMonitor: HotkeyMonitoring {
 
     private func stopReconciling() {
         reconciliation.withLock { timer in
+            timer?.setEventHandler(handler: nil)
             timer?.cancel()
             timer = nil
         }
