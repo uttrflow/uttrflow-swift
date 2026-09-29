@@ -10,15 +10,18 @@ public struct FirstWordPass: WholeTextCleaningPass {
     public let onScreen: [String]
     /// The transcript whose case `.asSpoken` copies; nil reads it off the draft's own heard words.
     public let heard: String?
+    /// Whether weekday and unambiguous month names use their standard casing.
+    public let capitaliseCalendarWords: Bool
 
     public init(
         policy: FirstWordPolicy = .fromInsertionPoint, state: InsertionPoint.SentenceState = .unknown,
-        onScreen: [String] = [], heard: String? = nil
+        onScreen: [String] = [], heard: String? = nil, capitaliseCalendarWords: Bool = true
     ) {
         self.policy = policy
         self.state = state
         self.onScreen = onScreen
         self.heard = heard
+        self.capitaliseCalendarWords = capitaliseCalendarWords
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -44,6 +47,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
                     in: text, heard: Array(heardWords.dropFirst(spokenBefore)))
             } else if startOfSentence {
                 cased = WordShape.capitalised(cased)
+            } else if capitaliseCalendarWords {
+                cased = Self.calendarWordCapitalised(cased)
             }
             draft.replace(at: index, with: cased, by: Self.id)
             // A word trailing off in an ellipsis is a pause, so the next keeps the case it was heard in.
@@ -93,6 +98,20 @@ public struct FirstWordPass: WholeTextCleaningPass {
         }
         return shape.replacingCore(with: "I" + shape.core.dropFirst())
     }
+
+    /// Gives unambiguous weekday and month names their conventional case without guessing at May or March.
+    static func calendarWordCapitalised(_ text: String) -> String {
+        let shape = WordShape(text)
+        let key = shape.key.lowercased()
+        guard calendarWords.contains(key) else { return text }
+        return shape.replacingCore(with: WordShape.capitalised(shape.core))
+    }
+
+    private static let calendarWords: Set<String> = [
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        "january", "february", "april", "june", "july", "august", "september", "october", "november",
+        "december",
+    ]
 
     /// Whether a word keeps its capital mid-sentence: "I" and its contractions, or an acronym.
     static func keepsCapital(_ word: String) -> Bool {

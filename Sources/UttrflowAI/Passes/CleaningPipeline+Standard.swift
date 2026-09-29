@@ -58,7 +58,9 @@ extension CleaningPipeline {
         CleaningPipeline(passes: [
             FirstWordPass(
                 policy: formatter.firstWord, state: situation.insertion.sentenceState,
-                onScreen: situation.app.textOnScreen, heard: heard),
+                onScreen: situation.app.textOnScreen, heard: heard,
+                capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
+                    && formatter.destination != .codeEditor),
             TerminalStopPass(
                 policy: terminalStop(formatter, in: situation), layout: formatter.layout,
                 insertionPoint: situation.insertion),

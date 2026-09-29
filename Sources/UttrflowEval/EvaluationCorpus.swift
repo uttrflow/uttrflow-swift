@@ -18,6 +18,12 @@ public enum EvaluationCorpus {
 
     static let everyday: [EvaluationCase] = [
         .init(
+            id: "weekday-and-month-casing", category: .everyday,
+            spoken: "can we push the demo to thursday instead of wednesday in august",
+            expected: "Can we push the demo to Thursday instead of Wednesday in August.",
+            mustKeep: ["Thursday", "Wednesday", "August"]
+        ),
+        .init(
             id: "late-to-meeting", category: .everyday,
             spoken: """
                 hey john uh I'll probably be about 20 minutes late to the meeting \

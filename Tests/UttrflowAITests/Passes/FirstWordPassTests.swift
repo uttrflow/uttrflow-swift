@@ -77,6 +77,32 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test("capitalises unambiguous weekday and month names without changing May or March")
+    func capitalisesCalendarWords() {
+        #expect(cleaned("we meet on tuesday in august", by: sut) == "We meet on Tuesday in August")
+        #expect(cleaned("it may happen in march", by: sut) == "It may happen in march")
+        #expect(cleaned("sat and sun are short", by: sut) == "Sat and sun are short")
+    }
+
+    @Test("calendar casing follows prose destinations and leaves terminal and code case spoken")
+    func calendarWordsRespectDestination() {
+        let situation = Situation.unknown
+        for destination: Destination in [.plain, .document, .email, .messaging, .sqlEditor] {
+            let pipeline = CleaningPipeline.standard(
+                for: .standard(for: destination), situation: situation)
+            #expect(
+                pipeline.run(Draft(text: "we meet on tuesday in august")).text
+                    == "We meet on Tuesday in August.")
+        }
+        for destination: Destination in [.terminal, .codeEditor, .spreadsheet] {
+            let pipeline = CleaningPipeline.standard(
+                for: .standard(for: destination), situation: situation)
+            #expect(
+                pipeline.run(Draft(text: "we meet on tuesday in august")).text
+                    == "We meet on tuesday in august")
+        }
+    }
+
     @Test("starts a sentence after a paragraph or a bullet, but not after a plain line break")
     func layout() {
         let paragraph = Draft(
