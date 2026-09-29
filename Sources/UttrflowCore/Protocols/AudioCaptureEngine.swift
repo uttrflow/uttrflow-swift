@@ -4,11 +4,13 @@ public enum AudioCaptureState: Sendable, Equatable {
     case idle
     /// Recording.
     case recording
+    /// Stopping or canceling the microphone.
+    case stopping
 }
 
 /// Captures microphone audio; `stop` returns the buffer, so a caller awaits one recording with no delegate.
 public protocol AudioCaptureEngine: Sendable {
-    /// Whether a recording is under way.
+    /// Whether the microphone is idle, recording, or stopping.
     var state: AudioCaptureState { get async }
 
     /// Begins recording. Throws ``AudioCaptureError/alreadyRecording`` if already active.

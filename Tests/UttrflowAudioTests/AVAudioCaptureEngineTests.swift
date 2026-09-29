@@ -61,6 +61,44 @@ struct AVAudioCaptureEngineTests {
         #expect(source.stopCount == 1)
     }
 
+    @Test("a cancel during the key-up drain makes stop fail instead of returning canceled audio")
+    func cancelDuringStopDrainRefusesTheRecording() async throws {
+        let source = SuspendingStopMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2, 0.3])
+
+        let stopping = Task { try await engine.stop() }
+        await source.waitUntilStopped()
+        #expect(await engine.state == .stopping)
+
+        await engine.cancel()
+        await source.releaseStop()
+
+        await #expect(throws: AudioCaptureError.notRecording) { _ = try await stopping.value }
+        #expect(await engine.state == .idle)
+        #expect(source.stopCount == 1)
+    }
+
+    @Test("a second stop during the key-up drain cannot consume the first stop's audio")
+    func concurrentStopIsRefusedWithoutLosingAudio() async throws {
+        let source = SuspendingStopMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2, 0.3])
+
+        let firstStop = Task { try await engine.stop() }
+        await source.waitUntilStopped()
+
+        await #expect(throws: AudioCaptureError.notRecording) { _ = try await engine.stop() }
+        await source.releaseStop()
+
+        let audio = try await firstStop.value
+        #expect(audio.samples == [0.1, 0.2, 0.3])
+        #expect(await engine.state == .idle)
+        #expect(source.stopCount == 1)
+    }
+
     @Test("returns an empty buffer when nothing was heard")
     func stopWithNoAudio() async throws {
         let engine = AVAudioCaptureEngine(source: FakeMicrophoneSource())
@@ -296,6 +334,66 @@ struct AVAudioCaptureEngineTests {
 
         #expect(await engine.peakLevel == 0.6)
         #expect(await engine.capturedFrameCount == 3)
+    }
+}
+
+/// Holds microphone shutdown until a test releases it, making actor reentrancy deterministic.
+private final class SuspendingStopMicrophoneSource: MicrophoneSource {
+    private let handler = Mutex<(@Sendable ([Float]) -> Void)?>(nil)
+    private let stopBarrier = StopBarrier()
+    private let stops = Mutex(0)
+
+    func start(
+        onSamples: @escaping @Sendable ([Float]) -> Void,
+        onInterruption: @escaping @Sendable (CaptureInterruption) -> Void
+    ) throws(AudioCaptureError) {
+        handler.withLock { $0 = onSamples }
+    }
+
+    func stop(draining: Bool) async {
+        stops.withLock { $0 += 1 }
+        await stopBarrier.block()
+    }
+
+    func emit(_ samples: [Float]) {
+        handler.withLock { $0 }?(samples)
+    }
+
+    func waitUntilStopped() async {
+        await stopBarrier.waitUntilEntered()
+    }
+
+    func releaseStop() async {
+        await stopBarrier.release()
+    }
+
+    var stopCount: Int { stops.withLock { $0 } }
+}
+
+/// A one-shot barrier that reports entry and suspends until explicitly released.
+private actor StopBarrier {
+    private var entered = false
+    private var released = false
+    private var entryContinuation: CheckedContinuation<Void, Never>?
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func block() async {
+        entered = true
+        entryContinuation?.resume()
+        entryContinuation = nil
+        guard !released else { return }
+        await withCheckedContinuation { releaseContinuation = $0 }
+    }
+
+    func waitUntilEntered() async {
+        guard !entered else { return }
+        await withCheckedContinuation { entryContinuation = $0 }
+    }
+
+    func release() {
+        released = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 }
 
