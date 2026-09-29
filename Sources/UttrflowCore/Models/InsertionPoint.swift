@@ -40,7 +40,22 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
             let isBlank = line.allSatisfy(\.isWhitespace)
             return isBlank && text.contains(where: \.isNewline) ? .startOfSentence : .startOfText
         }
-        return sentenceEnds.contains(last) ? .startOfSentence : .midSentence
+        if sentenceEnds.contains(last) {
+            let word = line.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
+            let normalizedWord = String(
+                word.lowercased().reversed()
+                    .drop(while: { ".!?…,:;\"'”’)]}".contains($0) })
+                    .reversed()
+                    .drop(while: { "\"'“(".contains($0) })
+            )
+            let isKnownAbbreviation =
+                sentenceAbbreviations.contains(normalizedWord)
+                || normalizedWord.split(separator: ".").count > 1
+            if !word.isEmpty, !isKnownAbbreviation {
+                return .startOfSentence
+            }
+        }
+        return .midSentence
     }
 
     /// The line without the one list, quote or heading marker it opens with, which is typed but not written.
@@ -63,6 +78,9 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
 
     /// The marks after which a new sentence begins.
     private static let sentenceEnds: Set<Character> = [".", "!", "?"]
+
+    /// Dotted forms that keep the current sentence open, shared with first-word casing.
+    public static let sentenceAbbreviations: Set<String> = ["e.g", "i.e", "vs", "etc", "p.m", "a.m"]
 
     /// Pads `text` with a space at each caret edge where it would otherwise join a neighbouring word.
     public func paddedBoundary(for text: String) -> String {

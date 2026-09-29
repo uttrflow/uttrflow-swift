@@ -81,7 +81,8 @@ public struct FirstWordPass: CleaningPass {
     /// Whether the word closes a sentence; a dotted abbreviation such as "p.m." carries a stop of its own.
     static func endsSentence(_ text: String) -> Bool {
         let shape = WordShape(text)
-        return shape.endsSentence && !shape.core.contains(".")
+        let abbreviation = InsertionPoint.sentenceAbbreviations.contains(shape.core.lowercased())
+        return shape.endsSentence && !abbreviation && !shape.core.contains(".")
     }
 
     /// "i" and "i'll" become "I" and "I'll"; nothing else changes.
