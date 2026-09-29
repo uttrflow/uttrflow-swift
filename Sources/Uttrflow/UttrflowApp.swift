@@ -50,7 +50,7 @@ enum UttrflowApp {
         application.setActivationPolicy(.regular)
         // A regular app with no main menu loses ⌘C, ⌘V, ⌘A and ⌘Z in every text field.
         application.mainMenu = MainMenu.build()
-        // The lock lives as long as the run loop, which is the life of the process.
+        // Keep both lock descriptors alive for the full event loop.
         withExtendedLifetime(instance) { application.run() }
     }
 
@@ -88,7 +88,7 @@ enum UttrflowApp {
         if case .heldElsewhere = outcome {
             if let sameBuild = otherInstance(identifier: identifier) {
                 log.notice("Another copy with this identifier is running; handing off and exiting")
-                handOff(to: sameBuild)
+                explainSameBuildHandoff(to: sameBuild)
                 return nil
             }
             if let differentBuild = otherUttrflowInstance(differentFrom: identifier) {
@@ -106,7 +106,7 @@ enum UttrflowApp {
             return nil
         case .heldElsewhere:
             if let running = otherInstance(identifier: identifier) {
-                handOff(to: running)
+                explainSameBuildHandoff(to: running)
             } else if let running = otherUttrflowInstance(differentFrom: identifier) {
                 explainConflict(with: running)
             } else {
@@ -153,6 +153,22 @@ enum UttrflowApp {
             ? "\(otherName) (\(running.bundleIdentifier ?? "unknown identifier"))" : otherName
         showLaunchAlert(
             title: "\(thisName) cannot run beside \(visibleOtherName)", detail: detail)
+    }
+
+    @MainActor
+    private static func explainSameBuildHandoff(to running: NSRunningApplication) {
+        if let fallback = productionFallbackExplanation(for: buildName) {
+            let otherName = running.localizedName ?? running.bundleIdentifier ?? buildName
+            let visibleOtherName =
+                otherName == buildName
+                ? "\(otherName) (\(running.bundleIdentifier ?? "unknown identifier"))" : otherName
+            showLaunchAlert(
+                title: "\(buildName) cannot start beside \(visibleOtherName)",
+                detail:
+                    "Another copy is already running. This launch is exiting and will bring it forward.\n\n\(fallback)"
+            )
+        }
+        handOff(to: running)
     }
 
     @MainActor
