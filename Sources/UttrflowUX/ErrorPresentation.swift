@@ -99,15 +99,8 @@ public enum FailurePresenter {
         }
     }
 
-    /// The words on the one button: a verb and its object, never "OK".
+    /// The words on the one button, shared with the other recovery surfaces.
     static func title(for recovery: RecoveryAction) -> String {
-        switch recovery {
-        case .openSystemSettings: "Open System Settings"
-        case .retry: "Try Again"
-        case .downloadSpeechModel: "Finish Setup"
-        case .pasteManually: "Dismiss"
-        case .showRecentDictations: "Show Recent"
-        case .retryFromRecording: "Retry"
-        }
+        RecoveryActionTitle.title(for: recovery)
     }
 }

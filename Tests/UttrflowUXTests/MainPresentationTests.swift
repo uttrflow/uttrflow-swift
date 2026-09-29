@@ -25,9 +25,9 @@ struct MainPresentationTests {
 
     @Test("each recovery reads as the verb the failure already used")
     func recoveryTitles() {
-        #expect(MainPresenter.title(for: .openSystemSettings(.microphone)) == "Open Settings")
+        #expect(MainPresenter.title(for: .openSystemSettings(.microphone)) == "Open System Settings")
         #expect(MainPresenter.title(for: .retry) == "Try Again")
-        #expect(MainPresenter.title(for: .downloadSpeechModel) == "Download")
+        #expect(MainPresenter.title(for: .downloadSpeechModel) == "Finish Setup")
         #expect(MainPresenter.title(for: .pasteManually) == "Dismiss")
         #expect(MainPresenter.title(for: .showRecentDictations) == "Show Recent")
     }

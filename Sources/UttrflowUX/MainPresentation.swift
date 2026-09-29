@@ -282,14 +282,7 @@ public enum MainPresenter {
 
     /// One verb per recovery, shared so the same button reads the same on every page.
     public static func title(for action: RecoveryAction) -> String {
-        switch action {
-        case .openSystemSettings: "Open Settings"
-        case .retry: "Try Again"
-        case .downloadSpeechModel: "Download"
-        case .pasteManually: "Dismiss"
-        case .showRecentDictations: "Show Recent"
-        case .retryFromRecording: "Retry"
-        }
+        RecoveryActionTitle.title(for: action)
     }
 
     /// The first permission that stops the app working, microphone before Accessibility; shared by all pages.

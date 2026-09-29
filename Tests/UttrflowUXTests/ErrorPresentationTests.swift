@@ -186,6 +186,21 @@ struct ErrorPresentationTests {
         #expect(FailurePresenter.title(for: .showRecentDictations) == "Show Recent")
     }
 
+    @Test("every presenter uses the shared recovery title")
+    func recoveryTitlesAreShared() {
+        let actions: [RecoveryAction] = [
+            .openSystemSettings(.microphone), .openSystemSettings(.accessibility),
+            .openSystemSettings(.appleIntelligence), .retry, .downloadSpeechModel, .pasteManually,
+            .showRecentDictations, .retryFromRecording,
+        ]
+
+        for action in actions {
+            let title = RecoveryActionTitle.title(for: action)
+            #expect(FailurePresenter.title(for: action) == title)
+            #expect(MainPresenter.title(for: action) == title)
+        }
+    }
+
     /// Two presentations of the same failure are compared to decide whether the menu bar redraws.
     @Test("presents the same failure as the same thing twice")
     func presentationsAreValues() {
