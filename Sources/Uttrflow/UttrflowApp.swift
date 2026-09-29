@@ -56,7 +56,7 @@ enum UttrflowApp {
 
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "launch")
 
-    /// The lock to keep, `nil` after handing off to a copy already running, or no lock when the file cannot be locked.
+    /// The lock set retained for the duration of the application event loop.
     private struct InstanceLocks {
         let store: SingleInstanceLock
         let coordination: SingleInstanceLock

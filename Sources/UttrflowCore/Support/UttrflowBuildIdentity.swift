@@ -9,9 +9,7 @@ public enum UttrflowBuildIdentity {
 
     /// Whether an identifier maps to a distinct Application Support folder.
     public static func isDevelopmentBuild(_ identifier: String?) -> Bool {
-        guard let identifier else { return false }
-        let prefix = LocalStore.productionIdentifier + "."
-        return identifier.hasPrefix(prefix) && identifier.count > prefix.count
+        !usesProductionFolder(identifier)
     }
 
     /// The first running Uttrflow identifier that is different from this build.
