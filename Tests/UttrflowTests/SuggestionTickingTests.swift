@@ -146,3 +146,27 @@ struct SuggestionCoordinatorClockTests {
         #expect(SuggestionCoordinator.mouseUpReadDelayInMilliseconds > 0)
     }
 }
+
+/// The coordinator hides a ghost for the whole time a mouse button can move its window.
+@Suite("The suggestion coordinator's pointer gesture wiring")
+struct SuggestionCoordinatorPointerGestureTests {
+    private var source: String {
+        get throws {
+            let file = URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appending(path: "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift")
+            return try String(contentsOf: file, encoding: .utf8)
+        }
+    }
+
+    @Test("keeps the ghost withdrawn from mouse down through mouse up")
+    func hidesDuringPointerGesture() throws {
+        let text = try source
+        #expect(text.contains("isPointerGestureActive = true"))
+        #expect(text.contains("NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp])"))
+        #expect(text.contains("isPointerGestureActive = false"))
+        #expect(text.components(separatedBy: "guard !isStopped, !isPointerGestureActive").count - 1 == 3)
+    }
+}

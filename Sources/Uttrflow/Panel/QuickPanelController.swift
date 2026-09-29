@@ -2,6 +2,7 @@
 
 import AppKit
 import UttrflowClipboard
+import UttrflowCore
 import UttrflowUX
 import SwiftUI
 
@@ -157,9 +158,16 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     private var presentation: PanelPresentation
     private var openCount = 0
     private var lastAnnouncements: [String] = []
+    private var lastAnnouncementIDs: [UUID] = []
 
     /// Whose caret this is. Captured on the way in, reported on the way out.
     private var caretOwner: NSRunningApplication?
+
+    var insertionDestination: InsertionDestination? {
+        guard let caretOwner else { return nil }
+        return InsertionDestination(
+            applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier)
+    }
     /// Live only while the panel is on screen; see ``watchForLeaving()``.
     private var clicks: Any?
     private var switching: (any NSObjectProtocol)?
@@ -209,7 +217,8 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
         panel.orderFrontRegardless()
         panel.makeKey()
         lastAnnouncements = []
-        postNewAnnouncements(presentation.announcements)
+        lastAnnouncementIDs = []
+        postNewAnnouncements(presentation)
         watchForLeaving()
     }
 
@@ -217,7 +226,7 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     func update(_ presentation: PanelPresentation) {
         self.presentation = presentation
         draw()
-        if panel.isVisible { postNewAnnouncements(presentation.announcements) }
+        if panel.isVisible { postNewAnnouncements(presentation) }
     }
 
     /// Takes the panel away without activating anything, because nothing was activated on the way in.
@@ -247,10 +256,22 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
         self?.onIntent?(intent, self?.caretOwner)
     }
 
-    private func postNewAnnouncements(_ lines: [String]) {
+    private func postNewAnnouncements(_ presentation: PanelPresentation) {
         let previous = lastAnnouncements
+        let previousIDs = lastAnnouncementIDs
+        let lines = presentation.announcements
+        let hasIDs = presentation.announcementIDs.count == lines.count
+        let ids = hasIDs ? presentation.announcementIDs : []
         lastAnnouncements = lines
-        for line in lines where !previous.contains(line) { announce(line) }
+        lastAnnouncementIDs = ids
+        for (index, line) in lines.enumerated() {
+            let wasAlreadyAnnounced =
+                previous.indices.contains(index) && previous[index] == line
+                && (hasIDs
+                    ? previousIDs.indices.contains(index) && previousIDs[index] == ids[index]
+                    : previousIDs.isEmpty)
+            if !wasAlreadyAnnounced { announce(line) }
+        }
     }
 
     /// Reports keys to the app; the resolved panel outcome decides whether Escape closes the window.

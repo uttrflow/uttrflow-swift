@@ -160,4 +160,21 @@ struct PanelReindentCostTests {
         #expect(Self.reindents { _ = memo.offers(clips[4]) } == 0)
         #expect(Self.reindents { _ = memo.offers(clips[0]) } == 1)
     }
+
+    @Test("pruning to the live clip list drops deleted clips from the re-indent memo")
+    func deletedClipIsRemovedFromMemo() {
+        let clips = Self.codeClips()
+        let deleted = clips[0]
+        let retained = clips[1]
+        let memo = ReindentOffers(limit: 10)
+        _ = memo.offers(deleted)
+        _ = memo.offers(retained)
+        #expect(memo.remembers(deleted.id))
+
+        memo.prune(to: [retained.id])
+
+        #expect(!memo.remembers(deleted.id))
+        #expect(memo.remembers(retained.id))
+        #expect(memo.count == 1)
+    }
 }

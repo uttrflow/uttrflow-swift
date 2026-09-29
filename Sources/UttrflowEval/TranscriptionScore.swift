@@ -54,7 +54,9 @@ public struct StoredStageTiming: Sendable, Equatable, Codable {
 
 /// What one passage cost and how far off the transcript was.
 public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
-    public var id: String { caseID }
+    public var id: String { recordID ?? caseID }
+    /// The stable storage identity when multiple recordings score the same passage.
+    public let recordID: String?
     public let caseID: String
     public let language: TranscriptionCase.Language
     public let stressor: TranscriptionCase.Stressor
@@ -93,9 +95,11 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         normalisation: [NormalisationRule] = TextNormaliser.standard.rules,
         stresses: [String] = [],
         cohortID: String? = nil,
-        recordingIdentity: String? = nil
+        recordingIdentity: String? = nil,
+        recordID: String? = nil
     ) {
         self.caseID = caseID
+        self.recordID = recordID
         self.language = language
         self.stressor = stressor
         self.stresses = stressor.labels(from: stresses)
@@ -115,6 +119,7 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         caseID = try container.decode(String.self, forKey: .caseID)
+        recordID = try container.decodeIfPresent(String.self, forKey: .recordID)
         language = try container.decode(TranscriptionCase.Language.self, forKey: .language)
         stressor = try container.decode(TranscriptionCase.Stressor.self, forKey: .stressor)
         stresses = try container.decodeIfPresent([String].self, forKey: .stresses) ?? [stressor.rawValue]

@@ -18,14 +18,12 @@ struct FormatterGuardTests {
             ("if a\n{\nb()\n}", "if a {\n    b()\n}"),
             // A trailing comma added.
             ("[1, 2, 3]", "[\n    1,\n    2,\n    3,\n]"),
-            // Quote style changed, contents identical.
-            ("let a = 'hello'", "let a = \"hello\""),
+            // A quoted literal keeps its delimiter and exact contents.
+            ("let a = \"hello\"", "let a = \"hello\""),
             // A long line wrapped.
             ("call(one, two, three)", "call(\n  one,\n  two,\n  three\n)"),
             // A semicolon dropped.
             ("let x = 1;", "let x = 1"),
-            // A comment rewrapped across lines.
-            ("// one two three four", "// one two\n// three four"),
         ])
     func acceptsRewriting(_ each: (String, String)) {
         #expect(FormatterGuard.isFaithful(each.1, to: each.0))
@@ -57,6 +55,14 @@ struct FormatterGuardTests {
                 "connect(\"prod\")", to: "connect(\"staging\")"))
     }
 
+    @Test("literal whitespace, quote kind and escapes are preserved exactly")
+    func literalContentsAndKind() {
+        #expect(!FormatterGuard.isFaithful("s = \"a b\"", to: "s = \"a  b\""))
+        #expect(!FormatterGuard.isFaithful(#"x = '${a}'"#, to: #"x = `${a}`"#))
+        #expect(!FormatterGuard.isFaithful("x = 'hello'", to: "x = \"hello\""))
+        #expect(!FormatterGuard.isFaithful("x = 'it\\'s'", to: "x = 'its'"))
+    }
+
     /// "normalises a number" — the one that looks harmless and is not.
     @Test(
         "a normalised number is caught",
@@ -72,12 +78,14 @@ struct FormatterGuardTests {
 
     // MARK: The rest of the ways it could go wrong
 
-    @Test("a deleted comment is caught, even though a rewrapped one is not")
+    @Test("a deleted or changed comment is caught")
     func deletedComment() {
         let before = "// remember the timeout\nlet a = 1"
 
         #expect(!FormatterGuard.isFaithful("let a = 1", to: before))
-        #expect(FormatterGuard.isFaithful("// remember the\n// timeout\nlet a = 1", to: before))
+        #expect(!FormatterGuard.isFaithful("// remember the\n// timeout\nlet a = 1", to: before))
+        #expect(!FormatterGuard.isFaithful("b = 2 c", to: "b = 2 // c"))
+        #expect(!FormatterGuard.isFaithful("x = 'its'", to: "x = \"it's\""))
     }
 
     @Test("a renamed identifier is caught")
@@ -132,10 +140,10 @@ struct FormatterGuardTests {
         #expect(FormatterGuard.isFaithful("if a != b {\n    x = -1\n}", to: "if a!=b{x=-1}"))
     }
 
-    /// Words inside a string are content; the punctuation around them is not.
-    @Test("punctuation inside a string may move; the words may not")
+    /// Literal punctuation is content and remains exact.
+    @Test("punctuation and words inside a string remain exact")
     func stringContents() {
-        #expect(FormatterGuard.isFaithful("print(\"a, b\")", to: "print(\"a , b\")"))
+        #expect(!FormatterGuard.isFaithful("print(\"a, b\")", to: "print(\"a , b\")"))
         #expect(!FormatterGuard.isFaithful("print(\"a c\")", to: "print(\"a b\")"))
     }
 }

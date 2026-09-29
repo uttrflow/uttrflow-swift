@@ -105,6 +105,9 @@ struct SightingLedger: Sendable {
     /// The refused words oldest first, which is what the store writes down.
     var refusals: [String] { refusalOrder }
 
+    /// Whether the user has explicitly refused to learn this spelling.
+    func isRefused(_ word: String) -> Bool { refused.contains(word.lowercased()) }
+
     /// Stops counting pending homophones and stops the refused spelling being counted again.
     mutating func refuse(_ word: String) {
         let key = word.lowercased()

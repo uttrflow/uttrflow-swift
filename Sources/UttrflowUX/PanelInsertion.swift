@@ -33,6 +33,8 @@ extension PanelInsertion {
 
 /// What the panel says when it could not place a clip; the three obstacles are told apart on screen.
 public struct PanelNotice: Sendable, Equatable {
+    /// Distinguishes a new notice event from a redraw with the same sentence.
+    public let announcementID: UUID
     /// The SF Symbol beside the sentence.
     public let symbolName: String
     /// The sentence.
@@ -41,7 +43,10 @@ public struct PanelNotice: Sendable, Equatable {
     public let action: PanelAction?
 
     /// Builds a notice; no action unless given one.
-    public init(symbolName: String, message: String, action: PanelAction? = nil) {
+    public init(
+        symbolName: String, message: String, action: PanelAction? = nil, announcementID: UUID = UUID()
+    ) {
+        self.announcementID = announcementID
         self.symbolName = symbolName
         self.message = message
         self.action = action
@@ -70,7 +75,7 @@ extension PanelInsertionObstacle {
         case .accessibilityNotGranted:
             PanelNotice(
                 symbolName: "hand.raised",
-                message: "Copied — press ⌘V. Turn on Accessibility and Uttrflow can paste for you.",
+                message: "Turn on Accessibility and Uttrflow can paste for you.",
                 action: PanelAction(
                     title: "Open Accessibility settings", symbolName: "gearshape",
                     intent: .openAccessibilitySettings))

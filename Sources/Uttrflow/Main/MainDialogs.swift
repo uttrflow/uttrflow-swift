@@ -101,6 +101,9 @@ struct ConfirmationSheet: View {
 
     var body: some View {
         ZStack {
+            ConfirmationBackdrop()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             // Takes every click, so nothing behind the question can be pressed while it is asked.
             PagePalette.scrim
                 .contentShape(.rect)
@@ -153,6 +156,38 @@ struct ConfirmationSheet: View {
         .shadow(color: PagePalette.floatShadow, radius: 30, y: 30)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+    }
+}
+
+/// Blurs the window behind a live sheet without asking offscreen renderers to draw AppKit material.
+private struct ConfirmationBackdrop: NSViewRepresentable {
+    func makeNSView(context: Context) -> ConfirmationBackdropHost {
+        ConfirmationBackdropHost()
+    }
+
+    func updateNSView(_ view: ConfirmationBackdropHost, context: Context) {}
+}
+
+/// Installs the native material only after SwiftUI attaches the sheet to its live window.
+private final class ConfirmationBackdropHost: NSView {
+    private var effect: NSVisualEffectView?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else {
+            effect?.removeFromSuperview()
+            effect = nil
+            return
+        }
+        guard effect == nil else { return }
+
+        let effect = NSVisualEffectView(frame: bounds)
+        effect.autoresizingMask = [.width, .height]
+        effect.material = .fullScreenUI
+        effect.blendingMode = .withinWindow
+        effect.state = .active
+        addSubview(effect)
+        self.effect = effect
     }
 }
 

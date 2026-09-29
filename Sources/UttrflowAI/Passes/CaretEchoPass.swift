@@ -21,7 +21,9 @@ public struct CaretEchoPass: CleaningPass {
     }
 
     public func apply(_ draft: Draft) -> Draft {
-        guard state == .midSentence, let precedingText else { return draft }
+        guard let precedingText,
+            state == .midSentence || Self.isStandaloneMarker(precedingText)
+        else { return draft }
         let targets = Self.targets(precedingText)
         guard !targets.isEmpty else { return draft }
         var draft = draft
@@ -32,8 +34,9 @@ public struct CaretEchoPass: CleaningPass {
             let word = draft.words[index]
             guard !word.isLayoutMark else { break }
             seen.append(Self.folded(word.text))
-            let joined = Self.withoutTrailingMarks(seen.joined(separator: " "))
-            if targets.contains(joined) {
+            let rawJoined = seen.joined(separator: " ")
+            let joined = Self.withoutTrailingMarks(rawJoined)
+            if targets.contains(rawJoined) || targets.contains(joined) {
                 echoed = position
                 break
             }
@@ -45,7 +48,7 @@ public struct CaretEchoPass: CleaningPass {
             let spokenWords = Self.words(Self.folded(TextTidy.collapseWhitespace(spokenText)))
             let repeatedWords = Self.words(repeated)
             let answerWords = present.map { Self.words(Self.folded(draft.words[$0].text)) }.flatMap { $0 }
-            if spokenWords.starts(with: repeatedWords),
+            if !repeatedWords.isEmpty, spokenWords.starts(with: repeatedWords),
                 answerWords == Array(spokenWords)
             {
                 return draft
@@ -61,13 +64,23 @@ public struct CaretEchoPass: CleaningPass {
         text.split { $0 == " " || $0.isPunctuation }
     }
 
-    /// The whole preceding text and the tail the prompt quoted, each folded, each at least two words.
+    /// The whole preceding text and the tail the prompt quoted, plus a standalone comment or list marker.
     static func targets(_ precedingText: String) -> Set<String> {
         let insertion = InsertionPoint(precedingText: precedingText)
         let forms = [precedingText, PromptBuilder.caretText(insertion) ?? ""]
         return Set(
-            forms.map { withoutTrailingMarks(folded(TextTidy.collapseWhitespace($0))) }
-                .filter { $0.split(separator: " ").count >= 2 })
+            forms.compactMap { form in
+                let folded = folded(TextTidy.collapseWhitespace(form))
+                let normalized = withoutTrailingMarks(folded)
+                if normalized.split(separator: " ").count >= 2 { return normalized }
+                if Self.isStandaloneMarker(folded) { return folded }
+                return nil
+            })
+    }
+
+    /// Whether the preceding text is one standalone code-comment or list marker.
+    private static func isStandaloneMarker(_ text: String) -> Bool {
+        ["//", "#", "--", "-"].contains(folded(TextTidy.collapseWhitespace(text)))
     }
 
     /// Lower-cased, with the quote the prompt swaps and the ellipsis it cuts with both folded away.

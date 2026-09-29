@@ -104,10 +104,19 @@ struct FirstWordPassTests {
     }
 
     @Test("starts a sentence after a paragraph or a bullet, but not after a plain line break")
+    @Test("starts a sentence after every line break, paragraph, or bullet")
     func layout() {
         let paragraph = Draft(
             words: ["hello", "\n\n", "there", "\n- ", "milk", "\n", "eggs"].map { Draft.Word($0) })
-        #expect(sut.apply(paragraph).text == "Hello\n\nThere\n- Milk\neggs")
+        #expect(sut.apply(paragraph).text == "Hello\n\nThere\n- Milk\nEggs")
+    }
+
+    @Test("a line starts a sentence even when no punctuation precedes it")
+    func lineStartsSentenceWithoutPunctuation() {
+        let line = Draft(words: ["first", "line", "\n", "second", "line"].map { Draft.Word($0) })
+        let paragraph = Draft(words: ["first", "line", "\n\n", "second", "line"].map { Draft.Word($0) })
+        #expect(sut.apply(line).text == "First line\nSecond line")
+        #expect(sut.apply(paragraph).text == "First line\n\nSecond line")
     }
 
     @Test("the same known abbreviations do not end a sentence inside a dictation")

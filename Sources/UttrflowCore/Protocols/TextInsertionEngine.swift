@@ -22,6 +22,16 @@ public protocol TextInsertionEngine: Sendable {
     /// Puts `text` where the user is typing, saying whether it was seen to arrive.
     func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival
 
+    /// Puts text only when the destination still matches the application captured for this insertion.
+    func insert(
+        _ text: String, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionArrival
+
+    /// Inserts formatted text only when the destination still matches the captured application.
+    func insert(
+        _ text: String, richText: String?, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionArrival
+
     /// Inserts, carrying the formatted form where the strategy has a way to; only the pasteboard has one.
     func insert(_ text: String, richText: String?) async throws(TextInsertionError) -> InsertionArrival
 
@@ -30,6 +40,20 @@ public protocol TextInsertionEngine: Sendable {
 }
 
 extension TextInsertionEngine {
+    /// Strategies without destination checks keep their existing behavior.
+    public func insert(
+        _ text: String, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionArrival {
+        try await insert(text)
+    }
+
+    /// Strategies without destination checks keep their existing behavior.
+    public func insert(
+        _ text: String, richText: String?, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionArrival {
+        try await insert(text, richText: richText)
+    }
+
     /// Ignores the formatted form, because writing into a focused element carries no formatting.
     public func insert(
         _ text: String, richText: String?

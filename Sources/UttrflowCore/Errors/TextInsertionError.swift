@@ -12,6 +12,8 @@ public enum TextInsertionError: UttrflowFailure {
     case insertionRejected(description: String)
     /// Accessibility accepted a write but its delayed result could not be distinguished from refusal.
     case insertionUnconfirmed
+    /// The application in front changed after the destination was captured.
+    case insertionTargetChanged
 
     /// A plain sentence per case, saying where the words are.
     public var userMessage: String {
@@ -28,6 +30,8 @@ public enum TextInsertionError: UttrflowFailure {
             "The text couldn't be inserted here. It's been copied, so press ⌘V to paste it."
         case .insertionUnconfirmed:
             "The app hasn't confirmed whether the text was inserted. Check the field before trying again."
+        case .insertionTargetChanged:
+            "The app in front changed. Focus the intended field and try again."
         }
     }
 
@@ -39,6 +43,7 @@ public enum TextInsertionError: UttrflowFailure {
         // The clipboard failed, so "paste" would point at the one place the words are not.
         case .clipboardUnavailable: .showRecentDictations
         case .insertionTimedOut: .showRecentDictations
+        case .insertionTargetChanged: .showRecentDictations
         case .insertionRejected: .pasteManually
         case .insertionUnconfirmed: .showRecentDictations
         }
@@ -51,13 +56,16 @@ public enum TextInsertionError: UttrflowFailure {
         case .noFocusedTextField: .recoverable
         // The words exist and the user can reach them; they only missed where they were aimed.
         case .accessibilityDenied, .clipboardUnavailable, .insertionTimedOut, .insertionRejected,
-            .insertionUnconfirmed:
+            .insertionUnconfirmed, .insertionTargetChanged:
             .degraded
         }
     }
 
-    /// Whether retrying through another strategy could duplicate a write whose result is still pending.
+    /// Whether another route must not attempt the same insertion.
     public var stopsFallback: Bool {
-        if case .insertionUnconfirmed = self { true } else { false }
+        switch self {
+        case .insertionUnconfirmed, .insertionTargetChanged: true
+        default: false
+        }
     }
 }

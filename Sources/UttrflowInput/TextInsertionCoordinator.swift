@@ -17,13 +17,33 @@ public struct TextInsertionCoordinator: TextInserting {
     /// Inserts `text` and reports how it got there, throwing only when every strategy refused.
     @discardableResult
     public func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        try await insert(text, richText: nil)
+        try await insert(text, richText: nil, targeting: nil)
+    }
+
+    @discardableResult
+    public func insert(
+        _ text: String, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionAttempt {
+        try await insert(text, richText: nil, targeting: destination)
+    }
+
+    @discardableResult
+    public func insert(
+        _ text: String, richText: String?, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionAttempt {
+        try await insert(text, richText: richText, targeting: Optional(destination))
     }
 
     /// The same insertion carrying the formatted form, which skips Accessibility so no heading is dropped.
     @discardableResult
     public func insert(
         _ text: String, richText: String?
+    ) async throws(TextInsertionError) -> InsertionAttempt {
+        try await insert(text, richText: richText, targeting: nil)
+    }
+
+    private func insert(
+        _ text: String, richText: String?, targeting destination: InsertionDestination?
     ) async throws(TextInsertionError) -> InsertionAttempt {
         let usable =
             richText == nil ? strategies : strategies.filter { $0.method != .accessibility }
@@ -35,8 +55,17 @@ public struct TextInsertionCoordinator: TextInserting {
         ) { strategy in
             guard await strategy.canInsert() else { throw TextInsertionError.noFocusedTextField }
             // Passed through rather than dropped, so what the strategy found out survives the fallback.
-            let arrival = try await strategy.insert(text, richText: richText)
-            // The strategy's own reading at the moment of sending wins, else the app in front once the write returns.
+            let arrival: InsertionArrival
+            if let destination {
+                if let richText {
+                    arrival = try await strategy.insert(text, richText: richText, targeting: destination)
+                } else {
+                    arrival = try await strategy.insert(text, targeting: destination)
+                }
+            } else {
+                arrival = try await strategy.insert(text, richText: richText)
+            }
+            // The strategy's own reading at the moment of sending wins; otherwise read the app after the write.
             let landed = await strategy.destinationAtLanding()
             return InsertionAttempt(
                 strategy.method, arrival: arrival, destination: landed ?? focus?.frontmostApplication(),

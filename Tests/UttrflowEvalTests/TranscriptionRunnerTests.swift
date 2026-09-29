@@ -1,5 +1,6 @@
 // Tests the transcription runner and its metrics recorder.
 import Foundation
+import UttrflowAudio
 import UttrflowCore
 import Synchronization
 import Testing
@@ -197,6 +198,45 @@ struct TranscriptionRunnerTests {
             label: "test", over: [recording(passage("without"))]
         ) { recorded in .transcribed(recorded.passage.romanised, stages: []) }
         #expect(report.scores.first?.recordingIdentity == nil)
+    }
+
+    @Test("keeps catalogue recordings and scores distinct when cohorts share a passage")
+    func catalogueRecordsKeepTheirSlugs() async throws {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "uttrflow-eval-tests/\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let audioDirectory = directory.appending(path: "audio")
+        let cache = CorpusCache(directory: audioDirectory)
+        try FileManager.default.createDirectory(at: audioDirectory, withIntermediateDirectories: true)
+        let passage = passage("cohort-a-hi-numbers")
+        let recordings = ["cohort-a", "cohort-b"].map { cohort in
+            RecordedPassage(
+                passage: passage, recordedAt: Date(timeIntervalSince1970: 0), durationSeconds: 1,
+                sampleRate: 16_000,
+                cohort: RecordingCohort(id: cohort, speaker: cohort, setting: "test"),
+                recordID: "\(cohort)-hi-numbers")
+        }
+        let audio = WAVEncoder.encode(.canonical([0.1, 0.2]))
+        for recording in recordings {
+            try audio.write(to: cache.audioURL(for: recording.id))
+        }
+        let store = JSONRecordStore<PassageScore>(directory: directory.appending(path: "results"))
+        let report = await TranscriptionRunner().run(
+            label: "test", over: recordings,
+            onScore: { try? store.save($0) }
+        ) { recording in
+            do {
+                _ = try AudioFileReader.read(contentsOf: cache.audioURL(for: recording.id))
+                return .transcribed(recording.id, stages: [])
+            } catch {
+                return .failed(.audioUnreadable(recording.id), stages: [])
+            }
+        }
+
+        let stored = try store.all()
+        #expect(report.failureCounts.isEmpty)
+        #expect(report.scores.map(\.id) == ["cohort-a-hi-numbers", "cohort-b-hi-numbers"])
+        #expect(stored.map(\.id).sorted() == ["cohort-a-hi-numbers", "cohort-b-hi-numbers"])
     }
 
     @Test("reports nothing measured as nothing, not as a perfect score")

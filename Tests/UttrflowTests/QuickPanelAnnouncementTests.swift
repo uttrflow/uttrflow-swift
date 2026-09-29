@@ -50,4 +50,37 @@ struct QuickPanelAnnouncementTests {
         panel.update(presentation(notice))
         #expect(heard.count == 5)
     }
+
+    @Test("repeated delete and copy events speak again when their wording is unchanged")
+    func repeatedEventsAreSpoken() {
+        let panel = QuickPanelController()
+        var heard: [String] = []
+        panel.announce = { heard.append($0) }
+        defer { panel.hide() }
+
+        func event(_ line: String, id: UUID) -> PanelPresentation {
+            PanelPresentation(
+                rows: [], filters: [], categories: [], query: "",
+                searchPlaceholder: PanelPresenter.searchPlaceholder,
+                emptyState: nil, hint: PanelPresenter.undoHint, notice: nil,
+                announcements: [line], announcementIDs: [id])
+        }
+
+        let deleted = PanelPresenter.undoAnnouncement
+        let firstDelete = UUID()
+        panel.show(event(deleted, id: firstDelete))
+        panel.update(event(deleted, id: firstDelete))
+        panel.update(event(deleted, id: UUID()))
+
+        let opening = "Turn on Accessibility and Uttrflow can paste for you."
+        panel.update(event(opening, id: UUID()))
+        #expect(!opening.contains("Copied"))
+        let copied = "Copied — press ⌘V. Turn on Accessibility and Uttrflow can paste for you."
+        let firstCopy = UUID()
+        panel.update(event(copied, id: firstCopy))
+        panel.update(event(copied, id: firstCopy))
+        panel.update(event(copied, id: UUID()))
+
+        #expect(heard == [deleted, deleted, opening, copied, copied])
+    }
 }

@@ -189,8 +189,10 @@ public actor PersonalDictionaryStore {
         // What is already held, so neither path adds a second row or reaches the replacing `add`.
         var known = Set(existing.map { $0.word.lowercased() })
         var learnt: [DictionaryEntry] = []
+        var sightings = sightingLedger()
 
         if let corrected = LearnableWords.corrected(over: context.selectedText, wrote: wrote),
+            !sightings.isRefused(corrected),
             known.insert(corrected.lowercased()).inserted
         {
             learnt.append(DictionaryEntry(word: corrected, origin: .learned, firstSeen: moment))
@@ -199,7 +201,6 @@ public actor PersonalDictionaryStore {
         // Filtered before the tally, so a word already held stops being counted rather than counted on.
         let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context)
             .filter { !known.contains($0.lowercased()) }
-        var sightings = sightingLedger()
         learnt += sightings.record(seen).map {
             DictionaryEntry(word: $0, origin: .observed, firstSeen: moment)
         }

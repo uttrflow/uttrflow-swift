@@ -77,6 +77,21 @@ struct CaretEchoPassTests {
         #expect(cleaned("hi everyone", by: pass("Hi ")) == "hi everyone")
     }
 
+    @Test(
+        "takes back a repeated comment or list marker at the caret",
+        arguments: ["//", "#", "--", "-"])
+    func stripsRepeatedMarker(_ marker: String) {
+        #expect(
+            cleaned("\(marker) the comment explains why", by: pass("\(marker) "))
+                == "the comment explains why")
+    }
+
+    @Test("takes back the marker echo while preserving the spoken words")
+    func stripsMarkerEchoFromFaithfulAnswer() {
+        let spoken = "the comment explains why"
+        #expect(cleaned("// \(spoken)", by: pass("// ", spoken: spoken)) == spoken)
+    }
+
     @Test("does nothing at the start of a sentence, where the field will not say, or after a line break")
     func inactiveElsewhere() {
         #expect(cleaned("Done. the next step", by: pass("Done. ")) == "Done. the next step")

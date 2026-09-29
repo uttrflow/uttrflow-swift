@@ -163,7 +163,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
             passage: sample.passage, recordedAt: Date(),
             durationSeconds: Double(sample.durationMs) / 1000, sampleRate: sample.sampleRateHz,
             cohort: sample.cohort.map { RecordingCohort(id: $0, speaker: $0, setting: "from the catalogue") },
-            recordingIdentity: RecordingIdentity.forCatalogueSample(s3Key: sample.s3Key))
+            recordingIdentity: RecordingIdentity.forCatalogueSample(s3Key: sample.s3Key),
+            recordID: sample.slug)
     }
 
     // MARK: Measuring one passage

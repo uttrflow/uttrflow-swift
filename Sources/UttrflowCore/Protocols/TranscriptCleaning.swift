@@ -36,6 +36,18 @@ public protocol TextInserting: Sendable {
     @discardableResult
     func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt
 
+    /// Inserts only when the application still matches the destination captured for this insertion.
+    @discardableResult
+    func insert(
+        _ text: String, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionAttempt
+
+    /// Inserts formatted text only when the application still matches the captured destination.
+    @discardableResult
+    func insert(
+        _ text: String, richText: String?, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionAttempt
+
     /// Inserts text carrying formatting where the clip has any; separate so a dictation stays plain words.
     @discardableResult
     func insert(
@@ -46,6 +58,22 @@ public protocol TextInserting: Sendable {
 
 /// The default for inserters that cannot carry formatting: insert the words.
 extension TextInserting {
+    /// Inserters without destination checks keep their existing behavior.
+    @discardableResult
+    public func insert(
+        _ text: String, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionAttempt {
+        try await insert(text)
+    }
+
+    /// Inserters without destination checks keep their existing behavior.
+    @discardableResult
+    public func insert(
+        _ text: String, richText: String?, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionAttempt {
+        try await insert(text, richText: richText)
+    }
+
     /// Inserts the plain words and drops the rich form.
     @discardableResult
     public func insert(

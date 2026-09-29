@@ -1266,6 +1266,52 @@ PYTHON
 fi
 
 # ---------------------------------------------------------------------------
+# README clipboard privacy claims must keep the current protections visible.
+# ---------------------------------------------------------------------------
+# #2109: the README names concealed-copy handling, secret storage, file permissions and the Clipboard pause switch.
+printf '\nREADME clipboard privacy claims\n'
+
+read -r -d '' README_PRIVACY_PROGRAM <<'PYTHON' || true
+from pathlib import Path
+
+readme = Path("README.md").read_text(errors="ignore")
+obsolete = (
+    "Uttrflow does not honour the concealed-pasteboard convention",
+    "Uttrflow does not read that mark yet",
+    "The text is stored in the clear like every other clip",
+    "ordinary file permissions",
+)
+missing = [claim for claim in obsolete if claim in readme]
+if missing:
+    print("obsolete README privacy claims remain:")
+    for claim in missing:
+        print(f"  {claim}")
+
+required = (
+    "Password managers' concealed mark is honoured",
+    "not written to clipboard history or saved clips",
+    "The Clipboard switch in Settings pauses capture",
+    "owner-only",
+    "[`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md)",
+)
+missing = [claim for claim in required if claim not in readme]
+if missing:
+    print("README clipboard privacy claims or their supporting link are missing:")
+    for claim in missing:
+        print(f"  {claim}")
+PYTHON
+
+privacy_problems="$(python3 -c "$README_PRIVACY_PROGRAM")"
+if [[ -z "$privacy_problems" ]]; then
+    pass "README clipboard privacy claims describe concealed copies, storage, permissions and the pause switch"
+else
+    fail "README clipboard privacy claims have drifted" \
+        "Keep the README aligned with the clipboard protections described in" \
+        "Docs/clipboard-secrets.md and the Clipboard switch in Settings." \
+        "" $'\n'"$privacy_problems"
+fi
+
+# ---------------------------------------------------------------------------
 # 10. Docs/bakeoff.md's corpus inventory must match EvaluationCorpus.
 # ---------------------------------------------------------------------------
 #

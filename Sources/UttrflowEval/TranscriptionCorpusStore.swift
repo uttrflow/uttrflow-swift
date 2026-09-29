@@ -3,7 +3,9 @@ public import Foundation
 
 /// One passage as read, carrying the whole case so a reworded passage never scores old audio.
 public struct RecordedPassage: Sendable, Equatable, Codable, Identifiable {
-    public var id: String { passage.id }
+    public var id: String { recordID ?? passage.id }
+    /// The stable storage identity when one recording shares a passage with another.
+    public let recordID: String?
     public let passage: TranscriptionCase
     public let recordedAt: Date
     /// Length of the recording, so a report can say how much speech a score rests on.
@@ -20,9 +22,11 @@ public struct RecordedPassage: Sendable, Equatable, Codable, Identifiable {
         durationSeconds: Double,
         sampleRate: Int,
         cohort: RecordingCohort? = nil,
-        recordingIdentity: String? = nil
+        recordingIdentity: String? = nil,
+        recordID: String? = nil
     ) {
         self.passage = passage
+        self.recordID = recordID
         self.recordedAt = recordedAt
         self.durationSeconds = durationSeconds
         self.sampleRate = sampleRate

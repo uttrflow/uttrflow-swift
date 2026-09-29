@@ -1,5 +1,7 @@
 // Tests for the hold that keeps keys back while a taken keystroke is carried out.
 import CoreGraphics
+import Dispatch
+import Synchronization
 import Testing
 
 @testable import UttrflowInput
@@ -55,5 +57,50 @@ struct KeyHoldTests {
         hold.begin(now: 5)
         #expect(!hold.keep(try #require(Self.key(36)), now: 5 + KeyHold.limitNanoseconds))
         #expect(!hold.keep(try #require(Self.key(36)), now: 6 + KeyHold.limitNanoseconds))
+    }
+
+    @Test("release drains a key whose eligibility check is in progress")
+    func keepAndReleaseAreAtomic() throws {
+        let hold = KeyHold()
+        let enteredEligibilityCheck = DispatchSemaphore(value: 0)
+        let finishKeep = DispatchSemaphore(value: 0)
+        let releaseStarted = DispatchSemaphore(value: 0)
+        let releaseFinished = DispatchSemaphore(value: 0)
+        let keepResult = Mutex<Bool?>(nil)
+        let posted = Mutex<[Int64]>([])
+        hold.begin(now: 100)
+
+        DispatchQueue.global().async {
+            guard let event = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: true) else {
+                enteredEligibilityCheck.signal()
+                keepResult.withLock { $0 = false }
+                return
+            }
+            let kept = hold.keep(event, now: 200) {
+                enteredEligibilityCheck.signal()
+                finishKeep.wait()
+            }
+            keepResult.withLock { $0 = kept }
+        }
+        enteredEligibilityCheck.wait()
+
+        DispatchQueue.global().async {
+            releaseStarted.signal()
+            hold.release { event in
+                posted.withLock { $0.append(event.getIntegerValueField(.keyboardEventKeycode)) }
+            }
+            releaseFinished.signal()
+        }
+        releaseStarted.wait()
+        finishKeep.signal()
+        releaseFinished.wait()
+
+        #expect(keepResult.withLock { $0 } == true)
+        #expect(posted.withLock { $0 } == [36])
+        #expect(!hold.isHolding)
+        #expect(!hold.keep(try #require(Self.key(49)), now: 300))
+        var replayedAgain: [Int64] = []
+        hold.release { replayedAgain.append($0.getIntegerValueField(.keyboardEventKeycode)) }
+        #expect(replayedAgain.isEmpty)
     }
 }

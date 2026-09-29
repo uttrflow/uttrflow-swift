@@ -39,12 +39,13 @@ public struct TranscriptionRunner: Sendable {
                         text, against: recording.passage, normaliser: normaliser, stages: stages,
                         // An engine that returns nothing heard silence: no words, and its own failure kind.
                         failure: text.allSatisfy(\.isWhitespace) ? .recognisedNothing : nil,
-                        cohortID: recording.cohort?.id, recordingIdentity: recording.recordingIdentity)
+                        cohortID: recording.cohort?.id, recordingIdentity: recording.recordingIdentity,
+                        recordID: recording.recordID)
                 case .failed(let failure, let stages):
                     TranscriptionScorer.score(
                         "", against: recording.passage, normaliser: normaliser, stages: stages,
                         failure: failure, cohortID: recording.cohort?.id,
-                        recordingIdentity: recording.recordingIdentity)
+                        recordingIdentity: recording.recordingIdentity, recordID: recording.recordID)
                 }
             scores.append(score)
             onScore?(score)

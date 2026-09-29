@@ -127,7 +127,8 @@ extension TextInsertionError: CataloguedFailure {
         case .clipboardUnavailable: .insertionTimedOut
         case .insertionTimedOut: .insertionRejected(description: "")
         case .insertionRejected: .insertionUnconfirmed
-        case .insertionUnconfirmed: nil
+        case .insertionUnconfirmed: .insertionTargetChanged
+        case .insertionTargetChanged: nil
         }
     }
 }

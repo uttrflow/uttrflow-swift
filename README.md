@@ -370,33 +370,32 @@ the top of the Dictation page with a Retry. Nothing about it leaves the Mac. See
 re-insert it, and deleted after its retention window. Your dictionary, your history and
 your settings are files on this Mac; signing out does not remove them, and only Reset does.
 
-**A clipboard manager records everything you copy, and this one is no exception.** Text,
-links, code and images all go into `~/Library/Application Support/Uttrflow` — plain JSON
-with the pictures as PNG files beside it, at ordinary file permissions. It is not
-encrypted, so anything running as you can read it. Clips age out after the retention
-window (seven days by default, five hundred clips) unless you pin them. None of it leaves
-this Mac: there is no clipboard sync.
+When you are signed in and Clipboard is enabled, Uttrflow records copies it can keep in
+`~/Library/Application Support/Uttrflow` — plain JSON, with copied pictures as PNG files
+beside it. The folder and files are owner-only (`0o700` folders and `0o600` files), but
+they are not encrypted, so anything running as you can still read them. Clips age out
+after the retention window (seven days by default, five hundred clips) unless you pin
+them. None of it leaves this Mac: there is no clipboard sync.
 
-Two things are owed here, and until they are done this is worth knowing:
-
-- **Uttrflow does not honour the concealed-pasteboard convention.** Password managers mark
-  a copied password so that clipboard managers skip it. Uttrflow does not read that mark
-  yet, so a password copied out of one is captured like anything else.
-- **There is no way to pause capture or exclude an application.** Every copy is recorded
-  while the app is running.
+- **Password managers' concealed mark is honoured.** Concealed text is treated as a secret
+  and is not written to clipboard history or saved clips. See
+  [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md) for what the marker and secret
+  handling cover.
+- **The Clipboard switch in Settings pauses capture.** There is no per-application
+  exclusion.
 
 Clips that look like secrets are masked in the panel until you ask to see them, at a
-fixed width that does not reveal how long the token is, and they get no tooltip. That is
-a rule about the screen — about somebody reading over your shoulder, or a shared screen —
-and not about the disk. The text is stored in the clear like every other clip.
+fixed width that does not reveal how long the token is, and they get no tooltip. Secret
+text can appear in the running panel, but is not written to clipboard history or saved
+clips. See [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
 **Tab-to-complete reads the text in and around the field you are typing in**, such as the
 thread above a reply box, and hands it to a model that runs on this Mac. None of it is
 uploaded.
 
 **Tab-to-complete learns from what you type, and that corpus is the most sensitive thing
-the app keeps.** It is `predict.v1.sqlite` in the same Application Support folder, at the
-same ordinary file permissions, unencrypted, and it is never uploaded. Nothing is written
+the app keeps.** It is `predict.v1.sqlite` in the same Application Support folder, with
+owner-only file permissions, unencrypted, and it is never uploaded. Nothing is written
 until you have been asked: the first time you finish a value in an application Uttrflow
 asks once whether it may learn there, keeps the answer in `predict-consent.v1.json`, and
 records nothing in the meantime — so the choice is per application, and an application you

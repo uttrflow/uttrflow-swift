@@ -105,6 +105,23 @@ struct PersonalDictionaryStoreTests {
         #expect(try await store.remove(UUID()).count == 1)
     }
 
+    @Test("does not relearn a deleted word from a correction over a selection")
+    func correctionHonorsADeletedWordRefusal() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        let deleted = word("Uttrflow", from: .learned)
+        try await store.add(deleted)
+        try await store.remove(deleted.id)
+
+        let reopened = PersonalDictionaryStore(file: sandbox.file)
+        let relearned = try await reopened.learn(
+            heard: "utter flow", wrote: "Uttrflow",
+            seeing: .fixture(selectedText: "utter flow"), at: epoch)
+
+        #expect(relearned.isEmpty)
+        #expect(await reopened.allEntries().isEmpty)
+    }
+
     /// Reaches the disk inside the call, so a user who clears and quits does not find it still there.
     @Test("leaves nothing on disk when everything is forgotten")
     func removeEverything() async throws {

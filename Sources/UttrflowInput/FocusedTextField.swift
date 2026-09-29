@@ -28,6 +28,9 @@ public protocol AccessibilityFocus: Sendable {
     /// The focused text field, or `nil` when what is focused cannot take text.
     func focusedTextField() -> (any FocusedTextField)?
 
+    /// The field owned by `destination`, or `nil` when its owner cannot be verified.
+    func focusedTextField(in destination: InsertionDestination) -> (any FocusedTextField)?
+
     /// Whether anything at all is focused that could take a paste, which many fields allow while refusing a selection read.
     func hasFocusedElement() -> Bool
 
@@ -51,6 +54,11 @@ public protocol AccessibilityFocus: Sendable {
 
     /// Whether the focused field hides what is typed, asked without reading a declared secure field's value.
     func focusedFieldIsSecure() -> Bool
+}
+
+extension AccessibilityFocus {
+    /// Implementations without owner checks cannot safely target a captured application.
+    public func focusedTextField(in destination: InsertionDestination) -> (any FocusedTextField)? { nil }
 }
 
 /// What a field says about the text before its caret, keeping "too short" apart from "will not say".

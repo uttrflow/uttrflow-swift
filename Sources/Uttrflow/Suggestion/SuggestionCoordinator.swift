@@ -95,6 +95,8 @@ final class SuggestionCoordinator {
     private var activations: (any NSObjectProtocol)?
     /// The Space and sleep observers, each of which leaves a ghost with no field under it.
     private var spaceObservers: [any NSObjectProtocol] = []
+    /// Whether a held mouse button can still move the focused window under a ghost.
+    private var isPointerGestureActive = false
     private var ticker: Timer?
     /// Whether the pause clock should be running, which it is only for a short window after activity.
     private var ticking = SuggestionTicking()
@@ -304,6 +306,7 @@ final class SuggestionCoordinator {
         ticker?.invalidate()
         ticker = nil
         ticking = SuggestionTicking()
+        isPointerGestureActive = false
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         stopWatchingScrolls()
@@ -350,6 +353,11 @@ final class SuggestionCoordinator {
             let delay = event.type == .leftMouseUp ? Self.mouseUpReadDelayInMilliseconds : 0
             FocusedFieldReader.focusMayHaveMoved()
             MainActor.assumeIsolated {
+                if event.type == .leftMouseDown {
+                    self?.isPointerGestureActive = true
+                } else if event.type == .leftMouseUp {
+                    self?.isPointerGestureActive = false
+                }
                 self?.focusedFieldValueObserver.refresh()
                 self?.noteActivity()
                 self?.withdraw()
@@ -361,6 +369,11 @@ final class SuggestionCoordinator {
             }
         }
         if let clicks { monitors.append(clicks) }
+        activations = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applicationChanged() }
+        }
         for name in [
             NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.screensDidSleepNotification,
         ] {
@@ -1059,7 +1072,7 @@ final class SuggestionCoordinator {
 
     /// Draws whatever a turn with no field behind it settled on, which is always nothing.
     private func draw(_ step: SuggestionStep) {
-        guard !isStopped, case .settled(let update) = step else { return }
+        guard !isStopped, !isPointerGestureActive, case .settled(let update) = step else { return }
         stopWatchingSelection()
         interceptor.arm(update.armed)
         armedOffer = update.suggestion.accepting
@@ -1069,8 +1082,8 @@ final class SuggestionCoordinator {
 
     /// Arms the tap first and draws second, so no key is claimed that nothing is offering.
     func draw(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot?) {
-        // A stopped loop, or an answer from a read that a key, click or switch has since overtaken, draws nothing and claims no key.
-        guard !isStopped, session.isCurrent else {
+        // A stopped loop, a held pointer gesture, or a stale read draws nothing and claims no key.
+        guard !isStopped, !isPointerGestureActive, session.isCurrent else {
             stopWatchingSelection()
             interceptor.arm([])
             panel.hide()
@@ -1113,7 +1126,7 @@ final class SuggestionCoordinator {
 
     /// Draws what a move or a dismissal left where the ghost already stands, since no field was read for it and typing may have moved it.
     private func redraw(_ update: SuggestionUpdate) {
-        guard !isStopped, session.isCurrent else {
+        guard !isStopped, !isPointerGestureActive, session.isCurrent else {
             stopWatchingSelection()
             interceptor.arm([])
             panel.hide()

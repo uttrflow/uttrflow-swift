@@ -472,7 +472,7 @@ public enum EvaluationCorpus {
         .init(
             id: "period-after-new-line", category: .everyday,
             spoken: "first line new line second line period",
-            expected: "First line\nsecond line.",
+            expected: "First line\nSecond line.",
             mustKeep: ["first line", "second line"],
             mustNotAdd: ["new", "period"]
         ),
@@ -495,6 +495,20 @@ public enum EvaluationCorpus {
             expected: "Is it ready?\nYes.",
             mustKeep: ["is it ready", "yes"],
             mustNotAdd: ["new line", "question mark"]
+        ),
+        .init(
+            id: "question-mark-new-line-thanks", category: .everyday,
+            spoken: "what do you think question mark new line thanks",
+            expected: "What do you think?\nThanks.",
+            mustKeep: ["what do you think", "thanks"],
+            mustNotAdd: ["new line", "question mark"]
+        ),
+        .init(
+            id: "sentence-per-new-line", category: .everyday,
+            spoken: "agenda new line one intro new line two demo",
+            expected: "Agenda\nOne intro\nTwo demo.",
+            mustKeep: ["agenda", "one intro", "two demo"],
+            mustNotAdd: ["new line"]
         ),
         .init(
             id: "time-of-day", category: .everyday,
@@ -1430,7 +1444,7 @@ public enum EvaluationCorpus {
         .init(
             id: "code-editor-line-break-preserved", category: .contextual,
             spoken: "retry the request new line log the failure",
-            expected: "Retry the request\nlog the failure",
+            expected: "Retry the request\nLog the failure",
             mustKeep: ["request", "failure"],
             context: AppContext(
                 applicationName: "Xcode",
@@ -1440,7 +1454,7 @@ public enum EvaluationCorpus {
             mustNotAdd: ["new line", "."],
             destination: .codeEditor,
             mustBeginWith: "Retry the request\n",
-            mustEndWith: "log the failure"
+            mustEndWith: "Log the failure"
         ),
         // Only the model can take a spelling off the screen; the rules are not asked to pass this one.
         .init(

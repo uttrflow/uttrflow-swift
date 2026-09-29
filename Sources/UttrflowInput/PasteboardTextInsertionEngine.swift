@@ -39,10 +39,28 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
     public func insert(
         _ text: String, richText: String?
     ) async throws(TextInsertionError) -> InsertionArrival {
+        try await insertSerialized(text, richText: richText, targeting: nil)
+    }
+
+    public func insert(
+        _ text: String, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionArrival {
+        try await insert(text, richText: nil, targeting: destination)
+    }
+
+    public func insert(
+        _ text: String, richText: String?, targeting destination: InsertionDestination
+    ) async throws(TextInsertionError) -> InsertionArrival {
+        try await insertSerialized(text, richText: richText, targeting: destination)
+    }
+
+    private func insertSerialized(
+        _ text: String, richText: String?, targeting destination: InsertionDestination?
+    ) async throws(TextInsertionError) -> InsertionArrival {
         let gate = Self.insertionGate
         await gate.acquire()
         do {
-            let result = try await insertWhileSerialized(text, richText: richText)
+            let result = try await insertWhileSerialized(text, richText: richText, targeting: destination)
             await gate.release()
             return result
         } catch {
@@ -52,7 +70,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
     }
 
     private func insertWhileSerialized(
-        _ text: String, richText: String?
+        _ text: String, richText: String?, targeting destination: InsertionDestination?
     ) async throws(TextInsertionError) -> InsertionArrival {
         // The clipboard is the user's, so a stage that has given up must not take it. See `Docs/insertion.md`.
         guard !Task.isCancelled else {
@@ -61,6 +79,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         landedIn = nil
         // Re-checked here rather than trusted from `canInsert()`, whose answer can go stale by now.
         try PasteboardPasteAction.requireExternal(focus: focus)
+        try refuseIfTargetChanged(destination)
         // Concealed for a field that hides what is typed, so no clipboard history keeps the words.
         let focus = focus
         if await AccessibilityThread.run(orElse: true, { focus.focusedFieldIsSecure() }) {
@@ -74,6 +93,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         let before = await AccessibilityThread.run(orElse: .unreadable) {
             focus.tail(upTo: PasteConfirmation.readLength)
         }
+        try refuseIfTargetChanged(destination)
         // Thrown onwards with the words left on the clipboard: the floor below would only put them back.
         try PasteboardPasteAction.postIfExternal(focus: focus, keystrokes: keystrokes)
         // Read as the paste is posted, not after the wait below, so a switch during the wait is not credited.
@@ -84,6 +104,13 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         report?(outcome)
         // The borrowed clipboard is deliberately never restored. See `Docs/insertion.md`.
         return InsertionArrival(outcome)
+    }
+
+    private func refuseIfTargetChanged(_ destination: InsertionDestination?) throws(TextInsertionError) {
+        guard let destination else { return }
+        guard destination.isKnown, let expected = destination.bundleIdentifier,
+            focus.frontmostApplication()?.bundleIdentifier == expected
+        else { throw .insertionTargetChanged }
     }
 
     /// The application in front as the last paste was posted.

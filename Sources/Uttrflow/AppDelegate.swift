@@ -225,6 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// The panel's state while it is open, held here because a window has no memory.
     private var panel: PanelSnapshot?
+    private var panelTarget: InsertionDestination?
     /// Counts Format presses, so only the latest run's result may open its sheet.
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
@@ -1276,6 +1277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let opening = PanelSnapshot.opening(now: Date(), resuming: resume)
         panel = opening
         quickPanel.show(PanelPresenter.present(opening))
+        panelTarget = quickPanel.insertionDestination
         updates.refresh()
         let opened = quickPanel.opens
         // A copy since the last poll is taken now, started not awaited, so no read holds the panel shut (#895).
@@ -1377,15 +1379,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             closeAfterReading()
         case .closeAndInsertFormatted(let text, let richText, let used):
+            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insert(text, richText: richText, used: used)
+            insert(text, richText: richText, targeting: destination, used: used)
         case .closeAndInsert(let text, let used):
             // Closed first: insertion declines outright while Uttrflow is frontmost.
+            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insert(text, used: used)
+            insert(text, targeting: destination, used: used)
         case .closeAndInsertConcealed(let text, let used):
+            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insert(text, concealed: true, used: used)
+            insert(text, concealed: true, targeting: destination, used: used)
         case .copyAndSay(let text, let notice, let used):
             // Stays open: the panel is the only surface left to say this on.
             putOnClipboard(text, used: used)
@@ -1463,6 +1468,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // The earlier delete's timer must not expire this one's offer before its own starts.
             undoTask?.cancel()
             panel?.canUndoDelete = held != nil
+            panel?.undoAnnouncementID = UUID()
             Self.log.info(
                 "delete: undoable=\(held != nil, privacy: .public) flag=\(self.panel?.canUndoDelete == true, privacy: .public)"
             )
@@ -1672,12 +1678,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Puts text where the caret is, through the coordinator whose last strategy cannot fail.
-    private func insert(_ text: String, richText: String? = nil, concealed: Bool = false, used: Clip.ID?) {
+    private func insert(
+        _ text: String, richText: String? = nil, concealed: Bool = false,
+        targeting destination: InsertionDestination? = nil, used: Clip.ID?
+    ) {
         markUsed(used)
         let clipInserter = concealed ? secretInserter : clipInserter
         Task { [weak self, clipInserter] in
             do {
-                let attempt = try await clipInserter.insert(text, richText: richText)
+                let attempt: InsertionAttempt
+                if let destination {
+                    attempt = try await clipInserter.insert(text, richText: richText, targeting: destination)
+                } else {
+                    attempt = try await clipInserter.insert(text, richText: richText)
+                }
                 Self.log.info(
                     """
                     clip inserted by \(attempt.method.rawValue, privacy: .public) \
@@ -1769,6 +1783,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         noticeLinger.interrupt()
         quickPanel.hide()
         panel = nil
+        panelTarget = nil
         // The quiet minute an update waits for starts here, not at the next window event.
         updates.refresh()
     }

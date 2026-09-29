@@ -35,7 +35,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
         for index in draft.presentIndices {
             let word = draft.words[index]
             guard !word.isLayoutMark else {
-                startOfSentence = word.text != "\n"
+                // Every layout mark starts a new sentence.
+                startOfSentence = true
                 continue
             }
             var cased = Self.pronounCapitalised(word.text)

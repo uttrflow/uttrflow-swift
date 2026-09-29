@@ -368,6 +368,23 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
 
         return SelectionWriter(field: AXSelectionAttributes(element: candidate))
     }
+
+    public func focusedTextField(in destination: InsertionDestination) -> (any FocusedTextField)? {
+        guard let bundleIdentifier = destination.bundleIdentifier,
+            frontmostApplication()?.bundleIdentifier == bundleIdentifier,
+            let candidate = focusedElement()
+        else { return nil }
+        var processIdentifier: pid_t = 0
+        guard AXUIElementGetPid(candidate, &processIdentifier) == .success,
+            NSRunningApplication(processIdentifier: processIdentifier)?.bundleIdentifier == bundleIdentifier
+        else { return nil }
+        var selection: AnyObject?
+        guard
+            AXUIElementCopyAttributeValue(
+                candidate, kAXSelectedTextAttribute as CFString, &selection) == .success
+        else { return nil }
+        return SelectionWriter(field: AXSelectionAttributes(element: candidate))
+    }
 }
 
 /// Confirms the focused element is a writable text control before exposing it to insertion.

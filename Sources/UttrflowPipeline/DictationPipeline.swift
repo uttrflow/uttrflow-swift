@@ -744,7 +744,10 @@ public actor DictationPipeline {
         guard
             let arrival = await insert(
                 toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,
-                delivery: delivery, generation: mine)
+                delivery: delivery, generation: mine,
+                destination: InsertionDestination(
+                    applicationName: appContext?.applicationName,
+                    bundleIdentifier: appContext?.bundleIdentifier))
         else { return }
         // Read before the next await, since the next dictation may start once these words are on screen.
         let wasSecure = destinationIsSecure
@@ -962,7 +965,7 @@ public actor DictationPipeline {
     /// Puts the finished text where the user was typing, answering how it arrived, or nil on failure.
     private func insert(
         _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges, delivery: Delivery,
-        generation mine: Int
+        generation mine: Int, destination: InsertionDestination
     ) async -> InsertionArrival? {
         let inserter = delivery == .copy ? clipboard : self.inserter
         // Said before the words are handed over, because the app takes its own time to show them.
@@ -970,7 +973,10 @@ public actor DictationPipeline {
         do {
             let inserted = try await metrics.measuringInTime(.insertion, clock: clock) {
                 try await withStageTimeout(StageTimeout.quick, clock: clock) {
-                    try await inserter.insert(text)
+                    if delivery == .copy {
+                        return try await inserter.insert(text)
+                    }
+                    return try await inserter.insert(text, targeting: destination)
                 }
             }
             // A cancel during the write already ended the dictation, so nothing more is shown or learnt.
