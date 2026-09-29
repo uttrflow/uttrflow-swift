@@ -116,6 +116,69 @@ struct ClipboardBudgetTests {
         #expect(clips.map(\.text) == ["second", "first"])
     }
 
+    @Test("refuses a text edit that would take a kept clip over its size bound")
+    func oversizedTextEditIsRefused() async throws {
+        let file = TemporaryFile()
+        let budget = ClipboardBudget.standard.limiting(largestClip: 1_000)
+        let store = ClipboardStore(file: file.url, budget: budget)
+        let original = clip("small", pinned: true)
+        try await store.record(original, keeping: week())
+        let originalRichText = String(repeating: "r", count: 500)
+        _ = try await store.setRichText(originalRichText, of: original.id, keeping: week())
+
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await store.setText(
+                String(repeating: "x", count: 501), of: original.id, keeping: week())
+        }
+
+        let current = await store.clips(keeping: week())
+        #expect(current.map(\.text) == [original.text])
+        #expect(current.first?.richText == originalRichText)
+        let reopened = ClipboardStore(file: file.url, budget: budget)
+        let persisted = await reopened.clips(keeping: week())
+        #expect(persisted.map(\.text) == [original.text])
+        #expect(persisted.first?.richText == originalRichText)
+    }
+
+    @Test("refuses note promotion when plain and rich text together exceed the bound")
+    func oversizedNotePromotionIsRefused() async throws {
+        let file = TemporaryFile()
+        let budget = ClipboardBudget.standard.limiting(largestClip: 1_000)
+        let store = ClipboardStore(file: file.url, budget: budget)
+        let text = String(repeating: "x", count: 999)
+        let original = clip(text, pinned: true)
+        try await store.record(original, keeping: week())
+
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await store.setRichText("<p>\(text)</p>", of: original.id, keeping: week())
+        }
+
+        let current = await store.clips(keeping: week())
+        #expect(current.map(\.text) == [text])
+        #expect(current.first?.richText == nil)
+        let reopened = ClipboardStore(file: file.url, budget: budget)
+        #expect(await reopened.clips(keeping: week()).first?.richText == nil)
+    }
+
+    @Test("allows text edits at the inclusive size bound")
+    func editsAtSizeBoundAreAllowed() async throws {
+        let file = TemporaryFile()
+        let limit = 1_024
+        let store = ClipboardStore(
+            file: file.url, budget: .standard.limiting(largestClip: limit))
+        let original = clip("small", pinned: true)
+        try await store.record(original, keeping: week())
+        let text = String(repeating: "t", count: limit / 2)
+        let richText = String(repeating: "r", count: limit / 2)
+
+        _ = try await store.setText(text, of: original.id, keeping: week())
+        let edited = try await store.setRichText(richText, of: original.id, keeping: week())
+
+        #expect(edited.first?.text == text)
+        #expect(edited.first?.richText == richText)
+        #expect(text.utf8.count + richText.utf8.count == limit)
+    }
+
     // MARK: - Least recently used
 
     @Test("the quota drops what was reached for longest ago, not what arrived first")

@@ -33,7 +33,8 @@ thing. Before the cap a two-hundred-megabyte copy went into the list and stayed,
 later ⌘C a two-hundred-megabyte write. Nothing that long is read in a panel of forty-point rows,
 and the text is still on the system clipboard. This is the only case where Uttrflow declines to
 remember something on purpose. It applies on the way in; a clip becomes kept after it is held,
-so it was under the cap when it arrived.
+so it was under the cap when it arrived. The store checks the same combined plain-and-rich-text
+weight after edits, too; an edit that crosses the cap is refused without changing the saved copy.
 
 `PasteboardWatcher` asks the cap before it classifies, because `ClipKindDetector` reads the whole
 string — about 2.9 s per megabyte — and leaving the question to the store spent all of that on a

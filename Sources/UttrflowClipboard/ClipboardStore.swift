@@ -114,7 +114,7 @@ public actor ClipboardStore {
             return retained(loaded(), keeping: retention)
         }
         // Refused rather than truncated: one copied log file would be rewritten on every later ⌘C.
-        guard budget.largestClip <= 0 || Self.weight(of: clip) <= budget.largestClip else {
+        guard fitsLargestClipBound(clip) else {
             return retained(loaded(), keeping: retention)
         }
 
@@ -488,6 +488,7 @@ public actor ClipboardStore {
         if let index = clips.firstIndex(where: { $0.id == id }) {
             let wasKept = clips[index].isKept
             edit(&clips[index])
+            guard fitsLargestClipBound(clips[index]) else { throw .couldNotWrite }
             // An un-kept clip is freshly copied and moved to the front, so the same write cannot also evict it under the item cap or byte quotas.
             if wasKept && !clips[index].isKept {
                 let fresh = clips[index].recopied(at: retention.now)
@@ -546,6 +547,11 @@ public actor ClipboardStore {
     /// What a clip costs this process to hold: its words, and deliberately not its picture's file.
     static func weight(of clip: Clip) -> Int {
         clip.text.utf8.count + (clip.richText?.utf8.count ?? 0)
+    }
+
+    /// Applies the same text-and-rich-text bound to copied clips and every stored edit.
+    private func fitsLargestClipBound(_ clip: Clip) -> Bool {
+        budget.largestClip <= 0 || Self.weight(of: clip) <= budget.largestClip
     }
 
     /// What a list of clips costs this process to hold.
