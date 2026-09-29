@@ -27,7 +27,7 @@ public struct SpacingPass: CleaningPass {
 
     /// The word with a run of the same comma, colon, semicolon, question mark or exclamation mark at its end reduced to one.
     private static func collapsed(_ text: String) -> String {
-        guard let last = text.last, ",;?!".contains(last) else { return text }
+        guard let last = text.last, ",;:?!".contains(last) else { return text }
         var trimmed = text
         while trimmed.count > 1, trimmed.dropLast().last == last { trimmed.removeLast() }
         return trimmed
