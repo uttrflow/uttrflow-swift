@@ -14,7 +14,8 @@ public struct SpacingPass: CleaningPass {
         for index in draft.presentIndices {
             let text = draft.words[index].text
             if let previous, text.allSatisfy(Self.clauseMarks.contains) {
-                draft.replace(at: previous, with: draft.words[previous].text + text, by: Self.id)
+                let merged = Self.collapsed(draft.words[previous].text + text)
+                draft.replace(at: previous, with: merged, by: Self.id)
                 draft.remove(at: index, by: Self.id)
                 continue
             }
@@ -24,9 +25,9 @@ public struct SpacingPass: CleaningPass {
         return draft
     }
 
-    /// The word with a run of the same comma, colon or semicolon at its end reduced to one.
+    /// The word with a run of the same comma, colon, semicolon, question mark or exclamation mark at its end reduced to one.
     private static func collapsed(_ text: String) -> String {
-        guard let last = text.last, ",;:".contains(last) else { return text }
+        guard let last = text.last, ",;?!".contains(last) else { return text }
         var trimmed = text
         while trimmed.count > 1, trimmed.dropLast().last == last { trimmed.removeLast() }
         return trimmed
