@@ -1,8 +1,9 @@
 # The development build
 
 `make app-dev` produces `dist/Uttrflow-Dev.app`: the same code as `make app`, under a
-different identity, so it can run at the same time as the installed `Uttrflow.app` and
-never touches its data.
+different identity and data folder. Only one Uttrflow build can listen for the dictation
+shortcut and microphone at a time. Launching a second build shows both app names and exits;
+quit the running build before starting the other.
 
 ```bash
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -32,7 +33,13 @@ so changing it separates all of them at once:
   name from `Bundle.main.bundleIdentifier` rather than hard-coding `Uttrflow`, so the
   clipboard, the history, the dictionary, the snippets and the predict corpus land in
   `~/Library/Application Support/Uttrflow.dev/`.
-- **Its Keychain items and its own process**, so both apps can be signed in and running.
+- **Its Keychain items and process identity**, so its credentials stay separate from the installed app.
+
+The distinct identities do not let both builds dictate at once. The shortcut and microphone
+are system-wide, so Uttrflow checks for other running `com.uttrflow.Uttrflow*` builds and
+allows only one to start. This coordination lock does not change either build's data folder.
+If a custom identifier falls back to the production data folder, the launch alert explains
+that and shows how to give the build an isolated identifier.
 
 The update feed is removed because a development build that found the release would
 install it over itself, which is the one way this build can turn back into the other one.
@@ -75,6 +82,5 @@ ln -s ~/Library/Application\ Support/Uttrflow/Models \
 
 ## Telling them apart
 
-`Uttrflow Dev` in the menu bar's application menu and in the App Switcher, and
-`Uttrflow-Dev.app` on disk. The icon is the same one: the identity is what differs, not
-the artwork.
+`Uttrflow Dev` in the menu bar's application menu and in the App Switcher, a menu bar
+mark with a blue `Dev` label, and `Uttrflow-Dev.app` on disk.

@@ -11,10 +11,11 @@ import UttrflowPredict
 /// The app, owning nothing but the objects it wires together.
 @main
 enum UttrflowApp {
+    @MainActor
     static func main() {
+        let application = NSApplication.shared
         // Before any model or keyboard monitor exists, so a second copy never builds either.
         guard let instance = claimTheOnlyInstance() else { exit(0) }
-        let application = NSApplication.shared
         let (reloads, reported) = AsyncStream<IdleReload>.makeStream()
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
         let model = IdleReleasingModel(
@@ -56,35 +57,140 @@ enum UttrflowApp {
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "launch")
 
     /// The lock to keep, `nil` after handing off to a copy already running, or no lock when the file cannot be locked.
-    private static func claimTheOnlyInstance() -> SingleInstanceLock?? {
-        let file = SingleInstanceLock.defaultFile()
+    private struct InstanceLocks {
+        let store: SingleInstanceLock
+        let coordination: SingleInstanceLock
+    }
+
+    @MainActor
+    private static func claimTheOnlyInstance() -> InstanceLocks? {
+        let identifier = Bundle.main.bundleIdentifier
+        guard let store = acquireOrExplain(at: SingleInstanceLock.defaultFile(), identifier: identifier)
+        else {
+            return nil
+        }
+        guard
+            let coordination = acquireOrExplain(
+                at: SingleInstanceLock.coordinationFile(), identifier: identifier)
+        else {
+            return nil
+        }
+        if let running = otherUttrflowInstance(differentFrom: identifier) {
+            explainConflict(with: running)
+            return nil
+        }
+        return InstanceLocks(store: store, coordination: coordination)
+    }
+
+    @MainActor
+    private static func acquireOrExplain(at file: URL, identifier: String?) -> SingleInstanceLock? {
         var outcome = SingleInstanceLock.acquire(at: file)
-        // No other copy is visible, so the holder is one that is quitting, as it does while an update relaunches.
-        if case .heldElsewhere = outcome, otherInstance() == nil {
+        if case .heldElsewhere = outcome {
+            if let sameBuild = otherInstance(identifier: identifier) {
+                log.notice("Another copy with this identifier is running; handing off and exiting")
+                handOff(to: sameBuild)
+                return nil
+            }
+            if let differentBuild = otherUttrflowInstance(differentFrom: identifier) {
+                explainConflict(with: differentBuild)
+                return nil
+            }
             outcome = SingleInstanceLock.acquire(at: file, waitingUpTo: .seconds(5))
         }
         switch outcome {
         case .acquired(let lock):
-            return .some(lock)
-        case .unavailable:
-            log.error("Could not take the single-instance lock; launching unguarded")
-            return .some(nil)
+            return lock
+        case .unavailable(let code):
+            log.error("Could not take a required single-instance lock: \(code)")
+            explainLockFailure()
+            return nil
         case .heldElsewhere:
-            log.notice("Another copy is running; handing off to it and exiting")
-            if let running = otherInstance() { handOff(to: running) }
+            if let running = otherInstance(identifier: identifier) {
+                handOff(to: running)
+            } else if let running = otherUttrflowInstance(differentFrom: identifier) {
+                explainConflict(with: running)
+            } else {
+                explainLockFailure()
+            }
             return nil
         }
     }
 
     /// Another running process with this bundle identifier, from whatever path it was started.
-    private static func otherInstance() -> NSRunningApplication? {
-        guard let identifier = Bundle.main.bundleIdentifier else { return nil }
+    @MainActor
+    private static func otherInstance(identifier: String?) -> NSRunningApplication? {
+        guard let identifier else { return nil }
         let me = ProcessInfo.processInfo.processIdentifier
         return NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
             .first { $0.processIdentifier != me && !$0.isTerminated }
     }
 
+    /// Another running app in the Uttrflow identifier family with a different identifier.
+    @MainActor
+    private static func otherUttrflowInstance(differentFrom identifier: String?) -> NSRunningApplication? {
+        let me = ProcessInfo.processInfo.processIdentifier
+        let running = NSWorkspace.shared.runningApplications.filter {
+            $0.processIdentifier != me && !$0.isTerminated
+        }
+        guard
+            let identifier = UttrflowBuildIdentity.otherRunningIdentifier(
+                current: identifier, running: running.compactMap(\.bundleIdentifier))
+        else { return nil }
+        return running.first { $0.bundleIdentifier == identifier }
+    }
+
+    @MainActor
+    private static func explainConflict(with running: NSRunningApplication) {
+        let thisName = buildName
+        let otherName = running.localizedName ?? running.bundleIdentifier ?? "another Uttrflow build"
+        var detail =
+            "Both builds listen for a system-wide shortcut and use the microphone. Quit one build before launching \(thisName)."
+        if let fallback = productionFallbackExplanation(for: thisName) {
+            detail += "\n\n\(fallback)"
+        }
+        let visibleOtherName =
+            otherName == thisName
+            ? "\(otherName) (\(running.bundleIdentifier ?? "unknown identifier"))" : otherName
+        showLaunchAlert(
+            title: "\(thisName) cannot run beside \(visibleOtherName)", detail: detail)
+    }
+
+    @MainActor
+    private static func explainLockFailure() {
+        var detail =
+            "Uttrflow could not confirm that it is the only build using the shortcut and microphone, so it has exited. Check that another Uttrflow process is not still running, then try again."
+        if let fallback = productionFallbackExplanation(for: buildName) {
+            detail += "\n\n\(fallback)"
+        }
+        showLaunchAlert(title: "Uttrflow could not start safely", detail: detail)
+    }
+
+    private static func productionFallbackExplanation(for name: String) -> String? {
+        let identifier = Bundle.main.bundleIdentifier
+        guard
+            identifier != LocalStore.productionIdentifier,
+            UttrflowBuildIdentity.usesProductionFolder(identifier)
+        else { return nil }
+        let identifierText = identifier ?? "a missing bundle identifier"
+        return
+            "\(name) uses the production data folder because \(identifierText) is not a development variant. Set the identifier to \(LocalStore.productionIdentifier).<variant> to isolate its data."
+    }
+
+    private static var buildName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Uttrflow"
+    }
+
+    @MainActor
+    private static func showLaunchAlert(title: String, detail: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = detail
+        alert.runModal()
+    }
+
     /// Brings the running copy forward and asks it to reopen, which shows its window when none is visible.
+    @MainActor
     private static func handOff(to running: NSRunningApplication) {
         guard let bundle = running.bundleURL else {
             running.activate()

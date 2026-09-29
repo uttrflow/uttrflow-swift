@@ -25,9 +25,15 @@ public final class SingleInstanceLock: Sendable {
     // Closing the descriptor is what releases the lock, so nothing else is needed.
     deinit { close(descriptor) }
 
-    /// The lock file for this build, in its own Application Support folder so a development build locks separately.
+    /// The per-data-folder lock that preserves single-instance handoff for copies with the same identifier.
     public static func defaultFile(in directory: URL = .applicationSupportDirectory) -> URL {
         LocalStore.file("instance.lock", in: directory)
+    }
+
+    /// The shared lock that serializes startup across builds without merging their data folders.
+    public static func coordinationFile(in directory: URL = .applicationSupportDirectory) -> URL {
+        directory.appending(
+            path: "\(LocalStore.productionFolder)/instance-coordination.lock", directoryHint: .notDirectory)
     }
 
     /// Takes the lock at `file` without waiting, creating the file and its folder if needed.

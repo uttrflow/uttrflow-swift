@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+import UttrflowCore
 import UttrflowUX
 
 /// A borderless, non-activating panel that takes the keyboard while open, so the popover works without a pointer.
@@ -30,6 +31,7 @@ final class MenuBarController: NSObject {
     var onMenuWillOpen: (() -> Void)?
 
     private let statusItem: NSStatusItem
+    private let isDevelopmentBuild: Bool
     /// What the menu bar shows now; readable so a test can check what the app drew.
     private(set) var presentation: MenuBarPresentation
     /// The right-click menu, refilled in place, so an update made while it opens lands in the menu on screen.
@@ -52,9 +54,11 @@ final class MenuBarController: NSObject {
 
     init(
         statusBar: NSStatusBar = .system,
-        initial: MenuBarPresentation = MenuBarPresenter.present(MenuBarState())
+        initial: MenuBarPresentation = MenuBarPresenter.present(MenuBarState()),
+        buildIdentifier: String? = Bundle.main.bundleIdentifier
     ) {
         statusItem = statusBar.statusItem(withLength: NSStatusItem.variableLength)
+        isDevelopmentBuild = UttrflowBuildIdentity.isDevelopmentBuild(buildIdentifier)
         presentation = initial
         hostingView = MenuBarHostingView(
             rootView: MenuBarPopoverView(presentation: initial, onCommand: { _ in }, isShown: false))
@@ -102,10 +106,13 @@ final class MenuBarController: NSObject {
 
     private func apply() {
         if let button = statusItem.button {
-            button.image = Self.icon(for: presentation)
-            button.setAccessibilityLabel(presentation.accessibilityLabel)
-            // Only when the symbol is missing from the running OS; a blank slot has nothing to click.
-            button.title = button.image == nil ? "Uttrflow" : ""
+            button.image = Self.icon(for: presentation, isDevelopmentBuild: isDevelopmentBuild)
+            let label =
+                isDevelopmentBuild
+                ? "Uttrflow Dev, \(presentation.accessibilityLabel)" : presentation.accessibilityLabel
+            button.setAccessibilityLabel(label)
+            button.attributedTitle = Self.title(
+                isDevelopmentBuild: isDevelopmentBuild, iconMissing: button.image == nil)
         }
         fillMenu()
         // A closed popover stays empty until it opens, so a hidden panel never starts an animation.
@@ -122,7 +129,7 @@ final class MenuBarController: NSObject {
     }
 
     /// The icon: a template except when something needs attention, where the colour is the message.
-    private static func icon(for presentation: MenuBarPresentation) -> NSImage? {
+    static func icon(for presentation: MenuBarPresentation, isDevelopmentBuild: Bool = false) -> NSImage? {
         let resolved: NSImage? =
             switch presentation.icon {
             case .mark: markImage(describedAs: presentation.accessibilityLabel)
@@ -133,13 +140,29 @@ final class MenuBarController: NSObject {
             }
         guard let image = resolved else { return nil }
 
-        guard presentation.isAttentionNeeded else { return image }
+        let colour: NSColor
+        if presentation.isAttentionNeeded {
+            colour = attentionColour
+        } else if isDevelopmentBuild {
+            colour = developmentColour
+        } else {
+            return image
+        }
 
-        guard let tinted = image.withSymbolConfiguration(.init(paletteColors: [attentionColour]))
+        guard let tinted = image.withSymbolConfiguration(.init(paletteColors: [colour]))
         else { return image }
         // A template image is recoloured by the menu bar, so keeping the tint means opting out.
         tinted.isTemplate = false
         return tinted
+    }
+
+    static func title(isDevelopmentBuild: Bool, iconMissing: Bool) -> NSAttributedString {
+        let title =
+            iconMissing
+            ? (isDevelopmentBuild ? "Uttrflow Dev" : "Uttrflow") : (isDevelopmentBuild ? "Dev" : "")
+        let attributes: [NSAttributedString.Key: Any] =
+            isDevelopmentBuild ? [.foregroundColor: NSColor.systemBlue] : [:]
+        return NSAttributedString(string: title, attributes: attributes)
     }
 
     /// The mark at menu bar size, as a template so the bar inverts and dims it like every neighbour.
@@ -155,6 +178,7 @@ final class MenuBarController: NSObject {
 
     /// The system's orange rather than the design's flat swatch, so a warning survives dark contrast.
     private static let attentionColour = NSColor.systemOrange
+    private static let developmentColour = NSColor.systemBlue
 
     // MARK: - The popover
 

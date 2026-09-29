@@ -23,8 +23,10 @@ public enum LocalStore {
     }
 
     /// One of this build's files inside `directory`, which is Application Support unless a test says otherwise.
-    public static func file(_ name: String, in directory: URL) -> URL {
-        directory.appending(path: "\(folder)/\(name)", directoryHint: .notDirectory)
+    public static func file(
+        _ name: String, in directory: URL, for identifier: String? = Bundle.main.bundleIdentifier
+    ) -> URL {
+        directory.appending(path: "\(folder(for: identifier))/\(name)", directoryHint: .notDirectory)
     }
 
     /// One of this build's directories inside `directory`, or another build's when an identifier is named.

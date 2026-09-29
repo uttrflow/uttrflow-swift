@@ -207,8 +207,8 @@ fi
 # Modes
 # ---------------------------------------------------------------------------
 #   local        (default) ad-hoc, no hardened runtime. Runs here, keeps TCC grants.
-#   development  local, under its own identifier, so it runs beside the installed app
-#                and keeps its own Application Support folder. See Docs/development-build.md.
+#   development  local, under its own identifier and Application Support folder. Only
+#                one Uttrflow build listens for dictation at a time. See Docs/development-build.md.
 #   rehearsal    hardened runtime, still ad-hoc. Exercises the runtime with no
 #                certificate, because the expensive half of "does the hardened runtime
 #                break anything" needs no Developer ID to answer.
@@ -351,9 +351,9 @@ EXECUTABLE="$(plist_value CFBundleExecutable "$SOURCE_PLIST")" \
 
 # The development build is the shipping Info.plist with three keys changed, rather than a
 # second plist to keep in step with it. A distinct identifier is the whole mechanism: it
-# gives the build its own defaults domain, its own Application Support folder — see
-# `LocalStore` — its own Keychain items and its own TCC grants, so it runs beside the
-# installed app instead of replacing it. The update feed goes with it, because a
+# gives the build its own defaults domain and Application Support folder, its own Keychain
+# items, and its own TCC grants. Installing it does not replace the shipped app, and only
+# one build listens for dictation at a time. Its update feed is removed because a
 # development build that installed the release would replace itself with the release.
 APP_NAME="$PRODUCT"
 if [[ "$MODE" == "development" ]]; then
