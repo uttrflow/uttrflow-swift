@@ -144,6 +144,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// The period that stands for "keep until I delete it", longer than anything can be kept waiting.
     public static let keepAlwaysDays = 36_500
 
+    /// Bounds finite retention values read from settings files; the keep-always sentinel is separate.
+    public static let maximumFiniteRetentionDays = 365
+
     /// Transcripts stay until the user deletes them or chooses a shorter period.
     public static let defaultTranscriptRetentionDays = keepAlwaysDays
 
@@ -246,7 +249,7 @@ extension Settings {
                 container.value(
                     forKey: .transcriptRetentionDays, default: fallback.transcriptRetentionDays
                 ),
-                default: fallback.transcriptRetentionDays
+                default: fallback.transcriptRetentionDays, keepsAlways: true
             ),
             clipboardRetentionDays: Settings.retention(
                 container.value(
@@ -258,9 +261,13 @@ extension Settings {
         )
     }
 
-    /// The stored retention, or `fallback` when it is zero or less and would wipe the history at once.
-    static func retention(_ days: Int, default fallback: Int) -> Int {
-        days > 0 ? days : fallback
+    /// The stored retention, or `fallback` when it is invalid. Finite periods cannot exceed a year.
+    static func retention(_ days: Int, default fallback: Int, keepsAlways: Bool = false) -> Int {
+        guard days > 0 else { return fallback }
+        guard keepsAlways, days == keepAlwaysDays else {
+            return min(days, maximumFiniteRetentionDays)
+        }
+        return keepAlwaysDays
     }
 
     /// The dictation shortcut, or Option+Space when macOS could never deliver it.

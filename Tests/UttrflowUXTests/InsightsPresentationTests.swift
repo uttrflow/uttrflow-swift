@@ -77,6 +77,20 @@ struct InsightsCalendarBucketingTests {
         #expect(quarter.days.count == 90)
     }
 
+    @Test("an oversized saved retention cannot expand the Insights calendar")
+    func oversizedSavedRetentionIsCapped() throws {
+        let settings = try JSONDecoder().decode(
+            Settings.self,
+            from: Data(#"{"transcriptRetentionDays": 100000}"#.utf8))
+        let page = HistoryFixture.insights(
+            entries: HistoryFixture.aWeek(), settings: settings, range: .quarter)
+        let calendar = try #require(page.calendar)
+
+        #expect(settings.transcriptRetentionDays == Settings.maximumFiniteRetentionDays)
+        #expect(calendar.days.count <= Settings.maximumFiniteRetentionDays)
+        #expect(calendar.days.count == InsightsRange.quarter.days)
+    }
+
     /// Fifty dictations in one afternoon are one tile holding all their words.
     @Test("dictations on the same day add up on one tile")
     func sameDaySums() throws {

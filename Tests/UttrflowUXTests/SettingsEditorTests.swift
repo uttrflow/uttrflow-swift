@@ -130,6 +130,11 @@ struct SettingsRetentionTests {
         }
     }
 
+    @Test("every finite period offered fits within the stored retention ceiling")
+    func offeredDaysFitWithinTheCeiling() {
+        #expect(SettingsRetention.finiteOfferedDays.allSatisfy { $0 <= Settings.maximumFiniteRetentionDays })
+    }
+
     @Test("the shipped default is one of the periods on offer")
     func defaultIsOffered() {
         #expect(SettingsRetention.offeredDays.contains(Settings.defaultTranscriptRetentionDays))

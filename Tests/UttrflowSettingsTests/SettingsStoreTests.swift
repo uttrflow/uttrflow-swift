@@ -282,6 +282,24 @@ struct SettingsTests {
         #expect(Settings.retention(days, default: Settings.defaultRetentionDays) == days)
     }
 
+    @Test("caps oversized transcript and clipboard retention values when decoding")
+    func oversizedRetentionIsCapped() throws {
+        let settings = try decode(
+            #"{"transcriptRetentionDays": 100000, "clipboardRetentionDays": 100000}"#)
+
+        #expect(settings.transcriptRetentionDays == Settings.maximumFiniteRetentionDays)
+        #expect(settings.clipboardRetentionDays == Settings.maximumFiniteRetentionDays)
+    }
+
+    @Test("keeps transcript Always distinct while capping clipboard retention")
+    func alwaysSentinelIsSeparateFromFiniteRetention() throws {
+        let settings = try decode(
+            #"{"transcriptRetentionDays": 36500, "clipboardRetentionDays": 36500}"#)
+
+        #expect(settings.transcriptRetentionDays == Settings.keepAlwaysDays)
+        #expect(settings.clipboardRetentionDays == Settings.maximumFiniteRetentionDays)
+    }
+
     /// Each of these decodes cleanly and could never fire, leaving nothing to press.
     @Test(
         "refuses a shortcut that decodes cleanly and could never fire",

@@ -105,8 +105,11 @@ public enum SettingsEngines {
 
 /// How long transcripts are kept, offering only periods the store round-trips unchanged.
 public enum SettingsRetention {
-    /// Always, then a day through to a quarter. Ordered, because they are drawn in this order.
-    public static let offeredDays = [Settings.keepAlwaysDays, 1, 3, 7, 14, 30, 90]
+    /// Finite periods offered in the menu, all within the maximum retention window.
+    public static let finiteOfferedDays = [1, 3, 7, 14, 30, 90]
+
+    /// All saved values offered in the menu, ordered because they are drawn in this order.
+    public static let offeredDays = [Settings.keepAlwaysDays] + finiteOfferedDays
 
     /// Whether a period means "until I delete it" rather than a number of days.
     public static func isAlways(days: Int) -> Bool {
