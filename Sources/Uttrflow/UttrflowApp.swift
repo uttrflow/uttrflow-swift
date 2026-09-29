@@ -66,8 +66,7 @@ enum UttrflowApp {
     @MainActor
     private static func claimTheOnlyInstance() -> InstanceLocks? {
         let identifier = Bundle.main.bundleIdentifier
-        // Arbitrate before taking a build-specific store lock. A loser then cannot make the winner
-        // mistake an in-progress current-protocol launch for an already-running conflicting build.
+        // Acquire shared coordination before per-build store locks so a loser cannot make the winner exit.
         guard
             let coordination = acquireOrExplain(
                 at: SingleInstanceLock.coordinationFile(), identifier: identifier)
@@ -89,9 +88,7 @@ enum UttrflowApp {
             store: store, coordination: coordination, legacyStoreGuards: legacyStoreGuards)
     }
 
-    /// Prevents pre-coordination builds that are already running from bypassing the shared lock.
-    /// Current-protocol startup losers have not taken their store lock, so guarding that file keeps
-    /// them out while they observe the coordination lock and report the conflict.
+    /// Guards older running builds and current-protocol startup losers without exiting the coordinator winner.
     @MainActor
     private static func guardAgainstOlderBuilds(
         differentFrom identifier: String?, currentStoreFile: URL
