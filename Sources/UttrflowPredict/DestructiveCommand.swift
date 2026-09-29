@@ -263,6 +263,8 @@ public enum DestructiveCommand {
             return true
         }
         switch command {
+        case "chmod", "chown", "chgrp":
+            if hasRecursiveOption(arguments) { return true }
         case "git":
             if matchesDestructiveGit(arguments) { return true }
         case "find":
@@ -423,6 +425,17 @@ public enum DestructiveCommand {
         for letter in word.dropFirst() {
             if letter == flag { return true }
             if valued.contains(letter) { return false }
+        }
+        return false
+    }
+
+    /// Whether a permission or ownership command requests a recursive change before its option terminator.
+    private static func hasRecursiveOption(_ arguments: [String]) -> Bool {
+        for argument in arguments {
+            if argument == "--" { return false }
+            if argument == "--recursive" || shortFlags(argument, include: "R", valuesAfter: []) {
+                return true
+            }
         }
         return false
     }

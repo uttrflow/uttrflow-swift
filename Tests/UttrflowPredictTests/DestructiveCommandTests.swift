@@ -79,6 +79,26 @@ struct DestructiveCommandTests {
     }
 
     @Test(
+        "Recursive permission and ownership changes are destructive, including clustered flags.",
+        arguments: [
+            "chmod -R 000 ~", "chmod --recursive 000 /", "chmod -vfR 000 tree", "chown -R nobody /",
+            "chown -vR nobody /", "chgrp --recursive staff /", "sudo chgrp -hR staff tree",
+        ])
+    func recursivePermissionAndOwnershipChanges(_ line: String) {
+        #expect(DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
+    }
+
+    @Test(
+        "Non-recursive permission and ownership changes remain ordinary.",
+        arguments: [
+            "chmod +x script.sh", "chmod 600 ~/.ssh/config", "chown nobody file", "chgrp staff file",
+            "chmod -- -R",
+        ])
+    func nonRecursivePermissionAndOwnershipChanges(_ line: String) {
+        #expect(!DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
+    }
+
+    @Test(
         "Quoted ordinary commands and quoted separators are not destructive.",
         arguments: [
             #""ls" -la"#, "'git' status", #"echo "rm -rf /""#,
