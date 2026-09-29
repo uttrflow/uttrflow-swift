@@ -26,12 +26,23 @@ public enum Acceptance {
 
     /// The edit that turns what is typed into the suggestion, or `nil` when it already is it.
     public static func edit(accepting suggestion: String, after typed: String) -> Edit? {
-        // The agreement is found by scalar, so a decomposed accent mid-typing still counts as shared.
         let shared = CommonPrefix.of([typed, suggestion]).unicodeScalars.count
+        let replaceFrom = lastCharacterBoundary(in: typed, noLaterThan: shared)
         let edit = Edit(
-            replaced: String(String.UnicodeScalarView(typed.unicodeScalars.dropFirst(shared))),
-            inserted: String(String.UnicodeScalarView(suggestion.unicodeScalars.dropFirst(shared))))
+            replaced: String(String.UnicodeScalarView(typed.unicodeScalars.dropFirst(replaceFrom))),
+            inserted: String(String.UnicodeScalarView(suggestion.unicodeScalars.dropFirst(replaceFrom))))
         return edit.replaced.isEmpty && edit.inserted.isEmpty ? nil : edit
+    }
+
+    /// Backs a scalar prefix up to a boundary the target can delete as one character.
+    private static func lastCharacterBoundary(in text: String, noLaterThan scalarCount: Int) -> Int {
+        var boundary = 0
+        for character in text {
+            let next = boundary + String(character).unicodeScalars.count
+            guard next <= scalarCount else { break }
+            boundary = next
+        }
+        return boundary
     }
 
     /// The edit re-aimed at what the field holds before the caret now, or `nil` when the field no longer fits it.

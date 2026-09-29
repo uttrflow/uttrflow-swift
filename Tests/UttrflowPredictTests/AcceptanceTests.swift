@@ -131,6 +131,38 @@ struct AcceptanceTests {
         #expect(edit.inserted == "\u{301}")
     }
 
+    @Test("A combining mark mismatch replaces its whole typed grapheme.")
+    func aCombiningMarkMismatchReplacesOneWholeGrapheme() throws {
+        let typed = "cafe\u{301}"
+        let edit = try #require(Acceptance.edit(accepting: "cafes", after: typed))
+
+        #expect(edit.replaced == "e\u{301}")
+        #expect(edit.replacedCount == 1)
+        #expect(edit.inserted == "es")
+        #expect(edit.applied(to: typed) == "cafes")
+    }
+
+    @Test("A partial Devanagari syllable is replaced as a whole grapheme.")
+    func aDevanagariSyllableMismatchReplacesOneWholeGrapheme() throws {
+        let typed = "नहि"
+        let edit = try #require(Acceptance.edit(accepting: "नहीं जाना", after: typed))
+
+        #expect(edit.replaced == "हि")
+        #expect(edit.replacedCount == 1)
+        #expect(edit.inserted == "हीं जाना")
+        #expect(edit.applied(to: typed) == "नहीं जाना")
+    }
+
+    @Test("A Devanagari scalar prefix remains untouched while the syllable is still being typed.")
+    func aPartialDevanagariScalarPrefixIsNotReplaced() throws {
+        let typed = "नह"
+        let edit = try #require(Acceptance.edit(accepting: "नहीं जाना", after: typed))
+
+        #expect(edit.replaced.isEmpty)
+        #expect(edit.inserted == "ीं जाना")
+        #expect(edit.applied(to: typed) == "नहीं जाना")
+    }
+
     @Test("A suggestion carries its own edit, so what is drawn and what is done are one answer.")
     func theSuggestionAnswersForItself() throws {
         #expect(Suggestion.silent.edit(after: "git com") == nil)

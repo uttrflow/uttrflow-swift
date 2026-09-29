@@ -116,12 +116,15 @@ with nothing beneath, and a completion that lands nowhere is simply not accepted
 immediately before the caret that go, and the text that replaces them. An append is that
 edit with nothing replaced, so the common case stays trivial and destroys nothing.
 
-The edit is the difference from the longest opening the two strings share. `git com` →
-`git commit` shares all seven typed characters, so nothing is replaced and `mit` is typed.
-`gti c` → `git commit -m` shares only `g`, so four characters go and `it commit -m`
-arrives. Two features produce exactly that second shape and both used to draw a suggestion
-and then do nothing when Tab was pressed: the store's fuzzy fallback, and verification's
-correction of what was typed.
+The edit starts at the longest scalar prefix the two strings share. If that prefix ends
+inside a character already typed, it moves back to that character's start and replays the
+suggestion's suffix from there. The delete count and the preview therefore use the same
+whole-character boundary, while a scalar prefix that ends at a whole typed character stays
+untouched. `git com` → `git commit` shares all seven typed characters, so nothing is replaced
+and `mit` is typed. `gti c` → `git commit -m` shares only `g`, so four characters go and
+`it commit -m` arrives. Two features produce exactly that second shape and both used to draw
+a suggestion and then do nothing when Tab was pressed: the store's fuzzy fallback, and
+verification's correction of what was typed.
 
 What is replaced is always a suffix of what the user typed — it is cut from that string
 and no other — so the count cannot exceed what they have entered, and the edit can never
