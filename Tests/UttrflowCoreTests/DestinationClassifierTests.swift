@@ -62,6 +62,31 @@ struct DestinationClassifierTests {
         #expect(DestinationClassifier.classify(app("com.google.Chrome", title: title)) == expected)
     }
 
+    @Test(
+        "reads browser chat tabs as messaging by whole-word service title",
+        arguments: [
+            "general (Channel) - Acme - Slack",
+            "WhatsApp",
+            "Discord | #general",
+            "Telegram Web",
+            "Microsoft Teams",
+            "Signal",
+        ]
+    )
+    func classifiesChatByTitle(title: String) {
+        let browserTab = app("com.google.Chrome", title: title)
+        let situation = SituationResolver.resolve(from: browserTab)
+
+        #expect(situation.destination == .messaging)
+        #expect(
+            DestinationFormatter.standard(for: situation).terminalStop == .offForShortMessages(sentences: 2))
+    }
+
+    @Test("does not read a chat service name out of a longer title word")
+    func doesNotMatchChatServiceMidWord() {
+        #expect(DestinationClassifier.classify(app("com.google.Chrome", title: "Slackline launch")) == .plain)
+    }
+
     @Test("is plain for an app the table does not name, and for no app at all")
     func plainByDefault() {
         #expect(DestinationClassifier.classify(app("com.example.Unknown", title: "Untitled")) == .plain)

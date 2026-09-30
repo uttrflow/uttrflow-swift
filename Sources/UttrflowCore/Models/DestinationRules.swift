@@ -64,6 +64,7 @@ public enum DestinationRules {
                 "org.telegram", "com.hnc.Discord", "com.apple.MobileSMS", "com.microsoft.teams",
                 "org.whispersystems.signal",
             ],
+            titleContains: ["Slack", "Discord", "Messages", "WhatsApp", "Telegram", "Teams", "Signal"],
             nameWords: [
                 "slack", "discord", "messages", "whatsapp", "telegram", "teams", "signal",
             ],
