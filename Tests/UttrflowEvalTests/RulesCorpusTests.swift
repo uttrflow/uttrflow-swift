@@ -109,6 +109,14 @@ struct RulesCorpusTests {
             ("agreement-there-is", "There is three of them waiting outside."),
             ("agreement-he-dont", "He don't know about the meeting yet."),
             ("participle-have-went", "I have went through the whole report twice."),
+            ("participle-have-wrote", "I have wrote the summary already."),
+            ("participle-had-took", "I had took the wrong turn."),
+            ("participle-should-have-ate", "I should have ate before the call."),
+            ("participle-was-wrote", "It was wrote in the notes."),
+            ("participle-has-began", "The project has began already."),
+            ("participle-have-spoke", "I have spoke with them."),
+            ("participle-was-broke", "The window was broke during transit."),
+            ("participle-has-drove", "She has drove this route before."),
             ("article-a-apple", "There was a apple left in the bowl."),
             ("tense-drift", "Yesterday I open the file and it crashes immediately."),
             ("tense-drift-over-a-stem", "Yesterday I try to fix the build twice."),
@@ -128,7 +136,7 @@ struct RulesCorpusTests {
 
     @Test("covers every grammar case in the leave-alone list, so a new slip cannot skip the floor")
     func grammarCasesAreAllHeld() {
-        #expect(EvaluationCorpus.cases(in: .grammar).count == 14)
+        #expect(EvaluationCorpus.cases(in: .grammar).count == 22)
     }
 
     @Test("gives every destination at least three cases, so the bake-off can score its block")

@@ -275,13 +275,34 @@ struct GrammarGuardTests {
                 .isAccepted)
     }
 
-    @Test("rejects a participle repaired through the irregular-forms table as a tense change")
-    func rejectsIrregularForm() {
+    @Test("accepts reviewed irregular past and participle forms")
+    func acceptsIrregularParticipleRepairs() {
+        let cases = [
+            ("I have wrote the summary already", "I have written the summary already."),
+            ("I had took the wrong turn", "I had taken the wrong turn."),
+            ("I should have ate before the call", "I should have eaten before the call."),
+            ("It was wrote in the notes", "It was written in the notes."),
+            ("The project has began already", "The project has begun already."),
+            ("I have spoke with them", "I have spoken with them."),
+            ("The window was broke during transit", "The window was broken during transit."),
+            ("She has drove this route before", "She has driven this route before."),
+            ("I have went through the whole report twice", "I have gone through the whole report twice."),
+        ]
+        for (kept, rewritten) in cases {
+            #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
+        }
+    }
+
+    @Test("refuses substitutions between unrelated irregular verbs")
+    func refusesUnrelatedIrregularVerbs() {
         #expect(
-            !verdict(
-                "I have went through the whole report twice", "I have gone through the whole report twice."
-            )
-            .isAccepted)
+            verdict("I have wrote the summary already", "I have driven the summary already")
+                == .rejected(reason: "the rewrite lost or replaced 'wrote'", kind: .lostWord))
+        #expect(
+            verdict("She has drove this route before", "She has written this route before")
+                == .rejected(reason: "the rewrite lost or replaced 'drove'", kind: .lostWord))
+        #expect(!MeaningPreservationGuard.sameForm("wrote", "spoken"))
+        #expect(!MeaningPreservationGuard.sameForm("wrote", "writeup"))
     }
 
     @Test("accepts an article corrected, but a plural repaired by its form is rejected as a meaning change")
