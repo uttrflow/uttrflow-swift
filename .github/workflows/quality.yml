@@ -53,6 +53,39 @@ env:
   LYCHEE_SHA256: "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a"
 
 jobs:
+  release-notes:
+    name: Release notes render before a tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Render the release notes
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import plistlib; from pathlib import Path; print(plistlib.loads(Path("Resources/Uttrflow-Info.plist").read_bytes())["CFBundleShortVersionString"])')"
+          if ! ./Scripts/changelog.py "$version" --check 2>/dev/null; then
+            version="$(python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          versions = re.findall(r"^## \[([^\]]+)\]", changelog, re.MULTILINE)
+          version = next((value for value in versions if value != "Unreleased"), None)
+          if version is None:
+              raise SystemExit("error: CHANGELOG.md has no dated release section")
+          print(version)
+          PY
+          )"
+          fi
+          notes="$(./Scripts/release_notes.sh "$version")"
+          if [[ -z "$notes" ]]; then
+            echo "::error::release notes for $version were empty"
+            exit 1
+          fi
+
   # Needs no toolchain and no network, so it answers in seconds and is the cheapest check
   # here by a wide margin. It is also the only one whose failure cannot be fixed later:
   # everything else on this page is wrong until somebody corrects it, and this one is
