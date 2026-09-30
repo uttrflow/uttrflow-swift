@@ -6,6 +6,32 @@ import Testing
 
 @Suite("Drawing a shortcut on keycaps")
 struct SettingsShortcutDrawingTests {
+    @Test("speaks the human shortcut name and spells modifier keys")
+    func accessibilityLabelNamesBoundShortcut() {
+        let keys = SettingsShortcut.keycaps(for: .controlCommandV)
+        #expect(
+            SettingsShortcut.accessibilityLabel(
+                for: .pasteLastTranscript, keys: keys, isRecording: false)
+                == "Paste last transcript shortcut, Control Command V")
+    }
+
+    @Test("says none when a shortcut has no keys")
+    func accessibilityLabelNamesEmptyShortcut() {
+        #expect(
+            SettingsShortcut.accessibilityLabel(
+                for: .copyLastTranscript, keys: [], isRecording: false)
+                == "Copy last transcript shortcut, none")
+    }
+
+    @Test("explains that recording is listening and Escape cancels")
+    func accessibilityLabelExplainsRecording() {
+        let keys = SettingsShortcut.keycaps(for: .optionSpace)
+        #expect(
+            SettingsShortcut.accessibilityLabel(
+                for: .dictate, keys: keys, isRecording: true)
+                == "Dictate shortcut, Option Space, press the new shortcut, or Escape to cancel")
+    }
+
     @Test("draws modifiers in the platform's order, whatever order they were given in")
     func modifiersAreOrdered() {
         let binding = HotkeyBinding(
