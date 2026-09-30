@@ -41,7 +41,18 @@ struct QuickPanelSection: Identifiable {
 enum QuickPanelSpeech {
     static func label(for row: PanelRow) -> String {
         let body = row.isMasked ? "hidden" : row.summary
-        return [noun(for: row.kind), row.alias, body, row.when]
+        let details: [String?] =
+            row.isMasked
+            ? []
+            : [
+                row.measurements,
+                row.checklist,
+                row.language.map { "\($0) code" },
+                row.category.map { "Collection \($0)" },
+            ]
+        return
+            ([noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias, body]
+            + details + [row.when])
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")

@@ -9,12 +9,15 @@ import Testing
 
 private func row(
     _ text: String = "a clip", kind: ClipKind = .text, isSelected: Bool = false,
-    isMasked: Bool = false, alias: String? = nil
+    isMasked: Bool = false, alias: String? = nil, isPinned: Bool = false,
+    measurements: String? = nil, checklist: String? = nil, language: String? = nil,
+    category: String? = nil
 ) -> PanelRow {
     PanelRow(
         id: UUID(), summary: text, kind: kind, symbolName: "doc", when: "2 minutes ago",
-        alias: alias, category: nil, isPinned: false, isMasked: isMasked,
-        isSelected: isSelected, matched: nil, isMonospaced: false, actions: [])
+        alias: alias, category: category, isPinned: isPinned, isMasked: isMasked,
+        isSelected: isSelected, matched: nil, measurements: measurements, checklist: checklist,
+        language: language, isMonospaced: false, actions: [])
 }
 
 /// Hover is the one thing the presentation cannot know, so the rule is a decision tested here.
@@ -100,6 +103,52 @@ struct QuickPanelSpeechTests {
         let spoken = QuickPanelSpeech.label(for: clip)
 
         #expect(spoken == "Text, /second, the second thing, 2 minutes ago")
+    }
+
+    @Test("a pinned picture reads its measurements and collection")
+    func pinnedPicturesReadTheirDetails() {
+        let picture = row(
+            "", kind: .image, isPinned: true, measurements: "2880 × 1800 · 1 MB",
+            category: "Receipts")
+
+        #expect(
+            QuickPanelSpeech.label(for: picture)
+                == "Image, Pinned, 2880 × 1800 · 1 MB, Collection Receipts, 2 minutes ago")
+    }
+
+    @Test("a missing picture reads the reason its file cannot be opened")
+    func missingPicturesReadTheirMeasurements() {
+        let picture = row("", kind: .image, measurements: "The picture is no longer on this Mac")
+
+        #expect(QuickPanelSpeech.label(for: picture).contains("The picture is no longer on this Mac"))
+    }
+
+    @Test("a note reads checklist progress")
+    func notesReadChecklistProgress() {
+        let note = row("Shopping list", checklist: "2 of 5")
+
+        #expect(QuickPanelSpeech.label(for: note).contains("2 of 5"))
+    }
+
+    @Test("code reads its language")
+    func codeReadsItsLanguage() {
+        let code = row("let value = 1", kind: .code, language: "swift")
+
+        #expect(QuickPanelSpeech.label(for: code).contains("swift code"))
+    }
+
+    @Test("a masked row omits checklist and language details")
+    func maskedRowsOmitSensitiveDetails() {
+        let secret = row(
+            "sk-live-secret", kind: .secret, isMasked: true, checklist: "2 of 5",
+            language: "swift")
+
+        let spoken = QuickPanelSpeech.label(for: secret)
+
+        #expect(spoken.contains("hidden"))
+        #expect(!spoken.contains("2 of 5"))
+        #expect(!spoken.contains("swift"))
+        #expect(!spoken.contains("sk-live-secret"))
     }
 
     @Test("an arriving copy's refreshed age is spoken to VoiceOver")

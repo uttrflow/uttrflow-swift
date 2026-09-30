@@ -141,6 +141,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let matched: PanelMatchField?
     /// K4 — what a picture row says about itself, since it has no text. See `Docs/panel.md`.
     public let measurements: String?
+    /// How many boxes are checked in a note, when its formatted form contains a checklist.
+    public let checklist: String?
     /// K4 — the picture to draw beside the row, or `nil` when there is none to draw.
     public let imageFile: URL?
     /// B8 — the picture has gone from disk, though the row stays. See `Docs/panel.md`.
@@ -170,6 +172,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         isSelected: Bool,
         matched: PanelMatchField?,
         measurements: String? = nil,
+        checklist: String? = nil,
         imageFile: URL? = nil,
         isImageMissing: Bool = false,
         language: String? = nil,
@@ -189,6 +192,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.isSelected = isSelected
         self.matched = matched
         self.measurements = measurements
+        self.checklist = checklist
         self.imageFile = imageFile
         self.isImageMissing = isImageMissing
         self.language = language
@@ -441,6 +445,7 @@ public enum PanelPresenter {
             isSelected: isSelected,
             matched: result.match,
             measurements: measurements(of: clip, in: snapshot),
+            checklist: checklistProgress(of: clip),
             imageFile: isGone
                 ? nil
                 : clip.image.flatMap { image in
@@ -551,6 +556,14 @@ public enum PanelPresenter {
             return "\(image.dimensions) · \(weight)"
         }
         return "\(from) · \(weight)"
+    }
+
+    /// How many checklist boxes are checked, without copying any note text into the row.
+    static func checklistProgress(of clip: Clip) -> String? {
+        guard let richText = clip.richText,
+            let progress = NoteChecklist.progress(in: richText)
+        else { return nil }
+        return "\(progress.done) of \(progress.total)"
     }
 
     /// What the ⋯ menu says under the clip's words: kind, age and source, where each exists.

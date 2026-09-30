@@ -59,6 +59,15 @@ struct PanelRowTests {
         #expect(!row.when.hasPrefix("in "))
     }
 
+    @Test("a note row carries its checklist progress")
+    func checklistProgress() {
+        let note = Clip(
+            text: "Shopping list", kind: .text, copiedAt: PanelFixture.now,
+            richText: "<ul class=\"checklist\"><li class=\"checked\">Milk</li><li>Tea</li></ul>")
+
+        #expect(PanelFixture.page([note]).rows[0].checklist == "1 of 2")
+    }
+
     @Test("the selected row is the one Return would insert, and only it")
     func selection() {
         let page = PanelPresenter.present(PanelFixture.panel().applying([.down]).state)
