@@ -129,11 +129,7 @@ jobs:
           # Carries no assets on purpose: the disk image and the update archive live in
           # uttrflow/releases, and a second copy of either is a second answer to which
           # build a version is.
-          {
-            ./Scripts/changelog.py "$VERSION"
-            printf '\n---\n\n- Download: https://uttrflow.com/download\n'
-            printf -- '- Every build: https://github.com/uttrflow/releases/releases\n'
-          } > notes.md
+          ./Scripts/release_notes.sh "$VERSION" > notes.md
           args=(--repo "$GITHUB_REPOSITORY" --title "Uttrflow $VERSION" --notes-file notes.md)
           if [ "$PRERELEASE" = "true" ]; then
             args+=(--prerelease)
