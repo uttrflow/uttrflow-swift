@@ -27,6 +27,26 @@ public enum SettingsShortcut {
         keycaps(for: binding).joined()
     }
 
+    /// What VoiceOver hears for a shortcut row, including its current listening state.
+    public static func accessibilityLabel(
+        for action: ShortcutAction, keys: [String], isRecording: Bool
+    ) -> String {
+        let shortcut = keys.isEmpty ? "none" : keys.map(spokenName(for:)).joined(separator: " ")
+        let label = "\(ShortcutRegistry.label(for: action)) shortcut, \(shortcut)"
+        return isRecording ? "\(label), press the new shortcut, or Escape to cancel" : label
+    }
+
+    /// Spells modifier glyphs out so assistive technology does not have to interpret symbols.
+    private static func spokenName(for key: String) -> String {
+        switch key {
+        case "⌃": "Control"
+        case "⌥": "Option"
+        case "⇧": "Shift"
+        case "⌘": "Command"
+        default: key
+        }
+    }
+
     /// Apple's order: control, option, shift, command, reading left to right.
     private static let modifierOrder: [HotkeyModifier] = [.control, .option, .shift, .command]
 

@@ -213,7 +213,8 @@ struct SettingsShortcutField: View {
         }
         .onDisappear(perform: stopListening)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(action.rawValue) shortcut, \(keys.joined(separator: " "))")
+        .accessibilityLabel(
+            SettingsShortcut.accessibilityLabel(for: action, keys: keys, isRecording: isRecording))
     }
 
     private func startListening() {
@@ -221,6 +222,10 @@ struct SettingsShortcutField: View {
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             handle(event)
         }
+        let label = SettingsShortcut.accessibilityLabel(for: action, keys: keys, isRecording: true)
+        NSAccessibility.post(
+            element: NSApplication.shared, notification: .announcementRequested,
+            userInfo: [.announcement: label, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
     }
 
     private func stopListening() {
