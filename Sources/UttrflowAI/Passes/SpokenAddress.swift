@@ -8,11 +8,7 @@ struct SpokenAddress: Equatable {
     let text: String
 
     /// The endings that make a spoken domain a domain; an unknown one is left as words rather than guessed at.
-    static let topLevels: Set<String> = [
-        "com", "net", "org", "edu", "gov", "mil", "int", "info", "biz",
-        "io", "co", "ai", "dev", "app", "me", "sh", "xyz", "tech", "online", "site", "store", "cloud",
-        "in", "uk", "us", "ca", "au", "de", "fr", "nl", "es", "it", "jp", "cn", "br", "ru", "ie", "nz",
-    ]
+    static let topLevels = TechnicalToken.topLevels
 
     /// The words that announce an address, after which a local part spelled as a plain word is a mailbox.
     static let introducers: Set<String> = [
@@ -25,10 +21,7 @@ struct SpokenAddress: Equatable {
     static let introducerReach = 2
 
     /// File endings that are common enough to write when a filename is announced.
-    static let fileExtensions: Set<String> = [
-        "json", "txt", "md", "swift", "py", "js", "ts", "html", "css", "xml", "csv", "pdf",
-        "yaml", "yml", "toml", "sh", "rb", "go", "rs", "kt", "java", "png", "jpg", "zip",
-    ]
+    static let fileExtensions = TechnicalToken.fileExtensions
 
     /// Words that announce a path or filename rather than a spoken ordinary noun.
     static let fileIntroducers: Set<String> = [

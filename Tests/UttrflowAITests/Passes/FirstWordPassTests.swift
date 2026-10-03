@@ -46,6 +46,32 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A file name, path, URL, version or identifier the recogniser wrote keeps its case at any sentence start.
+    @Test(
+        "keeps a technical token's case at a sentence start",
+        arguments: [
+            ("config.yaml is missing.", "config.yaml is missing."),
+            ("src/app/main.swift fails to compile.", "src/app/main.swift fails to compile."),
+            ("user_id is null.", "user_id is null."), ("v2.3.1 is out.", "v2.3.1 is out."),
+            ("k8s is down again.", "k8s is down again."), ("x86_64 builds fail.", "x86_64 builds fail."),
+            ("https://example.com/docs is the link.", "https://example.com/docs is the link."),
+            ("ok. node_modules is huge.", "Ok. node_modules is huge."),
+            ("done. example.com is up", "Done. example.com is up"),
+            ("and/or works. e.g. this", "And/or works. E.g. this"),
+            ("okay.thanks for that", "Okay.thanks for that"),
+        ]
+    )
+    func keepsTechnicalTokenCase(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+        #expect(cleaned(input, by: FirstWordPass(policy: .alwaysCapital)) == expected)
+    }
+
+    @Test("lower-cases no technical token after a mid-sentence caret")
+    func keepsTechnicalTokenMidSentence() {
+        #expect(fromCaret("README.md is stale", state: .midSentence) == "README.md is stale")
+        #expect(fromCaret("Hello there", state: .midSentence) == "hello there")
+    }
+
     @Test(
         "keeps mixed-case product names at sentence starts and insertion points",
         arguments: ["iPhone", "eBay", "macOS", "iOS", "WiFi", "YouTube"]
