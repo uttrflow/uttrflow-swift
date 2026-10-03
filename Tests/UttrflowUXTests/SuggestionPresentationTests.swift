@@ -141,7 +141,9 @@ struct SuggestionPresentationTests {
 
     @Test("The list's fixed text is what the design shows: a branch per row and the three keys under it")
     func theListTextIsTheDesigns() {
-        let presentation = SuggestionPresentation(.certain("Sydney"))
+        let presentation = SuggestionPresentation(
+            .choice(leader: "Sydney", others: ["Soho"]),
+            selection: SuggestionSelection(index: 1, hasMoved: true))
         #expect(SuggestionPresentation.listPrefix == "↳")
         #expect(presentation.footer == "⇥ take   ⌥↓ next   ⎋ dismiss")
         #expect(presentation.unselectedListOpacity > 0)
@@ -182,14 +184,32 @@ struct SuggestionPresentationTests {
         #expect(italic.isItalic)
     }
 
-    @Test("The hint names the key that actually accepts: → in a terminal, ⌥⇥ in an editor, never a lie")
+    @Test("The hint names the key that actually accepts and only routed dismissal keys")
     func theHintFollowsTheAcceptKey() {
         let terminal = SuggestionPresentation(.certain("ls -l"), typed: "ls ", acceptKey: .rightArrow)
-        #expect(terminal.footer == "→ take   ⌥↓ next   ⎋ dismiss")
+        #expect(terminal.footer == "→ take   ⌥↓ next")
         #expect(terminal.accessibilityLabel == "AI suggestion: ls -l. Right Arrow to accept.")
         let editor = SuggestionPresentation(.certain("Sydney"), acceptKey: .optionTab)
         #expect(editor.accessibilityLabel == "AI suggestion: Sydney. Option-Tab to accept.")
         #expect(SuggestionPresentation(.certain("Sydney")).acceptKey == .tab)
+
+        let terminalDot = SuggestionPresentation(.minimised, acceptKey: .rightArrow)
+        #expect(terminalDot.accessibilityLabel == "AI suggestion hidden.")
+    }
+
+    @Test("The footer dismissal hint agrees with the router for every accept key")
+    func footerDismissalFollowsRouter() {
+        let suggestion = Suggestion.choice(leader: "first", others: ["second"])
+        let selection = SuggestionSelection(index: 1, hasMoved: true)
+        for key in AcceptKey.allCases {
+            let presentation = SuggestionPresentation(
+                suggestion, selection: selection, acceptKey: key)
+            let routesEscape =
+                KeyRouting.decision(
+                    for: KeyStroke(.escape), showing: suggestion, selection: selection,
+                    acceptKey: key) != .passThrough
+            #expect(presentation.footer.contains("⎋ dismiss") == routesEscape)
+        }
     }
 
     // MARK: - Nothing worth drawing
