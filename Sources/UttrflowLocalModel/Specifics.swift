@@ -1,4 +1,4 @@
-// Keeps a model's line from adding a number, an amount, an email or a web address nobody gave it.
+// Keeps a model's line from adding a number, an amount, an address or a credential nobody gave it.
 
 import Foundation
 import OSLog
@@ -51,7 +51,7 @@ enum Specifics {
 
     /// Whether a specific token of code is so only by numbers that are each conventional and none a chosen value.
     static func isConventionalCode(_ token: String, word: Substring, after before: Substring) -> Bool {
-        guard !namesAddressOrAmount(token) else { return false }
+        guard !namesAddressOrAmount(token), !namesCredential(token) else { return false }
         let characters = Array(before) + Array(word)
         var index = before.count
         while index < characters.count {
@@ -210,16 +210,45 @@ enum Specifics {
         return token.isEmpty ? nil : token
     }
 
-    /// Whether a token names a specific: a number not part of a name, an amount, a percentage, an email or a web address.
+    /// Whether a token names a specific: a number not part of a name, an amount, an address or a credential.
     static func isSpecific(_ token: String) -> Bool {
-        namesAddressOrAmount(token) || startsANumber(token)
+        namesAddressOrAmount(token) || namesCredential(token) || startsANumber(token)
     }
 
     /// Whether a token names an email, a web address, an amount or a percentage, which no register writes as a convention.
     static func namesAddressOrAmount(_ token: String) -> Bool {
         if token.contains("@"), token.count > 1 { return true }
-        if token.contains("://") || token.hasPrefix("www.") || isHostPath(token) { return true }
+        if token.contains("://") || token.hasPrefix("www.") || isHostPath(token) || isBareHost(token) {
+            return true
+        }
         return token.contains(where: isAmountSign)
+    }
+
+    /// Whether a token or assigned value begins with an issuer prefix used by common access keys.
+    static func namesCredential(_ token: String) -> Bool {
+        let lowercased = token.lowercased()
+        let value =
+            lowercased.split(whereSeparator: { "=:".contains($0) }).last.map(String.init) ?? lowercased
+        let prefixes = ["sk-", "sk_live_", "ghp_"]
+        guard let prefix = prefixes.first(where: value.hasPrefix) else { return false }
+        let secret = value.dropFirst(prefix.count)
+        return secret.count >= 4 && secret.allSatisfy { $0.isLetter || $0.isNumber || "_-".contains($0) }
+    }
+
+    /// Whether a dotted token has a common public suffix, without mistaking file extensions for bare domains.
+    static func isBareHost(_ token: String) -> Bool {
+        guard let dot = token.lastIndex(of: "."), dot != token.startIndex else { return false }
+        let suffix = token[token.index(after: dot)...].lowercased()
+        let publicSuffixes: Set<String> = [
+            "ai", "app", "au", "biz", "ca", "cloud", "co", "com", "de", "dev", "edu", "fr", "gov",
+            "in", "info", "io", "jp", "me", "net", "org", "site", "store", "tech", "uk", "us", "xyz",
+        ]
+        guard publicSuffixes.contains(suffix) else { return false }
+        let host = token[..<dot]
+        return !host.isEmpty
+            && host.split(separator: "-", omittingEmptySubsequences: false).allSatisfy {
+                !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber }
+            }
     }
 
     /// Whether some digit in the token opens a run of digits no letter stands before, as in `3pm`, `#12` or `12.50`, never `python3`.
