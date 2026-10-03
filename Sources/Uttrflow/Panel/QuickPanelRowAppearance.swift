@@ -52,7 +52,8 @@ enum QuickPanelSpeech {
             ]
         return
             ([noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias, body]
-            + details + [row.when])
+            + details
+            + [row.containsDisplayHazards ? "contains invisible or control characters" : nil, row.when])
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")

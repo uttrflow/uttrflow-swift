@@ -906,6 +906,7 @@ private struct QuickPanelRow: View, @MainActor Equatable {
                 if let file = row.imageFile { thumbnail(file, selected: row.isSelected) }
                 if let alias = row.alias { aliasChip(alias) }
                 if let language = row.language { languageChip(language) }
+                if row.containsDisplayHazards { hiddenCharactersBadge }
                 if let measurements = row.measurements {
                     Text(measurements)
                         .font(.system(size: 11.5))
@@ -1020,6 +1021,21 @@ private struct QuickPanelRow: View, @MainActor Equatable {
             .background(Color.panelCode.opacity(0.12), in: .rect(cornerRadius: 5))
             .fixedSize()
             .accessibilityLabel("\(text) code")
+    }
+
+    private var hiddenCharactersBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 8, weight: .semibold))
+            Text("Hidden chars")
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .foregroundStyle(Color.panelDestructive)
+        .padding(.horizontal, 5)
+        .frame(height: 18)
+        .background(Color.panelDestructive.opacity(0.12), in: .rect(cornerRadius: 5))
+        .fixedSize()
+        .accessibilityHidden(true)
     }
 
     private func aliasChip(_ text: String) -> some View {

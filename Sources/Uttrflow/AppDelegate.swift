@@ -1984,7 +1984,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Closed first: Settings activates the app, and the panel would belong to nothing.
             closeQuickPanel()
             show(.settings(.general))
-        case .insert, .reveal, .alias, .move, .delete, .renameCategory, .deleteCategory,
+        case .insert, .insertCleaned, .reveal, .alias, .move, .delete, .renameCategory, .deleteCategory,
             .reindent, .makeNote, .scope:
             // Answered above, by `intent.key`.
             break
