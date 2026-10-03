@@ -29,6 +29,10 @@ public struct NumberFormsPass: CleaningPass {
         "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
         "nineteenth": 19, "twentieth": 20, "thirtieth": 30,
     ]
+    /// Street words after which a scale number and a unit ordinal are a house number and a street name.
+    static let streetWords: Set<String> = [
+        "avenue", "street", "road", "drive", "lane", "boulevard", "court", "place", "way",
+    ]
 
     /// One rendered number and how many words it replaces.
     struct Phrase: Equatable {
@@ -448,11 +452,19 @@ public struct NumberFormsPass: CleaningPass {
                 ordinalPosition += 1
                 count += 1
             }
-            if joined(ordinalPosition, shapes), let unit = ordinalUnits[keys[ordinalPosition]], unit < 10 {
+            if joined(ordinalPosition, shapes), let unit = ordinalUnits[keys[ordinalPosition]], unit < 10,
+                !isHouseNumber(endingAt: position + cardinal.count - 1, keys: keys, shapes: shapes)
+            {
                 return (cardinal.value + unit, count + 1)
             }
         }
         return ordinalUnits[keys[position]].map { ($0, 1) }
+    }
+
+    /// Whether a number ending on a scale word is a house number, because a unit ordinal and a street word follow it.
+    private static func isHouseNumber(endingAt last: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        NumberWords.scales[keys[last]] != nil && joined(last + 1, shapes) && joined(last + 2, shapes)
+            && streetWords.contains(keys[last + 2])
     }
 
     /// Keeps date-like and interrupted date forms intact for the existing date parser to handle.

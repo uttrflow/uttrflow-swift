@@ -249,6 +249,23 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "keeps a house number apart from an ordinal street name",
+        arguments: [
+            ("nine hundred fifth avenue", "900 fifth avenue"),
+            ("the shop is at nine hundred fifth avenue", "the shop is at 900 fifth avenue"),
+            ("he lives at four hundred second street", "he lives at 400 second street"),
+            ("we live at twelve hundred fourth avenue", "we live at 1200 fourth avenue"),
+            ("two thousand third road", "2000 third road"),
+            ("forty two oak street", "42 oak street"),
+            ("the store is on fifth avenue", "the store is on fifth avenue"),
+            ("the nine hundred fifth visitor", "the 905th visitor"),
+        ]
+    )
+    func houseNumberBeforeOrdinalStreet(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("normalizes dotted times only with a clock cue")
     func dottedTimes() {
         #expect(cleaned("moved to 4.30 p.m. on June 2", by: sut) == "moved to 4:30 p.m. on June 2")
