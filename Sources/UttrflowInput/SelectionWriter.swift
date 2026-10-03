@@ -30,6 +30,7 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
         let selectionBefore = field.selectedRange()
         let window = window(around: selectionBefore)
         let before = snapshot(window)
+        let selected = selectionBefore.flatMap(selectedText(in:))
 
         let result = field.setSelectedText(text)
         guard result == .success else {
@@ -41,8 +42,8 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
             after.location == selectionBefore.location + text.utf16.count
         else { throw .insertionUnconfirmed }
 
-        // A success that changed nothing is the failure this catches. See `Docs/insertion.md`.
-        if let before, let after = snapshot(window), before == after, !text.isEmpty {
+        // A success that changed nothing is the failure caught here, unless the selection already held the text. See `Docs/insertion.md`.
+        if let before, let after = snapshot(window), before == after, !text.isEmpty, selected != text {
             throw .insertionRejected(
                 description: "the field accepted the text and did not change")
         }
@@ -113,6 +114,12 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
             return FieldSnapshot(length: length, text: text)
         }
         return field.value().map { FieldSnapshot(length: nil, text: $0) }
+    }
+
+    /// The text a non-empty selection covers, when the field reads by range.
+    private func selectedText(in selection: CFRange) -> String? {
+        guard selection.length > 0 else { return nil }
+        return field.text(in: selection.location..<(selection.location + selection.length))
     }
 
     /// Sets the selection, which a field that hides its range refuses.
