@@ -3196,7 +3196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         intentWork = Task { [weak self, dictionary, snippets] in
             do {
                 let merged = try await PersonalDataTransfer.importArchive(
-                    Data(contentsOf: source), into: dictionary, and: snippets)
+                    from: source, into: dictionary, and: snippets)
                 let duplicateCount = merged.duplicateWords + merged.duplicateSnippets
                 var message =
                     duplicateCount == 0
@@ -3207,6 +3207,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         " Kept the \(PersonalDictionaryStore.maximumInferredEntries) strongest learned words and skipped \(merged.skippedInferredWords)."
                 }
                 self?.showPersonalDataNotice(title: "Import complete", message: message)
+            } catch let error as PersonalDataArchiveError {
+                let message: String
+                switch error {
+                case .archiveTooLarge:
+                    message = "The archive exceeds the 5 MB import limit. Nothing was imported."
+                case .tooManySnippets:
+                    message = "The archive exceeds the snippet limit. Nothing was imported."
+                case .snippetTooLong:
+                    message = "A snippet is longer than the import limit. Nothing was imported."
+                case .dictionaryWordTooLong:
+                    message = "A dictionary word is longer than the import limit. Nothing was imported."
+                case .unsupportedVersion, .invalidContents:
+                    message = "The selected archive is not valid. Nothing was imported."
+                }
+                self?.showPersonalDataNotice(title: "Import could not be completed", message: message)
             } catch {
                 self?.showPersonalDataNotice(
                     title: "Import could not be completed",

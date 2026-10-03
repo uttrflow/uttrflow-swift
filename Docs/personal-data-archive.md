@@ -26,6 +26,12 @@ when they collide, and reports how many duplicates it skipped. A malformed or un
 archive is refused without changing either list, and so is an import that would leave more
 than `PersonalDictionaryStore.maximumInferredEntries` (256) inferred words in the dictionary.
 
+Selected files are read in bounded chunks and refused above 5 MiB before JSON decoding. An
+archive may contain at most 1,000 snippets; each trigger is limited to 256 UTF-8 bytes and each
+expansion to 16 KiB. Dictionary spellings and pronunciations are each limited to 256 UTF-8
+bytes. These limits are checked before either store changes, and their refusal is reported in
+the import alert.
+
 ## Versions
 
 The archive schema is `PersonalDataArchive.currentVersion` (1). An incompatible format gets a

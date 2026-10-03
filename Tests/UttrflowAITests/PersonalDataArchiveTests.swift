@@ -62,6 +62,35 @@ struct PersonalDataArchiveTests {
         #expect(throws: PersonalDataArchiveError.self) { try invalid.encoded() }
     }
 
+    @Test("rejects a raw archive over the byte limit before JSON decoding")
+    func refusesOversizedArchive() {
+        let data = Data(repeating: 0x20, count: PersonalDataArchive.maximumSizeInBytes + 1)
+        #expect(throws: PersonalDataArchiveError.self) { try PersonalDataArchive.decode(data) }
+    }
+
+    @Test("caps imported snippet count and string lengths")
+    func refusesExcessiveSnippetData() throws {
+        let tooMany = (0...PersonalDataArchive.maximumSnippetCount).map { index in
+            Snippet(trigger: "phrase \(index)", expansion: "Saved text", created: .distantPast)
+        }
+        let countBytes = try JSONEncoder().encode(PersonalDataArchive(dictionary: [], snippets: tooMany))
+        #expect(throws: PersonalDataArchiveError.self) { try PersonalDataArchive.decode(countBytes) }
+
+        let longSnippet = Snippet(
+            trigger: "phrase",
+            expansion: String(repeating: "x", count: PersonalDataArchive.maximumSnippetExpansionBytes + 1),
+            created: .distantPast)
+        let snippetBytes = try JSONEncoder().encode(
+            PersonalDataArchive(dictionary: [], snippets: [longSnippet]))
+        #expect(throws: PersonalDataArchiveError.self) { try PersonalDataArchive.decode(snippetBytes) }
+
+        let longWord = DictionaryEntry(
+            word: String(repeating: "x", count: PersonalDataArchive.maximumDictionaryWordBytes + 1),
+            origin: .added, firstSeen: .distantPast)
+        let wordBytes = try JSONEncoder().encode(PersonalDataArchive(dictionary: [longWord], snippets: []))
+        #expect(throws: PersonalDataArchiveError.self) { try PersonalDataArchive.decode(wordBytes) }
+    }
+
     @Test("replaces a freshly seeded shipped word with its archived identity")
     func restoresShippedWordIdentity() {
         let seeded = DictionaryEntry(

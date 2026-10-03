@@ -7,6 +7,11 @@ public import UttrflowDictionary
 /// The personal dictionary and snippets a person can move between their own Macs.
 public struct PersonalDataArchive: Codable, Sendable, Equatable {
     public static let currentVersion = 1
+    public static let maximumSizeInBytes = 5 * 1024 * 1024
+    public static let maximumSnippetCount = 1_000
+    public static let maximumSnippetTriggerBytes = 256
+    public static let maximumSnippetExpansionBytes = 16_384
+    public static let maximumDictionaryWordBytes = 256
 
     public let version: Int
     public let dictionary: [DictionaryEntry]
@@ -20,16 +25,25 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
 
     /// Encodes a complete snapshot, retaining identifiers, dates and usage counts.
     public func encoded() throws -> Data {
+        if let limitError { throw limitError }
         guard isValid else { throw PersonalDataArchiveError.invalidContents }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(self)
+        let data = try encoder.encode(self)
+        guard data.count <= Self.maximumSizeInBytes else {
+            throw PersonalDataArchiveError.archiveTooLarge
+        }
+        return data
     }
 
     /// Decodes and validates the entire file before a caller writes either store.
     public static func decode(_ data: Data) throws -> Self {
+        guard data.count <= maximumSizeInBytes else {
+            throw PersonalDataArchiveError.archiveTooLarge
+        }
         let archive = try JSONDecoder().decode(Self.self, from: data)
         guard archive.version == currentVersion else { throw PersonalDataArchiveError.unsupportedVersion }
+        if let limitError = archive.limitError { throw limitError }
         guard archive.isValid else { throw PersonalDataArchiveError.invalidContents }
         return archive
     }
@@ -93,6 +107,23 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
                     && $0.timesUsed >= 0
             }
     }
+
+    private var limitError: PersonalDataArchiveError? {
+        if snippets.count > Self.maximumSnippetCount { return .tooManySnippets }
+        if snippets.contains(where: {
+            $0.trigger.utf8.count > Self.maximumSnippetTriggerBytes
+                || $0.expansion.utf8.count > Self.maximumSnippetExpansionBytes
+        }) {
+            return .snippetTooLong
+        }
+        if dictionary.contains(where: {
+            $0.word.utf8.count > Self.maximumDictionaryWordBytes
+                || ($0.pronunciation?.utf8.count ?? 0) > Self.maximumDictionaryWordBytes
+        }) {
+            return .dictionaryWordTooLong
+        }
+        return nil
+    }
 }
 
 /// What the validated import would add, and how many conflicting records it skipped.
@@ -106,4 +137,8 @@ public struct PersonalDataMerge: Sendable, Equatable {
 public enum PersonalDataArchiveError: Error, Sendable {
     case unsupportedVersion
     case invalidContents
+    case archiveTooLarge
+    case tooManySnippets
+    case snippetTooLong
+    case dictionaryWordTooLong
 }
