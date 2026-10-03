@@ -16,7 +16,9 @@ public struct NumberFormsPass: CleaningPass {
         "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
         "table", "level", "room", "floor",
     ]
-    static let currencies: Set<String> = ["rupee", "rupees", "dollar", "dollars", "euro", "euros"]
+    static let currencies: Set<String> = [
+        "rupee", "rupees", "dollar", "dollars", "euro", "euros", "pound", "pounds",
+    ]
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
     static let idioms: [[String]] = [["twenty", "four", "seven"], ["fifty", "fifty"]]
     static let monthDays: [String: Int] = [
@@ -245,13 +247,25 @@ public struct NumberFormsPass: CleaningPass {
         }
         if !isPhrase, item.spoken, let value = item.value {
             let beforeCurrency = joined(end, shapes) && currencies.contains(keys[end])
-            guard policy == .always || inContext || value >= 10 || beforeCurrency else { return nil }
+            let inAmount = beforeCurrency || completesAmount(at: position, keys: keys, shapes: shapes)
+            guard policy == .always || inContext || value >= 10 || inAmount else { return nil }
             // The destination says whether digits are grouped; a context word still runs its own together.
             text = NumberWords.render(value, grouped: digits == .thousands && !inContext)
         } else if !isPhrase {
             return nil
         }
         return Phrase(text: text, count: end - position)
+    }
+
+    /// Whether the number here is the smaller part of an amount, after a number and its currency.
+    private static func completesAmount(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        var currency = position - 1
+        if currency > 0, keys[currency] == "and", joined(currency + 1, shapes) { currency -= 1 }
+        guard currency > 0, currencies.contains(keys[currency]), joined(currency + 1, shapes),
+            joined(currency, shapes)
+        else { return false }
+        let major = currency - 1
+        return NumberWords.digits(keys[major]) != nil || NumberWords.cardinal(keys[major..<currency]) != nil
     }
 
     /// Requires temporal evidence when the hour and minute form one phrase.

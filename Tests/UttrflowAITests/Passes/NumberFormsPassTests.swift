@@ -46,6 +46,24 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "writes every part of a spoken amount in one form",
+        arguments: [
+            ("three dollars and five cents", "3 dollars and 5 cents"),
+            ("nine dollars and nine cents", "9 dollars and 9 cents"),
+            ("it costs five euros and five cents", "it costs 5 euros and 5 cents"),
+            ("two dollars fifty", "2 dollars 50"),
+            ("five pounds and fifty pence", "5 pounds and 50 pence"),
+            ("twelve dollars and fifty cents", "12 dollars and 50 cents"),
+            ("a dollar and five cents", "a dollar and five cents"),
+            ("five dollars. five cents", "5 dollars. five cents"),
+            ("it is my two cents", "it is my two cents"),
+        ]
+    )
+    func amounts(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "joins spoken percentile ranks",
         arguments: [
             ("p fifty", "p50"), ("p ninety", "p90"), ("p ninety five", "p95"),
