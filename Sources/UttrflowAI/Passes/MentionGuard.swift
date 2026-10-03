@@ -82,7 +82,8 @@ enum MentionGuard {
             if let bridging {
                 if !bridging.contains(shape.key) || markNames.contains(shape.key) { return false }
             } else if !isModifier(
-                shape.key, before: draft.shape(at: live[position]).key, finalMark: finalMark
+                shape.key, before: draft.shape(at: live[position]).key, finalMark: finalMark,
+                countedBy: position - back > 0 ? draft.shape(at: live[position - back - 1]).key : nil
             ) {
                 return false
             }
@@ -90,12 +91,12 @@ enum MentionGuard {
         return false
     }
 
-    /// Recognizes local modifiers, ordinal numbers and cardinal numbers before a period.
-    private static func isModifier(_ word: String, before head: String, finalMark: Bool) -> Bool {
-        if NumberFormsPass.ordinalUnits[word] != nil || (head == "period" && NumberWords.digits(word) != nil)
-        {
-            return true
-        }
+    /// Recognizes local modifiers, numbers, and the unit noun a number measures: "the 100 metre dash".
+    private static func isModifier(
+        _ word: String, before head: String, finalMark: Bool, countedBy previous: String?
+    ) -> Bool {
+        if NumberFormsPass.ordinalUnits[word] != nil || isCardinal(word) { return true }
+        if let previous, isCardinal(previous) { return true }
         let phrase = "the \(word) \(head)"
         let tagger = NLTagger(tagSchemes: [.lexicalClass])
         tagger.string = phrase
@@ -111,5 +112,10 @@ enum MentionGuard {
         }
 
         return lexicalClass == .noun && word.hasSuffix("ing")
+    }
+
+    /// Whether a word is a cardinal number, spelled or in digits.
+    private static func isCardinal(_ word: String) -> Bool {
+        NumberWords.digits(word) != nil || NumberWords.cardinal([word][...]) != nil
     }
 }
