@@ -17,10 +17,16 @@ enum MentionGuard {
         return namingWords.contains(draft.shape(at: live[position - 1]).key)
     }
 
-    /// Verbs that name the layout phrase which follows them.
+    /// Verbs and naming nouns that name the mark or layout phrase which follows them.
     private static let mentionVerbs: Set<String> = [
-        "type", "say", "make", "write", "use", "press",
+        "type", "say", "make", "write", "use", "press", "phrase", "term", "symbol",
     ]
+
+    /// Reporting verbs that name a closing or joining mark after them but introduce an opening quote.
+    private static let reportingVerbs: Set<String> = ["said", "says"]
+
+    /// Mark names that are also nouns a number or another noun may modify: "a waiting period", "the hundred metre dash".
+    private static let nounHeads: Set<String> = ["period", "dash"]
 
     static let determiners: Set<String> = [
         "a", "an", "the", "put", "add", "insert", "with", "no", "this", "that", "these", "those", "each",
@@ -53,7 +59,7 @@ enum MentionGuard {
         guard position > 0 else { return kind != .opening }
         if opensThePhrase(
             ending: position, reaching: reach, in: live, of: draft, bridgedBy: bridging,
-            finalMark: kind == .trailing && position + length == live.count,
+            finalMark: kind == .trailing && position + length == live.count, opening: kind == .opening,
             corroboratedByLayout: corroboratedByLayout
         ) {
             return true
@@ -65,7 +71,7 @@ enum MentionGuard {
     /// Whether a determiner opens the phrase the mark word heads; given `bridging`, only those words may stand between.
     private static func opensThePhrase(
         ending position: Int, reaching reach: Int, in live: [Int], of draft: Draft,
-        bridgedBy bridging: Set<String>?, finalMark: Bool, corroboratedByLayout: Bool
+        bridgedBy bridging: Set<String>?, finalMark: Bool, opening: Bool, corroboratedByLayout: Bool
     ) -> Bool {
         // A hyphen joins the two words around it, so it heads no phrase and only the word before it speaks.
         let far = draft.shape(at: live[position]).key == "hyphen" ? 1 : reach
@@ -73,7 +79,9 @@ enum MentionGuard {
             let shape = draft.shape(at: live[position - back])
             // A noun phrase cannot begin in the sentence before, so no opener stands on the far side of a stop.
             if shape.endsSentence { return false }
-            if back == 1, mentionVerbs.contains(shape.key) { return true }
+            if back == 1, mentionVerbs.contains(shape.key) || !opening && reportingVerbs.contains(shape.key) {
+                return true
+            }
             if !corroboratedByLayout,
                 back == 1 ? determiners.contains(shape.key) : phraseOpeners.contains(shape.key)
             {
@@ -92,7 +100,8 @@ enum MentionGuard {
 
     /// Recognizes local modifiers, ordinal numbers and cardinal numbers before a period.
     private static func isModifier(_ word: String, before head: String, finalMark: Bool) -> Bool {
-        if NumberFormsPass.ordinalUnits[word] != nil || (head == "period" && NumberWords.digits(word) != nil)
+        if NumberFormsPass.ordinalUnits[word] != nil
+            || (nounHeads.contains(head) && NumberWords.isNumber(word))
         {
             return true
         }
@@ -106,7 +115,7 @@ enum MentionGuard {
 
         // Known period compounds stay words at a final spoken stop regardless of their lexical tag.
         if head == "period" && finalMark && finalPeriodCompoundModifiers.contains(word) { return true }
-        if lexicalClass == .noun && head == "period" && !finalMark {
+        if lexicalClass == .noun && nounHeads.contains(head) && !finalMark {
             return true
         }
 

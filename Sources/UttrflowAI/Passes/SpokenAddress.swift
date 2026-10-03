@@ -65,6 +65,8 @@ struct SpokenAddress: Equatable {
 
     /// The address spoken from `position`, or nil where the words are not one.
     static func read(at position: Int, in live: [Int], of draft: Draft) -> SpokenAddress? {
+        // A determiner opens a noun phrase, so the symbol name after it is a word: "the dot com bubble".
+        guard !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else { return nil }
         let run = position..<draft.sentenceEnd(from: position, in: live)
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft) { return url }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }
