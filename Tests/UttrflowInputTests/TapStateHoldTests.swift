@@ -2,6 +2,7 @@
 import CoreGraphics
 import Dispatch
 import Testing
+import UttrflowTestSupport
 import UttrflowPredict
 
 @testable import UttrflowInput
@@ -9,21 +10,22 @@ import UttrflowPredict
 @Suite("The tap while a taken keystroke is carried out")
 struct TapStateHoldTests {
     /// A state with a resumed source of its own, since libdispatch traps on freeing a suspended one.
-    private static func makeState() -> TapState {
+    private static func makeState(clock: ManualClock? = nil) -> TapState {
         let source = DispatchSource.makeUserDataAddSource(queue: DispatchQueue(label: "test.tap-hold"))
         source.resume()
+        if let clock { return TapState(signal: source, clock: clock) }
         return TapState(signal: source)
     }
 
     /// A key-down for a virtual key code with no modifiers.
-    private static func key(_ code: CGKeyCode) throws -> CGEvent {
+    private static func key(_ code: CGKeyCode, flags: CGEventFlags = []) throws -> CGEvent {
         let event = try #require(CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: true))
-        event.flags = []
+        event.flags = flags
         return event
     }
 
-    private static func repeatKey(_ code: CGKeyCode) throws -> CGEvent {
-        let event = try Self.key(code)
+    private static func repeatKey(_ code: CGKeyCode, flags: CGEventFlags = []) throws -> CGEvent {
+        let event = try Self.key(code, flags: flags)
         event.setIntegerValueField(.keyboardEventAutorepeat, value: 1)
         return event
     }
@@ -113,6 +115,53 @@ struct TapStateHoldTests {
         var posted: [Int64] = []
         #expect(!state.releaseHeldKeys { posted.append($0.getIntegerValueField(.keyboardEventKeycode)) })
         #expect(posted.isEmpty)
+    }
+
+    @Test("a different key or modifier set is held and replayed instead of swallowed as an accept repeat")
+    func differentStrokeIsNotSwallowedAsARepeat() throws {
+        let state = Self.makeState()
+        #expect(state.arm(.tab))
+        #expect(state.takes(try Self.key(48)))
+        #expect(state.arm([]))
+        #expect(state.takes(try Self.repeatKey(48, flags: .maskAlternate)))
+        #expect(state.takes(try Self.repeatKey(49, flags: .maskAlternate)))
+
+        var posted: [(Int64, UInt64)] = []
+        #expect(
+            !state.releaseHeldKeys {
+                posted.append(($0.getIntegerValueField(.keyboardEventKeycode), $0.flags.rawValue))
+            })
+        #expect(posted.map(\.0) == [48, 49])
+        #expect(
+            posted.map(\.1) == [
+                CGEventFlags.maskAlternate.rawValue,
+                CGEventFlags.maskAlternate.rawValue,
+            ])
+    }
+
+    @Test("stopping clears the repeat key so a later hold reaches the application")
+    func stopClearsAcceptRepeat() throws {
+        let state = Self.makeState()
+        #expect(state.arm(.tab))
+        #expect(state.takes(try Self.key(48)))
+
+        state.stop()
+
+        #expect(!state.takes(try Self.repeatKey(48)))
+    }
+
+    @Test("accept repeats pass through once the hold expires")
+    func expiredHoldClearsAcceptRepeat() throws {
+        let clock = ManualClock()
+        let state = Self.makeState(clock: clock)
+        #expect(state.arm(.tab))
+        #expect(state.takes(try Self.key(48)))
+        #expect(state.arm([]))
+
+        clock.advance(by: .nanoseconds(Int64(KeyHold.limitNanoseconds)))
+
+        #expect(!state.takes(try Self.repeatKey(48)))
+        #expect(!state.isListening)
     }
 
     @Test("an open native menu receives a key that the suggestion has armed")
