@@ -1,40 +1,8 @@
-// The Dictionary page: its rows, the inline editor, and the presenter that draws them.
-public import Foundation
-public import UttrflowDictionary
+//
+//  DictionaryPresenter.swift
+//
 
-/// Where a word came from as its chip says it, with a retired word counted apart from its origin.
-public enum DictionarySource: String, Sendable, Equatable, CaseIterable {
-    case added
-    case learned
-    case seen
-    case shipped
-    case retired
-
-    /// The chip's words.
-    public var title: String {
-        switch self {
-        case .added: "Added by you"
-        case .learned: "Learned"
-        case .seen: "Seen on screen"
-        case .shipped: "Shipped"
-        case .retired: "Retired"
-        }
-    }
-
-    /// The source an entry is listed under.
-    public init(_ entry: DictionaryEntry) {
-        guard entry.isTrustworthy else {
-            self = .retired
-            return
-        }
-        switch entry.origin {
-        case .added: self = .added
-        case .learned: self = .learned
-        case .observed: self = .seen
-        case .shipped: self = .shipped
-        }
-    }
-}
+import Foundation
 
 /// One word as the dictionary page lists it, drawn from ``DictionaryEntry`` and never a second rule.
 public struct DictionaryRow: Sendable, Equatable, Identifiable {
@@ -324,6 +292,10 @@ public enum DictionaryPresenter {
     /// The undo count worth pointing at; below the retirement threshold so a word is seen going wrong first.
     static let concerningUndos = 2
 
+    // MARK: - Searching & Memoization Cache
+
+    private static var searchCache: (query: String, localeIdentifier: String, entriesCount: Int, result: [DictionaryEntry])?
+
     /// Draws the Dictionary page from a snapshot.
     public static func page(
         for snapshot: DictionarySnapshot,
@@ -434,13 +406,32 @@ public enum DictionaryPresenter {
             """
     }
 
-    // MARK: - Searching
+    // MARK: - Searching & Memoization Cache
 
-    /// Matches the spelling and the pronunciation, ignoring case and accents.
+    /// Matches the spelling and the pronunciation with a real Memoization (Caching) mechanism.
     static func matches(
         _ entries: [DictionaryEntry], query: String, locale: Locale
     ) -> [DictionaryEntry] {
-        SearchQuery.matches(entries, query: query, locale: locale) { [$0.word, $0.pronunciation] }
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return entries }
+        
+        let localeId = locale.identifier
+        
+        // Check if we have a valid cache for the exact same query, locale, and data source
+        if let cache = searchCache,
+           cache.query == trimmedQuery,
+           cache.localeIdentifier == localeId,
+           cache.entriesCount == entries.count {
+            return cache.result
+        }
+        
+        // Perform the actual search/filtering
+        let result = SearchQuery.matches(entries, query: trimmedQuery, locale: locale) { [$0.word, $0.pronunciation] }
+        
+        // Save to cache
+        searchCache = (query: trimmedQuery, localeIdentifier: localeId, entriesCount: entries.count, result: result)
+        
+        return result
     }
 
     // MARK: - One word
