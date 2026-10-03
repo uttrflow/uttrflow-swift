@@ -12,25 +12,28 @@ struct InsightsPageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            if let empty = presentation.emptyState {
-                // The same room below as the charts leave, so the footnote clears the window's edge.
-                MainEmptyStateView(state: empty, onIntent: onIntent)
-                    .padding(.bottom, 22)
-            } else {
-                ScrollView {
-                    HStack(alignment: .top, spacing: 18) {
-                        if let calendar = presentation.calendar {
-                            InsightsCalendarCard(calendar: calendar, caption: presentation.chartCaption)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if let empty = presentation.emptyState {
+                        MainEmptyStateView(state: empty, onIntent: onIntent)
+                    } else {
+                        HStack(alignment: .top, spacing: 18) {
+                            if let calendar = presentation.calendar {
+                                InsightsCalendarCard(calendar: calendar, caption: presentation.chartCaption)
+                            }
+                            VStack(spacing: 12) {
+                                ForEach(presentation.figures) { InsightsFigureTile(figure: $0) }
+                            }
+                            .frame(width: 220)
                         }
-                        VStack(spacing: 12) {
-                            ForEach(presentation.figures) { InsightsFigureTile(figure: $0) }
-                        }
-                        .frame(width: 220)
                     }
-                    .padding(.bottom, 22)
+                    if let figures = presentation.suggestionFigures {
+                        InsightsSuggestionsCard(figures: figures)
+                    }
                 }
-                .scrollIndicators(.never)
+                .padding(.bottom, 22)
             }
+            .scrollIndicators(.never)
         }
         .padding(.horizontal, 28)
         .padding(.top, 34)
@@ -58,6 +61,27 @@ struct InsightsPageView: View {
             }
         }
         .padding(.bottom, 18)
+    }
+}
+
+/// The suggestion corpus counts, kept together so their limits are visible.
+struct InsightsSuggestionsCard: View {
+    let figures: [MainStatistic]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Suggestions")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(PagePalette.text)
+            Text("Stored corpus totals on this Mac.")
+                .font(.system(size: 11))
+                .foregroundStyle(PagePalette.quiet)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                ForEach(figures) { InsightsFigureTile(figure: $0) }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
     }
 }
 

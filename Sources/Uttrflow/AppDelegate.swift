@@ -2696,6 +2696,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             recents = RecentDictations(showing: kept)
             knownWords = await dictionary.allEntries()
             knownSnippets = await snippets.snippets()
+            let suggestionCounts: SuggestionCounts?
+            if settings.suggestions.isEnabled, let completions {
+                do {
+                    let counts = try await completions.insightCounts()
+                    suggestionCounts = SuggestionCounts(
+                        entries: counts.entries, uses: counts.uses, accepted: counts.accepted,
+                        rejected: counts.rejected, selfSourced: counts.selfSourced)
+                } catch {
+                    Self.log.error("the suggestion corpus counts could not be read")
+                    suggestionCounts = nil
+                }
+            } else {
+                suggestionCounts = nil
+            }
             readAccount()
             await refreshPermissions()
             // The picture may need a round trip, so it follows the paint rather than holding it back.
@@ -2709,11 +2723,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 return
             }
             mainWindowIsBehind = false
-            mainWindow?.update(mainContent(measurements: measurements))
+            mainWindow?.update(
+                mainContent(measurements: measurements, suggestionCounts: suggestionCounts))
         }
     }
 
-    private func mainContent(measurements: [StageMeasurement]) -> MainContent {
+    private func mainContent(
+        measurements: [StageMeasurement], suggestionCounts: SuggestionCounts? = nil
+    ) -> MainContent {
+        let suggestionCounts =
+            settings.suggestions.isEnabled
+            ? suggestionCounts ?? mainWindow?.content.insights.suggestionCounts : nil
         let now = Date()
         homeClock.drew(at: now)
         // Handed over whole: `HistoryEntry` is `DictationRecord`, so nothing is rebuilt.
@@ -2765,7 +2785,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 for: InsightsSnapshot(
                     entries: entries, settings: settings,
                     range: InsightsRange(rawValue: scope(for: .insights)), now: now,
-                    hasReadHistory: hasReadHistory)),
+                    hasReadHistory: hasReadHistory, suggestionCounts: suggestionCounts)),
             snippets: snippetsPage(at: now),
             diagnostics: DiagnosticsPresenter.page(
                 for: DiagnosticsSnapshot(

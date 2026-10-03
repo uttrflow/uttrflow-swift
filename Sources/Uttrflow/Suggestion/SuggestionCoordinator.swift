@@ -87,7 +87,7 @@ final class SuggestionCoordinator {
     /// Says why nothing is being suggested, which silence alone cannot.
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
-    private let store: PredictStore
+    let store: PredictStore
     private let rejectedSuggestionRecorder: RejectedSuggestionRecorder
     let capture: CaptureSession
     private let panel = SuggestionPanelController.shared
