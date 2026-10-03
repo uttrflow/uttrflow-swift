@@ -69,9 +69,11 @@ the directory for the commands after it when they surely follow it (`&&`, `;`); 
 
 **Branches.** `GitRepository` finds `.git` by walking up from the directory, follows a worktree's
 `gitdir:` and `commondir`, and looks a ref up as a loose file under `refs/` or a line of
-`packed-refs`. A repository whose refs live in a reftable, or whose `packed-refs` is over 8 MB
-(`GitRepository.packedRefsLimit`), is not read, and its branch lines are refused. A commit hash
-is refused too, since telling one from a typo means reading the object store.
+`packed-refs`. Commit selectors may add reflog (`@{...}`), peel (`^{...}`), ancestry (`~n` or
+`^n`) or message (`:/...`) operators to a known ref or `HEAD`. A repository whose refs live in a
+reftable, or whose `packed-refs` is over 8 MB (`GitRepository.packedRefsLimit`), is not read, and
+its branch lines are refused. A commit hash is refused too, since telling one from a typo means
+reading the object store.
 
 ## A session on another machine
 
