@@ -273,18 +273,20 @@ final class SuggestionCoordinator {
 
     /// Forgets what one application taught, on disk and in every copy this loop holds.
     func forgetSuggestions(from bundleIdentifier: String) async throws {
-        await capture.forgetLearned(from: bundleIdentifier)
+        let capture = self.capture
         let store = self.store
         try await forgetWhatThisLoopRemembers(clearingCorpus: {
+            await capture.forgetLearned(from: bundleIdentifier)
             try await store.forget(bundleIdentifier: bundleIdentifier)
         })
     }
 
     /// Forgets every line and answer, on disk and in every copy this loop holds.
     func forgetEverySuggestion() async throws {
-        try await capture.forgetEverythingLearned()
+        let capture = self.capture
         let store = self.store
         try await forgetWhatThisLoopRemembers(clearingCorpus: {
+            try await capture.forgetEverythingLearned()
             try await store.forgetEverything()
         })
     }
@@ -293,6 +295,8 @@ final class SuggestionCoordinator {
     private func forgetWhatThisLoopRemembers(
         clearingCorpus: @escaping @Sendable () async throws -> Void
     ) async throws {
+        await acceptances.beginForgetting()
+        defer { acceptances.finishForgetting() }
         try await verifier.forgetEverything(then: clearingCorpus)
         modelPass.freshStart(surfaceChanged: true, lineIsEmpty: true)
     }
@@ -1481,7 +1485,7 @@ final class SuggestionCoordinator {
         guard let reading else { return true }
         let moment = Date()
         let log = Self.log
-        acceptances.enqueue { [capture] in
+        _ = acceptances.enqueue { [capture] in
             do {
                 _ = try await capture.accepted(text, over: typed, in: reading, at: moment)
             } catch {

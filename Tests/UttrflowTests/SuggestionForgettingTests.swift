@@ -134,6 +134,27 @@ struct SuggestionForgettingTests {
         #expect(await coordinator.capture.decisions() == CapturePreferences())
     }
 
+    @Test("Forget drains a queued acceptance before clearing the corpus")
+    @MainActor
+    func forgetDrainsPendingAcceptance() async throws {
+        let container = Container()
+        try FileManager.default.createDirectory(at: container.url, withIntermediateDirectories: true)
+        let coordinator = try SuggestionCoordinator(
+            container: container.url, preferences: SuggestionPreferences(isEnabled: true))
+        let reading = FieldReading(bundleIdentifier: terminal.bundleIdentifier, role: "AXTextArea")
+        try await coordinator.capture.record(.allowed, for: terminal.bundleIdentifier)
+
+        #expect(
+            coordinator.acceptances.enqueue { [capture = coordinator.capture] in
+                _ = try? await capture.accepted("forgotten acceptance", in: reading, at: moment)
+            })
+        try await coordinator.forgetEverySuggestion()
+        await coordinator.finishWrites()
+
+        let store = try PredictStore(path: container.corpusPath)
+        #expect(try await store.entryCount() == 0)
+    }
+
     @Test("Both Settings forget actions clear the running model scorer without a release")
     @MainActor
     func forgetActionsClearScorerMemory() async throws {
