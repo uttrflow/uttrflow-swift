@@ -170,6 +170,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let onboardingRecordStore: any OnboardingRecordStore
     private let clipboardPreferencesFile: ClipboardPreferencesFile
     private var clipboardPreferences = ClipboardPreferences()
+    private var clipboardPreferencesUnreadable = false
+    private var clipboardPreferencesSetAside: URL?
     private var clipboardPauseTask: Task<Void, Never>?
     private var clipboardPauseUntil: Date?
 
@@ -251,7 +253,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         self.encryptedStore = encryptedStore
         clipboardPreferencesFile = ClipboardPreferencesFile(
             path: ClipboardPreferencesFile.defaultFile(in: container).path)
-        clipboardPreferences = clipboardPreferencesFile.load()
+        switch clipboardPreferencesFile.load() {
+        case .missing:
+            clipboardPreferences = ClipboardPreferences()
+        case .read(let preferences):
+            clipboardPreferences = preferences
+        case .unreadable(let setAside):
+            clipboardPreferences = ClipboardPreferences()
+            clipboardPreferencesUnreadable = true
+            clipboardPreferencesSetAside = setAside
+        }
         clipboardPauseUntil = clipboardPreferences.pausedUntil
         self.loginItem = loginItem
         self.settingsStore = settingsStore
@@ -274,6 +285,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         clipboard = ClipboardStore(
             file: ClipboardStore.defaultFile(in: container), encryptedStore: encryptedStore)
         super.init()
+        if clipboardPreferencesUnreadable {
+            actionNotice = Self.clipboardPreferencesUnreadableNotice(
+                canRestore: clipboardPreferencesSetAside != nil)
+        }
     }
     private let clipboardWatcher = PasteboardWatcher(source: SystemClipboardSource())
     private let quickPanel = QuickPanelController()
@@ -1463,13 +1478,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    private var isClipboardPaused: Bool {
+    var isClipboardPaused: Bool {
+        guard !clipboardPreferencesUnreadable else { return true }
         guard let clipboardPauseUntil else { return false }
         return clipboardPauseUntil > Date()
     }
 
     /// Stops capture immediately and resumes from a fresh baseline after one hour.
     private func setClipboardPaused(_ isPaused: Bool) {
+        guard !clipboardPreferencesUnreadable else { return }
         clipboardPauseTask?.cancel()
         clipboardPauseTask = nil
         clipboardPauseUntil = isPaused ? Date().addingTimeInterval(60 * 60) : nil
@@ -1503,6 +1520,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Adds or removes bundle identifiers through private preferences and a running-app picker.
     private func manageClipboardExclusions() {
+        guard !clipboardPreferencesUnreadable else { return }
         let identifiers = clipboardPreferences.excludedBundleIdentifiers.sorted()
         let alert = NSAlert()
         alert.messageText = "Clipboard exclusions"
@@ -1538,6 +1556,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func saveClipboardPreferences() {
+        guard !clipboardPreferencesUnreadable else { return }
         do {
             try clipboardPreferencesFile.save(clipboardPreferences)
             let excludedApplications = clipboardPreferences.excludedBundleIdentifiers
@@ -1546,6 +1565,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 await clipboardWatcher.passOver(upTo: clipboardWatcher.changeCount)
             }
         } catch { report(error) }
+    }
+
+    private static func clipboardPreferencesUnreadableNotice(canRestore: Bool) -> MainNotice {
+        MainNotice(
+            message:
+                "Your exclusion list could not be read. Clipboard capture is off until you restore it.",
+            symbolName: "exclamationmark.triangle", tone: .critical,
+            action: canRestore
+                ? MainAction(title: "Restore exclusions", intent: .restoreClipboardPreferences)
+                : nil)
+    }
+
+    private func restoreClipboardPreferences() {
+        guard let clipboardPreferencesSetAside else { return }
+        do {
+            clipboardPreferences = try clipboardPreferencesFile.restore(from: clipboardPreferencesSetAside)
+            self.clipboardPreferencesSetAside = nil
+            clipboardPreferencesUnreadable = false
+            clipboardPauseUntil = clipboardPreferences.pausedUntil
+            actionNotice = nil
+            followTheClipboardSwitch()
+            refreshMainWindow()
+        } catch {
+            actionNotice = Self.clipboardPreferencesUnreadableNotice(canRestore: true)
+            refreshMainWindow()
+        }
     }
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
@@ -3088,6 +3133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }
                 refreshMainWindow()
             }
+        case .restoreClipboardPreferences:
+            restoreClipboardPreferences()
         case .restoreSnippet(let id):
             snippetUndoTask?.cancel()
             snippetUndoTask = nil
