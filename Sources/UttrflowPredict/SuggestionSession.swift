@@ -460,7 +460,7 @@ public struct SuggestionSession: Sendable, Equatable {
             rejectionsHere = 0
             isMinimised = false
         }
-        let folded = typing.folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+        let folded = TextMatching.caseFoldedKey(typing)
         let offeredKey = suggestion.accepting.map(TextMatching.caseFoldedKey)
         let earlier = TextMatching.caseFoldedKey(typed)
         guard let offered = suggestion.accepting, let offeredKey,

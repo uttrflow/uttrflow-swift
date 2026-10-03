@@ -255,6 +255,20 @@ struct SuggestionRejectionTests {
         }
     }
 
+    @Test("Typing past an offer handles composed and decomposed accents in either direction.")
+    func canonicalAccentTypedPastIsRejected() throws {
+        for (typed, offered) in [
+            ("cafe\u{301}x", "café noir"),
+            ("caféx", "cafe\u{301} noir"),
+        ] {
+            var session = SuggestionSession()
+            _ = try draw(&session, typing: "caf", candidates: lone(offered))
+            let turn = session.turn(in: field, at: PredictionContext(typed: typed))
+            #expect(turn.rejected == offered)
+            #expect(session.rejectionsHere == 1)
+        }
+    }
+
     @Test("Leaving the field is not a refusal, and forgets the ones it collected.")
     func leavingForgets() throws {
         var session = SuggestionSession()
