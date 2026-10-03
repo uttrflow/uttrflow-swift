@@ -6,7 +6,8 @@ import UttrflowSettings
 
 /// Enough of a dictionary and a history for every removal row to be pressable.
 private let filled = SettingsPersonalisation(
-    learnedWords: 34, addedWords: 12, transcripts: 142)
+    learnedWords: 34, addedWords: 12, transcripts: 142,
+    suggestions: ["com.apple.dt.Xcode": 3])
 
 /// Every removal the settings window offers, across all of its tabs.
 private func everyRemoval() -> [SettingsRemoval] {
@@ -27,7 +28,9 @@ struct SettingsConfirmationRuleTests {
         let removals = everyRemoval()
 
         // Every case is drawn somewhere, or the check below proves nothing.
-        for reset in [SettingsReset.learnedWords, .everything] {
+        for reset in [
+            SettingsReset.learnedWords, .everything, .suggestions(inApplication: "com.apple.dt.Xcode"),
+        ] {
             #expect(
                 removals.contains { $0.reset == reset },
                 "\(reset) has no row, so nothing holds its confirmation rule")

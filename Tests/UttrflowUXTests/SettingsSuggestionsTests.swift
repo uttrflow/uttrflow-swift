@@ -336,7 +336,7 @@ struct SettingsForgetSuggestionsTests {
     func namesOneApplicationOnly() {
         let reset = SettingsReset.suggestions(inApplication: xcode)
         #expect(reset.targets == [.suggestions(inApplication: xcode)])
-        #expect(!reset.isConfirmed)
+        #expect(reset.isConfirmed)
     }
 
     @Test("takes the completions with everything else when the user starts again")
@@ -355,6 +355,15 @@ struct SettingsForgetSuggestionsTests {
         #expect(forget.explanation?.contains("Xcode") == true)
         #expect(forget.isEnabled)
         #expect(forget.style == .inset, "it belongs to the application row above it")
+        guard case .removal(let removal) = forget.control else {
+            Issue.record("forgetting one application's completions must ask first")
+            return
+        }
+        #expect(removal.title == "Forget…")
+        #expect(removal.confirmation?.message.contains("214 completions") == true)
+        #expect(removal.confirmation?.message.contains("cannot be undone") == true)
+        #expect(removal.confirmation?.defaultTitle == removal.confirmation?.cancelTitle)
+        #expect(removal.confirmation?.defaultTitle != removal.confirmation?.confirmTitle)
 
         #expect(row("forgetSuggestions.\(xcode)", in: pane(settings)) == nil)
     }
@@ -365,13 +374,20 @@ struct SettingsForgetSuggestionsTests {
         #expect(reason.contains("nothing was forgotten"))
     }
 
-    @Test("refuses a button that has gone stale since the window opened")
-    func refusesAStaleButton() {
-        var session = SettingsSession(settings: switchedOn(), personalisation: .nothing)
+    @Test("asking about one application's completions removes nothing until confirmed")
+    func asksBeforeForgetting() {
+        var session = SettingsSession(
+            settings: switchedOn(),
+            personalisation: SettingsPersonalisation(
+                learnedWords: 0, addedWords: 0, transcripts: 0, suggestions: [xcode: 214]))
         let removal = SettingsRemoval(
-            reset: .suggestions(inApplication: xcode), title: "Forget", confirmation: nil)
+            reset: .suggestions(inApplication: xcode), title: "Forget…",
+            confirmation: SettingsConfirmation(
+                title: "Forget learned completions?",
+                message: "214 completions from Xcode. This cannot be undone.",
+                confirmTitle: "Forget", cancelTitle: "Cancel"))
         #expect(session.request(removal) == nil)
-        #expect(session.rejection?.contains("Xcode") == true)
+        #expect(session.pendingRemoval == removal)
     }
 
     @Test("carries the reset out against the corpus, and leaves every other application alone")
