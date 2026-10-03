@@ -24,7 +24,7 @@ enum CommandCredentialShape {
         for character in text {
             read += 1
             if escaped {
-                word.append(character)
+                word.append(literalShellCharacter(character))
                 escaped = false
                 continue
             }
@@ -37,7 +37,13 @@ enum CommandCredentialShape {
                 continue
             }
             if let open = quote {
-                if character == open { quote = nil } else { word.append(character) }
+                if character == open {
+                    quote = nil
+                } else if open == "'" || "{}<>".contains(character) {
+                    word.append(literalShellCharacter(character))
+                } else {
+                    word.append(character)
+                }
                 continue
             }
             switch character {
@@ -45,6 +51,7 @@ enum CommandCredentialShape {
                 quote = character
                 hasWord = true
             case "\\": escaped = true
+            case "<", ">": endWord()
             case ";" where hasCookieHeader || isCookieHeaderToken(word):
                 word.append(character)
                 hasWord = true
@@ -64,6 +71,18 @@ enum CommandCredentialShape {
         }
         endWord()
         return handsOverCredential(words, read: &read)
+    }
+
+    /// Preserves metacharacters that shell quoting or escaping makes literal.
+    private static func literalShellCharacter(_ character: Character) -> Character {
+        switch character {
+        case "$": "\u{E000}"
+        case "{": "\u{E001}"
+        case "}": "\u{E002}"
+        case "<": "\u{E003}"
+        case ">": "\u{E004}"
+        default: character
+        }
     }
 
     /// Whether the current command is reading a Cookie or Set-Cookie header value.

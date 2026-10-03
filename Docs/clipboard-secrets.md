@@ -79,7 +79,8 @@ A credential inside a one-line command is not a named secret: the named-secret r
 value to end its line, and in a command the value is followed by more of the command. Terminal
 lines are also what the suggestion corpus learns from (`CaptureGate`), so a password typed once
 would otherwise be stored and offered back. `CommandCredentialShape` reads each line as shell
-words, honouring quotes and splitting commands at `|`, `;` and `&`, and recognises:
+words, honouring quotes, ending words at redirects, and splitting commands at `|`, `;` and `&`.
+It recognises:
 
 - A short flag, only for the program that reads it as a password: `mysql -pX` (joined only,
   since a bare `-p` asks), `sshpass -p`, `docker`/`podman`/`nerdctl login -p`, `redis-cli -a`,
@@ -95,8 +96,9 @@ words, honouring quotes and splitting commands at `|`, `;` and `&`, and recognis
   ends in a secret's name (`X-Api-Key:`), quoted or not, with the value in the same word or
   the next two. A scheme alone (`Authorization: Bearer`) sends nothing.
 
-A value that is a variable, a substitution or a placeholder (`$TOKEN`, `${token}`, `{token}`,
-`<token>`) is left alone, since it names where the credential is rather than being it.
+A value that is an unquoted variable, substitution or placeholder (`$TOKEN`, `${token}`, `{token}`,
+`<token>`) is left alone, since it names where the credential is rather than being it. Quoted
+shell punctuation is part of the value; a redirect operator outside quotes ends the word first.
 
 A URL whose userinfo is one generated token with no colon (`https://<40 hex>@host/repo`) is
 masked too, by the statistical rule below applied to the userinfo; `https://readonly@host`
