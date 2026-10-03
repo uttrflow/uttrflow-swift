@@ -66,8 +66,8 @@ the text is visible and fixable, and a deleted clause is neither.
 
 Loudness is measured over 20 ms frames. Two tests have to pass:
 
-- the loudest frames reach an absolute floor of about −46 dBFS, which a quiet room
-  does not;
+- the loudest frames reach an absolute floor of about −90 dBFS, which excludes digital
+  silence and values below the recording's usable range;
 - and either they reach a speaking level, or they stand at least three times above the
   recording's own tenth-percentile frame — noise sits at one level where speech rises
   and falls.
@@ -92,6 +92,11 @@ ended. Nothing downstream could tell: the boundary falls at a pause, so what is 
 reads as a whole sentence. A cap at the speaking level cannot do that, for the same reason
 the second test above is bounded by the first: anything at a speaking level is speech
 whatever the rest of the recording looks like.
+
+Clean speech down to −55 dBFS active-speech RMS is accepted in a quiet room. The −90 dBFS
+absolute floor leaves headroom for low input gain, while the three-to-one comparison
+against the recording's tenth-percentile frame continues to reject steady room tone and
+hiss.
 
 ## What it is worth
 
