@@ -254,18 +254,24 @@ public struct NumberFormsPass: CleaningPass {
         return Phrase(text: text, count: end - position)
     }
 
-    /// Requires temporal evidence when the hour and minute form one phrase.
+    /// Words before an hour-and-minute phrase that mark it as a time of day.
+    static let timeCues: Set<String> = [
+        "at", "by", "until", "till", "from", "around", "about", "before", "after", "since",
+    ]
+
+    /// Requires a time cue, or a sentence end after the minute, when the hour and minute form one phrase.
     private static func timeAcceptable(
         position: Int, minuteStart: Int, minuteEnd: Int,
         keys: [String], shapes: [WordShape]
     ) -> Bool {
         let hasBeforeCue =
             position > 0 && !startsASentence(position, shapes)
-            && ["at", "by", "until", "from"].contains(keys[position - 1])
+            && timeCues.contains(keys[position - 1])
+        let endsTheSentence = minuteEnd >= shapes.count || shapes[minuteEnd - 1].endsSentence
         let hasAfterCue =
             minuteEnd < shapes.count && joined(minuteEnd, shapes)
             && (meridiems.contains(keys[minuteEnd]) || keys[minuteEnd] == "o'clock")
-        return hasBeforeCue || hasAfterCue
+        return hasBeforeCue || hasAfterCue || endsTheSentence
     }
 
     /// Whether the words here finish a scale the parser could not read whole, as in "a hundred and fifty".

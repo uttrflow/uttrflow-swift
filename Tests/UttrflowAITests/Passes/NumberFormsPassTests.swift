@@ -224,7 +224,12 @@ struct NumberFormsPassTests {
             ("from two thirty", "from 2:30"),
             ("twelve fifteen pm", "12:15 pm"),
             ("2 thirty pm", "2:30 pm"),
-            ("one thirty", "one 30"),
+            ("one thirty", "1:30"),
+            ("five thirty.", "5:30."),
+            ("let us meet around five thirty", "let us meet around 5:30"),
+            ("five forty five", "5:45"),
+            ("leave before six fifteen", "leave before 6:15"),
+            ("after two thirty we eat", "after 2:30 we eat"),
             ("two forty five pm", "2:45 pm"),
         ]
     )
