@@ -15,6 +15,8 @@ struct RulesCorpusTests {
         "pronoun-opening-it-is-my-two-cents", "pronoun-opening-i-am-sure",
         "pronoun-opening-it-is-good-control", "pronoun-opening-she-is-nurse-control",
         "determiner-opening-report-is-idea-control", "pronoun-opening-it-is-not-idea-control",
+        "deictic-opening-here-is-list", "deictic-opening-here-are-files", "deictic-opening-there-is-list",
+        "pronoun-opening-everything-is", "pronoun-opening-nothing-is",
         "false-start", "self-correction", "single-word-self-correction",
         "lowercase-start-after-complete-sentence-ebay",
         "lowercase-start-after-complete-sentence-pronoun",

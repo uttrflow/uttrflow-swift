@@ -246,10 +246,10 @@ public enum QuestionShape {
     /// Multiword lead-ins that introduce the question which follows them.
     private static let questionLeadIns = ["quick", "question"]
 
-    /// Subject pronouns and demonstratives cannot be vocative names before an inverted clause.
-    private static let addressSubjectWords: Set<String> = [
-        "it", "that", "this", "these", "those", "i", "we", "he", "she", "they",
-    ]
+    /// Pronouns, demonstratives and deictic openers cannot be vocative names before an inverted clause.
+    private static let addressSubjectWords = subjects.union([
+        "here", "that", "this", "these", "those", "nothing", "nobody", "none",
+    ])
 
     /// English question words.
     static let questionWords: Set<String> = [

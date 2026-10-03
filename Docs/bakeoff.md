@@ -263,7 +263,7 @@ sixteen point two").
 **One Hindi case may be unfair.** Everything scores badly on `hinglish-request`, which
 suggests the reference is one of several reasonable phrasings.
 
-**The corpus is 305 cases in six categories** — `everyday` 129, `contextual` 83, `grammar` 26,
+**The corpus is 316 cases in six categories** — `everyday` 140, `contextual` 83, `grammar` 26,
 `technical` 44, `multilingual` 15, `notARequest` 8 — and everything in it is synthesised or
 written by hand. Phase 8 grows it, with real recorded speech behind it.
 `Scripts/docs_audit.sh` checks this total and every category count against

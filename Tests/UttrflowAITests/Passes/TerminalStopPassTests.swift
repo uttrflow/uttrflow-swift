@@ -56,6 +56,14 @@ struct TerminalStopPassTests {
             ("she is a nurse", "she is a nurse."),
             ("the report is a good idea", "the report is a good idea."),
             ("it is not a good idea", "it is not a good idea."),
+            ("here is the list: apples and pears.", "here is the list: apples and pears."),
+            ("here are the files: a and b.", "here are the files: a and b."),
+            ("there is a list: one two three.", "there is a list: one two three."),
+            ("here is what we need: milk and eggs", "here is what we need: milk and eggs."),
+            ("here is the plan", "here is the plan."),
+            ("you are the best person for this", "you are the best person for this."),
+            ("everything is the way it should be", "everything is the way it should be."),
+            ("nothing is the same as before", "nothing is the same as before."),
             (
                 "didi can you ask jiju if he's free on saturday",
                 "didi, can you ask jiju if he's free on saturday?"

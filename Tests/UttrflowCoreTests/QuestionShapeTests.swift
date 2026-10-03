@@ -110,6 +110,11 @@ struct QuestionShapeTests {
             "these are a few good reasons", "those were a few good days", "we are a hundred percent sure",
             "he is a very good doctor", "she is a very good nurse", "they are a very good team",
             "it is good", "she is a nurse", "the report is a good idea", "it is not a good idea",
+            "here is the list: apples and pears", "here are the files: a and b",
+            "there is a list: one two three", "here is what we need: milk and eggs", "here is the plan",
+            "you are the best person for this", "everything is the way it should be",
+            "nothing is the same as before", "nobody is the right person for this",
+            "none are the right size for this", "someone is the next person in line",
         ])
     func declarativePronounOpeners(text: String) {
         #expect(!QuestionShape.asks(shapes(text)))

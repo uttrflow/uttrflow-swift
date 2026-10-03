@@ -139,6 +139,36 @@ public enum EvaluationCorpus {
             expected: "It is not a good idea."
         ),
         .init(
+            id: "deictic-opening-here-is-list", category: .everyday,
+            spoken: "Here is the list: apples and pears.",
+            expected: "Here is the list: apples and pears.",
+            mustBeginWith: "Here is", mustEndWith: "."
+        ),
+        .init(
+            id: "deictic-opening-here-are-files", category: .everyday,
+            spoken: "Here are the files: a and b.",
+            expected: "Here are the files: a and b.",
+            mustBeginWith: "Here are", mustEndWith: "."
+        ),
+        .init(
+            id: "deictic-opening-there-is-list", category: .everyday,
+            spoken: "There is a list: apples and pears.",
+            expected: "There is a list: apples and pears.",
+            mustBeginWith: "There is", mustEndWith: "."
+        ),
+        .init(
+            id: "pronoun-opening-everything-is", category: .everyday,
+            spoken: "everything is the way it should be",
+            expected: "Everything is the way it should be.",
+            mustBeginWith: "Everything is", mustEndWith: "."
+        ),
+        .init(
+            id: "pronoun-opening-nothing-is", category: .everyday,
+            spoken: "nothing is the same as before",
+            expected: "Nothing is the same as before.",
+            mustBeginWith: "Nothing is", mustEndWith: "."
+        ),
+        .init(
             id: "weekday-and-month-casing", category: .everyday,
             spoken: "can we push the demo to thursday instead of wednesday in august",
             expected: "Can we push the demo to Thursday instead of Wednesday in August.",
