@@ -35,6 +35,10 @@ at `PanelSnapshot.shortcutLimit` (9), because there is no ⌘10 and printing a s
 not work is worse than printing none. `position` is what pressing the chip *means*, counts from
 2, and does not stop, so the tenth collection and later still work when clicked.
 
+Each collection chip offers **Rename collection** and **Delete collection** as VoiceOver actions.
+With a chip focused, ⌘⇧R renames that collection. The context menu offers both actions with
+⌘⇧R and ⌘⇧Delete.
+
 **While there is a query, the active chip is All**, unless a kind chip is on. That is the one
 narrowing a search keeps: the kind chip stays lit, and an empty search says "Nothing under Code
 mentions …" and points at All, rather than claiming the whole clipboard was searched. A search

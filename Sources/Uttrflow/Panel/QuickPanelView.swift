@@ -218,7 +218,10 @@ struct QuickPanelView: View {
                 HStack(spacing: 8) {
                     QuickPanelSegments(filters: presentation.filters) { relayKey(.filter($0)) }
                     ForEach(presentation.categories) { chip in
-                        pill(chip.title, isActive: chip.isActive, shortcut: chip.shortcut) {
+                        pill(
+                            chip.title, category: chip.category,
+                            isActive: chip.isActive, shortcut: chip.shortcut
+                        ) {
                             // `chosen`, not `shortcut`: a chip past the ninth has no number.
                             relayKey(.category(number: chip.chosen))
                         }
@@ -227,7 +230,9 @@ struct QuickPanelView: View {
                         .contextMenu {
                             if let category = chip.category {
                                 Button("Rename…") { onIntent(.renameCategory(category)) }
+                                    .keyboardShortcut("r", modifiers: [.command, .shift])
                                 Button("Delete…") { onIntent(.deleteCategory(category)) }
+                                    .keyboardShortcut(.delete, modifiers: [.command, .shift])
                             }
                         }
                     }
@@ -254,7 +259,8 @@ struct QuickPanelView: View {
 
     /// One collection chip, tinted when it is the one on.
     private func pill(
-        _ title: String, isActive: Bool, shortcut: Int?, action: @escaping () -> Void
+        _ title: String, category: String?, isActive: Bool, shortcut: Int?,
+        action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
@@ -283,6 +289,20 @@ struct QuickPanelView: View {
         .accessibilityLabel(title)
         .accessibilityAddTraits(isActive ? .isSelected : [])
         .accessibilityHint(shortcut.map { "Shortcut command \($0)" } ?? "")
+        .onKeyPress(phases: .down) { press in
+            guard let category,
+                press.characters.lowercased() == "r",
+                press.modifiers.contains(.command), press.modifiers.contains(.shift)
+            else { return .ignored }
+            onIntent(.renameCategory(category))
+            return .handled
+        }
+        .accessibilityActions {
+            if let category {
+                Button("Rename collection") { onIntent(.renameCategory(category)) }
+                Button("Delete collection") { onIntent(.deleteCategory(category)) }
+            }
+        }
     }
 
     // MARK: - List
