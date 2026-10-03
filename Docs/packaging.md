@@ -87,6 +87,11 @@ Beyond the Info.plist and entitlement checks it has always made:
   proves both halves against a fixture and needs no build: that the SQL is not read as
   a bundle, and that a required bundle taken out of `Contents/Resources` still fails.
 - No path into this machine's build tree survives in the shipped binary.
+- No `.jsonl`, `.json`, `.txt` or `.csv` file reaches the app unless its full bundle-relative
+  path is in `ALLOWED_TEXT_RESOURCES` in `Scripts/bundle.sh`. The allow list covers only
+  tokenizer fallback configs, the font licence, BIP39 resources, Unicode property data and
+  Sentry's architecture metadata; `./Scripts/bundle.sh --self-test` proves those named files
+  pass and a corpus fixture in each supported format fails.
 
 ## Verified
 
