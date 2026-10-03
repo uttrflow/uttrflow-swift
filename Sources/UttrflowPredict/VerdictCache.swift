@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// Verdicts already reached, so that most keystrokes cost nothing at all.
 struct VerdictCache: Sendable {
     /// How many verdicts are kept, which is a few keystrokes' worth of candidates and no more.
@@ -14,16 +16,9 @@ struct VerdictCache: Sendable {
         let context: String
     }
 
-    /// One verdict and the moment it stops being believed.
-    private struct Held {
-        let verdict: Verdict
-        let expires: ContinuousClock.Instant
-    }
-
-    /// Each verdict against the key it answers.
-    private var held: [Key: Held] = [:]
-    /// The keys in the order they were first remembered, which is what capacity drops from.
-    private var order: [Key] = []
+    /// The verdicts, least recently used dropped first past capacity.
+    private var held = BoundedCache<Key, Verdict>(
+        capacity: capacity, lifetime: .seconds(lifetimeInSeconds))
 
     /// A cache holding nothing.
     init() {}
@@ -32,33 +27,19 @@ struct VerdictCache: Sendable {
     var count: Int { held.count }
 
     /// The verdict on this key, absent when there is none or the one there has expired.
-    func verdict(for key: Key, now: ContinuousClock.Instant = .now) -> Verdict? {
-        guard let entry = held[key], entry.expires > now else { return nil }
-        return entry.verdict
+    mutating func verdict(for key: Key, now: ContinuousClock.Instant = .now) -> Verdict? {
+        held.value(for: key, now: now)
     }
 
-    /// Remembers one verdict, dropping what has expired and then the oldest to stay within capacity.
+    /// Remembers one verdict, dropping what has expired and then the least recently used to stay within capacity.
     mutating func remember(
         _ verdict: Verdict, for key: Key, now: ContinuousClock.Instant = .now
     ) {
-        discardExpired(now: now)
-        if held[key] == nil { order.append(key) }
-        held[key] = Held(verdict: verdict, expires: now + .seconds(Self.lifetimeInSeconds))
-        while order.count > Self.capacity {
-            held.removeValue(forKey: order.removeFirst())
-        }
+        held.store(verdict, for: key, now: now)
     }
 
     /// Forgets everything, which is what leaving a field and the reset in Settings both ask for.
     mutating func forgetEverything() {
-        held.removeAll()
-        order.removeAll()
-    }
-
-    /// Drops the expired verdicts, so capacity is spent on the ones that still count.
-    private mutating func discardExpired(now: ContinuousClock.Instant) {
-        guard held.contains(where: { $0.value.expires <= now }) else { return }
-        order.removeAll { key in held[key].map { $0.expires <= now } ?? true }
-        held = held.filter { $0.value.expires > now }
+        held.forgetEverything()
     }
 }
