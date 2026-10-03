@@ -322,6 +322,8 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     /// Anything focused at all, without asking it to report a selection.
     public func hasFocusedElement() -> Bool { focusedElement() != nil }
 
+    public func isTrusted() -> Bool { AXIsProcessTrusted() }
+
     public func isSelfFrontmost() -> Bool {
         NSWorkspace.shared.frontmostApplication?.processIdentifier
             == ProcessInfo.processInfo.processIdentifier
