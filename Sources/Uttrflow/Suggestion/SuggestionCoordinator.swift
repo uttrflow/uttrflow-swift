@@ -45,7 +45,7 @@ private final class ProcessSuggestionActivity: SuggestionProcessActivityManaging
 }
 
 /// Why the loop is running this turn, which decides what capture is told about it.
-private enum SuggestionReason {
+enum SuggestionReason {
     /// A key was pressed in another application.
     case keystroke
     /// Return was pressed, which is the user saying the value is finished.
@@ -72,6 +72,41 @@ private enum SuggestionReason {
         case .returnPressed: .returnPressed(at: moment)
         case .tick: .tick(at: moment)
         }
+    }
+}
+
+/// Holds the wake a running turn owes, until it finishes or the loop stops.
+struct SuggestionWakeState {
+    private(set) var isStopped = false
+    private var queued: SuggestionReason?
+
+    /// Refuses a wake after stop and otherwise keeps the most urgent queued reason.
+    mutating func queue(_ reason: SuggestionReason) -> Bool {
+        guard !isStopped else { return false }
+        if queued.map({ reason.urgency > $0.urgency }) ?? true { queued = reason }
+        return true
+    }
+
+    /// Takes a queued wake after a turn, or refuses it once stopped.
+    mutating func takeAfterTurn() -> SuggestionReason? {
+        defer { queued = nil }
+        guard !isStopped else { return nil }
+        return queued
+    }
+
+    /// Clears a pending wake while preserving whether the loop is stopped.
+    mutating func clearQueuedWake() { queued = nil }
+
+    /// Stops the loop and discards the wake a running turn had queued.
+    mutating func stop() {
+        isStopped = true
+        queued = nil
+    }
+
+    /// Reopens the loop for a fresh start with no wake carried from its previous run.
+    mutating func start() {
+        isStopped = false
+        queued = nil
     }
 }
 
@@ -171,8 +206,8 @@ final class SuggestionCoordinator {
     private let contextCache = SuggestionContextCache()
     /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
     private var isInserting = false
-    /// True once the loop is stopped, so a turn still finishing draws nothing into the shared panel.
-    private var isStopped = false
+    /// Holds the pending wake and stopped state, so stop discards work a turn had queued.
+    private var wakeState = SuggestionWakeState()
     /// Set while a dictation is under way, when no turn may start.
     private var isDictating = DictationInProgress.shared.isDictating
     /// Whether the last field read reported marked text, so a Return next confirms a conversion rather than ending the line.
@@ -183,7 +218,6 @@ final class SuggestionCoordinator {
     private var insertionPending = false
     /// Printable keyboard input not yet checked against the next accessibility read.
     private var pendingCaptureTyping: [String?] = []
-    private var again: SuggestionReason?
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
     var onTurnedOffEverywhere: (() -> Void)?
@@ -301,7 +335,7 @@ final class SuggestionCoordinator {
     @discardableResult
     func start() -> Result<Void, any Error> {
         processActivity.begin()
-        isStopped = false
+        wakeState.start()
         tapRest.cancel()
         secureInputObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
@@ -377,7 +411,8 @@ final class SuggestionCoordinator {
     /// Takes the surface away, disarms the tap and stops watching.
     func stop() {
         processActivity.end()
-        isStopped = true
+        wakeState.stop()
+        turns.abandon()
         nativeMenuIsOpen = false
         onSecureInputBlockingChanged?(false)
         tapRest.cancel()
@@ -522,7 +557,7 @@ final class SuggestionCoordinator {
                 interceptor.setNativeMenuIsOpen(isOpen)
                 if isOpen {
                     withdraw()
-                } else if !isStopped, !secureInput.isBlocking {
+                } else if !wakeState.isStopped, !secureInput.isBlocking {
                     wake(.tick)
                 }
             })
@@ -530,7 +565,7 @@ final class SuggestionCoordinator {
 
     /// Withdraws an offer when the focused field changes without a corresponding key event.
     private func accessibilityValueChanged() {
-        guard !isStopped, !isInserting else { return }
+        guard !wakeState.isStopped, !isInserting else { return }
         let moment = Date()
         if Self.isUnkeyedAccessibilityChange(lastKeyDown: lastObservedKeyDown, at: moment) {
             insertionPending = true
@@ -590,7 +625,7 @@ final class SuggestionCoordinator {
             wake(.tick)
             return
         }
-        again = nil
+        wakeState.clearQueuedWake()
         turns.abandon()
         withdraw()
     }
@@ -779,7 +814,7 @@ final class SuggestionCoordinator {
 
     /// Runs one turn, or notes that another is wanted, so two never run at once and a stuck one never ends the loop.
     private func wake(_ reason: SuggestionReason) {
-        guard !isDictating else { return }
+        guard !wakeState.isStopped, !isDictating else { return }
         if reason == .keystroke || reason == .tick {
             let delay = Self.remainingFieldReadDebounce(sinceKeystroke: lastKeystroke, now: Date())
             if delay > 0 {
@@ -790,7 +825,7 @@ final class SuggestionCoordinator {
         switch turns.begin(at: Date()) {
         case .busy:
             // A Return or a switch waiting its turn is never overwritten by the tick that follows it.
-            if again.map({ reason.urgency > $0.urgency }) ?? true { again = reason }
+            _ = wakeState.queue(reason)
         case .stalled(let turn):
             Self.log.error(
                 "\(SuggestionLog.stall(step: self.progress?.step, application: self.progress?.application, afterSeconds: TurnGate.stallSeconds), privacy: .public)"
@@ -813,8 +848,9 @@ final class SuggestionCoordinator {
 
     /// Runs whatever arrived while the turn was in flight, unless the turn had already been left behind.
     private func finished(_ turn: Int) {
-        guard turns.end(turn), let next = again else { return }
-        again = nil
+        guard !wakeState.isStopped, turns.end(turn), let next = wakeState.takeAfterTurn() else {
+            return
+        }
         wake(next)
     }
 
@@ -1280,7 +1316,7 @@ final class SuggestionCoordinator {
 
     /// Draws whatever a turn with no field behind it settled on, which is always nothing.
     private func draw(_ step: SuggestionStep) {
-        guard !isStopped, !isPointerGestureActive, !nativeMenuIsOpen,
+        guard !wakeState.isStopped, !isPointerGestureActive, !nativeMenuIsOpen,
             case .settled(let update) = step
         else { return }
         panel.statusMessage = nil
@@ -1294,7 +1330,7 @@ final class SuggestionCoordinator {
     /// Arms the tap first and draws second, so no key is claimed that nothing is offering.
     func draw(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot?) {
         // A stopped loop, a held pointer gesture, or a stale read draws nothing and claims no key.
-        guard !isStopped, !isPointerGestureActive, !nativeMenuIsOpen, session.isCurrent else {
+        guard !wakeState.isStopped, !isPointerGestureActive, !nativeMenuIsOpen, session.isCurrent else {
             stopWatchingSelection()
             interceptor.arm([])
             panel.hide()
@@ -1347,7 +1383,7 @@ final class SuggestionCoordinator {
 
     /// Draws what a move or a dismissal left where the ghost already stands, since no field was read for it and typing may have moved it.
     private func redraw(_ update: SuggestionUpdate) {
-        guard !isStopped, !isPointerGestureActive, !nativeMenuIsOpen, session.isCurrent else {
+        guard !wakeState.isStopped, !isPointerGestureActive, !nativeMenuIsOpen, session.isCurrent else {
             stopWatchingSelection()
             interceptor.arm([])
             panel.hide()
@@ -1431,7 +1467,7 @@ final class SuggestionCoordinator {
         interceptor.stop()
         panel.hide()
         tapRest.schedule(after: .seconds(Self.tapRestSeconds)) { [weak self] in
-            guard let self, !isStopped else { return }
+            guard let self, !wakeState.isStopped else { return }
             do {
                 try interceptor.start()
                 Self.log.error("the tap is back after resting \(Self.tapRestSeconds)s")
