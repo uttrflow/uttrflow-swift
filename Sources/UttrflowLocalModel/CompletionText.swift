@@ -190,12 +190,60 @@ enum CompletionText {
         String(text.lowercased().map { $0.isWhitespace ? " " : $0 }).trimmingCharacters(in: .whitespaces)
     }
 
-    /// The typed text with an answer that left out its echo joined on, or nothing when no boundary says how: a space on either side, or punctuation opening the answer, joins as written; letters against letters could be the rest of a word or a new one run together, and no reading is better than a wrong line.
+    /// The typed text with an answer that left out its echo joined where spaces or punctuation define a boundary; straight quotes open unless the typed text has an unmatched opener, and apostrophes inside words stay attached.
     static func joined(_ typed: String, with answer: String) -> String? {
         guard let last = typed.last, let first = answer.first else { return nil }
+        if isStraightQuote(first) {
+            if isWordApostrophe(first, at: typed, before: answer) { return typed + answer }
+            if hasUnmatchedQuote(first, in: typed) {
+                return withoutTrailingWhitespace(typed) + answer
+            }
+            let separator = last.isWhitespace ? "" : " "
+            return typed + separator + answer
+        }
         guard last.isWhitespace || first.isWhitespace || isClosingPunctuation(first) else { return nil }
-        let continuation = last.isWhitespace ? answer.drop(while: \.isWhitespace) : answer[...]
-        return typed + continuation
+        let prefix = isClosingPunctuation(first) ? withoutTrailingWhitespace(typed) : typed
+        let continuation =
+            last.isWhitespace && !isClosingPunctuation(first)
+            ? answer.drop(while: \.isWhitespace) : answer[...]
+        return prefix + continuation
+    }
+
+    /// The text without whitespace at its end.
+    private static func withoutTrailingWhitespace(_ text: String) -> String {
+        var trimmed = text
+        while trimmed.last?.isWhitespace == true { trimmed.removeLast() }
+        return trimmed
+    }
+
+    /// Whether a quote is the same straight mark as an unmatched opening quote in the typed text.
+    private static func hasUnmatchedQuote(_ quote: Character, in typed: String) -> Bool {
+        let characters = Array(typed)
+        let marks = characters.indices.filter { index in
+            characters[index] == quote
+                && !(quote == "'" && isBetweenLetters(index, in: characters))
+        }
+        return !marks.count.isMultiple(of: 2)
+    }
+
+    /// Whether an apostrophe completes a word across the join.
+    private static func isWordApostrophe(
+        _ character: Character, at typed: String, before answer: String
+    ) -> Bool {
+        guard character == "'", let last = typed.last else { return false }
+        let remaining = answer.dropFirst()
+        return last.isLetter && remaining.first?.isLetter == true && !remaining.contains("'")
+    }
+
+    /// Whether this quote sits between letters in one text.
+    private static func isBetweenLetters(_ index: Int, in characters: [Character]) -> Bool {
+        index > 0 && index + 1 < characters.count
+            && characters[index - 1].isLetter && characters[index + 1].isLetter
+    }
+
+    /// Whether a character is an ASCII straight quote.
+    private static func isStraightQuote(_ character: Character) -> Bool {
+        character == "'" || character == "\""
     }
 
     /// Closing punctuation attaches to the preceding word without a space.
@@ -205,7 +253,7 @@ enum CompletionText {
         }
         return scalar.properties.generalCategory == .closePunctuation
             || scalar.properties.generalCategory == .finalPunctuation
-            || ",.!?;:%…'\"".unicodeScalars.contains(scalar)
+            || ",.!?;:%…".unicodeScalars.contains(scalar)
     }
 
     /// The text up to the last word cut by the budget, or nothing when the cut fell inside its only word.

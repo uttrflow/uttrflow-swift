@@ -62,8 +62,9 @@ holds it to the same catalogue (macOS 26, Apple Intelligence on):
 
 The Apple rows include ten `robust/chat-labels` cases the Gemma row does not. The generous reading
 treats an answer that did not repeat the line as its continuation, but only where a word boundary
-says how the two join (a space on either side, or punctuation opening the answer); letters against
-letters are not joined, since "busy nahi" and "hoon bolo" would read as one word. Apple's misses,
+says how the two join (a space on either side, opening punctuation, or a closing quote with an
+unmatched opener in the typed text); letters against letters are not joined, since "busy nahi" and
+"hoon bolo" would read as one word. Apple's misses,
 read raw: 137 echo the line and stop (`git c` → `git c`), 350 answer something unrelated or drop the
 echo (`SELECT * FROM u` → `LIMIT 10;`), 34 fail to fill the structured answer, and 31 are guardrail
 refusals on ordinary chat text. By category, strict: chat 51 %, terminal 50 %, url 45 %, mail 37 %,
