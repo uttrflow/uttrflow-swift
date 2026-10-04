@@ -110,6 +110,20 @@ struct SpelledInitialismPassTests {
         draft.remove(at: 3, by: .fillers)
         #expect(FirstWordPass().apply(draft).text == "we said p I")
     }
+
+    @Test(
+        "keeps the word are beside spelled letters and does not bridge it as R",
+        arguments: [
+            ("my a b c d are good", "My ABCD are good."),
+            ("the letters are a b c d and e f g", "The letters are ABCD and EFG."),
+            ("my initials are j r r tolkien", "My initials are JRR tolkien."),
+            ("i have a b c d are you coming", "I have ABCD are you coming."),
+        ])
+    func keepsAreBesideSpelledRun(input: String, expected: String) {
+        #expect(
+            CleaningPipeline(passes: [sut, FirstWordPass(), TerminalStopPass()])
+                .run(Draft(text: input)).text == expected)
+    }
 }
 
 @Suite("SpelledInitialismPass in the shipped pipeline")
