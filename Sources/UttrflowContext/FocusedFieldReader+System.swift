@@ -360,6 +360,8 @@ public enum FocusedFieldReader {
             document: stable.document,
             value: secure ? nil : hidden.map { $0.before + $0.after } ?? value,
             selection: hidden.map { NSRange(location: $0.before.utf16.count, length: 0) } ?? read.selection,
+            focusedFieldIdentity: FocusedFieldIdentity(
+                processIdentifier: app.processIdentifier, elementHash: CFHash(field)),
             caret: (hidden?.caret ?? caretResult?.caret).map { flip($0, below: flipped) },
             writingDirection: hidden == nil ? caretResult?.direction ?? .unknown : .unknown,
             window: windowRect.map { flip($0, below: flipped) },

@@ -623,11 +623,13 @@ final class SuggestionCoordinator {
     }
 
     /// Checks the caret every 200 ms only while a drawn offer can be accepted.
-    func armSelectionMonitor(for suggestion: Suggestion, at range: NSRange?) {
+    func armSelectionMonitor(
+        for suggestion: Suggestion, at range: NSRange?, identity: FocusedFieldIdentity? = nil
+    ) {
         armedOffer = suggestion.accepting
         guard armedOffer != nil else { return stopWatchingSelection() }
         stopWatchingSelection()
-        selectionGuard = ArmedSelectionGuard(expectedRange: range)
+        selectionGuard = ArmedSelectionGuard(expectedRange: range, identity: identity)
         let generation = selectionPollGeneration
         selectionTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.pollSelection(generation: generation) }
@@ -1335,7 +1337,8 @@ final class SuggestionCoordinator {
             armedOffer = nil
             return
         }
-        armSelectionMonitor(for: update.suggestion, at: snapshot.selection)
+        armSelectionMonitor(
+            for: update.suggestion, at: snapshot.selection, identity: snapshot.focusedFieldIdentity)
         watchScrolls()
     }
 

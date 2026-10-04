@@ -37,6 +37,18 @@ struct SuggestionSelectionGuardTests {
         #expect(focusedFieldChanged)
     }
 
+    @Test("a field change before the first poll withdraws even when the range is unchanged")
+    func fieldChangeBeforeFirstPollWithdrawsOffer() {
+        var guardrail = ArmedSelectionGuard(
+            expectedRange: NSRange(location: 0, length: 0),
+            identity: FocusedFieldIdentity(processIdentifier: 41, elementHash: 900))
+        let newlyFocusedField = FocusedFieldSelection(
+            processIdentifier: 41, elementHash: 901, range: NSRange(location: 0, length: 0))
+
+        let shouldWithdraw = guardrail.observe(newlyFocusedField)
+        #expect(shouldWithdraw)
+    }
+
     @Test("text typed through the ghost advances its expected caret")
     func typedTextAdvancesExpectedCaret() {
         var guardrail = ArmedSelectionGuard(expectedRange: NSRange(location: 12, length: 0))
