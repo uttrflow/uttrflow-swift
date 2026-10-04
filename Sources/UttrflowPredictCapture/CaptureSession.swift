@@ -46,7 +46,7 @@ public actor CaptureSession {
     /// The last acceptance written and the line it was taken over, watched for an undo until the line moves on or `undoWindow` passes.
     private var lastAcceptance: (text: String, over: String, surface: Surface, moment: Date)?
     /// How long after an acceptance a line cut back inside the accepted text reads as the person undoing it.
-    static let undoWindow: Double = 10
+    static let undoWindow = SuggestionSession.undoWindow
 
     /// A session writing to this sink, remembering its answers in this file.
     public init(

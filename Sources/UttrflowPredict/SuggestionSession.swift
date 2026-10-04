@@ -108,6 +108,9 @@ public struct SuggestionSession: Sendable, Equatable {
     /// How long a turn may take, wide enough now to let the model answer; a superseded turn is dropped by its generation.
     public static let turnBudgetInMilliseconds = 8_000
 
+    /// How long an accepted line remains eligible for being recognised as undone.
+    public static let undoWindow: TimeInterval = 10
+
     /// How many of the ranked candidates the gates judge, which is every one that could be drawn.
     public static let verifiedDepth = PredictionEngine.maximumChoices
 
@@ -202,13 +205,13 @@ public struct SuggestionSession: Sendable, Equatable {
     /// Takes one moment in one field and answers with what to do about it; `sawKeystrokes` is the count as its read began.
     public mutating func turn(
         in surface: Surface?, at moment: PredictionContext, acceptKey: AcceptKey = .tab,
-        isQuiet: Bool = false, sawKeystrokes: Int? = nil
+        isQuiet: Bool = false, sawKeystrokes: Int? = nil, now: Date = Date()
     ) -> SuggestionTurn {
         self.acceptKey = acceptKey
         self.isQuiet = isQuiet
         // Held for this turn's offer, so the one still on screen keeps its own count until something replaces it.
         pendingKeystroke = sawKeystrokes ?? keystrokes
-        let rejected = adopt(surface, typing: moment.typed)
+        let rejected = adopt(surface, typing: moment.typed, now: now)
         typed = moment.typed
         // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
         generation += 1
@@ -401,7 +404,7 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Takes one keystroke the tap swallowed and answers with what it means.
-    public mutating func route(_ stroke: KeyStroke) -> SuggestionAction {
+    public mutating func route(_ stroke: KeyStroke, at now: Date = Date()) -> SuggestionAction {
         switch KeyRouting.decision(
             for: stroke, showing: suggestion, selection: selection, acceptKey: acceptKey)
         {
@@ -411,7 +414,7 @@ public struct SuggestionSession: Sendable, Equatable {
             // The offer is gone the moment it is taken, and so is any answer still in flight for it.
             generation += 1
             clearDrawing()
-            taken = TakenLine(line: text, over: typed)
+            taken = TakenLine(line: text, over: typed, moment: now)
             typed = text
             return .accept(text)
         case .moveSelection(let moved):
@@ -443,7 +446,7 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Follows the focus, forgetting everything that belonged to the field being left.
-    private mutating func adopt(_ surface: Surface?, typing: String) -> String? {
+    private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
         guard surface == self.surface else {
             self.surface = surface
             isSilencedHere = false
@@ -454,7 +457,7 @@ public struct SuggestionSession: Sendable, Equatable {
             clearDrawing()
             return nil
         }
-        watchTaken(typing: typing)
+        watchTaken(typing: typing, now: now)
         // An emptied line is a fresh start, so neither the suggestions typed past before it nor the ⎋ still binds the field.
         if typing.isEmpty {
             rejectionsHere = 0
@@ -481,8 +484,12 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Ends the watch on the last line taken once the line moves, marking it undone when the line went back inside it or to what it was taken over.
-    private mutating func watchTaken(typing: String) {
+    private mutating func watchTaken(typing: String, now: Date) {
         guard let taken else { return }
+        guard now.timeIntervalSince(taken.moment) <= Self.undoWindow else {
+            self.taken = nil
+            return
+        }
         let line = TextMatching.caseFoldedKey(typing)
         let whole = TextMatching.caseFoldedKey(taken.line)
         // The read that shows the taken line in place is still inside the watch.
@@ -554,4 +561,6 @@ private struct TakenLine: Sendable, Equatable {
     let line: String
     /// The line as typed when the key was pressed.
     let over: String
+    /// When the key accepted the line.
+    let moment: Date
 }
