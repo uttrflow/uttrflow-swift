@@ -43,6 +43,24 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "keeps a run made only of everyday words as words",
+        arguments: [
+            "you are coming tomorrow", "how are you", "i know you are busy", "see you later",
+            "i see you tomorrow", "so you see it works", "oh i see", "oh why", "why you are late",
+            "she asked me why i left early", "did you see the game", "be you",
+        ])
+    func everydayRun(input: String) {
+        #expect(sut.apply(Draft(text: input)).text == input)
+    }
+
+    @Test(
+        "joins a run once any name is only a letter",
+        arguments: [("i b m", "IBM"), ("u s a", "USA"), ("you r l", "URL"), ("see s s", "CSS")])
+    func spelledRun(input: String, expected: String) {
+        #expect(sut.apply(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "does not treat i adjacent to a letter name as the pronoun",
         arguments: [
             ("we said i e is the main one", "we said i.e. is the main one"),

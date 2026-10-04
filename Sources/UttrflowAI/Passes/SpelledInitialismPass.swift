@@ -17,6 +17,12 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
     ]
     static let letterNamesForCasing = Set(letterNames.keys)
 
+    /// Letter names that are also everyday words; a run made only of these is speech, not spelling.
+    static let everydayWords: Set<String> = [
+        "a", "i", "be", "bee", "see", "are", "you", "why", "oh", "eye", "cue", "queue", "tee",
+        "pee", "gee", "jay", "kay", "ex", "em", "en", "el",
+    ]
+
     private static let dottedPairs: Set<String> = ["eg", "ie"]
 
     public init() {}
@@ -32,6 +38,13 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             }
             let letters = live[position..<end].compactMap { Self.letterName(draft.shape(at: $0)) }
             guard letters.count == end - position else {
+                position += 1
+                continue
+            }
+            let hasBareLetter = live[position..<end].contains {
+                !Self.everydayWords.contains(draft.shape(at: $0).key)
+            }
+            guard hasBareLetter else {
                 position += 1
                 continue
             }
