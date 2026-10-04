@@ -17,6 +17,7 @@ final class FakePasteboard: Pasteboard {
         var concealed: [String] = []
         var markers: [String: String] = [:]
         var pictures: [Data] = []
+        var currentPicture: Data?
         var acceptsWrites = true
         var refusesWrites = false
         var onImageWrite: (@Sendable (FakePasteboard) -> Void)?
@@ -42,6 +43,16 @@ final class FakePasteboard: Pasteboard {
 
     func text() -> String? { state.withLock(\.text) }
     func changeCount() -> Int? { state.withLock(\.changeCount) }
+
+    func discardContents(ifUnchangedSince changeCount: Int) -> Bool {
+        state.withLock { state in
+            guard state.changeCount == changeCount else { return false }
+            state.text = nil
+            state.currentPicture = nil
+            state.changeCount += 1
+            return true
+        }
+    }
 
     func setText(_ text: String) -> PasteboardWriteResult {
         state.withLock { state in
@@ -103,6 +114,7 @@ final class FakePasteboard: Pasteboard {
             guard !state.refusesWrites else { return (.refused, state.onImageWrite) }
             state.pictures.append(data)
             state.changeCount += 1
+            state.currentPicture = data
             if state.acceptsWrites { state.text = nil }
             return (.written(changeCount: state.changeCount), state.onImageWrite)
         }
@@ -122,6 +134,7 @@ final class FakePasteboard: Pasteboard {
     var concealed: [String] { state.withLock(\.concealed) }
     var markers: [String: String] { state.withLock(\.markers) }
     var pictures: [Data] { state.withLock(\.pictures) }
+    var currentPicture: Data? { state.withLock(\.currentPicture) }
 }
 
 /// A ⌘V that can be counted, and made to fail.
@@ -196,6 +209,24 @@ final class SwitchableFocus: AccessibilityFocus, @unchecked Sendable {
 
     /// Brings Uttrflow itself to the front, as the user would by switching to it.
     func becomeSelfFrontmost() { selfIsFrontmost.withLock { $0 = true } }
+}
+
+private final class CancellingPasteFocus: AccessibilityFocus, @unchecked Sendable {
+    private let cancelOnCheck: Int
+    private let checks = Mutex(0)
+
+    init(cancelOnCheck: Int) { self.cancelOnCheck = cancelOnCheck }
+
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool {
+        let check = checks.withLock { checks -> Int in
+            checks += 1
+            return checks
+        }
+        if check == cancelOnCheck { withUnsafeCurrentTask { $0?.cancel() } }
+        return false
+    }
 }
 
 /// Returns frontmost apps in order so a test can switch targets at a specific insertion step.
@@ -394,6 +425,75 @@ struct PasteboardTextInsertionEngineTests {
 
         #expect(pasteboard.writes.first == "hello there")
         #expect(keystrokes.pasteCount == 1)
+    }
+
+    @Test("cancellation after the clipboard write does not post paste")
+    func cancellationAfterClipboardWriteDoesNotPaste() async {
+        let pasteboard = FakePasteboard(onTextWrite: { _ in
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let keystrokes = FakeKeystrokeSender()
+        let sut = engine(
+            pasteboard, keystrokes, focus: FakeFocus(field: FakeTextField(), secure: true))
+        let task = Task { try await sut.insert("password=demo1") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) {
+            try await task.value
+        }
+
+        #expect(pasteboard.writes == ["password=demo1"])
+        #expect(pasteboard.concealed == ["password=demo1"])
+        #expect(pasteboard.text() == nil)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("cancellation before the clipboard write leaves the clipboard untouched")
+    func cancellationBeforeClipboardWriteDoesNotWrite() async {
+        let pasteboard = FakePasteboard(text: "previous copy")
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardTextInsertionEngine(
+            focus: CancellingPasteFocus(cancelOnCheck: 1), pasteboard: pasteboard,
+            keystrokes: keystrokes)
+        let task = Task { try await sut.insert("private words") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.writes.isEmpty)
+        #expect(pasteboard.text() == "previous copy")
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("cancellation immediately before the paste key clears the owned generation")
+    func cancellationBeforePasteKeyClearsClipboard() async {
+        let pasteboard = FakePasteboard(text: "previous copy")
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardTextInsertionEngine(
+            focus: CancellingPasteFocus(cancelOnCheck: 2), pasteboard: pasteboard,
+            keystrokes: keystrokes)
+        let task = Task { try await sut.insert("private words") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.text() == nil)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("cancellation cleanup preserves a newer clipboard generation")
+    func cancellationCleanupPreservesNewerCopy() async {
+        let newerCopy = "copied while the insert was cancelling"
+        let pasteboard = FakePasteboard(onTextWrite: { pasteboard in
+            pasteboard.copyFromAnotherApp(newerCopy)
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let keystrokes = FakeKeystrokeSender()
+        let sut = engine(
+            pasteboard, keystrokes, focus: FakeFocus(field: FakeTextField(), secure: true))
+        let task = Task { try await sut.insert("password=demo1") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.text() == newerCopy)
+        #expect(keystrokes.pasteCount == 0)
     }
 
     /// The dictation stays put and the previous contents do not come back. See `Docs/insertion.md`.
@@ -630,6 +730,23 @@ private final class InterleavingFocus: AccessibilityFocus, @unchecked Sendable {
 
 @Suite("PasteboardImageInsertionEngine")
 struct PasteboardImageInsertionEngineTests {
+    @Test("cancellation after an image write removes it before posting paste")
+    func cancellationDiscardsOwnedImage() async {
+        let image = Data([1, 2, 3])
+        let pasteboard = FakePasteboard(onImageWrite: { _ in
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard, keystrokes: keystrokes)
+        let task = Task { try sut.insert(image) }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.currentPicture == nil)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
     @Test("does not paste another app's clipboard write after the image")
     func refusesPasteAfterClipboardChangesDuringImageWrite() {
         let copiedText = "a newer copy"
@@ -836,6 +953,24 @@ struct ClipboardTextInsertionEngineTests {
 
         #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
+    }
+
+    @Test("clears its own concealed write when cancellation arrives during it")
+    func cancellationDiscardsOwnedSecretWrite() async {
+        let secret = "password=demo1"
+        let pasteboard = FakePasteboard(onTextWrite: { _ in
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let engine = ClipboardTextInsertionEngine(
+            pasteboard: pasteboard, secretClassifier: { $0 == secret })
+        let task = Task { try await engine.insert(secret) }
+
+        await #expect(
+            throws: TextInsertionError.insertionCancelled
+        ) { try await task.value }
+
+        #expect(pasteboard.concealed == [secret])
+        #expect(pasteboard.text() == nil)
     }
 
     /// Claiming success after a write that did not stick would lose the words silently.

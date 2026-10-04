@@ -136,7 +136,8 @@ extension TextInsertionError: CataloguedFailure {
         case .insertionUnconfirmed: .insertionTargetChanged
         case .insertionTargetChanged: .insertionNeedsCopy(description: "")
         case .insertionNeedsCopy: .insertionInterrupted(typed: 0, total: 0)
-        case .insertionInterrupted: nil
+        case .insertionInterrupted: .insertionCancelled
+        case .insertionCancelled: nil
         }
     }
 }

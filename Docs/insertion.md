@@ -163,6 +163,11 @@ demote a large class of successful pastes. The words are on the clipboard either
 **not reported**, which draws the plain tick: the Accessibility write verifies itself inside the
 field, and typing reads nothing back.
 
+If cancellation arrives before the paste key is posted, the engine discards its clipboard
+generation only if it still owns that generation. It never restores the previous clipboard or
+clears a newer copy. Once the key is posted, arrival can be uncertain, so the clipboard stays as
+written.
+
 The panel's paste route skips the wait (`confirmsArrival: false`) because the panel shows no
 arrival notice. If the insertion stage itself times out (`StageTimeout.quick`, 15 s), the failure
 is `insertionTimedOut` and points to the transcript in History, never to a manual paste that

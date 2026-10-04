@@ -37,6 +37,12 @@ public struct SystemPasteboard: Pasteboard {
         NSPasteboard.general.changeCount
     }
 
+    public func discardContents(ifUnchangedSince changeCount: Int) -> Bool {
+        guard NSPasteboard.general.changeCount == changeCount else { return false }
+        clearForThisMacOnly()
+        return true
+    }
+
     /// E2 — the plain flavour always, the formatted one beside it when the clip has one.
     public func setText(_ text: String, richText: String?) -> PasteboardWriteResult {
         writeText(text, richText: richText)

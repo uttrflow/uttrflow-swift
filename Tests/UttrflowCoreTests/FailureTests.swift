@@ -119,6 +119,11 @@ struct FailurePresentationTests {
         #expect(TextInsertionError.accessibilityDenied.recovery == .openSystemSettings(.accessibility))
         #expect(TextInsertionError.insertionTimedOut.recovery == .showHistory)
         #expect(TextInsertionError.insertionRejected(description: "x").recovery == .pasteManually)
+        #expect(TextInsertionError.insertionCancelled.recovery == nil)
+        #expect(
+            TextInsertionError.insertionCancelled.userMessage
+                == "Insertion was cancelled. The text is saved in History.")
+        #expect(TextInsertionError.insertionCancelled.stopsFallback)
 
         #expect(HotkeyError.observationNotPermitted.recovery == .openSystemSettings(.accessibility))
         #expect(HotkeyError.accessibilityNeedsRefresh.recovery == .retry)
@@ -183,6 +188,7 @@ struct FailurePresentationTests {
         #expect(TextInsertionError.clipboardUnavailable.severity == .degraded)
         #expect(TextInsertionError.insertionTimedOut.severity == .degraded)
         #expect(TextInsertionError.insertionRejected(description: "x").severity == .degraded)
+        #expect(TextInsertionError.insertionCancelled.severity == .informational)
     }
 
     /// Both hotkey errors stop dictation dead, and one shares its recovery with a merely degraded failure.
