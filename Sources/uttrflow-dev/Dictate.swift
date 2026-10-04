@@ -21,6 +21,9 @@ struct Dictate: AsyncParsableCommand {
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
 
+    @Option(name: .shortAndLong, help: "Force one transformer: foundationModels or rules.")
+    var engine: String?
+
     @OptionGroup var modelsDirectory: ModelsDirectoryOptionGroup
 
     func run() async throws {
@@ -32,12 +35,18 @@ struct Dictate: AsyncParsableCommand {
         let audio = try AudioFileReader.read(contentsOf: URL(fileURLWithPath: file))
         guard !audio.isEmpty else { throw CleanExit.message("The file holds no audio.") }
 
+        var configuration = EngineConfiguration.default
+        if let engine {
+            guard let kind = TransformerKind(rawValue: engine), TransformerKind.selectable.contains(kind)
+            else { throw ValidationError("Unknown transformer '\(engine)'.") }
+            configuration.transformerPreference = [kind]
+        }
         let speech = SpeechEngineFactory.make(
             kind: .whisperKit, model: model, modelFolder: store.location(of: model))
         let playback = PlaybackCaptureEngine(audio: audio, sharesEarly: !allAtOnce)
         let inserter = PrintingInserter()
         let pipeline = DictationPipeline(
-            capture: playback, speech: speech, cleaner: TextTransformers.router(),
+            capture: playback, speech: speech, cleaner: TextTransformers.router(configuration: configuration),
             context: FixedScreen(), inserter: inserter,
             windowing: allAtOnce ? .onePiece : .standard)
 

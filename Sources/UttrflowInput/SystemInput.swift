@@ -257,6 +257,14 @@ enum PasteKeyLayout {
         return fallbackVKeyCode
     }
 
+    /// The key code `character` types with ⌘ held under the cached layout, or `fallback` when it has none.
+    static func commandKeyCode(for character: UniChar, fallback: CGKeyCode) -> CGKeyCode {
+        guard let data = cachedLayout.withLock({ $0 }),
+            let code = LayoutKeyCode.code(for: character, in: data, modifiers: LayoutKeyCode.commandHeld)
+        else { return fallback }
+        return code
+    }
+
     /// The selected layout table cached by `refresh()`, which lets posted text use matching physical keys.
     static func stroke(for character: UniChar) -> LayoutKeyCode.Stroke? {
         guard let data = cachedLayout.withLock({ $0 }) else { return nil }
@@ -287,6 +295,22 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
         try postTaggedKeyPair(from: source, keyCode: PasteKeyLayout.vKeyCode()) { $0.flags = .maskCommand }
+    }
+}
+
+extension CGEventKeystrokeSender {
+    /// `z`'s position on a US QWERTY board, posted when no layout has been read.
+    private static let fallbackZKeyCode: CGKeyCode = 6
+
+    /// Presses ⌘Z once, which is how `uttrflow-dev insert --then-undo` asks the target to undo.
+    public func sendUndo() throws(TextInsertionError) {
+        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            throw .insertionRejected(description: unmakeableKeystroke)
+        }
+        let code = PasteKeyLayout.commandKeyCode(
+            for: UniChar(UnicodeScalar("z").value), fallback: Self.fallbackZKeyCode)
+        try postTaggedKeyPair(from: source, keyCode: code) { $0.flags = .maskCommand }
     }
 }
 
@@ -345,7 +369,8 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     public init() {}
 
     /// How long one Accessibility message may take, generous because it is the dictation itself.
-    private static let messagingTimeout: Float = 2
+    private static let messagingTimeout = Float(
+        SelectionWriter<AXSelectionAttributes>.messagingTimeout.components.seconds)
     /// Keeps a suggestion read comfortably inside the one-second key hold.
     private static let acceptanceMessagingTimeout: Float = 0.1
     /// Bounds whole-value fallback to fields small enough to copy cheaply.

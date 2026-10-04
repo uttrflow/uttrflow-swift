@@ -22,7 +22,9 @@ public struct StammersPass: PieceCleaningPass {
             }
             if word == previous, !draft.isHindi(at: index),
                 (!FunctionWords.isContent(word) || MeaningPreservationGuard.isGrammarWord(word)),
-                !Self.legitimateDoubles.contains(word)
+                !Self.legitimateDoubles.contains(word),
+                // A doubled letter name in a spelled run is data, not a stammer.
+                !SpelledInitialismPass.isSpelledRun(around: i, in: live, draft: draft)
             {
                 // A doubled function word is a stammer.
                 draft.remove(at: index, by: Self.id, carryingMarks: true)

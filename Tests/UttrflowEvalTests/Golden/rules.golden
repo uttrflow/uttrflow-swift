@@ -232,6 +232,10 @@ fmt-list-bullet-command	\n- Call the plumber\n- Pay the rent
 fmt-list-count-not-list	I have two cats and three dogs.
 fmt-list-first-second-third	First book the hall second send invites third order food.
 fmt-list-inline-series	Pack socks shirts and a towel.
+fmt-list-lead-in-chat	The plan is as follows: lunch at noon
+fmt-list-lead-in-document	The steps are as follows: back up the files.
+fmt-list-lead-in-email	The agenda is as follows: the budget review.
+fmt-list-no-lead-in-no-colon	The steps are first and second.
 fmt-list-numbered-spoken	One milk two eggs three bread.
 fmt-number-count	We need 12 chairs.
 fmt-number-money	The ticket costs 40 dollars.
@@ -370,6 +374,12 @@ participle-have-wrote	I have wrote the summary already.
 participle-should-have-ate	I should have ate before the call.
 participle-was-broke	The window was broke during transit.
 participle-was-wrote	It was wrote in the notes.
+paused-after-article-runs-on	We need to finish the report by Friday.
+paused-after-preposition-runs-on	She put the keys on the shelf by the door.
+paused-before-because-runs-on	I stayed home because it was raining.
+paused-question-after-statement	The room is booked. Do you need anything else?
+paused-three-statements	The kettle boiled. The tea is ready. Come and get it.
+paused-two-statements	The meeting moved to Thursday. Please update your calendar.
 percentage	Conversion dropped by 5% after the redesign.
 period-after-new-line	First line\nSecond line.
 period-as-a-word	The trial period ended last week.

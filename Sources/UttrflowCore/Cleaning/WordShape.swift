@@ -75,7 +75,7 @@ public struct WordShape: Equatable, Sendable {
     static let finishers: Set<Character> = [",", ".", ";", ":", "!", "?", "\u{2026}", "।", "॥"]
 
     /// Each closing bracket mapped to the bracket that opens it.
-    static let bracketOpeners: [Character: Character] = [")": "(", "]": "[", "}": "{"]
+    public static let bracketOpeners: [Character: Character] = [")": "(", "]": "[", "}": "{"]
 
     /// Quotes that open a quotation, read on the word's own prefix.
     public static let openingQuotes: Set<Character> = ["\"", "'", "\u{201C}", "\u{2018}", "\u{00AB}"]

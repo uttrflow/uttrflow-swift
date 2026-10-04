@@ -23,6 +23,32 @@ struct StammersPassTests {
     }
 
     @Test(
+        "keeps a doubled letter name inside a spelled run",
+        arguments: [
+            ("a a one two three", "a a one two three"),
+            ("b a a four", "b a a four"),
+            ("i i t", "i i t"),
+            ("code is x a a nine", "code is x a a nine"),
+        ]
+    )
+    func keepsSpelledDouble(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "still removes a doubled a or I in prose",
+        arguments: [
+            ("I I think so", "I think so"),
+            ("a a lot", "a lot"),
+            ("it was a a thing", "it was a thing"),
+            ("I I was there", "I was there"),
+        ]
+    )
+    func removesProseDouble(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "removes a doubled Hindi or Hinglish grammar word",
         arguments: [
             ("ki ki baat", "ki baat"),

@@ -6,11 +6,17 @@ public struct TranscribedWord: Sendable, Equatable {
     public let text: String
     /// 0 to 1; travels because correction only touches a word the recogniser is unsure about.
     public let confidence: Double
+    /// Where the word begins in the audio; nil when the recogniser did not time it.
+    public let start: Duration?
+    /// Where the word ends in the audio; nil when the recogniser did not time it.
+    public let end: Duration?
 
-    /// A word with its confidence.
-    public init(text: String, confidence: Double) {
+    /// A word with its confidence, and its place in the audio when the recogniser timed it.
+    public init(text: String, confidence: Double, start: Duration? = nil, end: Duration? = nil) {
         self.text = text
         self.confidence = confidence
+        self.start = start
+        self.end = end
     }
 }
 

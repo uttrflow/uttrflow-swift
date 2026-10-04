@@ -70,7 +70,7 @@ public enum DictationPresenter {
 
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing,
-        stopGesture: StopGesture = .letGo
+        stopGesture: StopGesture = .letGo, heardSoFar: String? = nil
     ) -> DockPresentation {
         switch state {
         case .idle:
@@ -83,7 +83,8 @@ public enum DictationPresenter {
             DockPresentation(
                 // Says what to do, not what is happening: the waveform already says it is listening.
                 symbolName: "mic.fill", primaryLine: stopGesture.recordingLine,
-                secondaryLine: RemainingTime.phrase(for: advice),
+                // The time left outranks the words, which are already safe in the recording.
+                secondaryLine: RemainingTime.phrase(for: advice) ?? heardSoFar.map { latest(of: $0) },
                 showsWaveform: true, showsProgress: false, isRecording: true, action: nil,
                 accessibilityLabel: RemainingTime.phrase(for: advice)
                     .map { "\(stopGesture.recordingAccessibilityPrefix). \($0)." }
@@ -164,9 +165,9 @@ public enum DictationPresenter {
     /// The button with the speech model's download or load drawn in where it would otherwise rest or fall silent.
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing, speechModel: SpeechModelLoad?,
-        download: Double? = nil, stopGesture: StopGesture = .letGo
+        download: Double? = nil, stopGesture: StopGesture = .letGo, heardSoFar: String? = nil
     ) -> DockPresentation {
-        let drawn = dock(for: state, advice: advice, stopGesture: stopGesture)
+        let drawn = dock(for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar)
         if case .idle = state, let download { return resting(downloading: download) }
         guard let load = speechModel else { return drawn }
         switch state {
@@ -250,6 +251,16 @@ public enum DictationPresenter {
         let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard collapsed.count > limit else { return collapsed }
         return collapsed.prefix(limit).trimmingSuffixWhitespace() + "…"
+    }
+
+    /// The newest words of a growing text, since the panel follows speech as it is finished.
+    static func latest(of text: String, limit: Int = 60) -> String {
+        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard collapsed.count > limit else { return collapsed }
+        let tail = collapsed.suffix(limit)
+        // Starts on a whole word, so the glance never opens mid-word.
+        let start = tail.firstIndex(of: " ").map { tail.index(after: $0) } ?? tail.startIndex
+        return "…" + tail[start...]
     }
 }
 

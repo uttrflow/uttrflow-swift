@@ -31,6 +31,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
         case casing
         /// An option marker written before the word after it at a command line; `destinations` are where every dash is one.
         case flag
+        /// A lead-in kept as spoken, with `text` written onto its last word when the clause goes on after it.
+        case leadIn
     }
 
     /// How many of the following words a casing command covers.
@@ -97,15 +99,25 @@ public enum SpokenCommands {
     public static let marks = rows(.mark)
     /// Layout said by name.
     public static let layout = rows(.layout)
-    /// Symbols said by name in code.
-    public static let codeSymbols = rows(.codeSymbol)
+    /// Symbols said by name in code: the code rows, and the bracket marks, which code writes as bare symbols.
+    public static let codeSymbols = rows(.codeSymbol) + marks.filter { isBracket($0.text) }
     /// Case styles said by name, in file order so a longer phrase is tried before a shorter one.
     public static let casings = rows(.casing)
     /// Option markers said by name, longest first.
     public static let flags = rows(.flag).sorted { $0.words.count > $1.words.count }
-    /// The marks that open a quotation.
+    /// Phrases that introduce what follows them, such as a list.
+    public static let leadIns = rows(.leadIn)
+
+    /// Whether `text` is a single bracket, opening or closing.
+    public static func isBracket(_ text: String) -> Bool {
+        guard text.count == 1, let character = text.first else { return false }
+        return WordShape.bracketOpeners[character] != nil
+            || WordShape.bracketOpeners.values.contains(character)
+    }
+
+    /// The marks that open a quotation or a bracket.
     public static let openings = marks.filter { $0.placement == .opening }
-    /// The marks that close a quotation.
+    /// The marks that close a quotation or a bracket.
     public static let closings = marks.filter { $0.placement == .closing }
 
     private static func rows(_ action: SpokenCommand.Action) -> [SpokenCommand] {

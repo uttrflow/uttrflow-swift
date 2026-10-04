@@ -42,18 +42,24 @@ public struct Draft: Sendable, Equatable {
         public let confidence: Double
         /// The script the recogniser wrote the word in, kept after romanising so English-only lists can skip Hindi.
         public let origin: Origin
+        /// Where the recogniser heard the word begin; nil when untimed or inserted.
+        public let start: Duration?
+        /// Where the recogniser heard the word end; nil when untimed or inserted.
+        public let end: Duration?
         public var state: State
         /// Every change a pass has made to this word, oldest first.
         public private(set) var edits: [Edit]
 
         public init(
             text: String, heard: String, confidence: Double = 1, origin: Origin = .latin,
-            state: State = .kept, edits: [Edit] = []
+            start: Duration? = nil, end: Duration? = nil, state: State = .kept, edits: [Edit] = []
         ) {
             self.text = text
             self.heard = heard
             self.confidence = confidence
             self.origin = origin
+            self.start = start
+            self.end = end
             self.state = state
             self.edits = edits
         }
@@ -64,8 +70,9 @@ public struct Draft: Sendable, Equatable {
         }
 
         /// A heard word that nothing has touched yet.
-        public init(_ heard: String, confidence: Double = 1) {
-            self.init(text: heard, heard: heard, confidence: confidence, state: .kept)
+        public init(_ heard: String, confidence: Double = 1, start: Duration? = nil, end: Duration? = nil) {
+            self.init(
+                text: heard, heard: heard, confidence: confidence, start: start, end: end, state: .kept)
         }
 
         /// Whether the word still appears in the text.
@@ -156,10 +163,10 @@ public struct Draft: Sendable, Equatable {
     /// Takes the recogniser's confidences when its timed words spell the text, spacing aside, else splits it.
     public init(transcription: Transcription) {
         let spoken = Self.split(transcription.text, confidence: 1)
-        let timed = transcription.segments.flatMap(\.words).flatMap {
-            Self.split($0.text, confidence: $0.confidence)
+        let timed = transcription.segments.flatMap(\.words).flatMap { word in
+            Self.split(word.text, confidence: word.confidence).map { TimedPiece(word: $0, from: word) }
         }
-        guard !timed.isEmpty, timed.map(\.text).joined() == spoken.map(\.text).joined() else {
+        guard !timed.isEmpty, timed.map(\.word.text).joined() == spoken.map(\.text).joined() else {
             self.init(words: spoken)
             return
         }
@@ -173,7 +180,9 @@ public struct Draft: Sendable, Equatable {
         let words = heard.words.flatMap { word in
             guard Romaniser.containsDevanagari(word.text) else { return [word] }
             return Romaniser.romanised(word.text).split(whereSeparator: \.isWhitespace).map {
-                Word(text: String($0), heard: String($0), confidence: word.confidence, origin: .devanagari)
+                Word(
+                    text: String($0), heard: String($0), confidence: word.confidence, origin: .devanagari,
+                    start: word.start, end: word.end)
             }
         }
         self.init(words: words, confidencesAreReal: heard.confidencesAreReal)
@@ -183,16 +192,32 @@ public struct Draft: Sendable, Equatable {
         text.split(whereSeparator: \.isWhitespace).map { Word(String($0), confidence: confidence) }
     }
 
-    /// Gives each of `spoken` the lowest confidence among the timed words that spell it, letter for letter.
-    private static func confidences(of timed: [Word], onto spoken: [Word]) -> [Word] {
+    /// A piece of one recognised word, with that word's place in the audio.
+    private struct TimedPiece {
+        let word: Word
+        let start: Duration?
+        let end: Duration?
+
+        init(word: Word, from transcribed: TranscribedWord) {
+            self.word = word
+            self.start = transcribed.start
+            self.end = transcribed.end
+        }
+    }
+
+    /// Gives each of `spoken` the lowest confidence among the timed words that spell it, letter for letter, and their span.
+    private static func confidences(of timed: [TimedPiece], onto spoken: [Word]) -> [Word] {
         var remaining = timed[...]
         var spent = 0
         return spoken.map { word in
             var needed = word.text.count
             var confidence = 1.0
+            let start = spent == 0 ? remaining.first?.start : nil
+            var end: Duration?
             while needed > 0, let next = remaining.first {
-                confidence = min(confidence, next.confidence)
-                let available = next.text.count - spent
+                confidence = min(confidence, next.word.confidence)
+                end = next.end
+                let available = next.word.text.count - spent
                 guard available <= needed else {
                     spent += needed
                     needed = 0
@@ -202,7 +227,7 @@ public struct Draft: Sendable, Equatable {
                 spent = 0
                 remaining.removeFirst()
             }
-            return Word(word.text, confidence: confidence)
+            return Word(word.text, confidence: confidence, start: start, end: end)
         }
     }
 
@@ -298,6 +323,14 @@ public struct Draft: Sendable, Equatable {
         words[index].note(Word.Edit(by: pass, kind: .replaced, from: words[index].text, to: text))
         words[index].state = .replaced(by: pass, from: words[index].text)
         words[index].text = text
+    }
+
+    /// The silence the recogniser timed before the word at `index`, back to the last word it heard; nil when untimed.
+    public func pause(before index: Int) -> Duration? {
+        guard let start = words[index].start,
+            let previous = words[..<index].last(where: { $0.end != nil })?.end
+        else { return nil }
+        return max(.zero, start - previous)
     }
 
     /// Puts a word the speaker never said into the text at `index`.

@@ -139,7 +139,10 @@ extension RawTranscript {
 
         let spoken = leadingTrimmed.dropFirst(2).drop(while: \.isWhitespace)
         if spoken.isEmpty { return Array(words.dropFirst()) }
-        return [TranscribedWord(text: String(spoken), confidence: first.confidence)] + words.dropFirst()
+        return [
+            TranscribedWord(
+                text: String(spoken), confidence: first.confidence, start: first.start, end: first.end)
+        ] + words.dropFirst()
     }
 
     /// The same removal over the recogniser's words, so the text and the word list cannot fall out of step.
@@ -195,7 +198,9 @@ extension RawTranscript {
                 kept.append(contentsOf: withoutSpeaker[index...close])
             } else if !punctuation.isEmpty {
                 kept.append(
-                    TranscribedWord(text: String(punctuation), confidence: withoutSpeaker[close].confidence))
+                    TranscribedWord(
+                        text: String(punctuation), confidence: withoutSpeaker[close].confidence,
+                        start: withoutSpeaker[close].start, end: withoutSpeaker[close].end))
             }
             index = withoutSpeaker.index(after: close)
         }
@@ -319,7 +324,8 @@ extension RawSegment {
         let spoken = words.flatMap { $0.isEmpty ? nil : $0 }?.map {
             TranscribedWord(
                 text: $0.text.trimmingCharacters(in: .whitespaces),
-                confidence: $0.probability)
+                confidence: $0.probability, start: .seconds($0.start) + offset,
+                end: .seconds($0.end) + offset)
         }
         let kept = spoken.map(RawTranscript.cleaned)
         return TranscriptionSegment(

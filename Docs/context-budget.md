@@ -9,7 +9,7 @@ numbers that decide how long it waits and how much it keeps, and the traps that 
 |---|---|---|
 | `MacContextEngine.budget` | 100 ms | Longest one `currentContext()` call is waited for |
 | `MacContextEngine.budgetInSeconds` | 0.1 | The same budget as a `Float`, for `AXUIElementSetMessagingTimeout` |
-| `MacContextEngine.selectedTextLimit` | 512 characters | Longest selection kept; a longer one is cut and ends in `…` |
+| `MacContextEngine.selectedTextLimit` | 512 characters | Longest selection kept; read by range over at most 2,052 UTF-16 units, so a longer one is cut and ends in `…` and a refused range read keeps none |
 | `StageTimeout.quick` | 15 s | The pipeline's own cap on a context read, for an injected engine that keeps no budget |
 
 ## 100 ms

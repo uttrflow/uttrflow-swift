@@ -225,6 +225,70 @@ struct DictationControllerTests {
         #expect(harness.inserter.received == [controllerTidied])
     }
 
+    @Test("the first toggle press after a session end opens the microphone instead of closing it")
+    func firstTogglePressAfterSessionEndStarts() async {
+        let harness = makeHarness(activation: .pressToToggle)
+        await harness.controller.handle(.pressed)
+        await harness.controller.endForSessionEnding()
+
+        await harness.controller.handle(.pressed)
+        #expect(await harness.pipeline.currentState.isListening)
+        await harness.controller.handle(.pressed)
+
+        #expect(harness.inserter.received == [controllerTidied, controllerTidied])
+    }
+
+    @Test("a hold cut by a session end ignores its late release, and the next hold dictates")
+    func holdCutBySessionEndThenNextHold() async {
+        let harness = makeHarness()
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: justOverTheMinimum)
+        await harness.controller.endForSessionEnding()
+        #expect(harness.inserter.received == [controllerTidied])
+
+        harness.clock.advance(by: .seconds(3600))
+        await harness.controller.handle(.released)
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received == [controllerTidied], "the late release inserts nothing")
+
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: justOverTheMinimum)
+        await harness.controller.handle(.released)
+
+        #expect(harness.inserter.received == [controllerTidied, controllerTidied])
+    }
+
+    @Test("a hands-free dictation cut by a session end leaves the next hold an ordinary hold")
+    func handsFreeCutBySessionEndThenNextHold() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+        #expect(await harness.pipeline.currentState.isListening)
+        await harness.controller.endForSessionEnding()
+
+        harness.clock.advance(by: .seconds(3600))
+        await harness.controller.handle(.pressed)
+        #expect(await harness.pipeline.currentState.isListening)
+        harness.clock.advance(by: justOverTheMinimum)
+        await harness.controller.handle(.released)
+
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received == [controllerTidied, controllerTidied])
+    }
+
+    @Test("a session end with nothing recording changes nothing for the next dictation")
+    func idleSessionEndThenDictation() async {
+        let harness = makeHarness(activation: .pressToToggle)
+        await harness.controller.endForSessionEnding()
+        await harness.controller.endForSessionEnding()
+
+        await harness.controller.handle(.pressed)
+        await harness.controller.handle(.pressed)
+
+        #expect(harness.inserter.received == [controllerTidied])
+    }
+
     @Test("stopping while a dictation is recording finishes it and closes the microphone")
     func stopFinishesARecordingDictation() async throws {
         let harness = makeHarness(activation: .pressToToggle)

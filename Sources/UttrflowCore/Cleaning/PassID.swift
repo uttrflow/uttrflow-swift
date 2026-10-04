@@ -38,6 +38,8 @@ extension PassID {
     public static let contractions: PassID = "contractions"
     /// Spaces around the marks the other passes put in.
     public static let spacing: PassID = "spacing"
+    /// The full stop a sentence-length pause inside one piece put there.
+    public static let pauseStop: PassID = "pauseStop"
     public static let spelledInitialism: PassID = "spelledInitialism"
     /// The case of the first word, which the formatter decides.
     public static let firstWord: PassID = "firstWord"

@@ -246,3 +246,34 @@ keycaps are all left exactly as they were. Only letters and marks of another scr
 - `Docs/cleanup.md` — the catalogue of cleanings, of which this is the one that is never optional.
 - `Docs/ai-model-output.md` — the guard's other checks and what it cannot read in Devanagari.
 - `Docs/speech-engines.md` — why recognition still answers in Devanagari.
+
+## A Latin sentence in a right-to-left paragraph
+
+A full stop is a neutral character: the bidirectional algorithm gives it the direction of the
+paragraph when nothing strong follows it. So "Hello world." inserted at the end of an Arabic,
+Hebrew or Urdu paragraph shows its stop on the left of "Hello", not after "world".
+
+### Measured
+
+Host: Apple M5 Pro, macOS 26. An offscreen `NSTextView` with `baseWritingDirection =
+.rightToLeft` holds one right-to-left word and a space; "Hello world." is inserted at the end by
+`insertText(_:replacementRange:)` (the typed route), `readSelection(from:type:)` (the pasteboard
+route) and `NSTextStorage.replaceCharacters(in:with:)` (the selected-text write route). The layout
+manager gives each glyph's horizontal centre.
+
+| Paragraph | Text inserted | Every route |
+|---|---|---|
+| Arabic, Hebrew, Urdu | `Hello world.` | stop 3–4 pt left of "H": wrong side |
+| Arabic, Hebrew, Urdu | `Hello world.` + U+200E | stop 6–7 pt right of "d": correct |
+
+The route makes no difference: all three leave the same characters in the field, and the field
+lays them out.
+
+### Decision
+
+Append a left-to-right mark (U+200E) after the final stop, and only when the dictated piece ends
+in a stop and the focused paragraph is right-to-left. The mark is invisible, keeps every spoken
+word, and is the smallest change that puts the stop on the right side. It is a formatting
+character, so the meaning guard does not count it as a word and the history text stores the
+dictation without it. It waits on the dictation read carrying the paragraph direction, which
+the one focused-field reader (CX.1.a) provides.

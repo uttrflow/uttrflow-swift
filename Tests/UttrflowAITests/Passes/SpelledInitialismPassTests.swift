@@ -78,6 +78,22 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "joins a doubled letter the stammer pass kept as spelling",
+        arguments: [("a a one two three", "AA one two three"), ("b a a four", "BAA four"), ("i i t", "IIT")])
+    func spelledDouble(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [StammersPass(), sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a stammered a or I in prose to the stammer pass",
+        arguments: [
+            ("I I think so", "I think so"), ("a a lot", "a lot"), ("we need a a plan", "we need a plan"),
+        ])
+    func proseDouble(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [StammersPass(), sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "does not treat i adjacent to a letter name as the pronoun",
         arguments: [
             ("we said i e is the main one", "we said i.e. is the main one"),

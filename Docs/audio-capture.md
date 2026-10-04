@@ -135,7 +135,8 @@ buffer ended (`CaptureTimeline`):
 - A hole up to 100 ms is filled with silence of the same length, pushed in the same block as the
   buffer after it, from zeros allocated once per engine, so word timings stay on the real clock.
 - A longer hole sets a flag the handoff's thread takes before delivering the next block, and the
-  session reports it as `CaptureInterruption.began`, the refusal a device change already takes.
+  session reports it as `CaptureInterruption.began`, which marks a discontinuity exactly as a
+  device change does (see [`microphone.md`](microphone.md)).
 - A lost buffer leaves the expected start where it was, so it reappears as the hole before the next
   one; lost buffers, holes and total hole length are counted on the timeline.
 

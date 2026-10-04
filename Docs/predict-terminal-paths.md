@@ -10,6 +10,14 @@ is not. The parser is `ShellWords`, the disk `FileSystemProbing`, the refs `GitR
 session test `RemoteSession`, all in `Sources/UttrflowPredict`. What the machine offers before the
 model writes is in [predict-agent.md](predict-agent.md).
 
+## Who owns the prompt
+
+`ShellPrompt` (`Sources/UttrflowContext/ShellPrompt.swift`) owns prompt parsing and heredoc
+detection, and `FocusedFieldSnapshot.shellInput` is the one place either reader asks it. The
+suggestion snapshot takes its `currentLine` from it; the dictation read takes its text before the
+caret from it through `CaretText.inTerminal`. So dictation sees only the shell input, never
+scrollback or the prompt, and a heredoc body or a full-screen program gives it no edges at all.
+
 ## Where it runs
 
 `Verifier.admits` runs first in both paths to the screen:

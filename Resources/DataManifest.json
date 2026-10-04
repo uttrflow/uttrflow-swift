@@ -187,8 +187,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "d10273c6febae571f7cbc7b446da62737a2916a0a2dc28aa606830f662e6a664",
-      "bytes": 11864
+      "sha256": "18141a0ed3f6dbb8802e13390be8adf392d3686883deb16db5e1d76222a47378",
+      "bytes": 12074
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/hindi-words.json",
@@ -196,8 +196,17 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "dca4a0ebd2324388ddf5ff34312f09d3bda1a129db885b9c74b06261e7990326",
-      "bytes": 6679
+      "sha256": "514e2c1276e58c8459d4049c0e96024dbad2ffba838b9eaca5ff400f4d1f88c3",
+      "bytes": 7359
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/kinship-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "b0d961e63b7c2f0b17acf8242b8c9a8b6ae029a10052a7b9c0aab6f86cb991a7",
+      "bytes": 1062
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/number-words.json",

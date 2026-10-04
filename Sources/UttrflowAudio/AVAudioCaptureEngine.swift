@@ -36,8 +36,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     private var cancellationRequested = false
     /// Set when the microphone stops for good mid-recording, and thrown by `stop()` rather than half a recording.
     private var failure: AudioCaptureError?
-    /// Says the microphone went during this recording, so the audio either side of the hole does not join.
-    private var isGapped = false
+    /// Where the microphone went during this recording, so the audio either side of each hole never joins.
+    private var breaks: [Int] = []
     /// How many interruptions have reached the actor, so a test can wait for the hop instead of a clock.
     private(set) var interruptionsHandled = 0
     /// Counts `start()` calls, so an interruption reaching the actor late is applied only to its own recording.
@@ -79,7 +79,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         accumulator.reset()
 
         failure = nil
-        isGapped = false
+        breaks = []
         generation += 1
         let mine = generation
         let accumulator = self.accumulator
@@ -95,11 +95,8 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
                     writer?.append(samples)
                 }
             } onInterruption: { [weak self] interruption in
-                let hadCapturedSamples = accumulator.count > 0
-                Task {
-                    await self?.microphoneInterrupted(
-                        interruption, in: mine, hadCapturedSamples: hadCapturedSamples)
-                }
+                let at = accumulator.count
+                Task { await self?.microphoneInterrupted(interruption, in: mine, at: at) }
             }
         } catch {
             await abandonWriter()
@@ -117,7 +114,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         if cancellationRequested {
             accumulator.reset()
             failure = nil
-            isGapped = false
+            breaks = []
             await abandonWriter()
             cancellationRequested = false
             lifecycle = .idle
@@ -133,23 +130,19 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         let samples = accumulator.take()
         lifecycle = .idle
         // A microphone that died mid-recording captured only the first half, which reads as a whole sentence.
+        let marked = breaks
+        breaks = []
         if let failure {
             self.failure = nil
-            isGapped = false
             throw failure
         }
-        // A hole in the middle reads as a whole sentence too, because samples cannot say time passed.
-        if isGapped {
-            isGapped = false
-            throw .engineFailed(
-                description: "The microphone was away for part of this recording.")
-        }
-        return .canonical(samples)
+        // A hole in the middle is marked, not refused, so the pieces either side are recognised apart.
+        return .canonical(samples, discontinuities: marked)
     }
 
     /// Remembers what a device change did, since only `stop()` has somewhere to report it.
     private func microphoneInterrupted(
-        _ interruption: CaptureInterruption, in recording: Int, hadCapturedSamples: Bool
+        _ interruption: CaptureInterruption, in recording: Int, at position: Int
     ) {
         interruptionsHandled += 1
         guard
@@ -157,7 +150,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
             recording == generation
         else { return }
         switch interruption {
-        case .began: isGapped = isGapped || hadCapturedSamples
+        case .began: breaks.append(position)
         case .ended(let error): failure = error
         }
     }
@@ -165,13 +158,14 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     /// Everything the microphone has delivered so far, so work can begin before the key is released.
     public func capturedSoFar() async -> AudioSamples {
         guard lifecycle == .recording else { return .empty }
-        return .canonical(accumulator.snapshot)
+        return .canonical(accumulator.snapshot, discontinuities: breaks)
     }
 
     /// What the microphone has delivered from sample `start` onwards, copying none of the audio before it.
     public func capturedSoFar(from start: Int) async -> AudioSamples {
         guard lifecycle == .recording else { return .empty }
-        return .canonical(accumulator.samples(from: start))
+        let from = Swift.max(0, start)
+        return .canonical(accumulator.samples(from: from), discontinuities: breaks.map { $0 - from })
     }
 
     public func cancel() async {
@@ -190,7 +184,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         accumulator.reset()
         await abandonWriter()
         failure = nil
-        isGapped = false
+        breaks = []
         lifecycle = .idle
     }
 

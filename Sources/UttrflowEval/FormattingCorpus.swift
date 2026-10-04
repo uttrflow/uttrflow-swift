@@ -427,6 +427,37 @@ extension EvaluationCorpus {
             expected: "- Call the plumber\n- Pay the rent",
             mustKeep: ["plumber", "rent"], mustNotAdd: ["bullet"], classes: [.lists]
         ),
+        .init(
+            id: "fmt-list-lead-in-document", category: .everyday,
+            spoken: "the steps are as follows back up the files",
+            expected: "The steps are as follows: back up the files.",
+            mustKeep: ["as follows:", "back up"],
+            context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
+            destination: .document, classes: [.lists, .perDestination]
+        ),
+        .init(
+            id: "fmt-list-lead-in-email", category: .everyday,
+            spoken: "the agenda is as follows the budget review",
+            expected: "The agenda is as follows: the budget review.",
+            mustKeep: ["as follows:", "budget"],
+            context: AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail"),
+            destination: .email, classes: [.lists, .perDestination]
+        ),
+        .init(
+            id: "fmt-list-lead-in-chat", category: .everyday,
+            spoken: "the plan is as follows lunch at noon",
+            expected: "The plan is as follows: lunch at noon",
+            mustKeep: ["as follows:", "lunch"],
+            context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
+            mustNotAdd: ["."], destination: .messaging, classes: [.lists, .perDestination]
+        ),
+        // Adversarial: with no lead-in, ordinals in a clause get no colon.
+        .init(
+            id: "fmt-list-no-lead-in-no-colon", category: .everyday,
+            spoken: "the steps are first and second",
+            expected: "The steps are first and second.",
+            mustKeep: ["steps are first"], mustNotAdd: [":"], classes: [.lists]
+        ),
         // Adversarial: counting inside a sentence is not a list.
         .init(
             id: "fmt-list-count-not-list", category: .everyday,

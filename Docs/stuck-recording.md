@@ -88,6 +88,21 @@ displays sleep or the Mac is about to sleep (`DictationSessionEndObserver`).
 captured words are still transcribed, and since capture ends before sleep, no cap is left to fire
 on wake.
 
+The first dictation after wake starts from a clean gesture state, which `DictationControllerTests`
+checks with an injected session end in place of a real sleep:
+
+| Before the session end | First gesture after wake | Outcome |
+|---|---|---|
+| Toggle dictation recording | one press | opens the microphone; it does not close a stale one |
+| Hold in progress | the late release, then a new hold | the release inserts nothing; the new hold dictates |
+| Hands-free dictation | a hold | an ordinary hold, not the end of hands-free |
+| Nothing recording, notice sent twice | a toggle dictation | dictates once |
+
+These run against fakes, so they say nothing about the audio route, the speech model, the event
+tap or Accessibility trust after wake, nor where a dictation still transcribing at sleep inserts:
+`endForSessionEnding()` only stops one that is listening, so one past that point inserts into
+whatever is frontmost when it finishes. Those need a real sleep, lock and display-sleep cycle.
+
 ## Testing a timeout without hanging the suite
 
 The tests that drive `StageTimeout` hold a `ManualClock` and must move it at exactly the right

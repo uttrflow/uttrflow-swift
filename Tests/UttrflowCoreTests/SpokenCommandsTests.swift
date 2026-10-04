@@ -10,12 +10,21 @@ struct SpokenCommandsTests {
     @Test("The registry loads from the bundle with every command the passes held in code.")
     func shipped() {
         #expect(SpokenCommands.table.source == .bundled)
-        #expect(SpokenCommands.marks.count == 20)
+        #expect(SpokenCommands.marks.count == 21)
         #expect(SpokenCommands.layout.count == 5)
         #expect(SpokenCommands.codeSymbols.count == 15)
         #expect(SpokenCommands.casings.count == 6)
-        #expect(SpokenCommands.openings.map(\.words) == [["open", "quote"], ["open", "single", "quote"]])
-        #expect(SpokenCommands.closings.map(\.words) == [["close", "quote"], ["close", "single", "quote"]])
+        #expect(
+            SpokenCommands.openings.map(\.words) == [
+                ["open", "quote"], ["open", "single", "quote"], ["open", "paren"], ["open", "parenthesis"],
+                ["open", "bracket"],
+            ])
+        #expect(
+            SpokenCommands.closings.map(\.words) == [
+                ["close", "quote"], ["close", "single", "quote"], ["close", "paren"],
+                ["close", "parenthesis"],
+                ["close", "bracket"],
+            ])
     }
 
     @Test("No two rows read by the same pass share a phrase in the same destination.")

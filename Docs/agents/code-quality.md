@@ -348,6 +348,7 @@ Change one only when the task is about it, and say so in the PR.
 | `Resources/Uttrflow-Info.plist` version fields | changed only by a release |
 | Bundle identifier and signing identity | unchanged across builds; Keychain items are tied to the signature (`Docs/account-keychain.md`) |
 | `Design/*.dc.html` artboards | regenerated from `Design/_gen_*.py`; edit the generator |
+| `Scripts/design_*.py`, the `design-audit` target and its place in `verify`, `ALLOWED` and `SCENERY` | never loosened; an exception is added with its reason ([design.md](design.md#exceptions)) |
 
 ## Dependencies
 

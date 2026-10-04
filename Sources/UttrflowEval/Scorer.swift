@@ -4,7 +4,7 @@ import UttrflowCore
 public enum Scorer {
     /// Scores the text as the field shows it, padded at the caret exactly as the pipeline pads it.
     public static func score(_ output: String, against reference: EvaluationCase) -> CaseScore {
-        let rewritten = reference.context.insertionPoint.paddedBoundary(for: output)
+        let rewritten = reference.context.insertionPoint.paddedBoundary(for: output, in: reference.destination)
         let produced = tokens(rewritten)
         let wanted = tokens(reference.expected)
         let producedSurface = surfaceWords(rewritten)

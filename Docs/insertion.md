@@ -271,7 +271,10 @@ acceptance and the typed route's checks send their messages through `Accessibili
 concurrent dispatch queue of their own, and the awaiting task resumes when the answer comes back.
 A task cancelled before its message leaves the queue sends nothing and takes a safe fallback —
 "secure" for the concealment question, "unreadable" for a caret read. A message already sent
-cannot be recalled; the timeout is what bounds it.
+cannot be recalled; the timeout bounds the wait, not the write. A target that answers late can
+still apply the write after the timeout, so `SelectionWriter.writeFailure(_:after:)` maps a
+cannot-complete answer at or past `SelectionWriter.messagingTimeout` to `insertionUnconfirmed`,
+which stops the route; any other failed write is `insertionRejected`, and the next strategy runs.
 
 ## Never into Uttrflow itself
 

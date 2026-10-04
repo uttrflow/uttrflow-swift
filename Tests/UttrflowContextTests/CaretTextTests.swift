@@ -88,4 +88,50 @@ struct CaretTextTests {
             CaretText.around(text, selection: 2..<2) == CaretText.Sides(preceding: "😀", following: " hello"))
         #expect(CaretText.around(text, selection: 1..<1)?.following.hasSuffix(" hello") == true)
     }
+
+    /// Reads a terminal screen with the caret at its end, as a shell prompt waiting for input leaves it.
+    private func terminalSides(_ screen: String, title: String? = "zsh") -> CaretText.Sides? {
+        CaretText.inTerminal(screen, selection: screen.utf16.count..<screen.utf16.count, windowTitle: title)
+    }
+
+    @Test("passes on only the shell input, never an open bracket in scrollback or the prompt")
+    func terminalDropsScrollbackAndPrompt() {
+        let screen = "sample@devbox ~/demo % echo foo(\nfoo(: no such command\nsample@devbox ~/demo % git st"
+        #expect(terminalSides(screen) == CaretText.Sides(preceding: "git st", following: ""))
+    }
+
+    @Test("reads only the input after a multi-line prompt's last line")
+    func terminalMultiLinePrompt() {
+        let screen = "make: done [\n~/demo on trunk\n❯ ls -la"
+        #expect(terminalSides(screen)?.preceding == "ls -la")
+    }
+
+    @Test("gives no edges inside a heredoc body")
+    func terminalHeredocBody() {
+        #expect(terminalSides("~/demo $ cat <<EOF\nfirst (line\nsecond") == nil)
+    }
+
+    @Test("gives no edges where a full-screen program holds the screen")
+    func terminalFullScreenProgram() {
+        #expect(terminalSides("~/demo $ ls", title: "vim notes.txt") == nil)
+    }
+
+    @Test("keeps the rest of the caret's row and nothing below it")
+    func terminalFollowingRow() {
+        let screen = "~/demo $ git log\nolder output"
+        #expect(
+            CaretText.inTerminal(screen, selection: 12..<12, windowTitle: nil)
+                == CaretText.Sides(preceding: "git", following: " log"))
+    }
+
+    @Test("gives no edges without a value or a selection")
+    func terminalUnanswered() {
+        #expect(CaretText.inTerminal(nil, selection: 0..<0, windowTitle: nil) == nil)
+        #expect(CaretText.inTerminal("~/demo $ ls", selection: nil, windowTitle: nil) == nil)
+    }
+
+    @Test("gives no edges when the caret's row is too long to read whole")
+    func terminalCutRow() {
+        #expect(terminalSides(String(repeating: "x", count: FocusedFieldSnapshot.lineReadLimit + 1)) == nil)
+    }
 }

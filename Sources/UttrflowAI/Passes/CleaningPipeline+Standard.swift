@@ -47,6 +47,8 @@ extension CleaningPipeline {
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
             NumberFormsPass(policy: numbers, digits: digits),
             ContractionsPass(), SpacingPass(),
+            // Last, so a pause inside a number or a removed filler is read on the words left standing.
+            PauseStopPass(destination: destination),
         ]
         let inCode =
             destination == .codeEditor

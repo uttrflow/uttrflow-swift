@@ -52,6 +52,19 @@ struct DestinationClassifierTests {
         #expect(DestinationClassifier.classify(app(bundle)) == expected)
     }
 
+    @Test(
+        "reads the identifiers probed from installed apps, and not their vendor siblings",
+        arguments: [
+            ("com.mongodb.compass", Destination.sqlEditor, "com.mongodb.atlas"),
+            ("org.RedisLabs.RedisInsight-V2", .sqlEditor, "org.RedisLabs.RedisStack"),
+            ("com.google.antigravity", .codeEditor, "com.google.drivefs"),
+        ]
+    )
+    func classifiesProbedBundles(bundle: String, expected: Destination, sibling: String) {
+        #expect(DestinationClassifier.classify(app(bundle)) == expected)
+        #expect(DestinationClassifier.classify(app(sibling)) != expected)
+    }
+
     @Test("matches a bundle identifier whatever its case")
     func ignoresBundleCase() {
         #expect(DestinationClassifier.classify(app("COM.APPLE.NOTES")) == .document)

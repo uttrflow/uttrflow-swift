@@ -44,10 +44,12 @@ extension SelectionWriter {
         else {
             throw .insertionRejected(description: "the field will not select the range")
         }
-        let result = field.setSelectedText(text)
-        guard result == .success else {
-            _ = field.setSelectedRange(caret)
-            throw .insertionRejected(description: "the field refused the text (\(result.rawValue))")
+        do {
+            try setSelectedText(text)
+        } catch {
+            // A write that may still land is left alone, since moving the selection could misplace it.
+            if error != .insertionUnconfirmed { _ = field.setSelectedRange(caret) }
+            throw error
         }
         let written = text.utf16.count
         guard let after = field.selectedRange(), after.length == 0,

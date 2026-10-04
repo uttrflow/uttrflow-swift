@@ -36,6 +36,20 @@ enum FocusedFieldRead {
     }
 }
 
+extension FocusedFieldRead {
+    /// UTF-16 units of a selection asked for: one character past the kept limit at four units each, so a cut is seen.
+    static let selectionReadUnits = (MacContextEngine.selectedTextLimit + 1) * 4
+
+    /// The selection's opening stretch by a ranged read, or `nil` when the field refuses it, never the whole selection.
+    static func selectedText<Tree: ElementTree>(
+        of field: Tree.Element, in tree: Tree, at selection: NSRange?
+    ) -> String? {
+        guard let selection, selection.location >= 0, selection.length > 0 else { return nil }
+        let window = NSRange(location: selection.location, length: min(selection.length, selectionReadUnits))
+        return tree.attribute("AXStringForRange", of: field, range: window).string
+    }
+}
+
 /// The focused field's text around the caret, with the selection moved into it, and whether the field is secure.
 struct FieldText {
     let value: String?

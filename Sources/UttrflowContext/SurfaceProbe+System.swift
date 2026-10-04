@@ -73,6 +73,13 @@ public enum SurfaceProbe {
             names: names, at: range.map { NSRange(location: $0.location, length: $0.length) })
     }
 
+    /// The selection's opening stretch, read by range so a selected document is never copied whole.
+    static func selectedText(of field: AXUIElement, at range: CFRange?) -> String? {
+        FocusedFieldRead.selectedText(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree(),
+            at: range.map { NSRange(location: $0.location, length: $0.length) })
+    }
+
     /// The field's whole value under the shared secure-check order, or nil when it is secure or too long to read whole.
     public static func readableValue(of field: AXUIElement) -> String? {
         let names = names(of: field)

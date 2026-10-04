@@ -10,7 +10,8 @@ struct StandardPipelineTests {
         #expect(
             CleaningPipeline.standard.ids == [
                 "fillers", "repeatedPhrase", "stammers", "selfCorrection", "spokenPunctuation", "layoutWords",
-                "numberForms", "contractions", "spacing", "spelledInitialism", "sentenceBoundary",
+                "numberForms", "contractions", "spacing", "pauseStop", "spelledInitialism",
+                "sentenceBoundary",
                 "firstWord",
                 "terminalStop",
             ])

@@ -40,7 +40,10 @@ public actor DictationPipeline {
     private let pollClock: any Clock<Duration>
 
     private var state: DictationState = .idle
-    private let observers = StateObservers()
+    private let observers = StateObservers<DictationState>()
+    /// The finished pieces' words while the key is held, shown in the panel and never typed into the field.
+    private var heardSoFar: String?
+    private let heardObservers = StateObservers<String?>()
 
     /// Counts dictations, so a cancel can name the one it abandoned.
     private(set) var generation = 0
@@ -192,6 +195,11 @@ public actor DictationPipeline {
     /// Every state the pipeline passes through, from now on.
     public func states() -> AsyncStream<DictationState> {
         observers.makeStream(startingWith: state)
+    }
+
+    /// The finished pieces' words while the key is held; absent at rest, after a cancel and for a secure field.
+    public func wordsHeardSoFar() -> AsyncStream<String?> {
+        heardObservers.makeStream(startingWith: heardSoFar)
     }
 
     /// Loads the speech model so the first dictation is not the slow one. See `Docs/startup.md`.
@@ -421,6 +429,7 @@ public actor DictationPipeline {
         early.pendingCaptureElapsed = nil
         cancelledGeneration = generation
         early.cancel()
+        show(heard: nil)
         await capture.cancel()
         await settleRecording(wordsLost: false)
         transition(to: .idle)
@@ -444,6 +453,7 @@ public actor DictationPipeline {
     private func beginWorkingAhead(_ mine: Int) {
         recordingFieldKind = nil
         forgetTheLastAttempt()
+        show(heard: nil)
         early.begin()
         early.task = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
             let seeing = await self.earlyContextRead(mine)
@@ -483,7 +493,8 @@ public actor DictationPipeline {
             let audio = await capture.capturedSoFar(from: early.cut - lead)
             guard
                 let cut = windowing.nextCut(
-                    in: audio.samples, sampleRate: audio.sampleRate, from: lead)
+                    in: audio.samples, sampleRate: audio.sampleRate, from: lead,
+                    boundaries: audio.discontinuities)
             else { continue }
             let start = early.cut
             let end = early.cut - lead + cut
@@ -534,10 +545,11 @@ public actor DictationPipeline {
                 early.tidyTask = tidy
                 // Warm for the next piece after this one finishes, without making key-up wait for warm-up.
                 Task {
-                    _ = await tidy.value
+                    let piece = await tidy.value
                     guard self.state == .recording, self.generation == mine,
                         !self.wasCancelled(mine)
                     else { return }
+                    self.showFinished(piece)
                     await self.runningCleaner.warm(
                         for: SituationResolver.resolve(
                             from: seeing, overrides: self.runningOverrides))
@@ -707,6 +719,7 @@ public actor DictationPipeline {
         // Checked before the state moves, so an abandoned run never overwrites the rest a cancel sets.
         guard !wasCancelled(mine) else { return }
         if state != .transcribing { transition(to: .transcribing) }
+        show(heard: nil)
 
         // A piece under way is finished, not thrown away: its words are needed either way.
         early.task?.cancel()
@@ -732,7 +745,8 @@ public actor DictationPipeline {
 
         var remainder = windowing.windows(
             in: audio.samples, sampleRate: audio.sampleRate, from: cut,
-            joiningPreviousWindowFrom: delivery == .insert ? previousWindowStart : nil)
+            joiningPreviousWindowFrom: delivery == .insert ? previousWindowStart : nil,
+            boundaries: audio.discontinuities)
         if let first = remainder.first, first.lowerBound < cut {
             if !spans.isEmpty { spans.removeLast() }
         }
@@ -887,7 +901,9 @@ public actor DictationPipeline {
         }
 
         // Pads the words with a space where the field's surrounding text would otherwise join them.
-        let toWrite = insertionContext.insertionPoint.paddedBoundary(for: OutputSafety.checked(output).text)
+        let destination = SituationResolver.resolve(from: insertionContext, overrides: runningOverrides).destination
+        let toWrite = insertionContext.insertionPoint.paddedBoundary(
+            for: OutputSafety.checked(output).text, in: destination)
 
         let changes = AppliedChanges(
             corrections: DictationCorrection.locating(
@@ -1152,6 +1168,19 @@ public actor DictationPipeline {
     private func learnWords(heard: String, wrote: String, seeing context: AppContext) async {
         guard !context.isEmpty else { return }
         try? await vocabulary.learn(heard: heard, wrote: wrote, seeing: context)
+    }
+
+    /// Adds a finished piece to what the panel shows, unless the field hides what is typed.
+    private func showFinished(_ piece: Piece) {
+        let words = piece.cleaned.text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard !destinationIsSecure, !words.isEmpty else { return }
+        show(heard: heardSoFar.map { "\($0) \(words)" } ?? words)
+    }
+
+    private func show(heard words: String?) {
+        guard words != heardSoFar else { return }
+        heardSoFar = words
+        heardObservers.send(words)
     }
 
     private func transition(to next: DictationState) {

@@ -25,11 +25,14 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
+        markLeadIns(in: &draft)
         var live = draft.presentIndices
         let repeated = repeatedNames(in: live, of: draft)
         var names: Set<Int> = []
         let literal = literalDashes(in: live, of: draft, names: &names)
         var position = 0
+        // The brackets written so far and not yet closed, innermost last.
+        var openBrackets: [Character] = []
         // The end of the sentence `position` sits in, kept until a write changes the words; nil once stale.
         var sentenceEnd: Int?
         // The quotes opened and not yet closed, innermost last.
@@ -66,6 +69,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     at: position, spanning: found.words.count, in: live, of: draft,
                     reach: MentionGuard.phraseReach, kind: found.placement),
                 !isVerb(found.words, at: position, in: live, of: draft),
+                isPaired(found, at: position, in: live, of: draft, open: openBrackets),
                 isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated),
                 isPlaced(
                     found.text, before: position + found.words.count, spanning: found.words.count,
@@ -79,8 +83,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 position += 1
                 continue
             }
-            if found.placement == .opening { openQuotes.append(written) }
-            if found.placement == .closing { _ = openQuotes.popLast() }
+            if found.placement == .opening, !SpokenCommands.isBracket(found.text) {
+                openQuotes.append(written)
+            }
+            if found.placement == .closing, !SpokenCommands.isBracket(found.text) { _ = openQuotes.popLast() }
+            track(found.text, in: &openBrackets)
             sentenceEnd = nil
         }
         return draft
@@ -88,11 +95,58 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     /// The quote a quotation mark writes: a double quote opened inside a double quote is single, and a close matches the quote still open.
     static func quote(_ found: SpokenCommand, inside open: [String]) -> String? {
-        switch found.placement {
+        guard !SpokenCommands.isBracket(found.text) else { return nil }
+        return switch found.placement {
         case .opening: open.last == "\"" && found.text == "\"" ? "'" : found.text
         case .closing: open.last ?? found.text
         case .trailing, .joining, .standalone, .leading: nil
         }
+    }
+
+
+    /// Writes a lead-in row's mark onto its last word when more of the same clause follows it.
+    private func markLeadIns(in draft: inout Draft) {
+        let live = draft.presentIndices
+        for row in SpokenCommands.leadIns where row.isEnabled(in: destination) {
+            for position in live.indices where position + row.words.count < live.count {
+                let last = live[position + row.words.count - 1]
+                guard draft.spells(row.words, at: position, in: live),
+                    !draft.shape(at: last).endsClause,
+                    !draft.words[live[position + row.words.count]].isLayoutMark,
+                    !MentionGuard.isMentioned(
+                        at: position, spanning: row.words.count, in: live, of: draft,
+                        reach: MentionGuard.phraseReach)
+                else { continue }
+                let marked = WordShape.marked(draft.words[last].text, with: row.text)
+                draft.replace(at: last, with: marked, by: Self.id)
+            }
+        }
+    }
+
+    /// A spoken bracket is a mark only as half of a pair around words: an opening needs its closing later in the sentence, a closing needs its opening.
+    private func isPaired(
+        _ command: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, open: [Character]
+    ) -> Bool {
+        guard SpokenCommands.isBracket(command.text), let bracket = command.text.first else { return true }
+        if let opener = WordShape.bracketOpeners[bracket] { return open.last == opener }
+        // The closing must leave at least one word between it and the opening.
+        var next = position + command.words.count + 1
+        while next < live.count, !draft.shape(at: live[next - 2]).endsSentence {
+            if SpokenCommands.closings.contains(where: {
+                WordShape.bracketOpeners[$0.text.first ?? " "] == bracket
+                    && draft.spells($0.words, at: next, in: live)
+            }) {
+                return true
+            }
+            next += 1
+        }
+        return false
+    }
+
+    /// Records a bracket the pass wrote: an opening is pushed, a closing pops its opening.
+    private func track(_ mark: String, in open: inout [Character]) {
+        guard SpokenCommands.isBracket(mark), let bracket = mark.first else { return }
+        if WordShape.bracketOpeners[bracket] != nil { open.removeLast() } else { open.append(bracket) }
     }
 
     /// Whether every spoken dash here is an option marker, which the flag rows' destinations say.

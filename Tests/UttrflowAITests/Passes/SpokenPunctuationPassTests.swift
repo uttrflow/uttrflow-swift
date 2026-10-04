@@ -43,6 +43,44 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "sets off what a lead-in introduces with a colon and keeps the case after it",
+        arguments: [
+            ("the steps are as follows build the app", "the steps are as follows: build the app"),
+            ("the steps are as follows First build", "the steps are as follows: First build"),
+            ("the steps are as follows colon build", "the steps are as follows: build"),
+            ("the steps are as follows", "the steps are as follows"),
+            ("the steps are as follows. build it", "the steps are as follows. build it"),
+            ("the steps are first second", "the steps are first second"),
+            ("note the build failed", "note the build failed"),
+        ]
+    )
+    func marksLeadIns(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes a spoken bracket pair around the words it encloses and leaves an unpaired or named one as words",
+        arguments: [
+            ("the report open paren draft two close paren is attached", "the report (draft two) is attached"),
+            ("bring a jacket open bracket it gets cold close bracket", "bring a jacket [it gets cold]"),
+            ("see open parenthesis below close parenthesis", "see (below)"),
+            ("it ends open paren soon close paren full stop", "it ends (soon)."),
+            ("open paren close paren", "open paren close paren"),
+            ("the parentheses are wrong", "the parentheses are wrong"),
+            (
+                "her letter has an open paren that never closes",
+                "her letter has an open paren that never closes"
+            ),
+            ("a close paren was missing from the note", "a close paren was missing from the note"),
+            ("the judges open bracket play on friday", "the judges open bracket play on friday"),
+            ("it was a close bracket race", "it was a close bracket race"),
+        ]
+    )
+    func pairsBrackets(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("converts a final spoken period after a noun object")
     func finalSpokenPeriodAfterNounObject() {
         #expect(cleaned("i finished the draft period", by: sut) == "i finished the draft.")

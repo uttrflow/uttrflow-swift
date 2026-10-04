@@ -87,6 +87,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 cased = Self.properNameCapitalised(
                     Self.calendarWordCapitalised(afterPause ? cased : strayCapitalLowered(cased, in: text)),
                     in: text)
+                cased = Self.kinshipCased(cased, at: order, in: present, of: draft)
             }
             draft.replace(at: index, with: cased, by: Self.id)
             // A word trailing off in an ellipsis is a pause, so the next keeps the case it was heard in.
@@ -226,6 +227,17 @@ public struct FirstWordPass: WholeTextCleaningPass {
         "afar", "chad", "china", "ewe", "fang", "guernsey", "guinea", "jersey", "polish", "slave",
         "turkey", "world",
     ]
+
+    /// A kinship word as a name ("tell Mom") unless an article or possessive up to one word before it makes it a common noun.
+    static func kinshipCased(_ word: String, at position: Int, in live: [Int], of draft: Draft) -> String {
+        let shape = WordShape(word)
+        guard KinshipWords.holds(shape.core), !keepsCapital(word) else { return word }
+        let before = live[..<position].suffix(2).reversed().map { draft.shape(at: $0) }
+        let unbroken = before.prefix { !$0.endsClause }
+        let commonNoun = unbroken.contains { KinshipWords.marksCommonNoun($0.core) }
+        let core = commonNoun ? shape.core.lowercased() : WordShape.capitalised(shape.core.lowercased())
+        return shape.replacingCore(with: core)
+    }
 
     /// Whether a word names a weekday or an unambiguous month.
     static func isCalendarWord(_ text: String) -> Bool {

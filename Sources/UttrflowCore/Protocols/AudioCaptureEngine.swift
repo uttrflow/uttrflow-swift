@@ -36,8 +36,6 @@ extension AudioCaptureEngine {
 
     /// Cuts the whole of ``capturedSoFar()``, for an engine with no cheaper way to read from an offset.
     public func capturedSoFar(from start: Int) async -> AudioSamples {
-        let all = await capturedSoFar()
-        let from = Swift.min(Swift.max(0, start), all.samples.count)
-        return AudioSamples(samples: Array(all.samples[from...]), sampleRate: all.sampleRate) ?? .empty
+        await capturedSoFar().dropping(first: start)
     }
 }

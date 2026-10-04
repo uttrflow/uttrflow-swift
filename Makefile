@@ -205,6 +205,22 @@ bundle-test: ## Prove the bundle's resource-bundle check still fails on a bundle
 offline-test: ## Prove the offline audit still refuses every way of reaching the network. Needs no build.
 	@python3 Scripts/offline_audit_test.py
 
+# Every design check, each self-test first; Docs/agents/design.md says what each enforces. Runs them all, then fails if any failed.
+DESIGN_AUDITS := design_source_audit design_token_parity_audit design_contrast_audit identity_role_audit \
+	design_sidebar_contract_audit design_chrome_contract_audit design_dictation_contract_audit \
+	design_diagnostics_contract_audit insights_contract_audit signin_artboard_contract_audit design_audit
+
+.PHONY: design-audit
+design-audit: ## Prove colours, typefaces, design generators, canvases and contrast follow Docs/agents/design.md. Needs no build.
+	@failed=""; \
+	for audit in $(DESIGN_AUDITS); do \
+		printf '\n== %s\n' "$$audit"; \
+		python3 "Scripts/$$audit.py" --self-test >/dev/null && python3 "Scripts/$$audit.py" || failed="$$failed $$audit"; \
+	done; \
+	if ! sed -n 's/^verify:\([^#]*\).*/\1/p' Makefile | grep -qw design-audit; then failed="$$failed verify-chain"; fi; \
+	if [ -n "$$failed" ]; then printf '\ndesign-audit: FAILED:%s (see Docs/agents/design.md)\n' "$$failed" >&2; exit 1; fi; \
+	printf '\ndesign-audit: every design check passed\n'
+
 .PHONY: docs-audit
 docs-audit: ## Prove the documentation still describes this tree, including that CLAUDE.md delegates to AGENTS.md. Needs no build.
 	@python3 Scripts/preview_gen_test.py
@@ -326,7 +342,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit comment-audit match-audit closed-list-audit word-split-audit accessibility-controls layering-audit string-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+verify: pii-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit match-audit closed-list-audit word-split-audit accessibility-controls layering-audit string-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.

@@ -13,6 +13,7 @@ on-device. This file is for everyone who works on it, by hand or with an agent. 
 | You are... | Read |
 |---|---|
 | writing or changing code, tests or comments | [Docs/agents/code-quality.md](Docs/agents/code-quality.md) |
+| changing anything a person sees: SwiftUI or AppKit views, colours, typefaces, layout, appearance, animation, components, `Design/` | [Docs/agents/design.md](Docs/agents/design.md) |
 | changing what dictation, AI suggestions, the clipboard or the data stores do | [Docs/agents/product.md](Docs/agents/product.md) |
 | changing how accurately dictation recognises, corrects or formats words | [Docs/dictation-quality.md](Docs/dictation-quality.md) |
 | branching, committing or opening a pull request | [Docs/agents/workflow.md](Docs/agents/workflow.md) |
@@ -67,6 +68,7 @@ Each gate fails its command. Thresholds and the full list are in
 | Gate | Command |
 |---|---|
 | Multi-line comment blocks never rise per file | `make comment-audit` |
+| Colours, typefaces, canvases and contrast follow `Docs/agents/design.md` | `make design-audit` |
 | Coverage at least 95% per module | `make coverage` |
 | 0 force unwraps, `try!`, implicitly unwrapped optionals | `make lint` |
 | 0 compiler warnings | `make build` |

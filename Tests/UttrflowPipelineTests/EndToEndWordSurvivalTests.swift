@@ -109,7 +109,7 @@ struct EndToEndWordSurvivalTests {
         stages.append(("LatinScript enforcement", latin))
         let expanded = SnippetExpander(snippets: []).expand(latin)
         stages.append(("snippet expansion", expanded.text))
-        let padded = situation.insertion.paddedBoundary(for: expanded.text)
+        let padded = situation.insertion.paddedBoundary(for: expanded.text, in: situation.destination)
         stages.append(("insertion padding", padded))
         let reportWords = Set(input.text.split(whereSeparator: \.isWhitespace).map(String.init))
         return Self.firstLostWords(reference: input.text, stages: stages, reportWords: reportWords)

@@ -263,4 +263,25 @@ struct SpeechWindowingTests {
         #expect(custom.maximumLength == 3)
         #expect(custom != .standard)
     }
+
+    /// A microphone change 40% into a minute of unbroken speech, where no pause offers a cut.
+    @Test("no window spans a discontinuity, and one ends exactly on it")
+    func discontinuityEndsAWindow() {
+        let audio = Take.speech(60)
+        let change = audio.count * 2 / 5
+        let windows = windowing.windows(in: audio, sampleRate: Take.rate, boundaries: [change])
+
+        #expect(windows.contains { $0.upperBound == change })
+        #expect(!windows.contains { $0.lowerBound < change && $0.upperBound > change })
+        #expect(windows.first?.lowerBound == 0 && windows.last?.upperBound == audio.count)
+    }
+
+    @Test("a word or two after a discontinuity is not joined to the window before it")
+    func fragmentAfterDiscontinuityStaysApart() {
+        let audio = Take.speech(6) + Take.speech(0.3)
+        let change = Take.speech(6).count
+        let windows = windowing.windows(in: audio, sampleRate: Take.rate, boundaries: [change])
+
+        #expect(windows == [0..<change, change..<audio.count])
+    }
 }

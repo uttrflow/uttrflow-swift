@@ -182,6 +182,7 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `ContractionsPass` | dont → don't | word list | piece |
 | `SpelledInitialismPass` | a p i → API | adjacent letter names | piece, and again after the model |
 | `SpacingPass` | no space before `, . ? ! : ;`, one after; collapse runs | none | piece |
+| `PauseStopPass` | a full stop where the speaker paused a piece boundary's length inside one piece | recogniser word timing, then `SentenceBoundaryEvidence`; prose destinations only | piece |
 | `SentenceBoundaryPass` | takes back a stop where the sentence runs on | `SentenceBoundaryEvidence` | message |
 | `FirstWordPass` | capitalise, or lower-case after a mid-sentence caret | `sentenceState` + `FirstWordPolicy` | message |
 | `TerminalStopPass` | add or withhold the final mark | `TerminalStopPolicy`, `LayoutPolicy` | message |

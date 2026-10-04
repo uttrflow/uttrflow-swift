@@ -55,6 +55,7 @@ public enum DestinationRules {
             bundlePrefixes: [
                 postico, tablePlus, "com.jetbrains.datagrip",
                 "org.jkiss.dbeaver", "org.pgadmin.pgadmin4", "com.sequelpro", "com.sequel-ace",
+                "com.mongodb.compass", "org.RedisLabs.RedisInsight",
             ],
             titleContains: ["pgAdmin", "pgAdmin 4"],
             nameWords: ["tableplus", "postico", "datagrip", "dbeaver", "pgadmin", "sequel"],
@@ -109,7 +110,7 @@ public enum DestinationRules {
                 "com.jetbrains.phpstorm", "com.jetbrains.rubymine", "com.jetbrains.clion",
                 "com.jetbrains.datagrip", "com.jetbrains.appcode", "com.jetbrains.mps",
                 "com.sublimetext", "com.panic.Nova",
-                "com.visualstudio.code", "org.vim.MacVim",
+                "com.visualstudio.code", "org.vim.MacVim", "com.google.antigravity",
             ],
             nameWords: [
                 "xcode", "code", "zed", "sublime", "cursor", "nova", "intellij", "pycharm", "goland",

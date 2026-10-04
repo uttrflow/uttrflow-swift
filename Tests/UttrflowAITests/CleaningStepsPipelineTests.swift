@@ -14,8 +14,8 @@ struct CleaningStepsPipelineTests {
         #expect(
             built == [
                 .fillers, .repeatedPhrase, .stammers, .selfCorrection, .spokenPunctuation,
-                .spokenCasing, .layoutWords, .numberForms, .contractions, .spacing, .spelledInitialism,
-                SentenceBoundaryPass.id, .firstWord, .terminalStop,
+                .spokenCasing, .layoutWords, .numberForms, .contractions, .spacing, .pauseStop,
+                .spelledInitialism, SentenceBoundaryPass.id, .firstWord, .terminalStop,
             ])
     }
 
@@ -40,7 +40,8 @@ struct CleaningStepsPipelineTests {
         let pipeline = CleaningPipeline.standard(for: formatter, situation: .unknown, steps: steps)
         #expect(
             pipeline.ids == [
-                .spokenCasing, .spelledInitialism, SentenceBoundaryPass.id, .firstWord, .terminalStop,
+                .spokenCasing, .pauseStop, .spelledInitialism, SentenceBoundaryPass.id, .firstWord,
+                .terminalStop,
             ])
     }
 

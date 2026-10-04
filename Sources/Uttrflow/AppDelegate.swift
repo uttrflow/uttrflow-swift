@@ -148,6 +148,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// How the recording in progress is going against ``DictationLimit``.
     private var recordingAdvice: DictationAdvice = .keepGoing
+    /// The finished pieces' words while the key is held, drawn under the recording line.
+    private var heardSoFar: String?
+    private var heardTask: Task<Void, Never>?
     /// What the dock has to say to end a recording that is under way right now.
     private var recordingStopGesture: StopGesture = .letGo
 
@@ -699,7 +702,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if case .idle = state, let pasteReport { return pasteReport }
         return DictationPresenter.dock(
             for: state, advice: recordingAdvice, speechModel: speechModelLoad,
-            download: speechReadiness.download, stopGesture: recordingStopGesture)
+            download: speechReadiness.download, stopGesture: recordingStopGesture,
+            heardSoFar: heardSoFar)
     }
 
     /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show; the task ends once it has.
@@ -948,6 +952,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func applicationWillTerminate(_ notification: Notification) {
         stateTask?.cancel()
+        heardTask?.cancel()
         dismissalTask?.cancel()
         completions?.stop()
         pressureSource.stop()
@@ -1323,6 +1328,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         dock.update(with: dockPresentation(for: lastDictationState))
     }
 
+    /// Redraws the floating button as each piece of a held recording is finished.
+    private func heardSoFarChanged(to words: String?) {
+        guard words != heardSoFar else { return }
+        heardSoFar = words
+        dock.update(with: dockPresentation(for: lastDictationState))
+    }
+
     /// Redraws the menu and the floating button when the gesture that ends a recording has changed.
     private func recordingStopGestureChanged(to gesture: StopGesture) {
         guard gesture != recordingStopGesture else { return }
@@ -1367,6 +1379,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         stateTask = Task { [weak self] in
             for await state in await pipeline.states() {
                 self?.render(state)
+            }
+        }
+        heardTask = Task { [weak self] in
+            for await words in await pipeline.wordsHeardSoFar() {
+                self?.heardSoFarChanged(to: words)
             }
         }
     }

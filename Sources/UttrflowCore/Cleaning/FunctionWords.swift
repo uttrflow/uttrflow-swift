@@ -23,6 +23,9 @@ public enum FunctionWords {
     /// Pronouns, modals, copula and perfect aux, and prepositions that set a direction; their removal or substitution changes what was said.
     public static let meaningBearing = words(in: .meaningBearing)
 
+    /// Articles, demonstratives and possessives, which mark the noun after them as a common noun ("my", "the").
+    public static let determiners = words(in: .determiner)
+
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
@@ -38,7 +41,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing
+        case function, leadsOn, meaningBearing, determiner
     }
 
     /// One small word and the lists it belongs to.

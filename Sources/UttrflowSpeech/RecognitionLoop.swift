@@ -129,7 +129,9 @@ public enum RecognitionLoop {
             remaining = remaining.dropFirst(taken.count)
             let words =
                 segment.words.count == count
-                ? zip(segment.words, taken).map { TranscribedWord(text: $1, confidence: $0.confidence) }
+                ? zip(segment.words, taken).map {
+                    TranscribedWord(text: $1, confidence: $0.confidence, start: $0.start, end: $0.end)
+                }
                 : Array(segment.words.prefix(taken.count))
             result.append(
                 TranscriptionSegment(

@@ -3,7 +3,7 @@
 public enum HindiWords {
     /// What a romanised Hindi word does in a sentence.
     public enum WordClass: String, Decodable, Sendable {
-        case copula, negation, postposition, conjunction, questionWord, pronoun, verbStem
+        case copula, negation, postposition, conjunction, questionWord, pronoun, possessive, verbStem
     }
 
     /// The classes of the word, in its exact lowercased spelling; empty when it is not listed.

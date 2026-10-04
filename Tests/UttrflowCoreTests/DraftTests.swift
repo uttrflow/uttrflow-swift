@@ -454,3 +454,28 @@ struct CleaningPipelineTests {
         #expect(draft.originalText == "main meeting mein tha")
     }
 }
+
+@Suite("Draft word timing")
+struct DraftTimingTests {
+    @Test("reads the silence between two timed words")
+    func pauseBetweenTimedWords() {
+        let words = [
+            TranscribedWord(text: "done", confidence: 1, start: .zero, end: .milliseconds(400)),
+            TranscribedWord(
+                text: "next", confidence: 1, start: .milliseconds(1_300), end: .milliseconds(1_600)),
+        ]
+        let draft = Draft(
+            transcription: Transcription(
+                text: "done next",
+                segments: [
+                    TranscriptionSegment(text: "done next", start: .zero, end: .seconds(2), words: words)
+                ]))
+        #expect(draft.pause(before: 1) == .milliseconds(900))
+        #expect(draft.pause(before: 0) == nil)
+    }
+
+    @Test("knows no pause for words the recogniser did not time")
+    func untimed() {
+        #expect(Draft(text: "done next").pause(before: 1) == nil)
+    }
+}

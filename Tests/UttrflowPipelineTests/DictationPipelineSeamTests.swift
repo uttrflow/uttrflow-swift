@@ -150,9 +150,9 @@ struct DictationPipelineSeamTests {
     private func dictateOutcome(
         _ lines: [String], seeing context: AppContext, cleaner: any TranscriptCleaning = rules,
         snippets: any SnippetExpanding = NoTextChanges(),
-        corrector: any WordCorrecting = NoTextChanges()
+        corrector: any WordCorrecting = NoTextChanges(), take: AudioSamples? = nil
     ) async -> DictationOutcome? {
-        let take = SeamTake.pieces(lines.count)
+        let take = take ?? SeamTake.pieces(lines.count)
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
         await capture.setCaptured(take)
         let pipeline = DictationPipeline(
@@ -193,6 +193,19 @@ struct DictationPipelineSeamTests {
     func shortChatMessageKeepsItsSeam() async {
         let text = await dictate(["On my way.", "Be there soon."], seeing: Self.chat)
         #expect(text == "On my way. Be there soon")
+    }
+
+    /// Speech with no pause at all, so only the microphone change can end the first piece.
+    @Test("a microphone change mid-speech keeps the words on both sides, recognised apart")
+    func microphoneChangeKeepsBothSides() async throws {
+        let speech = SeamTake.tone(4)
+        let change = speech.count * 2 / 5
+        let take = AudioSamples.canonical(speech, discontinuities: [change])
+
+        let outcome = try #require(
+            await dictateOutcome(["On my way.", "Be there soon."], seeing: Self.chat, take: take))
+
+        #expect(outcome.text == "On my way. Be there soon")
     }
 
     @Test("a seam the recogniser left unmarked is still a sentence end in a chat")
