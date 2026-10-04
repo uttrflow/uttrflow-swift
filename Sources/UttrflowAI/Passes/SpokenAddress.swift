@@ -285,7 +285,7 @@ struct SpokenAddress: Equatable {
             .map(String.init)
     }
 
-    /// Reads an announced file extension, including the special hidden filename `.env`.
+    /// Reads a file name: an ending no one says as a word is enough, an everyday-word ending needs a cue; `.env` too.
     private static func readFileName(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> SpokenAddress? {
@@ -298,23 +298,21 @@ struct SpokenAddress: Equatable {
             let last = draft.shape(at: live[position + 1])
             return SpokenAddress(length: 2, text: first.prefix + ".env" + last.suffix)
         }
-        guard let base = part(from: position, within: run, in: live, of: draft),
-            base.labels.count == 1, base.hasLetter, position + base.length + 1 < run.upperBound
+        // A spoken "dot" carries a part on, so the name and its ending arrive as one part's labels.
+        guard let name = part(from: position, within: run, in: live, of: draft), name.labels.count > 1,
+            name.hasLetter, FunctionWords.isContent(name.labels[0]),
+            let ending = name.labels.last?.lowercased(),
+            fileExtensions.contains(ending),
+            !TechnicalToken.wordLikeFileExtensions.contains(ending)
+                || fileIntroducers.contains(where: { cue in
+                    let start = max(0, position - 3)
+                    return (start..<position).contains { draft.shape(at: live[$0]).key == cue }
+                })
         else { return nil }
-        let dot = position + base.length
-        guard draft.shape(at: live[dot]).key == "dot",
-            let ext = part(from: dot + 1, within: run, in: live, of: draft), ext.labels.count == 1,
-            fileExtensions.contains(ext.labels[0].lowercased()),
-            fileIntroducers.contains(where: { cue in
-                let start = max(0, position - 3)
-                return (start..<position).contains { draft.shape(at: live[$0]).key == cue }
-            })
-        else { return nil }
-        let end = dot + 1 + ext.length
+        let end = position + name.length
         let first = draft.shape(at: live[position])
         let last = draft.shape(at: live[end - 1])
-        return SpokenAddress(
-            length: end - position, text: first.prefix + base.spelled + "." + ext.spelled + last.suffix)
+        return SpokenAddress(length: name.length, text: first.prefix + name.spelled + last.suffix)
     }
 
     /// Reads identifiers and handles only when a local cue establishes their syntactic role.

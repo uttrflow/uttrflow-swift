@@ -33,6 +33,9 @@ public enum TechnicalToken: Equatable, Sendable {
         "yaml", "yml", "toml", "sh", "rb", "go", "rs", "kt", "java", "png", "jpg", "zip",
     ]
 
+    /// File endings that are also everyday spoken words, so "dot" before one needs a cue such as "open" to be a file name.
+    public static let wordLikeFileExtensions: Set<String> = ["swift", "go", "sh", "java", "zip"]
+
     private static func isURL(_ core: String) -> Bool {
         guard let range = core.range(of: "://") else { return false }
         let scheme = core[..<range.lowerBound]
