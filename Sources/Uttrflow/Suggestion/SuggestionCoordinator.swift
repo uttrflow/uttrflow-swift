@@ -836,6 +836,17 @@ final class SuggestionCoordinator {
         front != own && !front.hasPrefix(uttrflowBundlePrefix) && preferences.isEnabled(in: front, at: moment)
     }
 
+    /// Reads a redraw field only while suggestions remain enabled in the same application.
+    nonisolated static func readForFreshDraw(
+        front: String?, snapshot: FocusedFieldSnapshot, own: String?,
+        preferences: SuggestionPreferences, read: @Sendable () async -> FocusedFieldSnapshot?
+    ) async -> FocusedFieldSnapshot? {
+        guard let front, front == snapshot.bundleIdentifier,
+            shouldRead(front: front, own: own, preferences: preferences, at: Date())
+        else { return nil }
+        return await read()
+    }
+
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
     private func turn(_ number: Int, because reason: SuggestionReason) async {
         await rejectedSuggestionRecorder.retry()
@@ -990,7 +1001,12 @@ final class SuggestionCoordinator {
             armedOffer = nil
         }
         entering(.redraw, turn: number)
-        guard let fresh = await FocusedFieldReader.read(), turns.isCurrent(number),
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        guard
+            let fresh = await Self.readForFreshDraw(
+                front: front, snapshot: snapshot, own: ownBundleIdentifier, preferences: preferences,
+                read: { await FocusedFieldReader.read() }),
+            turns.isCurrent(number),
             ModelPass.isFresh(
                 keystrokesBefore: keystrokesSeen, keystrokesNow: session.keystrokes,
                 isCurrent: session.isCurrent,
