@@ -59,6 +59,17 @@ struct ShellWordsTests {
         #expect(words("ls a2>err") == [["ls", "a2"]])
     }
 
+    @Test("Truncating redirections record every numeric descriptor, but duplication and append do not")
+    func truncatingDescriptors() throws {
+        let command = try #require(
+            ShellWords.commands(in: "cmd 0> in.log 2> errors.log 3>| trace.log 9>> append.log", home: "/h"))
+        #expect(command[0].overwrites.map(\.text) == ["in.log", "errors.log", "trace.log"])
+        #expect(command[0].words.map(\.text) == ["cmd"])
+
+        let duplication = try #require(ShellWords.commands(in: "cmd 3>&2", home: "/h"))
+        #expect(duplication[0].overwrites.isEmpty)
+    }
+
     @Test(
         "`>&` before a file sends both outputs there and empties it, and before a descriptor duplicates it.")
     func ampersandRedirection() throws {

@@ -368,7 +368,8 @@ struct DestructiveCommandTests {
         "An output redirection that empties a file first is destructive.",
         arguments: [
             "echo x > notes.txt", "echo \"\" > notes.txt", "> notes.txt", "sort data.csv >| data.csv",
-            "ls 1> listing.txt", "make &> build.log", "echo x >notes.txt", "cat a.txt > b.txt && ls",
+            "ls 1> listing.txt", "make 2> errors.log", "make 3> trace.log", "make 2>| errors.log",
+            "make &> build.log", "echo x >notes.txt", "cat a.txt > b.txt && ls",
             "make 2>&1 | tee build.log", "make >& build.log", "make >&build.log",
             "ls -la >&listing.txt && ls",
         ])
@@ -381,8 +382,9 @@ struct DestructiveCommandTests {
         "An rsync that deletes nothing, and a redirection that empties no file, are ordinary.",
         arguments: [
             "rsync -a src dst", "rsync -av --progress src/ backup/", "echo x >> notes.txt",
-            "make 2> errors.log", "make 2>&1 | tee", "echo x >&2", "make > /dev/null",
-            "make > /dev/null 2>&1", "echo x > /dev/stderr", "make &>> build.log", "sort < data.csv",
+            "make 2>&1 | tee", "make 3>&2", "echo x >&2", "make > /dev/null",
+            "make 2> /dev/null", "make 3>| /dev/stderr", "make > /dev/null 2>&1",
+            "echo x > /dev/stderr", "make &>> build.log", "sort < data.csv",
             "grep '>' notes.txt", "make | tee -a build.log", "make | tee --append build.log", "make | tee",
             "make >&2", "make 1>&-", "make >& /dev/null", "make >>& build.log",
         ])
