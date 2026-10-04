@@ -233,9 +233,12 @@ as the oracle and compares them with the readers on 200,000 random strings over 
 on planted secrets. `SecretShapesScalingTests` bounds the characters read per character of the
 clip, so the check is a count, not a clock.
 
-The classifier's own patterns are written so they cannot backtrack either: a link's address is
-`https?://[^\s/?#]\S*`, a functional colour's arguments `\([^()]*\)`, a call `\w\(\S`, and every line-start rule in
-`CodeShapes` uses `^\h*`, which cannot run through a block of blank lines the way `^\s*` would.
+The classifier's own patterns are written so they cannot backtrack either: HTTP(S) link tokens use
+`https?://[^\s/?#]\S*`, and an explicit scheme list handles other addresses. A clip whose first
+nonblank line is an address or Markdown link, a list of addresses, or an address followed by a title
+can be a link; prose that only contains an address stays text. A functional colour's arguments use
+`\([^()]*\)`, and a call uses `\w\(\S`. Every line-start rule in `CodeShapes` uses `^\h*`, which
+cannot run through a block of blank lines the way `^\s*` would.
 
 ### Word boundaries
 
