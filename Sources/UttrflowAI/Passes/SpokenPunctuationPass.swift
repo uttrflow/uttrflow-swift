@@ -167,7 +167,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             term.applies(in: destination)
                 && (term.id.lowercased() == key
                     || term.spoken.contains {
-                        draft.spells($0.split(separator: " ").map(String.init), at: position, in: live)
+                        // Only a phrase opening on this word can match, so the rest are not read word by word.
+                        $0.split(separator: " ").first.map(String.init) == key
+                            && draft.spells($0.split(separator: " ").map(String.init), at: position, in: live)
                     })
         }
     }

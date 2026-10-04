@@ -475,7 +475,10 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// The keys from `start` up to the first word that carries punctuation.
     private static func unbroken(from start: Int, keys: [String], shapes: [WordShape]) -> ArraySlice<String> {
         var end = start
-        while end < keys.count, end == start || joined(end, shapes) {
+        // A number reads only number words and "and", so the run ends at the first other word.
+        while end < keys.count, end == start || joined(end, shapes),
+            NumberWords.value(of: keys[end]) != nil || keys[end] == "and"
+        {
             end += 1
             if !shapes[end - 1].suffix.isEmpty { break }
         }

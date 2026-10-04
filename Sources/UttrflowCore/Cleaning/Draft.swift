@@ -1,3 +1,4 @@
+private import Synchronization
 /// The words of one utterance, each carrying what the recogniser heard and what has been done to it since.
 public struct Draft: Sendable, Equatable {
     /// One word, its origin, and the pass that last touched it.
@@ -116,7 +117,11 @@ public struct Draft: Sendable, Equatable {
     /// The tokens a line may open with to be read as a list item; `InsertionPoint` reads the same set.
     public static let bulletTokens: Set<String> = ["-", "\u{2022}", "*"]
 
-    public var words: [Word]
+    public var words: [Word] {
+        didSet { presence = PresenceCache() }
+    }
+    /// The present positions, read once per edit rather than once per question a pass asks.
+    private var presence = PresenceCache()
     /// Whether the words carry the recogniser's confidences rather than a stand-in of 1 for every word.
     public let confidencesAreReal: Bool
 
@@ -254,7 +259,13 @@ public struct Draft: Sendable, Equatable {
     public var removed: [Word] { words.filter { !$0.isPresent } }
 
     /// Positions in `words` of the words still in the text, in order.
-    public var presentIndices: [Int] { words.indices.filter { words[$0].isPresent } }
+    public var presentIndices: [Int] {
+        presence.indices { words.indices.filter { words[$0].isPresent } }
+    }
+
+    public static func == (lhs: Draft, rhs: Draft) -> Bool {
+        lhs.words == rhs.words && lhs.confidencesAreReal == rhs.confidencesAreReal
+    }
 
     // MARK: Editing
 
@@ -339,5 +350,17 @@ public struct Draft: Sendable, Equatable {
             Word(
                 text: text, heard: "", confidence: 1, state: .inserted(by: pass),
                 edits: [Word.Edit(by: pass, kind: .inserted, from: "", to: text)]), at: index)
+    }
+}
+
+/// Holds the present positions of one version of a draft's words; an edit replaces it rather than changing it.
+private final class PresenceCache: Sendable {
+    private let stored = Mutex<[Int]?>(nil)
+
+    func indices(_ compute: () -> [Int]) -> [Int] {
+        if let known = stored.withLock({ $0 }) { return known }
+        let computed = compute()
+        stored.withLock { $0 = computed }
+        return computed
     }
 }

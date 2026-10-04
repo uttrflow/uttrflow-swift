@@ -94,7 +94,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
             } else if startOfSentence {
                 cased = keepingPinnedCase(WordShape.capitalised(cased))
             } else if policy == .fromInsertionPoint,
-                Self.followsDemotedSentenceEnd(at: index, in: draft),
+                Self.followsDemotedSentenceEnd(at: order, in: present, of: draft),
                 FunctionWords.holds(WordShape(cased).key),
                 !Self.keepsCapital(cased),
                 !(capitaliseCalendarWords && Self.isCalendarWord(cased)),
@@ -122,9 +122,9 @@ public struct FirstWordPass: WholeTextCleaningPass {
         return draft
     }
 
-    private static func followsDemotedSentenceEnd(at index: Int, in draft: Draft) -> Bool {
-        let live = draft.presentIndices
-        guard let position = live.firstIndex(of: index), position > 0 else { return false }
+    private static func followsDemotedSentenceEnd(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard position > 0 else { return false }
+        let index = live[position]
         let previous = live[position - 1]
         let replacedWithComma = draft.words[previous].edits.contains { edit in
             edit.by == SpokenPunctuationPass.id && edit.kind == .replaced
