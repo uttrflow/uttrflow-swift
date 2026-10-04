@@ -236,6 +236,7 @@ extension PanelSnapshot {
         now: Date
     ) {
         self.clips = clips
+        revalidateTransientTargets()
         checklistProgresses.prune(to: Set(clips.map(\.id)))
         self.missingImages = missingImages
         self.formattableLanguages = formattableLanguages
@@ -247,5 +248,25 @@ extension PanelSnapshot {
             pendingResume = nil
             restore(resume)
         }
+    }
+
+    /// Clears selections, sheets and reveals whose targets disappear from a refreshed list.
+    private mutating func revalidateTransientTargets() {
+        let ids = Set(clips.map(\.id))
+        if let selection, !ids.contains(selection) { self.selection = nil }
+        revealed.formIntersection(ids)
+        guard let sheet else { return }
+        let targetExists: Bool
+        if let clip = sheet.clip {
+            targetExists = ids.contains(clip)
+        } else if let category = sheet.category {
+            targetExists = categories.contains(category)
+        } else {
+            targetExists = false
+        }
+        guard !targetExists else { return }
+        self.sheet = nil
+        notice = PanelNotice(
+            symbolName: "exclamationmark.triangle", message: "That item is no longer available")
     }
 }

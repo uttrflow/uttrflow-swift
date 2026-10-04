@@ -97,6 +97,10 @@ the panel holds no clips and has no idea whether there are any. `PanelSnapshot.i
 marks it, and the presenter says nothing about emptiness and offers nothing to keep until the
 list arrives.
 
+A refresh keeps a selection or open sheet only while its referenced clip or collection remains in the
+list. A vanished sheet closes with a notice. Reveals belong to the current clip list, so a deleted
+and later restored secret is masked again.
+
 ## The line under the list
 
 Precedence: the sheet's keys, then the undo offer, then the empty state's reason, then the
