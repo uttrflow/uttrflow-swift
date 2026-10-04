@@ -290,6 +290,39 @@ struct ClipboardStoreTests {
         #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == restored)
     }
 
+    @Test("restoring a duplicate keeps the newer copy data and restores choices from the deleted clip")
+    func restoreDuplicateKeepsNewerCopyData() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        let deleted = Clip(
+            text: "same text", kind: .text, copiedAt: noon.addingTimeInterval(-60), source: "Older App",
+            lastUsedAt: noon.addingTimeInterval(-30), richText: "<p>older formatting</p>",
+            alias: "/remember", category: "Work", isPinned: true)
+        try await store.record(deleted, keeping: week())
+        try await store.delete(deleted.id, keeping: week())
+
+        let newer = Clip(
+            text: "same text", kind: .text, copiedAt: noon, source: "Newer App",
+            lastUsedAt: noon.addingTimeInterval(30), richText: "<p>newer formatting</p>")
+        try await store.record(newer, keeping: week())
+
+        let restored = try await store.restore(deleted, keeping: week())
+        let clip = try #require(restored.first)
+
+        #expect(restored.count == 1)
+        #expect(clip.id == newer.id)
+        #expect(clip.text == newer.text)
+        #expect(clip.copiedAt == newer.copiedAt)
+        #expect(clip.lastUsedAt == newer.lastUsedAt)
+        #expect(clip.source == newer.source)
+        #expect(clip.richText == newer.richText)
+        #expect(clip.alias == deleted.alias)
+        #expect(clip.category == deleted.category)
+        #expect(clip.isPinned == deleted.isPinned)
+        #expect(clip.timesCopied == 2)
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == restored)
+    }
+
     @Test("tells two different texts apart, however similar")
     func deduplicationIsExact() async throws {
         let file = TemporaryFile()

@@ -160,7 +160,7 @@ public actor ClipboardStore {
         guard let matching = Self.previous(for: clip, in: existing) else {
             return try settled([clip] + existing, keeping: retention)
         }
-        let restored = inheriting(matching, from: clip)
+        let restored = restoring(clip, over: matching)
         let updated = existing.map { $0.id == matching.id ? restored : $0 }
         return try settled(updated, keeping: retention)
     }
@@ -562,6 +562,21 @@ public actor ClipboardStore {
             alias: previous.alias, category: previous.category, isPinned: previous.isPinned,
             // One more time, not a new clip; saturates at Int.max instead of trapping.
             timesCopied: previous.timesCopied == .max ? .max : previous.timesCopied + 1)
+    }
+
+    /// Restoring a duplicate revives the deleted clip's choices without rewinding the newer copy.
+    private func restoring(_ deleted: Clip, over newer: Clip) -> Clip {
+        Clip(
+            id: newer.id, text: newer.text, kind: newer.kind, copiedAt: newer.copiedAt,
+            source: newer.source, origin: newer.origin,
+            dictations: newer.dictations
+                + deleted.dictations.filter { !newer.dictations.contains($0) },
+            dictatedText: newer.dictatedText ?? deleted.dictatedText,
+            lastUsedAt: newer.lastUsedAt, lastUsedOrder: newer.lastUsedOrder,
+            language: newer.language, richText: newer.richText, image: newer.image,
+            alias: newer.alias ?? deleted.alias, category: newer.category ?? deleted.category,
+            isPinned: newer.isPinned || deleted.isPinned,
+            timesCopied: newer.timesCopied == .max ? .max : newer.timesCopied + 1)
     }
 
     /// Applies one edit to one clip, then the retention rules, then writes.
