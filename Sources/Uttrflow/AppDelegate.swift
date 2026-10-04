@@ -317,6 +317,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     lazy var clipInserter: any TextInserting = TextInsertion.coordinator(
         pasteboard: announcingPasteboard)
 
+    /// Replays the last transcript through the clipboard-free dictation route.
+    var lastTranscriptInserter: any TextInserting = TextInsertion.dictation()
+
     /// Panel pastes do not read another app's text field just to decide whether to show a notice.
     private lazy var panelClipInserter: any TextInserting = TextInsertion.coordinator(
         pasteboard: announcingPasteboard, confirmsArrival: false, clipboardFallback: false)
@@ -1650,7 +1653,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         do {
-            _ = try await clipInserter.insert(text)
+            _ = try await lastTranscriptInserter.insert(text)
         } catch {
             render(.failed(DictationFailure(error)))
         }

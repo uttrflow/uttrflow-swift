@@ -20,7 +20,8 @@ its `AX write`, `Paste`, `Confirmed` and `Full route` columns and the secure-fie
 | A dictation | `TextInsertion.dictation()` | Accessibility, typed | Never written. When both refuse, the failure is `insertionNeedsCopy` and the recovery is Copy |
 | An accepted suggestion | `TextInsertion.completion()` (`CompletionRoute`) | Accessibility, typed | Never written; see [predict-accept.md](predict-accept.md) |
 | A clip pasted from the clipboard panel | `TextInsertion.coordinator(…, confirmsArrival: false, clipboardFallback: false)` | Accessibility, paste, typed | Written by the paste and left there; arrival is not checked |
-| A clip or recent dictation inserted from the menu bar or main window, and the Paste last transcript shortcut | `TextInsertion.coordinator(…)` | Accessibility, paste, clipboard | Written by the paste, or by the clipboard floor when everything else refuses; a paste's arrival is checked |
+| A clip or recent dictation inserted from the menu bar or main window | `TextInsertion.coordinator(…)` | Accessibility, paste, clipboard | Written by the paste, or by the clipboard floor when everything else refuses; a paste's arrival is checked |
+| The Paste last transcript shortcut | `TextInsertion.dictation()` | Accessibility, typed | Never written; if both strategies refuse, the transcript stays available for explicit Copy |
 | A secret clip | either clip route over `ConcealingPasteboard` | as above | Every text write carries `org.nspasteboard.ConcealedType` |
 | A picture clip | `PasteboardImageInsertionEngine` | paste | The picture stays on the clipboard, since a paste whose arrival is not confirmed cannot be safely undone |
 | A retry of a kept recording | `ClipboardTextInsertionEngine` alone | clipboard | Written; see [recordings.md](recordings.md) |

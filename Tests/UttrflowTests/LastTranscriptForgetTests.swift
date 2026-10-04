@@ -91,11 +91,14 @@ struct LastTranscriptForgetTests {
 
         let app = AppDelegate(container: sandbox.root)
         let insertion = InsertionRecorder()
-        app.clipInserter = insertion
+        let clipboardRoute = InsertionRecorder()
+        app.lastTranscriptInserter = insertion
+        app.clipInserter = clipboardRoute
         await app.restoreLastTranscript()
         await app.perform(.pasteLastTranscript)
 
         #expect(await insertion.inserted == ["Newest words"])
+        #expect(await clipboardRoute.inserted.isEmpty)
         #expect(app.lastTranscriptID == newest.id)
     }
 
