@@ -95,15 +95,19 @@ struct CompletionParsingTests {
     }
 
     @Test(
-        "One slip inside the echo, two characters swapped or one added or changed, still reads past what was typed."
+        "Swapped characters and same-word spelling forms are read past; an added letter cannot change the word."
     )
-    func oneSlipInTheEchoIsReadPast() {
+    func echoSlipMustPreserveTheWord() {
         #expect(CompletionText.continuation(of: "don't know", past: "dont") == " know")
         #expect(CompletionText.continuation(of: "the quick fix", past: "teh") == " quick fix")
-        #expect(CompletionText.continuation(of: "receive the parcel", past: "recieve") == " the parcel")
         #expect(CompletionText.continuation(of: "git commit -m", past: "gitcommit") == " -m")
-        #expect(CompletionText.continuation(of: "colour scheme", past: "color") == " scheme")
         #expect(CompletionText.continuation(of: "git  commit -m", past: "git commit") == " -m")
+        #expect(CompletionText.continuation(of: "runs fast", past: "run ") == "fast")
+        #expect(CompletionText.continuation(of: "receive the parcel", past: "recieve") == " the parcel")
+        #expect(CompletionText.continuation(of: "colour scheme", past: "color") == nil)
+        #expect(CompletionText.continuation(of: "she is going", past: "he is") == nil)
+        #expect(CompletionText.continuation(of: "her is going", past: "he is") == nil)
+        #expect(CompletionText.parse("she is going", typed: "he is").isEmpty)
         #expect(CompletionText.parse("don't know\n", typed: "dont") == ["dont know"])
         #expect(CompletionText.parse("The quick fix", typed: "teh") == ["teh quick fix"])
     }

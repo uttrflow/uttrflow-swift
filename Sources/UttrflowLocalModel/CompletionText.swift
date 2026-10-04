@@ -1,6 +1,7 @@
 // The text a suggestion pass is read through: echoes found, copies of the screen cut, runaway lines refused.
 
 import Foundation
+import UttrflowAI
 import UttrflowCore
 import UttrflowPredict
 
@@ -366,13 +367,47 @@ enum CompletionText {
         {
             resumes.append((line.index(after: next), matched + 2))
         }
-        // An added character is stepped over; a changed one stands in for a typed one only when more typed text follows to vouch for it.
-        resumes.append((next, matched))
-        if matched + piece.count < wanted.count { resumes.append((next, matched + piece.count)) }
+        // A letter added to or changed in the echo must leave its whole word in an accepted form.
+        let letterSlip = letterSlipNeedsSameForm(line, at: index, wanted: wanted, matched: matched)
+        let sameWord =
+            letterSlip && sameWordAfterAddedLetter(line, at: index, wanted: wanted, matched: matched)
+        if sameWord {
+            resumes.append((next, matched))
+        }
+        if matched + piece.count < wanted.count, !letterSlip || sameWord {
+            resumes.append((next, matched + piece.count))
+        }
         for (start, matched) in resumes {
             if case .read(let end) = echo(of: wanted, in: line, from: start, matched: matched) { return end }
         }
         return nil
+    }
+
+    /// Whether this departure changes a letter rather than omitting the space before the next word.
+    private static func letterSlipNeedsSameForm(
+        _ line: String, at index: String.Index, wanted: [Character], matched: Int
+    ) -> Bool {
+        guard matched < wanted.count else { return line[index].isLetter }
+        guard wanted[matched].isLetter || line[index].isLetter else { return false }
+        guard wanted[matched].isWhitespace, line[index].isLetter else { return true }
+        return wanted[matched...].drop(while: \.isWhitespace).first != line[index]
+    }
+
+    /// Whether an inserted letter leaves the echoed word in a form accepted for the typed word.
+    private static func sameWordAfterAddedLetter(
+        _ line: String, at index: String.Index, wanted: [Character], matched: Int
+    ) -> Bool {
+        guard line[index].isLetter else { return false }
+        let probe = matched < wanted.count && wanted[matched].isLetter ? matched : matched - 1
+        guard probe >= 0, wanted[probe].isLetter else { return false }
+        let typedWordStart = wanted[..<probe].lastIndex(where: { !$0.isLetter }).map { $0 + 1 } ?? 0
+        let typedWordEnd = wanted[probe...].firstIndex(where: { !$0.isLetter }) ?? wanted.count
+        let echoWordStart =
+            line[..<index].lastIndex(where: { !$0.isLetter }).map { line.index(after: $0) } ?? line.startIndex
+        let echoWordEnd = line[index...].firstIndex(where: { !$0.isLetter }) ?? line.endIndex
+        let typedWord = String(wanted[typedWordStart..<typedWordEnd])
+        let echoWord = comparable(String(line[echoWordStart..<echoWordEnd]))
+        return WordForms.sameForm(typedWord, echoWord)
     }
 
     /// The text as it compares: lowercased, without the marks and repeated spaces a model tends to rewrite.

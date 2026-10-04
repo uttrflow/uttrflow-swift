@@ -2,9 +2,9 @@
 import UttrflowCore
 
 /// Whether two spellings are one word, shared by the guard, the passes and the correction engine.
-enum WordForms {
+public enum WordForms {
     /// Whether two words have the same spelling, a reviewed Hindi respelling, or a listed verb form.
-    static func sameForm(
+    public static func sameForm(
         _ word: String, _ other: String, allowingRegularInflections: Bool = true,
         allowingRomanisedHindiSpellings: Bool = false
     ) -> Bool {
