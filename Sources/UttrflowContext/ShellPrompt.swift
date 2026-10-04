@@ -22,14 +22,15 @@ public enum ShellPrompt {
 
     /// Credential terms used to keep terminal replies out of prediction and capture.
     private static let credentialTerms: Set<String> = [
-        "password", "passwort", "kennwort", "passphrase", "pin", "passcode", "code", "otp",
-        "token", "पासवर्ड", "पासफ़्रेज़", "पिन", "कोड", "टोकन",
+        "password", "passwort", "kennwort", "passphrase", "passe", "contraseña", "pin",
+        "passcode", "code", "otp", "token", "पासवर्ड", "पासफ़्रेज़", "पिन", "कोड", "टोकन",
     ]
 
     /// Words allowed before a credential term in a prompt label.
     private static let credentialPromptWords: Set<String> = [
-        "a", "confirm", "current", "empty", "enter", "for", "input", "new", "no", "of",
-        "one", "please", "provide", "repeat", "reenter", "security", "the", "time", "type",
+        "a", "again", "authentication", "confirm", "current", "de", "empty", "enter", "factor",
+        "for", "input", "mfa", "mot", "new", "no", "of", "old", "one", "please", "provide",
+        "repeat", "reenter", "retype", "same", "security", "the", "time", "two", "type", "unix",
         "verification", "your",
     ]
 
@@ -200,7 +201,11 @@ public enum ShellPrompt {
     /// Whether a terminal line is asking for a credential rather than a shell command.
     static func isCredentialPrompt(in line: String) -> Bool {
         let prefix = line.prefix(searchLimit)
-        guard let colon = prefix.firstIndex(where: credentialColons.contains) else { return false }
+        guard let colon = prefix.firstIndex(where: credentialColons.contains) else {
+            guard prefix.endIndex == line.endIndex else { return false }
+            let label = String(prefix).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return credentialTerms.contains(label)
+        }
         let label = String(prefix[..<colon]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return introducesCredential(label)
     }
