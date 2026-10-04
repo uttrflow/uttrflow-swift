@@ -209,6 +209,37 @@ struct SettingsSuggestionApplicationListTests {
                 == .action(title: "Remove", change: .suggestionsHere(application: notes, isOn: true)))
     }
 
+    @Test("removing an absent application's row clears its saved per-app choices")
+    func removingAnAbsentApplicationPrunesItsChoices() throws {
+        let absent = "com.example.uninstalled"
+        var settings = switchedOn()
+        settings.suggestions.set(absent, isOn: false)
+        settings.suggestions.setAcceptKey(.rightArrow, in: absent)
+
+        let listing = try #require(row("suggestionsIn.\(absent)", in: pane(settings)))
+        #expect(
+            listing.control
+                == .action(
+                    title: "Remove", change: .suggestionsHere(application: absent, isOn: true)))
+
+        let pruned = try SettingsEditor.apply(
+            .suggestionsHere(application: absent, isOn: true), to: settings)
+
+        #expect(!pruned.suggestions.turnedOff.contains(absent))
+        #expect(!pruned.suggestions.turnedOn.contains(absent))
+        #expect(pruned.suggestions.chosenAcceptKeys[absent] == nil)
+        #expect(!pruned.suggestions.knownApplications().contains { $0.bundleIdentifier == absent })
+    }
+
+    @Test("removing a shipped opt-out leaves it switched on")
+    func removingAShippedOptOutLeavesItOn() throws {
+        let updated = try SettingsEditor.apply(
+            .suggestionsHere(application: vscode, isOn: true), to: switchedOn())
+
+        #expect(updated.suggestions.state(of: vscode) == .on)
+        #expect(updated.suggestions.turnedOn.contains(vscode))
+    }
+
     @Test("lists an application that was switched off, so switching off cannot hide one")
     func switchingOffCannotHideAnApplication() throws {
         var settings = switchedOn()

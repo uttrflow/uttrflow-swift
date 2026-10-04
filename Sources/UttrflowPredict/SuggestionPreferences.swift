@@ -206,6 +206,17 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         chosenAcceptKeys[ApplicationKey.of(bundleIdentifier)] = key
     }
 
+    /// Removes per-application overrides, keeping shipped opt-outs on only when explicitly removed.
+    public mutating func removePreferences(for bundleIdentifier: String) {
+        let identifier = ApplicationKey.of(bundleIdentifier)
+        turnedOff.remove(identifier)
+        turnedOn.remove(identifier)
+        chosenAcceptKeys[identifier] = nil
+        if SuggestionApplications.isOffByDefault(identifier) {
+            turnedOn.insert(identifier)
+        }
+    }
+
     /// Starts a pause everywhere, or lifts one that is still running.
     public mutating func setPaused(_ isPaused: Bool, at moment: Date) {
         pausedUntil = isPaused ? moment.addingTimeInterval(Self.pause) : nil

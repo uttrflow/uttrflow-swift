@@ -60,7 +60,11 @@ public enum SettingsEditor {
             updated.destinations = updated.destinations.removing(bundle)
         case .suggestionsHere(let application, let isOn):
             try requireSuggestionsAreOn(in: settings)
-            updated.suggestions.set(application, isOn: isOn)
+            if isOn {
+                updated.suggestions.removePreferences(for: application)
+            } else {
+                updated.suggestions.set(application, isOn: false)
+            }
         case .suggestionAcceptKey(let application, let key):
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setAcceptKey(key, in: application)
