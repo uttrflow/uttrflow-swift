@@ -589,9 +589,14 @@ struct DestructiveCommandTests {
         arguments: [
             "dropdb mydb", "dropdb -h db.example.com mydb", "dropuser app", "redis-cli FLUSHALL",
             "redis-cli -h cache.example.com -n 2 flushdb", "valkey-cli flushall",
+            "DROP KEYSPACE app", "DROP VIEW users", "DROP MATERIALIZED VIEW events_mv", "DROP USER app",
+            "DROP ROLE analyst", "DROP TYPE mood", "DROP FUNCTION score", "DROP PROCEDURE refresh",
             #"mongosh mydb --eval "db.dropDatabase()""#, #"mongo mydb --eval "db.users.drop()""#,
             #"mongosh --eval "db.users.deleteMany({})""#, #"sqlite3 app.db "DELETE FROM users""#,
             #"psql -c "DELETE FROM users WHERE id = 1""#, "DELETE FROM users",
+            #"cqlsh -e "DROP KEYSPACE app""#,
+            #"clickhouse-client -q "ALTER TABLE logs DELETE WHERE 1""#,
+            #"clickhouse-client -q "ALTER TABLE logs DROP PARTITION '2026-10'""#,
         ])
     func datastoreDeletionsAreDestructive(_ line: String) {
         #expect(
@@ -603,6 +608,7 @@ struct DestructiveCommandTests {
         arguments: [
             #"psql -c "select 1""#, "redis-cli get k", "redis-cli info", #"mongosh --eval "db.users.find()""#,
             #"sqlite3 app.db "SELECT * FROM users""#, "createdb mydb",
+            #"clickhouse-client -q "SELECT * FROM logs""#,
         ])
     func datastoreReadsAreOrdinary(_ line: String) {
         #expect(!DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be ordinary")

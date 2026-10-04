@@ -654,17 +654,7 @@ public enum DestructiveCommand {
             }
             return false
         }
-        // SQL that drops or empties a table, wherever the verb sits in the statement.
-        let sequence = ([command] + lowered).flatMap {
-            $0.split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "_" }).map(String.init)
-        }
-        let words = Set(sequence)
-        if words.contains("drop"), words.contains(where: droppableObject) { return true }
-        // A DELETE empties rows wherever its FROM follows, with or without a WHERE.
-        if let delete = sequence.firstIndex(of: "delete"), sequence[delete...].contains("from") {
-            return true
-        }
-        return words.contains("truncate")
+        return SQLDestructiveCommand.matches(command: command, arguments: lowered)
     }
 
     /// Calls in a MongoDB shell script that drop a database or a collection, or delete its documents.
@@ -878,8 +868,4 @@ public enum DestructiveCommand {
         "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env",
     ]
 
-    /// The kinds of thing a DROP destroys, which is what makes the statement irreversible.
-    private static func droppableObject(_ word: String) -> Bool {
-        word == "table" || word == "database" || word == "schema" || word == "index"
-    }
 }
