@@ -169,7 +169,8 @@ word must be at least 12 characters (shorter values are too common in identifier
 ASCII letters, digits or the printable ASCII symbols the scanner allows, and contain both a
 letter and a digit. The byte and character readers use the same alphabet. Hex of 32 or more
 characters is a digest outright, because a sixteen-symbol alphabet can never reach the general
-floor. Anything that opens like a path is left to the general rules.
+floor. Canonical UUIDs, anything that opens like a path, and joined words are exempted by the
+same rule in both the byte and character readers.
 
 Measured over three thousand random base64 strings at each length: a floor of 4.0 catches 96%
 of 24-character tokens and everything longer; 3.8 catches 99.8%. The difference is the

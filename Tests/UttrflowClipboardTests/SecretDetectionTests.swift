@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowClipboard
 
@@ -187,6 +188,41 @@ struct SecretDetectionTests {
     func uuids(_ text: String) {
         #expect(!SecretShapes.looksGenerated(text))
         #expect(ClipKindDetector.kind(of: text) == .text)
+    }
+
+    @Test("the byte and character readers leave canonical UUIDs alone")
+    func uuidReadersAgree() {
+        let examples = [
+            "99512f9b-a5c5-4507-a498-a66ccae430d7",
+            "99512F9B-A5C5-4507-A498-A66CCAE430D7",
+        ]
+        for uuid in examples {
+            #expect(!SecretShapes.hasHighEntropyToken(uuid))
+            #expect(!SecretShapes.hasHighEntropyTokenByCharacter(uuid))
+            #expect(
+                SecretShapes.hasHighEntropyToken(uuid) == SecretShapes.hasHighEntropyTokenByCharacter(uuid))
+        }
+
+        var random = Seeded(seed: 441_900)
+        for _ in 0..<1_000 {
+            let uuid = Self.randomUUID(&random)
+            #expect(!SecretShapes.hasHighEntropyToken(uuid), "byte reader masked \(uuid)")
+            #expect(!SecretShapes.hasHighEntropyTokenByCharacter(uuid), "character reader masked \(uuid)")
+            #expect(
+                SecretShapes.hasHighEntropyToken(uuid) == SecretShapes.hasHighEntropyTokenByCharacter(uuid))
+        }
+    }
+
+    private static func randomUUID(_ random: inout Seeded) -> String {
+        let alphabet = Array("0123456789abcdef")
+        let groups = [8, 4, 4, 4, 12].map { length in
+            var group = ""
+            for _ in 0..<length {
+                group.append(alphabet[Int(random.next() % UInt64(alphabet.count))])
+            }
+            return group
+        }
+        return groups.joined(separator: "-")
     }
 
     @Test("keeps masking generated tokens and rejects malformed UUID lookalikes")
