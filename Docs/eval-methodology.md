@@ -222,3 +222,18 @@ What is deliberately not done matters as much as what is:
   hundred dictations in a working day is roughly a third of a gigabyte. Anything looser would
   call that noise. Growth that wobbles is "suspect" and needs a longer run; two readings are
   "undetermined", which is not a pass. Readings are in [`performance-leaks.md`](performance-leaks.md).
+
+## The contamination audit
+
+- `ContaminationAudit` is the one check that no tuned-on text carries a corpus passage. It reads
+  every clean-up case's spoken and expected text and every transcription passage in each form it
+  is written in, and reports the case id, the asset and the shared words.
+- An asset fails on a run of 8 or more consecutive words shared with a passage
+  (`ContaminationAudit.sharedRunWords`), or on a phrase of 4 or more words that sits whole inside
+  one (`ContaminationAudit.wholePhraseWords`). Function words are exempt by these lengths, not by
+  a word list: any two English texts share runs of two or three of them.
+- The prompt check passes 3 as the shortest phrase, because rules quote slips that short.
+- Measured on Apple M5 Pro: 0 findings across the prompt contract, rules and worked examples, and
+  across every `.txt` and `.json` file under `Sources/*/Resources`, so 0 false positives today
+  (`swift test --filter ContaminationAuditTests`).
+- Bundled assets are found by walking `Sources/*/Resources` until the data manifest lists them.

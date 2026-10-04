@@ -551,31 +551,19 @@ struct CorpusIndependenceTests {
         }
     }
 
+    /// Quoted fragments are checked whole from three words, stricter than the audit's default, since a rule quotes slips.
     private func knownContamination(in prompt: PromptBuilder) -> [(caseID: String, fragment: String)] {
         let instructions =
             [prompt.contract] + prompt.blocks.values.sorted { $0.id.rawValue < $1.id.rawValue }.map(\.rules)
         let fragments =
-            instructions.flatMap(quotedFragments(in:))
+            instructions + instructions.flatMap(quotedFragments(in:))
             + prompt.contractExamples
             .flatMap(\.sentences)
             + prompt.blocks.values.sorted { $0.id.rawValue < $1.id.rawValue }.flatMap(\.examples).flatMap(
                 \.sentences)
-        return EvaluationCorpus.all.flatMap { testCase in
-            let corpusText = [testCase.spoken, testCase.expected].map { Scorer.tokens($0) }
-            return fragments.compactMap { fragment -> (caseID: String, fragment: String)? in
-                let fragmentWords = Scorer.tokens(fragment)
-                guard fragmentWords.count >= 3,
-                    corpusText.contains(where: { containsRun(fragmentWords, in: $0) })
-                else { return nil }
-                return (testCase.id, fragment)
-            }
-        }
-    }
-
-    private func containsRun(_ words: [String], in corpus: [String]) -> Bool {
-        guard words.count <= corpus.count else { return false }
-        return (0...(corpus.count - words.count)).contains { start in
-            Array(corpus[start..<(start + words.count)]) == words
+        let audit = ContaminationAudit(passages: ContaminationAudit.corpusPassages, shortestPhrase: 3)
+        return fragments.flatMap { fragment in
+            audit.findings(in: fragment, asset: "prompt").map { (caseID: $0.caseID, fragment: fragment) }
         }
     }
 
