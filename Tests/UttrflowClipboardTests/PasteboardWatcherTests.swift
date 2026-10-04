@@ -385,6 +385,34 @@ struct PasteboardWatcherTests {
         #expect(noticed?.picture?.data == Data([0x47, 0x49, 0x46]))
     }
 
+    @Test("records a picture when its RTF flavour has no text")
+    func pictureWithEmptyRTF() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        let image = (data: Data([0x47, 0x49, 0x46]), width: 1, height: 1)
+        let rtf = Data(#"{\rtf1 }"#.utf8)
+        clipboard.write(nil, rtf: rtf, picture: image)
+
+        #expect(RichTextPlainForm.plainText(fromRTF: rtf) == "")
+        let noticed = await watcher.newClip(at: noon)
+        #expect(noticed?.clip.kind == .image)
+        #expect(noticed?.picture?.data == image.data)
+    }
+
+    @Test("keeps meaningful RTF text when the copy also has a picture")
+    func pictureWithRTFText() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        let image = (data: Data([0x47, 0x49, 0x46]), width: 1, height: 1)
+        clipboard.write(nil, rtf: Data(#"{\rtf1 Notes}"#.utf8), picture: image)
+
+        let noticed = await watcher.newClip(at: noon)
+
+        #expect(noticed?.clip.text == "Notes")
+        #expect(noticed?.clip.kind != .image)
+        #expect(noticed?.picture?.data == image.data)
+    }
+
     @Test("ignores a rich-only copy that is blank as plain text")
     func blankRichOnlyCopy() async {
         let clipboard = FakeClipboard()

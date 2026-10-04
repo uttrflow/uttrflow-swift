@@ -231,7 +231,7 @@ public actor PasteboardWatcher {
         } else {
             picture = nil
         }
-        if copied == nil, rtfText == nil, let picture {
+        if copied == nil, !ClipContent.isWorthKeeping(rtfText ?? ""), let picture {
             guard !markers.contains(.concealed), source.changeCount() == count else { return nil }
             return NoticedClip(
                 clip: Clip(
