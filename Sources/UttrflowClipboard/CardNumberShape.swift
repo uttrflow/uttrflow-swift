@@ -53,7 +53,10 @@ enum CardNumberShape {
 
     /// The text with fullwidth forms as ASCII, line breaks as `\n` and other spaces as U+0020, character for character; `nil` when nothing changes.
     static func printedForm(of text: Substring) -> String? {
-        guard text.unicodeScalars.contains(where: { isRewritten($0.value) }) else { return nil }
+        guard
+            text.unicodeScalars.contains(where: { isRewritten($0.value) })
+                || text.contains(where: hasDigitWithCombiningMarks)
+        else { return nil }
         return String(text.map(printed))
     }
 
@@ -61,7 +64,12 @@ enum CardNumberShape {
     private static func printed(_ character: Character) -> Character {
         let scalars = character.unicodeScalars
         guard scalars.count == 1 || character == "\r\n", let value = scalars.first?.value else {
-            return character
+            guard hasDigitWithCombiningMarks(character), let value = scalars.first?.value else {
+                return character
+            }
+            let digit = fullwidthDigits.contains(value) ? value - 0xFEE0 : value
+            guard let scalar = Unicode.Scalar(digit) else { return character }
+            return Character(scalar)
         }
         if character.isNewline { return "\n" }
         if character.isWhitespace { return " " }
@@ -69,6 +77,22 @@ enum CardNumberShape {
         return Character(Unicode.Scalar(UInt8(value - 0xFEE0)))
     }
 
+    /// Whether a decimal digit forms one grapheme with only combining marks.
+    private static func hasDigitWithCombiningMarks(_ character: Character) -> Bool {
+        let scalars = character.unicodeScalars
+        guard scalars.count > 1, let first = scalars.first,
+            first.value <= 0x7F && (0x30...0x39).contains(first.value)
+                || fullwidthDigits.contains(first.value)
+        else { return false }
+        return scalars.dropFirst().allSatisfy { scalar in
+            switch scalar.properties.generalCategory {
+            case .nonspacingMark, .spacingMark, .enclosingMark: true
+            default: false
+            }
+        }
+    }
+
+    /// Whether a scalar needs rewriting before the card pattern sees the printed characters.
     private static func isRewritten(_ value: UInt32) -> Bool {
         guard value != 0x20, value != 0x0A else { return false }
         return fullwidthASCII.contains(value) || Unicode.Scalar(value)?.properties.isWhitespace == true

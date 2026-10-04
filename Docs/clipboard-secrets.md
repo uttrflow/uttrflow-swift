@@ -79,7 +79,8 @@ by few of them.
    percent-decoded first (`access%5Ftoken`), a host's closing dot is ignored
    (`hooks.slack.com.`), and a URL nested after a later `://` in another one's path or query
    (`?next=https://hooks.slack.com/…`) is judged as its own address. Each nested address is read
-   only up to the next `://`, so the reading stays linear in the clip.
+   only up to the next `://`, so the reading stays linear in the clip. A URL also ends at a
+   non-ASCII scalar, so adjacent copied punctuation or text cannot change its final path segment.
 6. A URL whose userinfo is one generated token with no colon (`https://<40 hex>@host/repo`), by
    the statistical rule below applied to the userinfo; `https://readonly@host` stays a link.
 7. Vendor prefixes with a minimum length each (`SecretShapes.vendorKey`): OpenAI, Anthropic,
@@ -171,6 +172,11 @@ letter and a digit. The byte and character readers use the same alphabet. Hex of
 characters is a digest outright, because a sixteen-symbol alphabet can never reach the general
 floor. Anything that opens like a path is left to the general rules.
 
+Characters outside the token alphabet at the edge of an ASCII run do not become part of the
+credential: each ASCII run in a whitespace-delimited word is judged on its own. The byte reader
+trims those edge characters, and the Character reader uses the same ASCII runs, so curly quotes,
+accents, zero-width characters, emoji and combining marks beside a token cannot hide it.
+
 Measured over three thousand random base64 strings at each length: a floor of 4.0 catches 96%
 of 24-character tokens and everything longer; 3.8 catches 99.8%. The difference is the
 shortest, unluckiest, most repetitive keys, and a key is no less live for a repeated character.
@@ -196,6 +202,8 @@ forms as ASCII, line breaks as `\n` and other `Character.isWhitespace` spaces as
 digits must then carry a prefix some network issues under at that length (Visa, Mastercard,
 American Express, Diners Club, JCB, Discover, UnionPay, RuPay, Mir, Maestro) and pass the Luhn
 check.
+Combining marks attached to a card's first or last digit are removed in this printed form, so they
+do not change which digits the card pattern reads.
 
 Luhn alone passes one number in ten, which is too many for order numbers and timestamps; a
 network prefix at the right length is what rules out `1700000000000000` (a timestamp in

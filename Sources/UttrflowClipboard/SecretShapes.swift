@@ -142,7 +142,16 @@ public enum SecretShapes {
     static func hasHighEntropyTokenByCharacter(_ text: String) -> Bool {
         guard !text.contains(where: \.isNewline) else { return false }
         return text.split(whereSeparator: \.isWhitespace).contains { word in
-            quotedPieces(of: Array(word)).contains { looksGenerated(String($0)) }
+            var run: [UInt8] = []
+            for scalar in word.unicodeScalars {
+                guard scalar.isASCII else {
+                    if wordLooksGenerated(run) { return true }
+                    run.removeAll(keepingCapacity: true)
+                    continue
+                }
+                run.append(UInt8(scalar.value))
+            }
+            return wordLooksGenerated(run)
         }
     }
 
@@ -179,11 +188,22 @@ public enum SecretShapes {
 
     /// `quotedPieces` over an ASCII word, copying it only when it holds a quote mark.
     private static func asciiWordLooksGenerated(_ word: UnsafeBufferPointer<UInt8>) -> Bool {
+        var start = 0
+        var end = word.count
+        while start < end, !isTokenByte(word[start]) { start += 1 }
+        while end > start, !isTokenByte(word[end - 1]) { end -= 1 }
+        guard start < end else { return false }
+        let token = UnsafeBufferPointer(rebasing: word[start..<end])
         let marks: [UInt8] = [0x22, 0x27]
-        guard word.contains(where: marks.contains) else { return looksGenerated(word) }
-        return quotedPieces(of: Array(word), marks: marks).contains { piece in
+        guard token.contains(where: marks.contains) else { return looksGenerated(token) }
+        return quotedPieces(of: Array(token), marks: marks).contains { piece in
             piece.withUnsafeBufferPointer { looksGenerated($0) }
         }
+    }
+
+    /// A scalar-delimited token returned by the Character path, using the byte path's boundary and alphabet rules.
+    private static func wordLooksGenerated(_ word: [UInt8]) -> Bool {
+        word.withUnsafeBufferPointer { asciiWordLooksGenerated($0) }
     }
 
     /// `looksGenerated` for an ASCII token, byte for character.
@@ -266,9 +286,17 @@ public enum SecretShapes {
 
     /// Uses the byte scanner's exact alphabet; Swift classifies some of its symbols outside punctuation.
     private static func isTokenCharacter(_ character: Character) -> Bool {
-        character.isLetter && character.isASCII
-            || character.isNumber && character.isASCII
-            || "+/=_-!@#$%^&*()[]{}:;,.?~`\\|<>\"'".contains(character)
+        character.unicodeScalars.count == 1
+            && character.unicodeScalars.first.map {
+                $0.isASCII
+                    && isTokenByte(UInt8($0.value))
+            } == true
+    }
+
+    /// Whether a byte belongs to the statistical token alphabet.
+    private static func isTokenByte(_ byte: UInt8) -> Bool {
+        (0x30...0x39).contains(byte) || (0x41...0x5A).contains(byte) || (0x61...0x7A).contains(byte)
+            || "+/=_-!@#$%^&*()[]{}:;,.?~`\\|<>\"'".utf8.contains(byte)
     }
 
     /// A path shares base64's alphabet, so anything that opens like one is left to the general rules.

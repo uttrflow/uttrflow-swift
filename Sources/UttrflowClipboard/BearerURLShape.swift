@@ -58,7 +58,8 @@ enum BearerURLShape {
 
     /// Whether a byte cannot stand in a URL as copied: ASCII space or control, a quote or an angle bracket.
     private static func endsURL(_ byte: UInt8) -> Bool {
-        byte <= 0x20 || byte == 0x7F || byte == UInt8(ascii: "\"") || byte == UInt8(ascii: "'")
+        byte <= 0x20 || byte >= 0x80 || byte == 0x7F || byte == UInt8(ascii: "\"")
+            || byte == UInt8(ascii: "'")
             || byte == UInt8(ascii: "<") || byte == UInt8(ascii: ">") || byte == UInt8(ascii: "`")
     }
 

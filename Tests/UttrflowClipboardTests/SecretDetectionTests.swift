@@ -176,6 +176,48 @@ struct SecretDetectionTests {
         }
     }
 
+    @Test("keeps generated credentials detectable beside non-ASCII characters")
+    func generatedCredentialsAtNonASCIIBoundaries() {
+        let tokens = [
+            Self.keyBase,
+            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh",
+            "K9x$Qz7Tr2Bn8LmVa",
+        ]
+        let boundaries = ["’", "é", "\u{200B}", "😀", "\u{0301}", "\u{00A0}"]
+
+        for token in tokens {
+            let byteResult = SecretShapes.hasHighEntropyToken(token)
+            #expect(byteResult)
+            #expect(SecretShapes.hasHighEntropyTokenByCharacter(token) == byteResult)
+            for boundary in boundaries {
+                for text in [boundary + token, token + boundary] {
+                    #expect(
+                        SecretShapes.hasHighEntropyTokenByCharacter(text) == byteResult,
+                        "Character path changed the result for \(text.debugDescription)")
+                    #expect(
+                        SecretShapes.hasHighEntropyToken(text) == byteResult,
+                        "Detection changed the result for \(text.debugDescription)")
+                    #expect(SecretShapes.matches(text), "Missed \(text.debugDescription)")
+                }
+            }
+        }
+    }
+
+    @Test("keeps bearer URLs and card numbers detectable beside non-ASCII characters")
+    func bearerURLsAndCardsAtNonASCIIBoundaries() {
+        let webhook = "hooks.slack.com/services/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"
+        for boundary in ["’", "é", "\u{200B}", "😀", "\u{0301}", "\u{00A0}"] {
+            for text in [boundary + webhook, webhook + boundary] {
+                #expect(SecretShapes.matches(text), "Missed \(text.debugDescription)")
+                #expect(ClipKindDetector.kind(of: text) == .secret)
+            }
+        }
+
+        #expect(SecretShapes.matches("4111111111111111\u{0301}"))
+        #expect(ClipKindDetector.kind(of: "4111111111111111\u{0301}") == .secret)
+    }
+
     @Test(
         "leaves canonical UUIDs as ordinary text",
         arguments: [
