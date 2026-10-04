@@ -162,10 +162,13 @@ final class SuggestionPanelController {
             suggestion, typed: typed, selection: next.selection, fieldPointSize: next.fieldPointSize,
             appearance: Self.appearance(), acceptKey: next.acceptKey, fontFamily: next.fontFamily,
             isBold: next.isBold, isItalic: next.isItalic,
-            fieldTextColor: next.textColor)
+            fieldTextColor: next.textColor,
+            direction: next.direction == .rightToLeft ? .rightToLeft : .leftToRight)
         guard let remaining = after.inline else { return false }
-        // The caret moves by exactly the width the typed characters took off the ghost, so the rest does not shift.
-        next.caret = caret.offsetBy(dx: drawnWidth - width(of: remaining, in: after), dy: 0)
+        // Keep the rest of the ghost where it was as the caret advances in its writing direction.
+        let advancedWidth = drawnWidth - width(of: remaining, in: after)
+        let direction: CGFloat = next.direction == .rightToLeft ? -1 : 1
+        next.caret = caret.offsetBy(dx: direction * advancedWidth, dy: 0)
         request = next
         return render()
     }

@@ -164,6 +164,31 @@ struct SuggestionSurfaceTests {
         #expect(panel.withdrawals == withdrawals)
     }
 
+    @Test("Typing through an RTL ghost keeps the remaining text at the same frame")
+    func typingThroughRTLTheGhostNeverHidesIt() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let caret = CGRect(x: screen.minX + 400, y: screen.midY, width: 0, height: 17)
+        let panel = SuggestionPanelController.shared
+        defer { panel.hide() }
+        let line = "see you at the station"
+        panel.show(
+            .certain(line), typed: "see", placement: .inlineGhost, direction: .rightToLeft,
+            caret: caret, fieldPointSize: 13)
+        let withdrawals = panel.withdrawals
+        let end = panel.window.frame.maxX
+        var typed = "see"
+        for character in " you " {
+            typed.append(character)
+            let placements = panel.placements
+            #expect(panel.advance(to: typed, showing: .certain(line)))
+            #expect(panel.placements == placements + 1)
+            #expect(panel.window.isVisible)
+            #expect(panel.drawn.inline?.ghost == String(line.dropFirst(typed.count)))
+            #expect(abs(panel.window.frame.maxX - end) <= 2)
+        }
+        #expect(panel.withdrawals == withdrawals)
+    }
+
     @Test("VoiceOver is told once as a suggestion appears, not on a redraw, and not when it cannot be drawn")
     func aSuggestionIsAnnouncedOnce() throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
