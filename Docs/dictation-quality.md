@@ -22,6 +22,16 @@ The budgets are the values of `StageTimeout`, listed per stage in [pipeline.md](
 end-to-end limit is `tail-latency`, set in [performance.md](performance.md). A layer that cannot
 meet its budget is cancelled and the fallback answers; no layer extends another's budget.
 
+## Turning a layer on and off
+
+Each switchable layer is a case of `QualityLayer` in
+`Sources/UttrflowCore/Support/QualityLayer.swift`, with its default state, the stage budget it runs
+inside and a one-line summary. `QualityLayers` resolves which are on from those defaults, overridden
+only by the local defaults key `QualityLayer.<name>` (`-QualityLayer.<name> NO` for one launch),
+never from a network source. `QualityLayers.ablation(only:without:)` builds the set a bake-off or
+eval run asks for, and refuses an unknown name. A new layer is added as a case with `defaultOn`
+false, measured, then turned on in a reviewed pull request.
+
 ## Rules that hold across every layer
 
 1. **Doing nothing is the default.** A layer that is unsure leaves the words as heard. Only the
