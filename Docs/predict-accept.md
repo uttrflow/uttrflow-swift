@@ -188,6 +188,10 @@ its rows holds the `Acceptance.Edit` for that candidate — the very value
 `git comgit commit`. A row that has nothing left to offer is dropped, so a suggestion the
 user has finished typing takes the surface away instead of drawing an empty one.
 
+When an editor has already inserted closing punctuation after the caret, a suggestion drops
+the matching trailing closers from its insertion before drawing and accepting it. The existing
+punctuation remains in the field, so the completed line has one copy of each closer.
+
 `Edit.applied(to:)` is what makes the agreement checkable: what is drawn on top of what is
 typed equals the candidate, and a test asserts it over both shapes.
 

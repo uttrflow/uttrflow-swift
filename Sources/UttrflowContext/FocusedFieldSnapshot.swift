@@ -313,6 +313,12 @@ extension FocusedFieldSnapshot {
         return ahead.allSatisfy { $0 == " " || $0 == "\t" || Self.closingPunctuation.contains($0) }
     }
 
+    /// Closing punctuation immediately after the caret, with editor padding removed.
+    public var closingPunctuationAfterCaret: String {
+        guard let ahead = rowAhead else { return "" }
+        return String(ahead.drop { $0 == " " || $0 == "\t" }.prefix { Self.closingPunctuation.contains($0) })
+    }
+
     /// Characters an editor may keep after the caret while it completes inside a pair.
     private static let closingPunctuation: Set<Character> = [")", "]", "}", "'", "\"", "`"]
 

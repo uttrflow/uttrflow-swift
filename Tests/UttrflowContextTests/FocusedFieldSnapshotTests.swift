@@ -213,6 +213,23 @@ struct FocusedFieldSnapshotTests {
         }
     }
 
+    @Test("Accepting a completion leaves matching auto-closed punctuation in the editor.")
+    func completionDoesNotDuplicateAutoClosedPunctuation() {
+        let typed = "print(\"hel"
+        let autoClosed = "\")"
+        let reading = snapshot(
+            bundleIdentifier: "com.microsoft.vscode", role: FocusedFieldSnapshot.proseRole,
+            value: typed + autoClosed, selection: NSRange(location: typed.utf16.count, length: 0))
+        let suggestion = Suggestion.certain("print(\"hello world\")")
+            .trimmed(after: typed, matching: reading.closingPunctuationAfterCaret)
+
+        #expect(reading.closingPunctuationAfterCaret == "\")")
+        #expect(suggestion.accepting == "print(\"hello world")
+        #expect(suggestion.edit(after: typed)?.inserted == "lo world")
+        let inserted = suggestion.edit(after: typed)?.inserted ?? ""
+        #expect(typed + inserted + autoClosed == "print(\"hello world\")")
+    }
+
     @Test("A real code caret inside following text still silences suggestions.")
     func codeCaretBeforeAnotherTokenIsNotAtLineEnd() {
         let typed = "let result = "

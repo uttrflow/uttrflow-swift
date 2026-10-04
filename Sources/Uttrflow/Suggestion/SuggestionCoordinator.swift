@@ -154,6 +154,8 @@ final class SuggestionCoordinator {
     private var ticking = SuggestionTicking()
     private var swallowed: Task<Void, Never>?
     private var lastReading: FieldReading?
+    /// Closing punctuation already present after the caret of the current offer.
+    private var closingPunctuationAfterCaret = ""
     /// The line capture was last handed as a keystroke, and the field it was in, so a Return can catch up what it displaced.
     private var handed: (line: String, reading: FieldReading)?
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
@@ -1315,8 +1317,11 @@ final class SuggestionCoordinator {
             panel.hide()
             return
         }
+        closingPunctuationAfterCaret = snapshot.closingPunctuationAfterCaret
+        let visibleSuggestion = update.suggestion.trimmed(
+            after: session.typed, matching: closingPunctuationAfterCaret)
         let shown = panel.show(
-            update.suggestion, typed: session.typed, placement: .inlineGhost,
+            visibleSuggestion, typed: session.typed, placement: .inlineGhost,
             direction: snapshot.writingDirection == .rightToLeft ? .rightToLeft : .leftToRight,
             caret: caret, window: snapshot.window, field: snapshot.ghostField,
             fieldPointSize: snapshot.pointSize,
@@ -1356,7 +1361,9 @@ final class SuggestionCoordinator {
         if panel.statusMessage != nil { panel.statusMessage = nil }
         interceptor.arm(update.armed)
         armedOffer = update.suggestion.accepting
-        guard panel.redraw(update.suggestion, typed: session.typed, selection: session.selection) else {
+        let visibleSuggestion = update.suggestion.trimmed(
+            after: session.typed, matching: closingPunctuationAfterCaret)
+        guard panel.redraw(visibleSuggestion, typed: session.typed, selection: session.selection) else {
             stopWatchingSelection()
             interceptor.arm([])
             armedOffer = nil
@@ -1399,7 +1406,9 @@ final class SuggestionCoordinator {
                 // Held across the insert so the keys it posts are ignored on both the tap and the monitor.
                 isInserting = true
                 let returnedKey = await Self.acceptKeyToReturnIfTakeFails(stroke) {
-                    await take(text, after: typed, in: reading)
+                    await take(
+                        text, after: typed, in: reading,
+                        closingPunctuation: closingPunctuationAfterCaret)
                 }
                 isInserting = false
                 // A field that is no longer the drawn line gets its key back, so Tab still does what Tab does there.
@@ -1460,17 +1469,21 @@ final class SuggestionCoordinator {
     }
 
     /// Puts the tail into the field and queues the taken line for capture, answering false when the field refused it unwritten.
-    private func take(_ text: String, after typed: String, in reading: FieldReading?) async -> Bool {
+    private func take(
+        _ text: String, after typed: String, in reading: FieldReading?, closingPunctuation: String
+    ) async -> Bool {
         // What the gates left is a whole line, so taking it may replace characters as well as add.
         guard let windowNumber = reading?.surface?.windowNumber else {
             Self.log.error("the drawn field has no identifiable window; giving the key back")
             return false
         }
         var via = "nothing"
+        let accepted = Suggestion.certain(text).trimmed(
+            after: typed, matching: closingPunctuation)
         do throws(TextInsertionError) {
             via =
                 try await acceptor.accept(
-                    .certain(text), after: typed, expectedWindowNumber: windowNumber)?.rawValue ?? via
+                    accepted, after: typed, expectedWindowNumber: windowNumber)?.rawValue ?? via
         } catch {
             Self.log.error("\(SuggestionLog.landedNowhere(error, typed: typed), privacy: .public)")
             return false
