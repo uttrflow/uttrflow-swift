@@ -110,7 +110,7 @@ final class SuggestionCoordinator {
     /// The model that invents a suggestion when the corpus has none, absent until the app hands one over.
     private let generator: (any CandidateGenerating)?
     /// Reads only focus identity and selection while a completion is armed.
-    private let focusedSelectionReader: @Sendable () async -> FocusedFieldSelection?
+    private let focusedSelectionReader: @Sendable () async -> FocusedFieldSelectionRead
     /// What the model last answered or had nothing for, which decides whether it is asked again.
     private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
@@ -200,7 +200,7 @@ final class SuggestionCoordinator {
         environmentIndex: EnvironmentIndex? = nil,
         focusedFieldValueObserver: (any FocusedFieldValueObserving)? = nil,
         processActivity: any SuggestionProcessActivityManaging = ProcessSuggestionActivity(),
-        focusedSelectionReader: @escaping @Sendable () async -> FocusedFieldSelection? = {
+        focusedSelectionReader: @escaping @Sendable () async -> FocusedFieldSelectionRead = {
             await FocusedFieldReader.focusedSelection()
         }
     ) throws(PredictStoreError) {
@@ -648,9 +648,18 @@ final class SuggestionCoordinator {
             armedOffer != nil, selectionGuard != nil, !isInserting
         else { return }
         selectionPollInFlight = true
-        let selection = await focusedSelectionReader()
+        let read = await focusedSelectionReader()
         guard generation == selectionPollGeneration else { return }
         selectionPollInFlight = false
+        let selection: FocusedFieldSelection
+        switch read {
+        case .timedOut:
+            return
+        case .unavailable:
+            return withdraw()
+        case .selection(let value):
+            selection = value
+        }
         guard var selectionGuard else { return }
         guard !selectionGuard.observe(selection) else { return withdraw() }
         self.selectionGuard = selectionGuard

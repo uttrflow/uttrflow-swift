@@ -273,6 +273,8 @@ application switch that arrives during a turn is kept and run afterwards.
   panel, disarms the keys and calls `SuggestionSession.invalidate`, so `resolve`,
   `resolveGenerated` and `expandGenerated` return nothing for a turn whose read began before it,
   and the coordinator draws only while `SuggestionSession.isCurrent`.
+- **A timed-out selection read keeps the offer armed** for its next poll. A completed read that
+  cannot identify a focused selection still withdraws it.
 - **A model line keeps the typed case**, so the ghost only adds to the line and Tab never re-cases
   what the user wrote.
 

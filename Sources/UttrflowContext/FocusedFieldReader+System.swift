@@ -130,18 +130,21 @@ public enum FocusedFieldReader {
     }
 
     /// Reads only the focused element and selection, for the short time a suggestion is armed.
-    public static func focusedSelection() async -> FocusedFieldSelection? {
-        guard let app = await frontmostApp() else { return nil }
-        return await selectionQueue.run(within: .milliseconds(250)) { isWanted in
+    public static func focusedSelection() async -> FocusedFieldSelectionRead {
+        guard let app = await frontmostApp() else { return .unavailable }
+        let read: FocusedFieldSelectionRead? = await selectionQueue.run(within: .milliseconds(250)) {
+            isWanted in
             guard isWanted(), AXIsProcessTrusted(),
                 let field = SurfaceProbe.focusedField(of: app.processIdentifier), isWanted()
-            else { return nil }
+            else { return .unavailable }
             _ = AXUIElementSetMessagingTimeout(field, elementTimeoutInSeconds)
-            guard let range = SurfaceProbe.selectedRange(field), isWanted() else { return nil }
-            return FocusedFieldSelection(
-                processIdentifier: app.processIdentifier, elementHash: CFHash(field),
-                range: NSRange(location: range.location, length: range.length))
+            guard let range = SurfaceProbe.selectedRange(field), isWanted() else { return .unavailable }
+            return .selection(
+                FocusedFieldSelection(
+                    processIdentifier: app.processIdentifier, elementHash: CFHash(field),
+                    range: NSRange(location: range.location, length: range.length)))
         }
+        return read ?? .timedOut
     }
 
     /// Cancels a selection poll when the offer is withdrawn.
