@@ -227,7 +227,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
     private var suggestionSecureInputNotice: String?
     private var suggestionRuntime: SuggestionRuntimeStatus = .idle {
-        didSet { settingsPage.setSuggestionRuntime(suggestionRuntime) }
+        didSet {
+            settingsPage.setSuggestionRuntime(suggestionRuntime)
+            refreshMenuBar()
+        }
     }
 
     /// Builds the app around one folder, which a test points at a temporary one.
@@ -979,7 +982,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.refreshMenuBar()
             }
             coordinator.onTapRestChanged = { [weak self] result in
-                guard let result else { self?.suggestionRuntime = .starting; return }
+                guard let result else { self?.suggestionRuntime = .tapResting; return }
                 switch result {
                 case .success:
                     self?.suggestionRuntime =
@@ -2471,6 +2474,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             unarmedShortcuts: Set(unarmedShortcuts.keys),
             shortcutUnheard: shortcutUnheard,
             suggestionUnheard: suggestionSecureInputNotice,
+            suggestionRuntime: suggestionRuntime,
             suggestionModel: suggestionModel,
             activation: settings.hotkeyActivation,
             speechModelBytes: SpeechModel.default.downloadBytes

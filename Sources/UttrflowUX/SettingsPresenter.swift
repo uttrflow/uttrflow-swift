@@ -687,7 +687,7 @@ public enum SettingsPresenter {
     ) -> SettingsBanner? {
         guard settings.suggestions.isEnabled else { return nil }
         switch capabilities.suggestionRuntime {
-        case .starting:
+        case .starting, .tapResting:
             return SettingsBanner(
                 symbolName: "clock", title: "Suggestions are paused briefly",
                 message: "The key tap is restarting. Suggestions will resume automatically.")

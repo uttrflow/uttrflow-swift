@@ -61,6 +61,13 @@ struct SuggestionModelBannerTests {
         #expect(shown.message.contains("resume automatically"))
     }
 
+    @Test("a long tap rest keeps Settings informed")
+    func tapResting() throws {
+        let shown = try #require(bannerForRuntime(.tapResting))
+        #expect(shown.title == "Suggestions are paused briefly")
+        #expect(shown.message.contains("resume automatically"))
+    }
+
     @Test("secure input does not report suggestions running with a ready model")
     func secureInputIsReported() throws {
         let shown = try #require(bannerForRuntime(.secureInputBlocked))
