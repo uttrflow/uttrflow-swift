@@ -396,6 +396,16 @@ enum CompletionText {
     static func isDegenerate(_ continuation: String) -> Bool {
         guard continuation.count <= maximumContinuationLength else { return true }
         let words = continuation.split(whereSeparator: \.isWhitespace)
+        // A copied phrase loops even when each word appears only twice.
+        if words.count >= 4 {
+            for phraseLength in 2...(words.count / 2) {
+                for start in 0...(words.count - 2 * phraseLength) {
+                    let split = start + phraseLength
+                    let end = split + phraseLength
+                    if words[start..<split].elementsEqual(words[split..<end]) { return true }
+                }
+            }
+        }
         // Six or more words drawn from a third as many distinct ones is a repetition, not a sentence.
         return words.count >= 6 && Set(words).count * 3 <= words.count
     }
