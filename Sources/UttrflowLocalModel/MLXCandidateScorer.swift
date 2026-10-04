@@ -63,8 +63,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// The Hugging Face cache a whole model is loaded from without asking the hub.
     private let cache: URL
 
-    /// The load in flight, which a second caller joins rather than starting its own.
-    private var loadInFlight: Task<Void, any Error>?
+    /// Shares model loading and lets a download caller retry a disk-only miss.
+    private let inFlightLoad = InFlightModelLoad()
 
     /// Loads the weights from disk when they are whole there, downloading them only when they are not.
     public func prepare(onProgress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
@@ -82,13 +82,10 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws {
         guard container == nil else { return }
-        if let loadInFlight { return try await loadInFlight.value }
-        let step = Task { try await self.fill(downloader: downloader, onProgress: onProgress) }
-        loadInFlight = step
-        defer { if loadInFlight == step { loadInFlight = nil } }
-        // The caller that started the load stopping it stops the load, so a release never waits out the read.
-        try await withTaskCancellationHandler(
-            operation: { try await step.value }, onCancel: { step.cancel() })
+        try await inFlightLoad.run(
+            downloads: downloader != nil,
+            shouldRetry: { $0 is WeightsNotOnDisk },
+            operation: { try await self.fill(downloader: downloader, onProgress: onProgress) })
     }
 
     /// Reads the weights in, fetching them through `downloader` only where one is given.
@@ -123,8 +120,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// Empties the weights once every pass using them has ended, and hands the freed GPU buffers back to the system.
     public func release() async {
         container = nil
-        loadInFlight?.cancel()
-        loadInFlight = nil
+        await inFlightLoad.cancel()
         forgetReadings()
         await passesEnded()
         bufferCachePasses.begin()

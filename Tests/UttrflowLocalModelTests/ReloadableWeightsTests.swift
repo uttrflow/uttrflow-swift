@@ -136,6 +136,43 @@ struct ReloadableWeightsTests {
     }
 }
 
+@Suite("Concurrent model preparation")
+struct InFlightModelLoadTests {
+    @Test("A prepare joining a reload retries a missing model with its downloader and progress")
+    func prepareRetriesDiskOnlyMiss() async throws {
+        let load = InFlightModelLoad()
+        let (started, signalStarted) = AsyncStream.makeStream(of: Void.self)
+        let (gate, openGate) = AsyncStream.makeStream(of: Void.self)
+        let progress = ProgressRecorder()
+        let missing = WeightsNotOnDisk(identifier: "example/model")
+        let reload = Task {
+            try await load.run(downloads: false, shouldRetry: { _ in true }) {
+                signalStarted.yield()
+                for await _ in gate { break }
+                throw missing
+            }
+        }
+        try await arrival(of: started)
+        let prepare = Task {
+            try await load.run(downloads: true, shouldRetry: { $0 is WeightsNotOnDisk }) {
+                await progress.report(0.5)
+            }
+        }
+        try await eventually { await load.joinerCount == 1 }
+        openGate.yield()
+
+        await #expect(throws: WeightsNotOnDisk.self) { try await reload.value }
+        try await prepare.value
+        #expect(await progress.values == [0.5])
+    }
+}
+
+private actor ProgressRecorder {
+    private(set) var values: [Double] = []
+
+    func report(_ value: Double) { values.append(value) }
+}
+
 /// The scorer needs a GPU and gigabytes of weights, so this reads its source to say every load goes through the reloadable weights.
 @Suite("How the suggestion model loads its weights")
 struct ScorerLoadWiringTests {
