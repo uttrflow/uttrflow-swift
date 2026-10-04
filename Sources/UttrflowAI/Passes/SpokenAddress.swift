@@ -66,9 +66,11 @@ struct SpokenAddress: Equatable {
     /// The joiners a spoken joiner alone does not make an address of, because prose says them too.
     private static let proseJoiners: Set<Character> = ["-", "+"]
 
-    /// The address spoken from `position`, or nil where the words are not one.
-    static func read(at position: Int, in live: [Int], of draft: Draft) -> SpokenAddress? {
-        let run = position..<draft.sentenceEnd(from: position, in: live)
+    /// The address spoken from `position` to no further than `sentenceEnd`, or nil where the words are not one.
+    static func read(
+        at position: Int, before sentenceEnd: Int, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        let run = position..<sentenceEnd
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft) { return url }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }
         if let path = readAbsolutePath(at: position, within: run, in: live, of: draft) { return path }

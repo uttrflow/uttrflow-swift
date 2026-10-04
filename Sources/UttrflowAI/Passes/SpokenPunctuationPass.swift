@@ -60,17 +60,27 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let repeated = repeatedNames(in: live, of: draft)
         let literal = literalDashes(in: live, of: draft)
         var position = 0
+        // The end of the sentence `position` sits in, kept until a write changes the words; nil once stale.
+        var sentenceEnd: Int?
         while position < live.count {
             let literalHyphens = literal.contains(live[position])
             if literalHyphens, replaceLongFlag(at: position, in: &live, of: &draft) {
+                sentenceEnd = nil
                 continue
             }
             if literalHyphens, replaceShortFlag(at: position, in: &live, of: &draft) {
+                sentenceEnd = nil
                 position += 1
                 continue
             }
-            if let address = SpokenAddress.read(at: position, in: live, of: draft) {
+            if sentenceEnd.map({ position >= $0 }) ?? true {
+                sentenceEnd = draft.sentenceEnd(from: position, in: live)
+            }
+            if let end = sentenceEnd,
+                let address = SpokenAddress.read(at: position, before: end, in: live, of: draft)
+            {
                 write(address, at: position, in: &live, of: &draft)
+                sentenceEnd = nil
                 position += 1
                 continue
             }
@@ -92,6 +102,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 position += 1
                 continue
             }
+            sentenceEnd = nil
         }
         return draft
     }

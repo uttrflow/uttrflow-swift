@@ -33,14 +33,15 @@ public struct FirstWordPass: WholeTextCleaningPass {
             ?? draft.words.map(\.heard).filter { !$0.isEmpty }
         var startOfSentence = true
         var isFirst = true
-        for index in draft.presentIndices {
+        let present = draft.presentIndices
+        for (order, index) in present.enumerated() {
             let word = draft.words[index]
             guard !word.isLayoutMark else {
                 // Every layout mark starts a new sentence.
                 startOfSentence = true
                 continue
             }
-            let letterAdjacent = Self.hasLetterNameBesideI(at: index, in: draft)
+            let letterAdjacent = Self.hasLetterNameBesideI(at: order, in: present, of: draft)
             if letterAdjacent, WordShape(word.text).key == "i" {
                 let cased = WordShape(word.text).replacingCore(with: "i")
                 draft.replace(at: index, with: cased, by: Self.id)
@@ -63,8 +64,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
             }
             draft.replace(at: index, with: cased, by: Self.id)
             // A word trailing off in an ellipsis is a pause, so the next keeps the case it was heard in.
-            let next = draft.presentIndices.drop(while: { $0 <= index }).first
-                .map { draft.words[$0].text }
+            let next = present.dropFirst(order + 1).first.map { draft.words[$0].text }
             startOfSentence =
                 Self.endsSentence(cased, followedBy: next) && !WordShape.trailsOff(WordShape(cased).suffix)
             isFirst = false
@@ -143,9 +143,9 @@ public struct FirstWordPass: WholeTextCleaningPass {
         return shape.replacingCore(with: "I" + shape.core.dropFirst())
     }
 
-    private static func hasLetterNameBesideI(at index: Int, in draft: Draft) -> Bool {
-        let live = draft.presentIndices
-        guard let position = live.firstIndex(of: index), WordShape(draft.words[index].text).key == "i" else {
+    private static func hasLetterNameBesideI(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        let index = live[position]
+        guard WordShape(draft.words[index].text).key == "i" else {
             return false
         }
         let names = SpelledInitialismPass.letterNamesForCasing

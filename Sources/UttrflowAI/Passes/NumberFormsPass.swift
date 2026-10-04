@@ -79,7 +79,9 @@ public struct NumberFormsPass: PieceCleaningPass {
                 position += 2
                 continue
             }
-            guard let phrase = Self.phrase(at: position, in: shapes, policy: policy, digits: digits)
+            guard
+                let phrase = Self.phrase(
+                    at: position, keys: keys, shapes: shapes, policy: policy, digits: digits)
             else {
                 position += Self.parseOrdinal(at: position, keys: keys, shapes: shapes)?.count ?? 1
                 continue
@@ -98,7 +100,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         at position: Int, keys: [String], shapes: [WordShape], policy: NumberPolicy, digits: DigitGrouping
     ) -> Phrase? {
         guard keys[position] == "p", joined(position + 1, shapes),
-            let number = phrase(at: position + 1, in: shapes, policy: policy, digits: digits),
+            let number = phrase(at: position + 1, keys: keys, shapes: shapes, policy: policy, digits: digits),
             ["50", "90", "95", "99", "99.9"].contains(number.text)
         else { return nil }
         return Phrase(text: number.text, count: number.count + 1)
@@ -126,11 +128,9 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// The numeral for the number phrase starting at `position`, or nil when the words stay as they are.
     static func phrase(
-        at position: Int, in shapes: [WordShape], policy: NumberPolicy = .fromTen,
+        at position: Int, keys: [String], shapes: [WordShape], policy: NumberPolicy = .fromTen,
         digits: DigitGrouping = .thousands
     ) -> Phrase? {
-        let keys = shapes.map(\.key)
-
         if keys[position] == "plus", joined(position + 1, shapes),
             let run = spokenDigitRun(at: position + 1, keys: keys, shapes: shapes)
         {
@@ -145,7 +145,9 @@ public struct NumberFormsPass: PieceCleaningPass {
             if let numeral = NumberWords.digits(keys[position + 1]) {
                 return Phrase(text: "-" + numeral, count: 2)
             }
-            if let magnitude = phrase(at: position + 1, in: shapes, policy: policy, digits: digits) {
+            if let magnitude = phrase(
+                at: position + 1, keys: keys, shapes: shapes, policy: policy, digits: digits)
+            {
                 return Phrase(text: "-" + magnitude.text, count: magnitude.count + 1)
             }
             return nil
