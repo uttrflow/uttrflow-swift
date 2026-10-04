@@ -360,7 +360,7 @@ enum PieceJoiner {
         for opening in sentenceOpenings(in: draft, starts: starts).dropFirst() {
             guard paragraphs(formatter), !swallowed.contains(opening),
                 !items.contains(where: { $0.opening == opening }),
-                opensTopic(draft, at: opening, afterPause: starts.contains(opening))
+                opensTopic(draft, at: opening, starts: starts, afterPause: starts.contains(opening))
             else { continue }
             marks[opening] = "\n\n"
         }
@@ -493,7 +493,7 @@ enum PieceJoiner {
         let live = draft.presentIndices
         var candidates: [BoundaryCandidate] = []
         for opening in sentenceOpenings(in: draft, starts: starts) {
-            guard let found = sequence(draft, live, at: opening),
+            guard let found = sequence(draft, live, at: opening, starts: starts),
                 let position = live.firstIndex(of: opening)
             else { continue }
             candidates.append(
@@ -569,7 +569,8 @@ enum PieceJoiner {
         draft.replace(at: head, with: WordShape.capitalised(draft.words[head].text), by: id)
         draft.replace(at: tail, with: WordShape.withoutTrailingStop(draft.words[tail].text), by: id)
         // A stop at a seam the item's next words continue in lower case is the pause's, not the speaker's.
-        for (word, next) in zip(body, body.dropFirst()) where word != tail && starts.contains(next)
+        for (word, next) in zip(body, body.dropFirst())
+        where word != tail && starts.contains(next)
             && draft.shape(at: word).endsSentence && draft.shape(at: next).core.first?.isLowercase == true
         {
             draft.replace(at: word, with: WordShape.withoutTrailingStop(draft.words[word].text), by: id)
@@ -579,7 +580,7 @@ enum PieceJoiner {
 
     /// The sequence word a piece opens with — "first", "two", "number three", "point four" — and how many words it took.
     private static func sequence(
-        _ draft: Draft, _ live: [Int], at word: Int
+        _ draft: Draft, _ live: [Int], at word: Int, starts: [Int]
     ) -> (value: Int, kind: SequenceKind, length: Int)? {
         guard let position = live.firstIndex(of: word) else { return nil }
         var length = 0
@@ -590,7 +591,12 @@ enum PieceJoiner {
         let prefix = length == 0 ? nil : draft.shape(at: live[position]).key
         let head = draft.shape(at: live[position + length])
         if let value = Self.ordinals[head.key] {
-            guard prefix != nil || head.endsClause else { return nil }
+            guard
+                prefix != nil || head.endsClause
+                    || hasPriorOrdinalSequence(
+                        value, before: word, in: draft, starts: starts
+                    )
+            else { return nil }
             return (value, .ordinal, length + 1)
         }
         // A bare cardinal counts the words after it as readily as it announces an item — "one bug is still open" — so it needs the announcing word or the mark the speaker set it off with.
@@ -604,7 +610,7 @@ enum PieceJoiner {
     // MARK: Paragraphs between topics
 
     /// Whether a sentence opens a new topic: a later ordinal item anywhere, or, after a pause, a phrase a speaker moves on with.
-    private static func opensTopic(_ draft: Draft, at word: Int, afterPause: Bool) -> Bool {
+    private static func opensTopic(_ draft: Draft, at word: Int, starts: [Int], afterPause: Bool) -> Bool {
         let live = draft.presentIndices
         guard let position = live.firstIndex(of: word) else { return false }
         let ordinalPosition: Int
@@ -618,20 +624,43 @@ enum PieceJoiner {
         } else {
             ordinalPosition = -1
         }
-        // The first item stays with the sentence that introduces it; each later one moves on, and a marked one whatever follows.
+        // An ordinal opens a topic only when its mark or an earlier item shows a sequence.
         if ordinalPosition >= 0, ordinalPosition + 1 < live.count,
             Self.ordinals[draft.shape(at: live[ordinalPosition]).key] != 1,
-            draft.shape(at: live[ordinalPosition]).endsClause
-                || !Self.determiners.contains(draft.shape(at: live[ordinalPosition + 1]).key)
+            let value = Self.ordinals[draft.shape(at: live[ordinalPosition]).key],
+            (ordinalPosition != position || draft.shape(at: live[ordinalPosition]).endsClause
+                || hasPriorOrdinalSequence(value, before: word, in: draft, starts: starts))
         {
             return true
         }
-        return afterPause && Self.topics.contains { phrase in
-            position + phrase.count <= live.count
-                && zip(phrase, live[position..<position + phrase.count]).allSatisfy {
-                    $0 == draft.shape(at: $1).key
-                }
+        return afterPause
+            && Self.topics.contains { phrase in
+                position + phrase.count <= live.count
+                    && zip(phrase, live[position..<position + phrase.count]).allSatisfy {
+                        $0 == draft.shape(at: $1).key
+                    }
+            }
+    }
+
+    /// Whether earlier sentence openings establish the ordinal sequence before this word.
+    private static func hasPriorOrdinalSequence(
+        _ value: Int, before word: Int, in draft: Draft, starts: [Int]
+    ) -> Bool {
+        let live = draft.presentIndices
+        var seen = Set<Int>()
+        for opening in sentenceOpenings(in: draft, starts: starts) where opening < word {
+            guard let position = live.firstIndex(of: opening) else { continue }
+            let prefix = Self.prefixes.contains(draft.shape(at: opening).key)
+            let ordinal = prefix && position + 1 < live.count ? live[position + 1] : opening
+            guard let prior = Self.ordinals[draft.shape(at: ordinal).key] else { continue }
+            if prior == 1 {
+                guard prefix || draft.shape(at: ordinal).endsClause else { continue }
+                seen = [1]
+            } else if seen.contains(prior - 1) {
+                seen.insert(prior)
+            }
         }
+        return seen.contains(value - 1)
     }
 
     // MARK: The words this reads

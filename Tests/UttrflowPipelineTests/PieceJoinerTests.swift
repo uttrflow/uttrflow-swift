@@ -178,6 +178,12 @@ struct PieceJoinerListTests {
             joined(["First place went to Sam.", "Second place went to Priya."], .document)
                 == "First place went to Sam.\n\nSecond place went to Priya.")
         #expect(
+            joined(["I came first. Second place is fine."], .document)
+                == "I came first. Second place is fine.")
+        #expect(
+            joined(["I came first. Third time is fine."], .document)
+                == "I came first. Third time is fine.")
+        #expect(
             joined(["Point one seconds of lag is fine.", "Point two seconds is not."], .document)
                 == "Point one seconds of lag is fine. Point two seconds is not.")
     }
@@ -194,6 +200,13 @@ struct PieceJoinerListTests {
         #expect(
             joined(["One bug is still open.", "Two tests are still red."], .document)
                 == "One bug is still open. Two tests are still red.")
+    }
+
+    @Test("continues an ordered list when a later ordinal has no spoken mark")
+    func unmarkedLaterOrdinalContinuesList() {
+        #expect(
+            joined(["First, buy milk.", "second call mom."], .document)
+                == "- Buy milk\n- Call mom")
     }
 
     @Test("an announcing word says an item as plainly as the mark does")
