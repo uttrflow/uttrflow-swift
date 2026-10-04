@@ -114,7 +114,7 @@ final class SuggestionCoordinator {
     /// What the model last answered or had nothing for, which decides whether it is asked again.
     private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
-    private var generating: Task<[String], any Error>?
+    var generating = GeneratingTaskSlot()
     /// A turn booked for the moment a rule stops refusing, so a prose pause is answered then, not at the next tick.
     private var pendingWake: Task<Void, Never>?
     /// Distinguishes the latest delayed wake from a canceled task that just finished sleeping.
@@ -387,7 +387,7 @@ final class SuggestionCoordinator {
         panel.hide()
         swallowed?.cancel()
         swallowed = nil
-        generating?.cancel()
+        generating.cancel()
         cancelPendingWake()
         running?.cancel()
         ticker?.invalidate()
@@ -600,7 +600,7 @@ final class SuggestionCoordinator {
         stopWatchingSelection()
         armedOffer = nil
         session.invalidate()
-        generating?.cancel()
+        generating.cancel()
         cancelPendingWake()
         running?.cancel()
         FocusedFieldReader.cancelRead()
@@ -738,7 +738,7 @@ final class SuggestionCoordinator {
     private func typedThrough(_ text: String) -> Bool {
         guard panel.isShowing, !isInserting, let update = session.typedThrough(text) else { return false }
         // Whatever was being worked out was for the shorter line, and the turn woken below reads the new one.
-        generating?.cancel()
+        generating.cancel()
         cancelPendingWake()
         running?.cancel()
         interceptor.arm(update.armed)
@@ -795,7 +795,7 @@ final class SuggestionCoordinator {
             Self.log.error(
                 "\(SuggestionLog.stall(step: self.progress?.step, application: self.progress?.application, afterSeconds: TurnGate.stallSeconds), privacy: .public)"
             )
-            generating?.cancel()
+            generating.cancel()
             running?.cancel()
             start(turn, because: reason)
         case .free(let turn):
@@ -1043,10 +1043,10 @@ final class SuggestionCoordinator {
                 ).choosing(choices)
                 return try await generator.completions(for: query.typed, in: situation)
             }
-            generating = pass
+            generating.store(pass, for: number)
             entering(.generate, turn: number)
             let answer = await pass.result
-            generating = nil
+            generating.finish(turn: number)
             // A pass the next keystroke cancelled, or a turn left behind, answers a line that is gone: nothing is drawn or kept.
             guard !pass.isCancelled, turns.isCurrent(number) else { return }
             switch answer {
@@ -1112,10 +1112,10 @@ final class SuggestionCoordinator {
                 of: snapshot, for: query, store: store, cache: contextCache, turn: number)
             return try await generator.alternatives(for: query.typed, in: situation, excluding: leader)
         }
-        generating = more
+        generating.store(more, for: number)
         entering(.alternatives, turn: number)
         let followUp = await more.result
-        generating = nil
+        generating.finish(turn: number)
         guard !more.isCancelled, turns.isCurrent(number) else { return }
         guard case .success(let others) = followUp else {
             // The one line stays on screen; only the list behind it is missing, and the log says why.
@@ -1395,7 +1395,7 @@ final class SuggestionCoordinator {
                 stopWatchingSelection()
                 panel.hide()
                 interceptor.arm([])
-                generating?.cancel()
+                generating.cancel()
                 // Held across the insert so the keys it posts are ignored on both the tap and the monitor.
                 isInserting = true
                 let returnedKey = await Self.acceptKeyToReturnIfTakeFails(stroke) {
