@@ -164,10 +164,11 @@ enum PieceJoiner {
     private static func spokenMark(
         at words: [Substring], fromStart: Bool
     ) -> (words: [String], symbol: String, opening: Bool)? {
-        for mark in SpokenCommands.marks where mark.placement != .joining && words.count >= mark.words.count {
+        for mark in SpokenCommands.marks
+        where ![.joining, .standalone].contains(mark.placement) && words.count >= mark.words.count {
             let candidate = fromStart ? words.prefix(mark.words.count) : words.suffix(mark.words.count)
             if candidate.map({ WordShape(String($0)).key }) == mark.words {
-                return (mark.words, mark.text, mark.placement == .opening)
+                return (mark.words, mark.text, mark.placement.attachesAfter)
             }
         }
         return nil

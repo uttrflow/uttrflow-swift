@@ -8,6 +8,13 @@ public enum SpokenMarkKind: String, Decodable, Sendable, Equatable {
     case opening
     /// Closes one, so it goes on the word before it as a trailing mark does.
     case closing
+    /// Stands as a word of its own between the words on both sides of it: an ampersand.
+    case standalone
+    /// Goes on the word after it without opening a quotation: an at sign, a hash sign.
+    case leading
+
+    /// Whether the mark goes on the word after its name rather than on the one before.
+    public var attachesAfter: Bool { self == .opening || self == .leading }
 }
 
 /// One phrase said as an instruction rather than as words, and what it writes.

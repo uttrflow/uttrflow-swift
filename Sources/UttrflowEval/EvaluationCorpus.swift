@@ -760,6 +760,36 @@ public enum EvaluationCorpus {
             mustKeep: ["left early", "raining"], mustNotAdd: ["dash"]
         ),
         .init(
+            id: "spoken-ellipsis-mid-sentence", category: .everyday,
+            spoken: "well dot dot dot maybe not",
+            expected: "Well\u{2026} maybe not.",
+            mustKeep: ["maybe not"], mustNotAdd: ["dot"]
+        ),
+        .init(
+            id: "spoken-percent-sign-after-a-number", category: .everyday,
+            spoken: "sales grew by forty percent sign this year",
+            expected: "Sales grew by 40% this year.",
+            mustKeep: ["this year"], mustNotAdd: ["sign"]
+        ),
+        .init(
+            id: "spoken-at-sign-before-a-handle", category: .everyday,
+            spoken: "ping me at sign sam on the thread",
+            expected: "Ping me @sam on the thread.",
+            mustKeep: ["on the thread"], mustNotAdd: ["sign"]
+        ),
+        .init(
+            id: "spoken-hash-sign-before-a-tag", category: .everyday,
+            spoken: "tag it hash sign launch day",
+            expected: "Tag it #launch day.",
+            mustKeep: ["launch"], mustNotAdd: ["sign"]
+        ),
+        .init(
+            id: "spoken-ampersand-between-names", category: .everyday,
+            spoken: "we hired smith ampersand jones",
+            expected: "We hired smith & jones.",
+            mustKeep: ["jones"], mustNotAdd: ["ampersand"]
+        ),
+        .init(
             id: "hinglish-spoken-comma-before-aur", category: .everyday,
             spoken: "chai comma aur biscuit",
             expected: "Chai, aur biscuit.",

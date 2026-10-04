@@ -86,11 +86,11 @@ public enum MentionGuard {
         corroboratedByLayout: Bool = false
     ) -> Bool {
         // An opening mark goes on the word after it, so a text beginning with one is using it, not naming it.
-        guard position > 0 else { return kind != .opening }
+        guard position > 0 else { return !kind.attachesAfter }
         if kind == .closing, isOpenQuotation(before: position, in: live, of: draft) { return false }
         if opensThePhrase(
             ending: position, reaching: reach, in: live, of: draft, bridgedBy: bridging,
-            finalMark: kind == .trailing && position + length == live.count, opening: kind == .opening,
+            finalMark: kind == .trailing && position + length == live.count, opening: kind.attachesAfter,
             corroboratedByLayout: corroboratedByLayout
         ) {
             return true

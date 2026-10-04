@@ -10,7 +10,7 @@ struct SpokenCommandsTests {
     @Test("The registry loads from the bundle with every command the passes held in code.")
     func shipped() {
         #expect(SpokenCommands.table.source == .bundled)
-        #expect(SpokenCommands.marks.count == 15)
+        #expect(SpokenCommands.marks.count == 20)
         #expect(SpokenCommands.layout.count == 5)
         #expect(SpokenCommands.codeSymbols.count == 15)
         #expect(SpokenCommands.casings.count == 6)
