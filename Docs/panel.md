@@ -203,7 +203,7 @@ whitespace says so and includes the clip's character count, instead of becoming 
 
 Name matching keeps the existing case, accent, width, whitespace and leading-slash folding, then compares Unicode confusable skeletons: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
 
-The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
+The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts, except that Japanese names may combine Han with Hiragana or Katakana, and Korean names may combine Han with Hangul. Other mixed-script combinations remain refused. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
 
 ## Related
 

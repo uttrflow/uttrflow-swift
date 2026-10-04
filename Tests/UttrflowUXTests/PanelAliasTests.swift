@@ -80,6 +80,32 @@ struct PanelAliasCorrectionTests {
         #expect(!proposal.isUsable)
     }
 
+    @Test(
+        "Japanese aliases may combine Han with Hiragana and Katakana",
+        arguments: ["日本語ひらがな", "漢字かな", "東京タワー"])
+    func japaneseScriptsAreUsable(name: String) {
+        let proposal = PanelAlias.propose(name, for: UUID(), among: [], locale: Self.locale)
+
+        #expect(!proposal.mixesScripts)
+        #expect(proposal.isUsable)
+    }
+
+    @Test("Korean aliases may combine Han and Hangul")
+    func koreanScriptsAreUsable() {
+        let proposal = PanelAlias.propose("한글漢字", for: UUID(), among: [], locale: Self.locale)
+
+        #expect(!proposal.mixesScripts)
+        #expect(proposal.isUsable)
+    }
+
+    @Test("Han mixed with Latin remains rejected")
+    func hanAndLatinAreRejected() {
+        let proposal = PanelAlias.propose("漢字a", for: UUID(), among: [], locale: Self.locale)
+
+        #expect(proposal.mixesScripts)
+        #expect(!proposal.isUsable)
+    }
+
     @Test("script extensions keep a character shared by Latin names usable")
     func scriptExtensionsResolveWithLatin() {
         let proposal = PanelAlias.propose("aʼ", for: UUID(), among: [], locale: Self.locale)
