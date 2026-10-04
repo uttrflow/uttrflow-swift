@@ -44,12 +44,7 @@ struct SuggestionView: View {
 
     /// Returns the ghost's colour at a share of its strength: the field's text colour where known, else the primary one.
     private func ink(_ share: Double) -> Color {
-        switch presentation.ink {
-        case .field(let color):
-            Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: share)
-        case .backed:
-            Color.primary.opacity(share)
-        }
+        presentation.inkColor(at: share)
     }
 
     /// All that is left after the user presses escape.
@@ -91,23 +86,11 @@ struct SuggestionView: View {
             spacing: presentation.pointSize * 0.2
         ) {
             ForEach(Array(presentation.list.enumerated()), id: \.offset) { _, row in
-                listRow(row)
+                SuggestionListRow(presentation: presentation, row: row)
             }
             footer
         }
         .padding(.top, presentation.pointSize * 0.35)
-    }
-
-    private func listRow(_ row: SuggestionPresentation.Row) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: presentation.pointSize * 0.4) {
-            Text(verbatim: SuggestionPresentation.listPrefix)
-            Text(verbatim: row.candidate)
-                .lineLimit(1)
-                .truncationMode(.tail)
-        }
-        .font(presentation.font(at: presentation.pointSize))
-        .fontWeight(row.isSelected ? .semibold : .regular)
-        .foregroundStyle(ink(rowOpacity(row)))
     }
 
     /// The keys that work the open list, in the dimmed style so they never compete with the candidates.
@@ -123,6 +106,30 @@ struct SuggestionView: View {
     /// The selected row reads at full strength; unselected rows use their contrast-safe list opacity.
     private func rowOpacity(_ row: SuggestionPresentation.Row) -> Double {
         presentation.listOpacity(for: row)
+    }
+}
+
+struct SuggestionListRow: View {
+    let presentation: SuggestionPresentation
+    let row: SuggestionPresentation.Row
+
+    var body: some View {
+        content
+            .environment(
+                \.layoutDirection,
+                presentation.direction == .rightToLeft ? .rightToLeft : .leftToRight)
+    }
+
+    private var content: some View {
+        HStack(alignment: .firstTextBaseline, spacing: presentation.pointSize * 0.4) {
+            Text(verbatim: SuggestionPresentation.listPrefix)
+            Text(verbatim: row.candidate)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .font(presentation.font(at: presentation.pointSize))
+        .fontWeight(row.isSelected ? .semibold : .regular)
+        .foregroundStyle(presentation.inkColor(at: presentation.listOpacity(for: row)))
     }
 }
 
@@ -153,6 +160,16 @@ struct SuggestionGhostLine: View {
 }
 
 extension SuggestionPresentation {
+    /// Draws content at a share of the field's text colour or the backed surface's primary colour.
+    func inkColor(at share: Double) -> Color {
+        switch ink {
+        case .field(let color):
+            Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: share)
+        case .backed:
+            Color.primary.opacity(share)
+        }
+    }
+
     /// The field's own face where it names one, else the system face, monospaced where even the size is unknown.
     func font(at size: CGFloat) -> Font {
         var font: Font

@@ -61,6 +61,8 @@ final class SuggestionPanelController {
     private let hostingView: NSHostingView<SuggestionView>
     /// Lays out the ghost line alone at its full width, which is how a ghost too long for its room is caught.
     private var measurer: NSHostingView<SuggestionGhostLine>?
+    /// Lays out one complete open-list row at its full width before the list can claim keys.
+    private var listRowMeasurer: NSHostingView<SuggestionListRow>?
     private var request = SuggestionRequest()
     private var panelSize = CGSize(width: 1, height: 1)
     private var geometryDirection: WritingDirection {
@@ -208,6 +210,22 @@ final class SuggestionPanelController {
         return measurer.fittingSize.width
     }
 
+    /// The width of one list row with its marker and exact presentation font and weight.
+    private func listRowWidth(
+        of row: SuggestionPresentation.Row, in presentation: SuggestionPresentation
+    )
+        -> CGFloat
+    {
+        let line = SuggestionListRow(presentation: presentation, row: row)
+        guard let listRowMeasurer else {
+            let made = NSHostingView(rootView: line)
+            self.listRowMeasurer = made
+            return made.fittingSize.width
+        }
+        listRowMeasurer.rootView = line
+        return listRowMeasurer.fittingSize.width
+    }
+
     /// Takes the panel off screen, and says so to VoiceOver.
     private func withdraw() {
         announcer.surfaceWithdrawn()
@@ -242,6 +260,15 @@ final class SuggestionPanelController {
         // A ghost cut short would hide words Tab inserts, so one that does not fit its room is not drawn at all.
         if let inline = presentation.inline, let room = presentation.maximumWidth,
             !SuggestionGeometry.fits(width(of: inline, in: presentation), in: room)
+        {
+            presentation = SuggestionPresentation(.silent)
+        }
+        // The open list claims navigation keys, so every row must fit before any of its candidates can be accepted.
+        if presentation.isExpanded,
+            let room = presentation.maximumWidth,
+            presentation.list.contains(where: {
+                !SuggestionGeometry.fits(listRowWidth(of: $0, in: presentation), in: room)
+            })
         {
             presentation = SuggestionPresentation(.silent)
         }

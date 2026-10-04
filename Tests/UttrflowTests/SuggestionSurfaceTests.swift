@@ -116,6 +116,35 @@ struct SuggestionSurfaceTests {
         #expect(panel.drawn.maximumWidth == field.maxX - caret.maxX)
     }
 
+    @Test("An open list with a row wider than its room is withdrawn before that row can be selected")
+    func anOpenListWithATruncatedRowIsNotOffered() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let field = CGRect(x: screen.minX + 100, y: screen.midY - 5, width: 100, height: 28)
+        let caret = CGRect(x: field.minX + 60, y: screen.midY, width: 0, height: 17)
+        let room = field.maxX - caret.maxX
+        let suggestion = Suggestion.choice(
+            leader: "ok", others: ["long alternative that cannot fit in this field"])
+        let presentation = SuggestionPresentation(
+            suggestion, selection: SuggestionSelection(index: 0, hasMoved: true), maximumWidth: room)
+        let rows = presentation.list
+        let measuredWidths = rows.map {
+            NSHostingView(rootView: SuggestionListRow(presentation: presentation, row: $0)).fittingSize.width
+        }
+        #expect(measuredWidths.first ?? .infinity <= room)
+        #expect(measuredWidths.last ?? 0 > room)
+
+        let panel = SuggestionPanelController()
+        defer { panel.hide() }
+        let shown = panel.show(
+            suggestion, placement: .inlineGhost, caret: caret, field: field,
+            selection: SuggestionSelection(index: 0, hasMoved: true))
+
+        #expect(!shown)
+        #expect(!panel.isShowing)
+        #expect(panel.drawn.style == .hidden)
+        #expect(panel.drawn.list.isEmpty)
+    }
+
     @Test("Drawing the same offer at the same caret again does no layout, no placement and no fronting")
     func anUnchangedRedrawDoesNothing() throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
