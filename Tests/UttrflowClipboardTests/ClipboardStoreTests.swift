@@ -79,6 +79,45 @@ struct ClipboardStoreTests {
             ])
     }
 
+    @Test("pinning and using clips keeps one order across relaunches")
+    func pinningAndUsingKeepsOrderAcrossRelaunches() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let first = clip("first")
+        let second = clip("second")
+        let third = clip("third")
+        try await store.record(first, keeping: week())
+        try await store.record(second, keeping: week())
+        try await store.record(third, keeping: week())
+
+        try await store.setPinned(true, of: third.id, keeping: week())
+        _ = await store.markUsed(second.id, at: noon, keeping: week())
+        let live = try await store.setPinned(true, of: second.id, keeping: week())
+        await store.flushUse()
+
+        #expect(live.map(\.text) == ["second", "third", "first"])
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == live)
+    }
+
+    @Test("unpinning and using clips keeps one order across relaunches")
+    func unpinningAndUsingKeepsOrderAcrossRelaunches() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let first = clip("first", pinned: true)
+        let second = clip("second")
+        let third = clip("third")
+        try await store.record(first, keeping: week())
+        try await store.record(second, keeping: week())
+        try await store.record(third, keeping: week())
+
+        _ = await store.markUsed(third.id, at: noon, keeping: week())
+        let live = try await store.setPinned(false, of: first.id, keeping: week())
+        await store.flushUse()
+
+        #expect(live.map(\.text) == ["first", "third", "second"])
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == live)
+    }
+
     @Test("survives a relaunch")
     func persistence() async throws {
         let file = TemporaryFile()

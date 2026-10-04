@@ -175,9 +175,7 @@ public actor ClipboardStore {
             return retained(clips, keeping: retention)
         }
         clips[index] = clips[index].used(at: moment, order: nextUseOrder())
-        let used = clips.remove(at: index)
-        let poolStart = clips.firstIndex(where: { $0.isKept == used.isKept }) ?? clips.endIndex
-        clips.insert(used, at: poolStart)
+        clips = Self.orderedForDisplay(clips)
         let onDisk = keptOnDisk(clips, keeping: retention)
         // A clip that aged out is a real change, written now; a use alone is bookkeeping for a later eviction.
         guard onDisk.count == clips.count else {
@@ -594,7 +592,7 @@ public actor ClipboardStore {
     private func settled(
         _ clips: [Clip], keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
-        let unique = Self.uniqueAliases(in: clips)
+        let unique = Self.uniqueAliases(in: Self.orderedForDisplay(clips))
         try save(keptOnDisk(unique, keeping: retention))
         return retained(unique, keeping: retention)
     }
