@@ -378,12 +378,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
                 response = ""
             }
         }
-        let context = CompletionText.contextNeverCopied(in: situation)
-        // The prefill is the line's own start, so the answer reads as the whole line it would echo.
-        let lines = CompletionText.parse(response, typed: typed).compactMap {
-            CompletionText.trimmed($0, typed: typed, echoing: context)
-        }
-        return CompletionText.finished(lines, typed: typed, in: situation)
+        return CompletionText.modelCompletions(
+            from: response, typed: typed, echoPolicy: .required, in: situation)
     }
 
     /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line; a pass that fails throws, so the caller can tell it from an empty answer.

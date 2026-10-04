@@ -6,6 +6,59 @@ import UttrflowPredict
 
 /// Everything done to a model's answer that is only text, kept apart from the model so it is tested and counted.
 enum CompletionText {
+    enum EchoPolicy {
+        case required
+        case joinAtBoundary
+    }
+
+    static let rejectedOpenings = [
+        "i'm sorry", "i am sorry", "sorry", "i can't help", "i cannot help", "as an ai",
+        "as a language model", "here is", "here's", "here are", "the instructions say",
+        "your instruction says", "your prompt says", "to summarize your request",
+    ]
+
+    /// Turns a model reply into finished candidates under the echo rule for its generator.
+    static func modelCompletions(
+        from answer: String, typed: String, echoPolicy: EchoPolicy, in situation: GenerationSituation
+    ) -> [String] {
+        let context = contextNeverCopied(in: situation)
+        var lines = parse(answer, typed: typed).compactMap {
+            trimmed($0, typed: typed, echoing: context)
+        }
+        if lines.isEmpty, case .joinAtBoundary = echoPolicy, !echoes(answer, of: typed),
+            let joined = joinedContinuation(answer, typed: typed)
+        {
+            lines = parse(joined, typed: typed).compactMap {
+                trimmed($0, typed: typed, echoing: context)
+            }
+        }
+        let continuations = lines.filter { line in
+            guard let added = continuation(of: line, past: typed) else { return false }
+            return !isRejectedOpening(added)
+        }
+        return finished(continuations, typed: typed, in: situation)
+    }
+
+    /// Joins an answer only when the parser can read the result as a non-empty extension.
+    private static func joinedContinuation(_ answer: String, typed: String) -> String? {
+        guard let joined = joined(typed, with: answer),
+            let added = continuation(of: joined, past: typed), !added.isEmpty,
+            parse(joined, typed: typed).contains(joined)
+        else { return nil }
+        return joined
+    }
+
+    /// Whether the added words start with a refusal or a remark about the model's instructions.
+    private static func isRejectedOpening(_ continuation: String) -> Bool {
+        let continuationWords = words(of: continuation).map {
+            $0.text.replacingOccurrences(of: "’", with: "'")
+        }
+        return rejectedOpenings.contains { opening in
+            let openingWords = words(of: opening).map(\.text)
+            return continuationWords.starts(with: openingWords)
+        }
+    }
+
     /// The screen and the text before the line are context, never words to copy; the person's own lines may be repeated.
     static func contextNeverCopied(in situation: GenerationSituation) -> [String] {
         [situation.surroundings, situation.preceding].compactMap { $0 }
