@@ -121,6 +121,8 @@ included; the fixed parts and the line itself sit outside it and are never cut.
 - The person's recent lines take up to half of what is left, newest first.
 - The screen takes what remains but never more than `screenBudgetInTokens` (96), as whole lines
   nearest the field, each line said once so a "Reply" under every comment costs one.
+- A text or single screen line that exceeds its allowance keeps only complete whitespace-delimited
+  words; a word too large to fit is omitted, and whitespace without a word is dropped.
 - Once the field's own text fills `ownTextSufficesInTokens` (64), the screen is left out.
 - The window title and the leading suggestion the alternatives pass excludes are quoted. Screen
   text, recent lines, preceding text and typed text each use a backtick fence longer than any

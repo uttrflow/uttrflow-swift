@@ -223,7 +223,7 @@ struct PromptPropertyTests {
     }
 
     @Test(
-        "The tail is the longest end and the newest lines the most that fit a token allowance, never more.",
+        "The tail keeps the most whole words and the newest lines that fit a token allowance, never more.",
         arguments: 0..<300)
     func tailAndNewestKeepToTheAllowance(seed: Int) {
         var random = Seeded(seed: seed)
@@ -233,8 +233,14 @@ struct PromptPropertyTests {
         let tail = PromptBuilder.tail(text, within: allowance)
         #expect(text.hasSuffix(tail))
         #expect(PromptBuilder.estimatedTokens(tail) <= max(allowance, 0))
-        if tail.count < text.count, allowance > 0 {
-            #expect(PromptBuilder.estimatedTokens(String(text.suffix(tail.count + 1))) > allowance)
+        if !tail.isEmpty, tail.count < text.count, allowance > 0 {
+            let start = text.index(text.endIndex, offsetBy: -tail.count)
+            #expect(
+                start == text.startIndex || text[text.index(before: start)].isWhitespace
+                    || text[start].isWhitespace)
+            if let previousWord = text[..<start].split(whereSeparator: \.isWhitespace).last {
+                #expect(PromptBuilder.estimatedTokens(String(previousWord) + " " + tail) > allowance)
+            }
         }
         let lines = (0..<Int.random(in: 0...10, using: &random)).map { _ in
             (0..<Int.random(in: 1...6, using: &random)).map { _ in random.pick(words) }.joined(separator: " ")

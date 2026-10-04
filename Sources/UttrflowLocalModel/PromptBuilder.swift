@@ -213,7 +213,19 @@ enum PromptBuilder {
                 high = mid - 1
             }
         }
-        return String(characters[(characters.count - low)...])
+        let start = characters.count - low
+        guard start < characters.count else { return "" }
+        if characters[start...].allSatisfy(\.isWhitespace) {
+            guard let lastWord = text.split(whereSeparator: \.isWhitespace).last,
+                estimatedTokens(lastWord) <= allowance
+            else { return "" }
+            return String(lastWord)
+        }
+        guard start > 0, !characters[start - 1].isWhitespace, !characters[start].isWhitespace else {
+            return String(characters[start...])
+        }
+        guard let boundary = characters[start...].firstIndex(where: \.isWhitespace) else { return "" }
+        return String(characters[(boundary + 1)...])
     }
 
     /// The longest start of the text whose estimate fits the allowance in tokens.
@@ -227,7 +239,17 @@ enum PromptBuilder {
             let mid = (low + high + 1) / 2
             if estimatedTokens(String(characters[..<mid])) <= allowance { low = mid } else { high = mid - 1 }
         }
-        return String(characters[..<low])
+        if low > 0, characters[..<low].allSatisfy(\.isWhitespace) {
+            guard let firstWord = text.split(whereSeparator: \.isWhitespace).first,
+                estimatedTokens(firstWord) <= allowance
+            else { return "" }
+            return String(firstWord)
+        }
+        guard low > 0, low < characters.count,
+            !characters[low - 1].isWhitespace, !characters[low].isWhitespace
+        else { return String(characters[..<low]) }
+        guard let boundary = characters[..<low].lastIndex(where: \.isWhitespace) else { return "" }
+        return String(characters[...boundary])
     }
 
     /// The newest lines that fit the allowance in tokens, oldest dropped first, and the newest alone cut down when even it does not fit.
