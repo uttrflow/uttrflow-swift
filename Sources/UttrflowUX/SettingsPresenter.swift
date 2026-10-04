@@ -689,8 +689,12 @@ public enum SettingsPresenter {
         switch capabilities.suggestionRuntime {
         case .starting:
             return SettingsBanner(
-                symbolName: "clock", title: "Suggestions are paused briefly",
-                message: "The key tap is restarting. Suggestions will resume automatically.")
+                symbolName: "clock", title: "Starting suggestions…",
+                message: "Suggestions will be ready shortly.")
+        case .restarting:
+            return SettingsBanner(
+                symbolName: "clock", title: "Restarting suggestions…",
+                message: "Suggestions will resume automatically.")
         case .secureInputBlocked:
             return SettingsBanner(
                 symbolName: "lock", title: "Suggestions are paused",
@@ -705,7 +709,9 @@ public enum SettingsPresenter {
             return SettingsBanner(
                 symbolName: "exclamationmark.triangle", title: "Suggestions could not start",
                 message:
-                    "The suggestion corpus could not be opened. Check its file access, then turn suggestions off and on again."
+                    "Uttrflow could not open its saved suggestions file (predict.v1.sqlite). "
+                    + "Check that the Uttrflow folder in Application Support is available, then "
+                    + "turn suggestions off and on again."
             )
         case .idle, .running:
             break

@@ -139,6 +139,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
 public enum SuggestionRuntimeStatus: Sendable, Equatable {
     case idle
     case starting
+    case restarting
     case running
     case secureInputBlocked
     case tapFailed

@@ -979,7 +979,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.refreshMenuBar()
             }
             coordinator.onTapRestChanged = { [weak self] result in
-                guard let result else { self?.suggestionRuntime = .starting; return }
+                guard let result else { self?.suggestionRuntime = .restarting; return }
                 switch result {
                 case .success:
                     self?.suggestionRuntime =
