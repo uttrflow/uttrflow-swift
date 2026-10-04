@@ -322,3 +322,7 @@ offer; ⇧⌘Z stays Redo.
 The panel takes its row chords before the main menu sees them (`QuickPanel.performKeyEquivalent`).
 Window ▸ Minimise is also ⌘M, and the menu swallows a key equivalent even when its item is
 disabled, so without that ⌘M would never reach Move. See [`panel.md`](panel.md).
+
+Row chords and ⌘Z match the Latin letter the active keyboard layout produces. When a layout
+produces no Latin letter, the panel falls back to the US key position so shortcuts remain usable
+with Cyrillic and other non-Latin layouts.
