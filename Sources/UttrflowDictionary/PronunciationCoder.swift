@@ -18,7 +18,7 @@ public enum PronunciationCoder {
             keys.formUnion(baseKeys(for: romanised, sounding: DoubleMetaphone.code(for: romanised)))
         }
         if let spoken = digitsSpoken(in: text) {
-            keys.formUnion(baseKeys(for: spoken))
+            keys.formUnion(baseKeys(for: spoken, sounding: DoubleMetaphone.code(for: spoken)))
         }
         return Array(keys)
     }
