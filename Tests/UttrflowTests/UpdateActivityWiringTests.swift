@@ -27,6 +27,7 @@ struct UpdateActivityWiringTests {
             UpdateActivity(isDictating: true),
             UpdateActivity(isPanelOpen: true),
             UpdateActivity(isOnboarding: true),
+            UpdateActivity(isSuggesting: true),
         ])
     func stagedWhileBusyInstallsOnceQuiet(busy: UpdateActivity) {
         let now = ActivityBox(busy)

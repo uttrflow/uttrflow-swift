@@ -36,6 +36,9 @@ again by then).
 `progress = .installing` is set *before* the handle is called: the call ends with this process
 being replaced, and without the line the relaunch looks like a crash.
 
+Typing observed by the suggestions loop, an armed suggestion or a turn still in flight also keeps
+the gate busy. Once those have settled, the update gate starts its own full quiet interval.
+
 ## Feed acceptance
 
 `UpdateController.isConfigured` requires the feed to pass `UpdateFeed.isAcceptable`: `https`, or

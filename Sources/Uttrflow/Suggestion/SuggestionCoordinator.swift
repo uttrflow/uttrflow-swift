@@ -173,6 +173,10 @@ final class SuggestionCoordinator {
     private var isInserting = false
     /// True once the loop is stopped, so a turn still finishing draws nothing into the shared panel.
     private var isStopped = false
+    private var runningTurn: Int?
+    var isActiveForUpdate: Bool {
+        !isStopped && (ticking.isRunning || armedOffer != nil || generating != nil || runningTurn != nil)
+    }
     /// Set while a dictation is under way, when no turn may start.
     private var isDictating = DictationInProgress.shared.isDictating
     /// Whether the last field read reported marked text, so a Return next confirms a conversion rather than ending the line.
@@ -378,6 +382,7 @@ final class SuggestionCoordinator {
     func stop() {
         processActivity.end()
         isStopped = true
+        runningTurn = nil
         nativeMenuIsOpen = false
         onSecureInputBlockingChanged?(false)
         tapRest.cancel()
@@ -805,6 +810,7 @@ final class SuggestionCoordinator {
 
     /// Runs the turn the gate admitted and reports its end under the same number.
     private func start(_ turn: Int, because reason: SuggestionReason) {
+        runningTurn = turn
         running = Task { [weak self] in
             await self?.turn(turn, because: reason)
             self?.finished(turn)
@@ -813,6 +819,7 @@ final class SuggestionCoordinator {
 
     /// Runs whatever arrived while the turn was in flight, unless the turn had already been left behind.
     private func finished(_ turn: Int) {
+        if runningTurn == turn { runningTurn = nil }
         guard turns.end(turn), let next = again else { return }
         again = nil
         wake(next)

@@ -2605,7 +2605,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             isDictating: lastDictationState.isBusy,
             isPanelOpen: quickPanel.isVisible,
             isEditing: snippetEditorIsOpen || wordEditorIsOpen,
-            isOnboarding: onboarding != nil)
+            isOnboarding: onboarding != nil,
+            isSuggesting: completions?.isActiveForUpdate == true)
     }
 
     private func redrawMainWindow() {
