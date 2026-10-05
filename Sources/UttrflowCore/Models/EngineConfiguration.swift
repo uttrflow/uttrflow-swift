@@ -12,7 +12,9 @@ public struct EngineConfiguration: Sendable, Equatable, Codable {
         self.transformerPreference = transformerPreference
     }
 
-    /// What ships: Whisper for speech, Apple's model where capable, a local model otherwise, rules as floor.
+    /// What ships: Whisper for speech, Apple's model where capable, rules as the floor.
+    /// `localModel` stays in the stored preference so configurations can name every engine;
+    /// `resolvedTransformerPreference` removes engines this binary does not assemble.
     public static let `default` = EngineConfiguration(
         speech: .whisperKit,
         transformerPreference: [.foundationModels, .localModel, .rules]
