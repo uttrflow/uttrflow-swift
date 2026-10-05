@@ -8,9 +8,9 @@ drawn is in [`app-settings-controls.md`](app-settings-controls.md).
 
 ## Outcomes, not engines
 
-`SettingsTidyingLevel` and `SettingsTranscriptionQuality` are stated as outcomes (how much help,
-how long a wait), never as a list of implementations. The user chooses what they want, never which
-engine gives it to them, so swapping an engine is never a change of screen.
+`SettingsTidyingLevel` is stated as an outcome (how much help), never as a list of
+implementations. The user chooses what they want, never which engine gives it to them, so swapping
+an engine is never a change of screen.
 
 ## There is no "off" for tidying
 
@@ -57,12 +57,6 @@ retried (see [`recordings.md`](recordings.md)).
 
 `SettingsLanguage.offered` is written out rather than read from the speech profile, so a language
 the user has never chosen still appears, unticked, to be chosen.
-
-## Reading a choice back is exhaustive
-
-`SettingsTranscriptionQuality.init(engine:)` switches over every engine rather than searching with
-a fallback. A fallback would be a branch nothing could take, and it would silently mislabel a newly
-added engine instead of refusing to compile until somebody said what it is for.
 
 ## The privacy copy, written once
 
