@@ -92,6 +92,7 @@ public enum Restatement {
     public static func discardedStart(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
     ) -> Int? {
+        guard trigger > 0 else { return nil }
         let earliest = max(0, trigger - reach)
         let earliestPhraseAnchor = max(0, trigger - repeatedPhraseReach)
         let firstAfter = draft.shape(at: live[restart]).key
