@@ -625,6 +625,31 @@ struct DestructiveCommandTests {
     }
 
     @Test(
+        "gsutil rsync with the delete flag inside a short-flag cluster is destructive.",
+        arguments: [
+            "gsutil rsync -dr src gs://example",
+            "gsutil rsync -rd src gs://example",
+            "gsutil rsync -mdr src gs://example",
+            "gsutil -m rsync -dr src gs://example",
+        ])
+    func gsutilRsyncClusteredDeleteIsDestructive(_ line: String) {
+        #expect(
+            DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be destructive")
+    }
+
+    @Test(
+        "gsutil rsync without the delete flag, including a plain -r cluster, is ordinary.",
+        arguments: [
+            "gsutil rsync -r src gs://example",
+            "gsutil rsync src gs://example",
+            "gsutil -m rsync -r src gs://example",
+        ])
+    func gsutilRsyncWithoutDeleteIsOrdinary(_ line: String) {
+        #expect(
+            !DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be ordinary")
+    }
+
+    @Test(
         "A cloud or hosting tool that only reads or creates is ordinary.",
         arguments: [
             "gh repo view example/demo", "gh release list", "gh pr create --title delete", "gh api repos/o/r",

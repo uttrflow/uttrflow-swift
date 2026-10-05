@@ -301,7 +301,8 @@ public enum DestructiveCommand {
             valued: ["-o", "-h", "-u"],
             destroys: { positionals, arguments in
                 positionals.first == "rm" || positionals.first == "rb"
-                    || (positionals.first == "rsync" && arguments.contains("-d"))
+                    || (positionals.first == "rsync"
+                        && arguments.contains(where: { shortFlags($0, include: "d", valuesAfter: []) }))
             }),
         "docker": containerTool, "podman": containerTool,
         "docker-compose": VerbTool(valued: composeValued, destroys: composeDownDeletesVolumes),
