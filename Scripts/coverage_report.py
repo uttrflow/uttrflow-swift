@@ -280,6 +280,12 @@ OVERSIZED_EXCLUSIONS = {
         "field eligibility is tested in SelectionWriterTests and the pasteboard in "
         "PasteboardMarkerWriteTests and ClipboardAnnouncementTests; the CGEvent typing has no test"
     ),
+    "Uttrflow/Main/HomeHeroView.swift": (
+        "views, mood picture and waveform only; the card's render decisions are tested in HomeHeroViewTests"
+    ),
+    "Uttrflow/MenuBar/MenuBarPopoverView.swift": (
+        "views only; the popover's keyboard, Escape and emptying are tested in MenuBarPanelTests"
+    ),
 }
 
 
