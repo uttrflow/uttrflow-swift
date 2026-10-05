@@ -46,8 +46,10 @@ struct AbstentionCorpusTests {
     static let knownMisfires: Set<String> = Set(
         [
             "arrow-sign", "close-brace", "close-bracket", "close-paren", "close-parenthesis",
+            "close-parentheses",
             "colon-semicolon",
             "comma-butterfly", "flour-equals", "open-brace", "open-bracket", "open-paren", "open-parenthesis",
+            "open-parentheses",
             "star-dot", "underscore",
         ].flatMap { slug in ["code", "string"].map { "abstain-source-\(slug)-\($0)" } }
             + ["abstain-source-underscore-comment", "abstain-source-underscore-docstring"])

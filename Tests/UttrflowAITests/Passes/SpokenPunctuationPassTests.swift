@@ -176,6 +176,35 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned("he said open quote hello there close quote", by: sut) == "he said \"hello there\"")
     }
 
+    /// "quote" opens a quotation only when "unquote", "end quote" or "close quote" closes it later in the sentence.
+    @Test(
+        "reads quote with its closing as a quotation and keeps every other quote a word",
+        arguments: [
+            ("she said quote ready unquote and left", "she said \"ready\" and left"),
+            ("she said quote see you at noon end quote", "she said \"see you at noon\""),
+            ("he wrote quote done close quote", "he wrote \"done\""),
+            ("can you quote me a price", "can you quote me a price"),
+            ("the quote was too high", "the quote was too high"),
+            ("the so called quote unquote expert", "the so called quote unquote expert"),
+            ("call the unquote function", "call the unquote function"),
+        ]
+    )
+    func quoteUnquote(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+    }
+
+    @Test(
+        "writes open and close parentheses as brackets and keeps a mentioned parenthesis",
+        arguments: [
+            ("add the flag open parentheses optional close parentheses", "add the flag (optional)"),
+            ("add the flag open parenthesis optional close parenthesis", "add the flag (optional)"),
+            ("a parenthesis is a curved mark", "a parenthesis is a curved mark"),
+        ]
+    )
+    func parentheses(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+    }
+
     /// A quotation inside a quotation takes the other quote, and each close goes with the quote still open.
     @Test(
         "wraps single and nested quotations to depth two",

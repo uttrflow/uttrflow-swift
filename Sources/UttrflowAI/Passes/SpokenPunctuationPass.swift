@@ -13,6 +13,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Names that are everyday nouns too, so a mid-sentence one is a mark only on positive evidence. See `Docs/cleanup.md`.
     static let ordinaryNames: Set<[String]> = [["comma"], ["colon"], ["dash"]]
 
+    /// Quotation names that are everyday words too: an opening is a mark only with its closing later in the sentence, a closing only inside an open quotation.
+    static let partneredNames: Set<[String]> = [["quote"], ["unquote"]]
+
     /// Romanised Hindi function words that can follow an explicitly spoken mark.
     private static let romanisedHindiEvidence: Set<String> = [
         "aur", "ya", "toh", "phir", "lekin", "par", "ki", "ke", "ka", "ko", "main", "hum", "tum",
@@ -69,7 +72,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     at: position, spanning: found.words.count, in: live, of: draft,
                     reach: MentionGuard.phraseReach, kind: found.placement),
                 !isVerb(found.words, at: position, in: live, of: draft),
-                isPaired(found, at: position, in: live, of: draft, open: openBrackets),
+                isPaired(
+                    found, at: position, in: live, of: draft, open: openBrackets,
+                    quoting: !openQuotes.isEmpty),
                 isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated),
                 isPlaced(
                     found.text, before: position + found.words.count, spanning: found.words.count,
@@ -122,17 +127,21 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         }
     }
 
-    /// A spoken bracket is a mark only as half of a pair around words: an opening needs its closing later in the sentence, a closing needs its opening.
+    /// A spoken bracket, or a partnered name, is a mark only as half of a pair around words: an opening needs its closing later in the sentence, a bracket closing needs its opening.
     private func isPaired(
-        _ command: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, open: [Character]
+        _ command: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, open: [Character],
+        quoting: Bool
     ) -> Bool {
-        guard SpokenCommands.isBracket(command.text), let bracket = command.text.first else { return true }
+        let partnered = Self.partneredNames.contains(command.words)
+        if partnered, command.placement == .closing { return quoting }
+        guard SpokenCommands.isBracket(command.text) || partnered, let bracket = command.text.first
+        else { return true }
         if let opener = WordShape.bracketOpeners[bracket] { return open.last == opener }
         // The closing must leave at least one word between it and the opening.
         var next = position + command.words.count + 1
         while next < live.count, !draft.shape(at: live[next - 2]).endsSentence {
             if SpokenCommands.closings.contains(where: {
-                WordShape.bracketOpeners[$0.text.first ?? " "] == bracket
+                (partnered ? $0.text.first : WordShape.bracketOpeners[$0.text.first ?? " "]) == bracket
                     && draft.spells($0.words, at: next, in: live)
             }) {
                 return true
